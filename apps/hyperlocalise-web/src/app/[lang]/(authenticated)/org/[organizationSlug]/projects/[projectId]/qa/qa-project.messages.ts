@@ -25,6 +25,16 @@ export const qaProjectMessages = defineMessages({
     id: "i/EBft9uxG",
     description: "Project QA run button",
   },
+  runInProgress: {
+    defaultMessage: "A QA scan is already running. Results will refresh when it finishes.",
+    id: "RYm+Dvvove",
+    description: "Project QA concurrent scan response",
+  },
+  viewLastCompleted: {
+    defaultMessage: "View last completed scan",
+    id: "av7mTiSfb9",
+    description: "Project QA action after a failed scan",
+  },
   running: {
     defaultMessage: "Running…",
     id: "Xe3fwkVyh6",

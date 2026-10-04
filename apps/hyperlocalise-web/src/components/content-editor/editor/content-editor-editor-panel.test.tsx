@@ -89,7 +89,7 @@ describe("ContentEditorEditorPanel UI", () => {
 
     renderEditorPanel({ onSaveDraft });
 
-    await user.click(screen.getByRole("button", { name: /Save as draft/i }));
+    await user.click(screen.getByRole("button", { name: /Save draft/i }));
     expect(onSaveDraft).toHaveBeenCalled();
   });
 
@@ -132,7 +132,7 @@ describe("ContentEditorEditorPanel UI", () => {
     const commentsSection = screen.getByText("Comments").closest("section");
     expect(commentsSection).not.toBeNull();
 
-    await user.click(within(commentsSection!).getByRole("button", { name: "Queries" }));
+    await user.click(within(commentsSection!).getByRole("button", { name: "Manage queries" }));
 
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });

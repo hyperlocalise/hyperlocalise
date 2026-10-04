@@ -42,6 +42,7 @@ import {
   useSyncCatSegmentTargetAfterSave,
 } from "./use-content-editor-segment-target";
 import { useContentEditorMutationsMessages } from "./use-content-editor-mutations.messages";
+import { catGroupVariantsQueryKeyRoot } from "../groups/use-content-editor-group-variants";
 
 const INLINE_QUEUE_REFRESH_DELAY_MS = 750;
 
@@ -88,6 +89,18 @@ function resolveCatMutationFileIdentity(
   const resourceType = segment?.resourceType ?? input.contentEditorFile?.provider?.resourceType;
 
   return { sourcePath, externalResourceId, resourceType };
+}
+
+export type ContentEditorGroupSaveScope = { sourcePath: string; sourcePaths?: string[] };
+
+function resolveGroupSave(
+  scope: ContentEditorGroupSaveScope | null | undefined,
+  segment: { occurrenceCount?: number } | undefined,
+  variant: { occurrenceIds: string[] } | undefined,
+) {
+  if (!scope) return null;
+  if (variant) return { ...scope, occurrenceIds: variant.occurrenceIds };
+  return (segment?.occurrenceCount ?? 0) > 1 ? scope : null;
 }
 
 function chunkItems<T>(items: T[], size: number): T[][] {
@@ -195,6 +208,8 @@ export function useContentEditorMutations(input: {
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
   goSvcClient?: GoSvcClient;
+  /** Queue scope for grouped rows. Saves on rows with several occurrences write to all of them. */
+  groupScope?: ContentEditorGroupSaveScope | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -226,10 +241,13 @@ export function useContentEditorMutations(input: {
       deferQueueRefresh?: boolean;
       targetLocale?: string;
       coalesceQueueRefresh?: boolean;
+      /** Saves one translation variant: only these occurrences, identified by one of them. */
+      variant?: { sourcePath: string; occurrenceIds: string[] };
     }) => {
       const segment = input.contentEditorFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
       );
+      const group = resolveGroupSave(input.groupScope, segment, mutationInput.variant);
       // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
       if (segment?.isLocked) {
         throw new Error(
@@ -237,11 +255,9 @@ export function useContentEditorMutations(input: {
         );
       }
 
-      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
-        input,
-        mutationInput.externalStringId,
-        intl,
-      );
+      const { sourcePath, externalResourceId } = mutationInput.variant
+        ? { sourcePath: mutationInput.variant.sourcePath, externalResourceId: undefined }
+        : resolveCatMutationFileIdentity(input, mutationInput.externalStringId, intl);
       const fallback = intl.formatMessage(
         useContentEditorMutationsMessages.failedToSaveTranslation,
       );
@@ -258,6 +274,7 @@ export function useContentEditorMutations(input: {
               externalStringId: mutationInput.externalStringId,
               text: mutationInput.text,
               approve: mutationInput.approve,
+              ...(group ? { group } : {}),
             },
           );
           await captureNativeCatTranslationSideEffectsViaApp({
@@ -305,6 +322,26 @@ export function useContentEditorMutations(input: {
         variables.text,
         translation.isApproved,
       );
+      const segment = input.contentEditorFile?.segments.find(
+        (entry) => entry.externalStringId === variables.externalStringId,
+      );
+      if (resolveGroupSave(input.groupScope, segment, variables.variant)) {
+        // Other occurrences may be open in any layout; refresh every cached target and variant list.
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: [
+              "project-file-content-editor-segment-target",
+              input.organizationSlug,
+              input.projectId,
+            ],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: catGroupVariantsQueryKeyRoot(input.organizationSlug, input.projectId),
+          }),
+        ]);
+        void input.invalidateQueue().catch(() => undefined);
+        return;
+      }
       const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
         input,
         variables.externalStringId,

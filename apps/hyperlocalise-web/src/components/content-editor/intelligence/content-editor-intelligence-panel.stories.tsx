@@ -85,6 +85,8 @@ const meta = {
     showVisualContext: false,
     canEditTranslations: true,
     canLookupFreshContext: true,
+    showMaxLengthEditor: true,
+    onSetMaxLength: fn(),
     teamName: "Product",
   },
 } satisfies Meta<typeof ContentEditorIntelligencePanel>;
@@ -173,6 +175,35 @@ export const ReadOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Use" })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Set character limit" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("spinbutton", { name: "Character limit" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.getByText("No limit")).toBeInTheDocument();
+  },
+};
+
+export const CharacterLimit: Story = {
+  args: {
+    intelligence: {
+      ...contentEditorIntelligenceFixture,
+      maxLength: 32,
+    },
+    targetText: "Short label",
+    onSetMaxLength: fn(),
+  },
+  play: async ({ canvas, args }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Set character limit" }));
+    const input = canvas.getByRole("spinbutton", { name: "Character limit" });
+    await expect(input).toHaveValue(32);
+    await expect(canvas.getByText("11 used")).toBeInTheDocument();
+
+    await userEvent.clear(input);
+    await userEvent.type(input, "24");
+    await userEvent.tab();
+    await expect(args.onSetMaxLength).toHaveBeenCalledWith(24);
   },
 };
 

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   canonicalizeLocale,
   COMMON_LOCALES,
+  getLocaleFlagEmoji,
   getLocaleLabel,
   isRtlLocale,
   normalizeProjectLocalePatch,
@@ -28,6 +29,14 @@ describe("locales", () => {
     expect(COMMON_LOCALES[0]).toBe("en");
     expect(COMMON_LOCALES).toContain("en-US");
     expect(COMMON_LOCALES).toContain("zh-TW");
+  });
+
+  it("maps locales to regional flag emoji", () => {
+    expect(getLocaleFlagEmoji("en-US")).toBe("🇺🇸");
+    expect(getLocaleFlagEmoji("vi")).toBe("🇻🇳");
+    expect(getLocaleFlagEmoji("zh-CN")).toBe("🇨🇳");
+    expect(getLocaleFlagEmoji("fr-FR")).toBe("🇫🇷");
+    expect(getLocaleFlagEmoji("")).toBeNull();
   });
 
   it("canonicalizes BCP-47 tags", () => {

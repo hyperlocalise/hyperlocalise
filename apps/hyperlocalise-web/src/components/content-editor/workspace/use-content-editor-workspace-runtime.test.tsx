@@ -180,6 +180,17 @@ describe("useContentEditorWorkspaceRuntime", () => {
     expect(store.getSegmentView("seg-02")?.targetText).toBe("Suggestion IA");
   });
 
+  it("forwards onSetMaxLength from editing overrides", () => {
+    const onSetMaxLength = vi.fn();
+    const { result } = renderController(undefined, {
+      editing: { onSetMaxLength },
+    });
+
+    expect(result.current.dependencies.editing.onSetMaxLength).toBe(onSetMaxLength);
+    void result.current.dependencies.editing.onSetMaxLength?.("seg-02", 32);
+    expect(onSetMaxLength).toHaveBeenCalledWith("seg-02", 32);
+  });
+
   it("waits for the intelligence panel before running concordance lookup", async () => {
     const lookupSegmentConcordance = vi.fn().mockResolvedValue({
       glossaryTerms: [],

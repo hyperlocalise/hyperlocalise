@@ -59,6 +59,18 @@ import type {
   ContentEditorSegmentCommentInput,
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
+import {
+  isContentEditorGroupingAvailable,
+  isNativeContentEditorFile,
+} from "@/components/content-editor/shared/content-editor-native-project";
+import { ContentEditorGroupingView } from "../groups/content-editor-grouping-view";
+import type {
+  ContentEditorGroupingController,
+  ContentEditorGroupVariantSaveInput,
+} from "../groups/content-editor-grouping-context";
+import { useContentEditorGroupingMode } from "../groups/use-content-editor-grouping-mode";
+import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
+import { groupMessages } from "../groups/content-editor-groups.messages";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
 import {
   attemptCatPageNavigation,
@@ -217,6 +229,26 @@ export function ProjectFileContentEditorWorkspace({
     canWriteDictionaries,
   });
   const showLocaleSelector = !targetLocaleProp && (targetLocales?.length ?? 0) > 0;
+  // Decided before the queue loads so the grouped flag never flips the queue key mid-load.
+  const groupingSupported =
+    !externalResourceId && isContentEditorGroupingAvailable({ provider: null }, sourcePath);
+  const groupingMode = useContentEditorGroupingMode({
+    client: goSvcClient,
+    organizationSlug,
+    projectId,
+    enabled: groupingSupported,
+    initialSegmentKey,
+    navigationGuardRef: resolvedPageNavigationGuardRef,
+  });
+  const isGrouped = groupingSupported && groupingMode.view === "grouped";
+  const groupSourcePaths = useMemo(
+    () =>
+      sourcePathsFilter
+        ?.split(",")
+        .map((path) => path.trim())
+        .filter(Boolean),
+    [sourcePathsFilter],
+  );
 
   const {
     contentEditorQuery,
@@ -242,13 +274,14 @@ export function ProjectFileContentEditorWorkspace({
     externalResourceId,
     resourceType,
     targetLocale,
-    enabled: Boolean(targetLocale),
+    enabled: Boolean(targetLocale) && groupingMode.ready,
     initialQueueFilter,
     initialQueueSort,
     initialSearch,
     pageLimit,
     goSvcClient,
     sourcePaths: sourcePathsFilter,
+    grouped: isGrouped,
   });
 
   useContentEditorWorkspaceQuerySync({
@@ -362,6 +395,12 @@ export function ProjectFileContentEditorWorkspace({
     retainedSegmentIdentityRef,
     invalidateQueue,
     goSvcClient,
+    groupScope: isGrouped
+      ? {
+          sourcePath,
+          ...(groupSourcePaths?.length ? { sourcePaths: groupSourcePaths } : {}),
+        }
+      : null,
   });
 
   const workspaceState = useMemo(() => {
@@ -427,7 +466,7 @@ export function ProjectFileContentEditorWorkspace({
     [goSvcClient, intl, qaPolicy, sourcePath, spellcheckDictionary.acceptedWords],
   );
 
-  const isNativeProject = !contentEditorFile?.provider;
+  const isNativeProject = isNativeContentEditorFile(contentEditorFile);
   const glossaryTermsForQaGate = useCallback(
     async (sourceText: string, targetLocale: string): Promise<ContentEditorGlossaryTerm[]> => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -509,6 +548,14 @@ export function ProjectFileContentEditorWorkspace({
       spellcheckDictionary.acceptedWords,
     ],
   );
+  const assertSingleTargetSaveAllowed = useCallback(
+    (segment: { occurrenceCount?: number; divergentLocales?: string[] }, locale: string) => {
+      if (isGrouped && isGroupTranslationDivergent(segment, locale)) {
+        throw new Error(intl.formatMessage(groupMessages.divergentSaveBlocked));
+      }
+    },
+    [intl, isGrouped],
+  );
   const { runQaChecks } = useCatScanFindings({
     organizationSlug,
     projectId,
@@ -575,7 +622,10 @@ export function ProjectFileContentEditorWorkspace({
         return "reviewed" as const;
       }
 
-      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
+      if (segment) {
+        assertSingleTargetSaveAllowed(segment, targetLocale);
+        await assertQaSaveAllowed(segment, targetLocale, targetText);
+      }
       const translation = await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -596,6 +646,7 @@ export function ProjectFileContentEditorWorkspace({
       targetLocale,
       goSvcClient,
       assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
     ],
   );
 
@@ -610,7 +661,10 @@ export function ProjectFileContentEditorWorkspace({
       const segment = contentEditorFile.segments.find(
         (entry) => entry.externalStringId === segmentId,
       );
-      if (segment) await assertQaSaveAllowed(segment, targetLocale, targetText);
+      if (segment) {
+        assertSingleTargetSaveAllowed(segment, targetLocale);
+        await assertQaSaveAllowed(segment, targetLocale, targetText);
+      }
       await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
@@ -618,7 +672,14 @@ export function ProjectFileContentEditorWorkspace({
       });
       return "needs_review" as const;
     },
-    [assertQaSaveAllowed, contentEditorFile, intl, saveTranslation, targetLocale],
+    [
+      assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
+      contentEditorFile,
+      intl,
+      saveTranslation,
+      targetLocale,
+    ],
   );
 
   const handleAddComment = useCallback(
@@ -952,6 +1013,7 @@ export function ProjectFileContentEditorWorkspace({
             intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
           );
         }
+        assertSingleTargetSaveAllowed(segment, locale);
         await assertQaSaveAllowed(segment, locale, text);
         await saveTranslation({
           externalStringId: segment.id,
@@ -976,6 +1038,7 @@ export function ProjectFileContentEditorWorkspace({
       intl,
       saveTranslation,
       assertQaSaveAllowed,
+      assertSingleTargetSaveAllowed,
       isNativeProject,
       organizationSlug,
       projectId,
@@ -993,6 +1056,63 @@ export function ProjectFileContentEditorWorkspace({
     ],
   );
 
+  const saveGroupVariant = useCallback(
+    async ({ segment, locale, occurrences, text, approve }: ContentEditorGroupVariantSaveInput) => {
+      if (!contentEditorFile?.canEditTranslations) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
+      }
+      const [representative] = occurrences;
+      if (!representative) return;
+      await assertQaSaveAllowed(segment, locale, text);
+      await saveTranslation({
+        externalStringId: representative.id,
+        targetLocale: locale,
+        text,
+        approve,
+        variant: {
+          sourcePath: representative.sourcePath,
+          occurrenceIds: occurrences.map((occurrence) => occurrence.id),
+        },
+      });
+    },
+    [assertQaSaveAllowed, contentEditorFile?.canEditTranslations, intl, saveTranslation],
+  );
+  const canEditTranslations = Boolean(contentEditorFile?.canEditTranslations);
+  const showGroupingControls =
+    groupingSupported && (!contentEditorFile || isNativeContentEditorFile(contentEditorFile));
+  const grouping = useMemo<ContentEditorGroupingController | null>(
+    () =>
+      showGroupingControls
+        ? {
+            view: groupingMode.view,
+            preference: groupingMode.preference,
+            changeView: groupingMode.changeView,
+            client: goSvcClient,
+            organizationSlug,
+            projectId,
+            sourcePath,
+            ...(sourcePathsFilter ? { sourcePaths: sourcePathsFilter } : {}),
+            canEdit: canEditTranslations,
+            saveVariant: saveGroupVariant,
+          }
+        : null,
+    [
+      canEditTranslations,
+      goSvcClient,
+      groupingMode.changeView,
+      groupingMode.preference,
+      groupingMode.view,
+      organizationSlug,
+      projectId,
+      saveGroupVariant,
+      showGroupingControls,
+      sourcePath,
+      sourcePathsFilter,
+    ],
+  );
+
   if (showLocaleSelector && (targetLocales?.length ?? 0) === 0) {
     return (
       <TypographyP size="small" tone="subtle">
@@ -1003,12 +1123,12 @@ export function ProjectFileContentEditorWorkspace({
 
   const isFullscreen = layout === "fullscreen";
 
+  const isQueueLoading =
+    (contentEditorQuery.isLoading || !groupingMode.ready) && !contentEditorFile;
   const isQueueDataPending =
-    isSearchPending ||
-    (contentEditorQuery.isLoading && !contentEditorFile) ||
-    contentEditorQuery.isPlaceholderData;
-  const isQueueListLoading = contentEditorQuery.isLoading && !contentEditorFile;
-  const isTranslationViewLoading = contentEditorQuery.isLoading && !contentEditorFile;
+    isSearchPending || isQueueLoading || contentEditorQuery.isPlaceholderData;
+  const isQueueListLoading = isQueueLoading;
+  const isTranslationViewLoading = isQueueLoading;
 
   if (contentEditorQuery.isError) {
     return (
@@ -1107,122 +1227,128 @@ export function ProjectFileContentEditorWorkspace({
               </div>
             ) : null}
 
-            <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
-              <ContentEditorWorkspaceContainer
-                multilingual={multilingual}
-                initialState={workspaceForRender}
-                queueSnapshot={workspaceState}
-                fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
-                pageNavigationGuardRef={resolvedPageNavigationGuardRef}
-                adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
-                lazySegment={{
-                  organizationSlug,
-                  projectId,
-                  sourcePath,
-                  targetLocale,
-                  externalResourceId,
-                  resourceType,
-                  contentEditorFile,
-                  retainedSegmentIdentityRef,
-                  enabled: Boolean(contentEditorFile),
-                }}
-                className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
-                navigation={{}}
-                editing={{
-                  onTreatAsImage: async (segmentId, nextTreatAsImage) => {
-                    await treatAsImage({
-                      externalStringId: segmentId,
-                      treatAsImage: nextTreatAsImage,
-                    });
-                  },
-                  ...(isNativeProject
-                    ? {
-                        onTreatAsVideo: async (segmentId: string, nextTreatAsVideo: boolean) => {
-                          await treatAsVideo({
-                            externalStringId: segmentId,
-                            treatAsVideo: nextTreatAsVideo,
-                          });
-                        },
-                        ...(aiFeaturesAllowed
-                          ? {
-                              onRegenerateImage: async (segmentId, options) => {
-                                await regenerateImage({
-                                  externalStringId: segmentId,
-                                  instructions: options?.instructions,
-                                  force: options?.force,
-                                });
-                              },
-                            }
-                          : {}),
-                        onSetMaxLength: handleSetMaxLength,
-                      }
-                    : {}),
-                  onUploadImage: async (segmentId, file) => {
-                    await uploadImage({ externalStringId: segmentId, file });
-                  },
-                }}
-                services={{
-                  validateFormat,
-                  runQaChecks,
-                  lookupSegmentConcordance,
-                  lookupSegmentContext,
-                  lookupSegmentVisualContext:
-                    contentEditorFile?.provider?.kind &&
-                    contentEditorFile.provider.kind !== "native"
-                      ? lookupSegmentVisualContext
-                      : undefined,
-                  generateAiRecommendation:
-                    aiFeaturesAccess.status === "allowed" ? generateAiRecommendation : undefined,
-                }}
-                review={{
-                  onApprove: handleApprove,
-                  onBulkApproveComplete: invalidateQueue,
-                  onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
-                  onAddComment: handleAddComment,
-                  onAddToIssueSheet: handleAddToIssueSheet,
-                  onResolveComment:
-                    contentEditorFile?.provider?.kind === "crowdin"
-                      ? handleResolveComment
-                      : undefined,
-                  ...(canHideNativeStrings || contentEditorFile?.provider?.kind === "crowdin"
-                    ? {
-                        onBulkHide: (segmentIds: string[]) =>
-                          handleSetStringsHidden(segmentIds, true),
-                        onBulkUnhide: (segmentIds: string[]) =>
-                          handleSetStringsHidden(segmentIds, false),
-                      }
-                    : {}),
-                  onSetLocked: handleSetStringsLocked,
-                  onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
-                  onBulkUnlock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, false),
-                }}
-                initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
-                buildSegmentShareUrl={buildSegmentShareUrl}
-                queueSearch={search}
-                onQueueSearchChange={setSearch}
-                queueFilter={queueFilter}
-                onQueueFilterChange={setQueueFilter}
-                availableQueueFilters={availableQueueFilters}
-                queueSort={queueSort}
-                onQueueSortChange={setQueueSort}
-                availableQueueSorts={availableQueueSorts}
-                isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
-                isQueueFetchingPage={isFetchingPage}
-                isQueueListLoading={isQueueListLoading}
-                isQueueDataPending={isQueueDataPending}
-                isTranslationViewLoading={isTranslationViewLoading}
-                isImageBusy={isImageBusy}
-                isMaxLengthSaving={isSavingMaxLength}
-                queuePagination={pagination}
-                onLoadMoreQueue={loadNextPage}
-                hasMoreQueue={pagination?.hasMore ?? false}
-                canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
-                onPageLimitChange={setPageLimit}
-                nativeIssuesEnabled={isNativeProject}
-                onDownloadFilteredView={handleDownloadFilteredView}
-                isDownloadingFilteredView={isExporting}
-              />
-            </AiFeaturesUpgradeHrefProvider>
+            <ContentEditorGroupingView grouping={grouping} targetLocale={targetLocale}>
+              <AiFeaturesUpgradeHrefProvider value={upgradePlanHref}>
+                <ContentEditorWorkspaceContainer
+                  multilingual={multilingual}
+                  initialState={workspaceForRender}
+                  queueSnapshot={workspaceState}
+                  fileScopeKey={`${sourcePath}:${externalResourceId ?? "source-path"}:${targetLocale}`}
+                  pageNavigationGuardRef={resolvedPageNavigationGuardRef}
+                  adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
+                  lazySegment={{
+                    organizationSlug,
+                    projectId,
+                    sourcePath,
+                    targetLocale,
+                    externalResourceId,
+                    resourceType,
+                    contentEditorFile,
+                    retainedSegmentIdentityRef,
+                    enabled: Boolean(contentEditorFile),
+                  }}
+                  className={cn(
+                    "min-h-0 flex-1",
+                    isFullscreen && "rounded-lg border border-border",
+                  )}
+                  navigation={{}}
+                  editing={{
+                    onTreatAsImage: async (segmentId, nextTreatAsImage) => {
+                      await treatAsImage({
+                        externalStringId: segmentId,
+                        treatAsImage: nextTreatAsImage,
+                      });
+                    },
+                    ...(isNativeProject
+                      ? {
+                          onTreatAsVideo: async (segmentId: string, nextTreatAsVideo: boolean) => {
+                            await treatAsVideo({
+                              externalStringId: segmentId,
+                              treatAsVideo: nextTreatAsVideo,
+                            });
+                          },
+                          ...(aiFeaturesAllowed
+                            ? {
+                                onRegenerateImage: async (segmentId, options) => {
+                                  await regenerateImage({
+                                    externalStringId: segmentId,
+                                    instructions: options?.instructions,
+                                    force: options?.force,
+                                  });
+                                },
+                              }
+                            : {}),
+                          onSetMaxLength: handleSetMaxLength,
+                        }
+                      : {}),
+                    onUploadImage: async (segmentId, file) => {
+                      await uploadImage({ externalStringId: segmentId, file });
+                    },
+                  }}
+                  services={{
+                    validateFormat,
+                    runQaChecks,
+                    lookupSegmentConcordance,
+                    lookupSegmentContext,
+                    lookupSegmentVisualContext:
+                      contentEditorFile?.provider?.kind &&
+                      contentEditorFile.provider.kind !== "native"
+                        ? lookupSegmentVisualContext
+                        : undefined,
+                    generateAiRecommendation:
+                      aiFeaturesAccess.status === "allowed" ? generateAiRecommendation : undefined,
+                  }}
+                  review={{
+                    onApprove: handleApprove,
+                    onBulkApproveComplete: invalidateQueue,
+                    onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
+                    onAddComment: handleAddComment,
+                    onAddToIssueSheet: handleAddToIssueSheet,
+                    onResolveComment:
+                      contentEditorFile?.provider?.kind === "crowdin"
+                        ? handleResolveComment
+                        : undefined,
+                    ...(canHideNativeStrings || contentEditorFile?.provider?.kind === "crowdin"
+                      ? {
+                          onBulkHide: (segmentIds: string[]) =>
+                            handleSetStringsHidden(segmentIds, true),
+                          onBulkUnhide: (segmentIds: string[]) =>
+                            handleSetStringsHidden(segmentIds, false),
+                        }
+                      : {}),
+                    onSetLocked: handleSetStringsLocked,
+                    onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
+                    onBulkUnlock: (segmentIds: string[]) =>
+                      handleSetStringsLocked(segmentIds, false),
+                  }}
+                  initialSegmentKeyOrId={openedSegmentKey ?? initialSegmentKey}
+                  buildSegmentShareUrl={buildSegmentShareUrl}
+                  queueSearch={search}
+                  onQueueSearchChange={setSearch}
+                  queueFilter={queueFilter}
+                  onQueueFilterChange={setQueueFilter}
+                  availableQueueFilters={availableQueueFilters}
+                  queueSort={queueSort}
+                  onQueueSortChange={setQueueSort}
+                  availableQueueSorts={availableQueueSorts}
+                  isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
+                  isQueueFetchingPage={isFetchingPage}
+                  isQueueListLoading={isQueueListLoading}
+                  isQueueDataPending={isQueueDataPending}
+                  isTranslationViewLoading={isTranslationViewLoading}
+                  isImageBusy={isImageBusy}
+                  isMaxLengthSaving={isSavingMaxLength}
+                  queuePagination={pagination}
+                  onLoadMoreQueue={loadNextPage}
+                  hasMoreQueue={pagination?.hasMore ?? false}
+                  canLookupFreshContext={aiFeaturesAllowed && canLookupFreshContext}
+                  onPageLimitChange={setPageLimit}
+                  nativeIssuesEnabled={isNativeProject}
+                  onDownloadFilteredView={handleDownloadFilteredView}
+                  isDownloadingFilteredView={isExporting}
+                />
+              </AiFeaturesUpgradeHrefProvider>
+            </ContentEditorGroupingView>
             <ContentEditorLinkedIssuesDialog
               open={linkedIssuesOpen}
               onOpenChange={setLinkedIssuesOpen}

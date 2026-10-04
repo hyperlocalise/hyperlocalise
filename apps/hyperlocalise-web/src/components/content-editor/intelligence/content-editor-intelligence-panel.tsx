@@ -18,8 +18,13 @@ import {
   BookOpenTextIcon,
   BulbIcon,
   Cancel01Icon,
+  Database01Icon,
+  File01Icon,
   RefreshIcon,
+  SearchList01Icon,
+  TextFontIcon,
 } from "@hugeicons/core-free-icons";
+import type { IconSvgElement } from "@hugeicons/react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -42,6 +47,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
+import { countRunes } from "@/lib/qa/count-runes";
 import { DEFAULT_WORKSPACE_TEAM_SLUG } from "@/lib/teams/default-workspace-team-constants";
 
 import {
@@ -69,11 +75,20 @@ import {
 } from "./content-editor-team-glossary";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS,
   setCatGlossaryGuidanceStatus,
 } from "./content-editor-glossary-guidance-event";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { ContentEditorLottieContextPanel } from "./content-editor-lottie-context-panel";
+import {
+  ContentEditorExpandableContent,
+  ContentEditorShowLessButton,
+  ContentEditorShowMoreFade,
+} from "./content-editor-show-more-fade";
 import { ContentEditorVisualContextPanel } from "./content-editor-visual-context-panel";
+
+const EMPTY_CONTRIBUTOR_TEAMS: ContentEditorContributorTeam[] = [];
+const EMPTY_TEAM_GLOSSARIES: ContentEditorTeamGlossaryOption[] = [];
 
 function GlossaryGuidanceEmptyState({ sourceText }: { sourceText: string }) {
   const source = emptyStateSourceLabel(sourceText);
@@ -110,29 +125,41 @@ function GlossaryGuidanceEmptyState({ sourceText }: { sourceText: string }) {
 
 function PanelSection({
   title,
+  icon,
   action,
+  badge,
+  padded = true,
   children,
 }: {
   title: string;
+  icon?: IconSvgElement;
   action?: ReactNode;
+  badge?: ReactNode;
+  padded?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+    <section className="overflow-hidden rounded-xl border border-border bg-background">
+      <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
+        {icon ? (
+          <HugeiconsIcon
+            icon={icon}
+            className="size-3.5 shrink-0 text-muted-foreground"
+            strokeWidth={1.8}
+          />
+        ) : null}
+        <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</h3>
+        {badge}
         {action}
       </div>
-      {children}
+      <div className={padded ? "px-3.5 py-3" : undefined}>{children}</div>
     </section>
   );
 }
 
-const intelligenceMutedPanelClassName = "overflow-hidden rounded-2xl bg-muted px-3.5 py-3";
-
 function ConcordanceSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl bg-muted p-3.5">
+    <div className="space-y-3 p-3.5">
       <Skeleton className="h-4 w-32 rounded-full bg-skeleton" />
       <Skeleton className="h-4 w-full rounded-full bg-skeleton" />
       <Skeleton className="h-4 w-10/12 rounded-full bg-skeleton" />
@@ -188,9 +215,9 @@ function tmMatchBadgeTone(matchKind: ContentEditorTmMatchKind | undefined) {
   switch (matchKind) {
     case "exact":
     case "context":
-      return "border-grove-300/25 bg-grove-300/10 text-grove-300";
+      return "border-grove-700/40 bg-grove-100 text-grove-900";
     default:
-      return "border-bud-500/25 bg-bud-500/10 text-bud-300";
+      return "border-beam-700/40 bg-beam-100 text-beam-900";
   }
 }
 
@@ -227,35 +254,88 @@ function TranslationMemoryRow({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span
             className={cn(
-              "rounded-full border px-2 py-0.5 text-[11px] font-medium tabular-nums",
+              "rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums",
               tmMatchBadgeTone(match.matchKind),
             )}
           >
             {tmMatchBadgeLabel(match, intl)}
           </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
           {match.contextLabel ? (
-            <span className="max-w-28 truncate text-xs text-muted-foreground">
+            <span className="max-w-36 truncate text-xs text-subtle-foreground">
               {match.contextLabel}
             </span>
           ) : null}
-          {onUse ? (
-            <Button variant="ghost" size="sm" onClick={() => onUse(match)}>
-              <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
-            </Button>
-          ) : null}
         </div>
+        {onUse ? (
+          <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={() => onUse(match)}>
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.useTmMatch} />
+          </Button>
+        ) : null}
       </div>
       <div className="space-y-1">
-        <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-          {formatInternalMarkupForDisplay(match.sourceText)}
-        </p>
         <p className="text-pretty text-sm leading-relaxed text-foreground">
           {formatInternalMarkupForDisplay(match.targetText)}
         </p>
+        <p className="text-pretty text-xs leading-relaxed text-subtle-foreground">
+          {formatInternalMarkupForDisplay(match.sourceText)}
+        </p>
       </div>
     </li>
+  );
+}
+
+const TM_COLLAPSED_MATCH_COUNT = 2;
+
+function TranslationMemoryMatchList({
+  matches,
+  onUse,
+}: {
+  matches: ContentEditorTranslationMemoryMatch[];
+  onUse?: (match: ContentEditorTranslationMemoryMatch) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hiddenCount = matches.length - TM_COLLAPSED_MATCH_COUNT;
+  const canCollapse = hiddenCount > 0;
+  const visibleMatches =
+    canCollapse && !isExpanded ? matches.slice(0, TM_COLLAPSED_MATCH_COUNT) : matches;
+  const peekMatch = canCollapse && !isExpanded ? matches[TM_COLLAPSED_MATCH_COUNT] : undefined;
+
+  return (
+    <>
+      <ul className="divide-y divide-border">
+        {visibleMatches.map((match) => (
+          <TranslationMemoryRow key={match.id} match={match} onUse={onUse} />
+        ))}
+      </ul>
+      {peekMatch ? (
+        <div className="relative h-20 overflow-hidden border-t border-border">
+          <ul aria-hidden inert className="pointer-events-none select-none">
+            <TranslationMemoryRow match={peekMatch} />
+          </ul>
+          <ContentEditorShowMoreFade
+            className="inset-y-0 h-auto pb-2.5"
+            label={
+              <FormattedMessage
+                {...contentEditorIntelligencePanelMessages.translationMemoryShowMore}
+                values={{ count: hiddenCount }}
+              />
+            }
+            onClick={() => setIsExpanded(true)}
+          />
+        </div>
+      ) : null}
+      {canCollapse && isExpanded ? (
+        <ContentEditorShowLessButton
+          className="border-t border-border py-2"
+          label={
+            <FormattedMessage
+              {...contentEditorIntelligencePanelMessages.translationMemoryShowLess}
+            />
+          }
+          onClick={() => setIsExpanded(false)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -269,9 +349,9 @@ export function ContentEditorIntelligencePanel({
   targetLocale,
   organizationSlug,
   projectId,
-  contributorTeams = [],
+  contributorTeams = EMPTY_CONTRIBUTOR_TEAMS,
   projectTeamId,
-  teamGlossaries = [],
+  teamGlossaries = EMPTY_TEAM_GLOSSARIES,
   canContributeTeamGlossary = false,
   teamName,
   projectTeamSlug,
@@ -285,10 +365,12 @@ export function ContentEditorIntelligencePanel({
   canEditTranslations = true,
   isTranslationLocked = false,
   canLookupFreshContext = true,
+  embedded = false,
   onRefreshContext,
   onUseTmMatch,
   onSetMaxLength,
   onGlossaryTermAdded,
+  headerAction,
   scrollToTm = false,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
@@ -316,10 +398,12 @@ export function ContentEditorIntelligencePanel({
   canEditTranslations?: boolean;
   isTranslationLocked?: boolean;
   canLookupFreshContext?: boolean;
+  embedded?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: ContentEditorTranslationMemoryMatch) => void;
   onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   onGlossaryTermAdded?: () => void;
+  headerAction?: ReactNode;
   /**
    * When true, the panel scrolls to the Translation Memory section on mount.
    * Enabled in Translator persona so TM matches are immediately visible.
@@ -431,27 +515,29 @@ export function ContentEditorIntelligencePanel({
       ).length,
     };
   }, [visibleGlossaryConcepts]);
+  const firstVisibleGlossaryConceptId = visibleGlossaryConcepts[0]?.id;
   const [expandedGlossaryConceptIds, setExpandedGlossaryConceptIds] = useState<Set<string>>(
-    () => new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
+    () => new Set(firstVisibleGlossaryConceptId ? [firstVisibleGlossaryConceptId] : []),
   );
 
   useEffect(() => {
     setExpandedGlossaryConceptIds(
-      new Set(visibleGlossaryConcepts[0] ? [visibleGlossaryConcepts[0].id] : []),
+      new Set(firstVisibleGlossaryConceptId ? [firstVisibleGlossaryConceptId] : []),
     );
-  }, [glossaryConceptKey, visibleGlossaryConcepts]);
+  }, [glossaryConceptKey, firstVisibleGlossaryConceptId]);
 
+  const { matchCount, preferredCount, notRecommendedCount } = glossaryGuidanceStatus;
   useEffect(() => {
     setCatGlossaryGuidanceStatus(
       isConcordanceLoading
-        ? { preferredCount: 0, notRecommendedCount: 0, matchCount: 0 }
-        : glossaryGuidanceStatus,
+        ? EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS
+        : { matchCount, preferredCount, notRecommendedCount },
     );
 
     return () => {
-      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0, matchCount: 0 });
+      setCatGlossaryGuidanceStatus(EMPTY_CAT_GLOSSARY_GUIDANCE_STATUS);
     };
-  }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
+  }, [isConcordanceLoading, matchCount, preferredCount, notRecommendedCount]);
 
   useEffect(() => {
     if (isTranslationLocked) {
@@ -548,22 +634,95 @@ export function ContentEditorIntelligencePanel({
   const showGlobalEmpty =
     !isConcordanceLoading && visibleGlossaryConcepts.length === 0 && !hasTeamSections;
 
+  const canEditMaxLength = canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength);
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-border">
-      <div className="border-b border-border px-4 py-3">
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col bg-background",
+        embedded ? "" : "lg:border-l lg:border-border",
+      )}
+    >
+      <div className={cn("px-4 py-3", embedded ? "pt-3" : "border-b border-border")}>
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={BulbIcon} className="size-4 text-bud-300" />
-          <h2 className="text-sm font-semibold text-foreground">
+          <HugeiconsIcon icon={BulbIcon} className="size-4 text-beam-700" />
+          <h2 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
             <FormattedMessage {...contentEditorIntelligencePanelMessages.panelTitle} />
           </h2>
+          {headerAction}
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          <FormattedMessage {...contentEditorIntelligencePanelMessages.panelDescription} />
-        </p>
+        {embedded ? null : (
+          <p className="mt-1 text-xs text-subtle-foreground">
+            <FormattedMessage {...contentEditorIntelligencePanelMessages.panelDescription} />
+          </p>
+        )}
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-5 p-4">
+        <div className="space-y-3 p-4">
+          <PanelSection
+            title={intl.formatMessage(contentEditorIntelligencePanelMessages.fileContextTitle)}
+            icon={File01Icon}
+          >
+            {hasFileContext ? (
+              <ContentEditorExpandableContent key={segmentId ?? segmentKey ?? "__default__"}>
+                <MarkdownContent
+                  value={intelligence.productMeaning ?? ""}
+                  contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground"
+                  ariaLabel={intl.formatMessage(
+                    contentEditorIntelligencePanelMessages.fileContextAria,
+                  )}
+                />
+              </ContentEditorExpandableContent>
+            ) : (
+              <p className="text-sm leading-relaxed text-subtle-foreground">
+                <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
+              </p>
+            )}
+          </PanelSection>
+
+          {isConcordanceLoading ? (
+            <div ref={tmSectionRef}>
+              <PanelSection
+                title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
+                icon={Database01Icon}
+                padded={false}
+              >
+                <ConcordanceSkeleton />
+              </PanelSection>
+            </div>
+          ) : null}
+
+          {!isConcordanceLoading &&
+          intelligence.translationMemoryMatches &&
+          intelligence.translationMemoryMatches.length > 0 ? (
+            <div ref={tmSectionRef}>
+              <PanelSection
+                title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
+                icon={Database01Icon}
+                padded={false}
+                badge={
+                  <Badge variant="success" className="h-5 px-1.5 text-[10px] font-medium">
+                    {intl.formatMessage(
+                      contentEditorIntelligencePanelMessages.translationMemoryMatchCount,
+                      { count: intelligence.translationMemoryMatches.length },
+                    )}
+                  </Badge>
+                }
+              >
+                <TranslationMemoryMatchList
+                  key={segmentId ?? segmentKey ?? "__default__"}
+                  matches={intelligence.translationMemoryMatches}
+                  onUse={
+                    canEditTranslations && !isTranslationLocked && onUseTmMatch
+                      ? handleUseTmMatch
+                      : undefined
+                  }
+                />
+              </PanelSection>
+            </div>
+          ) : null}
+
           <ContentEditorVisualContextPanel
             visualContext={intelligence.visualContext}
             isLoading={isVisualContextLoading}
@@ -575,47 +734,30 @@ export function ContentEditorIntelligencePanel({
           {showMaxLengthEditor ? (
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthTitle)}
+              icon={TextFontIcon}
             >
-              <div className={intelligenceMutedPanelClassName}>
-                <ContentEditorSegmentMaxLengthEditor
-                  maxLength={intelligence.maxLength}
-                  canEdit={canEditTranslations && !isTranslationLocked && Boolean(onSetMaxLength)}
-                  isSaving={isMaxLengthSaving}
-                  onSave={onSetMaxLength ?? (async () => undefined)}
-                />
-              </div>
+              <ContentEditorSegmentMaxLengthEditor
+                maxLength={intelligence.maxLength}
+                canEdit={canEditMaxLength}
+                isSaving={isMaxLengthSaving}
+                characterCount={countRunes(targetText)}
+                onSave={async (maxLength) => {
+                  await (onSetMaxLength ?? (async () => undefined))(maxLength);
+                }}
+              />
             </PanelSection>
           ) : null}
-
-          <PanelSection
-            title={intl.formatMessage(contentEditorIntelligencePanelMessages.fileContextTitle)}
-          >
-            <div className={intelligenceMutedPanelClassName}>
-              {hasFileContext ? (
-                <MarkdownContent
-                  value={intelligence.productMeaning ?? ""}
-                  contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground"
-                  ariaLabel={intl.formatMessage(
-                    contentEditorIntelligencePanelMessages.fileContextAria,
-                  )}
-                />
-              ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  <FormattedMessage {...contentEditorIntelligencePanelMessages.noFileContext} />
-                </p>
-              )}
-            </div>
-          </PanelSection>
 
           {showAgentContext ? (
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.agentContextTitle)}
+              icon={SearchList01Icon}
               action={
                 canRefreshAgentContext ? (
                   <Button
                     type="button"
                     variant="ghost"
-                    className="-mr-2 size-8 p-0 text-muted-foreground hover:text-foreground"
+                    className="-mr-1.5 size-7 p-0 text-muted-foreground hover:text-foreground"
                     onClick={onRefreshContext}
                     disabled={isLookingUpContext}
                     title={intl.formatMessage(contentEditorEditorPanelMessages.refreshContextTitle)}
@@ -623,15 +765,15 @@ export function ContentEditorIntelligencePanel({
                       contentEditorEditorPanelMessages.refreshContextTitle,
                     )}
                   >
-                    <HugeiconsIcon icon={RefreshIcon} className="size-4" strokeWidth={1.8} />
+                    <HugeiconsIcon icon={RefreshIcon} className="size-3.5" strokeWidth={1.8} />
                   </Button>
                 ) : null
               }
             >
-              <div className={intelligenceMutedPanelClassName}>
-                {isLookingUpContext ? (
-                  <AgentContextSkeleton />
-                ) : hasAgentContext ? (
+              {isLookingUpContext ? (
+                <AgentContextSkeleton />
+              ) : hasAgentContext ? (
+                <ContentEditorExpandableContent key={segmentId ?? segmentKey ?? "__default__"}>
                   <div className="space-y-3">
                     {hasAgentInsight ? (
                       <div className="min-h-[1.25rem] space-y-2">
@@ -673,51 +815,15 @@ export function ContentEditorIntelligencePanel({
                       </div>
                     ) : null}
                   </div>
-                ) : (
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    <FormattedMessage
-                      {...contentEditorIntelligencePanelMessages.noRepositoryContext}
-                    />
-                  </p>
-                )}
-              </div>
+                </ContentEditorExpandableContent>
+              ) : (
+                <p className="text-sm leading-relaxed text-subtle-foreground">
+                  <FormattedMessage
+                    {...contentEditorIntelligencePanelMessages.noRepositoryContext}
+                  />
+                </p>
+              )}
             </PanelSection>
-          ) : null}
-
-          {isConcordanceLoading ? (
-            <div ref={tmSectionRef}>
-              <PanelSection
-                title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
-              >
-                <ConcordanceSkeleton />
-              </PanelSection>
-            </div>
-          ) : null}
-
-          {!isConcordanceLoading &&
-          intelligence.translationMemoryMatches &&
-          intelligence.translationMemoryMatches.length > 0 ? (
-            <div ref={tmSectionRef}>
-              <PanelSection
-                title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
-              >
-                <div className="overflow-hidden rounded-2xl bg-muted">
-                  <ul className="divide-y divide-border">
-                    {intelligence.translationMemoryMatches.map((match) => (
-                      <TranslationMemoryRow
-                        key={match.id}
-                        match={match}
-                        onUse={
-                          canEditTranslations && !isTranslationLocked && onUseTmMatch
-                            ? handleUseTmMatch
-                            : undefined
-                        }
-                      />
-                    ))}
-                  </ul>
-                </div>
-              </PanelSection>
-            </div>
           ) : null}
         </div>
       </ScrollArea>

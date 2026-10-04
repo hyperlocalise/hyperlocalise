@@ -19,6 +19,11 @@ import { ContentEditorSegmentDraft } from "./content-editor-segment-draft";
 import { ContentEditorSegmentStore } from "./content-editor-segment-store";
 import { ContentEditorWorkspaceUiStore } from "./content-editor-workspace-ui-store";
 import { ContentEditorWorkspaceOrchestrator } from "../content-editor-workspace-orchestrator";
+import {
+  CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY,
+  CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY,
+} from "../content-editor-workspace-panel-state";
+import { CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY } from "../content-editor-workspace-view-mode";
 
 const queueSegments = [
   { id: "seg-01", index: 1, key: "first", sourceText: "First" },
@@ -353,7 +358,7 @@ describe("ContentEditorWorkspaceUiStore", () => {
     expect(ui.loadSideBySideSegmentIds).toEqual([]);
   });
 
-  it("honors an explicit initial view mode without reading storage", () => {
+  it("honors an explicit initial view mode without reading the stored view mode", () => {
     const getItem = vi.fn().mockReturnValue("side-by-side");
     vi.stubGlobal("localStorage", { getItem, setItem: vi.fn() });
 
@@ -362,7 +367,63 @@ describe("ContentEditorWorkspaceUiStore", () => {
 
       expect(ui.viewMode).toBe("comfortable");
       expect(ui.isSideBySideView).toBe(false);
-      expect(getItem).not.toHaveBeenCalled();
+      expect(getItem).not.toHaveBeenCalledWith(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("persists files and details panel collapse state", () => {
+    const store = new Map<string, string>();
+    const setItem = vi.fn((key: string, value: string) => store.set(key, value));
+    vi.stubGlobal("localStorage", { getItem: (key: string) => store.get(key) ?? null, setItem });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+
+      expect(ui.filesPanelCollapsed).toBe(false);
+      expect(ui.detailsPanelCollapsed).toBe(false);
+
+      ui.toggleFilesPanel();
+      ui.toggleDetailsPanel();
+
+      expect(ui.filesPanelCollapsed).toBe(true);
+      expect(ui.detailsPanelCollapsed).toBe(true);
+      expect(setItem).toHaveBeenCalledWith(CAT_FILES_PANEL_COLLAPSED_STORAGE_KEY, "true");
+      expect(setItem).toHaveBeenCalledWith(CAT_DETAILS_PANEL_COLLAPSED_STORAGE_KEY, "true");
+
+      expect(new ContentEditorWorkspaceUiStore("comfortable").filesPanelCollapsed).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("expands the details panel when QA details are revealed", () => {
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem: vi.fn() });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("side-by-side");
+      ui.setDetailsPanelCollapsed(true);
+
+      ui.revealQaDetails();
+
+      expect(ui.detailsPanelCollapsed).toBe(false);
+      expect(ui.qaDetailsRevealNonce).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("skips persistence when collapse state is applied transiently", () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", { getItem: vi.fn(), setItem });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore("comfortable");
+      ui.setFilesPanelCollapsed(true, { persist: false });
+
+      expect(ui.filesPanelCollapsed).toBe(true);
+      expect(setItem).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }

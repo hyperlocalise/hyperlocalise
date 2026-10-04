@@ -14,8 +14,6 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
-  FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
-  FILE_TRANSLATION_MIN_PAGES,
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
@@ -23,12 +21,7 @@ import {
 } from "./file-translation-pagination";
 
 describe("file translation pagination", () => {
-  it("checkpoints after 100 translations", () => {
-    expect(FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION).toBe(100);
-  });
-
   it("budgets pages from the workload with one recovery page", () => {
-    expect(FILE_TRANSLATION_MIN_PAGES).toBe(2);
     expect(calculateFileTranslationMaxPages(1)).toBe(2);
     expect(calculateFileTranslationMaxPages(500_000)).toBe(5_001);
   });

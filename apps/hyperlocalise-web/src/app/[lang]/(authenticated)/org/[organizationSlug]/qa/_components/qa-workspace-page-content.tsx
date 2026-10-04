@@ -46,6 +46,7 @@ export function QaWorkspacePageContent({
   const [projectId, setProjectId] = useState("all");
   const [severity, setSeverity] = useState("all");
   const [status, setStatus] = useState("open");
+  const [tab, setTab] = useState("findings");
   const reportsQuery = useQuery({
     queryKey: ["workspace-qa-reports", organizationSlug],
     queryFn: () => api.listReports({ param: { organizationSlug } }),
@@ -57,6 +58,13 @@ export function QaWorkspacePageContent({
         : false,
   });
   const reports = reportsQuery.data?.reports ?? [];
+  const failedReports = reports.filter((row) => row.report?.status === "failed");
+  const selectedReport = reports.find((row) => row.projectId === projectId);
+  const selectedFailedWithoutResults =
+    selectedReport?.report?.status === "failed" && !selectedReport.lastSuccessfulAt;
+  const lastCompletedByProject = Object.fromEntries(
+    reports.map((row) => [row.projectId, row.lastSuccessfulAt]),
+  );
   const revision = reports
     .map(
       (row) =>
@@ -116,7 +124,25 @@ export function QaWorkspacePageContent({
       {reportsQuery.isPending ? (
         <Skeleton className="h-24 w-full" aria-label={intl.formatMessage(m.loading)} />
       ) : null}
-      <Tabs defaultValue="findings" className="gap-6">
+      {failedReports.length ? (
+        <section
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <div className="flex flex-col gap-1">
+            <h2 className="text-balance text-sm font-semibold text-destructive">
+              {intl.formatMessage(messages.failedProjects, { count: failedReports.length })}
+            </h2>
+            <p className="max-w-prose text-pretty text-sm text-muted-foreground">
+              {intl.formatMessage(messages.failedProjectsHelp)}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setTab("projects")}>
+            {intl.formatMessage(messages.reviewProjects)}
+          </Button>
+        </section>
+      ) : null}
+      <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
         <TabsList variant="line">
           <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
           <TabsTrigger value="projects">{intl.formatMessage(m.projects)}</TabsTrigger>
@@ -175,6 +201,21 @@ export function QaWorkspacePageContent({
               ]}
             />
           </div>
+          {selectedReport?.report?.status === "failed" ? (
+            <p className="text-pretty text-sm text-muted-foreground">
+              {selectedReport.lastSuccessfulAt
+                ? `${intl.formatMessage(messages.selectedProjectFailed)} ${intl.formatMessage(
+                    m.lastCompleted,
+                    {
+                      date: intl.formatDate(selectedReport.lastSuccessfulAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    },
+                  )}`
+                : intl.formatMessage(m.failedNoResults)}
+            </p>
+          ) : null}
           {findingsQuery.isPending && reportsQuery.isSuccess ? (
             <Skeleton className="h-40 w-full" aria-label={intl.formatMessage(m.loading)} />
           ) : null}
@@ -188,7 +229,9 @@ export function QaWorkspacePageContent({
           ) : null}
           {findingsQuery.isSuccess && !findings.length ? (
             <div className="flex items-center gap-3">
-              <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              {!selectedFailedWithoutResults ? (
+                <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              ) : null}
               <Button
                 variant="outline"
                 size="sm"
@@ -213,6 +256,7 @@ export function QaWorkspacePageContent({
               shownCount={findings.length}
               canPromote={canPromoteFindings}
               promoteScope="workspace"
+              lastCompletedByProject={lastCompletedByProject}
               hasMore={findingsQuery.hasNextPage}
               isLoadingMore={findingsQuery.isFetchingNextPage}
               onLoadMore={() => {
@@ -232,7 +276,17 @@ export function QaWorkspacePageContent({
             >
               <div className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">{row.projectName}</h3>
-                <QaRunStatus report={row.report ?? undefined} />
+                <QaRunStatus report={row.report ?? undefined} compact />
+                {row.report?.status === "failed" && row.lastSuccessfulAt ? (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {intl.formatMessage(m.lastCompleted, {
+                      date: intl.formatDate(row.lastSuccessfulAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })}
+                  </p>
+                ) : null}
               </div>
               <Button
                 nativeButton={false}

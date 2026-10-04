@@ -12,49 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import type { ApiJob } from "./jobs-page-view";
 import {
-  buildJobContentEditorHref,
   buildJobDetailHref,
-  canOpenJobContentEditor,
   isKanbanStatus,
   readJobsViewMode,
   writeJobsViewMode,
 } from "./jobs-view-helpers";
-
-function createJob(overrides: Partial<ApiJob> = {}): ApiJob {
-  return {
-    id: "ext:crowdin:project-1:job-1",
-    projectId: "ext:crowdin:project-1",
-    createdByUserId: null,
-    kind: "translation",
-    type: "file",
-    status: "running",
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T01:00:00.000Z",
-    completedAt: null,
-    workflowRunId: null,
-    lastError: null,
-    inputPayload: { sourceFileId: "locales/en.json" },
-    outcomeKind: null,
-    outcomePayload: null,
-    reviewCriteria: null,
-    reviewTargetLocale: null,
-    syncConnectorKind: null,
-    syncDirection: null,
-    assetType: null,
-    assetOperation: null,
-    externalProviderKind: "crowdin",
-    externalTaskId: "CR-1204",
-    externalStatus: "in_progress",
-    externalTitle: "Translate homepage",
-    externalDueDate: "2026-06-10T00:00:00.000Z",
-    externalTargetLocales: ["fr-FR"],
-    externalAssignedUsers: ["Mina"],
-    externalSyncState: "synced",
-    ...overrides,
-  };
-}
 
 describe("jobs-view-helpers", () => {
   it("builds project job detail hrefs", () => {
@@ -64,68 +27,6 @@ describe("jobs-view-helpers", () => {
     expect(buildJobDetailHref("acme", null, "job-1")).toBeNull();
     expect(buildJobDetailHref("acme", null, "ext:crowdin:project-1:job-1")).toBe(
       "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1",
-    );
-  });
-
-  it("allows CAT for provider-backed translation and review jobs", () => {
-    expect(canOpenJobContentEditor(createJob())).toBe(true);
-    expect(canOpenJobContentEditor(createJob({ kind: "review" }))).toBe(true);
-    expect(canOpenJobContentEditor(createJob({ kind: "sync" }))).toBe(false);
-  });
-
-  it("allows CAT for native file translation jobs", () => {
-    expect(
-      canOpenJobContentEditor(
-        createJob({
-          externalProviderKind: null,
-          id: "job_native",
-          externalTargetLocales: null,
-          inputPayload: {
-            sourceFileId: "file_home_json",
-            targetLocales: ["fr-FR"],
-          },
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("builds provider CAT hrefs with locale and source path when available", () => {
-    expect(buildJobContentEditorHref("acme", "project-1", createJob())).toBe(
-      "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
-    );
-    expect(buildJobContentEditorHref("acme", null, createJob())).toBe(
-      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json&queueFilter=untranslated",
-    );
-    expect(buildJobContentEditorHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
-    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
-  });
-
-  it("includes needs_review queue filter for review jobs", () => {
-    expect(buildJobContentEditorHref("acme", "project-1", createJob({ kind: "review" }))).toContain(
-      "queueFilter=needs_review",
-    );
-    expect(
-      buildJobContentEditorHref("acme", "project-1", createJob({ status: "waiting_for_review" })),
-    ).toContain("queueFilter=needs_review");
-  });
-
-  it("builds native CAT hrefs with stored file id and target locale", () => {
-    expect(
-      buildJobContentEditorHref(
-        "acme",
-        "project-1",
-        createJob({
-          externalProviderKind: null,
-          id: "job_native",
-          externalTargetLocales: null,
-          inputPayload: {
-            sourceFileId: "file_home_json",
-            targetLocales: ["fr-FR"],
-          },
-        }),
-      ),
-    ).toBe(
-      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR&queueFilter=untranslated",
     );
   });
 

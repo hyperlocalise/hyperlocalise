@@ -22,7 +22,7 @@ passwordless sudo), with:
 | Tool | Version source |
 |------|----------------|
 | Node.js + npm + pnpm 11 | latest of major `NODE_MAJOR` (default **24**) |
-| ripgrep (`rg`) | apt |
+| ripgrep (`rg`) | pinned (`RIPGREP_VERSION`; apt + GitHub release fallback) |
 | Volta | `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
@@ -158,7 +158,22 @@ docker run --rm -v "$PWD/apps/sandbox-image/verify-hunspell.sh:/verify.sh:ro" \
 
 ## App cutover
 
-Set both on the web app deployment:
+### Translation QA (recommended first)
+
+Set on the web app deployment to run `hl validate` spelling checks against the
+baked-in Hunspell dictionaries without cutting over agent sandboxes:
+
+```text
+VERCEL_SANDBOX_IMAGE=vcr.vercel.com/<team-slug>/<project-slug>/hyperlocalise-sandbox:latest
+RELEASE_QA_SANDBOX_VCR_IMAGE=true
+```
+
+`RELEASE_QA_SANDBOX_VCR_IMAGE` backs Flags SDK release flag
+`release-qa-sandbox-vcr-image`. Translation QA (`validateQaPageInSandbox`) passes
+`imageScope: "qa"`, so it uses the VCR image when that flag or the global
+sandbox flag is on.
+
+### All sandboxes
 
 ```text
 VERCEL_SANDBOX_IMAGE=vcr.vercel.com/<team-slug>/<project-slug>/hyperlocalise-sandbox:latest

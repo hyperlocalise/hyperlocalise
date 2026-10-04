@@ -218,7 +218,7 @@ function ConversationThreadMessage({
         </Avatar>
       </MessageAvatar>
       <MessageContent className="leading-6">
-        <div className="w-fit max-w-full rounded-lg bg-muted px-4 py-3 text-foreground">
+        <div className="w-fit max-w-full rounded-2xl bg-primary px-4 py-3 text-primary-foreground">
           {children}
         </div>
         <MessageFooter className="px-0">
@@ -272,7 +272,13 @@ function ConversationDetailMock({ item }: { item: MockConversationItem }) {
             avatarLabel={item.avatarLabel}
             createdAt={item.createdAt}
           >
-            <TypographyP className="whitespace-pre-wrap leading-6">{item.userMessage}</TypographyP>
+            <TypographyP
+              className="whitespace-pre-wrap leading-6"
+              tone="inherit"
+              wrapStyle="pretty"
+            >
+              {item.userMessage}
+            </TypographyP>
           </ConversationThreadMessage>
           <ConversationThreadMessage role="assistant" createdAt={item.createdAt}>
             <TypographyP className="whitespace-pre-wrap leading-6">

@@ -13,7 +13,9 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
-import { useEffect, useRef } from "react";
+import { useState } from "react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -24,6 +26,7 @@ import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/typography";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
@@ -33,6 +36,7 @@ import { ContentEditorEditorFormatChecksSection } from "@/components/content-edi
 import { ContentEditorEditorShortcutKbd } from "@/components/content-editor/editor/content-editor-editor-shortcut-kbd";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
+import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 import {
   contentEditorEditorPanelMessages,
   contentEditorSideBySidePanelMessages,
@@ -45,6 +49,9 @@ import type {
   ContentEditorTranslationMemoryMatch,
 } from "@/components/content-editor/shared/types";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
+
+import { actionableFormatChecks } from "./content-editor-side-by-side-qa";
 
 export const ContentEditorSideBySideIntelligencePanel = observer(
   function ContentEditorSideBySideIntelligencePanel({
@@ -134,7 +141,12 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       !isAiSuggestionLoading &&
       !isFormatChecksLoading;
 
-    const qaSectionRef = useRef<HTMLDivElement>(null);
+    const [tabState, setTabState] = useState<{ tab: DetailsTab; revealNonce: number }>(() => ({
+      tab: "details",
+      revealNonce: qaDetailsRevealNonce,
+    }));
+    // A newer reveal request than the one the current tab was chosen under wins.
+    const activeTab = qaDetailsRevealNonce !== tabState.revealNonce ? "qa" : tabState.tab;
 
     useHotkeys(
       "mod+k",
@@ -149,18 +161,6 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       },
       [canTriggerFindContext, onAskQuestion],
     );
-
-    useEffect(() => {
-      if (qaDetailsRevealNonce === 0) {
-        return;
-      }
-      const qaSection = qaSectionRef.current;
-      if (!qaSection) {
-        return;
-      }
-      qaSection.scrollTop = 0;
-      qaSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, [qaDetailsRevealNonce]);
 
     if (!segment || !intelligence) {
       return (
@@ -187,6 +187,29 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
       );
     }
 
+    const findContextButton = onAskQuestion ? (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onAskQuestion}
+        disabled={!canTriggerFindContext}
+        title={
+          canLookupFreshContext
+            ? intl.formatMessage(contentEditorEditorPanelMessages.findContextTitle)
+            : intl.formatMessage(contentEditorEditorPanelMessages.findContextUnavailableTitle)
+        }
+      >
+        {isLookingUpContext ? <Spinner className="size-3.5" /> : null}
+        {isLookingUpContext ? (
+          <FormattedMessage {...contentEditorEditorPanelMessages.findingContext} />
+        ) : (
+          <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
+        )}
+        <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
+      </Button>
+    ) : null;
+
     const intelligencePanel = (
       <ContentEditorIntelligencePanel
         intelligence={intelligence}
@@ -202,7 +225,8 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         contributorTeams={fileContext.contributorTeams ?? []}
         projectTeamId={fileContext.projectTeamId}
         canContributeTeamGlossary={
-          Boolean(fileContext.canContributeTeamGlossary) && fileContext.providerKind == null
+          Boolean(fileContext.canContributeTeamGlossary) &&
+          isNativeContentEditorProviderKind(fileContext.providerKind)
         }
         teamName={fileContext.teamName}
         projectTeamSlug={fileContext.projectTeamSlug}
@@ -220,25 +244,10 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         onUseTmMatch={onUseTmMatch}
         onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
         onGlossaryTermAdded={onGlossaryTermAdded}
+        headerAction={findContextButton}
+        embedded
       />
     );
-    const qaPanel =
-      isFormatChecksLoading || formatChecks.length > 0 ? (
-        <div
-          ref={qaSectionRef}
-          className="min-h-0 max-h-[40%] overflow-y-auto border-b border-border"
-          data-qa-details
-        >
-          <Box paddingX="2u" paddingY="1.5u">
-            <ContentEditorEditorFormatChecksSection
-              formatChecks={formatChecks}
-              isLoading={isFormatChecksLoading}
-            />
-          </Box>
-        </div>
-      ) : (
-        <div ref={qaSectionRef} />
-      );
     const commentsPanel = (
       <>
         <ContentEditorEditorCommentsSection
@@ -253,15 +262,82 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
           onAddComment={onAddComment}
           onOpenIssueSheet={onOpenIssueSheet}
           onResolveComment={onResolveComment}
+          variant="inspector"
         />
       </>
     );
 
+    if (placement === "right") {
+      const qaIssueCount = actionableFormatChecks(formatChecks).length;
+      const commentCount =
+        workspace.segmentComments.get(segment.id)?.length ?? segment.comments?.length ?? 0;
+
+      return (
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setTabState({ tab: value as DetailsTab, revealNonce: qaDetailsRevealNonce })
+          }
+          className={cn("h-full min-h-0 gap-0 border-l border-border bg-background", className)}
+        >
+          <div className="flex shrink-0 items-center gap-1 border-b border-border px-2">
+            <TabsList variant="line" className="h-10">
+              <TabsTrigger value="details">
+                <FormattedMessage {...contentEditorSideBySidePanelMessages.detailsTab} />
+              </TabsTrigger>
+              <TabsTrigger value="qa">
+                <FormattedMessage {...contentEditorSideBySidePanelMessages.qaChecksTab} />
+                {qaIssueCount > 0 ? <TabCount count={qaIssueCount} tone="alert" /> : null}
+              </TabsTrigger>
+              <TabsTrigger value="comments">
+                <FormattedMessage {...contentEditorSideBySidePanelMessages.commentsTab} />
+                {commentCount > 0 ? <TabCount count={commentCount} tone="count" /> : null}
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="ms-auto size-8 shrink-0"
+              aria-label={intl.formatMessage(contentEditorWorkspaceViewMessages.hideDetailsPanel)}
+              onClick={() => workspace.ui.setDetailsPanelCollapsed(true)}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+            </Button>
+          </div>
+
+          <TabsContent value="details" className="flex min-h-0 flex-col">
+            {intelligencePanel}
+          </TabsContent>
+
+          <TabsContent value="qa" className="min-h-0 overflow-y-auto" data-qa-details>
+            <Box paddingX="2u" paddingY="1.5u">
+              {isFormatChecksLoading || formatChecks.length > 0 ? (
+                <ContentEditorEditorFormatChecksSection
+                  formatChecks={formatChecks}
+                  isLoading={isFormatChecksLoading}
+                />
+              ) : (
+                <Text size="small" tone="subtle">
+                  <FormattedMessage {...contentEditorSideBySidePanelMessages.noQaChecks} />
+                </Text>
+              )}
+            </Box>
+          </TabsContent>
+
+          <TabsContent value="comments" className="min-h-0 overflow-y-auto" data-inspector-comments>
+            <Box paddingX="2u" paddingY="2u">
+              {commentsPanel}
+            </Box>
+          </TabsContent>
+        </Tabs>
+      );
+    }
+
     return (
       <div
         className={cn(
-          "flex h-full min-h-0 flex-col border-border bg-background",
-          placement === "right" ? "border-l" : "border-t",
+          "flex h-full min-h-0 flex-col border-t border-border bg-background",
           className,
         )}
       >
@@ -273,63 +349,42 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
                 segmentKey={segment.key}
                 sourcePath={segment.sourcePath}
               />
-              {onAskQuestion ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onAskQuestion}
-                  disabled={!canTriggerFindContext}
-                  title={
-                    canLookupFreshContext
-                      ? intl.formatMessage(contentEditorEditorPanelMessages.findContextTitle)
-                      : intl.formatMessage(
-                          contentEditorEditorPanelMessages.findContextUnavailableTitle,
-                        )
-                  }
-                >
-                  {isLookingUpContext ? <Spinner className="size-3.5" /> : null}
-                  {isLookingUpContext ? (
-                    <FormattedMessage {...contentEditorEditorPanelMessages.findingContext} />
-                  ) : (
-                    <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
-                  )}
-                  <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
-                </Button>
-              ) : null}
             </Row>
           </Box>
         </div>
 
-        {placement === "right" ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            {qaPanel}
-            <div className="min-h-0 flex-1">{intelligencePanel}</div>
-            <div className="max-h-[45%] min-h-0 overflow-y-auto">
-              <Box paddingX="2u" paddingBottom="2u">
-                {commentsPanel}
-              </Box>
-            </div>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1">
-            <Columns spacing="0" collapseBelow="large">
-              <Column width="fluid">
-                <ScrollArea className="min-h-0">
-                  <Box padding="2u">{intelligencePanel}</Box>
-                </ScrollArea>
-              </Column>
-              <Column width="content">
-                <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l lg:w-[22rem]">
-                  <Box paddingX="2u" paddingBottom="2u">
-                    {commentsPanel}
-                  </Box>
-                </div>
-              </Column>
-            </Columns>
-          </div>
-        )}
+        <div className="min-h-0 flex-1">
+          <Columns spacing="0" collapseBelow="large">
+            <Column width="fluid">
+              <ScrollArea className="min-h-0">
+                <Box padding="2u">{intelligencePanel}</Box>
+              </ScrollArea>
+            </Column>
+            <Column width="content">
+              <div className="min-h-0 border-t border-border lg:border-t-0 lg:border-l lg:w-[22rem]">
+                <Box paddingX="2u" paddingBottom="2u">
+                  {commentsPanel}
+                </Box>
+              </div>
+            </Column>
+          </Columns>
+        </div>
       </div>
     );
   },
 );
+
+type DetailsTab = "details" | "qa" | "comments";
+
+function TabCount({ count, tone = "count" }: { count: number; tone?: "count" | "alert" }) {
+  return (
+    <span
+      className={cn(
+        "min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold tabular-nums",
+        tone === "alert" ? "bg-destructive text-white" : "bg-foreground text-background",
+      )}
+    >
+      {count}
+    </span>
+  );
+}

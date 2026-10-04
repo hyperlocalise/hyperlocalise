@@ -158,6 +158,7 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
 	route("GET "+cat, api.getFile)
 	route("GET "+cat+"/segments/{externalStringId}/target", api.getSegmentTarget)
+	route("GET "+cat+"/segments/{externalStringId}/variants", api.getSegmentGroupVariants)
 	route("GET "+cat+"/segments/{externalStringId}/comments", api.getSegmentComments)
 	route("POST "+cat+"/translations", api.saveTranslation)
 	route("PATCH "+cat+"/translations/status", api.updateTranslationStatus)
@@ -325,7 +326,7 @@ func editorCatAssetPath(organizationSlug, projectID, fileID string) string {
 
 func looksLikeEditorCatHTTPURL(value, extPattern string) bool {
 	trimmed := trimEditorCat(value)
-	if !strings.HasPrefix(strings.ToLower(trimmed), "http://") && !strings.HasPrefix(strings.ToLower(trimmed), "https://") {
+	if !strings.HasPrefix(trimmed, "http://") && !strings.HasPrefix(trimmed, "https://") {
 		return false
 	}
 	parsed, err := url.Parse(trimmed)
@@ -347,6 +348,22 @@ func looksLikeEditorCatImageURL(value string) bool {
 
 func looksLikeEditorCatVideoURL(value string) bool {
 	return looksLikeEditorCatHTTPURL(value, ".mp4")
+}
+
+// editorCatSourceLooksLikeMediaURLSQL mirrors looksLikeEditorCatImageURL and
+// looksLikeEditorCatVideoURL for SQL grouping (pathname suffix after host).
+func editorCatSourceLooksLikeMediaURLSQL(sourceTextColumn string) string {
+	trimmed := "trim(" + sourceTextColumn + ")"
+	path := "split_part(split_part(lower(regexp_replace(" + trimmed + ", '^https?://[^/?#]+', '', 'i')), '?', 1), '#', 1)"
+	return "((" + trimmed + " like 'http://%' or " + trimmed + " like 'https://%') and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
+}
+
+func editorCatGroupSeparatesMediaSQL(alias string) string {
+	return "(coalesce(" + alias + ".metadata->>'contentKind', '') in ('image_url','video_url') or " + editorCatSourceLooksLikeMediaURLSQL(alias+".source_text") + ")"
+}
+
+func editorCatGroupIdentitySQL(alias string) string {
+	return "case when " + editorCatGroupSeparatesMediaSQL(alias) + " then 'media:' || " + alias + ".id::text else 'text:' || " + alias + ".source_text end"
 }
 
 type editorCatFileKind string
@@ -392,4 +409,12 @@ func parseEditorCatUUID(raw string) (string, error) {
 		return "", editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
 	return id, nil
+}
+
+func canonicalEditorCatID(id string) string {
+	parsed, err := uuid.Parse(trimEditorCat(id))
+	if err != nil {
+		return trimEditorCat(id)
+	}
+	return parsed.String()
 }

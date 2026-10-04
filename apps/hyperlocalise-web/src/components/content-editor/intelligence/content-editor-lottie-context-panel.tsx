@@ -17,7 +17,7 @@ import { observer } from "mobx-react-lite";
 import { useDeferredValue, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { contentEditorLottieContextPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import {
   applyLottiePreviewValues,
@@ -137,10 +137,10 @@ export const ContentEditorLottieContextPanel = observer(function ContentEditorLo
 }: {
   activeSegmentKey?: string;
 }) {
-  const workspace = useContentEditorWorkspace();
-  const lottieSourceUrl = workspace.fileContext.lottieSourceUrl;
+  const workspace = useOptionalCatWorkspace();
+  const lottieSourceUrl = workspace?.fileContext.lottieSourceUrl;
 
-  if (!lottieSourceUrl) {
+  if (!workspace || !lottieSourceUrl) {
     return null;
   }
 

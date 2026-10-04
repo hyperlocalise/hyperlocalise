@@ -16,15 +16,15 @@ import { defineMessages } from "react-intl";
 
 export const issueSheetCreateIssueDialogMessages = defineMessages({
   title: {
-    defaultMessage: "New issue",
-    id: "UvLPwAuWGw",
-    description: "Title of the create Issue Sheet issue dialog",
+    defaultMessage: "New query",
+    id: "9FwyT8SR/5",
+    description: "Title of the create query dialog",
   },
   description: {
     defaultMessage:
-      "Capture a localization issue and optionally link it to the Content Editor or an external tracker.",
-    id: "rg7WUSTOmR",
-    description: "Description of the create Issue Sheet issue dialog",
+      "Capture a localization query and optionally link it to the Content Editor or an external tracker.",
+    id: "u36uhLaGS2",
+    description: "Description of the create query dialog",
   },
   projectLabel: {
     defaultMessage: "Project",
@@ -47,9 +47,9 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Validation error when creating an issue without a title",
   },
   titlePlaceholder: {
-    defaultMessage: "Issue title",
-    id: "afDLXVwU/G",
-    description: "Placeholder for the issue title input",
+    defaultMessage: "Query title",
+    id: "Lp4blMeLEV",
+    description: "Placeholder for the query title input",
   },
   descriptionLabel: {
     defaultMessage: "Description",
@@ -72,9 +72,9 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Label for the issue type select",
   },
   issueTypePlaceholder: {
-    defaultMessage: "Issue type",
-    id: "izdWVYn/yN",
-    description: "Placeholder for the issue type select",
+    defaultMessage: "Query type",
+    id: "NENxkVc5sn",
+    description: "Placeholder for the query type select",
   },
   priorityLabel: {
     defaultMessage: "Priority",
@@ -184,8 +184,8 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
   },
   createMore: {
     defaultMessage: "Create more",
-    id: "SEclZdUwgN",
-    description: "Checkbox label to keep the create issue dialog open after submit",
+    id: "/qEcrILvnF",
+    description: "Checkbox label to keep the create query dialog open after submit",
   },
   cancel: {
     defaultMessage: "Cancel",
@@ -193,9 +193,9 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Cancel button in the create Issue Sheet issue dialog",
   },
   submit: {
-    defaultMessage: "Create issue",
-    id: "PEOKvIZPuS",
-    description: "Submit button in the create Issue Sheet issue dialog",
+    defaultMessage: "Create query",
+    id: "r2n0N/lMX6",
+    description: "Submit button in the create query dialog",
   },
   selectProject: {
     defaultMessage: "Select a project",
@@ -203,14 +203,14 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Validation error when creating an issue without a selected project",
   },
   issueAdded: {
-    defaultMessage: "Issue created",
-    id: "Neb7Fy6bU4",
-    description: "Toast when an Issue Sheet issue is created successfully",
+    defaultMessage: "Query created",
+    id: "Xg6lYU4jUv",
+    description: "Toast when a query is created successfully",
   },
   createFailed: {
-    defaultMessage: "Issue create failed",
-    id: "ezkux42m34",
-    description: "Fallback toast when creating an Issue Sheet issue fails",
+    defaultMessage: "Query creation failed",
+    id: "U8Wsbwg96h",
+    description: "Fallback toast when creating a query fails",
   },
   requestFailed: {
     defaultMessage: "Request failed",

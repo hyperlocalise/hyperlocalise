@@ -31,11 +31,9 @@ import type { GlossaryResponse } from "@/api/routes/glossary/glossary.schema";
 import { apiClient } from "@/lib/api-client-instance";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
-import {
-  parseLiveProviderGlossaryId,
-  parseProviderProjectId,
-} from "@/lib/providers/jobs/tms-provider-resource-id";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
+import { useProjectPageQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-page-shell";
 
 import {
   getAppShellBreadcrumbs,
@@ -62,6 +60,22 @@ type AppShellBreadcrumbProps = {
 
 type SelectorCrumbKind = "project" | "team" | "domain";
 
+function sameBreadcrumbHref(left: string | undefined, right: string | undefined) {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left || !right) {
+    return false;
+  }
+
+  try {
+    return decodeURIComponent(left) === decodeURIComponent(right);
+  } catch {
+    return false;
+  }
+}
+
 function isProjectBreadcrumbCrumb(
   crumb: AppShellBreadcrumbItem,
   index: number,
@@ -74,7 +88,7 @@ function isProjectBreadcrumbCrumb(
   }
 
   const projectHref = buildProjectPath(organizationSlug, projectId);
-  return crumb.href === projectHref || crumb.href === undefined;
+  return sameBreadcrumbHref(crumb.href, projectHref) || crumb.href === undefined;
 }
 
 function isTeamBreadcrumbCrumb(
@@ -272,29 +286,11 @@ export const AppShellBreadcrumb = observer(function AppShellBreadcrumb({
     translationMemoryRoute?.organizationSlug ??
     organizationSlug;
 
-  const projectQuery = useQuery({
-    queryKey: ["translation-project", resolvedOrganizationSlug, projectRoute?.projectId],
-    enabled: Boolean(projectRoute?.projectId),
-    queryFn: async () => {
-      const projectId = projectRoute!.projectId;
-      if (parseProviderProjectId(projectId)) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-          param: {
-            organizationSlug: resolvedOrganizationSlug,
-            projectId,
-          },
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to load project (${response.status})`);
-        }
-        const body = (await response.json()) as { project: { name: string } };
-        return body.project;
-      }
-
-      const body = await goSvcClient.project.get(resolvedOrganizationSlug, projectId);
-      return body.project;
-    },
-  });
+  const projectQuery = useProjectPageQuery(
+    resolvedOrganizationSlug,
+    projectRoute?.projectId ?? "",
+    { enabled: Boolean(projectRoute?.projectId) },
+  );
 
   const teamQuery = useQuery({
     queryKey: ["workspace-team", resolvedOrganizationSlug, teamRoute?.teamId],

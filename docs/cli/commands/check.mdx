@@ -54,6 +54,28 @@ Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include
 - `--fix`: after reporting, retranslate **fixable** findings using the same AI pipeline as [`run`](/cli/commands/run) (same config, profiles, and environment variables). Applies to keyed findings of types `not_localized`, `whitespace_only`, `escaped_char_mismatch`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. For **`markdown_ast_mismatch`** on `.md`/`.mdx` files (per-file findings, often without a `key`), `--fix` retranslates **all** aligned segments for that source/target/locale pair so structure can realign. Does not fix `same_as_source` (intentional copy), missing target files, or orphaned keys.
 - `--fix-dry-run`: with `--fix`, resolve planned translation tasks without writing targets or calling the model (still loads config and planning).
 - `--workers`: with `--fix`, number of parallel translation workers (default: number of CPU cores)
+- `--qa-policy`: path to a versioned Cloud QA policy JSON file. Overrides [`qa.policy_file`](/cli/configuration/i18n-config#qa-policy). Cannot be combined with `--check` or `--exclude-check`
+
+## Cloud QA policy
+
+Pass `--qa-policy`, or set `qa.policy_file`, to run the same segment checks as [`validate`](/cli/commands/validate) on each mapped source and target entry.
+
+```bash
+hyperlocalise check --qa-policy qa-policy.json
+```
+
+```yaml
+qa:
+  policy_file: qa-policy.json
+```
+
+Findings for `not_localized`, `same_as_source`, `whitespace_only`, `escaped_char_mismatch`, and `placeholder_mismatch` use the severities in that policy. `check` still reports `missing_target_file`, `orphaned_key`, `html_tag_mismatch`, `icu_shape_mismatch`, and `markdown_ast_mismatch`.
+
+Glossary terms and accepted spelling words come from the policy file. Spelling findings appear when `hunspell` is on `PATH` and the locale dictionary is installed. A missing binary or dictionary leaves spelling out of the report.
+
+`check` has no per-string character limit, so `length` stays quiet on repository entries. Pass [`validate --max-length`](/cli/commands/validate) when a segment needs that limit.
+
+With no policy path, `check` keeps the default checks above.
 
 ## Examples
 
@@ -99,8 +121,13 @@ hyperlocalise check --prefix-id
 git diff --cached | hyperlocalise check --diff-stdin --prefix-id --no-fail
 ```
 
+```bash
+hyperlocalise check --qa-policy qa-policy.json --no-fail
+```
+
 ## See also
 
+- [validate](/cli/commands/validate)
 - [extract](/cli/commands/extract)
 - [pack](/cli/commands/pack)
 - [status](/cli/commands/status)

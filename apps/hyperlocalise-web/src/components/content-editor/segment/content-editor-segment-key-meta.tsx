@@ -33,7 +33,7 @@ export function ContentEditorSegmentKeyMeta({
 }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5", className)}>
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <p
           className={cn(
             "min-w-0 flex-1 truncate font-mono text-[11px] leading-5 text-muted-foreground",

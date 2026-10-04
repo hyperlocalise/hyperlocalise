@@ -313,6 +313,7 @@ describe("projectFileCatQueryKey", () => {
       50,
       50,
       null,
+      false,
     ]);
   });
 
@@ -332,7 +333,7 @@ describe("projectFileCatQueryKey", () => {
     const page1 = projectFileCatQueryKey({ ...base, offset: 50 });
 
     expect(page0).not.toEqual(page1);
-    expect(page1.at(-2)).toBe(50);
+    expect(page1.at(-3)).toBe(50);
   });
 });
 
@@ -359,6 +360,7 @@ describe("projectFileCatBaseQueryKey", () => {
       "file_order",
       50,
       null,
+      false,
     ]);
     expect(key).not.toContain(0);
   });

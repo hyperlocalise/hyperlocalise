@@ -109,7 +109,8 @@ func serializeQaRunRow(row qaRunRow) map[string]any {
 		"warningCount": row.WarningCount,
 		"summary":      summary,
 		"errorCode":    row.ErrorCode,
-		"errorMessage": row.ErrorMessage,
+		// Raw exceptions stay in the run row for internal diagnosis by run ID.
+		"errorMessage": nil,
 		"startedAt":    formatQaReportTime(row.StartedAt),
 		"completedAt":  formatQaReportTime(row.CompletedAt),
 		"createdAt":    row.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
@@ -148,6 +149,29 @@ func (api *qaReportAPI) listProjectQaReports(ctx context.Context, actor qaReport
 		"reports":  reports,
 		"settings": qaReportSettingsPayload(actor, project.QaScanCadence, project.QaScanLastRunAt, project.QaCheckPolicy),
 	}, 200, nil
+}
+
+func (api *qaReportAPI) lastSuccessfulProjectQaRun(ctx context.Context, organizationID, projectID string, beforeRunID uuid.UUID) (any, error) {
+	var row qaRunRow
+	err := api.pool.QueryRow(ctx, `
+        select id, project_id, trigger, status, segment_count, finding_count, error_count, warning_count,
+               summary, error_code, error_message, started_at, completed_at, created_at
+        from translation_qa_runs
+        where organization_id = $1 and project_id = $2 and status = 'succeeded'
+          and created_at <= (select created_at from translation_qa_runs where organization_id = $1 and project_id = $2 and id = $3)
+        order by created_at desc
+        limit 1`, organizationID, projectID, beforeRunID).Scan(
+		&row.ID, &row.ProjectID, &row.Trigger, &row.Status, &row.SegmentCount, &row.FindingCount,
+		&row.ErrorCount, &row.WarningCount, &row.SummaryRaw, &row.ErrorCode, &row.ErrorMessage,
+		&row.StartedAt, &row.CompletedAt, &row.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return serializeQaRunRow(row), nil
 }
 
 func (api *qaReportAPI) getTranslationQaRun(ctx context.Context, organizationID, projectID string, runID uuid.UUID) (qaRunRow, error) {

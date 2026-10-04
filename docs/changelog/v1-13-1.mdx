@@ -1,0 +1,35 @@
+---
+title: "v1.13.1"
+description: "Go CLI release notes for v1.13.1."
+---
+
+`hl validate` checks one source/target segment or a JSON batch with the same 12-check policy as Hyperlocalise Cloud. `hl check` applies that policy to mapped repository files when you pass `--qa-policy` or set `qa.policy_file`. Spelling is reported as skipped when Hunspell or the locale dictionary is missing, so the commands stay usable offline.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.1) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.0...v1.13.1)
+
+## Breaking changes
+
+None.
+
+## Features
+
+- Add [`hl validate`](https://github.com/hyperlocalise/hyperlocalise/pull/2695). Pass `--source-text` or `--source-file`, `--target-text` or `--target-file`, and `--target-locale` for one segment, or `--input-file` (use `-` for stdin) for a JSON batch of `{ id, sourceText, targetText, targetLocale }`. Optional `--source-path` selects format detection, and `--max-length` sets the Unicode character limit (`0` means no limit). `--policy-file` loads a version `1` policy that lists all 12 checks, each `enabled` with severity `error` or `warning`. The default policy enables not-localized, whitespace-only, same-as-source, escaped-character, length, placeholder, glossary, format, and spelling checks. Numbers, punctuation, and character-case checks stay off until the policy turns them on. Glossary terms and accepted spelling words travel in that policy file. Text output prints `id: severity: message` and exits `1` when findings exist; `--no-fail` keeps exit code `0`. JSON output lists findings and skipped checks and exits `0` for findings. Malformed input and execution failures still fail the process. See [validate](/cli/commands/validate).
+- Apply the same runner from [`hl check`](https://github.com/hyperlocalise/hyperlocalise/pull/2695) with `--qa-policy` or `qa.policy_file` in `i18n.yml`. File integrity findings, including a missing target file, stay in the report. Policy severities cover `not_localized`, `same_as_source`, `whitespace_only`, `escaped_char_mismatch`, and `placeholder_mismatch`. `--check` and `--exclude-check` cannot be combined with a QA policy. With no policy path, `hl check` keeps its current checks. Repository checks do not set a per-string character limit, so `length` applies when `validate` receives `--max-length` or a segment `maxLength`.
+
+## Fixes
+
+None.
+
+## Performance
+
+None.
+
+## Tests
+
+- `hl validate` text and file inputs, JSON batch input, and a policy that disables `same_as_source`.
+- `hl check` applies policy severity (`numbers_mismatch` as an error) and still reports a missing target file alongside `not_localized`.
+- Policy files must include every check. Spelling is skipped when the dictionary is absent, and Hunspell word case is preserved.
+
+## Maintenance
+
+None.

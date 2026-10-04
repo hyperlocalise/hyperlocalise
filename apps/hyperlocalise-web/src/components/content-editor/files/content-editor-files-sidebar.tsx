@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { useDefaultLayout } from "react-resizable-panels";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -20,6 +21,12 @@ import { ContentEditorRepositorySelect } from "@/app/[lang]/(authenticated)/org/
 import { contentEditorHeaderPickersMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/content-editor-header-pickers.messages";
 import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files-tree";
 import { Button } from "@/components/ui/button";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import {
+  CAT_PANEL_COLLAPSED_SIZE,
+  useContentEditorCollapsiblePanel,
+} from "@/components/content-editor/workspace/use-content-editor-collapsible-panel";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
 import { CONTENT_EDITOR_ALL_FILES_SOURCE_PATH } from "@/lib/projects/content-editor-all-files";
 import { cn } from "@/lib/primitives/cn";
 
@@ -133,19 +140,106 @@ export function ContentEditorFilesSidebar({
   );
 }
 
+export const CAT_FILES_LAYOUT_ID = "content-editor-page-files";
+
+const FILES_PANEL_IDS = ["files", "workspace"] as const;
+const FILES_DEFAULT_SIZE = "17.5rem";
+const FILES_MIN_SIZE = "12rem";
+const FILES_MAX_SIZE = "30rem";
+const WORKSPACE_MIN_SIZE = "28rem";
+/** Complement of the compact workspace breakpoint in `content-editor-workspace.tsx`. */
+const FILES_SIDEBAR_QUERY = "(min-width: 1024px)";
+
+/**
+ * The file tree is only offered from the `lg` breakpoint up; narrower viewports
+ * reach files through the header picker instead.
+ */
+function useFilesSidebarAvailable() {
+  const [isAvailable, setIsAvailable] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(FILES_SIDEBAR_QUERY);
+    const sync = () => setIsAvailable(mediaQuery.matches);
+    sync();
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }, []);
+
+  return isAvailable;
+}
+
 export function ContentEditorPageBody({
   sidebar,
+  sidebarCollapsed = false,
+  onSidebarCollapsedChange,
   children,
 }: {
   sidebar?: ReactNode;
+  sidebarCollapsed?: boolean;
+  onSidebarCollapsedChange?: (collapsed: boolean) => void;
   children: ReactNode;
 }) {
+  const intl = useIntl();
+  const isSidebarAvailable = useFilesSidebarAvailable();
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: CAT_FILES_LAYOUT_ID,
+    panelIds: [...FILES_PANEL_IDS],
+    onlySaveAfterUserInteractions: true,
+  });
+  const hasSidebar = Boolean(sidebar);
+  // Narrow viewports pin the pane shut without overwriting the saved preference.
+  const isCollapsed = !isSidebarAvailable || sidebarCollapsed;
+  const filesPanel = useContentEditorCollapsiblePanel({
+    collapsed: hasSidebar ? isCollapsed : undefined,
+    onCollapsedChange: isSidebarAvailable ? onSidebarCollapsedChange : undefined,
+  });
+
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
-      {sidebar}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6 lg:pl-2">
-        {children}
-      </div>
-    </div>
+    <ResizablePanelGroup
+      id={CAT_FILES_LAYOUT_ID}
+      orientation="horizontal"
+      className="min-h-0 flex-1 overflow-hidden"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+    >
+      {/* Keyed so rendering the sidebar never remounts the workspace subtree. */}
+      {hasSidebar ? (
+        <Fragment key="files">
+          <ResizablePanel
+            id="files"
+            defaultSize={FILES_DEFAULT_SIZE}
+            minSize={FILES_MIN_SIZE}
+            maxSize={FILES_MAX_SIZE}
+            collapsible
+            collapsedSize={CAT_PANEL_COLLAPSED_SIZE}
+            panelRef={filesPanel.panelRef}
+            onResize={filesPanel.onResize}
+            className="min-h-0 min-w-0 overflow-hidden"
+          >
+            <div
+              className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+              inert={isCollapsed}
+            >
+              {sidebar}
+            </div>
+          </ResizablePanel>
+          <ResizableHandle
+            withHandle
+            className="hidden lg:flex"
+            aria-label={intl.formatMessage(contentEditorWorkspaceViewMessages.resizeFilesPanel)}
+          />
+        </Fragment>
+      ) : null}
+      <ResizablePanel
+        key="workspace"
+        id="workspace"
+        minSize={isSidebarAvailable && hasSidebar ? WORKSPACE_MIN_SIZE : undefined}
+        className="min-h-0 min-w-0 overflow-hidden"
+      >
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6 lg:pl-2">
+          {children}
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

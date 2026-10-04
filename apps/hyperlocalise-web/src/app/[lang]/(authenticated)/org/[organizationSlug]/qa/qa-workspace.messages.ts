@@ -20,6 +20,29 @@ export const qaWorkspaceMessages = defineMessages({
     id: "6PydP1CR24",
     description: "Workspace QA page title",
   },
+  failedProjects: {
+    defaultMessage:
+      "{count, plural, one {# project needs attention} other {# projects need attention}}",
+    id: "u1raYxKQQZ",
+    description: "Workspace QA count of projects with failed latest scans",
+  },
+  failedProjectsHelp: {
+    defaultMessage:
+      "Their latest scans failed. Findings below are from earlier completed scans, when available.",
+    id: "dVR1znH0/p",
+    description: "Workspace QA stale finding explanation",
+  },
+  reviewProjects: {
+    defaultMessage: "Review projects",
+    id: "TCrPfIJsvP",
+    description: "Workspace QA action to view failed projects",
+  },
+  selectedProjectFailed: {
+    defaultMessage:
+      "This project's latest scan failed. Findings below are from its last completed scan.",
+    id: "u63978WZG7",
+    description: "Workspace QA selected project failure freshness",
+  },
   portfolioTitle: {
     defaultMessage: "Portfolio",
     id: "zJnpLjNSBd",

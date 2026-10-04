@@ -1,0 +1,173 @@
+---
+title: "validate"
+description: "Validate one source and target segment, or a JSON batch, with a Cloud QA policy."
+---
+
+## Usage
+
+```bash
+hyperlocalise validate [flags]
+```
+
+`validate` checks source and target text with the same 12-check policy as Hyperlocalise Cloud QA. Pass `--policy-file` for a custom policy, or omit it to use the built-in defaults. The `qa.policy_file` key in `i18n.yml` applies to [`check`](/cli/commands/check). Pass text on the command line, point at files, or send a JSON batch with `--input-file`.
+
+## Checks
+
+Each check is enabled or disabled and has severity `error` or `warning`. The default policy enables the first nine checks. Numbers, ending punctuation, and capitalization stay off until a policy file turns them on.
+
+| Check | Default | What it reports |
+| --- | --- | --- |
+| `not_localized` | error | Target is missing or empty after trimming |
+| `whitespace_only` | warning | Target contains only whitespace |
+| `same_as_source` | warning | Target matches the source text |
+| `escaped_char_mismatch` | warning | Target introduces escapes or control characters that are absent from the source |
+| `length` | error | Target is longer than the Unicode character limit. `0` means no limit |
+| `placeholder_mismatch` | error | Placeholders differ from the source |
+| `glossary_violation` | warning | A glossary term from the policy is missing, or a forbidden term appears |
+| `format` | error | Target fails a format or syntax check for the source path, such as ICU or markup |
+| `spelling` | warning | A target word fails Hunspell for that locale |
+| `numbers_mismatch` | warning, disabled | Digits in the target differ from the source |
+| `punctuation_mismatch` | warning, disabled | Ending punctuation differs from the source |
+| `character_case_mismatch` | warning, disabled | The first letter's capitalization differs from the source for Latin-script locales `en`, `de`, `es`, `fr`, `it`, `nl`, `pt`, `sv`, `no`, and `da` |
+
+Spelling runs when `hunspell` is on `PATH` and the locale dictionary is installed. Set `DICPATH` to the dictionary directory, or install the dictionaries under `/usr/share/hunspell`. Otherwise the result lists `spelling` under `skippedChecks`, and text output prints a `skipped spelling` line. Skipped checks leave the exit code unchanged. Each segment reports up to five distinct misspelled words.
+
+`acceptedWordsByLocale` in the policy skips those words. Locale keys match case-insensitively, and `_` is treated as `-`.
+
+## Policy file
+
+`--policy-file` loads a JSON policy. Omit it to use the defaults in the table above.
+
+The file must set `"version": 1` and include every check. Severity is `error` or `warning`. Unknown fields are rejected.
+
+```json
+{
+  "version": 1,
+  "checks": {
+    "not_localized": { "enabled": true, "severity": "error" },
+    "whitespace_only": { "enabled": true, "severity": "warning" },
+    "same_as_source": { "enabled": true, "severity": "warning" },
+    "escaped_char_mismatch": { "enabled": true, "severity": "warning" },
+    "length": { "enabled": true, "severity": "error" },
+    "placeholder_mismatch": { "enabled": true, "severity": "error" },
+    "glossary_violation": { "enabled": true, "severity": "warning" },
+    "format": { "enabled": true, "severity": "error" },
+    "spelling": { "enabled": true, "severity": "warning" },
+    "numbers_mismatch": { "enabled": false, "severity": "warning" },
+    "punctuation_mismatch": { "enabled": false, "severity": "warning" },
+    "character_case_mismatch": { "enabled": false, "severity": "warning" }
+  },
+  "glossaryTerms": [
+    {
+      "sourceTerm": "Save",
+      "targetTerm": "Enregistrer",
+      "targetLocale": "fr-FR",
+      "forbidden": false,
+      "caseSensitive": false
+    }
+  ],
+  "acceptedWordsByLocale": {
+    "fr-FR": ["Hyperlocalise"]
+  }
+}
+```
+
+A glossary term applies when `targetLocale` matches the segment and the source contains `sourceTerm`. The target must then contain `targetTerm`. Set `forbidden` to `true` when the target must stay free of `targetTerm`. Matching is a substring. Set `caseSensitive` to `true` to keep case. An empty target skips glossary checks.
+
+## Flags
+
+- `--source-text`: source text. Use this or `--source-file`
+- `--source-file`: file containing the source text
+- `--target-text`: target text. Use this or `--target-file`
+- `--target-file`: file containing the target text
+- `--target-locale`: target locale for a single segment. Required for that mode
+- `--source-path`: path used for format detection. Defaults to `--source-file` when that flag is set
+- `--max-length`: maximum target length in Unicode characters. `0` means no limit
+- `--input-file`: JSON batch path, or `-` for stdin. Use this flag on its own, without the source and target flags
+- `--policy-file`: QA policy JSON file
+- `--format`: `text` (default) or `json`
+- `--no-fail`: text output exits `0` when findings exist
+
+For one segment, pass one source flag and one target flag.
+
+Text output prints one line per finding:
+
+```text
+segment: warning: Target value matches source.
+```
+
+Text output exits `1` when it prints a finding. `--no-fail` exits `0`. JSON output writes the report and exits `0` when findings are the only result. A policy or input the command cannot read still exits nonzero.
+
+```json
+{
+  "results": [
+    {
+      "id": "segment",
+      "checks": [
+        {
+          "checkType": "same_as_source",
+          "severity": "warning",
+          "category": "qa",
+          "message": "Target value matches source.",
+          "relatedTokens": []
+        }
+      ],
+      "skippedChecks": ["spelling"]
+    }
+  ]
+}
+```
+
+## Batch input
+
+`--input-file` reads an object with a `segments` array. Each segment needs a unique `id`, a `targetLocale`, and a nonnegative `maxLength`. Omit `maxLength` or set it to `0` for no limit. `sourceText`, `targetText`, and `sourcePath` are optional.
+
+```json
+{
+  "segments": [
+    {
+      "id": "headline",
+      "sourceText": "Save",
+      "targetText": "Enregistrer",
+      "sourcePath": "locales/en-US.json",
+      "targetLocale": "fr-FR",
+      "maxLength": 40
+    }
+  ]
+}
+```
+
+## Examples
+
+```bash
+hyperlocalise validate \
+  --source-text "Save" \
+  --target-text "Enregistrer" \
+  --target-locale fr-FR
+```
+
+```bash
+hyperlocalise validate \
+  --source-file source.txt \
+  --target-file target.txt \
+  --target-locale fr-FR \
+  --source-path locales/en-US.json \
+  --max-length 40 \
+  --format json
+```
+
+```bash
+hyperlocalise validate \
+  --input-file segments.json \
+  --policy-file qa-policy.json \
+  --format json
+```
+
+```bash
+hyperlocalise validate --input-file - --policy-file qa-policy.json --format json < segments.json
+```
+
+## See also
+
+- [check](/cli/commands/check)
+- [i18n config](/cli/configuration/i18n-config)

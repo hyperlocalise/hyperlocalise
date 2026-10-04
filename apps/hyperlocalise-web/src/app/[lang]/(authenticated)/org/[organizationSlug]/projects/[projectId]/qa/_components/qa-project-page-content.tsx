@@ -34,6 +34,15 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { qaProjectMessages as messages } from "../qa-project.messages";
 
 const PAGE_SIZE = 100;
+type QaScanStartErrorCode = "qa_scan_in_progress" | "qa_scan_start_failed";
+
+class QaScanStartError extends Error {
+  constructor(readonly code: QaScanStartErrorCode) {
+    super("Could not start QA scan");
+    this.name = "QaScanStartError";
+  }
+}
+
 export function QaProjectPageContent({
   organizationSlug,
   projectId,
@@ -66,6 +75,20 @@ export function QaProjectPageContent({
   });
   const reports = list.data?.reports ?? [];
   const report = reports.find((row) => row.id === selectedRunId) ?? reports[0];
+  const isLatestReport = report?.id === reports[0]?.id;
+  const lastSuccessfulFromList =
+    isLatestReport && report?.status === "failed"
+      ? reports.find((row) => row.status === "succeeded")
+      : undefined;
+  const lastSuccessful = useQuery({
+    queryKey: [...listKey, "last-successful", report?.id],
+    queryFn: () => api.getLastSuccessful({ param, beforeRunId: report!.id }),
+    enabled: Boolean(report?.status === "failed" && isLatestReport && !lastSuccessfulFromList),
+  });
+  const lastSuccessfulReport =
+    isLatestReport && report?.status === "failed"
+      ? (lastSuccessfulFromList ?? lastSuccessful.data ?? null)
+      : null;
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({
@@ -104,13 +127,22 @@ export function QaProjectPageContent({
   const start = useMutation({
     mutationFn: async () => {
       const response = await api.startScan({ param });
-      if (!response.ok) throw new Error("scan_failed");
+      if (!response.ok) {
+        throw new QaScanStartError(
+          response.status === 409 ? "qa_scan_in_progress" : "qa_scan_start_failed",
+        );
+      }
       return response.json();
     },
     onSuccess: async () => {
       setSelectedRunId(null);
       setTab("findings");
       await queryClient.invalidateQueries({ queryKey: listKey });
+    },
+    onError: async (error) => {
+      if (error instanceof QaScanStartError && error.code === "qa_scan_in_progress") {
+        await queryClient.invalidateQueries({ queryKey: listKey });
+      }
     },
   });
   const settingsMutation = useMutation({
@@ -172,7 +204,18 @@ export function QaProjectPageContent({
         />
       ) : null}
       {start.isError ? (
-        <QaNotice message={intl.formatMessage(messages.runError)} onRetry={() => start.mutate()} />
+        <QaNotice
+          message={intl.formatMessage(
+            start.error instanceof QaScanStartError && start.error.code === "qa_scan_in_progress"
+              ? messages.runInProgress
+              : messages.runError,
+          )}
+          onRetry={
+            start.error instanceof QaScanStartError && start.error.code === "qa_scan_in_progress"
+              ? undefined
+              : () => start.mutate()
+          }
+        />
       ) : null}
       {list.isSuccess ? (
         <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
@@ -193,6 +236,19 @@ export function QaProjectPageContent({
             <QaRunStatus
               report={report}
               onRetry={settings?.canRun && !running ? () => start.mutate() : undefined}
+              isRetrying={start.isPending}
+              lastSuccessfulAt={lastSuccessfulReport?.completedAt}
+              lastSuccessfulAction={
+                lastSuccessfulReport ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedRunId(lastSuccessfulReport.id)}
+                  >
+                    {intl.formatMessage(messages.viewLastCompleted)}
+                  </Button>
+                ) : null
+              }
             />
             {report?.status === "succeeded" ? (
               <>
@@ -377,12 +433,10 @@ export function QaProjectPageContent({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {intl.formatMessage(
-                      row.trigger === "scheduled"
-                        ? messages.triggerScheduled
-                        : messages.triggerManual,
+                      row.trigger === "scheduled" ? m.triggerScheduled : m.triggerManual,
                     )}
                   </p>
-                  <QaRunStatus report={row} />
+                  <QaRunStatus report={row} compact />
                 </div>
                 <Button
                   variant="outline"
@@ -393,7 +447,13 @@ export function QaProjectPageContent({
                     setTab("findings");
                   }}
                 >
-                  {intl.formatMessage(m.findings)}
+                  {intl.formatMessage(
+                    row.status === "failed"
+                      ? m.viewFailure
+                      : row.status === "succeeded"
+                        ? m.findings
+                        : m.viewStatus,
+                  )}
                 </Button>
               </div>
             ))}

@@ -458,9 +458,31 @@ export const contentEditorTargetEditorMessages = defineMessages({
     description: "Label for required ICU and placeholder tokens below the CAT target editor",
   },
   characterCount: {
-    defaultMessage: "{count}/{maxLength} characters",
-    id: "MB3Jte6am8",
+    defaultMessage: "{count} / {maxLength} characters",
+    id: "m6jiE/qhjy",
     description: "Live character count for the CAT target translation against a max length limit",
+  },
+  characterMeterWithinLimit: {
+    defaultMessage: "Within limit",
+    id: "UoGzrmcHW5",
+    description: "Character meter status when the CAT target translation fits its character limit",
+  },
+  characterMeterNearLimit: {
+    defaultMessage: "Near limit",
+    id: "QsoKChySj6",
+    description:
+      "Character meter status when the CAT target translation is close to its character limit",
+  },
+  characterMeterOverLimit: {
+    defaultMessage: "{count} over limit",
+    id: "UiifS496oN",
+    description:
+      "Character meter status when the CAT target translation exceeds its character limit by count characters",
+  },
+  characterMeterNoLimit: {
+    defaultMessage: "No limit",
+    id: "bD+BiR3Yjm",
+    description: "Character meter status when the CAT segment has no character limit",
   },
   characterCountOnly: {
     defaultMessage: "{count} characters",
@@ -510,6 +532,21 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "hZ7gIyvYMF",
     description: "Placeholder when a native segment has no max length set",
   },
+  maxLengthInputPlaceholder: {
+    defaultMessage: "e.g. 32",
+    id: "FF6zP5y7+0",
+    description: "Placeholder inside the native segment max length input",
+  },
+  maxLengthUnit: {
+    defaultMessage: "characters",
+    id: "Dli/TBmkEI",
+    description: "Unit label beside the native segment max length input",
+  },
+  maxLengthUsed: {
+    defaultMessage: "{count} used",
+    id: "0wuiRIf04R",
+    description: "Current translation character count beside the max length input",
+  },
   maxLengthSave: {
     defaultMessage: "Save",
     id: "+qqz/QE1GR",
@@ -535,6 +572,11 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     id: "k5etBkEqlB",
     description: "Read-only summary of the current native segment max length",
   },
+  maxLengthEdit: {
+    defaultMessage: "Set character limit",
+    id: "OVfiZrnuvM",
+    description: "Icon button that opens the native segment character limit editor",
+  },
   fileContextTitle: {
     defaultMessage: "Context attached in the file",
     id: "HZtAltEBuQ",
@@ -551,8 +593,8 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     description: "Empty state when no developer context is attached in the source file",
   },
   agentContextTitle: {
-    defaultMessage: "Context found by agent",
-    id: "obaPDIKyjU",
+    defaultMessage: "Context found by AI",
+    id: "ubUnIApAec",
     description: "Section heading for repository context discovered by an agent",
   },
   agentContextAria: {
@@ -745,6 +787,35 @@ export const contentEditorIntelligencePanelMessages = defineMessages({
     defaultMessage: "Translation memory",
     id: "okYWXGLSBl",
     description: "Section heading for translation memory matches in the intelligence panel",
+  },
+  translationMemoryMatchCount: {
+    defaultMessage: "{count, plural, one {# match} other {# matches}}",
+    id: "7IPdyrPeiO",
+    description: "Badge on the Translation Memory section showing how many matches were found",
+  },
+  contextShowMore: {
+    defaultMessage: "Show more",
+    id: "O/htGSC21+",
+    description:
+      "Button under a collapsed Translation Intelligence context section that reveals the full text",
+  },
+  contextShowLess: {
+    defaultMessage: "Show less",
+    id: "aGw44T5/+G",
+    description:
+      "Button under an expanded Translation Intelligence context section that collapses it to the first lines",
+  },
+  translationMemoryShowMore: {
+    defaultMessage: "Show {count, plural, one {# more match} other {# more matches}}",
+    id: "ycOxkP3sSp",
+    description:
+      "Button under the collapsed Translation Memory list that reveals the remaining matches",
+  },
+  translationMemoryShowLess: {
+    defaultMessage: "Show fewer matches",
+    id: "U9SOHsLtV2",
+    description:
+      "Button under the expanded Translation Memory list that collapses it back to the top matches",
   },
   approvedAria: {
     defaultMessage: "Approved",
@@ -1001,8 +1072,8 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Primary action to approve the current CAT translation",
   },
   saveAsDraft: {
-    defaultMessage: "Save as draft",
-    id: "YdeVnuUNms",
+    defaultMessage: "Save draft",
+    id: "/entAaFkYZ",
     description: "Secondary action to save the current translation without approving it",
   },
   findContextTitle: {
@@ -1026,8 +1097,8 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Button to look up repository context for the current string",
   },
   addToIssueSheet: {
-    defaultMessage: "Queries",
-    id: "C5PXkfW5jk",
+    defaultMessage: "Manage queries",
+    id: "8RLL1pvpVI",
     description: "Button to open Queries for the current CAT segment",
   },
   refreshContextTitle: {
@@ -1076,14 +1147,14 @@ export const contentEditorEditorPanelMessages = defineMessages({
     description: "Loading label while an AI translation suggestion is generated",
   },
   draftAction: {
-    defaultMessage: "Draft",
-    id: "qlnx9FQUcg",
+    defaultMessage: "Save draft",
+    id: "4FiXJbyF1T",
     description: "Secondary action to save the current translation as a draft",
   },
   queryAction: {
-    defaultMessage: "Query",
-    id: "ROKj0LtX6V",
-    description: "Secondary action to open a query for the current CAT segment",
+    defaultMessage: "Manage queries",
+    id: "Pn9lHJsKF0",
+    description: "Secondary action to manage queries for the current CAT segment",
   },
   aiReasoning: {
     defaultMessage: "<b>Reasoning:</b> {reasoning}",
@@ -1332,10 +1403,80 @@ export const contentEditorWorkspaceViewModeMessages = defineMessages({
 });
 
 export const contentEditorSideBySidePanelMessages = defineMessages({
+  statusColumn: {
+    defaultMessage: "Status",
+    id: "02MXJJxV6e",
+    description: "Column heading for segment status in side-by-side CAT view",
+  },
+  keyColumn: {
+    defaultMessage: "Key & context",
+    id: "o2DtmdIldt",
+    description: "Column heading for string keys and file paths in side-by-side CAT view",
+  },
   sourceColumn: {
-    defaultMessage: "Source string",
-    id: "Q5+U++Wf7Z",
+    defaultMessage: "Source",
+    id: "fD0M5CBs5I",
     description: "Column heading for source strings in side-by-side CAT view",
+  },
+  stringCount: {
+    defaultMessage: "{count, plural, one {# string} other {# strings}}",
+    id: "mV5y3xzAdJ",
+    description: "Number of strings in the current file, shown next to the file name",
+  },
+  previousString: {
+    defaultMessage: "Previous string",
+    id: "kXSIqlVgAT",
+    description: "Pager button that focuses the previous string in side-by-side CAT view",
+  },
+  nextString: {
+    defaultMessage: "Next string",
+    id: "c7wP+cCtlF",
+    description: "Pager button that focuses the next string in side-by-side CAT view",
+  },
+  detailsTab: {
+    defaultMessage: "Details",
+    id: "4c8dlgeG1h",
+    description: "Tab in the CAT details panel showing the focused string",
+  },
+  qaChecksTab: {
+    defaultMessage: "QA checks",
+    id: "OwqU6nfgnC",
+    description: "Tab in the CAT details panel listing format and QA checks",
+  },
+  commentsTab: {
+    defaultMessage: "Comments",
+    id: "eHtPlX55/J",
+    description: "Tab in the CAT details panel listing comments on the focused string",
+  },
+  keyField: {
+    defaultMessage: "Key",
+    id: "5ug+haPHOx",
+    description: "Label for the string key in the CAT details panel",
+  },
+  locationField: {
+    defaultMessage: "Location",
+    id: "2ACZd8DTJY",
+    description: "Label for the file path of a string in the CAT details panel",
+  },
+  statusField: {
+    defaultMessage: "Status",
+    id: "g47ng636tH",
+    description: "Label for the review status of a string in the CAT details panel",
+  },
+  sourceTextField: {
+    defaultMessage: "Source text",
+    id: "fehpmLPnhK",
+    description: "Label for the source text of a string in the CAT details panel",
+  },
+  translationField: {
+    defaultMessage: "Translation ({locale})",
+    id: "Zrl4duXBNI",
+    description: "Label for the translated text of a string in the CAT details panel",
+  },
+  noQaChecks: {
+    defaultMessage: "No QA checks for this string.",
+    id: "qN0wGv1fCg",
+    description: "Empty state for the QA checks tab in the CAT details panel",
   },
   translationColumn: {
     defaultMessage: "Translation",

@@ -16,19 +16,28 @@ import {
   Copy01Icon,
   EraserIcon,
   Image01Icon,
+  Message01Icon,
+  SaveIcon,
   TranslateIcon,
   Video01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { observer } from "mobx-react-lite";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+import {
+  ContentEditorDifferentTranslationsBadge,
+  ContentEditorGroupVariantsGate,
+} from "../groups/content-editor-group-variants";
+import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
+import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
+
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Box } from "@/components/ui/layout/box";
-import { Column } from "@/components/ui/layout/column";
-import { Columns } from "@/components/ui/layout/columns";
 import { Row } from "@/components/ui/layout/row";
 import { Rows } from "@/components/ui/layout/rows";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,6 +84,12 @@ import type {
 } from "@/components/content-editor/shared/types";
 
 import { ContentEditorSideBySideAiSuggestion } from "./content-editor-side-by-side-ai-suggestion";
+import {
+  SIDE_BY_SIDE_GRID_CLASS_NAME,
+  SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME,
+  SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME,
+} from "./content-editor-side-by-side-grid";
 import { ContentEditorSideBySideInlineQa } from "./content-editor-side-by-side-inline-qa";
 import {
   actionableFormatChecks,
@@ -82,6 +97,8 @@ import {
   replacesQaTermAsWholeWord,
 } from "./content-editor-side-by-side-qa";
 import { ContentEditorSideBySideQaStatus } from "./content-editor-side-by-side-qa-status";
+
+const CELL_BOX_CLASS_NAME = "rounded-md border border-border bg-background px-3 py-2";
 
 function isImageEditorSegment(segment: ContentEditorSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -231,57 +248,85 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
+  const hasTranslationVariants = useHasGroupTranslationVariants(segment, segment.targetLocale);
   const showShareButton = isFocused && Boolean(segmentShareUrl);
   const shareButton =
     showShareButton && segmentShareUrl ? (
-      <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} size="icon-xs" />
+      <ContentEditorShareSegmentButton segmentShareUrl={segmentShareUrl} size="icon-sm" />
     ) : null;
-  const statusAndTags = (
+  const statusBadges = (
     <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
       {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
         <SegmentStatusBadge status={segment.status} />
       )}
+      {hasTranslationVariants ? <ContentEditorDifferentTranslationsBadge /> : null}
       {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
       {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
-      {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
     </Box>
   );
-  const sourceKeyMeta = (
-    <Rows spacing="0.5u">
-      <ContentEditorSegmentKeyMeta
-        segmentKey={segment.key}
-        sourcePath={segment.sourcePath}
-        trailing={shareButton}
-      />
-      {statusAndTags}
-    </Rows>
-  );
-  const copyClearActions = showCopyClearActions ? (
-    <Box display="flex" alignItems="center" gap="0.5u">
+  const showMediaSourceEditor = isFocused && (showVideoSource || showImageSource);
+  const treatAsImageButton =
+    showTreatAsImageAction && !showMediaSourceEditor ? (
       <Button
         type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onTargetChange(segment.sourceText)}
-        disabled={isTargetLoading}
-        aria-label={copySourceLabel}
-        title={copySourceLabel}
+        variant={treatAsImage ? "secondary" : "outline"}
+        size="xs"
+        disabled={!canEditTarget || isImageBusy}
+        onClick={() => onTreatAsImage?.(!treatAsImage)}
+        title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
       >
-        <HugeiconsIcon icon={Copy01Icon} aria-hidden />
+        <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
+        <FormattedMessage
+          {...(treatAsImage
+            ? contentEditorEditorPanelMessages.treatAsText
+            : contentEditorEditorPanelMessages.treatAsImage)}
+        />
       </Button>
+    ) : null;
+  const treatAsVideoButton =
+    showTreatAsVideoAction && !showMediaSourceEditor ? (
       <Button
         type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onTargetChange("")}
-        disabled={isTargetLoading || segment.targetText.length === 0}
-        aria-label={clearTargetLabel}
-        title={clearTargetLabel}
+        variant={treatAsVideo ? "secondary" : "outline"}
+        size="xs"
+        disabled={!canEditTarget || isImageBusy}
+        onClick={() => onTreatAsVideo?.(!treatAsVideo)}
+        title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
       >
-        <HugeiconsIcon icon={EraserIcon} aria-hidden />
+        <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
+        <FormattedMessage
+          {...(treatAsVideo
+            ? contentEditorEditorPanelMessages.treatAsText
+            : contentEditorEditorPanelMessages.treatAsVideo)}
+        />
       </Button>
-    </Box>
-  ) : null;
+    ) : null;
+  const copyClearActions =
+    showCopyClearActions || showShareButton ? (
+      <TooltipProvider>
+        <Box display="flex" alignItems="center" gap="0.5u">
+          {showCopyClearActions ? (
+            <IconActionButton
+              label={copySourceLabel}
+              disabled={isTargetLoading}
+              onClick={() => onTargetChange(segment.sourceText)}
+            >
+              <HugeiconsIcon icon={Copy01Icon} className="size-4" aria-hidden />
+            </IconActionButton>
+          ) : null}
+          {shareButton}
+          {showCopyClearActions ? (
+            <IconActionButton
+              label={clearTargetLabel}
+              disabled={isTargetLoading || segment.targetText.length === 0}
+              onClick={() => onTargetChange("")}
+            >
+              <HugeiconsIcon icon={EraserIcon} className="size-4" aria-hidden />
+            </IconActionButton>
+          ) : null}
+        </Box>
+      </TooltipProvider>
+    ) : null;
 
   useHotkeys(
     "mod+enter",
@@ -307,407 +352,374 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     [canTriggerApprove, isFocused, onApprove],
   );
 
-  const reviewActions = showActionBar ? (
-    <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
-      {showReviewActions ? (
-        <>
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={onApprove}
-            disabled={!canTriggerApprove}
-          >
-            {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
-            {resolvedPrimaryActionLabel}
-            <ContentEditorEditorShortcutKbd
-              shortcut="approve"
-              isMac={isMac}
-              className="bg-primary-foreground/15 text-primary-foreground"
-            />
-          </Button>
-          {onSaveDraft && !isAssetSegment ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={onSaveDraft}
-              disabled={!canTriggerApprove}
-            >
-              {isSavingDraft ? <Spinner className="size-3" /> : null}
-              <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />
-            </Button>
-          ) : null}
-        </>
+  const primaryActions = showReviewActions ? (
+    <>
+      <Button
+        type="button"
+        variant="default"
+        size="sm"
+        onClick={onApprove}
+        disabled={!canTriggerApprove}
+      >
+        {isApproving ? <Spinner className="size-3.5 text-primary-foreground" /> : null}
+        {resolvedPrimaryActionLabel}
+        <ContentEditorEditorShortcutKbd
+          shortcut="approve"
+          isMac={isMac}
+          className="bg-primary-foreground/15 text-primary-foreground"
+        />
+      </Button>
+      {onSaveDraft && !isAssetSegment ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onSaveDraft}
+          disabled={!canTriggerApprove}
+        >
+          {isSavingDraft ? (
+            <Spinner className="size-3" />
+          ) : (
+            <HugeiconsIcon icon={SaveIcon} className="size-3.5" strokeWidth={2} />
+          )}
+          <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />
+        </Button>
       ) : null}
+    </>
+  ) : null;
+  const secondaryActions = showActionBar ? (
+    <>
       {showIssueSheetAction ? (
         <Button
           type="button"
           variant="ghost"
-          size="xs"
+          size="sm"
           onClick={onAddToIssueSheet}
           disabled={isActionBlocked}
         >
+          <HugeiconsIcon icon={Message01Icon} className="size-3.5" strokeWidth={2} />
           <FormattedMessage {...contentEditorEditorPanelMessages.queryAction} />
         </Button>
       ) : null}
-    </Box>
+      <SegmentActivityButton
+        segmentId={segment.id}
+        sourcePath={segment.sourcePath}
+        targetLocale={segment.targetLocale}
+        label={segment.key}
+      />
+    </>
   ) : null;
+  const renderTargetToolbar = (trigger: ReactNode) => {
+    if (!trigger && !showActionBar) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {primaryActions}
+        <div className="ms-auto flex items-center gap-0.5">
+          {trigger}
+          {secondaryActions}
+        </div>
+      </div>
+    );
+  };
+  const reviewActions = renderTargetToolbar(null);
 
   return (
     <div
       className={cn(
-        "border-b border-border transition-colors",
-        isActive && "bg-grove-500/5",
-        isFocused && "ring-1 ring-inset ring-grove-400/30",
+        SIDE_BY_SIDE_GRID_CLASS_NAME,
+        "gap-y-2 border-b border-border px-4 py-3 transition-colors",
+        isFocused ? "bg-primary/5" : isActive && "bg-muted/40",
       )}
       onMouseEnter={() => setIsPointerHovered(true)}
       onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
-      <Columns spacing="0">
-        <Column width="1/2">
-          <div className="h-full border-r border-border">
-            <Box paddingX="1.5u" paddingY="1u">
-              {isFocused && showVideoSource ? (
-                <Rows spacing="1.5u">
-                  <ContentEditorEditorVideoSourceSection
+      <div className={SIDE_BY_SIDE_STATUS_AREA_CLASS_NAME}>{statusBadges}</div>
+
+      <div className={SIDE_BY_SIDE_SOURCE_AREA_CLASS_NAME}>
+        <Rows spacing="1u">
+          {isFocused && showVideoSource ? (
+            <ContentEditorEditorVideoSourceSection
+              segment={segment}
+              canEdit={canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsVideo={onTreatAsVideo}
+              onRegenerate={onRegenerateImage}
+            />
+          ) : isFocused && showImageSource ? (
+            <ContentEditorEditorImageSourceSection
+              segment={segment}
+              canEdit={canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsImage={onTreatAsImage}
+              onRegenerate={onRegenerateImage}
+            />
+          ) : isVideoSegment ? (
+            <button type="button" className="w-full text-left" onClick={onFocus}>
+              <ContentEditorVideoPreview
+                src={
+                  segment.contentKind === "video_file"
+                    ? segment.sourceAssetUrl
+                    : (segment.sourceAssetUrl ?? segment.sourceText)
+                }
+                emptyLabel={intl.formatMessage(contentEditorEditorPanelMessages.videoSourceEmpty)}
+                className="min-h-24"
+              />
+            </button>
+          ) : isImageSegment ? (
+            <button type="button" className="w-full text-left" onClick={onFocus}>
+              <ContentEditorImagePreview
+                src={
+                  segment.contentKind === "image_file"
+                    ? segment.sourceAssetUrl
+                    : (segment.sourceAssetUrl ?? segment.sourceText)
+                }
+                alt={intl.formatMessage(contentEditorEditorPanelMessages.imageSourceAlt)}
+                emptyLabel={intl.formatMessage(contentEditorEditorPanelMessages.imageSourceEmpty)}
+                className="min-h-24"
+              />
+            </button>
+          ) : (
+            <div className={CELL_BOX_CLASS_NAME}>
+              <Text size="small" wrapStyle="pretty">
+                <ContentEditorMessagePreview message={segment.sourceText} />
+              </Text>
+            </div>
+          )}
+          <ContentEditorSegmentKeyMeta
+            segmentKey={segment.key}
+            sourcePath={segment.sourcePath}
+            keyClassName="text-xs font-medium text-foreground"
+            trailing={
+              (segment.occurrenceCount ?? 0) > 1 ? (
+                <ContentEditorOccurrenceBadge
+                  count={segment.occurrenceCount!}
+                  divergent={hasTranslationVariants}
+                />
+              ) : null
+            }
+          />
+          {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
+          {copyClearActions || treatAsImageButton || treatAsVideoButton ? (
+            <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
+              {copyClearActions}
+              {treatAsImageButton}
+              {treatAsVideoButton}
+            </Box>
+          ) : null}
+        </Rows>
+      </div>
+
+      <div className={cn(SIDE_BY_SIDE_TARGET_AREA_CLASS_NAME, "relative")}>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            {isFocused && canEdit ? (
+              isVideoSegment ? (
+                <Rows spacing="1u">
+                  <ContentEditorEditorVideoTargetSection
                     segment={segment}
                     canEdit={canEditTarget}
                     isBusy={isImageBusy}
-                    onTreatAsVideo={onTreatAsVideo}
+                    isLoading={isTargetLoading}
+                    onUpload={onUploadImage}
                     onRegenerate={onRegenerateImage}
                   />
-                  <Row spacing="1u" align="spaceBetween" alignY="start">
-                    {statusAndTags}
-                    {shareButton}
-                  </Row>
-                  {copyClearActions}
-                </Rows>
-              ) : isFocused && showImageSource ? (
-                <Rows spacing="1.5u">
-                  <ContentEditorEditorImageSourceSection
-                    segment={segment}
-                    canEdit={canEditTarget}
-                    isBusy={isImageBusy}
-                    onTreatAsImage={onTreatAsImage}
-                    onRegenerate={onRegenerateImage}
-                  />
-                  <Row spacing="1u" align="spaceBetween" alignY="start">
-                    {statusAndTags}
-                    {shareButton}
-                  </Row>
-                  {copyClearActions}
-                </Rows>
-              ) : isVideoSegment ? (
-                <Rows spacing="1.5u">
-                  <button type="button" className="w-full text-left" onClick={onFocus}>
-                    <Rows spacing="1.5u">
-                      <ContentEditorVideoPreview
-                        src={
-                          segment.contentKind === "video_file"
-                            ? segment.sourceAssetUrl
-                            : (segment.sourceAssetUrl ?? segment.sourceText)
-                        }
-                        emptyLabel={intl.formatMessage(
-                          contentEditorEditorPanelMessages.videoSourceEmpty,
-                        )}
-                        className="min-h-24"
-                      />
-                      {sourceKeyMeta}
-                    </Rows>
-                  </button>
-                  {showTreatAsVideoAction ? (
-                    <Button
-                      type="button"
-                      variant={treatAsVideo ? "secondary" : "outline"}
-                      size="xs"
-                      disabled={!canEditTarget || isImageBusy}
-                      onClick={() => onTreatAsVideo?.(!treatAsVideo)}
-                      title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
-                    >
-                      <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
-                      <FormattedMessage
-                        {...(treatAsVideo
-                          ? contentEditorEditorPanelMessages.treatAsText
-                          : contentEditorEditorPanelMessages.treatAsVideo)}
-                      />
-                    </Button>
-                  ) : null}
+                  {reviewActions}
                 </Rows>
               ) : isImageSegment ? (
-                <Rows spacing="1.5u">
-                  <button type="button" className="w-full text-left" onClick={onFocus}>
-                    <Rows spacing="1.5u">
-                      <ContentEditorImagePreview
-                        src={
-                          segment.contentKind === "image_file"
-                            ? segment.sourceAssetUrl
-                            : (segment.sourceAssetUrl ?? segment.sourceText)
-                        }
-                        alt={intl.formatMessage(contentEditorEditorPanelMessages.imageSourceAlt)}
-                        emptyLabel={intl.formatMessage(
-                          contentEditorEditorPanelMessages.imageSourceEmpty,
-                        )}
-                        className="min-h-24"
-                      />
-                      {sourceKeyMeta}
-                    </Rows>
-                  </button>
-                  {showTreatAsImageAction ? (
-                    <Button
-                      type="button"
-                      variant={treatAsImage ? "secondary" : "outline"}
-                      size="xs"
-                      disabled={!canEditTarget || isImageBusy}
-                      onClick={() => onTreatAsImage?.(!treatAsImage)}
-                      title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
-                    >
-                      <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
-                      <FormattedMessage
-                        {...(treatAsImage
-                          ? contentEditorEditorPanelMessages.treatAsText
-                          : contentEditorEditorPanelMessages.treatAsImage)}
-                      />
-                    </Button>
-                  ) : null}
-                </Rows>
-              ) : (
                 <Rows spacing="1u">
-                  <Text size="small" wrapStyle="pretty">
-                    <ContentEditorMessagePreview message={segment.sourceText} />
-                  </Text>
-                  {sourceKeyMeta}
-                  {copyClearActions || showTreatAsImageAction || showTreatAsVideoAction ? (
-                    <Box display="flex" flexWrap="wrap" alignItems="center" gap="0.5u">
-                      {copyClearActions}
-                      {showTreatAsImageAction ? (
-                        <Button
-                          type="button"
-                          variant={treatAsImage ? "secondary" : "outline"}
-                          size="xs"
-                          disabled={!canEditTarget || isImageBusy}
-                          onClick={() => onTreatAsImage?.(!treatAsImage)}
-                          title={intl.formatMessage(
-                            contentEditorEditorPanelMessages.treatAsImageTitle,
-                          )}
-                        >
-                          <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
-                          <FormattedMessage
-                            {...(treatAsImage
-                              ? contentEditorEditorPanelMessages.treatAsText
-                              : contentEditorEditorPanelMessages.treatAsImage)}
-                          />
-                        </Button>
-                      ) : null}
-                      {showTreatAsVideoAction ? (
-                        <Button
-                          type="button"
-                          variant={treatAsVideo ? "secondary" : "outline"}
-                          size="xs"
-                          disabled={!canEditTarget || isImageBusy}
-                          onClick={() => onTreatAsVideo?.(!treatAsVideo)}
-                          title={intl.formatMessage(
-                            contentEditorEditorPanelMessages.treatAsVideoTitle,
-                          )}
-                        >
-                          <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
-                          <FormattedMessage
-                            {...(treatAsVideo
-                              ? contentEditorEditorPanelMessages.treatAsText
-                              : contentEditorEditorPanelMessages.treatAsVideo)}
-                          />
-                        </Button>
-                      ) : null}
-                    </Box>
-                  ) : null}
+                  <ContentEditorEditorImageTargetSection
+                    segment={segment}
+                    canEdit={canEditTarget}
+                    isBusy={isImageBusy}
+                    isLoading={isTargetLoading}
+                    onUpload={onUploadImage}
+                    onRegenerate={onRegenerateImage}
+                  />
+                  {reviewActions}
                 </Rows>
-              )}
-            </Box>
-          </div>
-        </Column>
-
-        <Column width="1/2">
-          <div className="relative min-w-0">
-            <Box paddingX="1.5u" paddingY="1u">
-              <Columns spacing="1u" alignY="start">
-                <Column width="fluid">
-                  {isFocused && canEdit ? (
-                    isVideoSegment ? (
-                      <Rows spacing="1u">
-                        <ContentEditorEditorVideoTargetSection
-                          segment={segment}
-                          canEdit={canEditTarget}
-                          isBusy={isImageBusy}
-                          isLoading={isTargetLoading}
-                          onUpload={onUploadImage}
-                          onRegenerate={onRegenerateImage}
-                        />
-                        {reviewActions}
-                      </Rows>
-                    ) : isImageSegment ? (
-                      <Rows spacing="1u">
-                        <ContentEditorEditorImageTargetSection
-                          segment={segment}
-                          canEdit={canEditTarget}
-                          isBusy={isImageBusy}
-                          isLoading={isTargetLoading}
-                          onUpload={onUploadImage}
-                          onRegenerate={onRegenerateImage}
-                        />
-                        {reviewActions}
-                      </Rows>
-                    ) : isTargetLoading && !segment.targetText.trim() ? (
-                      <Skeleton className="h-10 w-full rounded-lg" />
-                    ) : (
-                      <Rows spacing="1u">
-                        <Rows spacing="0.5u">
-                          <ContentEditorTargetEditor
-                            sourceText={segment.sourceText}
-                            value={segment.targetText}
-                            maxLength={segment.maxLength}
-                            compact
-                            highlightTokens={highlightTokens}
-                            highlightStatus={highlightStatus}
-                            highlightWholeTerm={highlightWholeTerm}
-                            onChange={onTargetChange}
-                          />
-                          {showInlineQa ? (
-                            <ContentEditorSideBySideInlineQa
-                              formatChecks={formatChecks}
-                              isLoading={isFormatChecksLoading}
-                              targetText={segment.targetText}
-                              onFix={onTargetChange}
-                            />
-                          ) : null}
-                          {showAiSuggestion && intelligence && onUseAiSuggestion ? (
-                            <ContentEditorSideBySideAiSuggestion
-                              key={segment.id}
-                              intelligence={intelligence}
-                              isLoading={isAiSuggestionLoading}
-                              error={aiRecommendationError}
-                              onUseAiSuggestion={onUseAiSuggestion}
-                              onGenerateAiRecommendation={onGenerateAiRecommendation}
-                            />
-                          ) : null}
-                          {sourceMessageAnalysis ? (
-                            <ContentEditorIcuStructureSummary
-                              blocks={sourceMessageAnalysis.icuBlocks}
-                            />
-                          ) : null}
-                        </Rows>
-                        {reviewActions}
-                      </Rows>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      className="w-full bg-transparent text-left"
-                      onClick={onFocus}
-                    >
-                      {isVideoSegment ? (
-                        isTargetLoading && !hasAssetTarget(segment) ? (
-                          <Skeleton className="h-24 w-full rounded-lg" />
-                        ) : hasAssetTarget(segment) ? (
-                          <ContentEditorVideoPreview
-                            src={
-                              segment.targetAssetUrl ??
-                              (segment.contentKind === "video_url" &&
-                              /^https?:\/\//i.test(segment.targetText)
-                                ? segment.targetText
-                                : null)
-                            }
-                            emptyLabel={intl.formatMessage(
-                              contentEditorEditorPanelMessages.videoTargetEmpty,
-                            )}
-                            className="min-h-24"
-                          />
-                        ) : (
-                          <Row spacing="1u" alignY="center">
-                            <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
-                            <Text size="small" tone="subtle">
-                              <FormattedMessage
-                                {...contentEditorSideBySidePanelMessages.clickToLocalizeVideo}
-                              />
-                            </Text>
-                          </Row>
-                        )
-                      ) : isImageSegment ? (
-                        isTargetLoading && !hasAssetTarget(segment) ? (
-                          <Skeleton className="h-24 w-full rounded-lg" />
-                        ) : hasAssetTarget(segment) ? (
-                          <ContentEditorImagePreview
-                            src={
-                              segment.targetAssetUrl ??
-                              (segment.contentKind === "image_url" &&
-                              /^https?:\/\//i.test(segment.targetText)
-                                ? segment.targetText
-                                : null)
-                            }
-                            alt={intl.formatMessage(
-                              contentEditorEditorPanelMessages.imageTargetAlt,
-                            )}
-                            emptyLabel={intl.formatMessage(
-                              contentEditorEditorPanelMessages.imageTargetEmpty,
-                            )}
-                            className="min-h-24"
-                          />
-                        ) : (
-                          <Row spacing="1u" alignY="center">
-                            <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
-                            <Text size="small" tone="subtle">
-                              <FormattedMessage
-                                {...contentEditorSideBySidePanelMessages.clickToLocalizeImage}
-                              />
-                            </Text>
-                          </Row>
-                        )
-                      ) : isTargetLoading && !segment.targetText.trim() ? (
-                        <Skeleton className="h-6 w-3/4 rounded-full" />
-                      ) : segment.targetText.trim() ? (
-                        <Text size="small" wrapStyle="pretty">
-                          <ContentEditorMessagePreview
-                            message={segment.targetText}
-                            highlightTokens={highlightTokens}
-                            highlightStatus={highlightStatus}
-                            highlightWholeTerm={highlightWholeTerm}
-                          />
-                        </Text>
-                      ) : (
-                        <Row spacing="1u" alignY="center">
-                          <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
-                          <Text size="small" tone="subtle">
-                            <FormattedMessage
-                              defaultMessage="Click to translate"
-                              id="G3IbmWT2r1"
-                              description="Placeholder when a side-by-side row has no translation yet"
-                            />
-                          </Text>
-                        </Row>
-                      )}
-                    </button>
-                  )}
-                </Column>
-                {showCollapsedQaStatus ? (
-                  <Column width="content">
-                    <ContentEditorSideBySideQaStatus
-                      formatChecks={formatChecks}
-                      isLoading={isFormatChecksLoading}
-                      onActivate={onFocus}
+              ) : isTargetLoading && !segment.targetText.trim() ? (
+                <Skeleton className="h-10 w-full rounded-lg" />
+              ) : (
+                <ContentEditorGroupVariantsGate segment={segment} locale={segment.targetLocale}>
+                  <Rows spacing="1.5u">
+                    <ContentEditorTargetEditor
+                      sourceText={segment.sourceText}
+                      value={segment.targetText}
+                      maxLength={segment.maxLength}
+                      compact
+                      highlightTokens={highlightTokens}
+                      highlightStatus={highlightStatus}
+                      highlightWholeTerm={highlightWholeTerm}
+                      onChange={onTargetChange}
                     />
-                  </Column>
-                ) : null}
-              </Columns>
-            </Box>
-            {isDirty ? (
-              <span
-                className="absolute right-2 bottom-2 size-1.5 rounded-full bg-bud-400"
-                aria-hidden
-              />
-            ) : null}
+                    {showInlineQa ? (
+                      <ContentEditorSideBySideInlineQa
+                        formatChecks={formatChecks}
+                        isLoading={isFormatChecksLoading}
+                        targetText={segment.targetText}
+                        onFix={onTargetChange}
+                      />
+                    ) : null}
+                    {sourceMessageAnalysis ? (
+                      <ContentEditorIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
+                    ) : null}
+                    {showAiSuggestion && intelligence && onUseAiSuggestion ? (
+                      <ContentEditorSideBySideAiSuggestion
+                        key={segment.id}
+                        intelligence={intelligence}
+                        isLoading={isAiSuggestionLoading}
+                        error={aiRecommendationError}
+                        onUseAiSuggestion={onUseAiSuggestion}
+                        onGenerateAiRecommendation={onGenerateAiRecommendation}
+                        renderToolbar={renderTargetToolbar}
+                      />
+                    ) : (
+                      renderTargetToolbar(null)
+                    )}
+                  </Rows>
+                </ContentEditorGroupVariantsGate>
+              )
+            ) : (
+              <button type="button" className="w-full bg-transparent text-left" onClick={onFocus}>
+                {isVideoSegment ? (
+                  isTargetLoading && !hasAssetTarget(segment) ? (
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  ) : hasAssetTarget(segment) ? (
+                    <ContentEditorVideoPreview
+                      src={
+                        segment.targetAssetUrl ??
+                        (segment.contentKind === "video_url" &&
+                        /^https?:\/\//i.test(segment.targetText)
+                          ? segment.targetText
+                          : null)
+                      }
+                      emptyLabel={intl.formatMessage(
+                        contentEditorEditorPanelMessages.videoTargetEmpty,
+                      )}
+                      className="min-h-24"
+                    />
+                  ) : (
+                    <Row spacing="1u" alignY="center">
+                      <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          {...contentEditorSideBySidePanelMessages.clickToLocalizeVideo}
+                        />
+                      </Text>
+                    </Row>
+                  )
+                ) : isImageSegment ? (
+                  isTargetLoading && !hasAssetTarget(segment) ? (
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  ) : hasAssetTarget(segment) ? (
+                    <ContentEditorImagePreview
+                      src={
+                        segment.targetAssetUrl ??
+                        (segment.contentKind === "image_url" &&
+                        /^https?:\/\//i.test(segment.targetText)
+                          ? segment.targetText
+                          : null)
+                      }
+                      alt={intl.formatMessage(contentEditorEditorPanelMessages.imageTargetAlt)}
+                      emptyLabel={intl.formatMessage(
+                        contentEditorEditorPanelMessages.imageTargetEmpty,
+                      )}
+                      className="min-h-24"
+                    />
+                  ) : (
+                    <Row spacing="1u" alignY="center">
+                      <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          {...contentEditorSideBySidePanelMessages.clickToLocalizeImage}
+                        />
+                      </Text>
+                    </Row>
+                  )
+                ) : isTargetLoading && !segment.targetText.trim() ? (
+                  <Skeleton className="h-10 w-full rounded-md" />
+                ) : segment.targetText.trim() ? (
+                  <div className={CELL_BOX_CLASS_NAME}>
+                    <Text size="small" wrapStyle="pretty">
+                      <ContentEditorMessagePreview
+                        message={segment.targetText}
+                        highlightTokens={highlightTokens}
+                        highlightStatus={highlightStatus}
+                        highlightWholeTerm={highlightWholeTerm}
+                      />
+                    </Text>
+                  </div>
+                ) : (
+                  <div className={cn(CELL_BOX_CLASS_NAME, "border-dashed")}>
+                    <Row spacing="1u" alignY="center">
+                      <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
+                      <Text size="small" tone="subtle">
+                        <FormattedMessage
+                          defaultMessage="Click to translate"
+                          id="G3IbmWT2r1"
+                          description="Placeholder when a side-by-side row has no translation yet"
+                        />
+                      </Text>
+                    </Row>
+                  </div>
+                )}
+              </button>
+            )}
           </div>
-        </Column>
-      </Columns>
+          {showCollapsedQaStatus ? (
+            <div className="shrink-0 pt-2">
+              <ContentEditorSideBySideQaStatus
+                formatChecks={formatChecks}
+                isLoading={isFormatChecksLoading}
+                onActivate={onFocus}
+              />
+            </div>
+          ) : null}
+        </div>
+        {isDirty ? (
+          <span
+            className="absolute right-1 bottom-1 size-1.5 rounded-full bg-bud-400"
+            aria-hidden
+          />
+        ) : null}
+      </div>
     </div>
   );
 });
+
+function IconActionButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            disabled={disabled}
+            onClick={onClick}
+            aria-label={label}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}

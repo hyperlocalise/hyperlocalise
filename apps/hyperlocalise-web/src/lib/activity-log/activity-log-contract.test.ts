@@ -67,6 +67,7 @@ describe("activity log contract", () => {
     expect(FILE_SEGMENT_ACTIVITY_EVENT_TYPES).toEqual([
       "file_uploaded",
       "file_translations_imported",
+      "string_segment_translation_updated",
       "string_segment_approved",
       "string_segment_status_changed",
       "string_segment_hidden",

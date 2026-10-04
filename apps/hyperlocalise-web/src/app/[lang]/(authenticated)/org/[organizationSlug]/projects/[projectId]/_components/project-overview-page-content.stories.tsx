@@ -113,8 +113,8 @@ export const TmsProject: Story = {
       "href",
       "/org/acme/projects/ext%3Acrowdin%3A42/strings",
     );
-    await expect(canvas.queryByText("Sync")).toBeNull();
     await expect(canvas.queryByText("Guidance")).toBeNull();
+    await expect(canvas.queryByText("Sync")).toBeNull();
     await expect(canvas.getByText("Locales")).toBeInTheDocument();
   },
 };

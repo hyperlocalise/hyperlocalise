@@ -14,8 +14,9 @@
  */
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, SidebarLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useIntl } from "react-intl";
 
 import {
   ContentEditorFileTreePicker,
@@ -24,6 +25,7 @@ import {
 import { ContentEditorActivityLogButton } from "@/components/content-editor/activity-log/content-editor-activity-log-dialog";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { contentEditorWorkspaceViewMessages } from "@/components/content-editor/workspace/content-editor-workspace.messages";
 import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -36,13 +38,13 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
   backHref: string;
   actions: ContentEditorPageActions;
 }) {
+  const intl = useIntl();
   const workspace = useContentEditorWorkspace();
   const page = workspace.page;
+  const ui = workspace.ui;
   const isFileViewOrDesigner =
-    workspace.ui.adaptiveWorkspaceEnabled &&
-    (workspace.ui.isFileView || workspace.ui.isDesignerPersona);
+    ui.adaptiveWorkspaceEnabled && (ui.isFileView || ui.isDesignerPersona);
   const showFilePicker = page.files.length > 0 || page.allFiles;
-
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
       <div className="flex min-w-0 shrink-0 items-center gap-2">
@@ -54,6 +56,28 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
         </Button>
+
+        {page.showFileSidebar ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="hidden size-8 shrink-0 lg:inline-flex"
+            aria-pressed={!ui.filesPanelCollapsed}
+            aria-label={intl.formatMessage(
+              ui.filesPanelCollapsed
+                ? contentEditorWorkspaceViewMessages.showFilesPanel
+                : contentEditorWorkspaceViewMessages.hideFilesPanel,
+            )}
+            onClick={() => ui.toggleFilesPanel()}
+          >
+            <HugeiconsIcon
+              icon={SidebarLeft01Icon}
+              className="size-4 text-foreground"
+              strokeWidth={2}
+            />
+          </Button>
+        ) : null}
 
         {showFilePicker ? (
           <div className={isFileViewOrDesigner ? "inline-flex" : "lg:hidden"}>

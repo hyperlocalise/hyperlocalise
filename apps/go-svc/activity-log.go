@@ -58,6 +58,7 @@ var implementedActivityEventTypes = []string{
 	"automation_disabled",
 	"file_uploaded",
 	"file_translations_imported",
+	"string_segment_translation_updated",
 	"string_segment_approved",
 	"string_segment_status_changed",
 	"string_segment_hidden",
@@ -415,18 +416,25 @@ func activityLogActorDisplayName(kind string, firstName, lastName *string) strin
 }
 
 func activityLogPersonName(firstName, lastName *string) string {
-	parts := make([]string, 0, 2)
-	if firstName != nil && strings.TrimSpace(*firstName) != "" {
-		parts = append(parts, strings.TrimSpace(*firstName))
+	// BOLT OPTIMIZATION: Direct string checking and concatenation avoids slice allocation (make([]string, 0, 2))
+	// and strings.Join overhead on activity log display name formatting.
+	var f, l string
+	if firstName != nil {
+		f = strings.TrimSpace(*firstName)
 	}
-	if lastName != nil && strings.TrimSpace(*lastName) != "" {
-		parts = append(parts, strings.TrimSpace(*lastName))
+	if lastName != nil {
+		l = strings.TrimSpace(*lastName)
 	}
-	name := strings.TrimSpace(strings.Join(parts, " "))
-	if name == "" {
-		return "Deleted user"
+	if f != "" && l != "" {
+		return f + " " + l
 	}
-	return name
+	if f != "" {
+		return f
+	}
+	if l != "" {
+		return l
+	}
+	return "Deleted user"
 }
 
 func (api *activityLogAPI) listEvents(ctx context.Context, actor activityLogActor, query activityLogQuery) (any, int, error) {

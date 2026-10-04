@@ -22,12 +22,14 @@ import type { WorkosFlagEntities } from "./workos-flag-entities";
 import {
   RELEASE_CAT_ALL_FILES_FLAG,
   RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
   RELEASE_SANDBOX_VCR_IMAGE_FLAG,
 } from "./release-flag-keys";
 
 export {
   RELEASE_CAT_ALL_FILES_FLAG,
   RELEASE_CAT_ADAPTIVE_WORKSPACE_FLAG,
+  RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
   RELEASE_SANDBOX_VCR_IMAGE_FLAG,
 } from "./release-flag-keys";
 
@@ -94,6 +96,42 @@ export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Release gate for translation QA sandboxes (Hunspell dictionaries baked into VCR).
+ *
+ * `decide` enables when `RELEASE_QA_SANDBOX_VCR_IMAGE=true` so cron/workflow QA
+ * paths can use the custom image without enabling the global sandbox cutover.
+ * Also respects {@link isReleaseSandboxVcrImageEnabled} when `imageScope` is `qa`.
+ */
+export const releaseQaSandboxVcrImageFlag = flag<boolean>({
+  key: RELEASE_QA_SANDBOX_VCR_IMAGE_FLAG,
+  description: "Create translation QA Vercel Sandboxes from the hyperlocalise-sandbox VCR image.",
+  defaultValue: false,
+  decide() {
+    return process.env.RELEASE_QA_SANDBOX_VCR_IMAGE === "true";
+  },
+});
+
+export async function isReleaseQaSandboxVcrImageEnabled(): Promise<boolean> {
+  try {
+    return (await releaseQaSandboxVcrImageFlag.run({ identify: {} })) === true;
+  } catch {
+    return false;
+  }
+}
+
+export type VercelSandboxImageScope = "default" | "qa";
+
+/** Whether a sandbox create should use `VERCEL_SANDBOX_IMAGE` for the given scope. */
+export async function isHyperlocaliseSandboxVcrImageEnabledForScope(
+  imageScope: VercelSandboxImageScope,
+): Promise<boolean> {
+  if (imageScope === "qa") {
+    return (await isReleaseSandboxVcrImageEnabled()) || (await isReleaseQaSandboxVcrImageEnabled());
+  }
+  return await isReleaseSandboxVcrImageEnabled();
 }
 
 /**

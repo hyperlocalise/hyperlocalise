@@ -86,6 +86,7 @@ export const Default: Story = {
       onUseAiSuggestion: fn(),
       onRegenerateImage: fn(),
       onUploadImage: fn(),
+      onSetMaxLength: fn(),
     },
     review: {
       onApprove: fn(),
@@ -119,7 +120,7 @@ export const Default: Story = {
       await expect(shadowRoot.querySelector(`[data-item-path="${sourcePath}"]`)).toBeTruthy();
     }
 
-    await expect(canvas.getByText("Source string")).toBeInTheDocument();
+    await expect(canvas.getByText("Source")).toBeInTheDocument();
     await expect(canvas.getByText("Translation")).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toBeInTheDocument();
@@ -190,7 +191,7 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: "Show source" })).toBeInTheDocument();
 
     await selectFileInTree(canvasElement, contentEditorPageShellProductJsonPath);
-    await waitFor(() => expect(canvas.getByText("Source string")).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByText("Source")).toBeInTheDocument());
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
   },
 };

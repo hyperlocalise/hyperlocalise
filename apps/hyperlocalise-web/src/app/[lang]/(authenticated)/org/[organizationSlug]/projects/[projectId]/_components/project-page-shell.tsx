@@ -27,8 +27,43 @@ import {
   type Icon,
 } from "../../../_components/workspace-resource-shared";
 
-import { mapProjectToListRow } from "../../_components/project-list";
+import {
+  mapProjectToListRow,
+  type ApiProject,
+  type ProjectListRow,
+} from "../../_components/project-list";
 import { recordRecentProjectVisit } from "../../_components/recent-projects";
+
+export const translationProjectQueryKey = (organizationSlug: string, projectId: string) =>
+  ["translation-project", organizationSlug, projectId] as const;
+
+export async function fetchTranslationProjectRow(
+  organizationSlug: string,
+  projectId: string,
+  goSvcClient: {
+    project: {
+      get: (organizationSlug: string, projectId: string) => Promise<{ project: ApiProject }>;
+    };
+  },
+): Promise<ProjectListRow> {
+  if (parseProviderProjectId(projectId)) {
+    const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+      param: { organizationSlug, projectId },
+    });
+    if (response.status !== 200) {
+      throw new Error(`Failed to load project (${response.status})`);
+    }
+    const body = await response.json();
+    return mapProjectToListRow(body.project);
+  }
+
+  try {
+    const body = await goSvcClient.project.get(organizationSlug, projectId);
+    return mapProjectToListRow(body.project);
+  } catch (error) {
+    throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
+  }
+}
 
 export function useProjectPageQuery(
   organizationSlug: string,
@@ -37,27 +72,9 @@ export function useProjectPageQuery(
 ) {
   const { client: goSvcClient } = useGoSvcClient();
   const query = useQuery({
-    queryKey: ["translation-project", organizationSlug, projectId],
+    queryKey: translationProjectQueryKey(organizationSlug, projectId),
     enabled: options?.enabled ?? true,
-    queryFn: async () => {
-      if (parseProviderProjectId(projectId)) {
-        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-          param: { organizationSlug, projectId },
-        });
-        if (response.status !== 200) {
-          throw new Error(`Failed to load project (${response.status})`);
-        }
-        const body = await response.json();
-        return mapProjectToListRow(body.project);
-      }
-
-      try {
-        const body = await goSvcClient.project.get(organizationSlug, projectId);
-        return mapProjectToListRow(body.project);
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, "Failed to load project"), { cause: error });
-      }
-    },
+    queryFn: () => fetchTranslationProjectRow(organizationSlug, projectId, goSvcClient),
   });
 
   useEffect(() => {

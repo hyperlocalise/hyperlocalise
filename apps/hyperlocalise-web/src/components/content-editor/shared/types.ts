@@ -91,6 +91,12 @@ export interface ContentEditorQueueSegment {
   sourcePath?: string;
   externalResourceId?: string;
   resourceType?: "file" | "key";
+  /** Grouped queues: identical source strings this row saves to, including itself. */
+  occurrenceCount?: number;
+  /** Grouped queues: least complete status among the occurrences in the queue locale. */
+  groupStatus?: "pending" | "needs_review" | "reviewed";
+  /** Grouped queues: locales whose occurrences do not share one translation. */
+  divergentLocales?: string[];
 }
 
 /** File and locale scope for the CAT editor, shared across all segments. */
@@ -138,6 +144,12 @@ export interface ContentEditorSegment {
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
   looksLikeVideoUrl?: boolean;
+  /** Grouped queues: identical source strings this row saves to, including itself. */
+  occurrenceCount?: number;
+  /** Grouped queues: least complete status among the occurrences in the queue locale. */
+  groupStatus?: "pending" | "needs_review" | "reviewed";
+  /** Grouped queues: locales whose occurrences do not share one translation. */
+  divergentLocales?: string[];
 }
 
 export interface ContentEditorFormatCheck {

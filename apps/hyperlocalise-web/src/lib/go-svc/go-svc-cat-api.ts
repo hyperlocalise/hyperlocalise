@@ -48,8 +48,23 @@ import type {
   ProjectFileStringContextResponse,
 } from "@/api/routes/project/project.schema";
 
+import type { CatGroupVariant, CatGroupVariantsQuery } from "./go-svc-cat-groups.types";
+
 export class GoSvcCatApi {
   constructor(private readonly request: GoSvcRequest) {}
+
+  groupVariants(
+    organizationSlug: string,
+    projectId: string,
+    externalStringId: string,
+    query: CatGroupVariantsQuery,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ variants: CatGroupVariant[] }>(
+      catPath(organizationSlug, projectId, "segments", externalStringId, "variants"),
+      { query, ...options },
+    );
+  }
 
   targets(
     organizationSlug: string,

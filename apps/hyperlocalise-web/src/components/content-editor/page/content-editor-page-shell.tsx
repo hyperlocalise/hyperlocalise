@@ -44,7 +44,9 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
   className?: string;
   children: ReactNode;
 }) {
-  const page = useContentEditorWorkspace().page;
+  const workspace = useContentEditorWorkspace();
+  const page = workspace.page;
+  const ui = workspace.ui;
 
   return (
     <main
@@ -57,10 +59,11 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
       {banners}
 
       <ContentEditorPageBody
+        sidebarCollapsed={ui.filesPanelCollapsed}
+        onSidebarCollapsedChange={(collapsed) => ui.setFilesPanelCollapsed(collapsed)}
         sidebar={
           page.showFileSidebar ? (
             <ContentEditorFilesSidebar
-              className="hidden w-[17.5rem] shrink-0 lg:flex"
               files={page.files}
               selectedSourcePath={page.selectedSourcePath}
               onSelectFile={actions.onSelectFile}

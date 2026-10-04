@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 const releaseFlagRunMocks = vi.hoisted(() => ({
   contentEditorAllFiles: vi.fn(),
   sandboxVcrImage: vi.fn(),
+  qaSandboxVcrImage: vi.fn(),
   catAdaptiveWorkspace: vi.fn(),
 }));
 
@@ -27,9 +28,11 @@ vi.mock("flags/next", () => ({
     const run =
       definition.key === "release-sandbox-vcr-image"
         ? releaseFlagRunMocks.sandboxVcrImage
-        : definition.key === "release-content-editor-adaptive-workspace"
-          ? releaseFlagRunMocks.catAdaptiveWorkspace
-          : releaseFlagRunMocks.contentEditorAllFiles;
+        : definition.key === "release-qa-sandbox-vcr-image"
+          ? releaseFlagRunMocks.qaSandboxVcrImage
+          : definition.key === "release-content-editor-adaptive-workspace"
+            ? releaseFlagRunMocks.catAdaptiveWorkspace
+            : releaseFlagRunMocks.contentEditorAllFiles;
     return Object.assign(vi.fn(), {
       run,
       key: definition.key,
@@ -38,8 +41,10 @@ vi.mock("flags/next", () => ({
 }));
 
 import {
+  isHyperlocaliseSandboxVcrImageEnabledForScope,
   isReleaseCatAdaptiveWorkspaceEnabled,
   isReleaseContentEditorAllFilesEnabled,
+  isReleaseQaSandboxVcrImageEnabled,
   isReleaseSandboxVcrImageEnabled,
 } from "./release-flags";
 
@@ -68,6 +73,32 @@ describe("isReleaseContentEditorAllFilesEnabled", () => {
     releaseFlagRunMocks.contentEditorAllFiles.mockRejectedValue(new Error("flags unavailable"));
 
     await expect(isReleaseContentEditorAllFilesEnabled("crowdin")).resolves.toBe(false);
+  });
+});
+
+describe("isReleaseQaSandboxVcrImageEnabled", () => {
+  it("returns the flag.run result", async () => {
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isReleaseQaSandboxVcrImageEnabled()).resolves.toBe(true);
+
+    expect(releaseFlagRunMocks.qaSandboxVcrImage).toHaveBeenCalledWith({ identify: {} });
+  });
+});
+
+describe("isHyperlocaliseSandboxVcrImageEnabledForScope", () => {
+  it("enables QA scope when either sandbox or QA release gate is on", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(false);
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isHyperlocaliseSandboxVcrImageEnabledForScope("qa")).resolves.toBe(true);
+  });
+
+  it("uses only the global gate for default scope", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(false);
+    releaseFlagRunMocks.qaSandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isHyperlocaliseSandboxVcrImageEnabledForScope("default")).resolves.toBe(false);
   });
 });
 

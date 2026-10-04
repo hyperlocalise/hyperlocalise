@@ -25,6 +25,8 @@ import { ContentEditorLockedStringBadge } from "@/components/content-editor/segm
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { contentEditorQueuePanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
+import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
+import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
 
 const ESTIMATED_ROW_HEIGHT = 88;
 
@@ -179,8 +181,19 @@ export function ContentEditorQueueVirtualList({
                       sourcePath={segment.sourcePath}
                       keyClassName="text-xs"
                       trailing={
-                        segment.isHidden || segment.isLocked ? (
+                        segment.isHidden ||
+                        segment.isLocked ||
+                        (segment.occurrenceCount ?? 0) > 1 ? (
                           <span className="flex shrink-0 items-center gap-1">
+                            {(segment.occurrenceCount ?? 0) > 1 ? (
+                              <ContentEditorOccurrenceBadge
+                                count={segment.occurrenceCount!}
+                                divergent={isGroupTranslationDivergent(
+                                  segment,
+                                  segment.targetLocale,
+                                )}
+                              />
+                            ) : null}
                             {segment.isHidden ? (
                               <ContentEditorHiddenStringBadge className="h-5 px-1.5 text-[0.625rem]" />
                             ) : null}

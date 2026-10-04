@@ -162,6 +162,10 @@ import {
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
 import {
+  fileVariantDownloadName,
+  loadProjectFileVariant,
+} from "@/lib/projects/files/file-variant-download";
+import {
   lookupCachedProjectFileStringRepositoryContext,
   lookupProjectFileStringRepositoryContext,
 } from "@/lib/projects/string-context/project-string-context-service";
@@ -3494,6 +3498,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
         if (!sourceFile) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
+        }
+
+        if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {
+          const fileVariant = await loadProjectFileVariant({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            locale: query.locale,
+            fileStorageAdapter: options.fileStorageAdapter,
+          });
+          if (!fileVariant) {
+            return notFoundResponse(
+              c,
+              "file_variant_not_found",
+              "No translated file has been saved for this source file and locale.",
+            );
+          }
+
+          const filename = fileVariantDownloadName({
+            sourcePath: query.sourcePath,
+            locale: query.locale,
+            storedFilename: fileVariant.storedFilename,
+          });
+          return c.body(fileVariant.body, 200, {
+            "Content-Type": fileVariant.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+            "Content-Security-Policy": "default-src 'none'; sandbox;",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
         }
 
         const result = await loadProjectTranslationsAsPrefilledEntries({

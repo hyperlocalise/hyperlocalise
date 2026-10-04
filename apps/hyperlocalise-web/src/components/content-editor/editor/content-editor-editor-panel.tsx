@@ -12,6 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+import { ContentEditorGroupVariantsGate } from "../groups/content-editor-group-variants";
+import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
+
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
@@ -108,6 +112,9 @@ export function ContentEditorEditorPanel({
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorEditorPanelMessages.approve);
   const supportsIssueComments = providerKind === "crowdin" && canAddComment;
+  // Divergent grouped rows are edited per translation; the single-target actions would
+  // overwrite every copy with this row's translation.
+  const hasTranslationVariants = useHasGroupTranslationVariants(segment, segment.targetLocale);
 
   const actionState = useMemo(() => {
     const isActionBlocked = isApproving || isSavingDraft || isSegmentTargetLoading || isImageBusy;
@@ -116,7 +123,12 @@ export function ContentEditorEditorPanel({
       : segment.targetText.trim().length > 0;
 
     return {
-      canTriggerApprove: canApprove && hasTargetText && !isActionBlocked && !segment.isLocked,
+      canTriggerApprove:
+        canApprove &&
+        hasTargetText &&
+        !isActionBlocked &&
+        !segment.isLocked &&
+        !hasTranslationVariants,
       canTriggerFindContext:
         canLookupContext && !isApproving && !isSavingDraft && !isLookingUpContext && !isImageBusy,
       canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy && !segment.isLocked,
@@ -134,6 +146,7 @@ export function ContentEditorEditorPanel({
     isPostingComment,
     isSavingDraft,
     isSegmentTargetLoading,
+    hasTranslationVariants,
     segment,
   ]);
 
@@ -215,16 +228,24 @@ export function ContentEditorEditorPanel({
               onRegenerate={onRegenerateImage}
             />
           ) : (
-            <ContentEditorEditorTargetSection
-              segment={segment}
-              canEditTarget={actionState.canEditTarget}
-              isLoading={isSegmentTargetLoading}
-              onTargetChange={onTargetChange}
-              onCopySource={onCopySource}
-              onClearTarget={onClearTarget}
-            />
+            <ContentEditorGroupVariantsGate segment={segment} locale={segment.targetLocale}>
+              <ContentEditorEditorTargetSection
+                segment={segment}
+                canEditTarget={actionState.canEditTarget}
+                isLoading={isSegmentTargetLoading}
+                onTargetChange={onTargetChange}
+                onCopySource={onCopySource}
+                onClearTarget={onClearTarget}
+              />
+            </ContentEditorGroupVariantsGate>
           )}
 
+          <SegmentActivityButton
+            segmentId={segment.id}
+            sourcePath={segment.sourcePath}
+            targetLocale={segment.targetLocale}
+            label={segment.key}
+          />
           <ContentEditorEditorActions
             primaryActionLabel={resolvedPrimaryActionLabel}
             isMac={isMac}
@@ -237,14 +258,19 @@ export function ContentEditorEditorPanel({
             hasPreviousSegment={hasPreviousSegment}
             hasNextSegment={hasNextSegment}
             onApprove={onApprove}
-            onSaveDraft={isAssetEditorSegment(segment) ? undefined : onSaveDraft}
+            onSaveDraft={
+              isAssetEditorSegment(segment) || hasTranslationVariants ? undefined : onSaveDraft
+            }
             onAddToIssueSheet={onAddToIssueSheet}
             onAskQuestion={onAskQuestion}
             onPrevious={onPrevious}
             onNext={onNext}
+            showApprove={!hasTranslationVariants}
           />
 
-          {(canUseAiRecommendation || Boolean(upgradeHref)) && !isAssetEditorSegment(segment) ? (
+          {(canUseAiRecommendation || Boolean(upgradeHref)) &&
+          !isAssetEditorSegment(segment) &&
+          !hasTranslationVariants ? (
             <ContentEditorEditorAiRecommendation
               intelligence={intelligence}
               isLoading={isAiSuggestionLoading}

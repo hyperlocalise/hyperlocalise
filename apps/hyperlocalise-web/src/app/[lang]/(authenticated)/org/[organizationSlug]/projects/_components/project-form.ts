@@ -63,12 +63,12 @@ export function createEmptyProjectForm(): ProjectFormValues {
 export function createProjectFormFromRow(project: ProjectListRow): ProjectFormValues {
   return {
     name: project.name,
-    identifier: project.identifier,
-    description: project.descriptionValue,
-    translationContext: project.translationContextValue,
+    identifier: project.identifier ?? "",
+    description: project.descriptionValue ?? project.description ?? "",
+    translationContext: project.translationContextValue ?? project.translationContext ?? "",
     sourceLocale: project.sourceLocale ?? defaultNativeProjectSourceLocale,
     targetLocales:
-      project.targetLocales.length > 0
+      project.targetLocales?.length > 0
         ? project.targetLocales
         : [...defaultNativeProjectTargetLocales],
   };
@@ -209,6 +209,210 @@ export function toProjectPayload(
   return {
     ...payload,
     ...buildLocalePayload(values),
+  };
+}
+
+export type ProjectSettingsSection = "general" | "styleGuide" | "locales";
+
+function normalizedText(value: string | undefined) {
+  return (value ?? "").trim();
+}
+
+function normalizedIdentifier(value: string) {
+  return value.trim().toUpperCase();
+}
+
+function normalizedLocaleList(locales: string[]) {
+  return locales
+    .map((locale) => canonicalizeLocale(locale) ?? locale.trim())
+    .filter((locale) => locale.length > 0)
+    .toSorted((a, b) => a.localeCompare(b));
+}
+
+export function projectFormLocalesEqual(left: string[], right: string[]) {
+  const canonicalLeft = normalizedLocaleList(left);
+  const canonicalRight = normalizedLocaleList(right);
+  if (canonicalLeft.length !== canonicalRight.length) {
+    return false;
+  }
+  return canonicalLeft.every((locale, index) => locale === canonicalRight[index]);
+}
+
+function projectFormFieldIsDirty(
+  field: keyof ProjectFormValues,
+  values: ProjectFormValues,
+  baseline: ProjectFormValues,
+) {
+  if (field === "targetLocales") {
+    return !projectFormLocalesEqual(values.targetLocales, baseline.targetLocales);
+  }
+
+  if (field === "sourceLocale") {
+    const left = canonicalizeLocale(values.sourceLocale) ?? values.sourceLocale.trim();
+    const right = canonicalizeLocale(baseline.sourceLocale) ?? baseline.sourceLocale.trim();
+    return left !== right;
+  }
+
+  if (field === "identifier") {
+    return normalizedIdentifier(values.identifier) !== normalizedIdentifier(baseline.identifier);
+  }
+
+  return normalizedText(values[field]) !== normalizedText(baseline[field]);
+}
+
+export function projectSettingsSectionIsDirty(
+  section: ProjectSettingsSection,
+  values: ProjectFormValues,
+  baseline: ProjectFormValues,
+  options?: { identifierOnly?: boolean },
+) {
+  switch (section) {
+    case "general":
+      if (options?.identifierOnly) {
+        return projectFormFieldIsDirty("identifier", values, baseline);
+      }
+      return (
+        projectFormFieldIsDirty("name", values, baseline) ||
+        projectFormFieldIsDirty("identifier", values, baseline) ||
+        projectFormFieldIsDirty("description", values, baseline)
+      );
+    case "styleGuide":
+      return projectFormFieldIsDirty("translationContext", values, baseline);
+    case "locales":
+      return (
+        projectFormFieldIsDirty("sourceLocale", values, baseline) ||
+        projectFormFieldIsDirty("targetLocales", values, baseline)
+      );
+  }
+}
+
+const PROJECT_SETTINGS_SECTION_FIELDS: Record<ProjectSettingsSection, (keyof ProjectFormValues)[]> =
+  {
+    general: ["name", "identifier", "description"],
+    styleGuide: ["translationContext"],
+    locales: ["sourceLocale", "targetLocales"],
+  };
+
+export function validateProjectSettingsSection(
+  section: ProjectSettingsSection,
+  values: ProjectFormValues,
+  options?: { requireIdentifier?: boolean; intl?: ProjectFormIntl },
+): ProjectFormErrors {
+  const allErrors = validateProjectForm(values, {
+    requireLocales: section === "locales",
+    requireIdentifier: section === "general" && (options?.requireIdentifier ?? true),
+    intl: options?.intl,
+  });
+  const errors: ProjectFormErrors = {};
+
+  for (const field of PROJECT_SETTINGS_SECTION_FIELDS[section]) {
+    const message = allErrors[field];
+    if (message) {
+      errors[field] = message;
+    }
+  }
+
+  return errors;
+}
+
+export function mergeProjectSettingsSectionErrors(
+  current: ProjectFormErrors,
+  section: ProjectSettingsSection,
+  nextErrors: ProjectFormErrors,
+): ProjectFormErrors {
+  const next = { ...current };
+
+  for (const field of PROJECT_SETTINGS_SECTION_FIELDS[section]) {
+    if (nextErrors[field]) {
+      next[field] = nextErrors[field];
+    } else {
+      delete next[field];
+    }
+  }
+
+  return next;
+}
+
+export function toProjectSectionPayload(
+  values: ProjectFormValues,
+  section: ProjectSettingsSection,
+  options?: { identifierOnly?: boolean },
+): ProjectUpdatePayload {
+  switch (section) {
+    case "general": {
+      const identifier = values.identifier.trim().toUpperCase();
+      if (options?.identifierOnly) {
+        return identifier ? { identifier } : {};
+      }
+      return {
+        name: values.name.trim(),
+        description: values.description.trim(),
+        ...(identifier ? { identifier } : {}),
+      };
+    }
+    case "styleGuide":
+      return {
+        translationContext: values.translationContext.trim(),
+      };
+    case "locales":
+      return buildLocalePayload(values);
+  }
+}
+
+export function applyProjectSettingsSection(
+  current: ProjectFormValues,
+  saved: ProjectFormValues,
+  section: ProjectSettingsSection,
+): ProjectFormValues {
+  switch (section) {
+    case "general":
+      return {
+        ...current,
+        name: saved.name.trim(),
+        identifier: saved.identifier.trim().toUpperCase(),
+        description: saved.description.trim(),
+      };
+    case "styleGuide":
+      return {
+        ...current,
+        translationContext: saved.translationContext.trim(),
+      };
+    case "locales":
+      return {
+        ...current,
+        sourceLocale: saved.sourceLocale,
+        targetLocales: [...saved.targetLocales],
+      };
+  }
+}
+
+export function reconcileProjectForm(
+  current: ProjectFormValues,
+  baseline: ProjectFormValues,
+  project: ProjectListRow,
+): { values: ProjectFormValues; baseline: ProjectFormValues } {
+  const nextBaseline = createProjectFormFromRow(project);
+
+  return {
+    baseline: nextBaseline,
+    values: {
+      name: projectFormFieldIsDirty("name", current, baseline) ? current.name : nextBaseline.name,
+      identifier: projectFormFieldIsDirty("identifier", current, baseline)
+        ? current.identifier
+        : nextBaseline.identifier,
+      description: projectFormFieldIsDirty("description", current, baseline)
+        ? current.description
+        : nextBaseline.description,
+      translationContext: projectFormFieldIsDirty("translationContext", current, baseline)
+        ? current.translationContext
+        : nextBaseline.translationContext,
+      sourceLocale: projectFormFieldIsDirty("sourceLocale", current, baseline)
+        ? current.sourceLocale
+        : nextBaseline.sourceLocale,
+      targetLocales: projectFormFieldIsDirty("targetLocales", current, baseline)
+        ? current.targetLocales
+        : nextBaseline.targetLocales,
+    },
   };
 }
 

@@ -54,10 +54,24 @@ export function mapSegmentComments(
   }));
 }
 
+const GROUP_STATUS_RANK = { pending: 0, needs_review: 1, reviewed: 2 } as const;
+
 export function segmentStatusFromTarget(
-  segment: Pick<ContentEditorSegment, "hasOpenIssues">,
+  segment: Pick<ContentEditorSegment, "hasOpenIssues"> & Pick<ContentEditorSegment, "groupStatus">,
   target: ProjectFileContentEditorTranslation | null,
 ): ContentEditorSegment["status"] {
+  const own = ownSegmentStatusFromTarget(segment, target);
+  // A grouped row is only as complete as its least complete occurrence.
+  if (segment.groupStatus && GROUP_STATUS_RANK[segment.groupStatus] < GROUP_STATUS_RANK[own]) {
+    return segment.groupStatus;
+  }
+  return own;
+}
+
+function ownSegmentStatusFromTarget(
+  segment: Pick<ContentEditorSegment, "hasOpenIssues">,
+  target: ProjectFileContentEditorTranslation | null,
+): keyof typeof GROUP_STATUS_RANK {
   if (target?.isApproved) {
     return "reviewed";
   }
@@ -277,6 +291,9 @@ export function projectFileCatToWorkspaceState(
       ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
       ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
       ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
+      ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
+      ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
+      ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
     }),
   );
 

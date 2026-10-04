@@ -449,6 +449,7 @@
                             "group": "Check and evaluate",
                             "pages": [
                               "cli/commands/check",
+                              "cli/commands/validate",
                               "cli/commands/status",
                               "cli/commands/eval"
                             ]
@@ -499,6 +500,8 @@
                         "root": "changelog",
                         "directory": "accordion",
                         "pages": [
+                          "changelog/v1-13-1",
+                          "changelog/v1-13-0",
                           "changelog/v1-12-2",
                           "changelog/v1-12-1",
                           "changelog/v1-12-0",

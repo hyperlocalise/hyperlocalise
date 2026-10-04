@@ -62,6 +62,7 @@ export const Default: Story = {
     editing: {
       onTargetChange: fn(),
       onUseAiSuggestion: fn(),
+      onSetMaxLength: fn(),
     },
     review: {
       onApprove: fn(),
@@ -125,7 +126,7 @@ export const MobileReview: Story = {
       lookupSegmentContext: async () => "Found this string in the dashboard review card.",
     },
     review: { onApprove: fn() },
-    editing: { onUseAiSuggestion: fn() },
+    editing: { onUseAiSuggestion: fn(), onSetMaxLength: fn() },
   },
   play: async ({ args, canvasElement }) => {
     window.resizeTo(390, 844);

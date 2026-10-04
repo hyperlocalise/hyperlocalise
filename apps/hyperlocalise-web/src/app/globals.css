@@ -247,13 +247,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 /*
@@ -512,7 +505,7 @@ html,
   --chart-3: var(--ds-teal-600);
   --chart-4: var(--ds-purple-600);
   --chart-5: var(--ds-pink-600);
-  --radius: 0.375rem;
+  --radius: 0.625rem;
   --sidebar: var(--ds-background-200);
   --sidebar-foreground: var(--ds-gray-1000);
   --sidebar-muted-foreground: var(--ds-gray-800);
