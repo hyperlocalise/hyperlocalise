@@ -5,8 +5,10 @@ import (
 	"testing"
 )
 
-var testHLMDPHToken = "\x1eHLMDPH_ABCDEF0123456789_1\x1f"
-var testHLUEPHToken = "\x1eHLUEPH_ABCDEF012345_0\x1f"
+var (
+	testHLMDPHToken = "\x1eHLMDPH_ABCDEF0123456789_1\x1f"
+	testHLUEPHToken = "\x1eHLUEPH_ABCDEF012345_0\x1f"
+)
 
 func TestKindForSourcePath(t *testing.T) {
 	tests := []struct {

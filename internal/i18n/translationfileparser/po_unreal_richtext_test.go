@@ -7,12 +7,12 @@ import (
 
 func TestProtectUnrealRichTextPairsAndDecorators(t *testing.T) {
 	tests := []struct {
-		name        string
-		in          string
-		wantPlain   []string
-		wantHidden  []string
-		wantIntact  []string
-		wantCount   int
+		name       string
+		in         string
+		wantPlain  []string
+		wantHidden []string
+		wantIntact []string
+		wantCount  int
 	}{
 		{
 			name:       "style pair and attributed pair",
