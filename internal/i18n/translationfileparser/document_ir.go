@@ -41,7 +41,7 @@ type DocumentBlock struct {
 	Text        string            `json:"text"`
 }
 
-// ParsedDocument is the public markdown/MDX document IR.
+// ParsedDocument is the public document IR for markdown, MDX, and AsciiDoc.
 type ParsedDocument struct {
 	Format DocumentFormat  `json:"format"`
 	Parts  []DocumentPart  `json:"parts"`

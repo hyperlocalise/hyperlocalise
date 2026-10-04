@@ -66,7 +66,7 @@ func newEntriesCmd() *cobra.Command {
 		&sourcePath,
 		"source",
 		"",
-		"source file used to align markdown/MDX target documents onto source slot ids",
+		"source file used to align markdown/MDX/AsciiDoc target documents onto source slot ids",
 	)
 	cmd.Flags().StringVar(
 		&srxSpec,
