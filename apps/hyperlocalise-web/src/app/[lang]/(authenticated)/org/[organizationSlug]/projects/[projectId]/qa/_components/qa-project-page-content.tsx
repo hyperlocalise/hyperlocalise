@@ -34,6 +34,15 @@ import { ProjectPageShell, ProjectSectionHeader } from "../../_components/projec
 import { qaProjectMessages as messages } from "../qa-project.messages";
 
 const PAGE_SIZE = 100;
+type QaScanStartErrorCode = "qa_scan_in_progress" | "qa_scan_start_failed";
+
+class QaScanStartError extends Error {
+  constructor(readonly code: QaScanStartErrorCode) {
+    super("Could not start QA scan");
+    this.name = "QaScanStartError";
+  }
+}
+
 export function QaProjectPageContent({
   organizationSlug,
   projectId,
@@ -111,7 +120,9 @@ export function QaProjectPageContent({
     mutationFn: async () => {
       const response = await api.startScan({ param });
       if (!response.ok) {
-        throw new Error(response.status === 409 ? "qa_scan_in_progress" : "qa_scan_start_failed");
+        throw new QaScanStartError(
+          response.status === 409 ? "qa_scan_in_progress" : "qa_scan_start_failed",
+        );
       }
       return response.json();
     },
@@ -121,7 +132,7 @@ export function QaProjectPageContent({
       await queryClient.invalidateQueries({ queryKey: listKey });
     },
     onError: async (error) => {
-      if (error.message === "qa_scan_in_progress") {
+      if (error instanceof QaScanStartError && error.code === "qa_scan_in_progress") {
         await queryClient.invalidateQueries({ queryKey: listKey });
       }
     },
@@ -187,11 +198,15 @@ export function QaProjectPageContent({
       {start.isError ? (
         <QaNotice
           message={intl.formatMessage(
-            start.error.message === "qa_scan_in_progress"
+            start.error instanceof QaScanStartError && start.error.code === "qa_scan_in_progress"
               ? messages.runInProgress
               : messages.runError,
           )}
-          onRetry={start.error.message === "qa_scan_in_progress" ? undefined : () => start.mutate()}
+          onRetry={
+            start.error instanceof QaScanStartError && start.error.code === "qa_scan_in_progress"
+              ? undefined
+              : () => start.mutate()
+          }
         />
       ) : null}
       {list.isSuccess ? (

@@ -166,6 +166,19 @@ export function createQaMswHandlers({
       },
     ),
     http.get(
+      "*/v1/orgs/:organizationSlug/projects/:projectId/qa-reports/last-successful",
+      async ({ request }) => {
+        await maybeWait();
+        const beforeRunId = new URL(request.url).searchParams.get("beforeRunId");
+        const beforeIndex = projectRows.findIndex((row) => row.id === beforeRunId);
+        const report =
+          beforeIndex < 0
+            ? undefined
+            : projectRows.slice(beforeIndex).find((row) => row.status === "succeeded");
+        return HttpResponse.json(report ?? null);
+      },
+    ),
+    http.get(
       "*/v1/orgs/:organizationSlug/projects/:projectId/qa-reports/:runId",
       async ({ params, request }) => {
         await maybeWait();
