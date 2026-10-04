@@ -376,6 +376,17 @@ func TestActivityLogActorDisplayNames(t *testing.T) {
 	require.Equal(t, "Ada", activityLogActorDisplayName("user", &first, nil))
 }
 
+func TestActivityLogPersonName(t *testing.T) {
+	ptr := func(value string) *string { return &value }
+	require.Equal(t, "Grace Hopper", activityLogPersonName(ptr("Grace"), ptr("Hopper")))
+	require.Equal(t, "Ada Lovelace", activityLogPersonName(ptr("  Ada  "), ptr("  Lovelace  ")))
+	require.Equal(t, "Ada", activityLogPersonName(ptr("Ada"), nil))
+	require.Equal(t, "Hopper", activityLogPersonName(nil, ptr("Hopper")))
+	require.Equal(t, "Deleted user", activityLogPersonName(nil, nil))
+	require.Equal(t, "Deleted user", activityLogPersonName(ptr("   "), ptr("")))
+	require.Equal(t, "Deleted user", activityLogPersonName(ptr(""), ptr("   ")))
+}
+
 func TestPayloadTargetDisplayName(t *testing.T) {
 	require.Equal(t, "Website", *payloadTargetDisplayName(map[string]any{
 		"name": "Website", "integrationKind": "crowdin",

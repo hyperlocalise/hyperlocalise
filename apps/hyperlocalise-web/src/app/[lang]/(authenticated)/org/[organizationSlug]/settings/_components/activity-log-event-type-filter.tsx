@@ -186,6 +186,8 @@ const eventTypeLabels = {
   string_segment_commented: messages.stringSegmentCommentedEventType,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
+export const activityLogEventTypeLabels = eventTypeLabels;
+
 export function ActivityLogEventTypeFilter({
   value,
   onChange,
