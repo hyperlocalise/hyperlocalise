@@ -14,11 +14,8 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import {
-  enqueueIntegrationConnectedActivity,
-  enqueueIntegrationDisconnectedActivity,
-} from "@/lib/activity-log/integration-events";
 import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import { enqueueIntegrationDisconnectedActivity } from "@/lib/activity-log/integration-events";
 import {
   deleteOrganizationProviderCredential,
   listOrganizationProviderCredentialSummaries,
@@ -96,23 +93,13 @@ export function createProviderCredentialRoutes() {
       const payload = c.req.valid("json");
 
       try {
-        const { created, credential: providerCredential } =
-          await upsertOrganizationProviderCredential({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            userId: c.var.auth.user.localUserId,
-            provider: payload.provider,
-            apiKey: payload.apiKey,
-            defaultModel: payload.defaultModel,
-          });
-
-        if (created) {
-          await enqueueIntegrationConnectedActivity({
-            ...sessionActivityActor(c.var.auth.user.localUserId),
-            connectionId: `${c.var.auth.organization.localOrganizationId}:${payload.provider}`,
-            integrationKind: payload.provider,
-            organizationId: c.var.auth.organization.localOrganizationId,
-          });
-        }
+        const { credential: providerCredential } = await upsertOrganizationProviderCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          provider: payload.provider,
+          apiKey: payload.apiKey,
+          defaultModel: payload.defaultModel,
+        });
 
         return c.json({ providerCredential }, 200);
       } catch (error) {

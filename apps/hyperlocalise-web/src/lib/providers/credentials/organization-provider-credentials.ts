@@ -13,6 +13,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { assertCapability } from "@/api/auth/policy";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import { enqueueIntegrationConnectedActivity } from "@/lib/activity-log/integration-events";
 import { db, schema } from "@/lib/database/client";
 import type {
   LlmProvider,
@@ -153,8 +155,18 @@ export async function upsertOrganizationProviderCredential(input: {
       inserted: sql<boolean>`(xmax = 0)`,
     });
 
+  const created = Boolean(row.inserted);
+  if (created) {
+    await enqueueIntegrationConnectedActivity({
+      ...sessionActivityActor(input.userId),
+      connectionId: `${input.organizationId}:${input.provider}`,
+      integrationKind: input.provider,
+      organizationId: input.organizationId,
+    });
+  }
+
   return {
-    created: Boolean(row.inserted),
+    created,
     credential: {
       organizationId: row.organizationId,
       provider: row.provider,

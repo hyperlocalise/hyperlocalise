@@ -79,9 +79,8 @@ describe("ActivityLogList", () => {
       "/org/acme/settings/api-keys",
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Show activity by Ada Lovelace" }),
-    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show activity by Ada Lovelace" }));
+    expect(onActorFilter).toHaveBeenCalledWith("user:user-1");
 
     await user.click(screen.getByRole("button", { name: "Show activity from CLI deploy" }));
     expect(onActorFilter).toHaveBeenCalledWith("api_key:key-1");

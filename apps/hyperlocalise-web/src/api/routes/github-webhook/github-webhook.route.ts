@@ -238,27 +238,21 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
 
       if (event === "installation" && payload.action === "deleted" && payload.installation?.id) {
         log.info({ installationId: payload.installation.id }, "deleting github installation");
-        const [installation] = await db
-          .select({
-            id: schema.githubInstallations.id,
-            organizationId: schema.githubInstallations.organizationId,
-          })
-          .from(schema.githubInstallations)
-          .where(
-            eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
-          )
-          .limit(1);
-        await db
+        const [deletedInstallation] = await db
           .delete(schema.githubInstallations)
           .where(
             eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
-          );
-        if (installation) {
+          )
+          .returning({
+            id: schema.githubInstallations.id,
+            organizationId: schema.githubInstallations.organizationId,
+          });
+        if (deletedInstallation) {
           await enqueueIntegrationDisconnectedActivity({
             ...sessionActivityActor(null),
-            connectionId: installation.id,
+            connectionId: deletedInstallation.id,
             integrationKind: "github",
-            organizationId: installation.organizationId,
+            organizationId: deletedInstallation.organizationId,
           });
         }
 
