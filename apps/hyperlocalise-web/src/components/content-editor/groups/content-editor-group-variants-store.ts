@@ -50,6 +50,15 @@ export function groupVariantIdentity(variant: CatGroupVariant) {
     .join(",");
 }
 
+function occurrenceIdsOf(variant: CatGroupVariant) {
+  return variant.occurrences.map((occurrence) => occurrence.id);
+}
+
+function occurrenceSetsOverlap(left: readonly string[], right: readonly string[]) {
+  const wanted = new Set(right);
+  return left.some((id) => wanted.has(id));
+}
+
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -318,7 +327,7 @@ export class ContentEditorGroupVariants {
   canEdit: boolean;
   isApplyingToAll = false;
   applyError: string | null = null;
-  private heldTextByVariant = new Map<string, string>();
+  private heldText: { occurrenceIds: string[]; text: string }[] = [];
   ports: ContentEditorGroupVariantsPorts;
 
   constructor(input: {
@@ -336,7 +345,7 @@ export class ContentEditorGroupVariants {
     this.ports = input.ports;
     this.canEdit = input.ports.canEdit;
     this.variants = input.variants.map((variant) => new ContentEditorGroupVariant(this, variant));
-    makeAutoObservable<this, "projectId" | "heldTextByVariant">(
+    makeAutoObservable<this, "projectId" | "heldText">(
       this,
       {
         segment: false,
@@ -344,7 +353,7 @@ export class ContentEditorGroupVariants {
         drafts: false,
         projectId: false,
         ports: false,
-        heldTextByVariant: false,
+        heldText: false,
       },
       { autoBind: true },
     );
@@ -400,11 +409,19 @@ export class ContentEditorGroupVariants {
       }
       return new ContentEditorGroupVariant(this, variant);
     });
-    for (const removed of existing.values()) removed.release();
+    for (const removed of existing.values()) {
+      const dirty = removed.draft?.dirty ? removed.draft.text : null;
+      if (dirty != null) {
+        this.holdText(removed, dirty);
+        removed.draft?.accept(dirty);
+      }
+      removed.release();
+    }
     this.variants = next;
     if (this.focusedVariantId && !next.some((variant) => variant.id === this.focusedVariantId)) {
       this.focusedVariantId = null;
     }
+    this.flushHeldText(true);
   }
 
   /** Creates drafts (refreshing clean ones from the server text) and checks every variant. */
@@ -440,11 +457,11 @@ export class ContentEditorGroupVariants {
     const target = this.targetVariant;
     if (!target) return false;
     if (this.useTextIn(target.id, text)) {
-      this.heldTextByVariant.delete(target.id);
+      this.dropHeldOverlapping(occurrenceIdsOf(target.variant));
       return true;
     }
     if (target.pending) {
-      this.heldTextByVariant.set(target.id, text);
+      this.holdText(target, text);
       this.focusedVariantId = target.id;
       return true;
     }
@@ -452,15 +469,44 @@ export class ContentEditorGroupVariants {
   }
 
   /** Applies text that arrived while a specific translation was busy. */
-  flushHeldText() {
-    if (this.heldTextByVariant.size === 0) return;
-    const held = [...this.heldTextByVariant];
-    this.heldTextByVariant.clear();
-    for (const [variantId, text] of held) {
-      if (this.useTextIn(variantId, text)) continue;
-      const target = this.getVariant(variantId);
-      if (target?.pending) this.heldTextByVariant.set(variantId, text);
+  flushHeldText(dropMissing = false) {
+    if (this.heldText.length === 0) return;
+    const remaining: { occurrenceIds: string[]; text: string }[] = [];
+    for (const held of this.heldText) {
+      const target = this.findVariantForOccurrences(held.occurrenceIds);
+      if (target && !target.pending && this.useTextIn(target.id, held.text)) continue;
+      if (target?.pending || (!target && !dropMissing)) remaining.push(held);
     }
+    this.heldText = remaining;
+  }
+
+  private holdText(variant: ContentEditorGroupVariant, text: string) {
+    const occurrenceIds = occurrenceIdsOf(variant.variant);
+    this.dropHeldOverlapping(occurrenceIds);
+    this.heldText.push({ occurrenceIds, text });
+  }
+
+  private dropHeldOverlapping(occurrenceIds: readonly string[]) {
+    this.heldText = this.heldText.filter(
+      (held) => !occurrenceSetsOverlap(held.occurrenceIds, occurrenceIds),
+    );
+  }
+
+  /** Prefers a translation that still owns every held string, else any overlapping editable one. */
+  private findVariantForOccurrences(occurrenceIds: readonly string[]) {
+    const wanted = new Set(occurrenceIds);
+    let partial: ContentEditorGroupVariant | null = null;
+    for (const variant of this.variants) {
+      if (!variant.canEdit) continue;
+      let overlap = 0;
+      for (const occurrence of variant.variant.occurrences) {
+        if (wanted.has(occurrence.id)) overlap += 1;
+      }
+      if (overlap === 0) continue;
+      if (overlap === wanted.size) return variant;
+      partial ??= variant;
+    }
+    return partial;
   }
 
   async applyTextToAll(text: string) {

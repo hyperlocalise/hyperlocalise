@@ -479,4 +479,55 @@ describe("ContentEditorGroupVariantsRegistry", () => {
     await saving;
     expect(first.text).toBe("Membre retenu");
   });
+
+  it("rehomes a held match onto the merged translation after variants converge", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group, drafts } = createGroup({ saveVariant });
+    const applying = group.applyTextToAll("Membre");
+    const registry = new ContentEditorGroupVariantsRegistry();
+    registry.register(group);
+    expect(registry.routeText("k1", "fr", "Membre retenu")).toBe(true);
+
+    finish();
+    await applying;
+
+    group.sync([
+      {
+        text: "Membre",
+        isApproved: false,
+        occurrences: [occurrence("k1"), occurrence("k2"), occurrence("k3", true)],
+      },
+    ]);
+    group.attach();
+
+    expect(group.variants).toHaveLength(1);
+    expect(group.variants[0]!.text).toBe("Membre retenu");
+    expect(drafts.cells.size).toBe(1);
+    expect(drafts.dirty).toBe(true);
+  });
+
+  it("applies a held match to the merged translation when variants converge before flush", () => {
+    const { group, drafts } = createGroup();
+    group.variants[0]!.pendingAction = "save";
+    group.variants[1]!.pendingAction = "save";
+    expect(group.useText("Membre retenu")).toBe(true);
+
+    group.sync([
+      {
+        text: "Membre",
+        isApproved: false,
+        occurrences: [occurrence("k1"), occurrence("k2"), occurrence("k3", true)],
+      },
+    ]);
+    group.attach();
+
+    expect(group.variants[0]!.text).toBe("Membre retenu");
+    expect(drafts.cells.size).toBe(1);
+  });
 });
