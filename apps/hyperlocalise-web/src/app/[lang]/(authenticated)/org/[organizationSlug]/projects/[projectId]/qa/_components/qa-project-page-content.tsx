@@ -145,7 +145,10 @@ export function QaProjectPageContent({
     onSuccess: async () => {
       setSelectedRunId(null);
       setTab("findings");
-      await queryClient.invalidateQueries({ queryKey: listKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: workspaceQaReportsQueryKey(organizationSlug) }),
+      ]);
     },
     onError: async (error) => {
       if (error instanceof QaScanStartError && error.code === "qa_scan_in_progress") {

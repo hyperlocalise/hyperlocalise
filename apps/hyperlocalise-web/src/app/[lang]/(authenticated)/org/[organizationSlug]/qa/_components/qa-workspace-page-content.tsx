@@ -59,11 +59,7 @@ export function QaWorkspacePageContent({
     projectId !== "all" ||
     severity !== "all" ||
     status !== DEFAULT_STATUS;
-  const reportsQuery = useWorkspaceQaReports(organizationSlug, {
-    staleTime: 0,
-    refetchInterval: (rows) =>
-      rows?.some((row) => ["running", "queued"].includes(row.report?.status ?? "")) ? 2000 : false,
-  });
+  const reportsQuery = useWorkspaceQaReports(organizationSlug, { staleTime: 0 });
   const reports = reportsQuery.data?.reports ?? [];
   const summary = summarizeWorkspaceQa(reports);
   const reportsByProject = new Map(reports.map((row) => [row.projectId, row]));

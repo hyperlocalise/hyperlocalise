@@ -92,4 +92,14 @@ export const qaOverviewMessages = defineMessages({
     id: "yruH9NStXi",
     description: "Accessible label and count for one QA overview chart bar",
   },
+  selectScan: {
+    defaultMessage: "Select a scan",
+    id: "kBixxU3NdD",
+    description: "Accessible label for QA trend chart scan selection controls",
+  },
+  selectScanOption: {
+    defaultMessage: "{label}: {errors} errors, {warnings} warnings",
+    id: "UtHu3v+Njx",
+    description: "Accessible name for one QA trend scan selection control",
+  },
 });

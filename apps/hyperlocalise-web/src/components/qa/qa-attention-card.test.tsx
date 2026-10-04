@@ -17,9 +17,13 @@ import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { summarizeQaAttention, type QaAttention } from "@/lib/qa/use-workspace-qa-reports";
+import {
+  summarizeQaAttention,
+  workspaceQaReportsRefetchInterval,
+  type QaAttention,
+} from "@/lib/qa/use-workspace-qa-reports";
 
-import { qaWorkspaceReports } from "./qa.fixture";
+import { qaFailedReport, qaRunningReport, qaWorkspaceReports } from "./qa.fixture";
 import { QaAttentionCardView } from "./qa-attention-card";
 
 vi.mock("next/link", () => ({
@@ -57,6 +61,39 @@ describe("summarizeQaAttention", () => {
       projectsWithErrors: 0,
       failedScans: 0,
     });
+  });
+
+  it("keeps last successful errors when a later scan is running or failed", () => {
+    const [website, , , release] = qaWorkspaceReports;
+    expect(
+      summarizeQaAttention([
+        {
+          ...website!,
+          report: qaRunningReport,
+          previousSuccessful: { errorCount: website!.report!.errorCount, warningCount: 3 },
+        },
+        {
+          ...release!,
+          previousSuccessful: { errorCount: 4, warningCount: 1 },
+        },
+      ]),
+    ).toEqual({
+      errors: 6,
+      projectsWithErrors: 2,
+      failedScans: 1,
+    });
+  });
+});
+
+describe("workspaceQaReportsRefetchInterval", () => {
+  it("polls while a scan is running or queued", () => {
+    expect(workspaceQaReportsRefetchInterval(qaWorkspaceReports)).toBe(2000);
+    expect(
+      workspaceQaReportsRefetchInterval([
+        { ...qaWorkspaceReports[0]!, report: { ...qaFailedReport, status: "queued" } },
+      ]),
+    ).toBe(2000);
+    expect(workspaceQaReportsRefetchInterval([qaWorkspaceReports[0]!])).toBe(false);
   });
 });
 

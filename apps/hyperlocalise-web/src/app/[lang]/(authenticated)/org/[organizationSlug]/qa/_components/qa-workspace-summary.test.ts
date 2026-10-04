@@ -113,7 +113,7 @@ describe("summarizeWorkspaceQa", () => {
     ]);
   });
 
-  it("compares scanned projects with their previous completed scans", () => {
+  it("compares only projects that have a previous completed scan", () => {
     const counts = { segments: 10, byLocale: {}, byCheckType: {} };
     const summary = summarizeWorkspaceQa([
       {
@@ -123,8 +123,10 @@ describe("summarizeWorkspaceQa", () => {
       scannedRow("b", "Beta", { ...counts, errors: 2, warnings: 1 }),
     ]);
 
-    expect(summary.errorsChange).toBe(1);
-    expect(summary.warningsChange).toBe(1);
+    expect(summary.errors).toBe(3);
+    expect(summary.warnings).toBe(5);
+    expect(summary.errorsChange).toBe(-1);
+    expect(summary.warningsChange).toBe(0);
     expect(summarizeWorkspaceQa(qaWorkspaceReports).errorsChange).toBeUndefined();
   });
 

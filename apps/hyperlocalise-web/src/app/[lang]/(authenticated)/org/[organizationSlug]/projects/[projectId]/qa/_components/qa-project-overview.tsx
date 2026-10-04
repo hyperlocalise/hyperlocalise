@@ -27,8 +27,7 @@ import { qaOverviewMessages as overviewMessages } from "@/components/qa/qa-overv
 import type { ProjectQaReport } from "@/lib/qa/qa-report-client";
 
 import { qaProjectMessages as messages } from "../qa-project.messages";
-
-const TREND_SCAN_COUNT = 10;
+import { qaTrendReports } from "./qa-project-trend";
 
 function breakdown(counts: Record<string, number>) {
   return Object.entries(counts)
@@ -54,16 +53,12 @@ export function QaProjectOverview({
   const intl = useIntl();
   const locales = breakdown(report.summary.byLocale);
   const checks = breakdown(report.summary.byCheckType);
-  const trend = reports
-    .filter((row) => row.status === "succeeded")
-    .slice(0, TREND_SCAN_COUNT)
-    .toReversed()
-    .map((row) => ({
-      id: row.id,
-      label: intl.formatDate(row.completedAt ?? row.createdAt, { month: "short", day: "numeric" }),
-      errors: row.errorCount,
-      warnings: row.warningCount,
-    }));
+  const trend = qaTrendReports(reports, report.id).map((row) => ({
+    id: row.id,
+    label: intl.formatDate(row.completedAt ?? row.createdAt, { month: "short", day: "numeric" }),
+    errors: row.errorCount,
+    warnings: row.warningCount,
+  }));
   const selectedIndex = reports.findIndex((row) => row.id === report.id);
   const previous =
     selectedIndex === -1

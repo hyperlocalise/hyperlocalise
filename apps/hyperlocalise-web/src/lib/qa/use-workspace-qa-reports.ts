@@ -19,9 +19,18 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { createWorkspaceQaReportClient, type WorkspaceQaReportRow } from "./qa-report-client";
 
 const QA_REPORTS_STALE_TIME_MS = 60_000;
+const QA_IN_PROGRESS_REFETCH_MS = 2000;
 
 export function workspaceQaReportsQueryKey(organizationSlug: string) {
   return ["workspace-qa-reports", organizationSlug] as const;
+}
+
+export function workspaceQaReportsRefetchInterval(
+  rows: WorkspaceQaReportRow[] | undefined,
+): number | false {
+  return rows?.some((row) => ["running", "queued"].includes(row.report?.status ?? ""))
+    ? QA_IN_PROGRESS_REFETCH_MS
+    : false;
 }
 
 export function useWorkspaceQaReports(
@@ -41,9 +50,8 @@ export function useWorkspaceQaReports(
     queryFn: () => api.listReports({ param: { organizationSlug } }),
     enabled: Boolean(organizationSlug) && (options.enabled ?? true),
     staleTime: options.staleTime ?? QA_REPORTS_STALE_TIME_MS,
-    refetchInterval: refetchInterval
-      ? (query) => refetchInterval(query.state.data?.reports)
-      : undefined,
+    refetchInterval: (query) =>
+      (refetchInterval ?? workspaceQaReportsRefetchInterval)(query.state.data?.reports),
   });
 }
 
@@ -53,7 +61,12 @@ export type QaAttention = {
   failedScans: number;
 };
 
-/** Errors come from each project's latest completed scan; failed or running scans carry no counts. */
+function latestCompletedErrorCount(row: WorkspaceQaReportRow): number {
+  if (row.report?.status === "succeeded") return row.report.errorCount;
+  return row.previousSuccessful?.errorCount ?? 0;
+}
+
+/** Errors come from each project's latest successful scan, even if a later scan is running or failed. */
 export function summarizeQaAttention(
   rows: WorkspaceQaReportRow[] | undefined,
   projectId?: string,
@@ -62,8 +75,9 @@ export function summarizeQaAttention(
   for (const row of rows ?? []) {
     if (projectId && row.projectId !== projectId) continue;
     if (row.report?.status === "failed") attention.failedScans += 1;
-    if (row.report?.status === "succeeded" && row.report.errorCount > 0) {
-      attention.errors += row.report.errorCount;
+    const errors = latestCompletedErrorCount(row);
+    if (errors > 0) {
+      attention.errors += errors;
       attention.projectsWithErrors += 1;
     }
   }

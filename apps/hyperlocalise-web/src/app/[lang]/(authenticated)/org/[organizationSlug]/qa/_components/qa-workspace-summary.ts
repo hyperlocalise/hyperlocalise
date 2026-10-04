@@ -28,7 +28,7 @@ export type QaWorkspaceBreakdownRow = { value: string; findings: number };
 export type QaWorkspaceSummary = {
   errors: number;
   warnings: number;
-  /** Change from each scanned project's previous completed scan; undefined when none has one. */
+  /** Change across projects that have a previous completed scan; undefined when none does. */
   errorsChange: number | undefined;
   warningsChange: number | undefined;
   segments: number;
@@ -82,6 +82,8 @@ export function summarizeWorkspaceQa(reports: WorkspaceQaReportRow[]): QaWorkspa
   let errors = 0;
   let warnings = 0;
   let segments = 0;
+  let comparedErrors = 0;
+  let comparedWarnings = 0;
   let previousErrors = 0;
   let previousWarnings = 0;
   let hasPrevious = false;
@@ -96,6 +98,8 @@ export function summarizeWorkspaceQa(reports: WorkspaceQaReportRow[]): QaWorkspa
       segments += report.segmentCount;
       if (row.previousSuccessful) {
         hasPrevious = true;
+        comparedErrors += report.errorCount;
+        comparedWarnings += report.warningCount;
         previousErrors += row.previousSuccessful.errorCount;
         previousWarnings += row.previousSuccessful.warningCount;
       }
@@ -115,8 +119,8 @@ export function summarizeWorkspaceQa(reports: WorkspaceQaReportRow[]): QaWorkspa
   return {
     errors,
     warnings,
-    errorsChange: hasPrevious ? errors - previousErrors : undefined,
-    warningsChange: hasPrevious ? warnings - previousWarnings : undefined,
+    errorsChange: hasPrevious ? comparedErrors - previousErrors : undefined,
+    warningsChange: hasPrevious ? comparedWarnings - previousWarnings : undefined,
     segments,
     projectCount: reports.length,
     stateCounts,

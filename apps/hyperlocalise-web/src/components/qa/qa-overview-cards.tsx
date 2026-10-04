@@ -21,6 +21,7 @@ import {
   PROJECT_OVERVIEW_ACTION_MESH_SRC,
   PROJECT_OVERVIEW_CALM_MESH_SRC,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/_components/project-overview-mesh-stage";
+import { Button } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -301,37 +302,72 @@ export function QaTrendChartCard({
   return (
     <QaChartCardFrame title={title}>
       {rows.length > 1 ? (
-        <ChartContainer
-          config={series}
-          className="aspect-auto w-full [&_.recharts-bar-rectangle]:cursor-pointer"
-          style={{ height: TREND_CHART_HEIGHT_PX }}
-          aria-label={chartAriaLabel(intl, title, rows, keys)}
-          role="img"
-        >
-          <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis hide allowDecimals={false} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-            {keys.map((key, index) => (
-              <Bar
-                key={key}
-                dataKey={key}
-                stackId="findings"
-                fill={`var(--color-${key})`}
-                radius={index === keys.length - 1 ? [4, 4, 0, 0] : 0}
-                isAnimationActive={false}
-                onClick={(_, rowIndex) => {
-                  const row = rows[rowIndex];
-                  if (row) onSelect(row.id);
-                }}
-              >
-                {rows.map((row) => (
-                  <Cell key={row.id} fillOpacity={selectedId && row.id !== selectedId ? 0.45 : 1} />
-                ))}
-              </Bar>
-            ))}
-          </BarChart>
-        </ChartContainer>
+        <>
+          <ChartContainer
+            config={series}
+            className="aspect-auto w-full [&_.recharts-bar-rectangle]:cursor-pointer"
+            style={{ height: TREND_CHART_HEIGHT_PX }}
+            aria-hidden
+          >
+            <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis hide allowDecimals={false} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+              {keys.map((key, index) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  stackId="findings"
+                  fill={`var(--color-${key})`}
+                  radius={index === keys.length - 1 ? [4, 4, 0, 0] : 0}
+                  isAnimationActive={false}
+                  onClick={(_, rowIndex) => {
+                    const row = rows[rowIndex];
+                    if (row) onSelect(row.id);
+                  }}
+                >
+                  {rows.map((row) => (
+                    <Cell
+                      key={row.id}
+                      fillOpacity={selectedId && row.id !== selectedId ? 0.45 : 1}
+                    />
+                  ))}
+                </Bar>
+              ))}
+            </BarChart>
+          </ChartContainer>
+          <div
+            role="group"
+            aria-label={intl.formatMessage(messages.selectScan)}
+            className="flex flex-wrap gap-1"
+          >
+            {rows.map((row) => {
+              const selected = row.id === selectedId;
+              return (
+                <Button
+                  key={row.id}
+                  type="button"
+                  size="xs"
+                  variant={selected ? "secondary" : "ghost"}
+                  aria-pressed={selected}
+                  aria-label={intl.formatMessage(messages.selectScanOption, {
+                    label: row.label,
+                    errors: intl.formatNumber(Number(row.errors ?? 0)),
+                    warnings: intl.formatNumber(Number(row.warnings ?? 0)),
+                  })}
+                  onClick={() => onSelect(row.id)}
+                >
+                  {row.label}
+                </Button>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <QaChartEmpty text={intl.formatMessage(messages.trendEmpty)} />
       )}
