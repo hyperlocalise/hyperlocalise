@@ -35,124 +35,97 @@ export const groupMessages = defineMessages({
     defaultMessage: "Use project default",
     description: "Reset personal grouping preference",
   },
-  search: {
-    id: "2Yr5x4orOZ",
-    defaultMessage: "Search strings",
-    description: "Search grouped strings",
-  },
-  filter: {
-    id: "NddCHN7i2h",
-    defaultMessage: "Filter strings",
-    description: "Grouped string filter label",
-  },
-  all: { id: "ny1oD2i/fr", defaultMessage: "All strings", description: "All strings filter" },
-  untranslated: {
-    id: "lE3VKojvhr",
-    defaultMessage: "Untranslated",
-    description: "Untranslated member filter",
-  },
-  needs_review: {
-    id: "dN16cmxYfD",
-    defaultMessage: "Needs review",
-    description: "Needs review filter",
-  },
-  reviewed: {
-    id: "9usKQl0Wfi",
-    defaultMessage: "Approved",
-    description: "Approved member filter",
-  },
-  has_issues: {
-    id: "NwDlkHDtzn",
-    defaultMessage: "Has issues",
-    description: "Issue member filter",
-  },
-  hidden: {
-    id: "JuGU2af+p6",
-    defaultMessage: "Hidden",
-    description: "Hidden member badge or filter",
-  },
-  locked: { id: "P54Wzfa5O5", defaultMessage: "Locked", description: "Locked member badge" },
-  draft: { id: "1aPnR9Wplg", defaultMessage: "Draft", description: "Draft translation status" },
-  rejected: {
-    id: "P2BhUXKrFa",
-    defaultMessage: "Rejected",
-    description: "Rejected translation status",
-  },
   occurrences: {
     id: "tty9Qguyd5",
     defaultMessage: "{count, plural, one {# occurrence} other {# occurrences}}",
     description: "Number of identical source occurrences",
   },
-  matching: {
-    id: "QBbD5GiiB7",
-    defaultMessage: "{count} match this filter",
-    description: "Matching group occurrences",
+  occurrenceBadge: {
+    id: "UjdToCr2vA",
+    defaultMessage: "×{count}",
+    description: "Compact badge for how many identical strings a grouped queue row saves to",
   },
-  mixed: {
-    id: "su/vlEplFz",
-    defaultMessage: "Multiple translations",
-    description: "Different translations in one group",
+  variantsHeading: {
+    id: "Lr7AuUbkuo",
+    defaultMessage: "{count, plural, one {# translation} other {# different translations}}",
+    description: "Heading when identical source strings have different translations",
   },
-  progress: {
-    id: "QG/dB0EJpO",
-    defaultMessage: "{translated} translated · {approved} approved · {locked} locked",
-    description: "Group member status counts",
+  variantsHint: {
+    id: "rHxmEAsvVD",
+    defaultMessage:
+      "Saving a translation updates only the strings that share it. Use Apply to all to make every occurrence match.",
+    description: "Explains how saving a translation variant works",
   },
-  previous: { id: "L2mKI6RmBY", defaultMessage: "Previous", description: "Previous page" },
-  next: { id: "2Riv0UFuRU", defaultMessage: "Next", description: "Next page" },
-  page: {
-    id: "i+OfeFO55S",
-    defaultMessage: "{start}–{end} of {total}",
-    description: "Pagination range",
+  untranslated: {
+    id: "Ye4i9DEFBz",
+    defaultMessage: "Untranslated",
+    description: "Variant whose occurrences have no translation yet",
   },
-  error: {
-    id: "yhKgwi97Xc",
-    defaultMessage: "Could not load strings.",
-    description: "Group loading error",
+  approved: {
+    id: "63x7baaw0h",
+    defaultMessage: "Approved",
+    description: "Badge on a translation variant whose occurrences are all approved",
+  },
+  locked: {
+    id: "P54Wzfa5O5",
+    defaultMessage: "Locked",
+    description: "Locked member badge",
+  },
+  moreOccurrences: {
+    id: "b6Y2i7W7pE",
+    defaultMessage: "+{count} more",
+    description: "More occurrence keys not listed on a translation variant",
+  },
+  placeholder: {
+    id: "dz3Vg2TBp6",
+    defaultMessage: "Enter translation",
+    description: "Placeholder for a translation variant input",
+  },
+  saveDraft: {
+    id: "ruYH2S5Zlk",
+    defaultMessage: "Save",
+    description: "Save a translation variant as a draft",
+  },
+  approve: {
+    id: "b21BDbV3Fd",
+    defaultMessage: "Approve",
+    description: "Save and approve a translation variant",
+  },
+  applyToAll: {
+    id: "CQ6ZozSvfA",
+    defaultMessage: "Apply to all",
+    description: "Save this translation to every occurrence of the identical source string",
+  },
+  saveFailed: {
+    id: "uC9uH1Yi+P",
+    defaultMessage: "Could not save the translation.",
+    description: "Error when saving a translation variant fails",
+  },
+  loadFailed: {
+    id: "P0Zfg6wWEm",
+    defaultMessage: "Could not load translations for identical strings.",
+    description: "Error when translation variants cannot be loaded",
   },
   retry: {
-    id: "vFR3uUyEFs",
+    id: "VQnDEkq3vd",
     defaultMessage: "Retry",
-    description: "Retry loading groups or members",
+    description: "Retry loading translation variants",
   },
-  empty: {
-    id: "yBInAgw1Fg",
-    defaultMessage: "No strings match this view.",
-    description: "Empty grouped browser",
+  differentTranslations: {
+    id: "GRO2ZA5iZP",
+    defaultMessage: "Different translations",
+    description: "Badge on a grouped row whose identical strings have different translations",
   },
-  clear: {
-    id: "2pAv80s67m",
-    defaultMessage: "Clear filters",
-    description: "Clear group search and filters",
+  occurrencesDivergent: {
+    id: "VP21W4YIkX",
+    defaultMessage:
+      "{count, plural, one {# occurrence} other {# occurrences}} with different translations",
+    description: "Tooltip on the occurrence badge of a grouped row whose copies disagree",
   },
-  select: {
-    id: "V1bfLcNS6g",
-    defaultMessage: "Select a source string to inspect its occurrences.",
-    description: "Empty member inspection prompt",
-  },
-  members: {
-    id: "KZvqtpb7lA",
-    defaultMessage: "Occurrences",
-    description: "Group members heading",
-  },
-  outsideFilter: {
-    id: "sQ4Po+Dp6H",
-    defaultMessage: "Outside current filter",
-    description: "Member does not match active filter",
-  },
-  maxLength: {
-    id: "XNrp8+0nm5",
-    defaultMessage: "Maximum length: {count}",
-    description: "Member length constraint",
-  },
-  readOnly: {
-    id: "WbAkw38l3W",
-    defaultMessage: "Inspect occurrences here. Switch to individual strings to edit a translation.",
-    description: "Grouped browser read-only hint",
-  },
-  loading: {
-    id: "xXB6cmih1q",
-    defaultMessage: "Loading strings",
-    description: "Loading grouped strings",
+  divergentSaveBlocked: {
+    id: "A+0t4PwPV3",
+    defaultMessage:
+      "These identical strings have different translations. Save each translation separately or use Apply to all.",
+    description: "Error when saving a single translation for a grouped row whose copies disagree",
   },
 });

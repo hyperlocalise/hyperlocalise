@@ -154,13 +154,11 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 		registerAuthenticated(mux, verifier, pattern, api.handle(fn))
 	}
 	route("GET "+cat+"/queue", api.getQueue)
-	route("GET "+cat+"/groups", api.getStringGroups)
-	route("POST "+cat+"/groups/{groupId}/apply", api.applyStringGroup)
-	route("GET "+cat+"/groups/{groupId}/members", api.getStringGroupMembers)
 	route("POST "+cat+"/targets", api.getSegmentTargets)
 	route("GET "+cat+"/activity-logs", api.listActivityLogs)
 	route("GET "+cat, api.getFile)
 	route("GET "+cat+"/segments/{externalStringId}/target", api.getSegmentTarget)
+	route("GET "+cat+"/segments/{externalStringId}/variants", api.getSegmentGroupVariants)
 	route("GET "+cat+"/segments/{externalStringId}/comments", api.getSegmentComments)
 	route("POST "+cat+"/translations", api.saveTranslation)
 	route("PATCH "+cat+"/translations/status", api.updateTranslationStatus)
@@ -360,12 +358,12 @@ func editorCatSourceLooksLikeMediaURLSQL(sourceTextColumn string) string {
 	return "((" + trimmed + " like 'http://%' or " + trimmed + " like 'https://%') and " + path + " ~ '\\.(png|jpe?g|webp|mp4)$')"
 }
 
-func editorCatGroupSeparatesMediaSQL() string {
-	return "(coalesce(k.metadata->>'contentKind', '') in ('image_url','video_url') or " + editorCatSourceLooksLikeMediaURLSQL("k.source_text") + ")"
+func editorCatGroupSeparatesMediaSQL(alias string) string {
+	return "(coalesce(" + alias + ".metadata->>'contentKind', '') in ('image_url','video_url') or " + editorCatSourceLooksLikeMediaURLSQL(alias+".source_text") + ")"
 }
 
-func editorCatGroupIdentitySQL() string {
-	return "case when " + editorCatGroupSeparatesMediaSQL() + " then 'media:' || k.id::text else 'text:' || k.source_text end"
+func editorCatGroupIdentitySQL(alias string) string {
+	return "case when " + editorCatGroupSeparatesMediaSQL(alias) + " then 'media:' || " + alias + ".id::text else 'text:' || " + alias + ".source_text end"
 }
 
 type editorCatFileKind string
@@ -411,4 +409,12 @@ func parseEditorCatUUID(raw string) (string, error) {
 		return "", editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
 	return id, nil
+}
+
+func canonicalEditorCatID(id string) string {
+	parsed, err := uuid.Parse(trimEditorCat(id))
+	if err != nil {
+		return trimEditorCat(id)
+	}
+	return parsed.String()
 }

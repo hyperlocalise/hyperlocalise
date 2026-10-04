@@ -28,6 +28,12 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { SegmentActivityButton } from "../activity-log/content-editor-segment-activity";
+import {
+  ContentEditorDifferentTranslationsBadge,
+  ContentEditorGroupVariantsGate,
+} from "../groups/content-editor-group-variants";
+import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
+import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -242,6 +248,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
+  const hasTranslationVariants = useHasGroupTranslationVariants(segment, segment.targetLocale);
   const showShareButton = isFocused && Boolean(segmentShareUrl);
   const shareButton =
     showShareButton && segmentShareUrl ? (
@@ -252,6 +259,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
         <SegmentStatusBadge status={segment.status} />
       )}
+      {hasTranslationVariants ? <ContentEditorDifferentTranslationsBadge /> : null}
       {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
       {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
     </Box>
@@ -485,6 +493,14 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
             segmentKey={segment.key}
             sourcePath={segment.sourcePath}
             keyClassName="text-xs font-medium text-foreground"
+            trailing={
+              (segment.occurrenceCount ?? 0) > 1 ? (
+                <ContentEditorOccurrenceBadge
+                  count={segment.occurrenceCount!}
+                  divergent={hasTranslationVariants}
+                />
+              ) : null
+            }
           />
           {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
           {copyClearActions || treatAsImageButton || treatAsVideoButton ? (
@@ -528,42 +544,44 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               ) : isTargetLoading && !segment.targetText.trim() ? (
                 <Skeleton className="h-10 w-full rounded-lg" />
               ) : (
-                <Rows spacing="1.5u">
-                  <ContentEditorTargetEditor
-                    sourceText={segment.sourceText}
-                    value={segment.targetText}
-                    maxLength={segment.maxLength}
-                    compact
-                    highlightTokens={highlightTokens}
-                    highlightStatus={highlightStatus}
-                    highlightWholeTerm={highlightWholeTerm}
-                    onChange={onTargetChange}
-                  />
-                  {showInlineQa ? (
-                    <ContentEditorSideBySideInlineQa
-                      formatChecks={formatChecks}
-                      isLoading={isFormatChecksLoading}
-                      targetText={segment.targetText}
-                      onFix={onTargetChange}
+                <ContentEditorGroupVariantsGate segment={segment} locale={segment.targetLocale}>
+                  <Rows spacing="1.5u">
+                    <ContentEditorTargetEditor
+                      sourceText={segment.sourceText}
+                      value={segment.targetText}
+                      maxLength={segment.maxLength}
+                      compact
+                      highlightTokens={highlightTokens}
+                      highlightStatus={highlightStatus}
+                      highlightWholeTerm={highlightWholeTerm}
+                      onChange={onTargetChange}
                     />
-                  ) : null}
-                  {sourceMessageAnalysis ? (
-                    <ContentEditorIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
-                  ) : null}
-                  {showAiSuggestion && intelligence && onUseAiSuggestion ? (
-                    <ContentEditorSideBySideAiSuggestion
-                      key={segment.id}
-                      intelligence={intelligence}
-                      isLoading={isAiSuggestionLoading}
-                      error={aiRecommendationError}
-                      onUseAiSuggestion={onUseAiSuggestion}
-                      onGenerateAiRecommendation={onGenerateAiRecommendation}
-                      renderToolbar={renderTargetToolbar}
-                    />
-                  ) : (
-                    renderTargetToolbar(null)
-                  )}
-                </Rows>
+                    {showInlineQa ? (
+                      <ContentEditorSideBySideInlineQa
+                        formatChecks={formatChecks}
+                        isLoading={isFormatChecksLoading}
+                        targetText={segment.targetText}
+                        onFix={onTargetChange}
+                      />
+                    ) : null}
+                    {sourceMessageAnalysis ? (
+                      <ContentEditorIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
+                    ) : null}
+                    {showAiSuggestion && intelligence && onUseAiSuggestion ? (
+                      <ContentEditorSideBySideAiSuggestion
+                        key={segment.id}
+                        intelligence={intelligence}
+                        isLoading={isAiSuggestionLoading}
+                        error={aiRecommendationError}
+                        onUseAiSuggestion={onUseAiSuggestion}
+                        onGenerateAiRecommendation={onGenerateAiRecommendation}
+                        renderToolbar={renderTargetToolbar}
+                      />
+                    ) : (
+                      renderTargetToolbar(null)
+                    )}
+                  </Rows>
+                </ContentEditorGroupVariantsGate>
               )
             ) : (
               <button type="button" className="w-full bg-transparent text-left" onClick={onFocus}>

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -248,6 +249,8 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		ExternalStringID string `json:"externalStringId"`
 		Text             string `json:"text"`
 		Approve          *bool  `json:"approve"`
+		// Group writes the translation to every identical source string in this queue scope.
+		Group *editorCatSaveGroupScope `json:"group"`
 	}
 	if err := readEditorCatJSON(r, &body); err != nil {
 		return nil, 0, err
@@ -257,8 +260,13 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 	if sourcePath == "" || targetLocale == "" || len(body.Text) > 100_000 {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{trimEditorCat(body.ExternalStringID)}); err != nil {
-		return nil, 0, err
+	if body.Group != nil && (trimEditorCat(body.Group.SourcePath) == "" || len(body.Group.SourcePaths) > editorCatMaxGroupSaveOccurrences || len(body.Group.OccurrenceIDs) > editorCatMaxGroupSaveOccurrences) {
+		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
+	}
+	if body.Group == nil {
+		if err := api.rejectIfLocked(r, actor, project, targetLocale, []string{trimEditorCat(body.ExternalStringID)}); err != nil {
+			return nil, 0, err
+		}
 	}
 	keyID, err := api.requireTranslationKey(r, actor, project, sourcePath, body.ExternalStringID)
 	if err != nil {
@@ -272,22 +280,33 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		return nil, 0, err
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
-	if err = lockEditorCatKeys(r.Context(), tx, actor, project, []string{keyID}); err != nil {
+	keyIDs := []string{keyID}
+	if body.Group != nil {
+		keyIDs, err = api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, *body.Group, tx)
+		if err != nil {
+			return nil, 0, err
+		}
+		keyIDs = uniqueEditorCatIDs(keyIDs, editorCatMaxGroupSaveOccurrences)
+	}
+	if err = lockEditorCatKeys(r.Context(), tx, actor, project, keyIDs); err != nil {
 		return nil, 0, err
 	}
-	var locked bool
-	if err = tx.QueryRow(r.Context(), `select exists(select 1 from project_cat_segment_locks where organization_id=$1 and project_id=$2 and external_string_id=$3 and target_locale=$4)`, actor.organizationID, project.ID, keyID, targetLocale).Scan(&locked); err != nil {
+	if body.Group != nil {
+		current, err := api.editorCatGroupOccurrenceIDs(r, actor, project, keyID, *body.Group, tx)
+		if err != nil {
+			return nil, 0, err
+		}
+		keyIDs = uniqueEditorCatIDs(intersectEditorCatIDs(keyIDs, current), editorCatMaxGroupSaveOccurrences)
+		if len(keyIDs) == 0 {
+			keyIDs = []string{keyID}
+		}
+	}
+	lockedIDs, err := editorCatLockedKeyIDs(r, tx, actor, project, targetLocale, keyIDs)
+	if err != nil {
 		return nil, 0, err
 	}
-	if locked {
+	if body.Group == nil && lockedIDs[canonicalEditorCatID(keyID)] {
 		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
-	}
-	var beforeRevision string
-	err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, keyID, targetLocale).Scan(&beforeRevision)
-	if errors.Is(err, pgx.ErrNoRows) {
-		beforeRevision = "missing"
-	} else if err != nil {
-		return nil, 0, err
 	}
 	status := "draft"
 	var reviewedAt *time.Time
@@ -298,51 +317,110 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		reviewedAt = &now
 		reviewedBy = &actor.userID
 	}
-	var id, text, savedStatus, afterRevision string
-	err = tx.QueryRow(r.Context(), `
-        insert into project_translations (
-            organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
-            reviewed_by_user_id, reviewed_at
-        ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8)
-        on conflict (translation_key_id, target_locale) do update set
-            text=excluded.text,
-            status=excluded.status,
-            provenance=excluded.provenance,
-            reviewed_by_user_id=excluded.reviewed_by_user_id,
-            reviewed_at=excluded.reviewed_at,
-            updated_at=now()
-        returning id, text, status, xmin::text`,
-		actor.organizationID, project.ID, keyID, targetLocale, body.Text, status, reviewedBy, reviewedAt,
-	).Scan(&id, &text, &savedStatus, &afterRevision)
-	if err != nil {
-		return nil, 0, err
-	}
 	groupID, err := queryEditorCatGroupID(r.Context(), tx, actor.organizationID, project.ID, keyID)
 	if err != nil {
 		return nil, 0, err
 	}
-	insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", keyID, map[string]any{
-		"projectId": project.ID, "segmentId": keyID, "sourcePath": sourcePath, "targetLocale": targetLocale,
-		"groupId": groupID, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus,
-	})
+	operationID := ""
+	if len(keyIDs) > 1 {
+		operationID = uuid.NewString()
+	}
+	var saved editorCatTranslation
+	savedIDs := make([]string, 0, len(keyIDs))
+	savedPaths := make([]string, 0, len(keyIDs))
+	for _, occurrenceID := range keyIDs {
+		if lockedIDs[canonicalEditorCatID(occurrenceID)] {
+			continue
+		}
+		var occurrenceSourceText, occurrencePath string
+		var occurrenceMaxLength *int
+		err = tx.QueryRow(r.Context(), `
+            select k.source_text, coalesce(f.source_path, $4), k.max_length
+            from project_translation_keys k
+            left join repository_source_files f on f.id=k.repository_source_file_id
+                and f.organization_id=k.organization_id and f.project_id=k.project_id
+            where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
+			actor.organizationID, project.ID, occurrenceID, sourcePath,
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength)
+		if err != nil {
+			return nil, 0, err
+		}
+		if body.Group != nil {
+			if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
+				return nil, 0, err
+			}
+		}
+		var beforeRevision string
+		err = tx.QueryRow(r.Context(), `select xmin::text from project_translations where translation_key_id=$1 and target_locale=$2 for update`, occurrenceID, targetLocale).Scan(&beforeRevision)
+		if errors.Is(err, pgx.ErrNoRows) {
+			beforeRevision = "missing"
+		} else if err != nil {
+			return nil, 0, err
+		}
+		var id, text, savedStatus, afterRevision string
+		err = tx.QueryRow(r.Context(), `
+            with saved as (
+                insert into project_translations (
+                    organization_id, project_id, translation_key_id, target_locale, text, status, provenance,
+                    reviewed_by_user_id, reviewed_at
+                ) values ($1,$2,$3,$4,$5,$6,'manual',$7,$8)
+                on conflict (translation_key_id, target_locale) do update set
+                    text=excluded.text,
+                    status=excluded.status,
+                    provenance=excluded.provenance,
+                    reviewed_by_user_id=excluded.reviewed_by_user_id,
+                    reviewed_at=excluded.reviewed_at,
+                    updated_at=now()
+                returning id, text, status, xmin::text as revision
+            )
+            select saved.id, saved.text, saved.status, saved.revision, coalesce(f.source_path, $9)
+            from saved
+            join project_translation_keys k on k.id=$3
+            left join repository_source_files f on f.id=k.repository_source_file_id`,
+			actor.organizationID, project.ID, occurrenceID, targetLocale, body.Text, status, reviewedBy, reviewedAt, sourcePath,
+		).Scan(&id, &text, &savedStatus, &afterRevision, &occurrencePath)
+		if err != nil {
+			return nil, 0, err
+		}
+		payload := map[string]any{
+			"projectId": project.ID, "segmentId": occurrenceID, "sourcePath": occurrencePath, "targetLocale": targetLocale,
+			"groupId": groupID, "beforeRevision": beforeRevision, "afterRevision": afterRevision, "nextStatus": savedStatus,
+		}
+		if operationID != "" {
+			payload["operationId"] = operationID
+			payload["operationMemberIds"] = keyIDs
+		}
+		insertEditorCatActivity(r.Context(), tx, actor, "string_segment_translation_updated", occurrenceID, payload)
+		savedIDs = append(savedIDs, occurrenceID)
+		savedPaths = append(savedPaths, occurrencePath)
+		if occurrenceID == keyID || saved.ExternalTranslationID == nil {
+			saved = editorCatTranslation{
+				Text:                  text,
+				ExternalTranslationID: &id,
+				IsApproved:            savedStatus == "approved",
+				Status:                savedStatus,
+				Revision:              &afterRevision,
+			}
+		}
+	}
+	if len(savedIDs) == 0 {
+		return nil, 0, editorCatFailure(409, "cat_segment_locked", "Segment is locked")
+	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
 	if body.Approve != nil && *body.Approve {
-		api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
-			eventType:    "string_segment_approved",
-			segmentID:    keyID,
-			sourcePath:   sourcePath,
-			targetLocale: targetLocale,
-		})
+		for i, occurrenceID := range savedIDs {
+			api.recordEditorCatSegmentActivity(r, actor, project, editorCatSegmentActivity{
+				eventType:    "string_segment_approved",
+				segmentID:    occurrenceID,
+				sourcePath:   savedPaths[i],
+				targetLocale: targetLocale,
+			})
+		}
 	}
-	noteRequest(r, "target_locale", targetLocale, "translation_status", savedStatus)
-	return map[string]any{"translation": editorCatTranslation{
-		Text:                  text,
-		ExternalTranslationID: &id,
-		IsApproved:            savedStatus == "approved",
-		Status:                savedStatus,
-	}}, 200, nil
+	noteRequest(r, "target_locale", targetLocale, "translation_status", saved.Status, "occurrences", len(savedIDs))
+	return map[string]any{"translation": saved, "updatedCount": len(savedIDs)}, 200, nil
 }
 
 func (api *editorCatAPI) updateTranslationStatus(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -911,7 +989,7 @@ func uniqueEditorCatIDs(values []string, max int) []string {
 	seen := map[string]bool{}
 	ids := make([]string, 0, len(values))
 	for _, value := range values {
-		id := trimEditorCat(value)
+		id := canonicalEditorCatID(value)
 		if id == "" || seen[id] {
 			continue
 		}

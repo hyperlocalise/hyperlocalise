@@ -11,21 +11,17 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { useEffect, useState } from "react";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { CAT_QUEUE_TOOLBAR_HOST_ID } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import { renderWithContentEditorProviders } from "../shared/content-editor-test-utils";
 import { ContentEditorGroupingView } from "./content-editor-grouping-view";
+import { useContentEditorGroupingMode } from "./use-content-editor-grouping-mode";
 
 vi.mock("@workos-inc/authkit-nextjs/components", () => ({
   useAuth: () => ({ user: { id: "user-1" } }),
-}));
-vi.mock("./content-editor-group-browser", () => ({
-  ContentEditorGroupBrowser: () => <p>Grouped browser</p>,
-  GroupLoading: () => <p>Loading</p>,
 }));
 afterEach(() => {
   cleanup();
@@ -34,19 +30,44 @@ afterEach(() => {
 });
 const STORAGE_KEY = "cat-grouping-v1:user-1:acme:p1";
 
-function Editor({ effect }: { effect: () => () => void }) {
-  const [text, setText] = useState("");
-  useEffect(effect, [effect]);
+function Harness({
+  client,
+  guard,
+  initialSegmentKey,
+}: {
+  client: GoSvcClient;
+  guard: (proceed: () => void) => void;
+  initialSegmentKey?: string | null;
+}) {
+  const mode = useContentEditorGroupingMode({
+    client,
+    organizationSlug: "acme",
+    projectId: "p1",
+    enabled: true,
+    initialSegmentKey,
+    navigationGuardRef: { current: guard },
+  });
   return (
-    <input
-      aria-label="Translation"
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-    />
+    <ContentEditorGroupingView
+      targetLocale="fr"
+      grouping={{
+        view: mode.view,
+        preference: mode.preference,
+        changeView: mode.changeView,
+        client,
+        organizationSlug: "acme",
+        projectId: "p1",
+        sourcePath: "*",
+        canEdit: true,
+        saveVariant: vi.fn(),
+      }}
+    >
+      <p>{mode.ready ? `Queue: ${mode.view}` : "Queue: waiting"}</p>
+    </ContentEditorGroupingView>
   );
 }
 
-function setup(grouped: boolean, initialSegmentKey?: string) {
+function setup(grouped: boolean, initialSegmentKey?: string | null) {
   const contentEditorBehavior = vi.fn().mockResolvedValue({
     contentEditorBehavior: {
       automaticallyGroupIdenticalStrings: grouped,
@@ -56,23 +77,10 @@ function setup(grouped: boolean, initialSegmentKey?: string) {
   });
   const client = { project: { contentEditorBehavior } } as unknown as GoSvcClient;
   const guard = vi.fn((proceed: () => void) => proceed());
-  const stopped = vi.fn();
-  const effect = vi.fn(() => stopped);
-  renderWithContentEditorProviders(
-    <ContentEditorGroupingView
-      enabled
-      client={client}
-      organizationSlug="acme"
-      projectId="p1"
-      sourcePath="*"
-      targetLocale="fr"
-      navigationGuardRef={{ current: guard }}
-      initialSegmentKey={initialSegmentKey}
-    >
-      <Editor effect={effect} />
-    </ContentEditorGroupingView>,
+  const view = renderWithContentEditorProviders(
+    <Harness client={client} guard={guard} initialSegmentKey={initialSegmentKey} />,
   );
-  return { guard, stopped, user: userEvent.setup() };
+  return { client, guard, contentEditorBehavior, view, user: userEvent.setup() };
 }
 
 async function selectView(user: ReturnType<typeof userEvent.setup>, name: string) {
@@ -80,88 +88,41 @@ async function selectView(user: ReturnType<typeof userEvent.setup>, name: string
   await user.click(screen.getByRole("option", { name }));
 }
 
-describe("personal string view", () => {
-  it("uses the project default and allows a personal override", async () => {
+describe("grouped queue mode", () => {
+  it("fetches the queue grouped by project default and allows a personal override", async () => {
     const { user, guard } = setup(true);
-    await screen.findByText("Grouped browser");
+    expect(await screen.findByText("Queue: grouped")).toBeInTheDocument();
     await selectView(user, "Individual strings");
     expect(guard).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(STORAGE_KEY)).toBe("individual");
-    expect(screen.queryByText("Grouped browser")).not.toBeInTheDocument();
+    expect(screen.getByText("Queue: individual")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Use project default" }));
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(await screen.findByText("Grouped browser")).toBeInTheDocument();
+    expect(await screen.findByText("Queue: grouped")).toBeInTheDocument();
   });
 
-  it("keeps editor state but suspends its effects while groups are shown", async () => {
-    localStorage.setItem(STORAGE_KEY, "individual");
-    const { user, stopped } = setup(true);
-    await user.type(await screen.findByRole("textbox", { name: "Translation" }), "Bonjour");
-    await selectView(user, "Group identical strings");
-    await waitFor(() => expect(stopped).toHaveBeenCalled());
-    expect(screen.queryByRole("textbox", { name: "Translation" })).not.toBeInTheDocument();
-    await selectView(user, "Individual strings");
-    expect(await screen.findByRole("textbox", { name: "Translation" })).toHaveValue("Bonjour");
+  it("uses a saved preference without waiting for the project default", async () => {
+    localStorage.setItem(STORAGE_KEY, "grouped");
+    const { contentEditorBehavior } = setup(false);
+    expect(await screen.findByText("Queue: grouped")).toBeInTheDocument();
+    expect(contentEditorBehavior).not.toHaveBeenCalled();
   });
 
-  it("keeps the string view control in the header host when file view hides the queue toolbar", async () => {
+  it("places the string view control in the queue toolbar host", async () => {
     document.body.insertAdjacentHTML("beforeend", `<div id="${CAT_QUEUE_TOOLBAR_HOST_ID}"></div>`);
     localStorage.setItem(STORAGE_KEY, "individual");
     setup(false);
-    expect(await screen.findByRole("textbox", { name: "Translation" })).toBeInTheDocument();
+    expect(await screen.findByText("Queue: individual")).toBeInTheDocument();
     const host = document.getElementById(CAT_QUEUE_TOOLBAR_HOST_ID);
-    expect(host).not.toBeNull();
     expect(within(host!).getByRole("combobox", { name: "String view" })).toBeInTheDocument();
   });
 
-  it("opens a direct segment link in the individual editor without rewriting preference", async () => {
+  it("opens a direct segment link individually without rewriting the preference", async () => {
     localStorage.setItem(STORAGE_KEY, "grouped");
-    setup(true, "segment-1");
-    expect(await screen.findByRole("textbox", { name: "Translation" })).toBeInTheDocument();
-    expect(screen.queryByText("Grouped browser")).not.toBeInTheDocument();
+    const { client, guard, view } = setup(true, "segment-1");
+    expect(await screen.findByText("Queue: individual")).toBeInTheDocument();
     expect(localStorage.getItem(STORAGE_KEY)).toBe("grouped");
-  });
-
-  it("returns to the saved grouped view when the segment link is cleared", async () => {
-    localStorage.setItem(STORAGE_KEY, "grouped");
-    const contentEditorBehavior = vi.fn().mockResolvedValue({
-      contentEditorBehavior: {
-        automaticallyGroupIdenticalStrings: true,
-        groupingRevision: 1,
-        canManage: true,
-      },
-    });
-    const client = { project: { contentEditorBehavior } } as unknown as GoSvcClient;
-    const guard = vi.fn((proceed: () => void) => proceed());
-    const { rerender } = renderWithContentEditorProviders(
-      <ContentEditorGroupingView
-        enabled
-        client={client}
-        organizationSlug="acme"
-        projectId="p1"
-        sourcePath="*"
-        targetLocale="fr"
-        navigationGuardRef={{ current: guard }}
-        initialSegmentKey="segment-1"
-      >
-        <p>Individual editor</p>
-      </ContentEditorGroupingView>,
-    );
-    expect(await screen.findByText("Individual editor")).toBeInTheDocument();
-    rerender(
-      <ContentEditorGroupingView
-        enabled
-        client={client}
-        organizationSlug="acme"
-        projectId="p1"
-        sourcePath="menu.json"
-        targetLocale="fr"
-        navigationGuardRef={{ current: guard }}
-        initialSegmentKey={null}
-      >
-        <p>Individual editor</p>
-      </ContentEditorGroupingView>,
-    );
-    expect(await screen.findByText("Grouped browser")).toBeInTheDocument();
+    view.rerender(<Harness client={client} guard={guard} initialSegmentKey={null} />);
+    expect(await screen.findByText("Queue: grouped")).toBeInTheDocument();
   });
 });

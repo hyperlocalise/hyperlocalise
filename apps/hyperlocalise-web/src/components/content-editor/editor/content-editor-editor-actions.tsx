@@ -40,6 +40,7 @@ export function ContentEditorEditorActions({
   onAskQuestion,
   onPrevious,
   onNext,
+  showApprove = true,
 }: {
   primaryActionLabel: string;
   isMac: boolean;
@@ -57,26 +58,29 @@ export function ContentEditorEditorActions({
   onAskQuestion: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  showApprove?: boolean;
 }) {
   const intl = useIntl();
   const isNavigationBlocked = isApproving || isSavingDraft;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button
-        variant="default"
-        className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
-        onClick={onApprove}
-        disabled={!canTriggerApprove}
-      >
-        {isApproving ? <Spinner className="size-4 text-primary-foreground" /> : null}
-        {primaryActionLabel}
-        <ContentEditorEditorShortcutKbd
-          shortcut="approve"
-          isMac={isMac}
-          className="bg-primary-foreground/15 text-primary-foreground"
-        />
-      </Button>
+      {showApprove ? (
+        <Button
+          variant="default"
+          className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+          onClick={onApprove}
+          disabled={!canTriggerApprove}
+        >
+          {isApproving ? <Spinner className="size-4 text-primary-foreground" /> : null}
+          {primaryActionLabel}
+          <ContentEditorEditorShortcutKbd
+            shortcut="approve"
+            isMac={isMac}
+            className="bg-primary-foreground/15 text-primary-foreground"
+          />
+        </Button>
+      ) : null}
       {onSaveDraft ? (
         <Button
           variant="outline"

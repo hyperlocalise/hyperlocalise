@@ -37,6 +37,9 @@ import { multilingualMessages as messages } from "./content-editor-multilingual.
 
 import { ContentEditorTargetEditor } from "../editor/content-editor-target-editor";
 import { MultilingualDrafts } from "./content-editor-multilingual-drafts";
+import { ContentEditorGroupVariantsCell } from "../groups/content-editor-group-variants";
+import { useHasGroupTranslationVariants } from "../groups/use-content-editor-group-variants";
+import { ContentEditorOccurrenceBadge } from "../groups/content-editor-occurrence-badge";
 
 const KEY_WIDTH = 224;
 const LANGUAGE_WIDTH = 320;
@@ -67,6 +70,20 @@ export interface ContentEditorMultilingualConfig {
     text: string,
   ) => Promise<void>;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+}
+
+function GroupedTranslationCell(props: Parameters<typeof TranslationCell>[0]) {
+  const divergent = useHasGroupTranslationVariants(props.segment, props.locale);
+  if (!divergent) return <TranslationCell {...props} />;
+  return (
+    <ContentEditorGroupVariantsCell
+      segment={props.segment}
+      locale={props.locale}
+      active={props.active}
+      onActivate={props.onActivate}
+      onClose={() => props.onFinish()}
+    />
+  );
 }
 
 const TranslationCell = observer(function TranslationCell({
@@ -459,10 +476,17 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                   role="rowheader"
                   aria-colindex={1}
                   title={segment.key}
-                  className="sticky left-0 z-10 flex h-full items-center border-r bg-background px-3 font-mono text-xs"
+                  className="sticky left-0 z-10 flex h-full items-center gap-1.5 border-r bg-background px-3 font-mono text-xs"
                   style={{ width: KEY_WIDTH }}
                 >
                   <span className="truncate">{segment.key}</span>
+                  {(segment.occurrenceCount ?? 0) > 1 ? (
+                    <ContentEditorOccurrenceBadge
+                      count={segment.occurrenceCount!}
+                      divergent={Boolean(segment.divergentLocales?.length)}
+                      className="shrink-0"
+                    />
+                  ) : null}
                 </div>
                 {virtualColumns.map((column) => (
                   <div
@@ -481,7 +505,7 @@ export const ContentEditorMultilingualTable = observer(function ContentEditorMul
                         {formatInternalMarkupForDisplay(segment.sourceText)}
                       </span>
                     ) : (
-                      <TranslationCell
+                      <GroupedTranslationCell
                         config={config}
                         segment={segment}
                         locale={columns[column.index]}

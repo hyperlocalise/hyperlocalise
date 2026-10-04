@@ -27,6 +27,14 @@ type editorCatSegment struct {
 	LooksLikeImageURL *bool   `json:"looksLikeImageUrl,omitempty"`
 	LooksLikeVideoURL *bool   `json:"looksLikeVideoUrl,omitempty"`
 	SourcePath        *string `json:"sourcePath,omitempty"`
+	// Set in grouped queues: identical source strings in scope, including this one.
+	OccurrenceCount *int `json:"occurrenceCount,omitempty"`
+	// Set on grouped rows with several occurrences. The least complete status among the
+	// occurrences in the queue locale, so a row is approved only when every copy is.
+	GroupStatus *string `json:"groupStatus,omitempty"`
+	// Set on grouped rows with several occurrences: locales whose copies do not share one
+	// translation, including partly untranslated groups.
+	DivergentLocales []string `json:"divergentLocales,omitempty"`
 }
 
 type editorCatPagination struct {
@@ -75,6 +83,8 @@ type editorCatQueueQuery struct {
 	offset       int
 	limit        int
 	sourcePaths  []string
+	// grouped collapses identical source strings into one representative segment.
+	grouped bool
 }
 
 func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
@@ -115,16 +125,8 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		return editorCatQueueQuery{}, err
 	}
 	var sourcePaths []string
-	if raw := trimEditorCat(values.Get("sourcePaths")); raw != "" {
-		seen := map[string]bool{}
-		for _, part := range strings.Split(raw, ",") {
-			path := trimEditorCat(part)
-			if path == "" || seen[path] {
-				continue
-			}
-			seen[path] = true
-			sourcePaths = append(sourcePaths, path)
-		}
+	if parsed := parseEditorCatSourcePaths(values.Get("sourcePaths")); len(parsed) > 0 {
+		sourcePaths = parsed
 	}
 	return editorCatQueueQuery{
 		sourcePath:   sourcePath,
@@ -135,6 +137,7 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		offset:       offset,
 		limit:        limit,
 		sourcePaths:  sourcePaths,
+		grouped:      trimEditorCat(values.Get("grouped")) == "true",
 	}, nil
 }
 
@@ -170,6 +173,7 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 		"limit", query.limit,
 		"offset", query.offset,
 		"has_search", query.search != "",
+		"grouped", query.grouped,
 	)
 	var queue editorCatQueueFile
 	if isEditorCatAllFiles(query.sourcePath) {
@@ -380,6 +384,10 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 			where += ` and f.source_path = any($` + strconv.Itoa(len(args)) + `::text[])`
 		}
 	}
+	// Occurrences are counted across the whole file scope, independent of search and filter,
+	// because a grouped save writes every occurrence in that scope.
+	scopeWhere := where
+	scopeArgs := append([]any(nil), args...)
 	if query.search != "" {
 		args = append(args, "%"+escapeEditorCatIlike(query.search)+"%")
 		searchN := strconv.Itoa(len(args))
@@ -411,8 +419,13 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	if includeSourcePath {
 		join = ` inner join repository_source_files f on f.id = k.repository_source_file_id`
 	}
+	identity := editorCatGroupIdentitySQL("k")
+	countExpr := `count(*)`
+	if query.grouped {
+		countExpr = `count(distinct ` + identity + `)`
+	}
 	var total int
-	err := api.pool.QueryRow(r.Context(), `select count(*) from project_translation_keys k`+join+` where `+where, countArgs...).Scan(&total)
+	err := api.pool.QueryRow(r.Context(), `select `+countExpr+` from project_translation_keys k`+join+` where `+where, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -432,17 +445,48 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
             else 2 end`
 		order = rank + `, ` + order
 	}
+	lockLocaleN := ""
+	if query.grouped {
+		listArgs = append(listArgs, query.targetLocale)
+		lockLocaleN = strconv.Itoa(len(listArgs))
+	}
 	listArgs = append(listArgs, query.limit, query.offset)
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
 	if includeSourcePath {
 		selectCols += `, f.source_path`
 	}
-	rows, err := api.pool.Query(r.Context(), `
-        select `+selectCols+`
-        from project_translation_keys k`+join+`
-        where `+where+`
-        order by `+order+`
-        limit $`+strconv.Itoa(len(listArgs)-1)+` offset $`+strconv.Itoa(len(listArgs)), listArgs...)
+	limitN := strconv.Itoa(len(listArgs) - 1)
+	offsetN := strconv.Itoa(len(listArgs))
+	listSQL := `
+        select ` + selectCols + `
+        from project_translation_keys k` + join + `
+        where ` + where + `
+        order by ` + order + `
+        limit $` + limitN + ` offset $` + offsetN
+	if query.grouped {
+		// Prefer an unlocked occurrence so a grouped row stays editable when siblings are.
+		lockedRank := `exists(select 1 from project_cat_segment_locks l where l.organization_id=$1 and l.project_id=$2 and l.target_locale=$` + lockLocaleN + ` and l.external_string_id=k.id::text)`
+		listSQL = `
+        with occurrences as (
+            select ` + identity + ` as group_identity, count(*)::int as occurrence_count
+            from project_translation_keys k` + join + `
+            where ` + scopeWhere + `
+            group by 1
+        ), matched as (
+            select k.id, ` + identity + ` as group_identity,
+                row_number() over (partition by ` + identity + ` order by ` + lockedRank + `, ` + order + `) as group_rank
+            from project_translation_keys k` + join + `
+            where ` + where + `
+        )
+        select ` + selectCols + `, o.occurrence_count
+        from matched m
+        join project_translation_keys k on k.id = m.id` + join + `
+        join occurrences o on o.group_identity = m.group_identity
+        where m.group_rank = 1
+        order by ` + order + `
+        limit $` + limitN + ` offset $` + offsetN
+	}
+	rows, err := api.pool.Query(r.Context(), listSQL, listArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -455,12 +499,19 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var metadata []byte
 		var hidden bool
 		var sourcePath *string
+		var occurrenceCount int
 		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
 		if includeSourcePath {
 			dest = append(dest, &sourcePath)
 		}
+		if query.grouped {
+			dest = append(dest, &occurrenceCount)
+		}
 		if err := rows.Scan(dest...); err != nil {
 			return nil, 0, err
+		}
+		if query.grouped {
+			segment.OccurrenceCount = &occurrenceCount
 		}
 		segment.Context = context
 		segment.Type = keyType
@@ -489,7 +540,98 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		}
 		segments = append(segments, segment)
 	}
-	return segments, total, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if query.grouped {
+		if err := api.attachGroupSummaries(r, segments, query.targetLocale, join, scopeWhere, scopeArgs); err != nil {
+			return nil, 0, err
+		}
+	}
+	return segments, total, nil
+}
+
+// attachGroupSummaries reads translation agreement for the grouped rows on one queue page.
+func (api *editorCatAPI) attachGroupSummaries(r *http.Request, segments []editorCatSegment, targetLocale, join, scopeWhere string, scopeArgs []any) error {
+	byID := map[string]int{}
+	ids := make([]string, 0, len(segments))
+	for i, segment := range segments {
+		if segment.OccurrenceCount != nil && *segment.OccurrenceCount > 1 {
+			byID[segment.ExternalStringID] = i
+			ids = append(ids, segment.ExternalStringID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	args := append(append([]any(nil), scopeArgs...), ids)
+	idsN := strconv.Itoa(len(args))
+	identity := editorCatGroupIdentitySQL("k")
+	rows, err := api.pool.Query(r.Context(), `
+        with reps as (
+            select k.id::text as rep_id, `+identity+` as group_identity
+            from project_translation_keys k
+            where k.organization_id=$1 and k.project_id=$2 and k.id::text = any($`+idsN+`::text[])
+        ), members as (
+            select reps.rep_id, k.id
+            from project_translation_keys k`+join+`
+            join reps on reps.group_identity = `+identity+`
+            where `+scopeWhere+`
+        )
+        select m.rep_id, t.target_locale,
+            count(*) filter (where trim(t.text) != '')::int,
+            count(distinct t.text) filter (where trim(t.text) != '')::int,
+            count(*) filter (where trim(t.text) != '' and t.status = 'approved')::int
+        from members m
+        join project_translations t on t.translation_key_id = m.id
+            and t.organization_id = $1 and t.project_id = $2
+        group by 1, 2`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	targetSeen := map[string]bool{}
+	for rows.Next() {
+		var repID, locale string
+		var translated, texts, approved int
+		if err := rows.Scan(&repID, &locale, &translated, &texts, &approved); err != nil {
+			return err
+		}
+		i, ok := byID[repID]
+		if !ok {
+			continue
+		}
+		occurrences := *segments[i].OccurrenceCount
+		if texts > 1 || (translated > 0 && translated < occurrences) {
+			segments[i].DivergentLocales = append(segments[i].DivergentLocales, locale)
+		}
+		if locale == targetLocale {
+			targetSeen[repID] = true
+			status := editorCatGroupStatus(translated, approved, occurrences)
+			segments[i].GroupStatus = &status
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for id, i := range byID {
+		if !targetSeen[id] {
+			status := "pending"
+			segments[i].GroupStatus = &status
+		}
+	}
+	return nil
+}
+
+func editorCatGroupStatus(translated, approved, occurrences int) string {
+	switch {
+	case translated < occurrences:
+		return "pending"
+	case approved < occurrences:
+		return "needs_review"
+	default:
+		return "reviewed"
+	}
 }
 
 func editorCatMetadataContentKind(raw []byte) string {

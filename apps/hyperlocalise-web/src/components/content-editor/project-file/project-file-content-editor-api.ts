@@ -40,6 +40,7 @@ export function projectFileCatQueryKey(input: {
   limit: number;
   offset: number;
   sourcePaths?: string | null;
+  grouped?: boolean;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -55,6 +56,7 @@ export function projectFileCatQueryKey(input: {
     input.limit,
     input.offset,
     input.sourcePaths ?? null,
+    input.grouped ?? false,
   ] as const;
 }
 
@@ -70,6 +72,7 @@ export function projectFileCatBaseQueryKey(input: {
   queueSort: ProjectFileContentEditorQueueSort;
   limit: number;
   sourcePaths?: string | null;
+  grouped?: boolean;
 }) {
   return [
     "project-file-content-editor-queue",
@@ -84,10 +87,11 @@ export function projectFileCatBaseQueryKey(input: {
     input.queueSort,
     input.limit,
     input.sourcePaths ?? null,
+    input.grouped ?? false,
   ] as const;
 }
 
-const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 12;
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 13;
 
 function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
   if (
@@ -97,7 +101,7 @@ function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
     return null;
   }
 
-  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11]] as const;
+  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11], key[12]] as const;
 }
 
 /**

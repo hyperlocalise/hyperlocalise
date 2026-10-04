@@ -105,6 +105,8 @@ export function useContentEditorSegmentQuery(input: {
   initialSearch?: string;
   pageLimit?: number;
   sourcePaths?: string | null;
+  /** Native only: one row per identical source string. */
+  grouped?: boolean;
   goSvcClient?: GoSvcClient;
 }) {
   const intl = useIntl();
@@ -164,8 +166,10 @@ export function useContentEditorSegmentQuery(input: {
         queueSort,
         limit,
         sourcePaths: input.sourcePaths,
+        grouped: input.grouped,
       }),
     [
+      input.grouped,
       debouncedSearch,
       input.organizationSlug,
       input.projectId,
@@ -236,6 +240,7 @@ export function useContentEditorSegmentQuery(input: {
         limit,
         offset: pageParam.offset,
         ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
+        ...(input.grouped ? { grouped: "true" as const } : {}),
       };
       if (
         input.goSvcClient &&
@@ -352,8 +357,10 @@ export function useContentEditorSegmentQuery(input: {
         limit,
         offset: 0,
         sourcePaths: input.sourcePaths,
+        grouped: input.grouped,
       }),
     [
+      input.grouped,
       debouncedSearch,
       input.organizationSlug,
       input.projectId,
