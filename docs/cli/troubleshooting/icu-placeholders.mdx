@@ -120,6 +120,10 @@ For rich-text messages, preserve the tags and values your React Intl components
 expect. A tag check can catch structural changes, but it cannot prove that your app
 supplies every required rendering function.
 
+Unreal Engine gettext `.po` catalogs use nameless `</>` style tags. Hyperlocalise
+shows those tags as chips such as **UE#0**. Keep every chip. `{ItemName}` inside a
+style pair is a separate placeholder. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).
+
 ## Validate the repaired message
 
 ```bash

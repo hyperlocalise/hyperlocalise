@@ -1,6 +1,6 @@
 ---
 title: "Gettext POT and PO"
-description: "Extract backend messages to a POT template, maintain PO catalogs, and review translations in Platform."
+description: "Extract backend messages to a POT template, maintain PO catalogs, including Unreal Engine rich-text tags, and review translations in Platform."
 ---
 
 This tutorial connects a Gettext-based backend to Hyperlocalise Platform. Your extraction tool remains responsible for code scanning and the `.pot` template. Hyperlocalise syncs the resulting `.po` catalogs for translation and review.
@@ -152,6 +152,7 @@ hl sync push
 Start translation through a **Source upload** automation or **New Request**. Review:
 
 - placeholders such as `{name}` or `%s`;
+- Unreal Engine rich-text tags such as `<Highlight>Ready</>` and `<img id="Health"/>`;
 - translator comments and source references;
 - punctuation produced by the surrounding code;
 - terminology shared with API errors and emails; and
@@ -211,6 +212,12 @@ The current parser ignores `msgctxt`. Give messages distinct `msgid` values or k
 ### Only one plural form changes
 
 The current parser writes `msgstr` or `msgstr[0]`, not the complete plural array. Use singular messages for this workflow until full Gettext plural support is available.
+
+### Unreal Engine rich-text tags look like chips
+
+That is expected. Unreal style tags close with nameless `</>`. Hyperlocalise shows each recognized tag as a placeholder chip such as **UE#0**. Keep every chip and translate the words between them. `{ItemName}` inside a style pair stays a separate placeholder. Downloaded `.po` files contain the original Unreal markup.
+
+See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text) for the tag grammar Hyperlocalise recognizes.
 
 ## Next
 
