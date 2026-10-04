@@ -145,6 +145,7 @@
                       "platform/translation/workflows",
                       "platform/translation/start",
                       "platform/cat",
+                      "platform/translation/merge-strings",
                       "platform/translation/jobs",
                       "platform/translation/issues"
                     ],
