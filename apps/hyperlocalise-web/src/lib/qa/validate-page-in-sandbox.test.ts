@@ -44,7 +44,13 @@ describe("validateQaPageInSandbox", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    createWorkspace.mockResolvedValue({ writeFile, runCommand, readFile, stop });
+    createWorkspace.mockResolvedValue({
+      id: "sbx_test",
+      writeFile,
+      runCommand,
+      readFile,
+      stop,
+    });
     runCommand.mockResolvedValue({ exitCode: 0, output: "" });
     readFile.mockResolvedValue(JSON.stringify({ results: [{ id: "0", checks: [] }] }));
   });
@@ -75,6 +81,15 @@ describe("validateQaPageInSandbox", () => {
   it("classifies an old CLI and still stops the sandbox", async () => {
     runCommand.mockResolvedValueOnce({ exitCode: 1, output: "unknown command" });
     await expect(validateQaPageInSandbox(input)).rejects.toBeInstanceOf(QaCliUnavailableError);
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it("still stops the sandbox when a write fails", async () => {
+    const error = Object.assign(new Error("Vercel sandbox command failed: bash"), {
+      name: "VercelSandboxCommandError",
+    });
+    writeFile.mockRejectedValueOnce(error);
+    await expect(validateQaPageInSandbox(input)).rejects.toBe(error);
     expect(stop).toHaveBeenCalledOnce();
   });
 });

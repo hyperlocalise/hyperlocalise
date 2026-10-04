@@ -13,7 +13,7 @@
 import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { createLogger } from "@/lib/log";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
 
@@ -67,13 +67,26 @@ export async function startTranslationQaScan(input: {
 }): Promise<TranslationQaScanResult> {
   const project = await loadNativeQaProject(input);
   if (!project.ok) {
+    logger.warn(
+      { projectId: input.projectId, trigger: input.trigger, code: project.code },
+      "translation qa scan not started",
+    );
     return project;
   }
 
   const run = await claimTranslationQaRun(input);
   if (!run.ok) {
+    logger.warn(
+      { projectId: input.projectId, trigger: input.trigger, code: run.code },
+      "translation qa scan not started",
+    );
     return run;
   }
+
+  logger.info(
+    { runId: run.runId, projectId: input.projectId, trigger: input.trigger },
+    "translation qa scan claimed",
+  );
 
   try {
     await input.queue.enqueue({
@@ -81,6 +94,10 @@ export async function startTranslationQaScan(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
     });
+    logger.info(
+      { runId: run.runId, projectId: input.projectId, trigger: input.trigger },
+      "translation qa scan queued",
+    );
     return run;
   } catch (error) {
     await failTranslationQaRun({
@@ -89,7 +106,11 @@ export async function startTranslationQaScan(input: {
       errorMessage: error instanceof Error ? error.message : "qa scan could not be queued",
     });
     logger.error(
-      { runId: run.runId, projectId: input.projectId, errorType: qaScanErrorType(error) },
+      {
+        runId: run.runId,
+        projectId: input.projectId,
+        err: serializeErrorForLog(error),
+      },
       "translation qa scan could not be queued",
     );
     throw error;
@@ -125,6 +146,10 @@ export async function executeTranslationQaScan(input: {
   organizationId: string;
   projectId: string;
 }) {
+  logger.info(
+    { runId: input.runId, projectId: input.projectId },
+    "translation qa scan execute started",
+  );
   let failureCode = "qa_scan_processing_failed";
   try {
     let afterKeyId: string | null = null;
@@ -132,8 +157,13 @@ export async function executeTranslationQaScan(input: {
       const result = await scanTranslationQaPage({
         ...input,
         afterKeyId,
+        page,
       });
       if (result.done) {
+        logger.info(
+          { runId: input.runId, projectId: input.projectId, page },
+          "translation qa scan pages finished",
+        );
         break;
       }
       afterKeyId = result.afterKeyId;
@@ -152,7 +182,7 @@ export async function executeTranslationQaScan(input: {
         runId: input.runId,
         projectId: input.projectId,
         failureCode,
-        errorType: qaScanErrorType(error),
+        err: serializeErrorForLog(error),
       },
       "translation qa scan failed",
     );
@@ -160,23 +190,29 @@ export async function executeTranslationQaScan(input: {
   }
 }
 
-function qaScanErrorType(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
-}
-
 export async function scanTranslationQaPage(input: {
   runId: string;
   organizationId: string;
   projectId: string;
   afterKeyId: string | null;
+  page?: number;
 }): Promise<TranslationQaScanPageResult> {
+  const pageStartedAt = Date.now();
+  const pageLog = logger.child({
+    runId: input.runId,
+    projectId: input.projectId,
+    page: input.page,
+    hasAfterKeyId: Boolean(input.afterKeyId),
+  });
   const run = await loadRunningQaScan(input.runId);
   if (!run) {
+    pageLog.info("translation qa scan page skipped; run is not running");
     return { done: true };
   }
 
   const project = await loadNativeQaProject(input);
   if (!project.ok) {
+    pageLog.error({ code: project.code }, "translation qa scan page aborted");
     throw new Error(project.code);
   }
 
@@ -213,8 +249,18 @@ export async function scanTranslationQaPage(input: {
     .limit(KEY_PAGE_SIZE);
 
   if (keys.length === 0) {
+    pageLog.info({ keyCount: 0, localeCount: locales.length }, "translation qa scan page empty");
     return { done: true };
   }
+
+  pageLog.info(
+    {
+      keyCount: keys.length,
+      localeCount: locales.length,
+      glossaryTermCount: glossaryTerms.length,
+    },
+    "translation qa scan page loaded",
+  );
 
   const keyIds = keys.map((row) => row.translationKeyId);
   await db
@@ -288,13 +334,25 @@ export async function scanTranslationQaPage(input: {
       glossaryTerms,
       acceptedWordsByLocale: Object.fromEntries(acceptedWordsByLocale),
       segments,
+      logContext: {
+        runId: input.runId,
+        projectId: input.projectId,
+        page: input.page,
+      },
     });
   } catch (error) {
-    if (!(error instanceof QaCliUnavailableError)) throw error;
+    if (!(error instanceof QaCliUnavailableError)) {
+      pageLog.error(
+        { err: serializeErrorForLog(error), segmentCount: segments.length },
+        "translation qa scan page sandbox validate failed",
+      );
+      throw error;
+    }
     logger.warn(
-      { runId: input.runId, projectId: input.projectId },
+      { runId: input.runId, projectId: input.projectId, page: input.page },
       "QA CLI is not available in sandbox",
     );
+    const fallbackStartedAt = Date.now();
     results = await mapWithConcurrency(segments, 8, async (segment) => {
       const { checks, skippedChecks } = await validateScanSegment(
         { ...segment, glossaryTerms },
@@ -303,6 +361,13 @@ export async function scanTranslationQaPage(input: {
       );
       return { id: segment.id, checks, skippedChecks };
     });
+    pageLog.info(
+      {
+        segmentCount: segments.length,
+        durationMs: Date.now() - fallbackStartedAt,
+      },
+      "translation qa scan page used in-process fallback",
+    );
   }
   for (const [index, { key, targetLocale }] of requests.entries()) {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
@@ -342,7 +407,20 @@ export async function scanTranslationQaPage(input: {
   await touchTranslationQaRun(input.runId);
 
   const afterKeyId = keys[keys.length - 1]?.translationKeyId;
-  if (!afterKeyId || keys.length < KEY_PAGE_SIZE) {
+  const done = !afterKeyId || keys.length < KEY_PAGE_SIZE;
+  pageLog.info(
+    {
+      keyCount: keys.length,
+      localeCount: locales.length,
+      segmentCount: segments.length,
+      findingCount: results.reduce((count, result) => count + result.checks.length, 0),
+      skippedLocaleCount: Object.keys(skippedChecksByLocale).length,
+      durationMs: Date.now() - pageStartedAt,
+      done,
+    },
+    "translation qa scan page completed",
+  );
+  if (!afterKeyId || done) {
     return { done: true };
   }
   return { done: false, afterKeyId };
@@ -355,8 +433,17 @@ export async function completeTranslationQaScan(input: {
 }) {
   const run = await loadRunningQaScan(input.runId);
   if (!run) {
+    logger.info(
+      { runId: input.runId, projectId: input.projectId },
+      "translation qa scan already completed",
+    );
     return { ok: true as const, alreadyCompleted: true as const };
   }
+
+  logger.info(
+    { runId: input.runId, projectId: input.projectId },
+    "translation qa scan finalization started",
+  );
 
   const project = await loadNativeQaProject(input);
   if (!project.ok) {
