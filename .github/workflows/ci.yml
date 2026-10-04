@@ -1,6 +1,9 @@
 name: CI
 
 on:
+  # Manual runs on main write shared caches that PRs can restore.
+  # Do not add push-to-main; that would run CI on every merge.
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
@@ -43,7 +46,7 @@ jobs:
 
   action-self-test:
     name: Action Self Test
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -83,7 +86,7 @@ jobs:
 
   web-sync-cli-smoke-test:
     name: Web Sync CLI Smoke Test
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
@@ -112,7 +115,7 @@ jobs:
 
   bazel-build-test:
     name: Bazel Build/Test
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -132,7 +135,7 @@ jobs:
 
   go-test:
     name: Go Test/Build
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:

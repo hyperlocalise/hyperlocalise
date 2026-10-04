@@ -1,6 +1,9 @@
 name: Go Service Image CI
 
 on:
+    # Manual runs on main write shared GHA layer caches that PRs can restore.
+    # Do not add push-to-main; that would build the image on every merge.
+    workflow_dispatch:
     pull_request:
         types: [opened, synchronize, reopened, ready_for_review]
         paths:
@@ -25,7 +28,7 @@ concurrency:
 jobs:
     build:
         name: Build go-svc ECS image
-        if: github.event.pull_request.draft == false
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         runs-on: blacksmith-4vcpu-ubuntu-2404
         timeout-minutes: 20
 
@@ -43,6 +46,6 @@ jobs:
                   file: ./apps/go-svc/Dockerfile.ecs
                   platforms: linux/amd64
                   push: false
-                  tags: hyperlocalise/go-svc:pr-${{ github.event.pull_request.number }}
+                  tags: hyperlocalise/go-svc:${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || format('dispatch-{0}', github.sha) }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max

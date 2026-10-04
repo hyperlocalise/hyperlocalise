@@ -1,6 +1,9 @@
 name: Web CI
 
 on:
+  # Manual runs on main write shared caches that PRs can restore.
+  # Do not add push-to-main; that would run CI on every merge.
+  workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
@@ -65,7 +68,7 @@ jobs:
 
   web-test-build:
     name: Hyperlocalise Web Test/Build
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:
