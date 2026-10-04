@@ -649,17 +649,11 @@ func emitAsciiDocTableRow(doc *asciiDocDocument, occurrences map[string]int, lin
 			}
 		}
 	}
-	if !strings.HasPrefix(row, "|") && len(cells) > 0 {
-		// already handled
-	}
 	doc.appendLiteral(nl)
 }
 
 func splitAsciiDocTableCells(row string) []string {
-	raw := row
-	if strings.HasPrefix(raw, "|") {
-		raw = raw[1:]
-	}
+	raw := strings.TrimPrefix(row, "|")
 	if raw == "" {
 		return nil
 	}
