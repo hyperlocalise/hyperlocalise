@@ -58,7 +58,7 @@ describe("ContentEditorFileViewPanel", () => {
     writeCatFileViewSourcePaneVisible(true);
   });
 
-  it("focuses the document, compares the original, and blocks approval until edits are saved", async () => {
+  it("compares the original and blocks approval until document edits are saved", async () => {
     const user = userEvent.setup();
     window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
     vi.stubGlobal(
@@ -79,18 +79,17 @@ describe("ContentEditorFileViewPanel", () => {
     const editor = await screen.findByLabelText("Translated document");
     const approve = screen.getByRole("button", { name: "Approve" });
     await waitFor(() => expect(approve).toBeEnabled());
-    expect(screen.queryByRole("heading", { name: "Source (en)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
     await user.click(editor);
     await user.keyboard("!");
     await waitFor(() => expect(approve).toBeDisabled());
     await user.click(screen.getByRole("button", { name: "Compare original" }));
-    expect(screen.getByRole("heading", { name: "Source (en)" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Source (en)" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close comparison" }));
-    expect(screen.getByLabelText("Translated document")).toBe(editor);
+    expect(screen.queryByRole("region", { name: "Source (en)" })).not.toBeInTheDocument();
     expect(approve).toBeDisabled();
-    const save = screen.getByRole("button", { name: /save edits/i });
-    expect(save.closest("header")).not.toBeNull();
-    await user.click(save);
+    await user.click(screen.getByLabelText("Translated document"));
+    await user.keyboard("{Control>}s{/Control}");
     await waitFor(() => expect(approve).toBeEnabled());
     expect(onUpload).toHaveBeenCalledTimes(1);
   });

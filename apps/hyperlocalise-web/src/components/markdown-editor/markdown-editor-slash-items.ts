@@ -46,6 +46,8 @@ export type MarkdownSlashCommandItem = {
   icon: Icon;
   keywords: string[];
   shortcut?: MarkdownSlashShortcutPart[];
+  /** Consecutive items with the same group are listed under one heading. */
+  group?: string;
   run: (props: { editor: Editor; range: Range }) => void;
 };
 

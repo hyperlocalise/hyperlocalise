@@ -1,0 +1,85 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+// @vitest-environment happy-dom
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import { useDocumentAutosave } from "./document-editor-autosave";
+
+const DELAY = 1_000;
+
+function setup(save: (value: string) => Promise<void>) {
+  return renderHook(
+    ({ value }: { value: string }) =>
+      useDocumentAutosave({ value, baseline: "a", save, delayMs: DELAY }),
+    { initialProps: { value: "a" } },
+  );
+}
+
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
+
+describe("useDocumentAutosave", () => {
+  it("saves once after typing stops", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { result, rerender } = setup(save);
+
+    rerender({ value: "ab" });
+    expect(result.current.status.kind).toBe("dirty");
+    await act(() => vi.advanceTimersByTimeAsync(DELAY / 2));
+    rerender({ value: "abc" });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY));
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledWith("abc");
+    expect(result.current.status.kind).toBe("saved");
+    expect(result.current.hasUnsavedChanges).toBe(false);
+  });
+
+  it("queues one follow-up save for edits made during a save", async () => {
+    let finish: () => void = () => {};
+    const save = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)))
+      .mockResolvedValue(undefined);
+    const { result, rerender } = setup(save);
+
+    rerender({ value: "ab" });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY));
+    rerender({ value: "abc" });
+    await act(() => result.current.saveNow());
+    await act(async () => finish());
+    await act(() => vi.advanceTimersByTimeAsync(0));
+
+    expect(save.mock.calls.map(([value]) => value)).toEqual(["ab", "abc"]);
+    expect(result.current.status.kind).toBe("saved");
+  });
+
+  it("stops after a failure until retried", async () => {
+    const save = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+    const { result, rerender } = setup(save);
+
+    rerender({ value: "ab" });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY));
+    expect(result.current.status.kind).toBe("error");
+
+    rerender({ value: "abc" });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY * 2));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.hasUnsavedChanges).toBe(true);
+
+    await act(() => result.current.retry());
+    expect(save).toHaveBeenLastCalledWith("abc");
+    expect(result.current.status.kind).toBe("saved");
+  });
+});

@@ -12,7 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createElement, forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import {
+  Fragment,
+  createElement,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
 
@@ -90,33 +97,44 @@ export const MarkdownSlashCommandList = forwardRef<
           const shortcutLabel = item.shortcut
             ? formatMarkdownSlashShortcut(isMac, item.shortcut)
             : null;
+          const groupHeading =
+            item.group && item.group !== items[index - 1]?.group ? item.group : null;
 
           return (
-            <button
-              key={item.id}
-              type="button"
-              role="option"
-              aria-selected={index === selectedIndex}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm transition-colors",
-                index === selectedIndex
-                  ? "bg-muted text-foreground"
-                  : "text-foreground hover:bg-muted/70",
-              )}
-              onMouseEnter={() => setSelectedIndex(index)}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => command(item)}
-            >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground">
-                {createElement(item.icon, { className: "size-3.5" })}
-              </span>
-              <span className="min-w-0 flex-1 truncate font-medium leading-5">{item.title}</span>
-              {shortcutLabel ? (
-                <span className="shrink-0 font-mono text-[11px] tracking-wide text-muted-foreground">
-                  {shortcutLabel}
-                </span>
+            <Fragment key={item.id}>
+              {groupHeading ? (
+                <p
+                  role="presentation"
+                  className="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase first:pt-0.5"
+                >
+                  {groupHeading}
+                </p>
               ) : null}
-            </button>
+              <button
+                type="button"
+                role="option"
+                aria-selected={index === selectedIndex}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm transition-colors",
+                  index === selectedIndex
+                    ? "bg-muted text-foreground"
+                    : "text-foreground hover:bg-muted/70",
+                )}
+                onMouseEnter={() => setSelectedIndex(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => command(item)}
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground">
+                  {createElement(item.icon, { className: "size-3.5" })}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-medium leading-5">{item.title}</span>
+                {shortcutLabel ? (
+                  <span className="shrink-0 font-mono text-[11px] tracking-wide text-muted-foreground">
+                    {shortcutLabel}
+                  </span>
+                ) : null}
+              </button>
+            </Fragment>
           );
         })
       )}
