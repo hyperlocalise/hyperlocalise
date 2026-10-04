@@ -13,7 +13,12 @@
  * Version 2.0 or later.
  */
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Chat01Icon, FilterIcon, SparklesIcon } from "@hugeicons/core-free-icons";
+import {
+  Chat01Icon,
+  CheckmarkCircle02Icon,
+  FilterIcon,
+  SparklesIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
@@ -187,6 +192,10 @@ function inboxTypeFilterLabel(type: InboxTypeFilter, intl: IntlShape): string {
       return intl.formatMessage(inboxNotificationsMessages.statusChangedType);
     case "assignee_changed":
       return intl.formatMessage(inboxNotificationsMessages.assigneeChangedType);
+    case "qa_errors_increased":
+      return intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreasedType);
+    case "qa_scan_failed":
+      return intl.formatMessage(inboxNotificationsMessages.qaScanFailedType);
     default:
       return assertNever(type);
   }
@@ -342,7 +351,30 @@ function InboxListFiltersToolbar({
   );
 }
 
-function notificationPreviewMessage(type: InboxIssueNotification["type"]): MessageDescriptor {
+function notificationPreviewText(
+  notification: InboxIssueNotification,
+  actorName: string,
+  intl: IntlShape,
+): string {
+  switch (notification.type) {
+    case "qa_errors_increased":
+      return intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreased, {
+        count: notification.payload.errorsChange ?? 0,
+      });
+    case "qa_scan_failed":
+      return intl.formatMessage(inboxNotificationsMessages.qaScanFailed);
+    default:
+      return notificationSecondaryText(
+        notification.payload.commentExcerpt,
+        intl.formatMessage(issueNotificationPreviewMessage(notification.type), {
+          actor: actorName,
+          issueTitle: notification.payload.issueTitle,
+        }),
+      );
+  }
+}
+
+function issueNotificationPreviewMessage(type: InboxIssueNotification["type"]): MessageDescriptor {
   switch (type) {
     case "assigned":
       return inboxNotificationsMessages.assigned;
@@ -727,11 +759,7 @@ const NotificationListItem = memo(function NotificationListItem({
   const intl = useIntl();
   const actorName =
     notification.actor?.displayName || intl.formatMessage(inboxNotificationsMessages.someone);
-  const preview = intl.formatMessage(notificationPreviewMessage(notification.type), {
-    actor: actorName,
-    issueTitle: notification.payload.issueTitle,
-  });
-  const secondary = notificationSecondaryText(notification.payload.commentExcerpt, preview);
+  const secondary = notificationPreviewText(notification, actorName, intl);
   const isUnread = !notification.readAt;
   const avatarLabel = actorName.slice(0, 1).toUpperCase() || "?";
   const visual = getNotificationListItemVisual(notification.type, intl);
@@ -742,7 +770,11 @@ const NotificationListItem = memo(function NotificationListItem({
           <AvatarImage src={notification.actor.avatarUrl} alt={actorName} />
         ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          {avatarLabel}
+          {notification.qaRunId ? (
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4" />
+          ) : (
+            avatarLabel
+          )}
         </AvatarFallback>
       </InboxListItemAvatar>
       <InboxListItemContent

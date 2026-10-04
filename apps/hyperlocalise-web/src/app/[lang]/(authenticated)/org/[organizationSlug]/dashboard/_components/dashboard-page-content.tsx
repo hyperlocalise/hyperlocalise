@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { readApiResponseError } from "@/lib/api-error";
 import { createApiClient } from "@/lib/api-client";
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { QaAttentionCard } from "@/components/qa/qa-attention-card";
 import { WORKSPACE_FEATURE_UNAVAILABLE_REASON } from "@/lib/flags/workos-flag-entities";
 import type { WorkspaceOverviewSnapshot } from "@/lib/workspace/overview-snapshot-model";
 
@@ -101,6 +102,7 @@ export function DashboardPageContent({
       isLoading={overviewQuery.isLoading}
       isError={overviewQuery.isError}
       onNewRequest={() => chatDock.openNewTab()}
+      qaAttentionCard={<QaAttentionCard organizationSlug={organizationSlug} />}
       slackConnectCard={<SlackConnectInviteBanner organizationSlug={organizationSlug} />}
       renderLink={({ href, className, children, onClick }) => (
         <Link href={href} className={className} onClick={onClick}>

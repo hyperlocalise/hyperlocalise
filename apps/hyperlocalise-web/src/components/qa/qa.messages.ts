@@ -261,9 +261,9 @@ export const qaMessages = defineMessages({
   },
   coverageHelp: {
     defaultMessage:
-      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Errors and warnings are review signals; this page does not block saving.",
+      "Scans and the editor use the same format, placeholder, ICU, length, spelling and glossary checks. Warnings flag an issue; errors also block saving and approving in the editor.",
     description: "QA review: coverageHelp",
-    id: "cQS/FkQnVB",
+    id: "3OCNlGSX6Y",
   },
   legacy: {
     defaultMessage:
@@ -277,11 +277,20 @@ export const qaMessages = defineMessages({
     description: "QA review: skipped",
     id: "PPy4H0Z9Eo",
   },
-  summary: {
-    defaultMessage:
-      "{segments} translations checked \u00b7 {errors} errors \u00b7 {warnings} warnings",
-    description: "QA review: summary",
-    id: "e0sPtLxq8D",
+  summarySegments: {
+    defaultMessage: "{count, plural, one {# translation checked} other {# translations checked}}",
+    description: "QA run summary: translations checked",
+    id: "Pe+3P3L4Pm",
+  },
+  summaryErrors: {
+    defaultMessage: "{count, plural, one {# error} other {# errors}}",
+    description: "QA run summary: error count",
+    id: "RTRiDZLUer",
+  },
+  summaryWarnings: {
+    defaultMessage: "{count, plural, one {# warning} other {# warnings}}",
+    description: "QA run summary: warning count",
+    id: "Hf4qHC8Sxe",
   },
   lastChecked: {
     defaultMessage: "Checked {date}",

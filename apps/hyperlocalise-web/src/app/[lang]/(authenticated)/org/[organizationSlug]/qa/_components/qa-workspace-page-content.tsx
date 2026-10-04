@@ -15,21 +15,27 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { QaFindingsTable, qaCheckLabel } from "@/components/qa/qa-findings-table";
 import { QaFilter } from "@/components/qa/qa-filter";
 import { QaNotice, QaRunStatus } from "@/components/qa/qa-status";
 import { qaMessages as m } from "@/components/qa/qa.messages";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { translationQaCheckTypes } from "@/lib/qa/types";
 import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
+import { useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
+import { QaWorkspaceOverview } from "./qa-workspace-overview";
+import { summarizeWorkspaceQa } from "./qa-workspace-summary";
+
+const DEFAULT_STATUS = "open";
 
 export function QaWorkspacePageContent({
   organizationSlug,
@@ -45,19 +51,24 @@ export function QaWorkspacePageContent({
   const [checkType, setCheckType] = useState("all");
   const [projectId, setProjectId] = useState("all");
   const [severity, setSeverity] = useState("all");
-  const [status, setStatus] = useState("open");
+  const [status, setStatus] = useState(DEFAULT_STATUS);
   const [tab, setTab] = useState("findings");
-  const reportsQuery = useQuery({
-    queryKey: ["workspace-qa-reports", organizationSlug],
-    queryFn: () => api.listReports({ param: { organizationSlug } }),
-    refetchInterval: (query) =>
-      query.state.data?.reports.some((row) =>
-        ["running", "queued"].includes(row.report?.status ?? ""),
-      )
-        ? 2000
-        : false,
-  });
+  const filtered =
+    locale !== "all" ||
+    checkType !== "all" ||
+    projectId !== "all" ||
+    severity !== "all" ||
+    status !== DEFAULT_STATUS;
+  const reportsQuery = useWorkspaceQaReports(organizationSlug, { staleTime: 0 });
   const reports = reportsQuery.data?.reports ?? [];
+  const summary = summarizeWorkspaceQa(reports);
+  const reportsByProject = new Map(reports.map((row) => [row.projectId, row]));
+  const showFindingsFor = (filter: { projectId?: string; locale?: string; checkType?: string }) => {
+    if (filter.projectId) setProjectId(filter.projectId);
+    if (filter.locale) setLocale(filter.locale);
+    if (filter.checkType) setCheckType(filter.checkType);
+    setTab("findings");
+  };
   const failedReports = reports.filter((row) => row.report?.status === "failed");
   const selectedReport = reports.find((row) => row.projectId === projectId);
   const selectedFailedWithoutResults =
@@ -121,8 +132,14 @@ export function QaWorkspacePageContent({
           }}
         />
       ) : null}
-      {reportsQuery.isPending ? (
-        <Skeleton className="h-24 w-full" aria-label={intl.formatMessage(m.loading)} />
+      {reportsQuery.isPending || reports.length ? (
+        <QaWorkspaceOverview
+          summary={summary}
+          isLoading={reportsQuery.isPending}
+          onSelectProject={(value) => showFindingsFor({ projectId: value })}
+          onSelectLocale={(value) => showFindingsFor({ locale: value })}
+          onSelectCheck={(value) => showFindingsFor({ checkType: value })}
+        />
       ) : null}
       {failedReports.length ? (
         <section
@@ -230,21 +247,23 @@ export function QaWorkspacePageContent({
           {findingsQuery.isSuccess && !findings.length ? (
             <div className="flex items-center gap-3">
               {!selectedFailedWithoutResults ? (
-                <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+                <p className="text-sm">{intl.formatMessage(filtered ? m.noMatches : m.clean)}</p>
               ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setLocale("all");
-                  setCheckType("all");
-                  setProjectId("all");
-                  setSeverity("all");
-                  setStatus("all");
-                }}
-              >
-                {intl.formatMessage(m.clearFilters)}
-              </Button>
+              {filtered ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLocale("all");
+                    setCheckType("all");
+                    setProjectId("all");
+                    setSeverity("all");
+                    setStatus(DEFAULT_STATUS);
+                  }}
+                >
+                  {intl.formatMessage(m.clearFilters)}
+                </Button>
+              ) : null}
             </div>
           ) : null}
           {findings.length ? (
@@ -269,35 +288,58 @@ export function QaWorkspacePageContent({
           {reportsQuery.isSuccess && !reports.length ? (
             <p className="text-sm">{intl.formatMessage(messages.empty)}</p>
           ) : null}
-          {reports.map((row) => (
-            <div
-              key={row.projectId}
-              className="flex flex-wrap items-start justify-between gap-4 border-b border-border py-4"
-            >
-              <div className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium">{row.projectName}</h3>
-                <QaRunStatus report={row.report ?? undefined} compact />
-                {row.report?.status === "failed" && row.lastSuccessfulAt ? (
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    {intl.formatMessage(m.lastCompleted, {
-                      date: intl.formatDate(row.lastSuccessfulAt, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }),
-                    })}
-                  </p>
-                ) : null}
-              </div>
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />}
-                variant="outline"
-                size="sm"
+          {summary.projects
+            .flatMap((project) => {
+              const row = reportsByProject.get(project.projectId);
+              return row ? [row] : [];
+            })
+            .map((row) => (
+              <div
+                key={row.projectId}
+                className="flex flex-wrap items-start justify-between gap-4 border-b border-border py-4"
               >
-                {intl.formatMessage(messages.openProject)}
-              </Button>
-            </div>
-          ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-sm font-medium">{row.projectName}</h3>
+                    <Badge variant="outline">
+                      {intl.formatMessage(
+                        row.cadence === "daily" ? messages.daily : messages.manual,
+                      )}
+                    </Badge>
+                  </div>
+                  <QaRunStatus report={row.report ?? undefined} compact />
+                  {row.report?.status === "failed" && row.lastSuccessfulAt ? (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {intl.formatMessage(m.lastCompleted, {
+                        date: intl.formatDate(row.lastSuccessfulAt, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {row.lastSuccessfulAt ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => showFindingsFor({ projectId: row.projectId })}
+                    >
+                      {intl.formatMessage(messages.viewFindings)}
+                    </Button>
+                  ) : null}
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={buildProjectPath(organizationSlug, row.projectId, "qa")} />}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {intl.formatMessage(messages.openProject)}
+                  </Button>
+                </div>
+              </div>
+            ))}
         </TabsContent>
       </Tabs>
     </WorkspacePageShell>

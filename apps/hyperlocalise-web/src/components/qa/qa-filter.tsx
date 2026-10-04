@@ -26,11 +26,13 @@ export function QaFilter({
   value,
   onChange,
   options,
+  disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: { value: string; label: string }[];
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
@@ -38,6 +40,7 @@ export function QaFilter({
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select
         value={value}
+        disabled={disabled}
         onValueChange={(next) => {
           if (next) onChange(next);
         }}

@@ -436,6 +436,7 @@ export function DashboardPageView({
   isLoading = false,
   isError = false,
   onNewRequest,
+  qaAttentionCard,
   slackConnectCard,
   renderLink = defaultRenderLink,
 }: {
@@ -445,6 +446,7 @@ export function DashboardPageView({
   isLoading?: boolean;
   isError?: boolean;
   onNewRequest: () => void;
+  qaAttentionCard?: ReactNode;
   slackConnectCard?: ReactNode;
   renderLink?: DashboardLinkRenderer;
 }) {
@@ -478,6 +480,8 @@ export function DashboardPageView({
         isLoading={isLoading}
         loadingLabel={loadingLabel}
       />
+
+      {qaAttentionCard}
 
       <section className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <div className="flex w-full min-w-0 flex-col gap-3 lg:w-[420px] lg:shrink-0">

@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { IntlProvider } from "react-intl";
@@ -24,7 +24,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import type { InboxApi } from "./inbox-api";
 import { InboxPageContent } from "./inbox-page-content";
-import type { InboxNotificationsApi } from "./inbox-notifications-api";
+import type { InboxIssueNotification, InboxNotificationsApi } from "./inbox-notifications-api";
 import {
   conversationsFixture,
   currentUserFixture,
@@ -235,6 +235,54 @@ describe("InboxPageContent item switching", () => {
     await waitFor(() => expect(markRead).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Issue panel: issue_001")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Send reply" })).not.toBeInTheDocument();
+  });
+
+  it("opens a QA alert in the QA panel with a link to the project QA page", async () => {
+    const notificationId = "notification_qa_001";
+    const qaNotification: InboxIssueNotification = {
+      ...issueNotificationsFixture[0]!,
+      id: notificationId,
+      issueId: null,
+      qaRunId: "qa_run_001",
+      priority: null,
+      type: "qa_errors_increased",
+      actor: null,
+      readAt: null,
+      payload: {
+        issueTitle: "Checkout",
+        projectId: issueNotificationsFixture[0]!.projectId,
+        errorCount: 5,
+        errorsChange: 2,
+      },
+    };
+    navigation.conversationId = undefined;
+    navigation.notificationId = notificationId;
+    navigation.pathname = `/org/acme/inbox/notifications/${notificationId}`;
+
+    renderInbox(
+      createInboxApi(async () => messagesFixture),
+      {
+        ...notificationsApi,
+        list: async () => ({ notifications: [qaNotification], total: 1 }),
+        markRead: vi.fn(async () => ({ id: notificationId, readAt: new Date().toISOString() })),
+      },
+    );
+
+    expect(
+      await screen.findByRole("link", {
+        name: /Checkout.*2 new QA errors since the previous scan/,
+      }),
+    ).toBeInTheDocument();
+    const panel = screen.getByRole("region", { name: "QA alert" });
+    expect(
+      within(panel).getByText("This QA scan found 2 more errors than the previous scan."),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText("5 errors need fixing in total.")).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Review QA" })).toHaveAttribute(
+      "href",
+      `/org/acme/projects/${qaNotification.projectId}/qa`,
+    );
+    expect(screen.queryByText(/Issue panel:/)).not.toBeInTheDocument();
   });
 
   it("keeps an issue selected while switching from a conversation before the route updates", async () => {

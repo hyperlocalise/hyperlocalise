@@ -42,6 +42,8 @@ export type WorkspaceQaReportRow = {
   cadence: "off" | "daily";
   lastRunAt: string | null;
   lastSuccessfulAt: string | null;
+  /** Counts from the completed scan before `report`, when there is one. */
+  previousSuccessful?: { errorCount: number; warningCount: number } | null;
   report: {
     id: string;
     projectId: string;

@@ -28,6 +28,7 @@ import {
 } from "./inbox-list";
 import type { InboxListFilters } from "./inbox-list-filters";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
+import { InboxQaNotificationPanel } from "./inbox-qa-notification-panel";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import type {
@@ -163,13 +164,20 @@ export function InboxPageView({
           <div key={selectionKey} className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
             {selection?.kind === "notification" ? (
               selectedNotification ? (
-                <InboxIssuePanel
-                  organizationSlug={organizationSlug}
-                  projectId={selectedNotification.projectId}
-                  issueId={selectedNotification.issueId}
-                  canDelete={canDeleteQueries}
-                  onDeleted={onDeletedQuery}
-                />
+                selectedNotification.issueId ? (
+                  <InboxIssuePanel
+                    organizationSlug={organizationSlug}
+                    projectId={selectedNotification.projectId}
+                    issueId={selectedNotification.issueId}
+                    canDelete={canDeleteQueries}
+                    onDeleted={onDeletedQuery}
+                  />
+                ) : (
+                  <InboxQaNotificationPanel
+                    notification={selectedNotification}
+                    organizationSlug={organizationSlug}
+                  />
+                )
               ) : selectedNotificationIsLoading ? (
                 <section
                   className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"

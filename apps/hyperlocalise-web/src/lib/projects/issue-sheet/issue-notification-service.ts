@@ -31,6 +31,8 @@ export const ISSUE_NOTIFICATION_MENTIONED = "mentioned" as const;
 export const ISSUE_NOTIFICATION_COMMENT = "comment" as const;
 export const ISSUE_NOTIFICATION_STATUS_CHANGED = "status_changed" as const;
 export const ISSUE_NOTIFICATION_ASSIGNEE_CHANGED = "assignee_changed" as const;
+export const ISSUE_NOTIFICATION_QA_ERRORS_INCREASED = "qa_errors_increased" as const;
+export const ISSUE_NOTIFICATION_QA_SCAN_FAILED = "qa_scan_failed" as const;
 
 const STATUS_DEDUPE_WINDOW_MS = 5 * 60 * 1000;
 const COMMENT_EXCERPT_MAX_LENGTH = 160;
@@ -46,7 +48,8 @@ export type IssueNotification = {
   id: string;
   organizationId: string;
   projectId: string;
-  issueId: string;
+  issueId: string | null;
+  qaRunId: string | null;
   priority: IssuePriority | null;
   type: IssueNotificationType;
   payload: IssueNotificationPayload;
@@ -98,7 +101,8 @@ function mapNotificationRow(row: {
   id: string;
   organizationId: string;
   projectId: string;
-  issueId: string;
+  issueId: string | null;
+  qaRunId: string | null;
   priority: string | null;
   type: string;
   payload: IssueNotificationPayload;
@@ -115,6 +119,7 @@ function mapNotificationRow(row: {
     organizationId: row.organizationId,
     projectId: row.projectId,
     issueId: row.issueId,
+    qaRunId: row.qaRunId,
     priority: normalizeIssuePriority(row.priority),
     type: row.type as IssueNotificationType,
     payload: row.payload,
@@ -187,7 +192,8 @@ export class IssueNotificationService extends ProjectServiceBase {
       projectId: string;
       recipientUserId: string;
       actorUserId: string | null;
-      issueId: string;
+      issueId: string | null;
+      qaRunId?: string | null;
       type: IssueNotificationType;
       dedupeKey: string;
       payload: IssueNotificationPayload;
@@ -506,6 +512,32 @@ export class IssueNotificationService extends ProjectServiceBase {
     });
   }
 
+  /** Callers must pass only recipients who can access the project. */
+  async notifyQaRun(input: {
+    organizationId: string;
+    projectId: string;
+    qaRunId: string;
+    type: typeof ISSUE_NOTIFICATION_QA_ERRORS_INCREASED | typeof ISSUE_NOTIFICATION_QA_SCAN_FAILED;
+    recipientUserIds: Iterable<string>;
+    payload: IssueNotificationPayload;
+    database?: DatabaseClient;
+  }): Promise<void> {
+    await this.upsertNotifications(
+      [...new Set(input.recipientUserIds)].map((recipientUserId) => ({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        recipientUserId,
+        actorUserId: null,
+        issueId: null,
+        qaRunId: input.qaRunId,
+        type: input.type,
+        dedupeKey: `${input.type}:${input.qaRunId}`,
+        payload: input.payload,
+      })),
+      input.database ?? this.database,
+    );
+  }
+
   private async recipientScopeWhere(auth: ApiAuthContext): Promise<{
     recipientWhere: SQL;
     accessibleProjectsWhere: SQL;
@@ -545,6 +577,7 @@ export class IssueNotificationService extends ProjectServiceBase {
         organizationId: schema.issueNotifications.organizationId,
         projectId: schema.issueNotifications.projectId,
         issueId: schema.issueNotifications.issueId,
+        qaRunId: schema.issueNotifications.qaRunId,
         priority: sql<string | null>`${priorityValues.value} #>> '{}'`,
         type: schema.issueNotifications.type,
         payload: schema.issueNotifications.payload,
@@ -606,6 +639,7 @@ export class IssueNotificationService extends ProjectServiceBase {
         organizationId: schema.issueNotifications.organizationId,
         projectId: schema.issueNotifications.projectId,
         issueId: schema.issueNotifications.issueId,
+        qaRunId: schema.issueNotifications.qaRunId,
         priority: sql<string | null>`${priorityValues.value} #>> '{}'`,
         type: schema.issueNotifications.type,
         payload: schema.issueNotifications.payload,

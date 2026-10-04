@@ -352,6 +352,20 @@ func editorCatQueueFilterSQL(filter string, orgN, projectN, localeN int) string 
                   and not exists (select 1 from issue_sheet_issues i where i.linked_comment_id = c.id)
             )
         )`
+	case "qa_issues":
+		return ` and exists (
+            select 1 from translation_qa_findings q
+            where q.translation_key_id = k.id and q.organization_id=$` + strconv.Itoa(orgN) + `
+              and q.project_id=$` + strconv.Itoa(projectN) + ` and q.target_locale=$` + strconv.Itoa(localeN) + `
+              and q.status='open'
+              and q.run_id = (
+                  select r.id from translation_qa_runs r
+                  where r.organization_id=$` + strconv.Itoa(orgN) + ` and r.project_id=$` + strconv.Itoa(projectN) + `
+                    and r.status='succeeded'
+                  order by r.completed_at desc nulls last, r.created_at desc
+                  limit 1
+              )
+        )`
 	case "hidden":
 		return ` and k.is_hidden = true`
 	default:
@@ -363,7 +377,7 @@ func editorCatQueueFilterSQL(filter string, orgN, projectN, localeN int) string 
 // target-locale placeholder. "all" and the deferred filters do not.
 func editorCatQueueFilterBindsLocale(filter string) bool {
 	switch filter {
-	case "untranslated", "reviewed", "needs_review", "has_issues":
+	case "untranslated", "reviewed", "needs_review", "has_issues", "qa_issues":
 		return true
 	default:
 		return false

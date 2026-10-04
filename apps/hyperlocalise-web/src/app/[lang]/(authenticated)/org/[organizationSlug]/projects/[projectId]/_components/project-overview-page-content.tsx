@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
+import { QaAttentionCard } from "@/components/qa/qa-attention-card";
 import { Button } from "@/components/ui/button";
 import { Box } from "@/components/ui/layout/box";
 import { Column } from "@/components/ui/layout/column";
@@ -305,6 +306,7 @@ export type ProjectOverviewPageContentViewProps = {
   isLocaleProgressLoading: boolean;
   isLocaleProgressError: boolean;
   onCreateJob?: () => void;
+  qaAttentionCard?: ReactNode;
 };
 
 export function ProjectOverviewPageContentView({
@@ -320,6 +322,7 @@ export function ProjectOverviewPageContentView({
   isLocaleProgressLoading,
   isLocaleProgressError,
   onCreateJob,
+  qaAttentionCard,
 }: ProjectOverviewPageContentViewProps) {
   const intl = useIntl();
   const isNative = project?.source === "native";
@@ -396,6 +399,7 @@ export function ProjectOverviewPageContentView({
             <Skeleton className="min-h-56 w-full" />
           ) : project ? (
             <Rows spacing="4u">
+              {qaAttentionCard}
               <ProjectLocaleProgressList
                 locales={locales}
                 expectedLocaleCount={project.targetLocales.length}
@@ -568,6 +572,11 @@ export function ProjectOverviewPageContent({
         isLocaleProgressLoading={localeProgressQuery.isLoading}
         isLocaleProgressError={localeProgressQuery.isError}
         onCreateJob={() => setCreateJobOpen(true)}
+        qaAttentionCard={
+          projectQuery.data?.source === "native" ? (
+            <QaAttentionCard organizationSlug={organizationSlug} projectId={projectId} />
+          ) : null
+        }
       />
       <CreateJobDialog
         open={createJobOpen}

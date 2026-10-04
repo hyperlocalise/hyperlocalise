@@ -37,6 +37,7 @@ import { emptyTranslationQaSummary } from "./qa-report-store";
 import {
   claimTranslationQaRun,
   completeTranslationQaScan,
+  failTranslationQaRun,
   KEY_PAGE_SIZE,
   reclaimStaleTranslationQaRuns,
   scanTranslationQaPage,
@@ -696,5 +697,176 @@ describe("scanTranslationQaPage", () => {
       .from(schema.translationQaFindings)
       .where(eq(schema.translationQaFindings.runId, claimed.runId));
     expect(allFindings).toHaveLength(keyCount);
+  });
+});
+
+describe("run-project-qa-scan notifications", () => {
+  async function setupNativeProject() {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const project = await insertProject({
+      organizationId: organization.id,
+      userId: user.id,
+      teamId: team.id,
+      source: "native",
+    });
+    return { organization, user, project };
+  }
+
+  async function insertPreviousSucceededRun(input: {
+    organizationId: string;
+    projectId: string;
+    errorCount: number;
+  }) {
+    const earlier = new Date(Date.now() - 60_000);
+    await db.insert(schema.translationQaRuns).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      trigger: "scheduled",
+      status: "succeeded",
+      errorCount: input.errorCount,
+      summary: emptyTranslationQaSummary(),
+      createdAt: earlier,
+      completedAt: earlier,
+    });
+  }
+
+  async function qaNotifications(runId: string) {
+    return db
+      .select({
+        recipientUserId: schema.issueNotifications.recipientUserId,
+        issueId: schema.issueNotifications.issueId,
+        type: schema.issueNotifications.type,
+        payload: schema.issueNotifications.payload,
+      })
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.qaRunId, runId));
+  }
+
+  it("notifies QA managers once when a scan finds more errors than the previous scan", async () => {
+    const { organization, user, project } = await setupNativeProject();
+    await insertPreviousSucceededRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      errorCount: 1,
+    });
+    const [key] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "greeting",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      })
+      .returning({ id: schema.projectTranslationKeys.id });
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+    const finding = {
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: key!.id,
+      key: "greeting",
+      checkType: "not_localized" as const,
+      severity: "error" as const,
+      category: "qa",
+      message: "Missing translation",
+      relatedTokens: [],
+      sourceText: "Hello",
+      targetText: "",
+    };
+    await db.insert(schema.translationQaFindings).values([
+      { ...finding, targetLocale: "de-DE" },
+      { ...finding, targetLocale: "fr-FR" },
+    ]);
+
+    const completeInput = {
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+    };
+    await completeTranslationQaScan(completeInput);
+    await completeTranslationQaScan(completeInput);
+
+    expect(await qaNotifications(claimed.runId)).toEqual([
+      {
+        recipientUserId: user.id,
+        issueId: null,
+        type: "qa_errors_increased",
+        payload: {
+          issueTitle: "Native QA",
+          projectId: project.id,
+          errorCount: 2,
+          errorsChange: 1,
+        },
+      },
+    ]);
+  });
+
+  it("does not notify when a scan finds no more errors than the previous scan", async () => {
+    const { organization, user, project } = await setupNativeProject();
+    await insertPreviousSucceededRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      errorCount: 3,
+    });
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "manual",
+      createdByUserId: user.id,
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    await completeTranslationQaScan({
+      runId: claimed.runId,
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+
+    expect(await qaNotifications(claimed.runId)).toEqual([]);
+  });
+
+  it("notifies QA managers once when a running scan fails", async () => {
+    const { organization, user, project } = await setupNativeProject();
+    const claimed = await claimTranslationQaRun({
+      organizationId: organization.id,
+      projectId: project.id,
+      trigger: "scheduled",
+    });
+    if (!claimed.ok) {
+      throw new Error("expected claimed run");
+    }
+
+    const failInput = {
+      runId: claimed.runId,
+      errorCode: "qa_scan_failed",
+      errorMessage: "Sandbox crashed.",
+    };
+    await failTranslationQaRun(failInput);
+    await failTranslationQaRun(failInput);
+
+    expect(await qaNotifications(claimed.runId)).toEqual([
+      {
+        recipientUserId: user.id,
+        issueId: null,
+        type: "qa_scan_failed",
+        payload: {
+          issueTitle: "Native QA",
+          projectId: project.id,
+          errorCode: "qa_scan_failed",
+        },
+      },
+    ]);
   });
 });

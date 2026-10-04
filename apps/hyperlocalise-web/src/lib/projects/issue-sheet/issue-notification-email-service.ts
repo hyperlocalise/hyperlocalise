@@ -54,12 +54,13 @@ type NotificationEmailRow = {
   organizationId: string;
   organizationSlug: string | null;
   projectId: string;
-  issueId: string;
+  issueId: string | null;
   type: IssueNotificationType;
   payload: {
     issueTitle: string;
     projectId: string;
     commentExcerpt?: string;
+    errorsChange?: number;
   };
   recipientUserId: string;
   recipientEmail: string;
@@ -120,12 +121,13 @@ function toEmailItem(row: NotificationEmailRow, organizationSlug: string): Email
     type: row.type,
     issueId: row.issueId,
     issueTitle: row.payload.issueTitle,
-    issueLabel: issueLabel(row.issueId),
+    issueLabel: row.issueId ? issueLabel(row.issueId) : "QA",
     actorName,
     actorAvatarUrl: row.actorAvatarUrl,
     actorInitials: actorInitials(actorName),
     actionHref: notificationUrl(organizationSlug, row.id),
     excerpt: row.payload.commentExcerpt ?? null,
+    errorsChange: row.payload.errorsChange ?? null,
   };
 }
 

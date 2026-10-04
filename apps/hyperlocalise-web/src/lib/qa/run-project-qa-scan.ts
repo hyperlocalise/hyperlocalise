@@ -28,6 +28,7 @@ import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
+import { notifyQaScanFailed, notifyQaScanSucceeded } from "./qa-scan-notifications";
 import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
 const logger = createLogger("translation-qa-scan");
@@ -475,6 +476,7 @@ export async function completeTranslationQaScan(input: {
     },
     "translation qa scan completed",
   );
+  await notifyQaScanSucceeded(input.runId);
 
   return { ok: true as const, alreadyCompleted: false as const };
 }
@@ -484,7 +486,7 @@ export async function failTranslationQaRun(input: {
   errorCode: string;
   errorMessage: string;
 }) {
-  await db
+  const failed = await db
     .update(schema.translationQaRuns)
     .set({
       status: "failed",
@@ -497,7 +499,11 @@ export async function failTranslationQaRun(input: {
         eq(schema.translationQaRuns.id, input.runId),
         eq(schema.translationQaRuns.status, "running"),
       ),
-    );
+    )
+    .returning({ id: schema.translationQaRuns.id });
+  if (failed.length > 0) {
+    await notifyQaScanFailed(input.runId);
+  }
 }
 
 export async function reclaimStaleTranslationQaRuns(input?: {
@@ -534,6 +540,7 @@ export async function reclaimStaleTranslationQaRuns(input?: {
       { runId: run.runId, projectId: run.projectId, failureCode: "qa_scan_stale" },
       "translation qa scan timed out",
     );
+    await notifyQaScanFailed(run.runId);
   }
 }
 

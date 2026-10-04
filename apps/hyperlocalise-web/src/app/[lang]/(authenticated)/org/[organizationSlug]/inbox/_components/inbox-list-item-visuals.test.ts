@@ -50,5 +50,11 @@ describe("getNotificationListItemVisual", () => {
     expect(getNotificationListItemVisual("assignee_changed", intl).typeIconLabel).toBe(
       "Assignee change",
     );
+    expect(getNotificationListItemVisual("qa_errors_increased", intl).typeIconLabel).toBe(
+      "QA errors",
+    );
+    expect(getNotificationListItemVisual("qa_scan_failed", intl).typeIconLabel).toBe(
+      "QA scan failed",
+    );
   });
 });

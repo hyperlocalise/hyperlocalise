@@ -182,6 +182,26 @@ function translationKeysQueueFilterCondition(input: {
             )
         )
       )`;
+    case "qa_issues":
+      return sql`exists (
+        select 1
+        from ${schema.translationQaFindings}
+        where ${schema.translationQaFindings.translationKeyId} = ${schema.projectTranslationKeys.id}
+          and ${schema.translationQaFindings.organizationId} = ${input.organizationId}
+          and ${schema.translationQaFindings.projectId} = ${input.projectId}
+          and ${schema.translationQaFindings.targetLocale} = ${input.targetLocale}
+          and ${schema.translationQaFindings.status} = 'open'
+          and ${schema.translationQaFindings.runId} = (
+            select ${schema.translationQaRuns.id}
+            from ${schema.translationQaRuns}
+            where ${schema.translationQaRuns.organizationId} = ${input.organizationId}
+              and ${schema.translationQaRuns.projectId} = ${input.projectId}
+              and ${schema.translationQaRuns.status} = 'succeeded'
+            order by ${schema.translationQaRuns.completedAt} desc nulls last,
+              ${schema.translationQaRuns.createdAt} desc
+            limit 1
+          )
+      )`;
     case "hidden":
       return eq(schema.projectTranslationKeys.isHidden, true);
     default:

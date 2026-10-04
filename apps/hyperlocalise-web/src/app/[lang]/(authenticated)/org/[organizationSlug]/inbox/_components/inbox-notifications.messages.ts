@@ -55,6 +55,55 @@ export const inboxNotificationsMessages = defineMessages({
     id: "H/zIVmChfF",
     description: "Inbox notification preview for an assignee change",
   },
+  qaErrorsIncreased: {
+    defaultMessage:
+      "{count, plural, one {# new QA error} other {# new QA errors}} since the previous scan",
+    id: "OAZ7oFBkRI",
+    description:
+      "Inbox notification preview when a QA scan finds more errors than the previous scan",
+  },
+  qaScanFailed: {
+    defaultMessage: "QA scan failed. Results may be out of date.",
+    id: "mMUepb6zqB",
+    description: "Inbox notification preview when a QA scan fails",
+  },
+  qaErrorsIncreasedType: {
+    defaultMessage: "QA errors",
+    id: "vb7EOrZY7c",
+    description: "Short label for the QA errors notification type in the inbox list",
+  },
+  qaScanFailedType: {
+    defaultMessage: "QA scan failed",
+    id: "yVojCLusiD",
+    description: "Short label for the failed QA scan notification type in the inbox list",
+  },
+  qaPanelLabel: {
+    defaultMessage: "QA alert",
+    id: "d7yqWFV1zN",
+    description: "Accessible label for the QA alert panel in the inbox",
+  },
+  qaPanelErrorsIncreased: {
+    defaultMessage:
+      "This QA scan found {count, plural, one {# more error} other {# more errors}} than the previous scan.",
+    id: "yNQ5cytMyK",
+    description: "Inbox QA alert panel body when errors increased",
+  },
+  qaPanelErrorTotal: {
+    defaultMessage:
+      "{count, plural, one {# error needs fixing in total.} other {# errors need fixing in total.}}",
+    id: "qHIrsw44x4",
+    description: "Inbox QA alert panel line with the total error count from the scan",
+  },
+  qaPanelScanFailed: {
+    defaultMessage: "This QA scan failed, so QA results may be out of date until a scan completes.",
+    id: "zX3UWO/7lH",
+    description: "Inbox QA alert panel body when a scan failed",
+  },
+  reviewQa: {
+    defaultMessage: "Review QA",
+    id: "5AgD8a/XoW",
+    description: "Button in the inbox QA alert panel that opens the project QA page",
+  },
   someone: {
     defaultMessage: "Someone",
     id: "6N3tTQGcSO",

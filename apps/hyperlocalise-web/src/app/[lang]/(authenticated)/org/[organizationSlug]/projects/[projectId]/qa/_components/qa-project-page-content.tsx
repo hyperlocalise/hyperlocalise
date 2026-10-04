@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -28,12 +28,15 @@ import { qaMessages as m } from "@/components/qa/qa.messages";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
 import { createProjectQaReportClient } from "@/lib/qa/qa-report-client";
+import { workspaceQaReportsQueryKey } from "@/lib/qa/use-workspace-qa-reports";
 import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "@/lib/qa/qa-policy";
 import { translationQaCheckTypes, type TranslationQaCheckType } from "@/lib/qa/types";
 import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { qaProjectMessages as messages } from "../qa-project.messages";
+import { QaProjectOverview } from "./qa-project-overview";
 
 const PAGE_SIZE = 100;
+const DEFAULT_STATUS = "open";
 type QaScanStartErrorCode = "qa_scan_in_progress" | "qa_scan_start_failed";
 
 class QaScanStartError extends Error {
@@ -60,7 +63,7 @@ export function QaProjectPageContent({
   const [locale, setLocale] = useState("all");
   const [checkType, setCheckType] = useState("all");
   const [severity, setSeverity] = useState("all");
-  const [status, setStatus] = useState("open");
+  const [status, setStatus] = useState(DEFAULT_STATUS);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [draftPolicy, setDraftPolicy] = useState<QaCheckPolicy | null>(null);
   const listKey = ["project-qa-reports", organizationSlug, projectId];
@@ -90,6 +93,11 @@ export function QaProjectPageContent({
       ? (lastSuccessfulFromList ?? lastSuccessful.data ?? null)
       : null;
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
+  const latestRevision = reports[0] ? `${reports[0].id}:${reports[0].status}` : null;
+  useEffect(() => {
+    if (!latestRevision) return;
+    void queryClient.invalidateQueries({ queryKey: workspaceQaReportsQueryKey(organizationSlug) });
+  }, [latestRevision, organizationSlug, queryClient]);
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({
     // A changed run state creates a fresh result query, including the final
@@ -137,7 +145,10 @@ export function QaProjectPageContent({
     onSuccess: async () => {
       setSelectedRunId(null);
       setTab("findings");
-      await queryClient.invalidateQueries({ queryKey: listKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: workspaceQaReportsQueryKey(organizationSlug) }),
+      ]);
     },
     onError: async (error) => {
       if (error instanceof QaScanStartError && error.code === "qa_scan_in_progress") {
@@ -166,12 +177,12 @@ export function QaProjectPageContent({
     report.id === reports.find((row) => row.status === "succeeded")?.id;
   const all = { value: "all", label: intl.formatMessage(m.all) };
   const filtered =
-    locale !== "all" || checkType !== "all" || severity !== "all" || status !== "all";
+    locale !== "all" || checkType !== "all" || severity !== "all" || status !== DEFAULT_STATUS;
   const resetFilters = () => {
     setLocale("all");
     setCheckType("all");
     setSeverity("all");
-    setStatus("all");
+    setStatus(DEFAULT_STATUS);
   };
   const unsupported =
     list.error instanceof GoSvcClientError && list.error.code === "qa_scan_not_supported";
@@ -215,6 +226,26 @@ export function QaProjectPageContent({
               ? undefined
               : () => start.mutate()
           }
+        />
+      ) : null}
+      {list.isSuccess && report?.status === "succeeded" ? (
+        <QaProjectOverview
+          report={report}
+          reports={reports}
+          cadence={settings?.cadence}
+          onSelectLocale={(value) => {
+            setLocale(value);
+            setTab("findings");
+          }}
+          onSelectCheck={(value) => {
+            setCheckType(value);
+            setTab("findings");
+          }}
+          onSelectRun={(runId) => {
+            setSelectedRunId(runId === reports[0]?.id ? null : runId);
+            resetFilters();
+            setTab("findings");
+          }}
         />
       ) : null}
       {list.isSuccess ? (
@@ -393,6 +424,7 @@ export function QaProjectPageContent({
                     </Field>
                     <QaFilter
                       label={intl.formatMessage(m.severity)}
+                      disabled={!settings?.canManageSchedule || settingsMutation.isPending}
                       value={policy[check].severity}
                       onChange={(severity) =>
                         updateRule(check, { severity: severity as "error" | "warning" })

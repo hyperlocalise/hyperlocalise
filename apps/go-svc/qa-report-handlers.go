@@ -104,7 +104,7 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
             p.id, p.name, p.qa_scan_cadence, p.qa_scan_last_run_at,
             r.id, r.status, r.trigger, r.segment_count, r.finding_count, r.error_count, r.warning_count,
             r.summary, r.error_code, r.started_at, r.completed_at, r.created_at,
-            last_success.completed_at
+            last_success.completed_at, previous_success.error_count, previous_success.warning_count
         from projects p
         left join latest_qa_run r on r.project_id = p.id
         left join lateral (
@@ -114,6 +114,14 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
             order by completed_at desc nulls last, created_at desc
             limit 1
         ) last_success on true
+        left join lateral (
+            select error_count, warning_count
+            from translation_qa_runs
+            where organization_id = $1 and project_id = p.id and status = 'succeeded'
+              and id <> r.id and created_at < r.created_at
+            order by completed_at desc nulls last, created_at desc
+            limit 1
+        ) previous_success on true
         where p.organization_id = $1 and p.source = 'native'
         and `+formatQaProjectTeamAccessSQL(2, 3, 1)+`
         order by p.name`, actor.organizationID, actor.canWriteProjectTeam(), actor.userID)
@@ -144,12 +152,14 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 		var projectID, projectName, cadence string
 		var runID, status, trigger, errorCode *string
 		var segmentCount, findingCount, errorCount, warningCount *int
+		var previousErrorCount, previousWarningCount *int
 		var summaryRaw []byte
 		var lastRunAt, startedAt, completedAt, runCreatedAt, lastSuccessfulAt *time.Time
 		if err := rows.Scan(
 			&projectID, &projectName, &cadence, &lastRunAt,
 			&runID, &status, &trigger, &segmentCount, &findingCount, &errorCount, &warningCount,
 			&summaryRaw, &errorCode, &startedAt, &completedAt, &runCreatedAt, &lastSuccessfulAt,
+			&previousErrorCount, &previousWarningCount,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -160,12 +170,19 @@ func (api *qaReportAPI) listWorkspaceReports(ctx context.Context, actor qaReport
 			lastRunISO = formatQaReportTime(runCreatedAt)
 		}
 		row := map[string]any{
-			"projectId":        projectID,
-			"projectName":      projectName,
-			"cadence":          cadence,
-			"lastRunAt":        lastRunISO,
-			"lastSuccessfulAt": formatQaReportTime(lastSuccessfulAt),
-			"report":           nil,
+			"projectId":          projectID,
+			"projectName":        projectName,
+			"cadence":            cadence,
+			"lastRunAt":          lastRunISO,
+			"lastSuccessfulAt":   formatQaReportTime(lastSuccessfulAt),
+			"report":             nil,
+			"previousSuccessful": nil,
+		}
+		if previousErrorCount != nil && previousWarningCount != nil {
+			row["previousSuccessful"] = map[string]int{
+				"errorCount":   *previousErrorCount,
+				"warningCount": *previousWarningCount,
+			}
 		}
 		if runID != nil && status != nil {
 			summary := emptyQaSummary()

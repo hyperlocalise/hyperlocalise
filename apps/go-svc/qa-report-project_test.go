@@ -56,6 +56,40 @@ func TestWorkspaceQaReportExposesSafeFailureAndLastSuccess(t *testing.T) {
 	require.NotContains(t, projectRec.Body.String(), "private source text")
 }
 
+func TestWorkspaceQaReportIncludesPreviousSuccessfulCounts(t *testing.T) {
+	api, scope := qaReportTestAPI(t, "admin")
+	olderID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 7, 5, 2)
+	_, err := scope.Pool.Exec(t.Context(), `update translation_qa_runs set created_at=now() - interval '1 day' where id=$1`, olderID)
+	require.NoError(t, err)
+
+	readPrevious := func() *struct {
+		ErrorCount   int `json:"errorCount"`
+		WarningCount int `json:"warningCount"`
+	} {
+		rec := qaReportRequest(api, scope, http.MethodGet, scope.OrgPath("/qa-reports"), "")
+		require.Equal(t, http.StatusOK, rec.Code)
+		var response struct {
+			Reports []struct {
+				PreviousSuccessful *struct {
+					ErrorCount   int `json:"errorCount"`
+					WarningCount int `json:"warningCount"`
+				} `json:"previousSuccessful"`
+			} `json:"reports"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+		require.Len(t, response.Reports, 1)
+		return response.Reports[0].PreviousSuccessful
+	}
+
+	require.Nil(t, readPrevious())
+
+	mustQaRun(t, scope, scope.ProjectID, "succeeded", 3, 2, 1)
+	previous := readPrevious()
+	require.NotNil(t, previous)
+	require.Equal(t, 5, previous.ErrorCount)
+	require.Equal(t, 2, previous.WarningCount)
+}
+
 func TestProjectQaReportFindsLastSuccessBeyondHistoryLimit(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
 	succeededID := mustQaRun(t, scope, scope.ProjectID, "succeeded", 1, 1, 0)
