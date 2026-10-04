@@ -26,15 +26,15 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     description: "Content Editor settings section description",
   },
   settingLabel: {
-    defaultMessage: "Automatically group identical strings",
-    id: "b6mn1qkBp4",
-    description: "Identical string grouping setting label",
+    defaultMessage: "Automatically merge identical strings",
+    id: "OSxEF0/gz3",
+    description: "Identical string merging setting label",
   },
   settingDescription: {
     defaultMessage:
-      "Show exact source-text duplicates as a shared group when the Content Editor refreshes.",
-    id: "2F2dNLV6FZ",
-    description: "Identical string grouping setting description",
+      "Merge exact source-text duplicates into one string when the Content Editor refreshes. Translate it once to update every copy.",
+    id: "mRVnNMtRYk",
+    description: "Identical string merging setting description",
   },
   managerOnly: {
     defaultMessage: "Only project managers can change this setting.",
@@ -42,37 +42,37 @@ export const projectContentEditorBehaviorMessages = defineMessages({
     description: "CAT setting permission help",
   },
   enableTitle: {
-    defaultMessage: "Group identical strings?",
-    id: "QdeL6ZDB5C",
-    description: "Enable grouping confirmation title",
+    defaultMessage: "Merge identical strings?",
+    id: "dbIHLj/rDN",
+    description: "Enable merging confirmation title",
   },
   enableDescription: {
     defaultMessage:
-      "This will group an estimated {occurrences, number} occurrences into {groups, number} groups. Existing translations will not be changed.",
-    id: "rWZYfLEPfd",
-    description: "Enable grouping confirmation description",
+      "This will merge an estimated {occurrences, number} occurrences into {groups, number} strings. Existing translations will not be changed.",
+    id: "2HoetXShu0",
+    description: "Enable merging confirmation description",
   },
   disableTitle: {
-    defaultMessage: "Stop grouping identical strings?",
-    id: "ZQECIF/mni",
-    description: "Disable grouping confirmation title",
+    defaultMessage: "Stop merging identical strings?",
+    id: "pTIEJcqBFe",
+    description: "Disable merging confirmation title",
   },
   disableDescription: {
     defaultMessage:
-      "Grouped rows will expand after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
-    id: "7oTwMQ/lzH",
-    description: "Disable grouping confirmation description",
+      "Merged strings will split back out after Content Editor drafts are saved or discarded. Translations, approvals, comments, and saved separation exceptions will stay unchanged.",
+    id: "6uHZwOPqkd",
+    description: "Disable merging confirmation description",
   },
   cancel: { defaultMessage: "Cancel", id: "E/lJPiTTAo", description: "Cancel CAT behavior change" },
   confirmEnable: {
-    defaultMessage: "Enable grouping",
-    id: "WUMSOeitWn",
-    description: "Confirm enabling CAT grouping",
+    defaultMessage: "Enable merging",
+    id: "CPgNVBCSrU",
+    description: "Confirm enabling identical string merging",
   },
   confirmDisable: {
-    defaultMessage: "Disable grouping",
-    id: "jVfYLLHPHu",
-    description: "Confirm disabling CAT grouping",
+    defaultMessage: "Disable merging",
+    id: "HtM5Jg2cRQ",
+    description: "Confirm disabling identical string merging",
   },
   saved: {
     defaultMessage: "Content Editor behavior updated",

@@ -30,6 +30,17 @@ export const updateAnnouncerMessages = defineMessages({
     id: "lBt4D36OVV",
     description: "Accessible label for the close button on the product update announcement card",
   },
+  mergeStringsTitle: {
+    defaultMessage: "Merge strings: translate duplicates once",
+    id: "OT92Awvsrm",
+    description: "Title of the product update announcement for the Merge strings feature",
+  },
+  mergeStringsDescription: {
+    defaultMessage:
+      "Combine identical strings from across your files into one. Translate it once and every copy updates, with differing translations flagged for review.",
+    id: "GXBIiv5A0x",
+    description: "Body of the product update announcement for the Merge strings feature",
+  },
   qaOverviewTitle: {
     defaultMessage: "A clearer view of translation quality",
     id: "ZN2JBLuLUD",

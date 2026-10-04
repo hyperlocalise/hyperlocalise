@@ -13,6 +13,7 @@
 import type { ComponentType } from "react";
 import type { MessageDescriptor } from "react-intl";
 
+import { MergeStringsPreview } from "./merge-strings-preview";
 import { QaOverviewPreview } from "./qa-overview-preview";
 import { updateAnnouncerMessages } from "./update-announcer.messages";
 
@@ -33,6 +34,16 @@ export type UpdateAnnouncement = {
 
 /** Ordered by priority: the first active, undismissed entry is shown. */
 export const UPDATE_ANNOUNCEMENTS: readonly UpdateAnnouncement[] = [
+  {
+    id: "2026-10-merge-strings",
+    title: updateAnnouncerMessages.mergeStringsTitle,
+    description: updateAnnouncerMessages.mergeStringsDescription,
+    imageSrc: "/images/mesh/mesh-gradient-1788785908604.jpg",
+    Preview: MergeStringsPreview,
+    buildHref: (organizationSlug) => `/org/${organizationSlug}/projects`,
+    startsAt: "2026-10-04T00:00:00Z",
+    endsAt: "2026-11-04T00:00:00Z",
+  },
   {
     id: "2026-10-qa-overview",
     title: updateAnnouncerMessages.qaOverviewTitle,
