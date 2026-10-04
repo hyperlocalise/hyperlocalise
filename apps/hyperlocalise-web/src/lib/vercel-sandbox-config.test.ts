@@ -68,6 +68,23 @@ describe("installQaSpellingSandboxCommand", () => {
       '[ -f "$DICPATH/en_US.aff" ] && [ -f "$DICPATH/en_US.dic" ]; then',
     );
   });
+
+  it("exits before package installs and GitHub downloads when baked dictionaries verify", () => {
+    const bakedExit = installQaSpellingSandboxCommand.indexOf("if hunspell_baked_dictionaries_ready; then");
+    const packageInstall = installQaSpellingSandboxCommand.indexOf(
+      "install_hunspell_fetch_dependencies || exit 1",
+    );
+    const manifestDownload = installQaSpellingSandboxCommand.indexOf(
+      'curl -fsSL "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/${HL_TAG}/internal/i18n/spellcheck/DICTIONARIES.md"',
+    );
+    expect(bakedExit).toBeGreaterThan(-1);
+    expect(packageInstall).toBeGreaterThan(bakedExit);
+    expect(manifestDownload).toBeGreaterThan(packageInstall);
+    expect(installQaSpellingSandboxCommand).toContain("hunspell_baked_dictionaries_ready");
+    expect(installQaSpellingSandboxCommand).toContain(
+      'sha256sum -c --quiet "$HUNSPELL_DICTIONARY_SHA256SUMS"',
+    );
+  });
 });
 
 describe("installRequiredSandboxToolsCommand", () => {
