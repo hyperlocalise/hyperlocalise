@@ -22,13 +22,21 @@ import { db, schema } from "@/lib/database/client";
 
 import { createProviderCredentialTestFixture } from "./provider-credential.fixture";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
+    ok: true,
+    value: { createdAt: new Date(), id: "activity-event-1" },
+  }),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvent: enqueueActivityLogEventMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {

@@ -89,6 +89,6 @@ describe("ActivityLogList", () => {
     expect(screen.getByText("key-1")).toBeInTheDocument();
     expect(screen.getByText("user-1")).toBeInTheDocument();
     expect(screen.getByText("file_uploaded")).toBeInTheDocument();
-    expect(screen.getByText("locales/en.json")).toBeInTheDocument();
+    expect(screen.getByText("sourcePath").closest("li")).toHaveTextContent("locales/en.json");
   });
 });
