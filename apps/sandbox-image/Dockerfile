@@ -107,6 +107,9 @@ RUN set -eux; \
         /usr/local/bin/rg; \
       rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl"; \
     fi; \
+    # dash tracks the first rg lookup (/usr/bin/rg from apt). Drop that so
+    # this check runs /usr/local/bin/rg when the pin was just installed.
+    hash -r; \
     rg --version | grep -Fq "${RIPGREP_VERSION}"
 
 # Node.js latest of the pinned major (same approach as vercel/sandbox/node).
