@@ -11,7 +11,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -52,12 +52,14 @@ function failureMessage(code: string | null) {
 function QaFailureStatus({
   report,
   lastSuccessfulAt,
+  lastSuccessfulAction,
   onRetry,
   isRetrying,
   compact,
 }: {
   report: RunStatusReport;
   lastSuccessfulAt?: string | null;
+  lastSuccessfulAction?: ReactNode;
   onRetry?: () => void;
   isRetrying?: boolean;
   compact?: boolean;
@@ -95,12 +97,20 @@ function QaFailureStatus({
           </Button>
         ) : null}
       </div>
-      {lastSuccessfulAt ? (
-        <p className="text-pretty text-sm">
-          {intl.formatMessage(m.lastCompleted, {
-            date: intl.formatDate(lastSuccessfulAt, { dateStyle: "medium", timeStyle: "short" }),
-          })}
-        </p>
+      {lastSuccessfulAt || lastSuccessfulAction ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {lastSuccessfulAt ? (
+            <p className="text-pretty text-sm">
+              {intl.formatMessage(m.lastCompleted, {
+                date: intl.formatDate(lastSuccessfulAt, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
+              })}
+            </p>
+          ) : null}
+          {lastSuccessfulAction}
+        </div>
       ) : null}
       <dl className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
         <div className="flex gap-2">
@@ -172,12 +182,14 @@ export function QaRunStatus({
   onRetry,
   isRetrying,
   lastSuccessfulAt,
+  lastSuccessfulAction,
   compact,
 }: {
   report?: RunStatusReport;
   onRetry?: () => void;
   isRetrying?: boolean;
   lastSuccessfulAt?: string | null;
+  lastSuccessfulAction?: ReactNode;
   compact?: boolean;
 }) {
   const intl = useIntl();
@@ -189,6 +201,7 @@ export function QaRunStatus({
         onRetry={onRetry}
         isRetrying={isRetrying}
         lastSuccessfulAt={lastSuccessfulAt}
+        lastSuccessfulAction={lastSuccessfulAction}
         compact={compact}
       />
     );

@@ -75,12 +75,20 @@ export function QaProjectPageContent({
   });
   const reports = list.data?.reports ?? [];
   const report = reports.find((row) => row.id === selectedRunId) ?? reports[0];
+  const isLatestReport = report?.id === reports[0]?.id;
+  const lastSuccessfulFromList =
+    isLatestReport && report?.status === "failed"
+      ? reports.find((row) => row.status === "succeeded")
+      : undefined;
   const lastSuccessful = useQuery({
     queryKey: [...listKey, "last-successful", report?.id],
     queryFn: () => api.getLastSuccessful({ param, beforeRunId: report!.id }),
-    enabled: report?.status === "failed",
+    enabled: Boolean(report?.status === "failed" && isLatestReport && !lastSuccessfulFromList),
   });
-  const lastSuccessfulReport = lastSuccessful.data;
+  const lastSuccessfulReport =
+    isLatestReport && report?.status === "failed"
+      ? (lastSuccessfulFromList ?? lastSuccessful.data ?? null)
+      : null;
   const running = reports.some((row) => ["running", "queued"].includes(row.status));
   const settings = list.data?.settings;
   const detail = useInfiniteQuery({
@@ -173,7 +181,7 @@ export function QaProjectPageContent({
         icon={CheckmarkCircle02Icon}
         section={intl.formatMessage(messages.title)}
         actions={
-          settings?.canRun && reports[0]?.status !== "failed" ? (
+          settings?.canRun ? (
             <Button size="sm" disabled={running || start.isPending} onClick={() => start.mutate()}>
               {intl.formatMessage(running || start.isPending ? messages.running : messages.run)}
             </Button>
@@ -230,17 +238,18 @@ export function QaProjectPageContent({
               onRetry={settings?.canRun && !running ? () => start.mutate() : undefined}
               isRetrying={start.isPending}
               lastSuccessfulAt={lastSuccessfulReport?.completedAt}
+              lastSuccessfulAction={
+                lastSuccessfulReport ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedRunId(lastSuccessfulReport.id)}
+                  >
+                    {intl.formatMessage(messages.viewLastCompleted)}
+                  </Button>
+                ) : null
+              }
             />
-            {report?.status === "failed" && lastSuccessfulReport ? (
-              <Button
-                className="w-fit"
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedRunId(lastSuccessfulReport.id)}
-              >
-                {intl.formatMessage(messages.viewLastCompleted)}
-              </Button>
-            ) : null}
             {report?.status === "succeeded" ? (
               <>
                 <p className="text-xs text-muted-foreground">{intl.formatMessage(m.snapshot)}</p>
@@ -424,9 +433,7 @@ export function QaProjectPageContent({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {intl.formatMessage(
-                      row.trigger === "scheduled"
-                        ? messages.triggerScheduled
-                        : messages.triggerManual,
+                      row.trigger === "scheduled" ? m.triggerScheduled : m.triggerManual,
                     )}
                   </p>
                   <QaRunStatus report={row} compact />

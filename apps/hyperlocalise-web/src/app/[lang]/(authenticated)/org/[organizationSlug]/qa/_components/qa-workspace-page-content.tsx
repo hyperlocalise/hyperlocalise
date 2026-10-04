@@ -60,6 +60,8 @@ export function QaWorkspacePageContent({
   const reports = reportsQuery.data?.reports ?? [];
   const failedReports = reports.filter((row) => row.report?.status === "failed");
   const selectedReport = reports.find((row) => row.projectId === projectId);
+  const selectedFailedWithoutResults =
+    selectedReport?.report?.status === "failed" && !selectedReport.lastSuccessfulAt;
   const lastCompletedByProject = Object.fromEntries(
     reports.map((row) => [row.projectId, row.lastSuccessfulAt]),
   );
@@ -201,15 +203,17 @@ export function QaWorkspacePageContent({
           </div>
           {selectedReport?.report?.status === "failed" ? (
             <p className="text-pretty text-sm text-muted-foreground">
-              {intl.formatMessage(messages.selectedProjectFailed)}
               {selectedReport.lastSuccessfulAt
-                ? ` ${intl.formatMessage(m.lastCompleted, {
-                    date: intl.formatDate(selectedReport.lastSuccessfulAt, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }),
-                  })}`
-                : ""}
+                ? `${intl.formatMessage(messages.selectedProjectFailed)} ${intl.formatMessage(
+                    m.lastCompleted,
+                    {
+                      date: intl.formatDate(selectedReport.lastSuccessfulAt, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    },
+                  )}`
+                : intl.formatMessage(m.failedNoResults)}
             </p>
           ) : null}
           {findingsQuery.isPending && reportsQuery.isSuccess ? (
@@ -225,7 +229,9 @@ export function QaWorkspacePageContent({
           ) : null}
           {findingsQuery.isSuccess && !findings.length ? (
             <div className="flex items-center gap-3">
-              <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              {!selectedFailedWithoutResults ? (
+                <p className="text-sm">{intl.formatMessage(m.noMatches)}</p>
+              ) : null}
               <Button
                 variant="outline"
                 size="sm"

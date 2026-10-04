@@ -426,9 +426,9 @@ export const qaMessages = defineMessages({
     id: "lTJVZLlOrt",
   },
   older: {
-    defaultMessage: "Viewing an older scan. Open the latest scan to review current findings.",
+    defaultMessage: "Viewing an older scan. Open the latest scan for the current report.",
     description: "QA review: older",
-    id: "ZZvftz3AeK",
+    id: "gcpJ8hX+G6",
   },
   latest: {
     defaultMessage: "View latest scan",
