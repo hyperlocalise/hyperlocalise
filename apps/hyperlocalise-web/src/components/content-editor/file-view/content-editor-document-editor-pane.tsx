@@ -33,23 +33,28 @@ import {
 } from "@/components/content-editor/file-view/content-editor-document-frontmatter";
 import { FileViewPaneState } from "@/components/content-editor/file-view/content-editor-file-view-layout";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
+import { ContentEditorAddToGlossary } from "@/components/content-editor/intelligence/content-editor-add-to-glossary";
 import { DocumentEditor } from "@/components/document-editor/document-editor";
 import {
   DocumentEditorAssistantPanel,
   type DocumentAssistantFocus,
 } from "@/components/document-editor/document-editor-assistant-panel";
 import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
-import { useDocumentAutosave } from "@/components/document-editor/document-editor-autosave";
+import {
+  peekDocumentAutosaveDraft,
+  useDocumentAutosave,
+} from "@/components/document-editor/document-editor-autosave";
 import {
   alignDocumentBlocks,
   documentBlocksFromJson,
 } from "@/components/document-editor/document-editor-blocks";
 import {
   createDocumentMarkdownManager,
+  isLossyDocumentRoundTrip,
   isMdxFilename,
-  normalizeDocumentMarkdown,
   serializeDocumentBlock,
 } from "@/components/document-editor/document-editor-extensions";
+import { getDocumentSuggestions } from "@/components/document-editor/document-editor-suggestions";
 import { DocumentSaveStatus } from "@/components/document-editor/document-editor-save-status";
 import {
   documentBlockRange,
@@ -67,6 +72,7 @@ import { documentEditorMessages as messages } from "@/components/document-editor
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -148,10 +154,12 @@ export function ContentEditorDocumentEditorPane({
   const [baseline, setBaseline] = useState<string | null>(null);
   const [parseLossy, setParseLossy] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
-  const [editorGeneration, setEditorGeneration] = useState(0);
+  const [restoreSaveError, setRestoreSaveError] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [focusedBlock, setFocusedBlock] = useState<number | null>(null);
+  const [pendingSuggestionCount, setPendingSuggestionCount] = useState(0);
+  const [glossaryTerm, setGlossaryTerm] = useState<string | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [concordanceSeed, setConcordanceSeed] = useState<{ query: string; nonce: number } | null>(
     null,
@@ -160,16 +168,25 @@ export function ContentEditorDocumentEditorPane({
   const [translateCounts, setTranslateCounts] = useState(EMPTY_TRANSLATE_COUNTS);
   const rootRef = useRef<HTMLDivElement>(null);
   const targetSrcRef = useRef(targetSrc);
+  const saveNowRef = useRef(async () => {});
+  const openedKeyRef = useRef<string | null>(null);
   targetSrcRef.current = targetSrc;
 
   useEffect(() => {
     if (isLoading) return;
     let cancelled = false;
-    setLoad({ status: "loading" });
-    setBaseline(null);
-    setCodeMode(false);
-    setParseLossy(false);
     void (async () => {
+      if (openedKeyRef.current !== null && openedKeyRef.current !== documentKey) {
+        await saveNowRef.current();
+      }
+      if (cancelled) return;
+      openedKeyRef.current = documentKey;
+      setLoad({ status: "loading" });
+      setBaseline(null);
+      setRestoreSaveError(false);
+      setCodeMode(false);
+      setParseLossy(false);
+      setPendingSuggestionCount(0);
       const [source, target] = await Promise.all([
         loadDocumentText(sourceSrc),
         loadDocumentText(targetSrcRef.current),
@@ -193,8 +210,18 @@ export function ContentEditorDocumentEditorPane({
       const targetSplit = splitContentEditorDocument(
         target.status === "ok" ? target.text : source.text,
       );
-      setFields(targetSplit.fields);
-      setBody(targetSplit.body);
+      const serverText = joinContentEditorDocument(targetSplit);
+      const draft = peekDocumentAutosaveDraft(documentKey);
+      if (draft) {
+        const split = splitContentEditorDocument(draft.value);
+        setFields(split.fields);
+        setBody(split.body);
+        setBaseline(serverText);
+        setRestoreSaveError(draft.failed);
+      } else {
+        setFields(targetSplit.fields);
+        setBody(targetSplit.body);
+      }
       setLoad({ status: "ready", sourceBody: sourceSplit.body, target: targetSplit });
     })();
     return () => {
@@ -221,17 +248,39 @@ export function ContentEditorDocumentEditorPane({
     [filename, onSave],
   );
   const autosave = useDocumentAutosave({
+    id: documentKey,
     value: fullText,
     baseline,
     save,
     enabled: editable,
+    restoreError: restoreSaveError,
+    onAbandonedSaveError: () => {
+      toast.error(intl.formatMessage(messages.saveAbandoned));
+    },
   });
+  saveNowRef.current = autosave.saveNow;
 
   const handleInitialValue = useCallback(
     (normalized: string) => {
       if (!target) return;
-      setParseLossy(syntax === "mdx" && normalized !== normalizeDocumentMarkdown(target.body));
-      setBody(normalized);
+      const original = target.body;
+      const lossy = isLossyDocumentRoundTrip(syntax, original, normalized);
+      setParseLossy(lossy);
+      if (lossy) {
+        setCodeMode(true);
+        setBaseline(
+          (current) =>
+            current ??
+            joinContentEditorDocument({
+              fields: target.fields,
+              body: original,
+              hasFrontmatter: target.hasFrontmatter,
+              rawFrontmatter: target.rawFrontmatter,
+            }),
+        );
+        return;
+      }
+      setBody((current) => (current === original ? normalized : current));
       setBaseline(
         (current) =>
           current ??
@@ -338,10 +387,20 @@ export function ContentEditorDocumentEditorPane({
     setConcordanceSeed((current) => ({ query, nonce: (current?.nonce ?? 0) + 1 }));
   };
 
-  const leaveCodeMode = () => {
-    setCodeMode(false);
-    setEditorGeneration((generation) => generation + 1);
-  };
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) {
+      setPendingSuggestionCount(0);
+      return;
+    }
+    const sync = () => {
+      setPendingSuggestionCount(getDocumentSuggestions(editor.state).length);
+    };
+    sync();
+    editor.on("transaction", sync);
+    return () => {
+      editor.off("transaction", sync);
+    };
+  }, [editor]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -371,7 +430,8 @@ export function ContentEditorDocumentEditorPane({
     autosave.hasUnsavedChanges ||
     autosave.status.kind === "saving" ||
     autosave.status.kind === "error" ||
-    translation.progress !== null;
+    translation.progress !== null ||
+    pendingSuggestionCount > 0;
   useEffect(() => {
     onReviewBlockedChange?.(reviewBlocked);
   }, [onReviewBlockedChange, reviewBlocked]);
@@ -431,7 +491,7 @@ export function ContentEditorDocumentEditorPane({
                 size="xs"
                 variant="ghost"
                 aria-pressed={codeMode}
-                onClick={() => (codeMode ? leaveCodeMode() : setCodeMode(true))}
+                onClick={() => setCodeMode((open) => !open)}
               >
                 {codeMode ? (
                   <TextTIcon data-icon="inline-start" />
@@ -444,13 +504,21 @@ export function ContentEditorDocumentEditorPane({
           </div>
         </div>
 
-        {parseLossy && !codeMode ? (
+        {parseLossy ? (
           <div className="mx-auto mt-4 flex max-w-[46rem] items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
             <WarningIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
             <p className="flex-1">{intl.formatMessage(messages.parseFallback)}</p>
-            <Button size="xs" variant="outline" onClick={() => setCodeMode(true)}>
-              {intl.formatMessage(messages.viewCode)}
-            </Button>
+            {!codeMode ? (
+              <Button size="xs" variant="outline" onClick={() => setCodeMode(true)}>
+                {intl.formatMessage(messages.viewCode)}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {pendingSuggestionCount > 0 ? (
+          <div className="mx-auto mt-4 flex max-w-[46rem] items-start gap-2 rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+            <WarningIcon className="mt-0.5 size-4 shrink-0 text-violet-600" />
+            <p className="flex-1">{intl.formatMessage(messages.reviewPendingSuggestions)}</p>
           </div>
         ) : null}
 
@@ -547,22 +615,26 @@ export function ContentEditorDocumentEditorPane({
                   className="min-h-[40rem] resize-y font-mono text-[13px] leading-relaxed"
                 />
               </div>
-            ) : (
+            ) : null}
+            <div hidden={codeMode} inert={codeMode || undefined}>
               <DocumentEditor
-                key={`target-${documentKey}-${editorGeneration}`}
+                key={`target-${documentKey}`}
                 value={body}
                 syntax={syntax}
-                editable={editable}
+                editable={editable && !codeMode}
                 ariaLabel={intl.formatMessage(contentEditorFileViewMessages.documentEditorAria)}
                 onChange={setBody}
                 onInitialValue={handleInitialValue}
                 onEditorChange={setEditor}
                 onFocusedBlockChange={setFocusedBlock}
                 onTranslateBlock={canTranslate ? translateBlock : undefined}
+                onAddToGlossary={
+                  editable && assistant?.glossary ? (text) => setGlossaryTerm(text) : undefined
+                }
                 selectionAi={selectionAi}
                 flaggedBlocks={flaggedBlocks}
               />
-            )}
+            </div>
           </section>
         </div>
         {editor && !codeMode ? (
@@ -574,16 +646,53 @@ export function ContentEditorDocumentEditorPane({
         ) : null}
       </div>
       {assistant && assistantOpen ? (
-        <aside className="hidden w-[22rem] shrink-0 border-s border-border bg-background md:block">
-          <DocumentEditorAssistantPanel
-            services={assistant}
-            focus={assistantFocus}
-            canEdit={editable}
-            onReplaceBlock={replaceFocusedBlock}
-            onClose={() => setAssistantOpen(false)}
-            concordanceSeed={concordanceSeed}
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            aria-label={intl.formatMessage(messages.assistantClose)}
+            onClick={() => setAssistantOpen(false)}
           />
-        </aside>
+          <aside className="fixed inset-y-0 end-0 z-50 flex w-[min(22rem,100%)] flex-col border-s border-border bg-background md:static md:z-auto md:w-[22rem] md:shrink-0">
+            <DocumentEditorAssistantPanel
+              services={assistant}
+              focus={assistantFocus}
+              canEdit={editable}
+              onReplaceBlock={replaceFocusedBlock}
+              onClose={() => setAssistantOpen(false)}
+              concordanceSeed={concordanceSeed}
+            />
+          </aside>
+        </>
+      ) : null}
+      {assistant?.glossary && glossaryTerm !== null ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setGlossaryTerm(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{intl.formatMessage(messages.addToGlossary)}</DialogTitle>
+            </DialogHeader>
+            <ContentEditorAddToGlossary
+              key={glossaryTerm}
+              organizationSlug={assistant.glossary.organizationSlug}
+              projectId={assistant.glossary.projectId}
+              teamId={assistant.glossary.teamId}
+              teamName={assistant.glossary.teamName}
+              sourceLocale={sourceLocale}
+              targetLocale={targetLocale}
+              sourceTerm={glossaryTerm}
+              targetTerm={glossaryTerm}
+              teamGlossaries={assistant.glossary.teamGlossaries}
+              canContribute={assistant.glossary.canContribute}
+              showTitle={false}
+              onAdded={() => setGlossaryTerm(null)}
+            />
+          </DialogContent>
+        </Dialog>
       ) : null}
       <DocumentTranslateDialog
         open={translateOpen}

@@ -626,6 +626,21 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
                       ...editorSegment,
                       sourceText,
                     }),
+                  glossary:
+                    organizationSlug &&
+                    projectId &&
+                    shell.fileContext.projectTeamId &&
+                    Boolean(shell.fileContext.canContributeTeamGlossary) &&
+                    isNativeProject
+                      ? {
+                          organizationSlug,
+                          projectId,
+                          teamId: shell.fileContext.projectTeamId,
+                          teamName: shell.fileContext.teamName ?? "",
+                          teamGlossaries: shell.fileContext.teamGlossaries ?? [],
+                          canContribute: true,
+                        }
+                      : undefined,
                   translateBlock: async (input) => {
                     const originalContext = await loadOriginalDocumentContext(
                       editorSegment.sourceAssetUrl,

@@ -14,7 +14,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { useDocumentAutosave } from "./document-editor-autosave";
+import {
+  forgetDocumentAutosaveDraft,
+  peekDocumentAutosaveDraft,
+  useDocumentAutosave,
+} from "./document-editor-autosave";
 
 const DELAY = 1_000;
 
@@ -26,8 +30,14 @@ function setup(save: (value: string) => Promise<void>) {
   );
 }
 
-beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+  forgetDocumentAutosaveDraft("doc-1");
+});
+afterEach(() => {
+  vi.useRealTimers();
+  forgetDocumentAutosaveDraft("doc-1");
+});
 
 describe("useDocumentAutosave", () => {
   it("saves once after typing stops", async () => {
@@ -81,5 +91,28 @@ describe("useDocumentAutosave", () => {
     await act(() => result.current.retry());
     expect(save).toHaveBeenLastCalledWith("abc");
     expect(result.current.status.kind).toBe("saved");
+  });
+
+  it("keeps a failed unmount save so the document can be retried", async () => {
+    const save = vi.fn().mockRejectedValue(new Error("offline"));
+    const abandoned = vi.fn();
+    const { unmount } = renderHook(() =>
+      useDocumentAutosave({
+        id: "doc-1",
+        value: "ab",
+        baseline: "a",
+        save,
+        delayMs: DELAY,
+        onAbandonedSaveError: abandoned,
+      }),
+    );
+
+    unmount();
+    await act(() => Promise.resolve());
+    await act(() => Promise.resolve());
+
+    expect(save).toHaveBeenCalledWith("ab");
+    expect(abandoned).toHaveBeenCalledTimes(1);
+    expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "ab", failed: true });
   });
 });

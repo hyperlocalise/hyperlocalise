@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import {
   createDocumentSchemaExtensions,
+  isLossyDocumentRoundTrip,
   normalizeDocumentMarkdown,
   parseDocumentMarkdown,
   type DocumentEditorSyntax,
@@ -132,6 +133,16 @@ describe("document Markdown round trip", () => {
 
     expect(normalizeDocumentMarkdown(editor.getMarkdown())).toBe(
       '<Note title="Hi">\n  Hello world. Bonjour\n</Note>',
+    );
+  });
+});
+
+describe("isLossyDocumentRoundTrip", () => {
+  it("keeps original MDX out of the save baseline when serialize changes it", () => {
+    expect(isLossyDocumentRoundTrip("mdx", "<Tabs>\n  <Tab />\n</Tabs>", "# Tabs")).toBe(true);
+    expect(isLossyDocumentRoundTrip("mdx", "# Hello", "# Hello")).toBe(false);
+    expect(isLossyDocumentRoundTrip("markdown", "# Hello\n\n\nWorld", "# Hello\n\nWorld")).toBe(
+      false,
     );
   });
 });

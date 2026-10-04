@@ -341,6 +341,17 @@ export const documentEditorMessages = defineMessages({
     id: "a/00MN41ob",
     description: "Document editor: banner when an MDX file falls back to raw source",
   },
+  saveAbandoned: {
+    defaultMessage: "Couldn't save this document. Reopen it to retry.",
+    id: "EMCGlDDOh2",
+    description: "Document editor: toast when a save started by leaving the file fails",
+  },
+  reviewPendingSuggestions: {
+    defaultMessage:
+      "Accept or reject translation drafts before review. They are not in the saved file yet.",
+    id: "AASd53A8wJ",
+    description: "Document editor: warning that unaccepted AI drafts block review",
+  },
   sourceTitle: {
     defaultMessage: "Source",
     id: "6aJpnN3sMC",

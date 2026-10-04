@@ -120,12 +120,15 @@ export function buildDocumentBlockSuggestion({
   sourceBlocks,
   sourceIndex,
   replacement,
+  expectedOriginalText,
 }: {
   id: string;
   doc: ProseMirrorNode;
   sourceBlocks: DocumentBlockSignature[];
   sourceIndex: number;
   replacement: JSONContent[];
+  /** Block text when the AI request was sent. Skip if the block has since changed. */
+  expectedOriginalText?: string;
 }): DocumentSuggestion | null {
   if (replacement.length === 0) return null;
   const targetIndex = locateTargetBlock(sourceBlocks, doc, sourceIndex);
@@ -139,6 +142,9 @@ export function buildDocumentBlockSuggestion({
     return null;
   }
   const originalText = doc.textBetween(range.from, range.to, "\n", "\n");
+  if (expectedOriginalText !== undefined && originalText !== expectedOriginalText) {
+    return null;
+  }
   const replacementText = nodes
     .map((node) => node.textBetween(0, node.content.size, "\n", "\n"))
     .join("\n");

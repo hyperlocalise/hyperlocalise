@@ -69,6 +69,15 @@ export function createDocumentSchemaExtensions(
 
 const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})/;
 
+/** True when page-view parse/serialize would change MDX that must stay as written. */
+export function isLossyDocumentRoundTrip(
+  syntax: DocumentEditorSyntax,
+  original: string,
+  normalized: string,
+) {
+  return syntax === "mdx" && normalized !== normalizeDocumentMarkdown(original);
+}
+
 /** Collapses runs of blank lines that renderers leave around blocks, outside code fences. */
 export function normalizeDocumentMarkdown(markdown: string) {
   const lines = markdown.split("\n");

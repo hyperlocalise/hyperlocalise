@@ -21,41 +21,85 @@ export type DocumentAutosaveStatus =
   | { kind: "saved"; at: number }
   | { kind: "error" };
 
+type DocumentAutosaveDraft = { value: string; failed: boolean };
+
+const documentAutosaveDrafts = new Map<string, DocumentAutosaveDraft>();
+
+export function peekDocumentAutosaveDraft(id: string) {
+  return documentAutosaveDrafts.get(id);
+}
+
+export function forgetDocumentAutosaveDraft(id: string) {
+  documentAutosaveDrafts.delete(id);
+}
+
+function rememberDocumentAutosaveDraft(id: string | undefined, draft: DocumentAutosaveDraft) {
+  if (!id) return;
+  documentAutosaveDrafts.set(id, draft);
+}
+
 /**
  * Saves `value` after it stops changing, one save at a time. Edits made while
  * a save is running queue exactly one follow-up save of the latest value.
  * A failed save stops automatic retries until `retry` or `saveNow`.
  */
 export function useDocumentAutosave({
+  id,
   value,
   baseline,
   save,
   enabled = true,
   delayMs = DOCUMENT_AUTOSAVE_DELAY_MS,
+  restoreError = false,
+  onAbandonedSaveError,
 }: {
+  /** Survives in-app navigation so a failed background save can be retried. */
+  id?: string;
   value: string;
   /** Last value known to be stored. `null` while the document is loading. */
   baseline: string | null;
   save: (value: string) => Promise<void>;
   enabled?: boolean;
   delayMs?: number;
+  /** Show Retry when remounting a document whose last save failed. */
+  restoreError?: boolean;
+  onAbandonedSaveError?: () => void;
 }) {
-  const [status, setStatus] = useState<DocumentAutosaveStatus>({ kind: "idle" });
+  const [status, setStatus] = useState<DocumentAutosaveStatus>(() =>
+    restoreError ? { kind: "error" } : { kind: "idle" },
+  );
   const savedValueRef = useRef<string | null>(baseline);
   const latestValueRef = useRef(value);
   const saveRef = useRef(save);
+  const idRef = useRef(id);
   const inFlightRef = useRef(false);
   const pendingRef = useRef(false);
-  const failedRef = useRef(false);
+  const failedRef = useRef(restoreError);
+  const restoredErrorRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onAbandonedSaveErrorRef = useRef(onAbandonedSaveError);
   latestValueRef.current = value;
   saveRef.current = save;
+  idRef.current = id;
+  onAbandonedSaveErrorRef.current = onAbandonedSaveError;
 
   useEffect(() => {
     savedValueRef.current = baseline;
+    if (baseline === null) {
+      restoredErrorRef.current = false;
+      failedRef.current = false;
+      setStatus({ kind: "idle" });
+      return;
+    }
+    if (!restoredErrorRef.current && restoreError) {
+      restoredErrorRef.current = true;
+      failedRef.current = true;
+      setStatus({ kind: "error" });
+      return;
+    }
     failedRef.current = false;
     setStatus({ kind: "idle" });
-  }, [baseline]);
+  }, [baseline, restoreError]);
 
   const clearTimer = () => {
     if (timerRef.current !== null) {
@@ -83,12 +127,14 @@ export function useDocumentAutosave({
     try {
       await saveRef.current(next);
       savedValueRef.current = next;
+      if (idRef.current) forgetDocumentAutosaveDraft(idRef.current);
       setStatus(
         latestValueRef.current === next ? { kind: "saved", at: Date.now() } : { kind: "dirty" },
       );
     } catch {
       failedRef.current = true;
       pendingRef.current = false;
+      rememberDocumentAutosaveDraft(idRef.current, { value: next, failed: true });
       setStatus({ kind: "error" });
     } finally {
       inFlightRef.current = false;
@@ -103,6 +149,7 @@ export function useDocumentAutosave({
     if (savedValueRef.current === null || value === savedValueRef.current) {
       return;
     }
+    rememberDocumentAutosaveDraft(id, { value, failed: failedRef.current });
     if (!inFlightRef.current && !failedRef.current) {
       setStatus({ kind: "dirty" });
     }
@@ -112,7 +159,7 @@ export function useDocumentAutosave({
     clearTimer();
     timerRef.current = setTimeout(() => void flush(), delayMs);
     return clearTimer;
-  }, [delayMs, enabled, flush, value]);
+  }, [delayMs, enabled, flush, id, value]);
 
   useEffect(() => {
     if (!enabled) {
@@ -131,9 +178,31 @@ export function useDocumentAutosave({
   enabledRef.current = enabled;
   useEffect(
     () => () => {
-      if (enabledRef.current && !failedRef.current) void flush();
+      const next = latestValueRef.current;
+      const saved = savedValueRef.current;
+      if (!enabledRef.current || saved === null || next === saved) {
+        return;
+      }
+      rememberDocumentAutosaveDraft(idRef.current, {
+        value: next,
+        failed: failedRef.current,
+      });
+      if (failedRef.current) {
+        return;
+      }
+      void saveRef
+        .current(next)
+        .then(() => {
+          if (idRef.current && peekDocumentAutosaveDraft(idRef.current)?.value === next) {
+            forgetDocumentAutosaveDraft(idRef.current);
+          }
+        })
+        .catch(() => {
+          rememberDocumentAutosaveDraft(idRef.current, { value: next, failed: true });
+          onAbandonedSaveErrorRef.current?.();
+        });
     },
-    [flush],
+    [],
   );
 
   const hasUnsavedChanges = savedValueRef.current !== null && value !== savedValueRef.current;

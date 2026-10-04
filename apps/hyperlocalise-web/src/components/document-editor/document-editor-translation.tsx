@@ -93,6 +93,12 @@ export function useDocumentTranslation({
           const sourceBlock = sourceContent[task.sourceIndex];
           if (!markdown || !sourceBlock) return;
           const targetIndex = locateTargetBlock(sourceBlocks, editor.state.doc, task.sourceIndex);
+          const requestOriginalText =
+            targetIndex === null
+              ? ""
+              : editor.state.doc
+                  .child(targetIndex)
+                  .textBetween(0, editor.state.doc.child(targetIndex).content.size, "\n", "\n");
           const result = await services.translateBlock({
             sourceMarkdown: serializeDocumentBlock(sourceManager, sourceBlock),
             targetMarkdown:
@@ -108,6 +114,7 @@ export function useDocumentTranslation({
             sourceBlocks,
             sourceIndex: task.sourceIndex,
             replacement: markdown.parse(result.suggestion).content ?? [],
+            expectedOriginalText: requestOriginalText,
           });
           if (suggestion) addDocumentSuggestions(editor, [suggestion]);
         } catch {

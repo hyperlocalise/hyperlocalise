@@ -93,6 +93,22 @@ describe("buildDocumentBlockSuggestion", () => {
     expect(editor.state.doc.textBetween(suggestion!.from, suggestion!.to)).toBe("Then run it.");
   });
 
+  it("returns null when the block changed after the request was sent", () => {
+    setup(SOURCE);
+    const sourceBlocks = documentBlocksFromJson(parseDocumentMarkdown(SOURCE, "markdown"));
+
+    expect(
+      buildDocumentBlockSuggestion({
+        id: "s1",
+        doc: editor.state.doc,
+        sourceBlocks,
+        sourceIndex: 3,
+        replacement: [{ type: "paragraph", content: [{ type: "text", text: "Puis lancez-la." }] }],
+        expectedOriginalText: "Then run it. edited",
+      }),
+    ).toBeNull();
+  });
+
   it("returns null when the replacement changes nothing", () => {
     setup(SOURCE);
     const sourceBlocks = documentBlocksFromJson(parseDocumentMarkdown(SOURCE, "markdown"));

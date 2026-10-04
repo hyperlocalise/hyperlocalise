@@ -31,6 +31,15 @@ export type DocumentConcordance = {
   translationMemoryMatches: DocumentTranslationMemoryMatch[];
 };
 
+export type DocumentGlossaryWriteContext = {
+  organizationSlug: string;
+  projectId: string;
+  teamId: string;
+  teamName: string;
+  teamGlossaries: { id: string; name: string; teamId: string }[];
+  canContribute: boolean;
+};
+
 export type DocumentAssistantServices = {
   sourceLocale: string;
   targetLocale: string;
@@ -42,4 +51,11 @@ export type DocumentAssistantServices = {
     targetMarkdown: string;
     instructions?: string;
   }) => Promise<{ suggestion: string; reasoning?: string }>;
+  /** Lets the editor add a selected term to the project glossary. */
+  glossary?: DocumentGlossaryWriteContext;
 };
+
+/** AI drafts depend on both the source block and its current translation. */
+export function documentAssistantAiCacheKey(sourceMarkdown: string, targetMarkdown: string) {
+  return `${sourceMarkdown}\0${targetMarkdown}`;
+}

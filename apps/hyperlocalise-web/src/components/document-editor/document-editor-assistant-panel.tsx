@@ -28,9 +28,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
-import type {
-  DocumentAssistantServices,
-  DocumentConcordance,
+import {
+  documentAssistantAiCacheKey,
+  type DocumentAssistantServices,
+  type DocumentConcordance,
 } from "./document-editor-assistant.types";
 import { checkDocumentGlossary } from "./document-editor-glossary";
 import { documentEditorMessages as messages } from "./document-editor.messages";
@@ -171,6 +172,10 @@ export function DocumentEditorAssistantPanel({
 }) {
   const intl = useIntl();
   const sourceText = focus.status === "ok" ? focus.sourceText : null;
+  const aiKey =
+    focus.status === "ok"
+      ? documentAssistantAiCacheKey(focus.sourceMarkdown, focus.targetMarkdown)
+      : null;
   const lookupCache = useRef(new Map<string, DocumentConcordance>());
   const aiCache = useRef(new Map<string, string>());
   const servicesRef = useRef(services);
@@ -183,8 +188,11 @@ export function DocumentEditorAssistantPanel({
   const searchRequest = useRef(0);
 
   useEffect(() => {
-    const cachedAi = sourceText ? aiCache.current.get(sourceText) : undefined;
+    const cachedAi = aiKey ? aiCache.current.get(aiKey) : undefined;
     setAi(cachedAi ? { status: "ok", value: cachedAi } : { status: "idle" });
+  }, [aiKey]);
+
+  useEffect(() => {
     if (!sourceText) {
       setLookup({ status: "idle" });
       return;
@@ -235,11 +243,11 @@ export function DocumentEditorAssistantPanel({
     runSearch(concordanceSeed.query);
   }, [concordanceSeed, runSearch]);
 
-  const sourceTextRef = useRef(sourceText);
-  sourceTextRef.current = sourceText;
+  const aiKeyRef = useRef(aiKey);
+  aiKeyRef.current = aiKey;
   const suggest = () => {
-    if (focus.status !== "ok") return;
-    const key = focus.sourceText;
+    if (focus.status !== "ok" || !aiKey) return;
+    const key = aiKey;
     setAi({ status: "loading" });
     servicesRef.current
       .translateBlock({
@@ -248,10 +256,10 @@ export function DocumentEditorAssistantPanel({
       })
       .then((result) => {
         aiCache.current.set(key, result.suggestion);
-        if (sourceTextRef.current === key) setAi({ status: "ok", value: result.suggestion });
+        if (aiKeyRef.current === key) setAi({ status: "ok", value: result.suggestion });
       })
       .catch(() => {
-        if (sourceTextRef.current === key) setAi({ status: "error" });
+        if (aiKeyRef.current === key) setAi({ status: "error" });
       });
   };
 
