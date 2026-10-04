@@ -12,20 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeft01Icon,
+  ArrowLeftIcon,
   BookOpenTextIcon,
-  BulbIcon,
-  Cancel01Icon,
-  Database01Icon,
-  File01Icon,
-  RefreshIcon,
-  SearchList01Icon,
-  TextFontIcon,
-} from "@hugeicons/core-free-icons";
-import type { IconSvgElement } from "@hugeicons/react";
-import { HugeiconsIcon } from "@hugeicons/react";
+  LightbulbIcon,
+  XIcon,
+  DatabaseIcon,
+  FileIcon,
+  ArrowClockwiseIcon,
+  ListMagnifyingGlassIcon,
+  TextTIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { formatInternalMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-internal-markup";
@@ -136,7 +135,7 @@ function PanelSection({
   children,
 }: {
   title: string;
-  icon?: IconSvgElement;
+  icon?: Icon;
   action?: ReactNode;
   badge?: ReactNode;
   padded?: boolean;
@@ -145,13 +144,9 @@ function PanelSection({
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-background">
       <div className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
-        {icon ? (
-          <HugeiconsIcon
-            icon={icon}
-            className="size-3.5 shrink-0 text-muted-foreground"
-            strokeWidth={1.8}
-          />
-        ) : null}
+        {icon
+          ? createElement(icon, { className: "size-3.5 shrink-0 text-muted-foreground" })
+          : null}
         <h3 className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</h3>
         {badge}
         {action}
@@ -653,7 +648,7 @@ export function ContentEditorIntelligencePanel({
     >
       <div className={cn("px-4 py-3", embedded ? "pt-3" : "border-b border-border")}>
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={BulbIcon} className="size-4 text-beam-700" />
+          <LightbulbIcon className="size-4 text-beam-700" />
           <h2 className="min-w-0 flex-1 text-sm font-semibold text-foreground">
             <FormattedMessage {...contentEditorIntelligencePanelMessages.panelTitle} />
           </h2>
@@ -686,12 +681,12 @@ export function ContentEditorIntelligencePanel({
               </>
             ) : isRefreshMode ? (
               <>
-                <HugeiconsIcon icon={RefreshIcon} className="size-3.5" strokeWidth={1.8} />
+                <ArrowClockwiseIcon className="size-3.5" />
                 <FormattedMessage {...contentEditorFindContextMessages.refreshContext} />
               </>
             ) : (
               <>
-                <HugeiconsIcon icon={SearchList01Icon} className="size-3.5" strokeWidth={1.8} />
+                <ListMagnifyingGlassIcon className="size-3.5" />
                 <FormattedMessage {...contentEditorEditorPanelMessages.findContext} />
                 <ContentEditorEditorShortcutKbd shortcut="findContext" isMac={isMac} />
               </>
@@ -704,7 +699,7 @@ export function ContentEditorIntelligencePanel({
         <div className="space-y-3 p-4">
           <PanelSection
             title={intl.formatMessage(contentEditorIntelligencePanelMessages.fileContextTitle)}
-            icon={File01Icon}
+            icon={FileIcon}
           >
             {hasFileContext ? (
               <ContentEditorExpandableContent key={segmentId ?? segmentKey ?? "__default__"}>
@@ -727,7 +722,7 @@ export function ContentEditorIntelligencePanel({
             <div ref={tmSectionRef}>
               <PanelSection
                 title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
-                icon={Database01Icon}
+                icon={DatabaseIcon}
                 padded={false}
               >
                 <ConcordanceSkeleton />
@@ -741,7 +736,7 @@ export function ContentEditorIntelligencePanel({
             <div ref={tmSectionRef}>
               <PanelSection
                 title={intl.formatMessage(contentEditorIntelligencePanelMessages.translationMemory)}
-                icon={Database01Icon}
+                icon={DatabaseIcon}
                 padded={false}
                 badge={
                   <Badge variant="success" className="h-5 px-1.5 text-[10px] font-medium">
@@ -776,7 +771,7 @@ export function ContentEditorIntelligencePanel({
           {showMaxLengthEditor ? (
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.maxLengthTitle)}
-              icon={TextFontIcon}
+              icon={TextTIcon}
             >
               <ContentEditorSegmentMaxLengthEditor
                 maxLength={intelligence.maxLength}
@@ -793,7 +788,7 @@ export function ContentEditorIntelligencePanel({
           {showAgentContext ? (
             <PanelSection
               title={intl.formatMessage(contentEditorIntelligencePanelMessages.agentContextTitle)}
-              icon={SearchList01Icon}
+              icon={ListMagnifyingGlassIcon}
             >
               {isLookingUpContext ? (
                 <AgentContextSkeleton />
@@ -869,7 +864,7 @@ export function ContentEditorIntelligencePanel({
                 )}
                 onClick={() => setAddingConceptTeamId(null)}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-3.5" />
+                <ArrowLeftIcon className="size-3.5" />
               </Button>
             ) : null}
             <div className="min-w-0 flex-1">
@@ -892,7 +887,7 @@ export function ContentEditorIntelligencePanel({
               )}
               onClick={closeGlossaryPanel}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+              <XIcon className="size-3.5" />
             </Button>
           </header>
 
@@ -941,8 +936,7 @@ export function ContentEditorIntelligencePanel({
                     <ConcordanceSkeleton />
                   ) : showGlobalEmpty ? (
                     <div className="flex min-h-56 flex-col items-center justify-center rounded-xl bg-muted/30 px-6 text-center">
-                      <HugeiconsIcon
-                        icon={BookOpenTextIcon}
+                      <BookOpenTextIcon
                         className="size-7 text-muted-foreground"
                         aria-hidden="true"
                       />

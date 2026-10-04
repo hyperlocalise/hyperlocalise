@@ -14,8 +14,7 @@
  */
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -101,7 +100,7 @@ export function IssueRelationshipPicker({
           />
         }
       >
-        <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} className="size-3.5" />
+        <PlusIcon className="size-3.5" />
         <FormattedMessage {...messages.addButton} />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>

@@ -15,12 +15,11 @@
 import { useMemo, useRef, useState } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
-  Clock01Icon,
-  Download01Icon,
-  MoreHorizontalCircle01Icon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ClockIcon,
+  DownloadSimpleIcon,
+  DotsThreeCircleIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -296,7 +295,7 @@ export function TranslationMemoryDetailPageContent({
                 variant="outline"
                 onClick={() => importActionRef.current?.()}
               >
-                <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                <UploadSimpleIcon className="size-4" />
                 <FormattedMessage {...messages.importTmxAction} />
               </Button>
             </>
@@ -314,7 +313,7 @@ export function TranslationMemoryDetailPageContent({
                 size="sm"
                 onClick={() => importActionRef.current?.()}
               >
-                <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                <UploadSimpleIcon className="size-4" />
                 <FormattedMessage {...messages.importAction} />
               </Button>
             ) : null}
@@ -329,21 +328,21 @@ export function TranslationMemoryDetailPageContent({
                   />
                 }
               >
-                <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
+                <DotsThreeCircleIcon className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuItem onClick={() => setImportHistoryOpen(true)}>
-                  <HugeiconsIcon icon={Clock01Icon} className="size-4" strokeWidth={1.8} />
+                  <ClockIcon className="size-4" />
                   <FormattedMessage {...messages.importHistory} />
                 </DropdownMenuItem>
                 {canEdit ? (
                   <DropdownMenuItem onClick={() => importActionRef.current?.()}>
-                    <HugeiconsIcon icon={Upload01Icon} className="size-4" strokeWidth={1.8} />
+                    <UploadSimpleIcon className="size-4" />
                     <FormattedMessage {...messages.importAction} />
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem onClick={() => exportActionRef.current?.()}>
-                  <HugeiconsIcon icon={Download01Icon} className="size-4" strokeWidth={1.8} />
+                  <DownloadSimpleIcon className="size-4" />
                   <FormattedMessage {...messages.exportAction} />
                 </DropdownMenuItem>
               </DropdownMenuContent>

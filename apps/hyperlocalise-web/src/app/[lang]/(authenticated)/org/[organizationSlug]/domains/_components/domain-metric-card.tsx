@@ -11,8 +11,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowUp01Icon, ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretUpIcon, CaretDownIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 import { Line, LineChart, XAxis, YAxis, Tooltip } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +22,7 @@ import {
   type DomainMetricPoint,
 } from "@/lib/domains/research-metric-history";
 import { domainMetricMessages as messages } from "./domain-metric.messages";
+import { createElement } from "react";
 
 export function DomainMetricCard({
   label,
@@ -65,17 +65,17 @@ export function DomainMetricCard({
         : "text-muted-foreground";
   const icon =
     trend?.direction === "up"
-      ? ArrowUp01Icon
+      ? CaretUpIcon
       : trend?.direction === "down"
-        ? ArrowDown01Icon
-        : ArrowRight01Icon;
+        ? CaretDownIcon
+        : ArrowRightIcon;
   return (
     <Card size="sm" className="min-w-0 rounded-lg border border-border bg-card py-0 ring-0">
       <CardContent className="p-4">
         <h2 className="text-sm font-medium text-balance">{label}</h2>
         <p className="mt-2 text-3xl font-medium tabular-nums">{value}</p>
         <p className={cn("mt-2 flex items-center gap-1 text-sm tabular-nums", tone)}>
-          {trend ? <HugeiconsIcon icon={icon} className="size-4" aria-hidden /> : null}
+          {trend ? createElement(icon, { className: "size-4", "aria-hidden": true }) : null}
           {trendLabel}
         </p>
         {trend ? (

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, FloppyDiskIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import { useEffect, useState, type ReactNode } from "react";
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import { createPortal } from "react-dom";
@@ -237,9 +236,9 @@ export function ContentEditorDocumentFileViewerPane({
           onClick={() => void handleSave()}
         >
           {isSaving ? (
-            <HugeiconsIcon icon={Loading03Icon} className="animate-spin" aria-hidden />
+            <CircleNotchIcon className="animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={FloppyDiskIcon} data-icon="inline-start" aria-hidden />
+            <FloppyDiskIcon data-icon="inline-start" aria-hidden />
           )}
           <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
         </Button>
@@ -264,7 +263,7 @@ export function ContentEditorDocumentFileViewerPane({
       <div className="flex min-w-0 flex-1 flex-col">
         {showSpinner ? (
           <div className="flex flex-1 items-center justify-center text-muted-foreground">
-            <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" aria-hidden />
+            <CircleNotchIcon className="size-5 animate-spin" aria-hidden />
           </div>
         ) : error ? (
           <FileViewPaneState>{error}</FileViewPaneState>
@@ -280,8 +279,7 @@ export function ContentEditorDocumentFileViewerPane({
               >
                 <CollapsibleTrigger render={<Button variant="ghost" size="sm" />} className="gap-2">
                   <FormattedMessage {...contentEditorFileViewMessages.documentDetails} />
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
+                  <CaretDownIcon
                     className={cn(
                       "size-4 shrink-0 text-muted-foreground",
                       frontmatterOpen && "rotate-180",

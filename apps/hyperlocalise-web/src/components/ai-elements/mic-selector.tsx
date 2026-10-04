@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretUpDownIcon } from "@phosphor-icons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -235,7 +234,7 @@ export const MicSelectorTrigger = ({ children, ...props }: MicSelectorTriggerPro
   return (
     <PopoverTrigger render={<Button variant="outline" {...props} ref={ref} />}>
       {children}
-      <HugeiconsIcon icon={UnfoldMoreIcon} className="shrink-0 text-muted-foreground" size={16} />
+      <CaretUpDownIcon className="shrink-0 text-muted-foreground" size={16} />
     </PopoverTrigger>
   );
 };

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon, SourceCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
@@ -57,7 +56,7 @@ export function ProjectNativeConnectCliPanel({
   return (
     <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
       <ProjectSettingsSectionHeading
-        icon={SourceCodeIcon}
+        icon={CodeIcon}
         tone="beam"
         title={<FormattedMessage {...projectNativeConnectCliPanelMessages.title} />}
         description={<FormattedMessage {...projectNativeConnectCliPanelMessages.description} />}
@@ -83,7 +82,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(projectId, "projectId")}
           >
-            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
+            <CopyIcon className="size-3.5" />
             {copiedField === "projectId" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (
@@ -110,7 +109,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(sampleConfig, "config")}
           >
-            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
+            <CopyIcon className="size-3.5" />
             {copiedField === "config" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (

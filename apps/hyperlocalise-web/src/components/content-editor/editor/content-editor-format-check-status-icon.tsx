@@ -10,12 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningCircleIcon, CheckCircleIcon, InfoIcon } from "@phosphor-icons/react/ssr";
 
 import { cn } from "@/lib/primitives/cn";
 
@@ -33,14 +28,10 @@ export function ContentEditorFormatCheckStatusIcon({
 
   switch (status) {
     case "pass":
-      return (
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} className={iconClassName} strokeWidth={2} />
-      );
+      return <CheckCircleIcon className={iconClassName} />;
     case "fail":
-      return <HugeiconsIcon icon={AlertCircleIcon} className={iconClassName} strokeWidth={2} />;
+      return <WarningCircleIcon className={iconClassName} />;
     default:
-      return (
-        <HugeiconsIcon icon={InformationCircleIcon} className={iconClassName} strokeWidth={2} />
-      );
+      return <InfoIcon className={iconClassName} />;
   }
 }

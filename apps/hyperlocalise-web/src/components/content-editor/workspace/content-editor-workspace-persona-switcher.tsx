@@ -12,12 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  AiPaintbrushIcon,
-  AiTranslateIcon,
-  CheckmarkSquare02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PaintBrushIcon, TranslateIcon, CheckSquareIcon } from "@phosphor-icons/react";
 import { useIntl, FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +28,7 @@ import { cn } from "@/lib/primitives/cn";
 import type { ContentEditorWorkspacePersona } from "./content-editor-workspace-persona";
 import { isCatWorkspacePersona } from "./content-editor-workspace-persona";
 import { contentEditorWorkspacePersonaMessages } from "./content-editor-workspace-persona.messages";
+import { createElement } from "react";
 
 const ALL_PERSONAS = [
   "translator",
@@ -41,9 +37,9 @@ const ALL_PERSONAS = [
 ] as const satisfies readonly ContentEditorWorkspacePersona[];
 
 function personaIcon(persona: ContentEditorWorkspacePersona) {
-  if (persona === "designer") return AiPaintbrushIcon;
-  if (persona === "reviewer") return CheckmarkSquare02Icon;
-  return AiTranslateIcon;
+  if (persona === "designer") return PaintBrushIcon;
+  if (persona === "reviewer") return CheckSquareIcon;
+  return TranslateIcon;
 }
 
 export function personaLabel(persona: ContentEditorWorkspacePersona) {
@@ -92,7 +88,7 @@ export function ContentEditorWorkspacePersonaSwitcher({
           />
         }
       >
-        <HugeiconsIcon icon={personaIcon(value)} className={compact ? "size-3" : "size-4"} />
+        {createElement(personaIcon(value), { className: compact ? "size-3" : "size-4" })}
         <span className="sr-only">
           <FormattedMessage {...personaLabel(value)} />
         </span>

@@ -12,8 +12,7 @@
  * use of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, Copy01Icon, EraserIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, CopyIcon, EraserIcon, CheckIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -314,7 +313,7 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
               {group.isApplyingToAll ? (
                 <Spinner className="size-3" />
               ) : (
-                <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
+                <CheckIcon className="size-3" aria-hidden />
               )}
               <FormattedMessage {...m.applySuggestionToAll} />
             </Button>
@@ -329,7 +328,7 @@ const GroupVariantsAiRecommendation = observer(function GroupVariantsAiRecommend
                 }
               >
                 <FormattedMessage {...m.useInVariant} />
-                <HugeiconsIcon icon={ArrowDown01Icon} className="size-3" aria-hidden />
+                <CaretDownIcon className="size-3" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-72">
                 <DropdownMenuGroup>
@@ -421,7 +420,7 @@ const VariantEditor = observer(function VariantEditor({
               disabled={variant.pending}
               onClick={() => variant.copySource()}
             >
-              <HugeiconsIcon icon={Copy01Icon} className="size-3" aria-hidden />
+              <CopyIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.copySource} />
             </Button>
             <Button
@@ -431,7 +430,7 @@ const VariantEditor = observer(function VariantEditor({
               disabled={variant.pending || text.length === 0}
               onClick={() => variant.clear()}
             >
-              <HugeiconsIcon icon={EraserIcon} className="size-3" aria-hidden />
+              <EraserIcon className="size-3" aria-hidden />
               <FormattedMessage {...contentEditorEditorPanelMessages.clearTarget} />
             </Button>
           </div>

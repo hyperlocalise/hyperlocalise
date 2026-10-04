@@ -15,8 +15,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
@@ -62,7 +61,7 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
   if (kind === "content-editor") {
     return (
       <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
-        <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+        <TranslateIcon />
         {children}
       </Button>
     );
@@ -303,7 +302,7 @@ export function JobsPageContent({
         headerActions={
           canCreateJob ? (
             <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <PlusIcon />
               <FormattedMessage {...jobsPageContentMessages.createJob} />
             </Button>
           ) : null

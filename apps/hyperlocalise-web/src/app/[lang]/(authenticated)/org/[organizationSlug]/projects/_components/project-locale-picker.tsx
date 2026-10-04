@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useId, useMemo, useState } from "react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -290,7 +289,7 @@ export function ProjectTargetLocalesPicker({
           aria-label={intl.formatMessage(projectLocalePickerMessages.addOtherTargetLocale)}
           onClick={() => setShowCustomInput(true)}
         >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+          <PlusIcon />
         </Button>
       )}
       <FieldError errors={error || customError ? [{ message: error ?? customError }] : undefined} />

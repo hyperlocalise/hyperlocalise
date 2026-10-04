@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { FloppyDiskIcon, HistoryIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FloppyDiskIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
@@ -182,12 +181,12 @@ export function KnowledgeMemoryEditorView({
             </div>
             <div className="flex items-center gap-2">
               <Button type="button" variant="ghost" onClick={onOpenHistory}>
-                <HugeiconsIcon icon={HistoryIcon} data-icon="inline-start" />
+                <ClockCounterClockwiseIcon data-icon="inline-start" />
                 <FormattedMessage {...knowledgeMemoryEditorMessages.history} />
               </Button>
               {canUpdateKnowledgeMemory ? (
                 <Button type="button" disabled={!canSave} onClick={() => setSaveDialogOpen(true)}>
-                  <HugeiconsIcon icon={FloppyDiskIcon} strokeWidth={1.8} data-icon="inline-start" />
+                  <FloppyDiskIcon data-icon="inline-start" />
                   {isSaving ? (
                     <FormattedMessage {...knowledgeMemoryEditorMessages.committing} />
                   ) : (

@@ -12,15 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import {
-  ArrowRight01Icon,
-  File01Icon,
-  Folder01Icon,
-  FolderOpenIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon, FileIcon, FolderIcon, FolderOpenIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -136,9 +130,7 @@ function FileTreeFolder({
             />
           }
         >
-          <HugeiconsIcon
-            icon={ArrowRight01Icon}
-            strokeWidth={1.8}
+          <ArrowRightIcon
             data-icon
             className={cn(
               "size-3.5 transition-transform rtl:rotate-180",
@@ -152,11 +144,9 @@ function FileTreeFolder({
           disabled={disabled}
           onToggle={() => onToggleIds(fileIds, state !== "all")}
         />
-        <HugeiconsIcon
-          icon={open ? FolderOpenIcon : Folder01Icon}
-          strokeWidth={1.8}
-          className="size-3.5 shrink-0 text-muted-foreground"
-        />
+        {createElement(open ? FolderOpenIcon : FolderIcon, {
+          className: "size-3.5 shrink-0 text-muted-foreground",
+        })}
         <span className="min-w-0 truncate font-medium">{folder.name}</span>
       </div>
       <CollapsibleContent>
@@ -229,11 +219,7 @@ function FileTreeNode({
         className="size-3.5 shrink-0 rounded border border-input accent-primary"
         onChange={() => onToggleIds([node.id], !checked)}
       />
-      <HugeiconsIcon
-        icon={File01Icon}
-        strokeWidth={1.8}
-        className="size-3.5 shrink-0 text-muted-foreground"
-      />
+      <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 truncate">{node.name}</span>
     </label>
   );

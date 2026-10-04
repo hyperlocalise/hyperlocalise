@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
-import { Layers01Icon, TextFontIcon, Upload04Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { StackIcon, TextTIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { siGoogledrive, siNotion } from "simple-icons";
 import { toast } from "sonner";
@@ -152,7 +151,7 @@ export function KnowledgeUploadSection({
           isDragging && "border-foreground/40 bg-muted",
         )}
       >
-        <HugeiconsIcon icon={Upload04Icon} strokeWidth={1.8} className="size-8 text-foreground" />
+        <UploadSimpleIcon className="size-8 text-foreground" />
         <p className="text-sm text-foreground">
           <FormattedMessage
             {...knowledgeUploadSectionMessages.dropHint}
@@ -218,24 +217,12 @@ export function KnowledgeUploadSection({
           onClick={() => handleAction("notion")}
         />
         <UploadSourceButton
-          icon={
-            <HugeiconsIcon
-              icon={Layers01Icon}
-              strokeWidth={1.8}
-              className="size-4 text-muted-foreground"
-            />
-          }
+          icon={<StackIcon className="size-4 text-muted-foreground" />}
           label={<FormattedMessage {...knowledgeUploadSectionMessages.importWebsite} />}
           onClick={() => handleAction("import-website")}
         />
         <UploadSourceButton
-          icon={
-            <HugeiconsIcon
-              icon={TextFontIcon}
-              strokeWidth={1.8}
-              className="size-4 text-muted-foreground"
-            />
-          }
+          icon={<TextTIcon className="size-4 text-muted-foreground" />}
           label={<FormattedMessage {...knowledgeUploadSectionMessages.markdownText} />}
           onClick={() => handleAction("markdown-text")}
         />

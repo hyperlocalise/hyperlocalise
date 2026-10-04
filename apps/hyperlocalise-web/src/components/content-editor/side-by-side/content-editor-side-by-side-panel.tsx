@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon, File01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon, FileIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useCallback, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -113,7 +112,7 @@ function SideBySideFileToolbar({
   const intl = useIntl();
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-      <HugeiconsIcon icon={File01Icon} className="size-4 shrink-0 text-muted-foreground" />
+      <FileIcon className="size-4 shrink-0 text-muted-foreground" />
       <p className="min-w-0 truncate text-sm font-medium" title={filename}>
         {filename}
       </p>
@@ -135,7 +134,7 @@ function SideBySideFileToolbar({
           onClick={onPrevious}
           aria-label={intl.formatMessage(contentEditorSideBySidePanelMessages.previousString)}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+          <ArrowLeftIcon className="size-3.5" />
         </Button>
         <p className="min-w-14 text-center font-mono text-xs text-muted-foreground tabular-nums">
           <FormattedMessage
@@ -152,7 +151,7 @@ function SideBySideFileToolbar({
           onClick={onNext}
           aria-label={intl.formatMessage(contentEditorSideBySidePanelMessages.nextString)}
         >
-          <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+          <ArrowRightIcon className="size-3.5" />
         </Button>
       </div>
     </div>

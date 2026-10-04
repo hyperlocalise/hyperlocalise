@@ -14,7 +14,7 @@
 
 import { isValidElement, type ReactNode } from "react";
 import { render, renderHook, waitFor } from "@testing-library/react";
-import { Chat01Icon } from "@hugeicons/core-free-icons";
+import { ChatCircleIcon } from "@phosphor-icons/react/ssr";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
@@ -50,7 +50,7 @@ const defaultGroups = [
       {
         label: "Inbox",
         href: "/org/acme/inbox",
-        icon: Chat01Icon,
+        icon: ChatCircleIcon,
       },
     ],
   },
@@ -63,7 +63,7 @@ const customGroups = [
       {
         label: "Content Editor",
         href: "/org/acme/projects/proj_1/jobs/job_1/strings",
-        icon: Chat01Icon,
+        icon: ChatCircleIcon,
       },
     ],
   },

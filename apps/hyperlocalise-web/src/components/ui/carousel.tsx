@@ -18,8 +18,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { carouselMessages } from "@/components/ui/carousel.messages";
 
 type CarouselApi = UseEmblaCarouselType[1];
@@ -256,7 +255,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="rtl:rotate-180" />
+      <ArrowLeftIcon className="rtl:rotate-180" />
       <span className="sr-only">
         <FormattedMessage {...carouselMessages.previousSlide} />
       </span>
@@ -288,7 +287,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} className="rtl:rotate-180" />
+      <ArrowRightIcon className="rtl:rotate-180" />
       <span className="sr-only">
         <FormattedMessage {...carouselMessages.nextSlide} />
       </span>

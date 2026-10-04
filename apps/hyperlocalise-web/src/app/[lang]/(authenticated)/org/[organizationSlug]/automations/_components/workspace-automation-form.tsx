@@ -15,22 +15,21 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  Add01Icon,
-  ArrowDown01Icon,
-  BrainCircuitIcon,
-  Clock01Icon,
-  Comment01Icon,
-  Delete02Icon,
-  FolderLibraryIcon,
+  PlusIcon,
+  CaretDownIcon,
+  BrainIcon,
+  ClockIcon,
+  ChatTextIcon,
+  TrashIcon,
+  FoldersIcon,
   GitBranchIcon,
-  Globe02Icon,
-  Mail01Icon,
-  SearchIcon,
-  SlackIcon,
-  Task01Icon,
-  Upload01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  GlobeIcon,
+  EnvelopeIcon,
+  MagnifyingGlassIcon,
+  SlackLogoIcon,
+  CheckSquareIcon,
+  UploadSimpleIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
@@ -231,7 +230,7 @@ function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
     return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
   }
 
-  return <HugeiconsIcon icon={SearchIcon} className="size-4" />;
+  return <MagnifyingGlassIcon className="size-4" />;
 }
 
 function toCrowdinProjectOption(project: ApiProject): ProjectOption {
@@ -374,7 +373,7 @@ function DeleteToolButton({
       onClick={onClick}
       className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
     >
-      <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+      <TrashIcon className="size-4" />
     </Button>
   );
 }
@@ -716,9 +715,9 @@ function HeaderModelSelector({
           />
         }
       >
-        <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+        <BrainIcon className="size-4" />
         <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[form.model]} />
-        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+        <CaretDownIcon className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-56" align="start">
         <DropdownMenuGroup>
@@ -822,9 +821,9 @@ function HeaderProjectSelector({
           />
         }
       >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+        <FoldersIcon className="size-4" />
         {isLoading ? <Skeleton className="h-3.5 w-20 rounded-full bg-muted" /> : triggerLabel}
-        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+        <CaretDownIcon className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-56" align="start">
         <DropdownMenuGroup>
@@ -843,7 +842,7 @@ function HeaderProjectSelector({
           ) : null}
           {selectableProjects.map((project) => (
             <DropdownMenuItem key={project.id} onClick={() => handleProjectSelect(project.id)}>
-              <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+              <FoldersIcon className="size-4" />
               {project.name}
               {activeProjectId === project.id ? (
                 <DropdownMenuHint>
@@ -915,11 +914,7 @@ function BranchPatternSelector({
           }
         >
           <span className="truncate">{formatBranchPatternLabel(intl, branches)}</span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            strokeWidth={1.8}
-            className="size-3.5 shrink-0 opacity-60"
-          />
+          <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="min-w-56" align="start">
           <DropdownMenuGroup>
@@ -1017,7 +1012,7 @@ function AddTriggerMenu({
             />
           }
         >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+          <PlusIcon className="size-4" />
           <FormattedMessage {...workspaceAutomationFormMessages.addTrigger} />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="start" sideOffset={2}>
@@ -1029,7 +1024,7 @@ function AddTriggerMenu({
               disabled={form.triggerMode === "manual"}
               onClick={() => onChange({ ...form, triggerMode: "manual" })}
             >
-              <HugeiconsIcon icon={Clock01Icon} className="size-4" />
+              <ClockIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
               {form.triggerMode === "manual" ? (
                 <DropdownMenuHint>
@@ -1041,7 +1036,7 @@ function AddTriggerMenu({
               disabled={form.triggerMode === "scheduled"}
               onClick={() => onChange({ ...form, triggerMode: "scheduled" })}
             >
-              <HugeiconsIcon icon={Clock01Icon} className="size-4" />
+              <ClockIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
               {form.triggerMode === "scheduled" ? (
                 <DropdownMenuHint>
@@ -1074,7 +1069,7 @@ function AddTriggerMenu({
                 });
               }}
             >
-              <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+              <GitBranchIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.githubPush} />
               {form.triggerMode === "github" ? (
                 <DropdownMenuHint>
@@ -1096,7 +1091,7 @@ function AddTriggerMenu({
                 })
               }
             >
-              <HugeiconsIcon icon={SearchIcon} className="size-4" />
+              <MagnifyingGlassIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
               {form.triggerMode === "contentful" ? (
                 <DropdownMenuHint>
@@ -1120,7 +1115,7 @@ function AddTriggerMenu({
                 })
               }
             >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
+              <UploadSimpleIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />
               {form.triggerMode === "source_upload" ? (
                 <DropdownMenuHint>
@@ -1132,7 +1127,7 @@ function AddTriggerMenu({
               disabled={form.triggerMode === "web_chat"}
               onClick={() => onChange({ ...form, triggerMode: "web_chat" })}
             >
-              <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
+              <ChatTextIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.webChat} />
               {form.triggerMode === "web_chat" ? (
                 <DropdownMenuHint>
@@ -1175,7 +1170,7 @@ function TriggerSettings({
       <EditorPanel>
         {form.triggerMode === "scheduled" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Clock01Icon} className="size-4" />}
+            icon={<ClockIcon className="size-4" />}
             title={
               <>
                 <span>
@@ -1279,7 +1274,7 @@ function TriggerSettings({
 
         {form.triggerMode === "github" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<GitBranchIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.githubPush} />}
             className="md:items-center"
           >
@@ -1364,7 +1359,7 @@ function TriggerSettings({
 
         {form.triggerMode === "manual" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Clock01Icon} className="size-4" />}
+            icon={<ClockIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.manualOnlyTitle} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.manualOnlyDescription} />
@@ -1374,7 +1369,7 @@ function TriggerSettings({
 
         {form.triggerMode === "contentful" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={SearchIcon} className="size-4" />}
+            icon={<MagnifyingGlassIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />}
             description={
               contentfulConnected ? (
@@ -1392,7 +1387,7 @@ function TriggerSettings({
 
         {form.triggerMode === "source_upload" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
+            icon={<UploadSimpleIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.sourceUploadDescription} />
@@ -1469,7 +1464,7 @@ function AddToolMenu({
             />
           }
         >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+          <PlusIcon className="size-4" />
           <FormattedMessage {...workspaceAutomationFormMessages.addTool} />
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -1485,7 +1480,7 @@ function AddToolMenu({
               disabled={form.knowledgeEnabled || !knowledgeAvailable}
               onClick={() => onChange({ ...form, knowledgeEnabled: true })}
             >
-              <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+              <BrainIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.memories} />
               {form.knowledgeEnabled ? (
                 <DropdownMenuHint>
@@ -1503,7 +1498,7 @@ function AddToolMenu({
               disabled={form.knowledgeFilesEnabled}
               onClick={() => onChange({ ...form, knowledgeFilesEnabled: true })}
             >
-              <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+              <FoldersIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
               {form.knowledgeFilesEnabled ? (
                 <DropdownMenuHint>
@@ -1547,7 +1542,7 @@ function AddToolMenu({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                  <GitBranchIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />
                   {form.githubEnabled && form.githubMode === "agent" ? (
                     <DropdownMenuHint>
@@ -1582,7 +1577,7 @@ function AddToolMenu({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                  <GitBranchIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
                   {form.githubEnabled && form.githubMode === "sync" ? (
                     <DropdownMenuHint>
@@ -1612,7 +1607,7 @@ function AddToolMenu({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
+                  <ChatTextIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.commentOnPullRequest} />
                   {form.githubCommentEnabled ? (
                     <DropdownMenuHint>
@@ -1658,7 +1653,7 @@ function AddToolMenu({
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
             >
-              <HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-4" />
+              <SlackLogoIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
                 <DropdownMenuHint>
@@ -1674,7 +1669,7 @@ function AddToolMenu({
               disabled={form.emailEnabled || !emailConnected}
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
-              <HugeiconsIcon icon={Mail01Icon} className="size-4" />
+              <EnvelopeIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
                 <DropdownMenuHint>
@@ -1698,7 +1693,7 @@ function AddToolMenu({
                 })
               }
             >
-              <HugeiconsIcon icon={SearchIcon} className="size-4" />
+              <MagnifyingGlassIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
                 <DropdownMenuHint>
@@ -1734,7 +1729,7 @@ function AddToolMenu({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
+                <UploadSimpleIcon className="size-4" />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.jobsToolsMenu} />
                 </span>
@@ -1752,7 +1747,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
+                  <UploadSimpleIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
                   {form.createNativeTmsJobEnabled ? (
                     <DropdownMenuHint>
@@ -1775,7 +1770,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+                  <BrainIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
                   {form.assignTranslateWithAgentEnabled ? (
                     <DropdownMenuHint>
@@ -1787,7 +1782,7 @@ function AddToolMenu({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                <CheckSquareIcon className="size-4" />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.issuesToolsMenu} />
                 </span>
@@ -1797,7 +1792,7 @@ function AddToolMenu({
                   disabled={form.listIssuesEnabled}
                   onClick={() => onChange({ ...form, listIssuesEnabled: true })}
                 >
-                  <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                  <CheckSquareIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
                   {form.listIssuesEnabled ? (
                     <DropdownMenuHint>
@@ -1809,7 +1804,7 @@ function AddToolMenu({
                   disabled={form.createIssueEnabled}
                   onClick={() => onChange({ ...form, createIssueEnabled: true })}
                 >
-                  <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                  <CheckSquareIcon className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
                   {form.createIssueEnabled ? (
                     <DropdownMenuHint>
@@ -1823,7 +1818,7 @@ function AddToolMenu({
               disabled={form.mcpEnabled || !mcpConnected}
               onClick={() => onChange({ ...form, mcpEnabled: true })}
             >
-              <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+              <FoldersIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />
               {form.mcpEnabled ? (
                 <DropdownMenuHint>
@@ -1887,7 +1882,7 @@ function AddToolMenu({
               disabled={form.webSearchEnabled}
               onClick={() => onChange({ ...form, webSearchEnabled: true })}
             >
-              <HugeiconsIcon icon={Globe02Icon} className="size-4" />
+              <GlobeIcon className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
                 <DropdownMenuHint>
@@ -2076,7 +2071,7 @@ function ToolsSettings({
       <EditorPanel>
         {form.knowledgeEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<BrainIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.memories} />}
             description={
               knowledgeAvailable
@@ -2126,7 +2121,7 @@ function ToolsSettings({
 
         {form.knowledgeFilesEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<FoldersIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFilesDescription} />
@@ -2149,7 +2144,7 @@ function ToolsSettings({
 
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<GitBranchIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepoDescription} />
@@ -2216,7 +2211,7 @@ function ToolsSettings({
 
         {form.githubEnabled && form.githubMode === "sync" ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<GitBranchIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />}
             description={
               <FormattedMessage
@@ -2299,7 +2294,7 @@ function ToolsSettings({
 
         {form.githubCommentEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />}
+            icon={<ChatTextIcon className="size-4" />}
             title={
               <>
                 <span>
@@ -2352,7 +2347,7 @@ function ToolsSettings({
 
         {form.slackEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<SlackLogoIcon className="size-4" />}
             title={
               <>
                 <span>
@@ -2397,7 +2392,7 @@ function ToolsSettings({
 
         {form.emailEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Mail01Icon} className="size-4" />}
+            icon={<EnvelopeIcon className="size-4" />}
             title={
               <>
                 <span>
@@ -2514,7 +2509,7 @@ function ToolsSettings({
 
         {form.contentfulEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={SearchIcon} className="size-4" />}
+            icon={<MagnifyingGlassIcon className="size-4" />}
             title={
               <>
                 <span>
@@ -2773,7 +2768,7 @@ function ToolsSettings({
 
         {form.createNativeTmsJobEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
+            icon={<UploadSimpleIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.createJob} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createJobDescription} />
@@ -2846,7 +2841,7 @@ function ToolsSettings({
 
         {form.assignTranslateWithAgentEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<BrainIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />}
             description={
               <FormattedMessage
@@ -2870,7 +2865,7 @@ function ToolsSettings({
 
         {form.listIssuesEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />}
+            icon={<CheckSquareIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.listIssues} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.listIssuesDescription} />
@@ -2887,7 +2882,7 @@ function ToolsSettings({
 
         {form.createIssueEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />}
+            icon={<CheckSquareIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.createIssue} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createIssueDescription} />
@@ -2904,7 +2899,7 @@ function ToolsSettings({
 
         {form.mcpEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />}
+            icon={<FoldersIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />}
             description={
               mcpConnected
@@ -3130,7 +3125,7 @@ function ToolsSettings({
 
         {form.webSearchEnabled ? (
           <EditorRow
-            icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />}
+            icon={<GlobeIcon className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
             description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
             action={
@@ -3331,7 +3326,7 @@ function WebChatTriggerRow({
 
   return (
     <EditorRow
-      icon={<HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />}
+      icon={<ChatTextIcon className="size-4" />}
       title={<FormattedMessage {...workspaceAutomationFormMessages.webChat} />}
       description={<FormattedMessage {...workspaceAutomationFormMessages.webChatDescription} />}
       action={

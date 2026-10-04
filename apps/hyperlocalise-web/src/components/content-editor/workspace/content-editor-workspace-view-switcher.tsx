@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { File01Icon, LayoutGridIcon, LayoutThreeColumnIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FileIcon, SquaresFourIcon, ColumnsIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ import { cn } from "@/lib/primitives/cn";
 import { contentEditorWorkspaceViewModeMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorWorkspaceViewMode } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
 import { isCatWorkspaceViewMode } from "@/components/content-editor/workspace/content-editor-workspace-view-mode";
+import { createElement } from "react";
 
 const DEFAULT_AVAILABLE_VIEWS = [
   "comfortable",
@@ -37,12 +37,12 @@ const DEFAULT_AVAILABLE_VIEWS = [
 
 function viewModeIcon(mode: ContentEditorWorkspaceViewMode) {
   if (mode === "file") {
-    return File01Icon;
+    return FileIcon;
   }
   if (mode === "side-by-side") {
-    return LayoutGridIcon;
+    return SquaresFourIcon;
   }
-  return LayoutThreeColumnIcon;
+  return ColumnsIcon;
 }
 
 export function viewModeLabel(mode: ContentEditorWorkspaceViewMode) {
@@ -89,7 +89,7 @@ export function ContentEditorWorkspaceViewSwitcher({
           />
         }
       >
-        <HugeiconsIcon icon={viewModeIcon(value)} className={compact ? "size-3" : "size-4"} />
+        {createElement(viewModeIcon(value), { className: compact ? "size-3" : "size-4" })}
         <span className="sr-only">
           <FormattedMessage {...viewModeLabel(value)} />
         </span>

@@ -14,8 +14,7 @@
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowLeft01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowUpRightIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
 import type { MarketingIntegration } from "@/components/marketing/integrations/integrations-page-content";
@@ -124,7 +123,7 @@ export function IntegrationDetailPage({ integration }: IntegrationDetailPageProp
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 href={integrationsIndexHref}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 {copy.backToIntegrations}
               </Link>
 
@@ -185,7 +184,7 @@ export function IntegrationDetailPage({ integration }: IntegrationDetailPageProp
                               target="_blank"
                             >
                               {copy.websiteLink}
-                              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" />
+                              <ArrowUpRightIcon className="size-3.5" />
                             </a>
                           ) : null}
                           {integration.docsUrl ? (
@@ -196,7 +195,7 @@ export function IntegrationDetailPage({ integration }: IntegrationDetailPageProp
                               target="_blank"
                             >
                               {copy.docsLink}
-                              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" />
+                              <ArrowUpRightIcon className="size-3.5" />
                             </a>
                           ) : null}
                         </Rows>

@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState, type ReactNode } from "react";
+import { CaretDownIcon, type Icon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TypographyH1, TypographyH4 } from "@/components/ui/typography";
@@ -32,7 +31,7 @@ import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailViewMessages as messages } from "./job-detail-view.messages";
 
 export type JobDetailViewMetric = {
-  icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
+  icon: Icon;
   label: string;
 };
 
@@ -45,11 +44,7 @@ export type JobDetailViewProperty = {
 function MetricItem({ icon, label }: JobDetailViewMetric) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-      <HugeiconsIcon
-        icon={icon}
-        strokeWidth={1.8}
-        className="size-4 shrink-0 text-muted-foreground"
-      />
+      {createElement(icon, { className: "size-4 shrink-0 text-muted-foreground" })}
       <span className="truncate">{label}</span>
     </span>
   );
@@ -109,9 +104,7 @@ function PropertiesCard({
             ) : (
               <FormattedMessage {...messages.showMore} />
             )}
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              strokeWidth={1.8}
+            <CaretDownIcon
               className={cn("size-4 transition-transform", showMore && "rotate-180")}
             />
           </CollapsibleTrigger>

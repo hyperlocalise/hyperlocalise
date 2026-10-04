@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Cancel01Icon, FilterIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, FunnelIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -150,7 +149,7 @@ export function IssueListToolbar({
           <PopoverTrigger
             render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
           >
-            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5" />
+            <FunnelIcon className="size-3.5" />
             {filterChipCount > 0 ? (
               <FormattedMessage
                 {...messages.filterButtonWithCount}
@@ -440,7 +439,7 @@ export function IssueListToolbar({
                     onStateChange({ [chip.key]: chip.key === "search" ? "" : undefined });
                   }}
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+                  <XIcon className="size-3.5" />
                 </button>
               </Badge>
             );

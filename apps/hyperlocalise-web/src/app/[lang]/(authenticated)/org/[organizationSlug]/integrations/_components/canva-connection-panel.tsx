@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
-import { Copy01Icon, Delete02Icon, SaveIcon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState } from "react";
+import { CopyIcon, TrashIcon, FloppyDiskIcon, CheckIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -408,7 +407,7 @@ export function CanvaConnectionPanel({
                       aria-label={intl.formatMessage(canvaConnectionPanelMessages.delete)}
                       onClick={() => deleteMutation.mutate(connection.id)}
                     >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                      <TrashIcon />
                     </Button>
                   </div>
                 </li>
@@ -554,7 +553,7 @@ export function CanvaConnectionPanel({
                   disabled={disabled || saveMutation.isPending}
                   onClick={() => saveMutation.mutate(form)}
                 >
-                  <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                  <FloppyDiskIcon />
                   <FormattedMessage {...canvaConnectionPanelMessages.save} />
                 </Button>
               </div>
@@ -584,7 +583,7 @@ export function CanvaConnectionPanel({
           <Input readOnly value={revealedToken ?? ""} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => void handleCopyToken()}>
-              <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
+              {createElement(copied ? CheckIcon : CopyIcon, {})}
               {copied ? (
                 <FormattedMessage {...canvaConnectionPanelMessages.copied} />
               ) : (

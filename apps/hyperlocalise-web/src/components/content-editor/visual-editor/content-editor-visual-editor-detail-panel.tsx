@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { ContentEditorEditorAiRecommendation } from "@/components/content-editor/editor/content-editor-editor-ai-recommendation";
@@ -154,7 +153,7 @@ export function ContentEditorVisualEditorDetailPanel({
             disabled={!hasPreviousSegment}
             aria-label={intl.formatMessage(contentEditorEditorPanelMessages.previousSegmentAria)}
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+            <ArrowLeftIcon className="size-4" />
           </Button>
           <Button
             variant="ghost"
@@ -163,7 +162,7 @@ export function ContentEditorVisualEditorDetailPanel({
             disabled={!hasNextSegment}
             aria-label={intl.formatMessage(contentEditorEditorPanelMessages.nextSegmentAria)}
           >
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+            <ArrowRightIcon className="size-4" />
           </Button>
         </div>
       </div>

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import type { MouseEvent } from "react";
 
 import { cn } from "@/lib/primitives/cn";
@@ -44,7 +43,7 @@ export function VisualWorkflowQuickAddButton({
         onAdd(handleId);
       }}
     >
-      <HugeiconsIcon icon={Add01Icon} className="size-3.5" strokeWidth={2} />
+      <PlusIcon className="size-3.5" />
     </button>
   );
 }

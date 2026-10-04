@@ -14,8 +14,7 @@
  */
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -65,7 +64,7 @@ import {
 function CreateDialogTrigger({ children }: { children: ReactNode }) {
   return (
     <DialogTrigger render={<Button type="button" />}>
-      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+      <PlusIcon data-icon="inline-start" />
       {children}
     </DialogTrigger>
   );

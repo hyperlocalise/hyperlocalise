@@ -14,8 +14,7 @@ import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/naviga
 import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/primitives/cn";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { CaretDownIcon } from "@phosphor-icons/react/ssr";
 
 function NavigationMenu({
   align = "start",
@@ -80,9 +79,7 @@ function NavigationMenuTrigger({
       {...props}
     >
       {children}
-      <HugeiconsIcon
-        icon={ArrowDown01Icon}
-        strokeWidth={2}
+      <CaretDownIcon
         className="relative top-px ms-1 size-3 transition duration-300 group-data-popup-open/navigation-menu-trigger:rotate-180 group-data-open/navigation-menu-trigger:rotate-180"
         aria-hidden="true"
       />

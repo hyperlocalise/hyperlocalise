@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { FormattedMessage } from "react-intl";
-import { Copy01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon } from "@phosphor-icons/react";
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ export function IssueDuplicateBanner({
 
   return (
     <Alert className="mb-3">
-      <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+      <CopyIcon />
       <AlertTitle>
         <FormattedMessage {...messages.title} />
       </AlertTitle>

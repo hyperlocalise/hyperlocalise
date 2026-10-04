@@ -15,8 +15,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
-import { ArrowUpRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowUpRightIcon, XIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -312,7 +311,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
                 render={<Link href={`/org/${organizationSlug}/inbox/${tab.id}`} />}
               >
                 <FormattedMessage {...chatDockMessages.openInInbox} />
-                <HugeiconsIcon icon={ArrowUpRight01Icon} strokeWidth={2} className="size-3.5" />
+                <ArrowUpRightIcon className="size-3.5" />
               </Button>
             ) : null}
             <Button
@@ -335,7 +334,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
                 store.closeTab(tab.id);
               }}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+              <XIcon className="size-3.5" />
             </Button>
           </Row>
         </Box>

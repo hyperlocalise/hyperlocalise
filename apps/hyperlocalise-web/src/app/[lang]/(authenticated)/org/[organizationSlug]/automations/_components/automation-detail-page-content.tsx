@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -373,7 +372,7 @@ export function AutomationDetailPageContent({
         }}
         disabled={writeInFlight}
       >
-        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+        <TrashIcon data-icon="inline-start" />
         <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
       </Button>
       {form.triggerMode === "web_chat" ? (
@@ -419,7 +418,7 @@ export function AutomationDetailPageContent({
           {runMutation.isPending || sourceFileRunMutation.isPending ? (
             <Spinner data-icon="inline-start" />
           ) : (
-            <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+            <PlayIcon data-icon="inline-start" />
           )}
           <FormattedMessage {...automationDetailPageContentMessages.runNow} />
         </Button>
@@ -436,7 +435,7 @@ export function AutomationDetailPageContent({
         {saveInFlight ? (
           <Spinner data-icon="inline-start" />
         ) : (
-          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
+          <FloppyDiskIcon data-icon="inline-start" />
         )}
         {saveInFlight ? (
           <FormattedMessage {...automationDetailPageContentMessages.saving} />
@@ -580,7 +579,7 @@ export function AutomationDetailPageContent({
               {sourceFileRunMutation.isPending ? (
                 <Spinner data-icon="inline-start" />
               ) : (
-                <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+                <PlayIcon data-icon="inline-start" />
               )}
               <FormattedMessage
                 {...automationDetailPageContentMessages.runSelectedSourceFiles}
@@ -628,11 +627,7 @@ export function AutomationDetailPageContent({
                 deleteMutation.mutate();
               }}
             >
-              {deleteInFlight ? (
-                <Spinner />
-              ) : (
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-              )}
+              {deleteInFlight ? <Spinner /> : <TrashIcon />}
               {deleteInFlight ? (
                 <FormattedMessage {...automationDetailPageContentMessages.deleting} />
               ) : (

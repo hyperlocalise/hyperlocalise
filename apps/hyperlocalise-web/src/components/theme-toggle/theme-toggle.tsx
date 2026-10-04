@@ -14,8 +14,7 @@
  */
 import * as React from "react";
 import { flushSync } from "react-dom";
-import { ComputerIcon, Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DesktopIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -35,14 +34,14 @@ type ThemeOption = "light" | "dark" | "system";
 
 function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
   if (theme === "dark") {
-    return <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />;
+    return <MoonIcon className="size-4" />;
   }
 
   if (theme === "system") {
-    return <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />;
+    return <DesktopIcon className="size-4" />;
   }
 
-  return <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />;
+  return <SunIcon className="size-4" />;
 }
 
 function useThemeToggleState() {
@@ -97,15 +96,15 @@ function ThemeMenuRadioGroup() {
       onValueChange={(value) => changeTheme(value as ThemeOption)}
     >
       <DropdownMenuRadioItem value="light">
-        <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
+        <SunIcon className="size-4" />
         <FormattedMessage {...themeToggleMessages.light} />
       </DropdownMenuRadioItem>
       <DropdownMenuRadioItem value="dark">
-        <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
+        <MoonIcon className="size-4" />
         <FormattedMessage {...themeToggleMessages.dark} />
       </DropdownMenuRadioItem>
       <DropdownMenuRadioItem value="system">
-        <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
+        <DesktopIcon className="size-4" />
         <FormattedMessage {...themeToggleMessages.system} />
       </DropdownMenuRadioItem>
     </DropdownMenuRadioGroup>
@@ -152,15 +151,15 @@ export function ThemeToggle({ variant = "dropdown" }: ThemeToggleProps) {
           onValueChange={(value) => changeTheme(value as ThemeOption)}
         >
           <DropdownMenuRadioItem value="light">
-            <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
+            <SunIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.light} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
-            <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
+            <MoonIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.dark} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system">
-            <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
+            <DesktopIcon className="size-4" />
             <FormattedMessage {...themeToggleMessages.system} />
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

@@ -14,13 +14,12 @@
  */
 import type { ReactNode } from "react";
 import {
-  BubbleChatNotificationIcon,
-  Calendar03Icon,
-  LanguageCircleIcon,
-  Tag01Icon,
-  User02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ChatCircleDotsIcon,
+  CalendarIcon,
+  TranslateIcon,
+  TagIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { IssueStatusIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-status-icon";
@@ -55,6 +54,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { CONTENT_OPS_MOCK_INNER_CLASSNAME } from "./content-ops-mock-stage.constants";
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
+import { createElement } from "react";
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const FORTY_FIVE_MINUTES_MS = 45 * 60 * 1000;
@@ -112,12 +112,10 @@ function InboxListItemAvatar({
         className="absolute -end-0.5 -bottom-0.5 z-10 flex size-[18px] items-center justify-center rounded-full bg-card shadow-sm ring-2 ring-background"
         aria-label={visual.typeIconLabel}
       >
-        <HugeiconsIcon
-          icon={visual.typeIcon}
-          strokeWidth={2}
-          size={12}
-          className={cn("shrink-0", visual.badgeClassName)}
-        />
+        {createElement(visual.typeIcon, {
+          size: 12,
+          className: cn("shrink-0", visual.badgeClassName),
+        })}
       </span>
     </div>
   );
@@ -237,11 +235,7 @@ function ConversationDetailMock({ item }: { item: MockConversationItem }) {
       <header className="border-b border-border">
         <Box paddingX="3u" paddingY="1.5u" display="flex" alignItems="center">
           <Row spacing="1.5u" alignY="start">
-            <HugeiconsIcon
-              icon={BubbleChatNotificationIcon}
-              strokeWidth={1.8}
-              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-            />
+            <ChatCircleDotsIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
             <Rows spacing="1u">
               <TypographyH4 lineClamp={1} size="medium">
                 {item.title}
@@ -338,16 +332,16 @@ function IssueDetailMock({
             <IssueStatusIcon status="in_progress" className="size-3.5" />
           </span>
           <span className="flex size-8 items-center justify-center text-muted-foreground">
-            <HugeiconsIcon icon={User02Icon} strokeWidth={1.8} className="size-3.5" />
+            <UserIcon className="size-3.5" />
           </span>
           <span className="flex size-8 items-center justify-center text-muted-foreground">
-            <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
+            <TagIcon className="size-3.5" />
           </span>
           <span className="flex size-8 items-center justify-center text-muted-foreground">
-            <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} className="size-3.5" />
+            <TranslateIcon className="size-3.5" />
           </span>
           <span className="flex size-8 items-center justify-center text-muted-foreground">
-            <HugeiconsIcon icon={Calendar03Icon} strokeWidth={1.8} className="size-3.5" />
+            <CalendarIcon className="size-3.5" />
           </span>
         </div>
       </div>

@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 
-import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { srxEditorMessages as messages } from "@/components/srx-editor/srx-editor.messages";
@@ -130,7 +129,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
               })
             }
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+            <PlusIcon data-icon="inline-start" />
             <FormattedMessage {...messages.addLanguageRule} />
           </Button>
         </div>
@@ -172,7 +171,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
                     })
                   }
                 >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+                  <TrashIcon data-icon="inline-start" />
                   <FormattedMessage {...messages.removeLanguageRule} />
                 </Button>
               ) : null}
@@ -288,7 +287,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
                         updateModel({ ...model, languageRules });
                       }}
                     >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-4" />
+                      <TrashIcon className="size-4" />
                     </Button>
                   </div>
                 </div>
@@ -308,7 +307,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
                   updateModel({ ...model, languageRules });
                 }}
               >
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                <PlusIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.addRule} />
               </Button>
             </div>
@@ -387,7 +386,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
                   })
                 }
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-4" />
+                <TrashIcon className="size-4" />
               </Button>
             </div>
           </div>
@@ -408,7 +407,7 @@ export function SrxEditor({ model, onChange, disabled }: SrxEditorProps) {
             })
           }
         >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+          <PlusIcon data-icon="inline-start" />
           <FormattedMessage {...messages.addMap} />
         </Button>
       </div>

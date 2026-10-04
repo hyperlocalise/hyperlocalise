@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, SourceCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, CodeIcon } from "@phosphor-icons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
@@ -44,14 +43,11 @@ export const SandboxHeader = ({ className, title, state, ...props }: SandboxHead
     {...props}
   >
     <div className="flex items-center gap-2">
-      <HugeiconsIcon icon={SourceCodeIcon} className="size-4 text-muted-foreground" />
+      <CodeIcon className="size-4 text-muted-foreground" />
       <span className="font-medium text-sm">{title}</span>
       <ToolStatusBadge status={state} />
     </div>
-    <HugeiconsIcon
-      icon={ArrowDown01Icon}
-      className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
-    />
+    <CaretDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
   </CollapsibleTrigger>
 );
 

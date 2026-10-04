@@ -17,8 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 import { useRouter } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Cancel01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon, PlusIcon } from "@phosphor-icons/react";
 
 import {
   IssueGroupedList,
@@ -344,7 +343,7 @@ function IssuePanelHeader({
       </h2>
       {canCreate && onCreate ? (
         <Button type="button" variant="ghost" size="sm" onClick={onCreate}>
-          <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+          <PlusIcon data-icon="inline-start" />
           <FormattedMessage {...messages.createIssue} />
         </Button>
       ) : null}
@@ -355,7 +354,7 @@ function IssuePanelHeader({
         aria-label={intl.formatMessage(messages.close)}
         onClick={onClose}
       >
-        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+        <XIcon className="size-3.5" />
       </Button>
     </header>
   );

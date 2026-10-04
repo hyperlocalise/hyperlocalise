@@ -21,13 +21,12 @@ import type {
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
 import {
-  ArrowDown01Icon,
-  ArrowLeft01Icon,
-  ArrowUp01Icon,
-  Delete02Icon,
-  PlusSignIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  CaretDownIcon,
+  ArrowLeftIcon,
+  CaretUpIcon,
+  TrashIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -141,7 +140,7 @@ export function VisualWorkflowConfigPanel({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={2} />
+          <ArrowLeftIcon className="size-4" />
           <FormattedMessage {...messages.backToPicker} />
         </Button>
       </div>
@@ -375,7 +374,7 @@ export function VisualWorkflowConfigPanel({
                       });
                     }}
                   >
-                    <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                    <TrashIcon className="size-4" />
                   </Button>
                 </div>
               ))}
@@ -391,7 +390,7 @@ export function VisualWorkflowConfigPanel({
                   })
                 }
               >
-                <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+                <PlusIcon className="size-4" />
                 <FormattedMessage {...messages.addSwitchCase} />
               </Button>
             </div>
@@ -477,7 +476,7 @@ export function VisualWorkflowConfigPanel({
                       });
                     }}
                   >
-                    <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" strokeWidth={2} />
+                    <CaretUpIcon className="size-4" />
                   </Button>
 
                   <Button
@@ -498,7 +497,7 @@ export function VisualWorkflowConfigPanel({
                       });
                     }}
                   >
-                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" strokeWidth={2} />
+                    <CaretDownIcon className="size-4" />
                   </Button>
 
                   <Button
@@ -516,7 +515,7 @@ export function VisualWorkflowConfigPanel({
                       })
                     }
                   >
-                    <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                    <TrashIcon className="size-4" />
                   </Button>
                 </div>
               ))}
@@ -539,7 +538,7 @@ export function VisualWorkflowConfigPanel({
                   })
                 }
               >
-                <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+                <PlusIcon className="size-4" />
                 <FormattedMessage {...messages.addMergeInput} />
               </Button>
             </div>
@@ -616,7 +615,7 @@ export function VisualWorkflowConfigPanel({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" strokeWidth={2} />
+                  <CaretUpIcon className="size-4" />
                 </Button>
 
                 <Button
@@ -638,7 +637,7 @@ export function VisualWorkflowConfigPanel({
                     });
                   }}
                 >
-                  <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" strokeWidth={2} />
+                  <CaretDownIcon className="size-4" />
                 </Button>
 
                 <Button
@@ -655,7 +654,7 @@ export function VisualWorkflowConfigPanel({
                     })
                   }
                 >
-                  <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+                  <TrashIcon className="size-4" />
                 </Button>
               </div>
             ))}
@@ -678,7 +677,7 @@ export function VisualWorkflowConfigPanel({
                 })
               }
             >
-              <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+              <PlusIcon className="size-4" />
               <FormattedMessage {...messages.addSequenceOutput} />
             </Button>
           </div>
@@ -1194,7 +1193,7 @@ export function VisualWorkflowConfigPanel({
       </div>
       <div className="border-t border-border px-4 py-3">
         <Button type="button" variant="outline" className="w-full" onClick={onDeleteNode}>
-          <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+          <TrashIcon className="size-4" />
           <FormattedMessage {...messages.deleteStep} />
         </Button>
       </div>
@@ -1265,7 +1264,7 @@ function KeyValueEditor({
               size="icon-sm"
               onClick={() => onChange(pairs.filter((_, entryIndex) => entryIndex !== index))}
             >
-              <HugeiconsIcon icon={Delete02Icon} className="size-4" strokeWidth={2} />
+              <TrashIcon className="size-4" />
             </Button>
           </div>
         </div>
@@ -1276,7 +1275,7 @@ function KeyValueEditor({
         size="sm"
         onClick={() => onChange([...pairs, { key: "", value: "" }])}
       >
-        <HugeiconsIcon icon={PlusSignIcon} className="size-4" strokeWidth={2} />
+        <PlusIcon className="size-4" />
         <FormattedMessage {...messages.addKeyValuePair} />
       </Button>
     </div>

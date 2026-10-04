@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { FormattedMessage } from "react-intl";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 
@@ -52,7 +51,7 @@ export function KnowledgePageHeader({
       </h1>
       {onAddSources ? (
         <Button type="button" variant="outline" size="sm" onClick={onAddSources}>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} data-icon="inline-start" />
+          <PlusIcon data-icon="inline-start" />
           <FormattedMessage {...knowledgeMemoryEditorMessages.addSources} />
         </Button>
       ) : null}

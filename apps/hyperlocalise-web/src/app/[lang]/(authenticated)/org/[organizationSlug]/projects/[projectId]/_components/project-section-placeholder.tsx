@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Layers01Icon } from "@hugeicons/core-free-icons";
+import { StackIcon } from "@phosphor-icons/react";
 
 import type { Icon } from "../../../_components/workspace-resource-shared";
 
@@ -29,7 +29,7 @@ export function ProjectSectionPlaceholder({
   organizationSlug: _organizationSlug,
   projectId: _projectId,
   title,
-  icon = Layers01Icon,
+  icon = StackIcon,
 }: ProjectSectionPlaceholderProps) {
   return (
     <ProjectPageShell>

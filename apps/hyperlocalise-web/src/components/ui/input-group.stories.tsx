@@ -10,8 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
@@ -38,7 +37,7 @@ export const Overview: Story = {
     <div className="flex max-w-md flex-col gap-4 p-6">
       <InputGroup>
         <InputGroupAddon align="inline-start">
-          <HugeiconsIcon icon={SearchIcon} strokeWidth={2} />
+          <MagnifyingGlassIcon />
         </InputGroupAddon>
         <InputGroupInput aria-label="Search strings" placeholder="Search source strings" />
         <InputGroupAddon align="inline-end" className="gap-1">

@@ -16,8 +16,7 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { Alert02Icon, ArrowDown01Icon, Delete02Icon, PuzzleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon, CaretDownIcon, TrashIcon, PuzzlePieceIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -616,10 +615,8 @@ function TmsIntegrationRow({
                 ) : (
                   <FormattedMessage {...integrationRowMessages.connect} />
                 )}
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
+                <CaretDownIcon
                   className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
-                  strokeWidth={2}
                 />
               </Button>
             }
@@ -810,14 +807,14 @@ export function IntegrationsPageContent({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={PuzzleIcon}
+        icon={PuzzlePieceIcon}
         label={intl.formatMessage(integrationsPageContentMessages.pageLabel)}
         title={intl.formatMessage(integrationsPageContentMessages.pageTitle)}
       />
 
       {integrationError ? (
         <Alert variant="destructive">
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} />
+          <WarningIcon />
           <AlertTitle>{integrationError.title}</AlertTitle>
           <AlertDescription>{integrationError.description}</AlertDescription>
         </Alert>
@@ -1186,7 +1183,7 @@ export function IntegrationsPageContent({
                   });
                 }}
               >
-                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                <TrashIcon />
                 {deleteExternalTms.isPending
                   ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
                   : intl.formatMessage(integrationsPageContentMessages.disconnect)}

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Copy01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -92,7 +91,7 @@ export function DomainVerifyDialog({
                   void handleCopy();
                 }}
               >
-                <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+                <CopyIcon />
                 <span className="sr-only">
                   <FormattedMessage {...messages.copyValue} />
                 </span>

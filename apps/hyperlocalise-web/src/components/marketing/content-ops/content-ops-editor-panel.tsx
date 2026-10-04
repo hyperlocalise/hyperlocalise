@@ -14,8 +14,7 @@
  */
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Cancel01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { HeroFrameLoadingShell } from "@/components/marketing/hero-frame-mesh-stage";
@@ -83,7 +82,7 @@ function EditorIssuesOverlay() {
           aria-hidden
           tabIndex={-1}
         >
-          <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+          <XIcon className="size-3.5" />
         </button>
       </header>
       <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">

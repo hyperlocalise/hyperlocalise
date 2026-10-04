@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
-import { Copy01Icon } from "@hugeicons/core-free-icons";
+import { CopyIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { IssueGroupedList } from "../../_components/issue-grouped-list";
@@ -96,7 +96,7 @@ export function IssuesPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={Copy01Icon}
+        icon={CopyIcon}
         label="Workspace"
         title={intl.formatMessage(issuesPageViewMessages.pageTitle)}
         actions={actions}

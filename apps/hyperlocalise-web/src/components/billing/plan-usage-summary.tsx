@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { useMemo } from "react";
-import { CreditCardIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CreditCardIcon } from "@phosphor-icons/react";
 import { useCustomer, useListPlans } from "autumn-js/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -151,7 +150,7 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
               planName,
             })}
           >
-            <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} data-icon="inline-start" />
+            <CreditCardIcon data-icon="inline-start" />
             <span className="max-w-40 truncate">{planName}</span>
           </Button>
         }
@@ -159,7 +158,7 @@ export function PlanUsageFooterControl({ organizationSlug }: { organizationSlug:
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex size-9 items-center justify-center rounded-full bg-muted text-foreground">
-            <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-5" />
+            <CreditCardIcon className="size-5" />
           </div>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>

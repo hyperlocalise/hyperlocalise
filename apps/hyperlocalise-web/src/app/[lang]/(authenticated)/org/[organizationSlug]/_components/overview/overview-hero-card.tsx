@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -81,7 +80,7 @@ export function OverviewHeroCard({
             onClick={onCtaClick}
           >
             {ctaLabel}
-            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+            <ArrowRightIcon />
           </Button>
         ) : (
           <Button
@@ -91,7 +90,7 @@ export function OverviewHeroCard({
             className="w-fit rounded-full"
           >
             {ctaLabel}
-            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+            <ArrowRightIcon />
           </Button>
         )}
       </CardContent>

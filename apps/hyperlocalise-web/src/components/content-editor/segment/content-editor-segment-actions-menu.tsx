@@ -13,14 +13,13 @@
  * Version 2.0 or later.
  */
 import {
-  HistoryIcon,
-  Link01Icon,
+  ClockCounterClockwiseIcon,
+  LinkIcon,
   LockIcon,
-  Message01Icon,
-  MoreHorizontalIcon,
-  SquareUnlock01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  ChatTextIcon,
+  DotsThreeIcon,
+  LockOpenIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -40,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/primitives/cn";
+import { createElement } from "react";
 
 export function ContentEditorSegmentActionsMenu({
   segmentShareUrl = null,
@@ -94,20 +94,20 @@ export function ContentEditorSegmentActionsMenu({
           />
         }
       >
-        <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" aria-hidden />
+        <DotsThreeIcon className="size-4" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {hasShareOrIssue ? (
           <DropdownMenuGroup>
             {segmentShareUrl ? (
               <DropdownMenuItem onClick={() => void copyLink()}>
-                <HugeiconsIcon icon={Link01Icon} className="size-4" aria-hidden />
+                <LinkIcon className="size-4" aria-hidden />
                 <FormattedMessage {...messages.copyLink} />
               </DropdownMenuItem>
             ) : null}
             {onAddToIssueSheet ? (
               <DropdownMenuItem onClick={onAddToIssueSheet} disabled={isAddToIssueSheetDisabled}>
-                <HugeiconsIcon icon={Message01Icon} className="size-4" aria-hidden />
+                <ChatTextIcon className="size-4" aria-hidden />
                 <FormattedMessage {...contentEditorEditorPanelMessages.addToIssueSheet} />
               </DropdownMenuItem>
             ) : null}
@@ -118,17 +118,16 @@ export function ContentEditorSegmentActionsMenu({
           <DropdownMenuGroup>
             {onToggleLocked ? (
               <DropdownMenuItem onClick={onToggleLocked}>
-                <HugeiconsIcon
-                  icon={isLocked ? SquareUnlock01Icon : LockIcon}
-                  className="size-4"
-                  aria-hidden
-                />
+                {createElement(isLocked ? LockOpenIcon : LockIcon, {
+                  className: "size-4",
+                  "aria-hidden": true,
+                })}
                 <FormattedMessage {...(isLocked ? messages.unlock : messages.lock)} />
               </DropdownMenuItem>
             ) : null}
             {canOpenActivity && openActivity && activity ? (
               <DropdownMenuItem onClick={() => openActivity(activity)}>
-                <HugeiconsIcon icon={HistoryIcon} className="size-4" aria-hidden />
+                <ClockCounterClockwiseIcon className="size-4" aria-hidden />
                 <FormattedMessage {...messages.activity} />
               </DropdownMenuItem>
             ) : null}

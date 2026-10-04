@@ -14,14 +14,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Cancel01Icon,
-  Chat01Icon,
-  File01Icon,
-  FileSearchIcon,
-  RefreshIcon,
-  SentIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  XIcon,
+  ChatCircleIcon,
+  FileIcon,
+  FileMagnifyingGlassIcon,
+  ArrowClockwiseIcon,
+  PaperPlaneTiltIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -124,7 +123,7 @@ function ClaimsPdf({ highlightedClause }: { highlightedClause: ClauseId | null }
     <div className="overflow-hidden rounded-lg border border-border/70 bg-[#f7f4ee] text-[#1d1a16] shadow-sm">
       <div className="flex items-center justify-between border-b border-[#d9d2c3] px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-4 text-[#8a3b2a]" />
+          <FileIcon className="size-4 text-[#8a3b2a]" />
           <p className="text-xs font-semibold tracking-wide uppercase">
             <FormattedMessage {...messages.pdfTitle} />
           </p>
@@ -243,7 +242,7 @@ function GuidelinesChat({
             tabIndex={-1}
             aria-label={intl.formatMessage(messages.chatClose)}
           >
-            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+            <XIcon className="size-3.5" />
           </Button>
         </header>
 
@@ -251,7 +250,7 @@ function GuidelinesChat({
           {phase === "idle" ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-5 py-8 text-center">
               <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} className="size-5" />
+                <ChatCircleIcon className="size-5" />
               </div>
               <div className="max-w-sm space-y-1">
                 <h3 className="text-balance text-sm font-semibold text-foreground">
@@ -268,7 +267,7 @@ function GuidelinesChat({
                 className="h-8 gap-1.5 rounded-full bg-background text-xs font-medium"
                 onClick={onStart}
               >
-                <HugeiconsIcon icon={FileSearchIcon} strokeWidth={1.8} className="size-3.5" />
+                <FileMagnifyingGlassIcon className="size-3.5" />
                 <FormattedMessage {...messages.chatSuggestion} />
               </Button>
             </div>
@@ -362,7 +361,7 @@ function GuidelinesChat({
                 {MENTION_GLYPH}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-0.5 text-[0.7rem] text-foreground">
-                <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-3" />
+                <FileIcon className="size-3" />
                 <FormattedMessage {...messages.contextPill} />
               </span>
             </div>
@@ -383,12 +382,7 @@ function GuidelinesChat({
                   variant="secondary"
                   className="h-8 rounded-full px-3"
                 >
-                  <HugeiconsIcon
-                    data-icon="inline-start"
-                    icon={RefreshIcon}
-                    strokeWidth={2}
-                    className="size-3.5"
-                  />
+                  <ArrowClockwiseIcon data-icon="inline-start" className="size-3.5" />
                   <FormattedMessage {...messages.replay} />
                 </Button>
               ) : (
@@ -399,12 +393,7 @@ function GuidelinesChat({
                   disabled={isBusy}
                   aria-label={intl.formatMessage(messages.send)}
                 >
-                  <HugeiconsIcon
-                    data-icon="inline-start"
-                    icon={SentIcon}
-                    strokeWidth={2}
-                    className="size-3.5"
-                  />
+                  <PaperPlaneTiltIcon data-icon="inline-start" className="size-3.5" />
                   <FormattedMessage {...messages.send} />
                 </Button>
               )}

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FloppyDiskIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -210,9 +209,9 @@ export function ContentEditorOfficeFileViewerPane({
         onClick={() => void handleSave()}
       >
         {isSaving ? (
-          <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
+          <CircleNotchIcon className="size-3 animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
+          <FloppyDiskIcon className="size-3" aria-hidden />
         )}
         <FormattedMessage {...contentEditorFileViewMessages.saveEdits} />
       </Button>

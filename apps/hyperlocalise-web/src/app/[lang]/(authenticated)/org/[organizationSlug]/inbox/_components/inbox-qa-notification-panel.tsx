@@ -11,8 +11,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { Alert02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon } from "@phosphor-icons/react/ssr";
 import { useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -47,7 +46,7 @@ export function InboxQaNotificationPanel({
               failed ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive",
             )}
           >
-            <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="size-4" />
+            <WarningIcon className="size-4" />
           </span>
           <div className="flex min-w-0 flex-col gap-0.5">
             <h2 className="text-base font-medium text-pretty text-foreground">

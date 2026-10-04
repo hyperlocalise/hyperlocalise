@@ -12,16 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
-  LanguageSquareIcon,
-  Link01Icon,
-  QuillWrite01Icon,
-  SaveIcon,
-  Settings01Icon,
-} from "@hugeicons/core-free-icons";
+  TranslateIcon,
+  LinkIcon,
+  PenNibIcon,
+  FloppyDiskIcon,
+  GearIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -193,11 +192,7 @@ function ProjectSettingsSectionSave({
   return (
     <div className="flex justify-end border-t border-border pt-4">
       <Button type="submit" size="sm" disabled={disabled || isSaving} aria-label={ariaLabel}>
-        {isSaving ? (
-          <Spinner />
-        ) : (
-          <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
-        )}
+        {isSaving ? <Spinner /> : <FloppyDiskIcon className="size-4" />}
         {isSaving ? (
           <FormattedMessage {...projectSettingsPageContentMessages.saving} />
         ) : (
@@ -218,7 +213,7 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
   return (
     <section className="rounded-lg border border-border bg-muted p-4">
       <ProjectSettingsSectionHeading
-        icon={Link01Icon}
+        icon={LinkIcon}
         tone="beam"
         title={<FormattedMessage {...projectSettingsPageContentMessages.sourceConnectionTitle} />}
         description={
@@ -506,7 +501,7 @@ export function ProjectSettingsPageContent({
 
   return (
     <ProjectPageShell>
-      <ProjectSectionHeader icon={Settings01Icon} section="Settings" />
+      <ProjectSectionHeader icon={GearIcon} section="Settings" />
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <ProjectSettingsNav
@@ -522,7 +517,7 @@ export function ProjectSettingsPageContent({
               <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
                 <form onSubmit={handleSectionSubmit("general")} className="grid gap-4">
                   <ProjectSettingsSectionHeading
-                    icon={Settings01Icon}
+                    icon={GearIcon}
                     tone="dew"
                     title={
                       <FormattedMessage {...projectSettingsPageContentMessages.generalTitle} />
@@ -610,7 +605,7 @@ export function ProjectSettingsPageContent({
             <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
               <form onSubmit={handleSectionSubmit("styleGuide")} className="grid gap-4">
                 <ProjectSettingsSectionHeading
-                  icon={QuillWrite01Icon}
+                  icon={PenNibIcon}
                   tone="grove"
                   title={
                     <FormattedMessage {...projectSettingsPageContentMessages.styleGuideTitle} />
@@ -660,7 +655,7 @@ export function ProjectSettingsPageContent({
             <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
               <form onSubmit={handleSectionSubmit("locales")} className="grid gap-4">
                 <ProjectSettingsSectionHeading
-                  icon={LanguageSquareIcon}
+                  icon={TranslateIcon}
                   tone="spruce"
                   title={<FormattedMessage {...projectSettingsPageContentMessages.localesTitle} />}
                   description={

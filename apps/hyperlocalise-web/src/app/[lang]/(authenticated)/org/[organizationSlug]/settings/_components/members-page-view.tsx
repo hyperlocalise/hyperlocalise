@@ -14,8 +14,7 @@
  */
 import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { Add01Icon, MoreHorizontalCircle01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, DotsThreeCircleIcon, UsersThreeIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -236,7 +235,7 @@ function MemberRowActions({
           />
         }
       >
-        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+        <DotsThreeCircleIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         {canUpdateRole ? (
@@ -433,7 +432,7 @@ export function MembersPageView({
       <WorkspacePeopleNav organizationSlug={organizationSlug} />
 
       <PageHeader
-        icon={UserGroupIcon}
+        icon={UsersThreeIcon}
         label={intl.formatMessage(membersPageContentMessages.pageLabel)}
         title={intl.formatMessage(membersPageContentMessages.pageTitle)}
         actions={
@@ -456,7 +455,7 @@ export function MembersPageView({
                   className="w-full sm:w-fit"
                   disabled={isInviting}
                 >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                  <PlusIcon />
                   <FormattedMessage {...membersPageContentMessages.inviteMember} />
                 </Button>
               </Column>

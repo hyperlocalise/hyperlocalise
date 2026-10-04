@@ -17,12 +17,11 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   GitBranchIcon,
-  PlusSignIcon,
-  RefreshIcon,
-  SecurityCheckIcon,
-  Tick01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  PlusIcon,
+  ArrowClockwiseIcon,
+  ShieldCheckIcon,
+  CheckIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import Image from "next/image";
 
@@ -141,7 +140,7 @@ function MockEditorPreview({
         >
           <MockPanel>
             <MockRow
-              icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
+              icon={<GitBranchIcon className="size-4" />}
               title={<FormattedMessage {...automationEditorMockMessages.triggerName} />}
               trailing={
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -171,7 +170,7 @@ function MockEditorPreview({
         >
           <MockPanel>
             <MockRow
-              icon={<HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />}
+              icon={<ShieldCheckIcon className="size-4" />}
               title={<FormattedMessage {...automationEditorMockMessages.githubToolName} />}
               description={
                 <FormattedMessage {...automationEditorMockMessages.githubToolDescription} />
@@ -193,7 +192,7 @@ function MockEditorPreview({
               }
             />
             <div className="flex items-center gap-2 px-3 py-2.5 text-[0.72rem] font-medium text-muted-foreground">
-              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.8} className="size-3.5" />
+              <PlusIcon className="size-3.5" />
               <FormattedMessage {...automationEditorMockMessages.addTrigger} />
             </div>
           </MockPanel>
@@ -237,11 +236,7 @@ function VerticalStepper({
                     !isDone && !isActive && "border-border bg-transparent text-muted-foreground",
                   )}
                 >
-                  {isDone ? (
-                    <HugeiconsIcon icon={Tick01Icon} strokeWidth={2} className="size-3" />
-                  ) : (
-                    i + 1
-                  )}
+                  {isDone ? <CheckIcon className="size-3" /> : i + 1}
                 </button>
                 {i < steps.length - 1 && (
                   <div
@@ -289,7 +284,7 @@ function VerticalStepper({
             onClick={onReplay}
             className="mt-3 flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.72rem] text-muted-foreground transition-colors hover:bg-muted/40"
           >
-            <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} className="size-3.5" />
+            <ArrowClockwiseIcon className="size-3.5" />
             {intl.formatMessage(automationEditorMockMessages.replay)}
           </button>
         </div>

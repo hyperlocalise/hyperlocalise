@@ -15,15 +15,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  AiUserIcon,
-  Building02Icon,
-  CheckmarkCircle01Icon,
+  UserCircleIcon,
+  BuildingsIcon,
+  CheckCircleIcon,
   CreditCardIcon,
-  Key01Icon,
-  Logout01Icon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  KeyIcon,
+  SignOutIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -148,24 +147,24 @@ export function NavUser({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/account`} />}>
-            <HugeiconsIcon icon={AiUserIcon} strokeWidth={2} className="size-4" />
+            <UserCircleIcon className="size-4" />
             <FormattedMessage {...navUserMessages.account} />
           </DropdownMenuItem>
           {showMembersLink ? (
             <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/members`} />}>
-              <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="size-4" />
+              <UsersThreeIcon className="size-4" />
               <FormattedMessage {...navUserMessages.members} />
             </DropdownMenuItem>
           ) : null}
           {showApiKeysLink ? (
             <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/api-keys`} />}>
-              <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+              <KeyIcon className="size-4" />
               <FormattedMessage {...navUserMessages.apiKeys} />
             </DropdownMenuItem>
           ) : null}
           {showBillingLink ? (
             <DropdownMenuItem render={<Link href={buildPlanUsageHref(organizationSlug)} />}>
-              <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} className="size-4" />
+              <CreditCardIcon className="size-4" />
               <FormattedMessage {...navUserMessages.billing} />
             </DropdownMenuItem>
           ) : null}
@@ -175,7 +174,7 @@ export function NavUser({
           <>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <HugeiconsIcon icon={Building02Icon} strokeWidth={2} className="size-4" />
+                <BuildingsIcon className="size-4" />
                 <FormattedMessage {...navUserMessages.switchWorkspace} />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="min-w-56">
@@ -201,13 +200,7 @@ export function NavUser({
                         }
                       >
                         <span className="flex-1 truncate">{organization.name}</span>
-                        {isActive ? (
-                          <HugeiconsIcon
-                            icon={CheckmarkCircle01Icon}
-                            strokeWidth={1.8}
-                            className="size-4 text-bud-400"
-                          />
-                        ) : null}
+                        {isActive ? <CheckCircleIcon className="size-4 text-bud-400" /> : null}
                       </DropdownMenuItem>
                     );
                   })}
@@ -222,7 +215,7 @@ export function NavUser({
           </>
         ) : null}
         <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}>
-          <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} className="size-4" />
+          <SignOutIcon className="size-4" />
           <FormattedMessage {...navUserMessages.logOut} />
         </DropdownMenuItem>
       </DropdownMenuContent>

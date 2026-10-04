@@ -14,8 +14,7 @@
  */
 import type { ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -66,6 +65,7 @@ import {
   type NavigationItem,
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
+import { createElement } from "react";
 
 const inboxNotificationsApi = createInboxNotificationsApi(apiClient);
 
@@ -243,7 +243,7 @@ function ProjectNavigation({
                 tooltip={allProjectsLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 <span>
                   <FormattedMessage {...appShellNavigationMessages.allProjects} />
                 </span>
@@ -390,7 +390,7 @@ function ResourceScopedNavigation({
                 tooltip={backLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 <span>{backLabel}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -458,7 +458,7 @@ function HyperlabNavigation({
                 tooltip={workspaceLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <ArrowLeftIcon className="size-4" />
                 <span>
                   <FormattedMessage {...appShellNavigationMessages.workspace} />
                 </span>
@@ -496,11 +496,7 @@ function LabeledNavigationSection({
       <SidebarGroup className="p-0">
         <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase outline-hidden transition-[margin,opacity,color] duration-200 hover:text-sidebar-foreground focus-visible:text-sidebar-foreground group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            strokeWidth={1.8}
-            className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180"
-          />
+          <CaretDownIcon className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180" />
         </CollapsibleTrigger>
         <CollapsibleContent hiddenUntilFound>{children}</CollapsibleContent>
       </SidebarGroup>
@@ -585,7 +581,7 @@ function NavigationGroupItems({
                 tooltip={tooltip}
                 className={navigationButtonClass(!item.disabled && isActive)}
               >
-                <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
+                {createElement(item.icon, { className: "size-4" })}
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {badge && !dynamicBadge ? (
                   <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { HistoryIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ClockCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -69,7 +68,7 @@ export function ContentEditorActivityLogButton({
         title={intl.formatMessage(messages.openAria)}
         onClick={() => setOpen(true)}
       >
-        <HugeiconsIcon icon={HistoryIcon} className="size-4" />
+        <ClockCounterClockwiseIcon className="size-4" />
       </Button>
 
       <ContentEditorActivityLogDialog

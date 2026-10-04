@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -247,7 +246,7 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />}
+            {children ?? <ArrowLeftIcon size={14} />}
           </Button>
         }
       />
@@ -278,7 +277,7 @@ export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps
             variant="ghost"
             {...props}
           >
-            {children ?? <HugeiconsIcon icon={ArrowRight01Icon} size={14} />}
+            {children ?? <ArrowRightIcon size={14} />}
           </Button>
         }
       />

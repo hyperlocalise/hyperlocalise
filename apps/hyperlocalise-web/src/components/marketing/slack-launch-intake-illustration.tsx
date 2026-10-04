@@ -16,17 +16,16 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import {
-  Cancel01Icon,
-  Home06Icon,
-  BubbleChatIcon,
-  RefreshIcon,
-  SearchIcon,
-  SentIcon,
-  Notification01Icon,
-  File01Icon,
-  MoreHorizontalIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  XIcon,
+  HouseIcon,
+  ChatCircleIcon,
+  ArrowClockwiseIcon,
+  MagnifyingGlassIcon,
+  PaperPlaneTiltIcon,
+  BellIcon,
+  FileIcon,
+  DotsThreeIcon,
+} from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -197,7 +196,7 @@ function ThreadComposer({
             onClick={onReset}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.72rem] text-muted-foreground transition-colors hover:bg-muted/40"
           >
-            <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} className="size-3.5" />
+            <ArrowClockwiseIcon className="size-3.5" />
             Replay
           </button>
         </div>
@@ -209,16 +208,12 @@ function ThreadComposer({
           className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
         >
           <span className="flex-1">{followUpPrompt}</span>
-          <HugeiconsIcon
-            icon={SentIcon}
-            strokeWidth={1.8}
-            className="size-4 shrink-0 opacity-50 text-muted-foreground"
-          />
+          <PaperPlaneTiltIcon className="size-4 shrink-0 opacity-50 text-muted-foreground" />
         </button>
       ) : (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
           <span className="flex-1">Reply in thread...</span>
-          <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-4 shrink-0 opacity-50" />
+          <PaperPlaneTiltIcon className="size-4 shrink-0 opacity-50" />
         </div>
       )}
     </div>
@@ -321,7 +316,7 @@ export function SlackLaunchIntakeIllustration({
           <TypographySmall className="text-[0.72rem]" tone="subtle">
             <FormattedMessage {...slackLaunchIntakeIllustrationMessages.memberCount} />
           </TypographySmall>
-          <HugeiconsIcon icon={SearchIcon} strokeWidth={1.8} className="size-4" />
+          <MagnifyingGlassIcon className="size-4" />
         </div>
       </header>
 
@@ -369,11 +364,7 @@ export function SlackLaunchIntakeIllustration({
             className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
           >
             <span className="flex-1">{initialPrompt}</span>
-            <HugeiconsIcon
-              icon={SentIcon}
-              strokeWidth={1.8}
-              className="size-4 shrink-0 opacity-50 text-muted-foreground"
-            />
+            <PaperPlaneTiltIcon className="size-4 shrink-0 opacity-50 text-muted-foreground" />
           </button>
         ) : (
           <div className="space-y-2">
@@ -384,7 +375,7 @@ export function SlackLaunchIntakeIllustration({
                   onClick={handleReset}
                   className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.72rem] text-muted-foreground transition-colors hover:bg-muted/40"
                 >
-                  <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} className="size-3.5" />
+                  <ArrowClockwiseIcon className="size-3.5" />
                   Replay
                 </button>
               </div>
@@ -393,11 +384,7 @@ export function SlackLaunchIntakeIllustration({
               <span className="flex-1">
                 <FormattedMessage {...slackLaunchIntakeIllustrationMessages.composerPlaceholder} />
               </span>
-              <HugeiconsIcon
-                icon={SentIcon}
-                strokeWidth={1.8}
-                className="size-4 shrink-0 opacity-50"
-              />
+              <PaperPlaneTiltIcon className="size-4 shrink-0 opacity-50" />
             </div>
           </div>
         )}
@@ -433,7 +420,7 @@ export function SlackLaunchIntakeIllustration({
               className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted/40"
               aria-label={intl.formatMessage(slackLaunchIntakeIllustrationMessages.closeThreadAria)}
             >
-              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={1.8} className="size-4" />
+              <XIcon className="size-4" />
             </button>
           </header>
 
@@ -574,31 +561,19 @@ export function SlackLaunchIntakeIllustration({
             />
           </div>
           <div className="mt-1 flex size-9 items-center justify-center rounded-xl bg-white/10 ring-2 ring-white/70">
-            <HugeiconsIcon icon={Home06Icon} strokeWidth={1.8} className="size-5 text-white" />
+            <HouseIcon className="size-5 text-white" />
           </div>
           <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
-            <HugeiconsIcon
-              icon={BubbleChatIcon}
-              strokeWidth={1.8}
-              className="size-5 text-white/60"
-            />
+            <ChatCircleIcon className="size-5 text-white/60" />
           </div>
           <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
-            <HugeiconsIcon
-              icon={Notification01Icon}
-              strokeWidth={1.8}
-              className="size-5 text-white/60"
-            />
+            <BellIcon className="size-5 text-white/60" />
           </div>
           <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
-            <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-5 text-white/60" />
+            <FileIcon className="size-5 text-white/60" />
           </div>
           <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
-            <HugeiconsIcon
-              icon={MoreHorizontalIcon}
-              strokeWidth={1.8}
-              className="size-5 text-white/60"
-            />
+            <DotsThreeIcon className="size-5 text-white/60" />
           </div>
         </div>
 

@@ -14,8 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { GitBranchIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { GitBranchIcon, ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { siGithub } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
@@ -430,7 +429,7 @@ export function GitHubIntegrationRow({
               disabled={syncRepositories.isPending}
               title={intl.formatMessage(githubIntegrationRowMessages.refreshRepoListTitle)}
             >
-              <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} className="size-4" />
+              <ArrowClockwiseIcon className="size-4" />
               {syncRepositories.isPending ? (
                 <FormattedMessage {...githubIntegrationRowMessages.refreshingRepoList} />
               ) : (
@@ -458,11 +457,7 @@ export function GitHubIntegrationRow({
           <Rows spacing="1.5u">
             <div className="flex flex-col gap-2 md:flex-row">
               <div className="relative min-w-0 flex-1">
-                <HugeiconsIcon
-                  icon={Search01Icon}
-                  strokeWidth={1.8}
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                />
+                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -572,7 +567,7 @@ export function GitHubIntegrationRow({
                         </div>
                       </div>
                       <div className="flex min-w-0 items-center gap-2 px-4 text-muted-foreground">
-                        <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                        <GitBranchIcon className="size-4" />
                         <span className="truncate">
                           {repository.defaultBranch ??
                             intl.formatMessage(githubIntegrationRowMessages.defaultBranchFallback)}

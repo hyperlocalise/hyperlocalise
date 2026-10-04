@@ -13,14 +13,13 @@
  * Version 2.0 or later.
  */
 import {
-  Copy01Icon,
+  CopyIcon,
   EraserIcon,
-  Image01Icon,
-  SaveIcon,
+  ImageIcon,
+  FloppyDiskIcon,
   TranslateIcon,
-  Video01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  VideoIcon,
+} from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { useMemo, useState, type ReactNode } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -272,7 +271,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
         onClick={() => onTreatAsImage?.(!treatAsImage)}
         title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsImageTitle)}
       >
-        <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
+        <ImageIcon className="size-3" aria-hidden />
         <FormattedMessage
           {...(treatAsImage
             ? contentEditorEditorPanelMessages.treatAsText
@@ -290,7 +289,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
         onClick={() => onTreatAsVideo?.(!treatAsVideo)}
         title={intl.formatMessage(contentEditorEditorPanelMessages.treatAsVideoTitle)}
       >
-        <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
+        <VideoIcon className="size-3" aria-hidden />
         <FormattedMessage
           {...(treatAsVideo
             ? contentEditorEditorPanelMessages.treatAsText
@@ -311,14 +310,14 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           disabled={isTargetLoading}
           onClick={() => onTargetChange(segment.sourceText)}
         >
-          <HugeiconsIcon icon={Copy01Icon} className="size-4" aria-hidden />
+          <CopyIcon className="size-4" aria-hidden />
         </IconActionButton>
         <IconActionButton
           label={clearTargetLabel}
           disabled={isTargetLoading || segment.targetText.length === 0}
           onClick={() => onTargetChange("")}
         >
-          <HugeiconsIcon icon={EraserIcon} className="size-4" aria-hidden />
+          <EraserIcon className="size-4" aria-hidden />
         </IconActionButton>
       </div>
     </TooltipProvider>
@@ -373,11 +372,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           onClick={onSaveDraft}
           disabled={!canTriggerApprove}
         >
-          {isSavingDraft ? (
-            <Spinner className="size-3" />
-          ) : (
-            <HugeiconsIcon icon={SaveIcon} className="size-3.5" strokeWidth={2} />
-          )}
+          {isSavingDraft ? <Spinner className="size-3" /> : <FloppyDiskIcon className="size-3.5" />}
           <FormattedMessage {...contentEditorEditorPanelMessages.draftAction} />
         </Button>
       ) : null}
@@ -604,7 +599,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     />
                   ) : (
                     <Row spacing="1u" alignY="center">
-                      <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
+                      <VideoIcon className="size-4" aria-hidden />
                       <Text size="small" tone="subtle">
                         <FormattedMessage
                           {...contentEditorSideBySidePanelMessages.clickToLocalizeVideo}
@@ -632,7 +627,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     />
                   ) : (
                     <Row spacing="1u" alignY="center">
-                      <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
+                      <ImageIcon className="size-4" aria-hidden />
                       <Text size="small" tone="subtle">
                         <FormattedMessage
                           {...contentEditorSideBySidePanelMessages.clickToLocalizeImage}
@@ -656,7 +651,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                 ) : (
                   <div className={cn(CELL_BOX_CLASS_NAME, "border-dashed")}>
                     <Row spacing="1u" alignY="center">
-                      <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
+                      <TranslateIcon className="size-4" aria-hidden />
                       <Text size="small" tone="subtle">
                         <FormattedMessage
                           defaultMessage="Click to translate"

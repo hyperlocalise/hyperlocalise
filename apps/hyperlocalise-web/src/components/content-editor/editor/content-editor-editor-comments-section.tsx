@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Message01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatTextIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -315,7 +314,7 @@ export function ContentEditorEditorCommentsSection({
             onClick={onOpenIssueSheet}
             disabled={isPostingComment || isResolvingComment}
           >
-            <HugeiconsIcon icon={Message01Icon} className="size-4" strokeWidth={2} />
+            <ChatTextIcon className="size-4" />
             <FormattedMessage {...contentEditorEditorPanelMessages.addToIssueSheet} />
           </Button>
         ) : (

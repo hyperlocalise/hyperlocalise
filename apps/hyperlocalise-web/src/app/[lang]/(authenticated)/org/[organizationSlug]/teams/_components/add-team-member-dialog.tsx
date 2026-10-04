@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { TeamRole } from "@/lib/teams/team.schema";
@@ -183,7 +182,7 @@ export function AddTeamMemberDialog({
               <FormattedMessage {...addTeamMemberDialogMessages.cancel} />
             </Button>
             <Button type="submit" disabled={isSaving || assignableMembers.length === 0}>
-              {isSaving ? <Spinner /> : <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />}
+              {isSaving ? <Spinner /> : <PlusIcon />}
               {isSaving ? (
                 <FormattedMessage {...addTeamMemberDialogMessages.adding} />
               ) : (

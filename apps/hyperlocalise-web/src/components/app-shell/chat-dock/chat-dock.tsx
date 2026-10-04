@@ -14,8 +14,7 @@
  */
 import { useEffect, useLayoutEffect } from "react";
 import { observer } from "mobx-react-lite";
-import { Chat01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -171,7 +170,7 @@ export const ChatDockFooterControls = observer(function ChatDockFooterControls({
           aria-label={intl.formatMessage(chatDockMessages.newChat)}
           onClick={() => chatDock.openNewTab()}
         >
-          <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} data-icon="inline-start" />
+          <ChatCircleIcon data-icon="inline-start" />
           <FormattedMessage {...chatDockMessages.newChat} />
         </Button>
       </AiFeatureAction>

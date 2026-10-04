@@ -14,8 +14,7 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock01Icon, GitPullRequestIcon, Rocket01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ClockIcon, GitPullRequestIcon, RocketLaunchIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -191,7 +190,7 @@ export function AutomationsMockUI({
       id: "gtm-publishing",
       title: intl.formatMessage(automationsMockMessages.useCaseGtmPublishingTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseGtmPublishingDescription),
-      triggerIcon: <HugeiconsIcon icon={Rocket01Icon} strokeWidth={1.8} className="size-3" />,
+      triggerIcon: <RocketLaunchIcon className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerGtmBriefApproved),
       tools: [
         intl.formatMessage(automationsMockMessages.toolCms),
@@ -209,7 +208,7 @@ export function AutomationsMockUI({
       id: AUTOMATIONS_MOCK_AUTO_REVIEW_ID,
       title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseAutoReviewDescription),
-      triggerIcon: <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />,
+      triggerIcon: <GitPullRequestIcon className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubPullRequest),
       tools: [
         intl.formatMessage(automationsMockMessages.toolGitHub),
@@ -226,7 +225,7 @@ export function AutomationsMockUI({
       id: "keyword-research",
       title: intl.formatMessage(automationsMockMessages.useCaseKeywordResearchTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseKeywordResearchDescription),
-      triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3" />,
+      triggerIcon: <ClockIcon className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerKeywordResearchSchedule),
       tools: [
         intl.formatMessage(automationsMockMessages.toolSearch),

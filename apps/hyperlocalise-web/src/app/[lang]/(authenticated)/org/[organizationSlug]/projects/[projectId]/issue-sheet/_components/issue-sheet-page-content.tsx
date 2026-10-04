@@ -12,8 +12,7 @@
  */
 "use client";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Copy01Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CopyIcon, PlusIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
@@ -179,7 +178,7 @@ export function IssueSheetPageContent({
     <ProjectPageShell>
       <div className="space-y-6">
         <ProjectSectionHeader
-          icon={Copy01Icon}
+          icon={CopyIcon}
           section={intl.formatMessage(messages.sectionTitle)}
           actions={
             <div className="flex flex-wrap gap-2">
@@ -192,11 +191,11 @@ export function IssueSheetPageContent({
                 }}
               />
               <Button variant="ghost" size="sm" onClick={() => setColumnDialogOpen(true)}>
-                <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+                <PlusIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.column} />
               </Button>
               <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-                <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
+                <PlusIcon data-icon="inline-start" />
                 <FormattedMessage {...messages.issue} />
               </Button>
             </div>

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Download01Icon, File01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadSimpleIcon, FileIcon } from "@phosphor-icons/react";
 import type {
   DynamicToolUIPart,
   ReasoningUIPart,
@@ -302,9 +301,9 @@ function MessageAttachments({
             fileLinkClassName,
           )}
         >
-          <HugeiconsIcon icon={File01Icon} className={cn("size-4 shrink-0", iconClassName)} />
+          <FileIcon className={cn("size-4 shrink-0", iconClassName)} />
           <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-          <HugeiconsIcon icon={Download01Icon} className={cn("size-4 shrink-0", iconClassName)} />
+          <DownloadSimpleIcon className={cn("size-4 shrink-0", iconClassName)} />
         </a>
       ))}
     </div>

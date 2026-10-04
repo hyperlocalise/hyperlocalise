@@ -14,8 +14,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/core";
-import { SparklesIcon, TranslateIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { SparkleIcon, TranslateIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
@@ -160,7 +159,7 @@ export function MarkdownSelectionAi({
           <Button variant="ghost" size="sm" onMouseDown={(event) => event.preventDefault()} />
         }
       >
-        <HugeiconsIcon icon={SparklesIcon} data-icon="inline-start" aria-hidden />
+        <SparkleIcon data-icon="inline-start" aria-hidden />
         {intl.formatMessage(messages.ask)}
       </PopoverTrigger>
       <PopoverContent
@@ -182,11 +181,11 @@ export function MarkdownSelectionAi({
                 className="h-9 w-full justify-start gap-2"
                 onClick={() => void ask(item)}
               >
-                <HugeiconsIcon
-                  icon={item.key === "retranslate" ? TranslateIcon : SparklesIcon}
-                  data-icon="inline-start"
-                  aria-hidden
-                />
+                {item.key === "retranslate" ? (
+                  <TranslateIcon data-icon="inline-start" aria-hidden />
+                ) : (
+                  <SparkleIcon data-icon="inline-start" aria-hidden />
+                )}
                 {intl.formatMessage(messages[item.key])}
               </Button>
             ))}

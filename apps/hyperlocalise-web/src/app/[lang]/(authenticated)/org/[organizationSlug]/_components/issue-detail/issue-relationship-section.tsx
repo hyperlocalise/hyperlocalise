@@ -15,8 +15,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Delete02Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { TrashIcon, ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -89,7 +88,7 @@ function RelationshipRow({
         className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
         onClick={onRemove}
       >
-        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} className="size-3.5" />
+        <TrashIcon className="size-3.5" />
       </Button>
     </div>
   );
@@ -139,11 +138,7 @@ export function IssueRelationshipSection({
           weight="medium"
           tone="content"
         >
-          <HugeiconsIcon
-            icon={LinkSquare02Icon}
-            strokeWidth={1.8}
-            className="size-3.5 text-muted-foreground"
-          />
+          <ArrowSquareOutIcon className="size-3.5 text-muted-foreground" />
           <FormattedMessage {...messages.heading} />
         </TypographyP>
         <IssueRelationshipPicker

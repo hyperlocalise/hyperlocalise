@@ -14,8 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { Add01Icon, FlashIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, LightningIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
@@ -258,7 +257,7 @@ export function AutomationsPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={FlashIcon}
+        icon={LightningIcon}
         label={intl.formatMessage(
           projectId
             ? automationsPageViewMessages.pageLabelProject
@@ -287,7 +286,7 @@ export function AutomationsPageView({
               kind: "header",
               children: (
                 <>
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+                  <PlusIcon />
                   <FormattedMessage {...automationsPageViewMessages.newAutomation} />
                 </>
               ),

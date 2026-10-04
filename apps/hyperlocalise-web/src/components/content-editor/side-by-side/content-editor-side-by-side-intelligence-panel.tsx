@@ -14,8 +14,7 @@
  */
 import { observer } from "mobx-react-lite";
 import { useState } from "react";
-import { Cancel01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { XIcon } from "@phosphor-icons/react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -273,7 +272,7 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
               aria-label={intl.formatMessage(contentEditorWorkspaceViewMessages.hideDetailsPanel)}
               onClick={() => workspace.ui.setDetailsPanelCollapsed(true)}
             >
-              <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+              <XIcon className="size-4" />
             </Button>
           </div>
 

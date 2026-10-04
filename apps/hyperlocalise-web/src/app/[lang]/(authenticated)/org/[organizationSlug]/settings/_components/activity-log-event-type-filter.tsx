@@ -12,22 +12,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import {
   BookOpenTextIcon,
-  Building06Icon,
-  Cancel01Icon,
+  BuildingOfficeIcon,
+  XIcon,
   DatabaseIcon,
-  File01Icon,
-  FilterIcon,
-  FolderLibraryIcon,
-  Key01Icon,
-  PuzzleIcon,
-  TextFontIcon,
-  UserGroup02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  FileIcon,
+  FunnelIcon,
+  FoldersIcon,
+  KeyIcon,
+  PuzzlePieceIcon,
+  TextTIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 
 import {
   IMPLEMENTED_ACTIVITY_EVENT_TYPES,
@@ -57,29 +56,33 @@ import { activityLogsPageContentMessages as messages } from "./activity-logs-pag
 
 type EventTypeGroup = {
   eventTypes: readonly ImplementedActivityEventType[];
-  icon: typeof UserGroup02Icon;
+  icon: typeof UsersThreeIcon;
   label: MessageDescriptor;
 };
 
 const eventTypeGroups: readonly EventTypeGroup[] = [
   {
-    icon: UserGroup02Icon,
+    icon: UsersThreeIcon,
     label: messages.membershipEventGroup,
     eventTypes: ["member_invited", "member_invite_resent", "member_role_changed", "member_removed"],
   },
-  { icon: Building06Icon, label: messages.workspaceEventGroup, eventTypes: ["workspace_updated"] },
   {
-    icon: Key01Icon,
+    icon: BuildingOfficeIcon,
+    label: messages.workspaceEventGroup,
+    eventTypes: ["workspace_updated"],
+  },
+  {
+    icon: KeyIcon,
     label: messages.accessEventGroup,
     eventTypes: ["personal_access_token_created", "personal_access_token_revoked"],
   },
   {
-    icon: PuzzleIcon,
+    icon: PuzzlePieceIcon,
     label: messages.integrationEventGroup,
     eventTypes: ["integration_connected", "integration_disconnected"],
   },
   {
-    icon: FolderLibraryIcon,
+    icon: FoldersIcon,
     label: messages.projectEventGroup,
     eventTypes: ["project_created", "project_deleted", "project_settings_changed"],
   },
@@ -114,17 +117,17 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     eventTypes: ["job_created", "job_cancelled", "job_failed"],
   },
   {
-    icon: PuzzleIcon,
+    icon: PuzzlePieceIcon,
     label: messages.automationEventGroup,
     eventTypes: ["automation_run_started", "automation_enabled", "automation_disabled"],
   },
   {
-    icon: File01Icon,
+    icon: FileIcon,
     label: messages.fileEventGroup,
     eventTypes: ["file_uploaded", "file_translations_imported"],
   },
   {
-    icon: TextFontIcon,
+    icon: TextTIcon,
     label: messages.stringSegmentEventGroup,
     eventTypes: [
       "string_segment_translation_updated",
@@ -223,7 +226,7 @@ export function ActivityLogEventTypeFilter({
           }
         >
           <span className="flex min-w-0 items-center gap-2">
-            <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5 shrink-0" />
+            <FunnelIcon className="size-3.5 shrink-0" />
             <span className="truncate">
               {value.length === 0 ? (
                 <FormattedMessage {...messages.allEventTypes} />
@@ -244,7 +247,7 @@ export function ActivityLogEventTypeFilter({
         <PopoverContent align="start" className="w-[min(24rem,calc(100vw-2rem))] gap-3 p-2">
           <PopoverHeader className="flex-row items-center justify-between px-2 pt-1">
             <PopoverTitle className="flex items-center gap-2 text-sm font-medium">
-              <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5 text-primary" />
+              <FunnelIcon className="size-3.5 text-primary" />
               <FormattedMessage {...messages.eventTypePickerTitle} />
             </PopoverTitle>
             <div className="flex items-center gap-1">
@@ -279,11 +282,7 @@ export function ActivityLogEventTypeFilter({
                   key={group.label.id}
                   heading={
                     <span className="flex items-center gap-2">
-                      <HugeiconsIcon
-                        icon={group.icon}
-                        strokeWidth={1.8}
-                        className="size-3.5 text-muted-foreground"
-                      />
+                      {createElement(group.icon, { className: "size-3.5 text-muted-foreground" })}
                       <span>{intl.formatMessage(group.label)}</span>
                     </span>
                   }
@@ -326,7 +325,7 @@ export function ActivityLogEventTypeFilter({
                   aria-label={intl.formatMessage(messages.removeEventType, { eventType: label })}
                   onClick={() => toggleEventType(eventType)}
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                  <XIcon />
                 </Button>
               </Badge>
             );

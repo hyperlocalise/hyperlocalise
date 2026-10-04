@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
-import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { createElement, useState, type ReactNode } from "react";
+import { CaretDownIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -124,11 +123,9 @@ export function WorkspaceGroupedTable<T>({
                 <span className="font-normal tabular-nums text-muted-foreground">
                   {group.count}
                 </span>
-                <HugeiconsIcon
-                  icon={isCollapsed ? ArrowRight01Icon : ArrowDown01Icon}
-                  strokeWidth={2}
-                  className="ms-auto size-3.5 shrink-0 text-muted-foreground"
-                />
+                {createElement(isCollapsed ? ArrowRightIcon : CaretDownIcon, {
+                  className: "ms-auto size-3.5 shrink-0 text-muted-foreground",
+                })}
               </button>
               {group.headerActions ? (
                 <div className="min-w-0 px-3 pb-2.5 sm:max-w-sm sm:px-0 sm:pb-0 sm:pe-3">

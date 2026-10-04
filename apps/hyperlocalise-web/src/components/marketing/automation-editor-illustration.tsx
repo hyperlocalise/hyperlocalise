@@ -14,13 +14,7 @@
  */
 import type { ReactNode } from "react";
 
-import {
-  BrainCircuitIcon,
-  Clock01Icon,
-  PlusSignIcon,
-  SecurityCheckIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { BrainIcon, ClockIcon, PlusIcon, ShieldCheckIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
@@ -106,7 +100,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
         >
           <MockPanel>
             <MockRow
-              icon={<HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-4" />}
+              icon={<ClockIcon className="size-4" />}
               title={
                 <FormattedMessage {...automationEditorIllustrationMessages.scheduledTrigger} />
               }
@@ -139,7 +133,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
         >
           <MockPanel>
             <MockRow
-              icon={<HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />}
+              icon={<BrainIcon className="size-4" />}
               title={<FormattedMessage {...automationEditorIllustrationMessages.toolKnowledge} />}
               description={
                 <FormattedMessage
@@ -148,7 +142,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
               }
             />
             <MockRow
-              icon={<HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />}
+              icon={<ShieldCheckIcon className="size-4" />}
               title={<FormattedMessage {...automationEditorIllustrationMessages.toolValidation} />}
               description={
                 <FormattedMessage
@@ -177,7 +171,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
               }
             />
             <div className="flex items-center gap-2 px-3 py-2.5 text-[0.72rem] font-medium text-muted-foreground">
-              <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.8} className="size-3.5" />
+              <PlusIcon className="size-3.5" />
               <FormattedMessage {...automationEditorIllustrationMessages.addTool} />
             </div>
           </MockPanel>

@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Add01Icon, Database01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, DatabaseIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -207,7 +206,7 @@ export function TranslationMemoriesPageView({
   return (
     <WorkspacePageShell className="gap-6">
       <PageHeader
-        icon={Database01Icon}
+        icon={DatabaseIcon}
         label={intl.formatMessage(translationMemoriesPageViewMessages.pageLabel)}
         title={intl.formatMessage(translationMemoriesPageViewMessages.pageTitle)}
         actions={
@@ -220,7 +219,7 @@ export function TranslationMemoriesPageView({
                 onClick={onImportMemory}
                 className="w-full sm:w-fit"
               >
-                <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+                <UploadSimpleIcon />
                 <FormattedMessage {...translationMemoriesPageViewMessages.importMemory} />
               </Button>
               <Button
@@ -229,7 +228,7 @@ export function TranslationMemoriesPageView({
                 onClick={() => onCreateDialogOpenChange(true)}
                 className="w-full sm:w-fit"
               >
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                <PlusIcon />
                 <FormattedMessage {...translationMemoriesPageViewMessages.createMemory} />
               </Button>
             </div>
@@ -582,7 +581,7 @@ export function TranslationMemoriesPageView({
                   htmlFor="create-translation-memory-file-import"
                   className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-6 text-center transition-colors hover:bg-muted/40"
                 >
-                  <HugeiconsIcon icon={Upload01Icon} className="size-5" strokeWidth={1.8} />
+                  <UploadSimpleIcon className="size-5" />
                   <span className="text-sm font-medium text-foreground">
                     <FormattedMessage {...translationMemoriesPageViewMessages.selectImportFile} />
                   </span>

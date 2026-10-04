@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon, LayoutThreeColumnIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon, ColumnsIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { Fragment, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -237,15 +236,11 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
           />
         }
       >
-        <HugeiconsIcon icon={LayoutThreeColumnIcon} className="size-3.5" aria-hidden />
+        <ColumnsIcon className="size-3.5" aria-hidden />
         <span className="text-xs">
           <FormattedMessage {...messages.trigger} />
         </span>
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          className="size-3 text-muted-foreground"
-          aria-hidden
-        />
+        <CaretDownIcon className="size-3 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
         {sections.map((section, index) => (

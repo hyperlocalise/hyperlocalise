@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useId, useState } from "react";
-import { Key01Icon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { KeyIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -147,11 +146,7 @@ export function CrowdinUserPatConnectDialog({
             <FormattedMessage {...crowdinUserPatConnectDialogMessages.tokenHelp} />
           </FieldDescription>
           <div className="relative">
-            <HugeiconsIcon
-              icon={Key01Icon}
-              strokeWidth={1.8}
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            />
+            <KeyIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id={tokenFieldId}
               type={showToken ? "text" : "password"}
@@ -171,11 +166,7 @@ export function CrowdinUserPatConnectDialog({
                   : crowdinUserPatConnectDialogMessages.showToken,
               )}
             >
-              {showToken ? (
-                <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-              ) : (
-                <HugeiconsIcon icon={ViewIcon} size={16} />
-              )}
+              {showToken ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
             </button>
           </div>
         </Field>

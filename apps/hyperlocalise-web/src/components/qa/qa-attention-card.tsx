@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { useId } from "react";
-import { Alert02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { WarningIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import { buildOrganizationPath, buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -58,7 +57,7 @@ export function QaAttentionCardView({
       className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center"
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-        <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="size-4" />
+        <WarningIcon className="size-4" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <h2 id={titleId} className="text-sm font-medium text-foreground">

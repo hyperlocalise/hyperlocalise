@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRightIcon } from "@phosphor-icons/react";
 import type { MessageDescriptor } from "react-intl";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -63,7 +62,7 @@ export function FeatureTeaserCtaPanel({
           render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <FormattedMessage {...featureTeaserMessages.requestDemo} />
-          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+          <ArrowRightIcon data-icon="inline-end" className="size-4" />
         </Button>
         <Button variant="outline" nativeButton={false} render={<a href={mailtoHref} />}>
           <FormattedMessage {...featureTeaserMessages.contactSupport} />

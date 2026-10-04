@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { Edit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -83,7 +82,7 @@ export function ProviderJobDescriptionFieldView({
             setIsEditing(true);
           }}
         >
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+          <PencilSimpleIcon />
         </Button>
       </div>
     );

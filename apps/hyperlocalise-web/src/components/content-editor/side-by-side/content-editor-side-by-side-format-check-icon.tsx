@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Alert02Icon, AlertCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { useMemo } from "react";
+import { WarningIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { createElement, useMemo } from "react";
 import { useIntl } from "react-intl";
 
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
@@ -84,7 +83,7 @@ export function ContentEditorSideBySideFormatCheckIcon({
       : contentEditorSideBySidePanelMessages.formatCheckWarn,
     { count: actionableChecks.length },
   );
-  const icon = status === "fail" ? AlertCircleIcon : Alert02Icon;
+  const icon = status === "fail" ? WarningCircleIcon : WarningIcon;
 
   return (
     <Popover>
@@ -99,7 +98,7 @@ export function ContentEditorSideBySideFormatCheckIcon({
           className,
         )}
       >
-        <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
+        {createElement(icon, { className: "size-3.5", "aria-hidden": true })}
       </PopoverTrigger>
       <PopoverContent align="end" className="max-h-80 w-80 overflow-y-auto">
         <PopoverTitle className="sr-only">{label}</PopoverTitle>

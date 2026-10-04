@@ -14,8 +14,7 @@
  */
 import Image from "next/image";
 import Link from "next/link";
-import { Chat01Icon, DashboardSquare01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ChatCircleIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -463,12 +462,12 @@ export function DashboardPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={DashboardSquare01Icon}
+        icon={SquaresFourIcon}
         label={intl.formatMessage(dashboardPageViewMessages.pageLabel)}
         title={intl.formatMessage(dashboardPageViewMessages.pageTitle)}
         actions={
           <Button type="button" className="w-full sm:w-fit" onClick={onNewRequest}>
-            <HugeiconsIcon icon={Chat01Icon} strokeWidth={1.8} />
+            <ChatCircleIcon />
             <FormattedMessage {...dashboardPageViewMessages.newRequest} />
           </Button>
         }

@@ -15,12 +15,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
-  Add01Icon,
-  ArrowLeft01Icon,
-  MoreHorizontalCircle01Icon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  PlusIcon,
+  ArrowLeftIcon,
+  DotsThreeCircleIcon,
+  UsersThreeIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { TeamRole } from "@/lib/teams/team.schema";
@@ -143,7 +142,7 @@ function MemberRowActions({
           />
         }
       >
-        <HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={1.8} className="size-4" />
+        <DotsThreeCircleIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-48">
         {canUpdateRole ? (
@@ -346,12 +345,12 @@ export function TeamDetailPageView({
           size="sm"
           className="w-fit px-2 text-muted-foreground hover:text-foreground"
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} />
+          <ArrowLeftIcon />
           <FormattedMessage {...teamDetailPageViewMessages.backToTeams} />
         </Button>
 
         <PageHeader
-          icon={UserGroupIcon}
+          icon={UsersThreeIcon}
           label={intl.formatMessage(teamDetailPageViewMessages.pageLabel)}
           title={team?.name ?? intl.formatMessage(teamDetailPageViewMessages.pageTitleFallback)}
           actions={
@@ -402,7 +401,7 @@ export function TeamDetailPageView({
               className="w-full sm:w-fit"
               disabled={isAddingMember}
             >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <PlusIcon />
               <FormattedMessage {...teamDetailPageViewMessages.addMember} />
             </Button>
           ) : null}

@@ -13,17 +13,17 @@
  * Version 2.0 or later.
  */
 import {
-  Alert02Icon,
-  AlertCircleIcon,
-  CheckmarkCircle02Icon,
-  Infinity01Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+  WarningIcon,
+  WarningCircleIcon,
+  CheckCircleIcon,
+  InfinityIcon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorTargetEditorMessages } from "@/components/content-editor/shared/content-editor.messages";
+import { createElement } from "react";
 
 const NEAR_LIMIT_RATIO = 0.9;
 
@@ -60,10 +60,10 @@ const STATE_FILL_CLASS_NAME: Record<ContentEditorCharacterMeterState, string> = 
 };
 
 const STATE_ICON = {
-  none: Infinity01Icon,
-  within: CheckmarkCircle02Icon,
-  near: Alert02Icon,
-  over: AlertCircleIcon,
+  none: InfinityIcon,
+  within: CheckCircleIcon,
+  near: WarningIcon,
+  over: WarningCircleIcon,
 } as const;
 
 function CharacterMeterStatus({
@@ -85,12 +85,7 @@ function CharacterMeterStatus({
         className,
       )}
     >
-      <HugeiconsIcon
-        icon={STATE_ICON[state]}
-        className="size-3.5 shrink-0"
-        strokeWidth={2}
-        aria-hidden
-      />
+      {createElement(STATE_ICON[state], { className: "size-3.5 shrink-0", "aria-hidden": true })}
       {state === "over" && maxLength != null ? (
         <FormattedMessage
           {...contentEditorTargetEditorMessages.characterMeterOverLimit}

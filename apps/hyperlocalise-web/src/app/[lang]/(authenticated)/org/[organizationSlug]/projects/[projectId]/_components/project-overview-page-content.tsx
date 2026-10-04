@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Add01Icon, ArrowRight01Icon, LanguageCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { PlusIcon, ArrowRightIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
@@ -193,11 +192,7 @@ function ProjectOverviewTriageRow({
           <Column width="content">
             <span className="inline-flex w-24 shrink-0 items-center justify-end gap-1 pt-0.5 text-sm font-medium text-foreground">
               {cta}
-              <HugeiconsIcon
-                icon={ArrowRight01Icon}
-                strokeWidth={1.8}
-                className="size-4 transition-transform group-hover:translate-x-0.5"
-              />
+              <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
             </span>
           </Column>
         </Row>
@@ -375,7 +370,7 @@ export function ProjectOverviewPageContentView({
                     size="sm"
                     variant="outline"
                   >
-                    <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
+                    <TranslateIcon />
                     <FormattedMessage {...messages.openEditor} />
                   </Button>
                 ) : null}
@@ -388,7 +383,7 @@ export function ProjectOverviewPageContentView({
                   <FormattedMessage {...messages.viewFiles} />
                 </Button>
                 <Button type="button" size="sm" onClick={onCreateJob}>
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                  <PlusIcon />
                   <FormattedMessage {...messages.createJob} />
                 </Button>
               </Row>
@@ -461,11 +456,7 @@ export function ProjectOverviewPageContentView({
                               className="inline-flex w-fit items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                             >
                               <FormattedMessage {...messages.viewAllJobs} />
-                              <HugeiconsIcon
-                                icon={ArrowRight01Icon}
-                                strokeWidth={1.8}
-                                className="size-4"
-                              />
+                              <ArrowRightIcon className="size-4" />
                             </Link>
                           </Box>
                         </>

@@ -14,8 +14,7 @@
  */
 import Link from "next/link";
 import { observer } from "mobx-react-lite";
-import { ArrowLeft01Icon, SidebarLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeftIcon, SidebarIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
 
 import {
@@ -56,7 +55,7 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
           className="size-8 shrink-0"
           render={<Link href={backHref} />}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+          <ArrowLeftIcon className="size-4" />
         </Button>
 
         {showChromeShortcuts && page.showFileSidebar ? (
@@ -73,11 +72,7 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
             )}
             onClick={() => ui.toggleFilesPanel()}
           >
-            <HugeiconsIcon
-              icon={SidebarLeft01Icon}
-              className="size-4 text-foreground"
-              strokeWidth={2}
-            />
+            <SidebarIcon className="size-4 text-foreground" />
           </Button>
         ) : null}
 

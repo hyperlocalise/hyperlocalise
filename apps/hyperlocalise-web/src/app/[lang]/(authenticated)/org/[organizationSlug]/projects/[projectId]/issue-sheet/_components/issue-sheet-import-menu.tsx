@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -50,7 +49,7 @@ export function IssueSheetImportMenu({
         render={<Button type="button" variant={variant} size={size} disabled={disabled} />}
       >
         <FormattedMessage {...messages.import} />
-        <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" strokeWidth={2} />
+        <CaretDownIcon className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-36">
         {importFormats.map((item) => (

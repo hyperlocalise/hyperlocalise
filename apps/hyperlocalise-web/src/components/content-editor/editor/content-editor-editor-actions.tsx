@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SaveIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -71,11 +70,7 @@ export function ContentEditorEditorActions({
           onClick={onSaveDraft}
           disabled={!canTriggerApprove}
         >
-          {isSavingDraft ? (
-            <Spinner className="size-4" />
-          ) : (
-            <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
-          )}
+          {isSavingDraft ? <Spinner className="size-4" /> : <FloppyDiskIcon className="size-4" />}
           <FormattedMessage {...contentEditorEditorPanelMessages.saveAsDraft} />
         </Button>
       ) : null}
