@@ -132,9 +132,14 @@ export const Failed: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Retry scan" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "View last completed scan" })).toBeEnabled();
-    await expect(canvas.queryByRole("button", { name: "Run QA check" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "View last completed scan" }));
+    await expect(canvas.getByText(/Viewing an older scan/)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "View latest scan" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Run QA check" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("tab", { name: "History" }));
     await expect(canvas.getByRole("button", { name: "View failure" })).toBeInTheDocument();
+    await expect(canvas.getByText("A member")).toBeInTheDocument();
   },
 };
 
@@ -256,8 +261,8 @@ export const History: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "History" }));
-    await expect(canvas.getByText("Manual")).toBeInTheDocument();
-    await expect(canvas.getByText("Scheduled")).toBeInTheDocument();
+    await expect(canvas.getByText("A member")).toBeInTheDocument();
+    await expect(canvas.getByText("Daily schedule")).toBeInTheDocument();
     await userEvent.click(canvas.getAllByRole("button", { name: "Findings" })[1]!);
     await expect(await canvas.findByText(/Viewing an older scan/)).toBeInTheDocument();
     await expect(canvas.getByText("billing.invoice.empty")).toBeInTheDocument();
