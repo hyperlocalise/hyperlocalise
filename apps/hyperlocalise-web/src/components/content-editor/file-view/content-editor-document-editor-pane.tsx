@@ -40,6 +40,7 @@ import {
   type DocumentAssistantFocus,
 } from "@/components/document-editor/document-editor-assistant-panel";
 import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
+import { glossaryEntryFromTargetSelection } from "@/components/document-editor/document-editor-glossary";
 import {
   peekDocumentAutosaveDraft,
   useDocumentAutosave,
@@ -159,7 +160,10 @@ export function ContentEditorDocumentEditorPane({
   const [editor, setEditor] = useState<Editor | null>(null);
   const [focusedBlock, setFocusedBlock] = useState<number | null>(null);
   const [pendingSuggestionCount, setPendingSuggestionCount] = useState(0);
-  const [glossaryTerm, setGlossaryTerm] = useState<string | null>(null);
+  const [glossaryEntry, setGlossaryEntry] = useState<{
+    sourceTerm: string;
+    targetTerm: string;
+  } | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [concordanceSeed, setConcordanceSeed] = useState<{ query: string; nonce: number } | null>(
     null,
@@ -629,7 +633,12 @@ export function ContentEditorDocumentEditorPane({
                 onFocusedBlockChange={setFocusedBlock}
                 onTranslateBlock={canTranslate ? translateBlock : undefined}
                 onAddToGlossary={
-                  editable && assistant?.glossary ? (text) => setGlossaryTerm(text) : undefined
+                  editable && assistant?.glossary && editor
+                    ? (text) =>
+                        setGlossaryEntry(
+                          glossaryEntryFromTargetSelection(editor, sourceBlocks, text),
+                        )
+                    : undefined
                 }
                 selectionAi={selectionAi}
                 flaggedBlocks={flaggedBlocks}
@@ -665,11 +674,11 @@ export function ContentEditorDocumentEditorPane({
           </aside>
         </>
       ) : null}
-      {assistant?.glossary && glossaryTerm !== null ? (
+      {assistant?.glossary && glossaryEntry ? (
         <Dialog
           open
           onOpenChange={(open) => {
-            if (!open) setGlossaryTerm(null);
+            if (!open) setGlossaryEntry(null);
           }}
         >
           <DialogContent className="sm:max-w-lg">
@@ -677,19 +686,19 @@ export function ContentEditorDocumentEditorPane({
               <DialogTitle>{intl.formatMessage(messages.addToGlossary)}</DialogTitle>
             </DialogHeader>
             <ContentEditorAddToGlossary
-              key={glossaryTerm}
+              key={`${glossaryEntry.sourceTerm}\n${glossaryEntry.targetTerm}`}
               organizationSlug={assistant.glossary.organizationSlug}
               projectId={assistant.glossary.projectId}
               teamId={assistant.glossary.teamId}
               teamName={assistant.glossary.teamName}
               sourceLocale={sourceLocale}
               targetLocale={targetLocale}
-              sourceTerm={glossaryTerm}
-              targetTerm={glossaryTerm}
+              sourceTerm={glossaryEntry.sourceTerm}
+              targetTerm={glossaryEntry.targetTerm}
               teamGlossaries={assistant.glossary.teamGlossaries}
               canContribute={assistant.glossary.canContribute}
               showTitle={false}
-              onAdded={() => setGlossaryTerm(null)}
+              onAdded={() => setGlossaryEntry(null)}
             />
           </DialogContent>
         </Dialog>

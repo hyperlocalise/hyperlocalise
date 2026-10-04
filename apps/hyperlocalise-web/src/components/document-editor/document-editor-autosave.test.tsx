@@ -115,4 +115,59 @@ describe("useDocumentAutosave", () => {
     expect(abandoned).toHaveBeenCalledTimes(1);
     expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "ab", failed: true });
   });
+
+  it("clears a draft only after that snapshot is saved", async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(
+      ({ value }: { value: string }) =>
+        useDocumentAutosave({
+          id: "doc-1",
+          value,
+          baseline: "a",
+          save,
+          delayMs: DELAY,
+        }),
+      { initialProps: { value: "a" } },
+    );
+
+    rerender({ value: "ab" });
+    expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "ab", failed: false });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY));
+    expect(peekDocumentAutosaveDraft("doc-1")).toBeUndefined();
+  });
+
+  it("keeps a newer failed draft when an older in-flight save succeeds after leaving", async () => {
+    let finishOlder: () => void = () => {};
+    const save = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (finishOlder = resolve)))
+      .mockRejectedValue(new Error("offline"));
+    const { rerender, unmount } = renderHook(
+      ({ value }: { value: string }) =>
+        useDocumentAutosave({
+          id: "doc-1",
+          value,
+          baseline: "a",
+          save,
+          delayMs: DELAY,
+        }),
+      { initialProps: { value: "a" } },
+    );
+
+    rerender({ value: "ab" });
+    await act(() => vi.advanceTimersByTimeAsync(DELAY));
+    rerender({ value: "abc" });
+    unmount();
+    await act(() => Promise.resolve());
+    await act(() => Promise.resolve());
+    expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "abc", failed: true });
+
+    await act(async () => {
+      finishOlder();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(peekDocumentAutosaveDraft("doc-1")).toEqual({ value: "abc", failed: true });
+  });
 });

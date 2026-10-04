@@ -38,6 +38,13 @@ function rememberDocumentAutosaveDraft(id: string | undefined, draft: DocumentAu
   documentAutosaveDrafts.set(id, draft);
 }
 
+/** Drop a draft only when this save stored that same snapshot. */
+function forgetSavedDocumentAutosaveDraft(id: string | undefined, saved: string) {
+  if (id && peekDocumentAutosaveDraft(id)?.value === saved) {
+    forgetDocumentAutosaveDraft(id);
+  }
+}
+
 /**
  * Saves `value` after it stops changing, one save at a time. Edits made while
  * a save is running queue exactly one follow-up save of the latest value.
@@ -127,7 +134,7 @@ export function useDocumentAutosave({
     try {
       await saveRef.current(next);
       savedValueRef.current = next;
-      if (idRef.current) forgetDocumentAutosaveDraft(idRef.current);
+      forgetSavedDocumentAutosaveDraft(idRef.current, next);
       setStatus(
         latestValueRef.current === next ? { kind: "saved", at: Date.now() } : { kind: "dirty" },
       );
@@ -193,9 +200,7 @@ export function useDocumentAutosave({
       void saveRef
         .current(next)
         .then(() => {
-          if (idRef.current && peekDocumentAutosaveDraft(idRef.current)?.value === next) {
-            forgetDocumentAutosaveDraft(idRef.current);
-          }
+          forgetSavedDocumentAutosaveDraft(idRef.current, next);
         })
         .catch(() => {
           rememberDocumentAutosaveDraft(idRef.current, { value: next, failed: true });
