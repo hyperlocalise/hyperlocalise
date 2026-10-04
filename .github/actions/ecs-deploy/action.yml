@@ -37,7 +37,7 @@ runs:
     # and release metadata so CPU, memory, roles, secrets, sidecars, and port
     # mappings carry over untouched.
     - name: Download base task definition
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
@@ -96,7 +96,7 @@ runs:
           require('fs').writeFileSync(`${process.env.TASK_DEFINITION_FILE}.base`, `${baseArn}\n`);
 
     - name: Set deployed observability version
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9
       env:
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
         CONTAINER_NAME: ${{ inputs.container-name }}
@@ -163,7 +163,7 @@ runs:
 
     - name: Verify infra task definition handoff is stable
       if: ${{ inputs.base-task-definition-parameter-name != '' }}
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9
       env:
         BASE_TASK_DEFINITION_PARAMETER_NAME: ${{ inputs.base-task-definition-parameter-name }}
         TASK_DEFINITION_FILE: ${{ inputs.task-definition-file }}
@@ -200,7 +200,7 @@ runs:
     # rolled-back deployment. Verify the final task definition's container
     # image separately to ensure the requested image is deployed.
     - name: Verify deployed image
-      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+      uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9
       env:
         ECS_SERVICE: ${{ inputs.ecs-service }}
         ECS_CLUSTER: ${{ inputs.ecs-cluster }}
