@@ -318,7 +318,7 @@ export class ContentEditorGroupVariants {
   canEdit: boolean;
   isApplyingToAll = false;
   applyError: string | null = null;
-  private heldText: string | null = null;
+  private heldTextByVariant = new Map<string, string>();
   ports: ContentEditorGroupVariantsPorts;
 
   constructor(input: {
@@ -336,7 +336,7 @@ export class ContentEditorGroupVariants {
     this.ports = input.ports;
     this.canEdit = input.ports.canEdit;
     this.variants = input.variants.map((variant) => new ContentEditorGroupVariant(this, variant));
-    makeAutoObservable<this, "projectId" | "heldText">(
+    makeAutoObservable<this, "projectId" | "heldTextByVariant">(
       this,
       {
         segment: false,
@@ -344,7 +344,7 @@ export class ContentEditorGroupVariants {
         drafts: false,
         projectId: false,
         ports: false,
-        heldText: false,
+        heldTextByVariant: false,
       },
       { autoBind: true },
     );
@@ -440,23 +440,27 @@ export class ContentEditorGroupVariants {
     const target = this.targetVariant;
     if (!target) return false;
     if (this.useTextIn(target.id, text)) {
-      this.heldText = null;
+      this.heldTextByVariant.delete(target.id);
       return true;
     }
     if (target.pending) {
-      this.heldText = text;
+      this.heldTextByVariant.set(target.id, text);
       this.focusedVariantId = target.id;
       return true;
     }
     return false;
   }
 
-  /** Applies text that arrived while every editable translation was busy. */
+  /** Applies text that arrived while a specific translation was busy. */
   flushHeldText() {
-    const text = this.heldText;
-    if (text == null) return;
-    this.heldText = null;
-    this.useText(text);
+    if (this.heldTextByVariant.size === 0) return;
+    const held = [...this.heldTextByVariant];
+    this.heldTextByVariant.clear();
+    for (const [variantId, text] of held) {
+      if (this.useTextIn(variantId, text)) continue;
+      const target = this.getVariant(variantId);
+      if (target?.pending) this.heldTextByVariant.set(variantId, text);
+    }
   }
 
   async applyTextToAll(text: string) {

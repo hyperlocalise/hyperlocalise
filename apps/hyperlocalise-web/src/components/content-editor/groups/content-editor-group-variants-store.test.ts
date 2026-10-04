@@ -432,6 +432,30 @@ describe("ContentEditorGroupVariantsRegistry", () => {
     expect(first.text).toBe("Membre retenu");
   });
 
+  it("applies a held match to the translation it was chosen for after focus changes", async () => {
+    let finish!: () => void;
+    const saveVariant = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { group } = createGroup({ saveVariant });
+    const [first, second] = group.variants;
+    first!.change("Membre actif");
+    const saving = first!.approve();
+    const registry = new ContentEditorGroupVariantsRegistry();
+    registry.register(group);
+
+    expect(registry.routeText("k1", "fr", "Membre retenu")).toBe(true);
+    group.focus(second!.id);
+
+    finish();
+    await saving;
+    expect(first!.text).toBe("Membre retenu");
+    expect(second!.text).toBe("Adhérent");
+  });
+
   it("holds text that arrives before registration while the target is still saving", async () => {
     let finish!: () => void;
     const saveVariant = vi.fn(
