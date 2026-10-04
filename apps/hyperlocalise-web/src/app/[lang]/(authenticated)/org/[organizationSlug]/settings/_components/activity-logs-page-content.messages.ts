@@ -235,6 +235,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "fKmUmenDYW",
     description: "Activity log event type label for file translation imports",
   },
+  stringSegmentTranslationUpdatedEventType: {
+    defaultMessage: "String Translation Updated",
+    id: "rGgaa02kAU",
+    description: "Activity log event type label for string translation edits",
+  },
   stringSegmentApprovedEventType: {
     defaultMessage: "String Approved",
     id: "4IGqbe4A0j",
@@ -594,6 +599,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "imported translations",
     id: "2evxUsSaO3",
     description: "Action for a file translation import activity",
+  },
+  stringSegmentTranslationUpdatedAction: {
+    defaultMessage: "updated a translation",
+    id: "ee8QZoTHdn",
+    description: "Action for a string translation edit activity",
   },
   stringSegmentApprovedAction: {
     defaultMessage: "approved a string",
