@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { makeAutoObservable } from "mobx";
+import { makeAutoObservable, observableRef } from "mobx";
 
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
 
@@ -41,8 +41,15 @@ export class NavigationStore {
   mode: "route" | "custom" = "route";
   customState: NavigationCustomState | null = null;
 
-  constructor(private readonly defaultGroups: readonly NavigationGroup[]) {
-    makeAutoObservable(this, {}, { autoBind: true });
+  constructor(readonly defaultGroups: readonly NavigationGroup[]) {
+    makeAutoObservable(
+      this,
+      {
+        defaultGroups: false,
+        customState: observableRef,
+      },
+      { autoBind: true },
+    );
   }
 
   get defaultNavigationGroups(): readonly NavigationGroup[] {

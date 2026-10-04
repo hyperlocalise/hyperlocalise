@@ -26,4 +26,9 @@ describe("resolveIssueSheetColumnIcon", () => {
     expect(calendar).not.toBe(TagIcon);
     expect(resolveIssueSheetColumnIcon("calendar")).toBe(calendar);
   });
+
+  it("keeps distinct glyphs for similar column ids", () => {
+    expect(resolveIssueSheetColumnIcon("location")).not.toBe(resolveIssueSheetColumnIcon("pin"));
+    expect(resolveIssueSheetColumnIcon("message")).not.toBe(resolveIssueSheetColumnIcon("comment"));
+  });
 });

@@ -14,10 +14,6 @@ import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
-import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
-import { getIntlShape } from "@/lib/app-i18n/intl";
-import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { evaluateWorkspaceFeatureFlags } from "@/lib/flags/workspace-flags";
 import { getTmsProviderConnection } from "@/lib/providers/jobs/tms-provider-live";
 import {
@@ -25,8 +21,6 @@ import {
   type TmsUserConnectCta,
 } from "@/lib/providers/credentials/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import type { IntlShape } from "react-intl";
-
 import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
 import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 
@@ -43,7 +37,6 @@ export async function AppShell({
 }: AppShellProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
-  const intl = getIntlShape(await getAppLocale()) as IntlShape;
 
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
@@ -77,10 +70,6 @@ export async function AppShell({
       tmsUserConnectCtaPromise,
       providerConnectionPromise,
     ]);
-  const navigationGroups = annotateNavigationByWorkspaceFlags(
-    buildGlobalNavigationGroups(activeOrganizationSlug, intl),
-    workspaceFeatureFlags,
-  );
 
   return (
     <AppShellClient
@@ -98,7 +87,6 @@ export async function AppShell({
         email: auth.sessionUser.email,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigationGroups={navigationGroups}
       workspaceFeatureFlags={workspaceFeatureFlags}
     >
       <OrgTmsQueryProvider

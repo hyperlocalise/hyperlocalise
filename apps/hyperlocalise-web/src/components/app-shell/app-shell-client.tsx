@@ -27,11 +27,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/primitives/cn";
+import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import { TmsUserOAuthErrorToast } from "./tms-user-oauth-error-toast";
 import {
+  buildGlobalNavigationGroups,
   isOrganizationSettingsPath,
   parseProjectRoute,
   type NavigationGroup,
@@ -52,7 +54,7 @@ import { appShellClientMessages } from "./app-shell-client.messages";
 type AppShellClientProps = {
   autumnConfigured?: boolean;
   children: ReactNode;
-  navigationGroups: readonly NavigationGroup[];
+  navigationGroups?: readonly NavigationGroup[];
   workspaceFeatureFlags: WorkspaceFeatureFlagState;
   activeOrganization: {
     name: string;
@@ -93,6 +95,15 @@ export function AppShellClient({
   const intl = useIntl();
   const pathname = usePathname();
   const organizationSlug = activeOrganization.slug ?? "";
+  const resolvedNavigationGroups = useMemo(
+    () =>
+      navigationGroups ??
+      annotateNavigationByWorkspaceFlags(
+        buildGlobalNavigationGroups(organizationSlug, intl),
+        workspaceFeatureFlags,
+      ),
+    [intl, navigationGroups, organizationSlug, workspaceFeatureFlags],
+  );
   const projectRoute = parseProjectRoute(pathname);
   const isContentEditorWorkspaceRoute =
     pathname.includes("/strings") || pathname.includes("/files/content-editor");
@@ -115,7 +126,7 @@ export function AppShellClient({
   return (
     <AppShellSessionProvider canDeleteQueries={canDeleteQueries} currentUser={currentUser}>
       <AppShellStoreProvider
-        defaultNavigationGroups={navigationGroups}
+        defaultNavigationGroups={resolvedNavigationGroups}
         workspaceFeatureFlags={workspaceFeatureFlags}
       >
         <TmsUserOAuthErrorToast />
