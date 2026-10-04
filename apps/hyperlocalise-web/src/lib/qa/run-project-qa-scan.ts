@@ -24,10 +24,11 @@ import {
   type TranslationQaRunTrigger,
   type TranslationQaSeverity,
 } from "./types";
-import { validateScanSegment, QA_CHECK_VERSION } from "./scan-segment-validation";
+import { QA_CHECK_VERSION, validateScanSegment } from "./scan-segment-validation";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 import { DEFAULT_QA_POLICY, type QaCheckPolicy } from "./qa-policy";
+import { QaCliUnavailableError, validateQaPageInSandbox } from "./validate-page-in-sandbox";
 
 const logger = createLogger("translation-qa-scan");
 export const KEY_PAGE_SIZE = 250;
@@ -267,46 +268,70 @@ export async function scanTranslationQaPage(input: {
   const acceptedWordsByLocale = acceptedSpellcheckWordsByLocale(wordRows.rows);
   const skippedChecksByLocale: Record<string, string[]> = {};
   const requests = keys.flatMap((key) => locales.map((targetLocale) => ({ key, targetLocale })));
-  const results = await mapWithConcurrency(requests, 8, async ({ key, targetLocale }) => {
+  const policy = run.checkPolicy ?? DEFAULT_QA_POLICY;
+  const segments = requests.map(({ key, targetLocale }, index) => {
+    const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
+    return {
+      id: String(index),
+      sourceText: key.sourceText,
+      targetText: translation?.text ?? "",
+      sourcePath: key.sourcePath ?? "",
+      maxLength: key.maxLength ?? 0,
+      targetLocale,
+    };
+  });
+  let results: Awaited<ReturnType<typeof validateQaPageInSandbox>>;
+  try {
+    results = await validateQaPageInSandbox({
+      policy,
+      glossaryTerms,
+      acceptedWordsByLocale: Object.fromEntries(acceptedWordsByLocale),
+      segments,
+    });
+  } catch (error) {
+    if (!(error instanceof QaCliUnavailableError)) throw error;
+    logger.warn(
+      { runId: input.runId, projectId: input.projectId },
+      "QA CLI is not available in sandbox",
+    );
+    results = await mapWithConcurrency(segments, 8, async (segment) => {
+      const { checks, skippedChecks } = await validateScanSegment(
+        { ...segment, glossaryTerms },
+        acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(segment.targetLocale)) ?? [],
+        policy,
+      );
+      return { id: segment.id, checks, skippedChecks };
+    });
+  }
+  for (const [index, { key, targetLocale }] of requests.entries()) {
     const translation = translationByKeyLocale.get(`${key.translationKeyId}\0${targetLocale}`);
     const targetText = translation?.text ?? "";
-    const acceptedWords =
-      acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(targetLocale)) ?? [];
-    const { checks, skippedChecks } = await validateScanSegment(
-      {
+    const { checks, skippedChecks = [] } = results[index] ?? { checks: [], skippedChecks: [] };
+    if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
+    for (const check of checks) {
+      if (!translationQaCheckTypes.includes(check.checkType as TranslationQaCheckType)) {
+        throw new Error("QA CLI returned an unknown check type");
+      }
+      pendingFindings.push({
+        runId: input.runId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyId: key.translationKeyId,
+        translationId: translation?.id ?? null,
+        sourcePath: key.sourcePath,
+        key: key.key,
+        targetLocale,
+        checkType: check.checkType as TranslationQaCheckType,
+        severity: check.severity,
+        category: check.category,
+        message: check.message,
+        relatedTokens: check.relatedTokens,
         sourceText: key.sourceText,
         targetText,
-        sourcePath: key.sourcePath,
-        maxLength: key.maxLength,
-        targetLocale,
-        glossaryTerms,
-      },
-      acceptedWords,
-      run.checkPolicy ?? DEFAULT_QA_POLICY,
-    );
-    if (skippedChecks.length) skippedChecksByLocale[targetLocale] = skippedChecks;
-    return checks.map((check) => ({
-      runId: input.runId,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyId: key.translationKeyId,
-      translationId: translation?.id ?? null,
-      sourcePath: key.sourcePath,
-      key: key.key,
-      targetLocale,
-      checkType: check.checkType,
-      severity: check.severity,
-      category: check.category,
-      message: check.message,
-      relatedTokens: check.relatedTokens,
-      sourceText: key.sourceText,
-      targetText,
-      ruleVersion: QA_CHECK_VERSION,
-    }));
-  });
-  for (const finding of results.flat()) {
-    pendingFindings.push(finding);
-    if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
+        ruleVersion: QA_CHECK_VERSION,
+      });
+      if (pendingFindings.length >= FINDING_INSERT_CHUNK) await flushFindings();
+    }
   }
   await db.execute(sql`update translation_qa_runs set summary = jsonb_set(summary, '{skippedChecksByLocale}',
       coalesce(summary->'skippedChecksByLocale', '{}'::jsonb) || ${JSON.stringify(skippedChecksByLocale)}::jsonb)

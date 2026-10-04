@@ -231,7 +231,8 @@ export const env = createEnv({
     /**
      * OCI image ref for custom Vercel Sandboxes (VCR), e.g.
      * `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox:latest`.
-     * Used only when release flag `release-sandbox-vcr-image` is enabled.
+     * Used when release flag `release-sandbox-vcr-image` or
+     * `release-qa-sandbox-vcr-image` (QA only) is enabled.
      */
     VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
 
@@ -241,6 +242,16 @@ export const env = createEnv({
      * custom VCR image instead of the managed `vercel/sandbox/node:26` image.
      */
     RELEASE_SANDBOX_VCR_IMAGE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
+    /**
+     * Env-backed decide for release flag `release-qa-sandbox-vcr-image`.
+     * When true (and `VERCEL_SANDBOX_IMAGE` is set), translation QA sandboxes
+     * use the custom VCR image without enabling the global sandbox cutover.
+     */
+    RELEASE_QA_SANDBOX_VCR_IMAGE: z
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
@@ -406,6 +417,7 @@ export const env = createEnv({
       process.env.TRANSLATION_QA_SCAN_MAX_PROJECTS_PER_TICK,
     VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
     RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
+    RELEASE_QA_SANDBOX_VCR_IMAGE: process.env.RELEASE_QA_SANDBOX_VCR_IMAGE,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,

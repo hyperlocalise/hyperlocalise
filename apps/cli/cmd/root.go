@@ -55,6 +55,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(newPackCmd())           // pack subcommand
 	cmd.AddCommand(newEntriesCmd())        // entries subcommand
 	cmd.AddCommand(newCheckCmd())          // check subcommand
+	cmd.AddCommand(newValidateCmd())       // validate source and target segments
 	cmd.AddCommand(newFixCmd())            // fix subcommand
 	cmd.AddCommand(newEvalCmd())           // eval subcommands
 	cmd.AddCommand(newStatusCmd())         // status subcommand

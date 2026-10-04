@@ -17,14 +17,13 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { validateSegment } = vi.hoisted(() => ({
-  validateSegment: vi.fn(),
+const { validatePage } = vi.hoisted(() => ({
+  validatePage: vi.fn(),
 }));
 
-vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
-  createGoSvcServerClient: () => ({
-    qaReport: { validateSegment },
-  }),
+vi.mock("./validate-page-in-sandbox", () => ({
+  validateQaPageInSandbox: validatePage,
+  QaCliUnavailableError: class QaCliUnavailableError extends Error {},
 }));
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
@@ -48,22 +47,24 @@ import {
 const authFixture = createAuthTestFixture();
 
 beforeAll(async () => {
-  validateSegment.mockImplementation(async (body: { targetText?: string }) => {
-    if (body.targetText?.trim()) {
-      return { checks: [], skippedModes: [] };
-    }
-    return {
-      checks: [
-        {
-          id: "qa-not-localized",
-          status: "fail",
-          message: "Target value is empty.",
-          category: "qa",
-        },
-      ],
-      skippedModes: [],
-    };
-  });
+  validatePage.mockImplementation(
+    async (input: { segments: Array<{ id: string; targetText: string }> }) =>
+      input.segments.map((segment) => ({
+        id: segment.id,
+        checks: segment.targetText.trim()
+          ? []
+          : [
+              {
+                checkType: "not_localized",
+                severity: "error",
+                message: "Target value is empty.",
+                category: "qa",
+                relatedTokens: [],
+              },
+            ],
+        skippedChecks: [],
+      })),
+  );
   await db.$client.query("select 1");
 });
 
