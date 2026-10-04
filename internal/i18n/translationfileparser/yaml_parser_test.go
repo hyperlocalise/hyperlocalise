@@ -3,6 +3,8 @@ package translationfileparser
 import (
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 )
 
 func TestYAMLParserParsesNestedStringsAndSequences(t *testing.T) {
@@ -112,6 +114,108 @@ func TestYAMLParserRejectsAmbiguousMappingKeys(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestYAMLParserTrimsBoundaryWhitespaceKeys(t *testing.T) {
+	content := []byte("\"\\nfoo\\n\": Hello\n\"\u00a0bar\u00a0\": Welcome\nhome:\n  \"\\n title \\n\": Accueil\n")
+
+	got, err := (YAMLParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["foo"] != "Hello" {
+		t.Fatalf("newline-wrapped key: got %#v", got)
+	}
+	if got["bar"] != "Welcome" {
+		t.Fatalf("nbsp-wrapped key: got %#v", got)
+	}
+	if got["home.title"] != "Accueil" {
+		t.Fatalf("nested trimmed key: got %#v", got)
+	}
+	if _, ok := got["\nfoo\n"]; ok {
+		t.Fatalf("parser kept the untrimmed newline key: %#v", got)
+	}
+}
+
+func TestYAMLParserRejectsWhitespaceOnlyKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{name: "newline", content: "\"\\n\": Hello\n"},
+		{name: "nbsp", content: "\"\u00a0\": Hello\n"},
+		{name: "spaces", content: "\"  \": Hello\n"},
+		{name: "tab", content: "\"\\t\": Hello\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (YAMLParser{}).Parse([]byte(tt.content))
+			if err == nil {
+				t.Fatal("expected empty key error")
+			}
+			if !strings.Contains(err.Error(), "has an empty key") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestYAMLKeyBoundarySpaceMatchesTrimSpace(t *testing.T) {
+	check := func(key string) {
+		t.Helper()
+		got := yamlKeyHasBoundarySpace(key)
+		want := strings.TrimSpace(key) != key
+		if got != want {
+			t.Fatalf("yamlKeyHasBoundarySpace(%q) = %v, TrimSpace => %q", key, got, strings.TrimSpace(key))
+		}
+	}
+
+	check("")
+	check("foo")
+	check("foo bar")
+	check("foo\nbar")
+	check("\nfoo\u00a0")
+	check("\u00a0foo\n")
+	check(" \t\nfoo\t ")
+
+	for r := rune(0); r <= 0x3000; r++ {
+		if !unicode.IsSpace(r) && r != 'a' && r != 'é' && r != '.' {
+			continue
+		}
+		if r >= utf8.RuneSelf && !utf8.ValidRune(r) {
+			continue
+		}
+		s := string(r)
+		check(s)
+		check(s + "foo")
+		check("foo" + s)
+		check(s + "foo" + s)
+		check("foo" + s + "bar")
+	}
+}
+
+func TestMarshalYAMLReplacesKeysWithBoundaryWhitespace(t *testing.T) {
+	template := []byte("\"\\nfoo\\n\": Hello\n\"\u00a0bar\u00a0\": Welcome\n")
+
+	got, err := MarshalYAML(template, map[string]string{
+		"foo": "Bonjour",
+		"bar": "Accueil",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	parsed, err := (YAMLParser{}).Parse(got)
+	if err != nil {
+		t.Fatalf("parse marshaled output: %v", err)
+	}
+	if parsed["foo"] != "Bonjour" {
+		t.Fatalf("newline-wrapped key was not replaced: %#v\noutput:\n%s", parsed, got)
+	}
+	if parsed["bar"] != "Accueil" {
+		t.Fatalf("nbsp-wrapped key was not replaced: %#v\noutput:\n%s", parsed, got)
 	}
 }
 

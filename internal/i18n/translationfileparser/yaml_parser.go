@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -131,18 +133,57 @@ func flattenYAMLSequence(out map[string]string, prefix string, node *yaml.Node) 
 }
 
 func yamlMappingKey(node *yaml.Node, parent string) (string, error) {
-	label := yamlMappingParentLabel(parent)
 	if node.Kind != yaml.ScalarNode {
-		return "", fmt.Errorf("yaml mapping under %q must use scalar string keys, got %s", label, yamlNodeKindName(node.Kind))
+		return "", fmt.Errorf("yaml mapping under %q must use scalar string keys, got %s", yamlMappingParentLabel(parent), yamlNodeKindName(node.Kind))
 	}
-	key := strings.TrimSpace(node.Value)
+	key := node.Value
+	if yamlKeyHasBoundarySpace(key) {
+		key = strings.TrimSpace(key)
+	}
 	if key == "" {
-		return "", fmt.Errorf("yaml mapping under %q has an empty key", label)
+		return "", fmt.Errorf("yaml mapping under %q has an empty key", yamlMappingParentLabel(parent))
 	}
-	if strings.ContainsAny(key, ".[]") {
-		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", label, key)
+	if strings.IndexByte(key, '.') >= 0 || strings.IndexByte(key, '[') >= 0 || strings.IndexByte(key, ']') >= 0 {
+		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", yamlMappingParentLabel(parent), key)
 	}
 	return key, nil
+}
+
+// yamlKeyHasBoundarySpace reports whether strings.TrimSpace would change key.
+// ASCII separators are detected by byte. Any other leading or trailing byte
+// is decoded and checked with unicode.IsSpace, matching TrimSpace.
+func yamlKeyHasBoundarySpace(key string) bool {
+	if key == "" {
+		return false
+	}
+	return isYAMLTrimSpacePrefix(key) || isYAMLTrimSpaceSuffix(key)
+}
+
+func isASCIITrimSpace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\v', '\f', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+func isYAMLTrimSpacePrefix(key string) bool {
+	c := key[0]
+	if c < utf8.RuneSelf {
+		return isASCIITrimSpace(c)
+	}
+	r, _ := utf8.DecodeRuneInString(key)
+	return unicode.IsSpace(r)
+}
+
+func isYAMLTrimSpaceSuffix(key string) bool {
+	c := key[len(key)-1]
+	if c < utf8.RuneSelf {
+		return isASCIITrimSpace(c)
+	}
+	r, _ := utf8.DecodeLastRuneInString(key)
+	return unicode.IsSpace(r)
 }
 
 func yamlMappingParentLabel(parent string) string {
