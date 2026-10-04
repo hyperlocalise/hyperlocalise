@@ -1,5 +1,5 @@
 # Build from the repository root: docker build -f apps/public-api/Dockerfile .
-FROM golang:1.26.1-bookworm AS builder
+FROM golang:1.27.1-bookworm AS builder
 WORKDIR /repo
 COPY go.mod go.sum ./
 COPY apps/public-api ./apps/public-api
