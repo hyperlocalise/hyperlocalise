@@ -14,6 +14,7 @@
 - `.html` via `HTMLParser`
 - `.liquid` via `LiquidParser`
 - `.md` / `.mdx` via `MarkdownParser`
+- `.adoc` / `.asciidoc` / `.asc` via `AsciiDocParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.xcstrings` via `XCStringsParser` (Apple/Xcode string catalogs)
@@ -29,7 +30,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, Java properties, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, Java properties, and SubRip/WebVTT subtitle parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -130,6 +131,14 @@
 - Preserves frontmatter blocks (`---`) unchanged.
 - Preserves fenced code blocks (``` and ~~~) unchanged.
 - Preserves Markdown syntax tokens and link destinations while extracting text segments.
+
+### AsciiDoc
+
+- Extracts structural keys (`adoc.title`, `adoc.heading`, `adoc.paragraph`, ...).
+- Translates document titles, headings, paragraphs, list items, description lists, table cells, admonitions, and block titles.
+- Preserves YAML front matter, comments, attribute definitions, block macros, preprocessor directives, and verbatim blocks.
+- Protects inline code, links, cross references, attribute references, bare URLs, anchors, passthroughs, and issue references as placeholders.
+- Writes translated paragraphs as a single line.
 
 ### Apple Strings (`.strings`)
 

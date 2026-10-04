@@ -326,6 +326,9 @@ func TestHyperlocaliseSyncRecognizesDocumentFiles(t *testing.T) {
 	}{
 		{path: "docs/intro.md", format: "markdown"},
 		{path: "docs/page.mdx", format: "mdx"},
+		{path: "docs/guide.adoc", format: "asciidoc"},
+		{path: "docs/manual.asciidoc", format: "asciidoc"},
+		{path: "docs/notes.asc", format: "asciidoc"},
 	}
 	for _, tc := range cases {
 		if got := inferHyperlocaliseFileFormat(tc.path); got != tc.format {

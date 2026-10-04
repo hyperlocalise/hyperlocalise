@@ -15,6 +15,7 @@ type DocumentFormat string
 const (
 	DocumentFormatMarkdown DocumentFormat = "markdown"
 	DocumentFormatMDX      DocumentFormat = "mdx"
+	DocumentFormatAsciiDoc DocumentFormat = "asciidoc"
 )
 
 // DocumentBlockKind distinguishes CMS fields (frontmatter) from body blocks.

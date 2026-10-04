@@ -13,6 +13,7 @@ const (
 	FormatLiquid
 	FormatICUInvariant
 	FormatWebVTT
+	FormatAsciiDoc
 )
 
 func KindForSourcePath(path string) FormatKind {
@@ -31,6 +32,8 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatHTML
 	case ".md", ".mdx", ".markdown":
 		return FormatMarkdown
+	case ".adoc", ".asciidoc", ".asc":
+		return FormatAsciiDoc
 	case ".vtt":
 		return FormatWebVTT
 	case ".liquid":
@@ -41,6 +44,8 @@ func KindForSourcePath(path string) FormatKind {
 	switch strings.ToLower(ext) {
 	case ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd":
 		return FormatMarkdown
+	case ".adoc", ".asciidoc", ".asc":
+		return FormatAsciiDoc
 	case ".html", ".htm", ".srt":
 		return FormatHTML
 	case ".vtt":

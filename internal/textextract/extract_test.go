@@ -100,6 +100,8 @@ func TestExtractTextFormats(t *testing.T) {
 	}{
 		{"markdown extension", "Guide.MD", "", FormatMarkdown},
 		{"markdown content type", "guide", "text/markdown; charset=utf-8", FormatMarkdown},
+		{"asciidoc extension", "Guide.ADOC", "", FormatMarkdown},
+		{"asciidoc content type", "guide", "text/asciidoc", FormatMarkdown},
 		{"plain text", "notes.txt", "text/plain", FormatText},
 		{"markdown hint without name", "", "", FormatText},
 	}

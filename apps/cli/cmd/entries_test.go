@@ -320,6 +320,42 @@ func TestEntriesCommandAlignsMarkdownTargetToSourceKeys(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandEmitsAsciiDocDocumentEnvelope(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.adoc")
+	if err := os.WriteFile(path, []byte("= Guide\n\nExisting intro.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	raw, ok := payload[translationfileparser.DocumentEntriesMetaKey]
+	if !ok {
+		t.Fatalf("missing %s envelope: %#v", translationfileparser.DocumentEntriesMetaKey, payload)
+	}
+	var meta map[string]any
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	if meta["format"] != "asciidoc" {
+		t.Fatalf("format=%v, want asciidoc", meta["format"])
+	}
+	if _, ok := payload["adoc.title"]; !ok {
+		t.Fatalf("expected adoc.title, got %#v", payload)
+	}
+}
+
 func TestEntriesCommandRejectsMismatchedMarkdownSourceExtension(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "guide.md")

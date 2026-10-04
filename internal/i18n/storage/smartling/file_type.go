@@ -30,6 +30,8 @@ func FileTypeForExtension(ext string) string {
 		return "xliff"
 	case ".md", ".markdown":
 		return "markdown"
+	case ".adoc", ".asciidoc", ".asc":
+		return "asciidoc"
 	default:
 		return ""
 	}

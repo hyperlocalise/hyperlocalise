@@ -25,9 +25,9 @@ func sourceContextFingerprint(task Task) string {
 
 func sourceContextFingerprintForLock(task Task) string {
 	effectiveContext := sanitizePromptContext(task.SourceContext, maxSourceContextLen)
-	if isMarkdownEntryKey(task.EntryKey) {
-		// Markdown context is prompt-only. Including structural or adjacent hints
-		// in the lock hash makes unchanged md.<hash> entries miss after inserts.
+	if isDocumentEntryKey(task.EntryKey) {
+		// Document context is prompt-only. Including structural or adjacent hints
+		// in the lock hash makes unchanged md./adoc. entries miss after inserts.
 		effectiveContext = markdownLockSourceContext
 	}
 	return hashSourceText(strings.Join([]string{
@@ -39,7 +39,7 @@ func sourceContextFingerprintForLock(task Task) string {
 // Non-Markdown tasks reuse the precomputed sourceContextFingerprint; Markdown keeps
 // the lock-specific constant context so structural hints do not invalidate entries.
 func lockSourceContextFingerprint(task Task) string {
-	if isMarkdownEntryKey(task.EntryKey) {
+	if isDocumentEntryKey(task.EntryKey) {
 		return sourceContextFingerprintForLock(task)
 	}
 	return task.sourceContextFingerprint
@@ -47,6 +47,14 @@ func lockSourceContextFingerprint(task Task) string {
 
 func isMarkdownEntryKey(key string) bool {
 	return strings.HasPrefix(strings.TrimSpace(key), "md.")
+}
+
+func isAsciiDocEntryKey(key string) bool {
+	return strings.HasPrefix(strings.TrimSpace(key), "adoc.")
+}
+
+func isDocumentEntryKey(key string) bool {
+	return isMarkdownEntryKey(key) || isAsciiDocEntryKey(key)
 }
 
 func legacyMarkdownContextSensitiveLockTaskHashCandidates(task Task) []string {

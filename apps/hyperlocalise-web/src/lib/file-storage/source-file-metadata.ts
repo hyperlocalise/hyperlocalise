@@ -37,6 +37,8 @@ export function sourceContentType(path: string) {
     case "markdown":
     case "mdx":
       return "text/markdown";
+    case "asciidoc":
+      return "text/asciidoc";
     case "csv":
       return "text/csv";
     case "png":

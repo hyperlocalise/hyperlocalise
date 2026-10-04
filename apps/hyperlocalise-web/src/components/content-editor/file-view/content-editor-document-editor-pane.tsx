@@ -52,6 +52,7 @@ import {
 import {
   createDocumentMarkdownManager,
   isLossyDocumentRoundTrip,
+  isAsciidocFilename,
   isMdxFilename,
   serializeDocumentBlock,
 } from "@/components/document-editor/document-editor-extensions";
@@ -80,7 +81,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
-export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx";
+export const CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT = ".md,.markdown,.mdx,.adoc,.asciidoc,.asc";
 
 type LoadedDocument = { status: "missing" } | { status: "ok"; text: string } | { status: "error" };
 
@@ -148,6 +149,7 @@ export function ContentEditorDocumentEditorPane({
   const intl = useIntl();
   const isMac = useIsMac();
   const syntax = isMdxFilename(filename) ? "mdx" : "markdown";
+  const isAsciidoc = isAsciidocFilename(filename);
   const editable = canEdit && Boolean(onSave);
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [fields, setFields] = useState<ContentEditorDocumentFrontmatterField[]>([]);
@@ -188,7 +190,7 @@ export function ContentEditorDocumentEditorPane({
       setLoad({ status: "loading" });
       setBaseline(null);
       setRestoreSaveError(false);
-      setCodeMode(false);
+      setCodeMode(isAsciidocFilename(filename));
       setParseLossy(false);
       setPendingSuggestionCount(0);
       const [source, target] = await Promise.all([
@@ -247,9 +249,11 @@ export function ContentEditorDocumentEditorPane({
 
   const save = useCallback(
     async (text: string) => {
-      await onSave?.(new File([text], filename, { type: "text/markdown" }));
+      await onSave?.(
+        new File([text], filename, { type: isAsciidoc ? "text/asciidoc" : "text/markdown" }),
+      );
     },
-    [filename, onSave],
+    [filename, isAsciidoc, onSave],
   );
   const autosave = useDocumentAutosave({
     id: documentKey,
@@ -490,7 +494,7 @@ export function ContentEditorDocumentEditorPane({
                 {intl.formatMessage(messages.assistant)}
               </Button>
             ) : null}
-            {editable ? (
+            {editable && !isAsciidoc ? (
               <Button
                 size="xs"
                 variant="ghost"

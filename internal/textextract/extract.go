@@ -210,6 +210,9 @@ func Detect(filename, contentType string, data []byte) (Format, string, error) {
 	if ext == ".md" || ext == ".markdown" || declared == "text/markdown" || declared == "text/x-markdown" {
 		return FormatMarkdown, "text/markdown", nil
 	}
+	if ext == ".adoc" || ext == ".asciidoc" || ext == ".asc" || declared == "text/asciidoc" || declared == "text/x-asciidoc" {
+		return FormatMarkdown, "text/asciidoc", nil
+	}
 	return FormatText, "text/plain", nil
 }
 

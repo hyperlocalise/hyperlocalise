@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".properties", ".srt", ".vtt":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".properties", ".srt", ".vtt":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -43,6 +43,15 @@ func isMarkdownFileExt(ext string) bool {
 	}
 }
 
+func isAsciiDocFileExt(ext string) bool {
+	switch ext {
+	case ".adoc", ".asciidoc", ".asc":
+		return true
+	default:
+		return false
+	}
+}
+
 func isHTMLFileExt(ext string) bool {
 	return ext == ".html" || ext == ".htm"
 }
@@ -50,6 +59,9 @@ func isHTMLFileExt(ext string) bool {
 func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	if isMarkdownFileExt(ext) {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
+	}
+	if isAsciiDocFileExt(ext) {
+		return s.marshalAsciiDocTarget(path, sourcePath, stagedEntries)
 	}
 	if isHTMLFileExt(ext) {
 		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
@@ -288,6 +300,38 @@ func markdownASTParityFlushError(targetPath string, sourceTemplate, marshaledCon
 		return fmt.Errorf("flush outputs: markdown AST parity mismatch for %q: %w", targetPath, err)
 	}
 	return nil
+}
+
+func (s *Service) marshalAsciiDocTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readProjectFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			content, diags := translationfileparser.MarshalAsciiDocWithDiagnostics(sourceTemplate, stagedEntries)
+			return content, asciiDocRenderWarnings(path, diags), nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	content, diags := translationfileparser.MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries)
+	return content, asciiDocRenderWarnings(path, diags), nil
+}
+
+func asciiDocRenderWarnings(path string, diags translationfileparser.AsciiDocRenderDiagnostics) []string {
+	if len(diags.SourceFallbackKeys) == 0 {
+		return nil
+	}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("asciidoc render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("asciidoc render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {

@@ -24,6 +24,8 @@ func TestKindForSourcePath(t *testing.T) {
 		{"/pkg/strings.arb", FormatICUInvariant},
 		{"/notes/readme.mdown", FormatMarkdown},
 		{"/notes/README.MDOWN", FormatMarkdown},
+		{"/docs/guide.adoc", FormatAsciiDoc},
+		{"/docs/GUIDE.ASC", FormatAsciiDoc},
 		{"  spaced.md  ", FormatMarkdown},
 		{"noext", FormatICUInvariant},
 		{"", FormatICUInvariant},

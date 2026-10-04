@@ -14,6 +14,7 @@ func TestTranslationOutputKindForSourcePath(t *testing.T) {
 	}{
 		{"/content/en/guide.md", segmentvalidate.FormatMarkdown},
 		{"file.markdown", segmentvalidate.FormatMarkdown},
+		{"/docs/guide.adoc", segmentvalidate.FormatAsciiDoc},
 		{"/srv/page.html", segmentvalidate.FormatHTML},
 		{"file.htm", segmentvalidate.FormatHTML},
 		{"captions.srt", segmentvalidate.FormatHTML},

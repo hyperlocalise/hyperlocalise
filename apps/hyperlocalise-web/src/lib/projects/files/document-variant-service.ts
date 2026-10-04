@@ -75,7 +75,7 @@ function buildDocumentLocalizationPrompt(input: {
   const lines = [
     "You are an expert software localization assistant.",
     `Translate the following document from ${input.sourceLocale ?? "the source locale"} to ${input.targetLocale}.`,
-    "Preserve YAML frontmatter field keys, markdown structure, MDX/JSX tags, HTML tags, code spans, and placeholders.",
+    "Preserve YAML frontmatter field keys, markdown structure, MDX/JSX tags, AsciiDoc macros and attributes, HTML tags, code spans, and placeholders.",
     "Only translate human-readable text.",
     "Return only the translated document with no explanations or code fences.",
   ];
