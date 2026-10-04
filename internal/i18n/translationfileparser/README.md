@@ -104,6 +104,7 @@
 - For plural forms, uses `msgstr[0]` as the mapped value.
 - Skips header entry (`msgid ""`).
 - Ignores comments and `msgctxt` for now.
+- Unreal Engine rich-text style tags in `msgstr` (`<Style>text</>` and self-closing decorators) become internal placeholders during parse so translators handle each tag as a unit. `MarshalPOFile` restores the original markup.
 
 ### HTML
 

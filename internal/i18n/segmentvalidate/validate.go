@@ -70,7 +70,7 @@ func ValidateSegment(req Request) []Check {
 		if kind == FormatMarkdown {
 			hasTokens = strings.Contains(req.SourceText, "\x1eHLMDPH_") || hasICUTokens || profileHasFormatTokens(req.SourceText)
 		} else {
-			hasTokens = hasICUTokens || hasProfileTokens
+			hasTokens = hasICUTokens || hasProfileTokens || strings.Contains(req.SourceText, "\x1eHLUEPH_")
 		}
 		label := "Format"
 		message := "No placeholders or ICU blocks detected."
@@ -141,6 +141,9 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 		}
 		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	default:
+		if err = translationfileparser.ValidateUnrealRichTextPlaceholders(source, translated); err != nil {
+			return false, err
+		}
 		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	}
 	if err != nil {

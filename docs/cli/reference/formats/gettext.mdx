@@ -68,6 +68,8 @@ configured target path and updates the lockfile.
 
 - Plural handling maps only `msgstr[0]`; this is not full locale-specific plural generation. Writeback preserves PO structure and replaces mapped values.
 
+- Unreal Engine rich-text tags in `.po` messages are treated as placeholders. Style pairs such as `<Highlight>text</>` and self-closing decorators such as `<img id="Icon"/>` stay intact on writeback. Named HTML closes such as `</span>` are left as ordinary text. Placeholders inside tag content, such as `{ItemName}`, stay separate from the tags.
+
 ## Next steps
 
 - [Check translations](/cli/commands/check) before committing generated files.
