@@ -35,6 +35,8 @@ export const INBOX_TYPE_FILTERS = [
   "comment",
   "status_changed",
   "assignee_changed",
+  "qa_errors_increased",
+  "qa_scan_failed",
 ] as const;
 
 export type InboxTypeFilter = (typeof INBOX_TYPE_FILTERS)[number];
@@ -55,6 +57,8 @@ export const INBOX_NOTIFICATION_TYPE_FILTERS = [
   "comment",
   "status_changed",
   "assignee_changed",
+  "qa_errors_increased",
+  "qa_scan_failed",
 ] as const satisfies readonly InboxTypeFilter[];
 
 export type InboxIndexItem =

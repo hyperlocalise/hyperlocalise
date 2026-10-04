@@ -605,7 +605,6 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	const orgN, projectN, localeN = 1, 2, 4
 
 	require.Empty(t, editorCatQueueFilterSQL("all", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("qa_issues", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("unknown", orgN, projectN, localeN))
@@ -632,12 +631,19 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, hasIssues, "i.project_id=$2")
 	require.Contains(t, hasIssues, "i.target_locale=$4")
 
+	qaIssues := editorCatQueueFilterSQL("qa_issues", orgN, projectN, localeN)
+	require.Contains(t, qaIssues, "from translation_qa_findings q")
+	require.Contains(t, qaIssues, "q.target_locale=$4")
+	require.Contains(t, qaIssues, "q.status='open'")
+	require.Contains(t, qaIssues, "r.status='succeeded'")
+	require.Contains(t, qaIssues, "order by r.completed_at desc nulls last, r.created_at desc")
+
 	require.Equal(t, " and k.is_hidden = true", editorCatQueueFilterSQL("hidden", orgN, projectN, localeN))
 	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
+	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
-	require.False(t, editorCatQueueFilterBindsLocale("qa_issues"))
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {

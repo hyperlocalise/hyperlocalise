@@ -50,6 +50,12 @@ export const appShellNavigationMessages = defineMessages({
     id: "90L8I4Y/Gl",
     description: "Sidebar tooltip combining a navigation item label and its badge",
   },
+  qaErrorsBadge: {
+    defaultMessage: "{count, plural, one {# error} other {# errors}}",
+    id: "P8NGHREOfh",
+    description:
+      "Sidebar QA badge description with the number of errors in the latest completed QA scans",
+  },
   previewBadge: {
     defaultMessage: "Preview",
     id: "qiPX0q5vvf",

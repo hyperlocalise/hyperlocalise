@@ -14,6 +14,7 @@
  */
 import type { ComponentProps } from "react";
 import {
+  Alert02Icon,
   Chat01Icon,
   Comment01Icon,
   Flag01Icon,
@@ -42,6 +43,7 @@ const inboxBadgeIconAmber = "text-amber-900 dark:text-amber-700";
 const inboxBadgeIconGreen = "text-green-900 dark:text-green-900";
 const inboxBadgeIconNeutral = "text-foreground";
 const inboxBadgeIconPrimary = "text-primary";
+const inboxBadgeIconDestructive = "text-destructive";
 
 export type InboxListItemVisual = {
   typeIcon: Icon;
@@ -126,6 +128,18 @@ export function getNotificationListItemVisual(
         typeIcon: UserMultiple02Icon,
         typeIconLabel: intl.formatMessage(inboxNotificationsMessages.assigneeChangedType),
         badgeClassName: inboxBadgeIconPurple,
+      };
+    case "qa_errors_increased":
+      return {
+        typeIcon: Alert02Icon,
+        typeIconLabel: intl.formatMessage(inboxNotificationsMessages.qaErrorsIncreasedType),
+        badgeClassName: inboxBadgeIconDestructive,
+      };
+    case "qa_scan_failed":
+      return {
+        typeIcon: Alert02Icon,
+        typeIconLabel: intl.formatMessage(inboxNotificationsMessages.qaScanFailedType),
+        badgeClassName: inboxBadgeIconAmber,
       };
     default:
       return assertNever(type);

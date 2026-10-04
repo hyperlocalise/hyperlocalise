@@ -191,7 +191,7 @@ func (api *notificationsAPI) listNotificationsHandler(r *http.Request, actor not
 
 	listArgs := append(append([]any{}, args...), query.limit, query.offset)
 	rows, err := api.pool.Query(r.Context(), `
-        select n.id, n.organization_id, n.project_id, n.issue_id, n.type, n.payload, n.read_at, n.created_at,
+        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id, n.type, n.payload, n.read_at, n.created_at,
                n.actor_user_id, u.first_name, u.last_name, u.email, u.avatar_url
         from issue_notifications n
         join projects p on p.id = n.project_id
@@ -236,15 +236,16 @@ func (api *notificationsAPI) unreadCountHandler(r *http.Request, actor notificat
 
 func scanNotificationRow(rows pgx.Rows) (map[string]any, error) {
 	var (
-		id, organizationID, projectID, issueID, notifType string
-		payloadRaw                                        []byte
-		readAt                                            *time.Time
-		createdAt                                         time.Time
-		actorUserID, actorFirst, actorLast, actorEmail    *string
-		actorAvatar                                       *string
+		id, organizationID, projectID, notifType       string
+		issueID, qaRunID                               *string
+		payloadRaw                                     []byte
+		readAt                                         *time.Time
+		createdAt                                      time.Time
+		actorUserID, actorFirst, actorLast, actorEmail *string
+		actorAvatar                                    *string
 	)
 	if err := rows.Scan(
-		&id, &organizationID, &projectID, &issueID, &notifType, &payloadRaw, &readAt, &createdAt,
+		&id, &organizationID, &projectID, &issueID, &qaRunID, &notifType, &payloadRaw, &readAt, &createdAt,
 		&actorUserID, &actorFirst, &actorLast, &actorEmail, &actorAvatar,
 	); err != nil {
 		return nil, err
@@ -254,6 +255,7 @@ func scanNotificationRow(rows pgx.Rows) (map[string]any, error) {
 		"organizationId": organizationID,
 		"projectId":      projectID,
 		"issueId":        issueID,
+		"qaRunId":        qaRunID,
 		"type":           notifType,
 		"payload":        json.RawMessage(payloadRaw),
 		"actor":          formatNotificationActor(actorUserID, actorFirst, actorLast, actorEmail, actorAvatar),

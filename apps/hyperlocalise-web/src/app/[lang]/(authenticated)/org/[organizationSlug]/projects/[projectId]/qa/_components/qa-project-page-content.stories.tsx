@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { qaOrganizationSlug, qaWebsiteProjectId } from "@/components/qa/qa.fixture";
 import {
@@ -67,7 +67,17 @@ export const Default: Story = {
     await expect(
       await canvas.findByText("128 translations checked · 2 errors · 3 warnings"),
     ).toBeInTheDocument();
-    await expect(canvas.getByText(/selected scan/)).toBeInTheDocument();
+    await expect(canvas.getByText(/run a scan to verify fixes/)).toBeInTheDocument();
+    const overview = within(canvas.getByRole("region", { name: "QA overview" }));
+    await expect(overview.getAllByText("From the selected scan")).toHaveLength(2);
+    await expect(overview.getByText("2 languages have findings")).toBeInTheDocument();
+    await expect(overview.getByText("Scans daily")).toBeInTheDocument();
+    await expect(
+      overview.getByRole("img", { name: "Findings by language: de-DE 3, fr-FR 2" }),
+    ).toBeInTheDocument();
+    await expect(
+      overview.getByRole("region", { name: "Errors and warnings over time" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending")).toBeInTheDocument();
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("Showing 4 of 4 findings")).toBeInTheDocument();
@@ -260,6 +270,9 @@ export const History: Story = {
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
+    const overview = within(canvas.getByRole("region", { name: "QA overview" }));
+    await expect(overview.getByText("+1 vs previous scan")).toBeInTheDocument();
+    await expect(overview.getByText("+3 vs previous scan")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("tab", { name: "History" }));
     await expect(canvas.getByText("A member")).toBeInTheDocument();
     await expect(canvas.getByText("Daily schedule")).toBeInTheDocument();

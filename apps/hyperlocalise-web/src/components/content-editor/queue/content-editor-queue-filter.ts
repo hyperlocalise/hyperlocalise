@@ -56,7 +56,7 @@ export function isQueueFilterSupportedForProvider(
   filter: ContentEditorQueueFilter,
   providerKind: string | null | undefined,
 ) {
-  if (filter === "hidden") {
+  if (filter === "hidden" || filter === "qa_issues") {
     return providerKind == null || providerKind === "native" || providerKind === "crowdin";
   }
 
@@ -64,7 +64,7 @@ export function isQueueFilterSupportedForProvider(
     return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
   }
 
-  if (filter === "qa_issues" || filter === "machine_translated" || filter === "with_comments") {
+  if (filter === "machine_translated" || filter === "with_comments") {
     return providerKind === "crowdin";
   }
 
@@ -203,7 +203,8 @@ export function segmentMatchesQueueFilterFromInput(
     case "qa_issues":
     case "machine_translated":
     case "with_comments":
-      // Crowdin CroQL is the source of truth; keep locally overridden rows visible.
+      // The server (Crowdin CroQL or the latest native QA scan) is the source of truth;
+      // keep locally overridden rows visible.
       return true;
     default:
       return true;

@@ -32,7 +32,8 @@ import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 export type EmailNotificationItem = {
   id: string;
   type: IssueNotificationType;
-  issueId: string;
+  /** Null for QA alerts, which belong to a project rather than an issue. */
+  issueId: string | null;
   issueTitle: string;
   issueLabel: string;
   actorName: string;
@@ -40,6 +41,7 @@ export type EmailNotificationItem = {
   actorInitials: string;
   actionHref: string;
   excerpt?: string | null;
+  errorsChange?: number | null;
 };
 
 export type IssueInboxNotificationsEmailProps = {
@@ -83,32 +85,51 @@ export function actionVerb(type: IssueNotificationType): string {
       return "changed the assignee on";
     case "status_changed":
       return "changed the status of";
+    case "qa_errors_increased":
+      return "found new QA errors in";
+    case "qa_scan_failed":
+      return "could not finish a QA scan of";
     default:
       return assertNever(type);
   }
 }
 
+function isQaNotification(item: EmailNotificationItem): boolean {
+  return item.type === "qa_errors_increased" || item.type === "qa_scan_failed";
+}
+
+export function qaNotificationSummary(item: EmailNotificationItem): string {
+  if (item.type === "qa_scan_failed") {
+    return "QA scan failed. Results may be out of date until a scan completes.";
+  }
+  const change = item.errorsChange ?? 0;
+  return change === 1
+    ? "1 new QA error since the previous scan"
+    : `${change} new QA errors since the previous scan`;
+}
+
 function groupByIssue(notifications: EmailNotificationItem[]): Array<{
-  issueId: string;
+  groupKey: string;
   issueLabel: string;
   issueTitle: string;
   items: EmailNotificationItem[];
 }> {
   const groups: Array<{
-    issueId: string;
+    groupKey: string;
     issueLabel: string;
     issueTitle: string;
     items: EmailNotificationItem[];
   }> = [];
 
   for (const notification of notifications) {
+    const groupKey = notification.issueId ?? `qa:${notification.id}`;
     const last = groups[groups.length - 1];
-    if (last && last.issueId === notification.issueId) {
+    if (last && last.groupKey === groupKey) {
       last.items.push(notification);
       continue;
     }
     groups.push({
-      issueId: notification.issueId,
+      groupKey,
       issueLabel: notification.issueLabel,
       issueTitle: notification.issueTitle,
       items: [notification],
@@ -169,6 +190,18 @@ function Avatar({
 }
 
 function NotificationRow({ item }: { item: EmailNotificationItem }) {
+  if (isQaNotification(item)) {
+    return (
+      <Section style={{ marginBottom: 16 }}>
+        <Text style={{ margin: 0, fontSize: 14, lineHeight: "20px", color: TEXT }}>
+          <Link href={item.actionHref} style={{ color: LINK, textDecoration: "none" }}>
+            {qaNotificationSummary(item)}
+          </Link>
+        </Text>
+      </Section>
+    );
+  }
+
   const verb = actionVerb(item.type);
   const showIssueLinkSuffix =
     item.type === "assigned" || item.type === "assignee_changed" || item.type === "status_changed";
@@ -294,7 +327,7 @@ export function IssueInboxNotificationsEmail({
           <Hr style={{ borderColor: DIVIDER, margin: "0 0 24px" }} />
 
           {groups.map((group) => (
-            <Section key={group.issueId} style={{ marginBottom: 8 }}>
+            <Section key={group.groupKey} style={{ marginBottom: 8 }}>
               <Text
                 style={{
                   margin: "0 0 12px",
@@ -359,6 +392,10 @@ export function issueInboxNotificationsPlainText(props: IssueInboxNotificationsE
   for (const group of groupByIssue(props.notifications)) {
     lines.push(`${group.issueLabel} ${group.issueTitle}`);
     for (const item of group.items) {
+      if (isQaNotification(item)) {
+        lines.push(`- ${qaNotificationSummary(item)}`);
+        continue;
+      }
       const verb = actionVerb(item.type);
       lines.push(`- ${item.actorName} ${verb} the issue`);
       if (item.excerpt) {

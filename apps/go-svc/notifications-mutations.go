@@ -10,7 +10,7 @@ import (
 func (api *notificationsAPI) loadOwnedNotification(ctx context.Context, actor notificationsActor, id string) (map[string]any, error) {
 	orgWide := actor.canReadAllTeams()
 	rows, err := api.pool.Query(ctx, `
-        select n.id, n.organization_id, n.project_id, n.issue_id, n.type, n.payload, n.read_at, n.created_at,
+        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id, n.type, n.payload, n.read_at, n.created_at,
                n.actor_user_id, u.first_name, u.last_name, u.email, u.avatar_url
         from issue_notifications n
         join projects p on p.id = n.project_id

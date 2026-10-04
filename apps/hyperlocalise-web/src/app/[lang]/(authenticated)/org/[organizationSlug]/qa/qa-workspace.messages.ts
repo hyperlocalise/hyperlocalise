@@ -43,71 +43,20 @@ export const qaWorkspaceMessages = defineMessages({
     id: "u63978WZG7",
     description: "Workspace QA selected project failure freshness",
   },
-  portfolioTitle: {
-    defaultMessage: "Portfolio",
-    id: "zJnpLjNSBd",
-    description: "Workspace QA portfolio section title",
-  },
-  findingsQueueTitle: {
-    defaultMessage: "Latest findings",
-    id: "Vd9EBpnVTy",
-    description: "Workspace QA org-wide findings section title",
-  },
-  findingsQueueDescription: {
-    defaultMessage:
-      "From each project's latest successful scan. Create issues to triage in the Issues board.",
-    id: "ekMwmzyaxe",
-    description: "Workspace QA org-wide findings section description",
-  },
-  allProjects: {
-    defaultMessage: "All projects",
-    id: "lR7pNsCeCh",
-    description: "Workspace QA project filter option",
-  },
-  allLocales: {
-    defaultMessage: "All locales",
-    id: "QBKNeR9yId",
-    description: "Workspace QA locale filter option",
-  },
-  allChecks: {
-    defaultMessage: "All checks",
-    id: "jogbp5WUAz",
-    description: "Workspace QA check type filter option",
-  },
-  noFindings: {
-    defaultMessage: "No findings match these filters.",
-    id: "fCRbJ9qc0i",
-    description: "Workspace QA empty findings queue",
-  },
   empty: {
     defaultMessage: "No native projects yet.",
     id: "h6siz+8bqw",
     description: "Workspace QA empty state",
   },
-  neverRun: {
-    defaultMessage: "Not scanned",
-    id: "coLjATj12b",
-    description: "Workspace QA when a project has no scan",
-  },
-  failed: {
-    defaultMessage: "Last scan failed",
-    id: "YNnCNeuDLL",
-    description: "Workspace QA when the latest scan failed",
-  },
-  running: {
-    defaultMessage: "Scan in progress",
-    id: "xQT8yHFRak",
-    description: "Workspace QA when a scan is still running",
-  },
-  findings: {
-    defaultMessage: "{count, plural, one {# issue} other {# issues}}",
-    id: "Z2biIz/+mo",
-    description: "Workspace QA finding count",
-  },
   openProject: {
     defaultMessage: "Open QA",
     id: "LLpCWroQtR",
     description: "Workspace QA link to a project",
+  },
+  viewFindings: {
+    defaultMessage: "View findings",
+    id: "bHXY88TkOe",
+    description: "Workspace QA action to filter findings to one project",
   },
   daily: {
     defaultMessage: "Daily",
@@ -119,19 +68,59 @@ export const qaWorkspaceMessages = defineMessages({
     id: "hN4fiihgrQ",
     description: "Workspace QA manual cadence label",
   },
-  loadError: {
-    defaultMessage: "Could not load QA reports.",
-    id: "9hOQ1Cn/qy",
-    description: "Workspace QA load error",
+  projectsMetric: {
+    defaultMessage: "Projects scanned",
+    id: "1ypof61znu",
+    description: "Workspace QA metric label for projects whose latest scan completed",
   },
-  lastRun: {
-    defaultMessage: "Last scan {date}",
-    id: "MwgUCiCSez",
-    description: "Workspace QA last scan timestamp",
+  projectsScannedValue: {
+    defaultMessage: "{scanned} of {total}",
+    id: "0eBwazbNJY",
+    description: "Workspace QA count of scanned projects out of all native projects",
   },
-  counts: {
-    defaultMessage: "{errors} errors · {warnings} warnings",
-    id: "RwdjBGDnCb",
-    description: "Workspace QA error and warning counts",
+  acrossProjects: {
+    defaultMessage: "Across {count, plural, one {# scanned project} other {# scanned projects}}",
+    id: "CGTBa8RUXl",
+    description: "Workspace QA metric detail naming how many projects the totals cover",
+  },
+  latestScansDetail: {
+    defaultMessage: "From each project’s latest completed scan",
+    id: "9y+XnFTl5s",
+    description: "Workspace QA metric detail explaining where translation counts come from",
+  },
+  allProjectsScanned: {
+    defaultMessage: "Every project has a completed scan",
+    id: "r8Vl8uDYdv",
+    description: "Workspace QA metric detail when all projects are scanned",
+  },
+  stateFailed: {
+    defaultMessage: "{count} failed",
+    id: "hKPqpZwImM",
+    description: "Workspace QA count of projects whose latest scan failed",
+  },
+  stateRunning: {
+    defaultMessage: "{count} in progress",
+    id: "7pIitLnb8n",
+    description: "Workspace QA count of projects with a scan in progress",
+  },
+  stateNotScanned: {
+    defaultMessage: "{count} not scanned",
+    id: "B0ISyUzO3h",
+    description: "Workspace QA count of projects that were never scanned",
+  },
+  byProjectTitle: {
+    defaultMessage: "Errors and warnings by project",
+    id: "TOiXUpVFsO",
+    description: "Workspace QA chart title for errors and warnings per project",
+  },
+  chartHint: {
+    defaultMessage: "Select a bar to filter the findings below.",
+    id: "rgfO40Efmv",
+    description: "Workspace QA hint that chart bars filter the findings list",
+  },
+  chartEmpty: {
+    defaultMessage: "No findings in the latest completed scans.",
+    id: "Fnuknw5/27",
+    description: "Workspace QA chart empty state",
   },
 });

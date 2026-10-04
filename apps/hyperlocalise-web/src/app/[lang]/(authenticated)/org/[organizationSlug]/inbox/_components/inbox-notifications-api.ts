@@ -19,12 +19,16 @@ export type InboxIssueNotification = {
   id: string;
   organizationId: string;
   projectId: string;
-  issueId: string;
+  issueId: string | null;
+  qaRunId?: string | null;
   priority: IssuePriority | null;
   type: IssueNotificationType;
   payload: {
     issueTitle: string;
     projectId: string;
+    errorCount?: number;
+    errorsChange?: number;
+    errorCode?: string | null;
     commentId?: string;
     commentExcerpt?: string;
     previousStatus?: string;

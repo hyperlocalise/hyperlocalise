@@ -171,11 +171,13 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(resolveAvailableCatQueueFilters("smartling")).toContain("has_issues");
   });
 
-  it("includes Crowdin extra filters only for Crowdin", () => {
+  it("includes extra filters only for providers that support them", () => {
     expect(resolveAvailableCatQueueFilters("crowdin")).toEqual(
       expect.arrayContaining(["unsaved", "qa_issues", "machine_translated", "with_comments"]),
     );
-    expect(resolveAvailableCatQueueFilters("native")).not.toContain("qa_issues");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("qa_issues");
+    expect(resolveAvailableCatQueueFilters("native")).not.toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("qa_issues");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("machine_translated");
     expect(resolveAvailableCatQueueFilters(null)).toContain("unsaved");
     expect(resolveAvailableCatQueueFilters(null)).not.toContain("with_comments");

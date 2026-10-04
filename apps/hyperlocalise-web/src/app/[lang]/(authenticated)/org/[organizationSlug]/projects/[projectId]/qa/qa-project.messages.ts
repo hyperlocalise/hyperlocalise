@@ -180,4 +180,35 @@ export const qaProjectMessages = defineMessages({
     id: "iQ+Qd5bwId",
     description: "Project QA findings pagination count",
   },
+  chartHint: {
+    defaultMessage: "Select a bar to filter the findings, or a scan to open it.",
+    id: "PjwQHAKIyC",
+    description: "Project QA hint that chart bars filter findings or open a scan",
+  },
+  lastCheckedMetric: {
+    defaultMessage: "Last checked",
+    id: "vz3T4Z8Snp",
+    description: "Project QA overview metric label for when the selected scan completed",
+  },
+  scansDaily: {
+    defaultMessage: "Scans daily",
+    id: "Nvgh1C7lWr",
+    description: "Project QA overview detail when the daily schedule is on",
+  },
+  scansManual: {
+    defaultMessage: "Manual scans only",
+    id: "3ZTAwhOgvz",
+    description: "Project QA overview detail when the daily schedule is off",
+  },
+  selectedScanDetail: {
+    defaultMessage: "From the selected scan",
+    id: "ZhKvDu+LHx",
+    description: "Project QA overview metric detail for counts from the selected scan",
+  },
+  languagesWithFindings: {
+    defaultMessage:
+      "{count, plural, one {# language has findings} other {# languages have findings}}",
+    id: "hI5mcHlF5p",
+    description: "Project QA overview metric detail for languages with findings",
+  },
 });

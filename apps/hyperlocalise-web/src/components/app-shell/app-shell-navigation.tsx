@@ -50,11 +50,13 @@ import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-
 
 import { isLiveDomainResearchId } from "@/lib/domains/research-prototype";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { summarizeQaAttention, useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 
 import {
   buildDomainNavigationItems,
   buildHyperlabNavigationItems,
   buildOrganizationPath,
+  buildProjectPath,
   buildProjectNavigationGroups,
   isNavigationItemActive,
   parseDomainRoute,
@@ -531,6 +533,12 @@ function NavigationGroupItems({
   });
   const unreadCount = unreadCountQuery.data ?? 0;
   const unreadBadgeLabel = formatInboxUnreadBadgeLabel(unreadCount);
+  const qaHref = buildOrganizationPath(organizationSlug, "qa");
+  const projectQaHref = projectId ? buildProjectPath(organizationSlug, projectId, "qa") : null;
+  const qaReportsQuery = useWorkspaceQaReports(organizationSlug, {
+    enabled: group.items.some((item) => item.href === qaHref || item.href === projectQaHref),
+  });
+  const qaReports = qaReportsQuery.data?.reports;
 
   return (
     <SidebarGroupContent>
@@ -546,8 +554,20 @@ function NavigationGroupItems({
           const previewBadgeLabel = item.preview
             ? intl.formatMessage(appShellNavigationMessages.previewBadge)
             : null;
-          const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
-          const badge = dynamicBadge ?? previewBadgeLabel ?? item.badge;
+          const qaErrors =
+            item.href === qaHref
+              ? summarizeQaAttention(qaReports).errors
+              : item.href === projectQaHref
+                ? summarizeQaAttention(qaReports, projectId).errors
+                : 0;
+          const qaErrorsLabel =
+            qaErrors > 0
+              ? intl.formatMessage(appShellNavigationMessages.qaErrorsBadge, { count: qaErrors })
+              : null;
+          const dynamicBadge = isInboxItem
+            ? unreadBadgeLabel
+            : formatInboxUnreadBadgeLabel(qaErrors);
+          const badge = qaErrorsLabel ?? dynamicBadge ?? previewBadgeLabel ?? item.badge;
           const tooltip = badge
             ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
                 label: item.label,
@@ -575,7 +595,14 @@ function NavigationGroupItems({
               </SidebarMenuButton>
               {dynamicBadge ? (
                 <SidebarMenuBadge className={inboxUnreadBadgeClassName}>
-                  {dynamicBadge}
+                  {qaErrorsLabel ? (
+                    <>
+                      <span aria-hidden>{dynamicBadge}</span>
+                      <span className="sr-only">{qaErrorsLabel}</span>
+                    </>
+                  ) : (
+                    dynamicBadge
+                  )}
                 </SidebarMenuBadge>
               ) : null}
             </SidebarMenuItem>

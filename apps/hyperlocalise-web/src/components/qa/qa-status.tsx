@@ -220,11 +220,11 @@ export function QaRunStatus({
   return (
     <div className="flex flex-col gap-2" role="status">
       <p className="text-sm tabular-nums">
-        {intl.formatMessage(m.summary, {
-          segments: report.segmentCount,
-          errors: report.errorCount,
-          warnings: report.warningCount,
-        })}
+        {[
+          intl.formatMessage(m.summarySegments, { count: report.segmentCount }),
+          intl.formatMessage(m.summaryErrors, { count: report.errorCount }),
+          intl.formatMessage(m.summaryWarnings, { count: report.warningCount }),
+        ].join(" · ")}
       </p>
       {report.completedAt ? (
         <p className="text-xs text-muted-foreground">
