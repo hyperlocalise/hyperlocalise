@@ -1,0 +1,89 @@
+---
+title: "Merge strings"
+sidebarTitle: "Merge strings"
+description: "Merge identical strings in the Content Editor so you translate duplicates once and review copies that already differ."
+---
+
+Merge strings collapses exact source-text duplicates into one Content Editor row. Translate that row once and every unlocked copy in the current file scope updates. Copies that already disagree stay visible so you can keep them or apply one wording everywhere.
+
+Use this when the same label or sentence appears in several keys or files and should share one translation. Leave strings unmerged when the same source text means different things in different screens.
+
+## Before you start
+
+Merge strings works on [native projects](/platform/projects/create-project) in the text Content Editor. It is available for string resource files such as JSON, XLIFF, Gettext, iOS `.strings`, and Android resources.
+
+It is not available for:
+
+- files owned by a connected [TMS](/platform/tms)
+- images, video, Office files, Markdown, or MDX
+
+Merging matches exact source text. Whitespace, capitalization, and punctuation must match. Image and video URL strings stay on their own rows even when the URL text is the same.
+
+Changing the merge setting does not rewrite stored source strings, translations, approvals, comments, keys, or saved separation exceptions. It only changes how the queue groups those strings and which copies a save writes to.
+
+Administrators and localization managers can set the project default. Translators and reviewers can switch the view for themselves in the editor. See [roles and permissions](/platform/workspace/roles).
+
+## Turn on merge strings for a project
+
+Set the project default when most reviewers should start in the merged view.
+
+1. Open **Projects**, select the project, and open **Settings**.
+2. Find **Translation & Content Editor behavior**.
+3. Turn on **Automatically merge identical strings**.
+4. Read the confirmation. It shows how many occurrences would merge into how many strings.
+5. Select **Enable merging**.
+
+New projects start with merging off. After you enable it, the Content Editor uses the merged view when it next loads for someone who has not chosen a personal view.
+
+To stop merging, turn the same setting off and select **Disable merging**. Merged rows split back out after open drafts are saved or discarded.
+
+<Note>
+Identical source text can have different meanings. Agree with reviewers before you make merging the project default.
+</Note>
+
+## Use merge strings in the Content Editor
+
+You do not need the project setting to try merge strings. Open the editor and switch the view for this project.
+
+1. Open a project from **Projects**.
+2. Open **Files**, then select a source file and a target locale. If the project has an all-files queue, open **Content Editor** in the project sidebar instead.
+3. Open **View** on the editor toolbar.
+4. Under **Show strings**, choose **Merge identical strings**.
+
+The queue reloads with one row per unique source text. A **×** badge on the row shows how many copies share that text.
+
+To see every key again, open **View** → **Show strings** → **Individual strings**.
+
+**Use project default** appears after you pick a personal view. Select it to follow the project setting again. Your choice is remembered for this project in this browser.
+
+<Note>
+A link to a specific string always opens **Individual strings** so that key is in the queue. Switch back to **Merge identical strings** after you finish with the linked row.
+</Note>
+
+Save or discard unsaved drafts before you change the view. The editor asks you to finish those drafts first so a grouped reload does not drop in-progress text.
+
+## Translate a merged string
+
+Select the merged row. The editor loads the shared source text and one target field when every unlocked copy already agrees, or when none of them have a translation yet.
+
+Save or approve that field to write the same translation to every unlocked occurrence in the current file scope. An all-files queue updates matching strings across the files in that queue. A single-file queue updates matching strings in that file only.
+
+A grouped row is only as complete as its least complete copy. The row stays untranslated or needs review until every unlocked occurrence reaches that status.
+
+Locked strings do not change. Format checks still run against each copy's path and length limit.
+
+If a group has more than 1,000 occurrences, narrow the file selection and try again.
+
+## Review different translations
+
+When copies of the same source already disagree, the row shows **Different translations**. The editor lists one input per existing wording, plus an **Untranslated** group when some copies are still empty.
+
+Each variant lists its keys and file paths. Saving a variant updates only those occurrences. Use **Apply to all** when every unlocked copy should use the wording you just chose.
+
+An AI suggestion can **Apply to all** or **Use in…** a specific variant.
+
+You cannot save a single shared translation while copies still disagree. Edit each variant, or apply one wording to all unlocked copies.
+
+## Next
+
+Continue in the [Content Editor](/platform/cat) to filter, approve, and export the queue. Change the project default later from [project settings](/platform/projects/settings). See [translation quality troubleshooting](/platform/help/quality) if shared wording does not fit every screen.
