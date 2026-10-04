@@ -29,55 +29,15 @@ import {
   getAppLocaleFlagEmoji,
   getAppLocaleFromPathname,
   getNativeLocaleDisplayName,
-  rewriteAppLocalePath,
 } from "@/lib/app-i18n/rewrite-app-locale-path";
 
 import { localeToggleMessages } from "./locale-toggle.messages";
+import { navigateToAppLocale } from "./navigate-to-app-locale";
 
-function LocaleMenuRadioGroup() {
+export function LocaleToggle() {
   const intl = useIntl();
   const pathname = usePathname() ?? "/";
   const activeLocale = getAppLocaleFromPathname(pathname);
-
-  return (
-    <DropdownMenuRadioGroup
-      aria-label={intl.formatMessage(localeToggleMessages.languageAria)}
-      value={activeLocale}
-      onValueChange={(value) => {
-        const nextLocale = value as AppLocale;
-        if (nextLocale === activeLocale) {
-          return;
-        }
-
-        const search = window.location.search;
-        const hash = window.location.hash;
-        window.location.assign(rewriteAppLocalePath(`${pathname}${search}${hash}`, nextLocale));
-      }}
-    >
-      {SUPPORTED_APP_LOCALES.map((locale) => (
-        <DropdownMenuRadioItem key={locale} value={locale}>
-          <span className="flex items-center gap-2">
-            <span aria-hidden="true">{getAppLocaleFlagEmoji(locale)}</span>
-            <span>{getNativeLocaleDisplayName(locale)}</span>
-          </span>
-        </DropdownMenuRadioItem>
-      ))}
-    </DropdownMenuRadioGroup>
-  );
-}
-
-type LocaleToggleProps = {
-  variant?: "dropdown" | "menu";
-};
-
-export function LocaleToggle({ variant = "dropdown" }: LocaleToggleProps) {
-  const intl = useIntl();
-  const pathname = usePathname() ?? "/";
-  const activeLocale = getAppLocaleFromPathname(pathname);
-
-  if (variant === "menu") {
-    return <LocaleMenuRadioGroup />;
-  }
 
   return (
     <DropdownMenu>
@@ -110,13 +70,9 @@ export function LocaleToggle({ variant = "dropdown" }: LocaleToggleProps) {
           value={activeLocale}
           onValueChange={(value) => {
             const nextLocale = value as AppLocale;
-            if (nextLocale === activeLocale) {
-              return;
+            if (nextLocale !== activeLocale) {
+              navigateToAppLocale(nextLocale);
             }
-
-            const search = window.location.search;
-            const hash = window.location.hash;
-            window.location.assign(rewriteAppLocalePath(`${pathname}${search}${hash}`, nextLocale));
           }}
         >
           {SUPPORTED_APP_LOCALES.map((locale) => (

@@ -48,6 +48,7 @@ import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organiza
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { AppShellFooter } from "./app-shell-footer";
+import { UpdateAnnouncer } from "./update-announcer/update-announcer";
 
 import { appShellClientMessages } from "./app-shell-client.messages";
 
@@ -219,6 +220,8 @@ export function AppShellClient({
               {children}
             </div>
           </SidebarInset>
+
+          <UpdateAnnouncer organizationSlug={organizationSlug} />
 
           <AppShellFooter
             organizationSlug={organizationSlug}

@@ -20,6 +20,11 @@ import {
   AppShellHeaderStoryFrame,
   appShellStoryUser,
 } from "./app-shell.stories.fixture";
+import { UpdateAnnouncer } from "./update-announcer/update-announcer";
+import {
+  CURRENT_UPDATE_ANNOUNCEMENT,
+  getUpdateAnnouncementStorageKey,
+} from "./update-announcer/update-announcements";
 
 const meta = {
   title: "App Shell/Header",
@@ -72,6 +77,36 @@ export const WithHeaderAction: Story = {
   },
 };
 
+export const LanguageDialog: Story = {
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("button", { name: /Open account menu/i }));
+    const body = within(document.body);
+    await userEvent.click(await body.findByRole("menuitem", { name: /Language/ }));
+    await expect(await body.findByRole("dialog")).toBeInTheDocument();
+    await userEvent.type(body.getByRole("searchbox", { name: "Filter languages" }), "deu");
+    await expect(body.getByRole("button", { name: /Deutschland/ })).toBeInTheDocument();
+    await expect(body.queryByRole("button", { name: /France/ })).not.toBeInTheDocument();
+  },
+};
+
+export const WithUpdateAnnouncement: Story = {
+  render: () => (
+    <>
+      <AppShellHeaderStoryFrame />
+      <UpdateAnnouncer
+        organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}
+        announcement={{ ...CURRENT_UPDATE_ANNOUNCEMENT!, id: "storybook-preview" }}
+      />
+    </>
+  ),
+  beforeEach: () => {
+    window.localStorage.removeItem(getUpdateAnnouncementStorageKey("storybook-preview"));
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole("link", { name: "Try it now" })).toBeInTheDocument();
+  },
+};
+
 export const WithTmsConnect: Story = {
   render: () => <AppShellHeaderStoryFrame showTmsConnect />,
   play: async ({ canvas }) => {
@@ -88,6 +123,8 @@ export const AccountMenu: Story = {
     await expect(menu.getByRole("menuitem", { name: "Members" })).toBeInTheDocument();
     await expect(menu.getByRole("menuitem", { name: "Billing" })).toBeInTheDocument();
     await expect(menu.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitemradio", { name: "System" })).toBeInTheDocument();
+    await expect(menu.getByRole("menuitem", { name: /Language/ })).toBeInTheDocument();
   },
 };
 
