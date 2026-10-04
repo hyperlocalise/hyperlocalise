@@ -37,11 +37,7 @@ func ParseInvariant(s string) (Invariant, error) {
 		}
 	}
 
-	numBraces := strings.Count(s, "{")
-	numPounds := strings.Count(s, "#")
-	inv := Invariant{
-		Placeholders: make([]string, 0, numBraces+numPounds),
-	}
+	var inv Invariant
 	collectInvariantFromElements(elems, &inv, "")
 
 	if !isSortedAndUnique(inv.Placeholders) {
@@ -239,6 +235,9 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 
 func appendPlaceholder(inv *Invariant, value string) {
 	if isPlaceholderName(value) {
+		if inv.Placeholders == nil {
+			inv.Placeholders = make([]string, 0, 4)
+		}
 		inv.Placeholders = append(inv.Placeholders, value)
 	}
 }
