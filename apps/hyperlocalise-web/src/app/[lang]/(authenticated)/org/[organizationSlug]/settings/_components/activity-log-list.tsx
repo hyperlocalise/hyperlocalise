@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useIntl } from "react-intl";
+import { useIntl, type MessageDescriptor } from "react-intl";
 import {
   BookOpenTextIcon,
   BuildingOfficeIcon,
@@ -86,7 +86,9 @@ const eventActions = {
   string_segment_locked: messages.stringSegmentLockedAction,
   string_segment_unlocked: messages.stringSegmentUnlockedAction,
   string_segment_commented: messages.stringSegmentCommentedAction,
-};
+} satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
+
+export const activityLogEventActions = eventActions;
 
 type ActivityVisual = {
   className: string;

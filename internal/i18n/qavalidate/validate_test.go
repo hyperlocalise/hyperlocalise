@@ -59,6 +59,53 @@ func TestPolicyRequiresCompleteCheckSet(t *testing.T) {
 	}
 }
 
+func TestGlossaryFindings(t *testing.T) {
+	policy := DefaultPolicy()
+	policy.GlossaryTerms = []GlossaryTerm{
+		{SourceTerm: "Save", TargetTerm: "Enregistrer", TargetLocale: "fr-FR"},
+		{SourceTerm: "Cancel", TargetTerm: "Annuler", TargetLocale: "fr-FR", CaseSensitive: true},
+		{SourceTerm: "OK", TargetTerm: "OK", TargetLocale: "de-DE", Forbidden: true},
+		{SourceTerm: "Draft", TargetTerm: "Brouillon", TargetLocale: "fr-FR"},
+	}
+	segment := Segment{SourceText: "Save and Cancel", TargetText: "Save and ANNULER", TargetLocale: "fr-FR"}
+
+	findings := glossaryFindings(segment, policy)
+	if len(findings) != 2 {
+		t.Fatalf("findings = %+v", findings)
+	}
+	if findings[0].Message != `Glossary term "Save" requires "Enregistrer".` {
+		t.Fatalf("required = %q", findings[0].Message)
+	}
+	if findings[1].Message != `Glossary term "Cancel" requires "Annuler".` {
+		t.Fatalf("case-sensitive = %q", findings[1].Message)
+	}
+
+	forbidden := glossaryFindings(Segment{
+		SourceText: "Press OK", TargetText: "Drücken Sie OK", TargetLocale: "de-DE",
+	}, policy)
+	if len(forbidden) != 1 || forbidden[0].Message != `Forbidden term "OK" appears in the target.` {
+		t.Fatalf("forbidden = %+v", forbidden)
+	}
+
+	ok := glossaryFindings(Segment{
+		SourceText: "Save Draft", TargetText: "Enregistrer le brouillon", TargetLocale: "fr-FR",
+	}, policy)
+	if len(ok) != 0 {
+		t.Fatalf("matched required terms = %+v", ok)
+	}
+
+	policy.Checks["glossary_violation"] = Setting{Enabled: false, Severity: "warning"}
+	if findings := glossaryFindings(segment, policy); len(findings) != 0 {
+		t.Fatalf("disabled = %+v", findings)
+	}
+	policy.Checks["glossary_violation"] = Setting{Enabled: true, Severity: "warning"}
+	if findings := glossaryFindings(Segment{
+		SourceText: "Save", TargetText: "   ", TargetLocale: "fr-FR",
+	}, policy); len(findings) != 0 {
+		t.Fatalf("empty target = %+v", findings)
+	}
+}
+
 func TestCollectSpellingPreservesWordCaseForHunspell(t *testing.T) {
 	root := t.TempDir()
 	dictDir := filepath.Join(root, "dict")

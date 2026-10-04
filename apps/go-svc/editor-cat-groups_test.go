@@ -14,6 +14,35 @@ func TestEditorCatGroupIdentitySQLUsesProvidedAlias(t *testing.T) {
 	require.Equal(t, strings.ReplaceAll(editorCatGroupIdentitySQL("k"), "k.", "rk."), editorCatGroupIdentitySQL("rk"))
 }
 
+func TestParseEditorCatSourcePaths(t *testing.T) {
+	require.Equal(t, []string{"a.json", "b.json"}, parseEditorCatSourcePaths(" a.json , b.json , a.json "))
+	require.Equal(t, []string{"locales/fr.json"}, parseEditorCatSourcePaths("locales/fr.json"))
+	require.Empty(t, parseEditorCatSourcePaths(""))
+	require.Empty(t, parseEditorCatSourcePaths("  ,   , "))
+}
+
+func TestIntersectEditorCatIDs(t *testing.T) {
+	selected := []string{
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+		"33333333-3333-3333-3333-333333333333",
+		"11111111-1111-1111-1111-111111111111",
+	}
+	current := []string{
+		"11111111-1111-1111-1111-111111111111",
+		" 22222222-2222-2222-2222-222222222222 ",
+	}
+	require.Equal(t, []string{
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+	}, intersectEditorCatIDs(selected, current))
+	require.Empty(t, intersectEditorCatIDs(selected, nil))
+	require.Equal(t, []string{"binary:hero.png"}, intersectEditorCatIDs(
+		[]string{"binary:hero.png", "binary:other.png"},
+		[]string{"binary:hero.png"},
+	))
+}
+
 func readGroupedCatQueue(t *testing.T, api *editorCatAPI, scope *testenv.Scope, query string) editorCatQueueFile {
 	t.Helper()
 	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?targetLocale=fr&grouped=true&"+query), "")

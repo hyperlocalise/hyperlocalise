@@ -259,3 +259,21 @@ func TestNotificationsInvalidListQuery(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_issue_notifications_query")
 }
+
+func TestFormatNotificationActor(t *testing.T) {
+	ptr := func(value string) *string { return &value }
+	require.Nil(t, formatNotificationActor(nil, ptr("Ada"), ptr("Lovelace"), ptr("ada@example.com"), nil))
+
+	named := formatNotificationActor(ptr("user_1"), ptr("Ada"), ptr("Lovelace"), ptr("ada@example.com"), ptr("https://cdn.example/a.png"))
+	require.Equal(t, "user_1", named["userId"])
+	require.Equal(t, "Ada Lovelace", named["displayName"])
+	require.Equal(t, "ada@example.com", named["email"])
+	require.Equal(t, ptr("https://cdn.example/a.png"), named["avatarUrl"])
+
+	emailOnly := formatNotificationActor(ptr("user_2"), ptr(""), nil, ptr("ada@example.com"), nil)
+	require.Equal(t, "ada@example.com", emailOnly["displayName"])
+
+	idOnly := formatNotificationActor(ptr("user_3"), nil, nil, ptr(""), nil)
+	require.Equal(t, "user_3", idOnly["displayName"])
+	require.Equal(t, "", idOnly["email"])
+}
