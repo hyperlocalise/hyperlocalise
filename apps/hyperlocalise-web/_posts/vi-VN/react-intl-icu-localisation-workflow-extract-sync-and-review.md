@@ -122,7 +122,7 @@ Tránh `--flatten` trên các thông điệp ICU mà bạn định phát hành d
 Tạo `i18n.yml` tại thư mục gốc của kho lưu trữ (hoặc trong thư mục ứng dụng của bạn nếu monorepo lưu cấu hình bên cạnh giao diện người dùng):
 
 ```yaml
-version: hyperlocalise@1.13.1
+version: hyperlocalise@1.12.1
 
 locales:
   source: en-US
