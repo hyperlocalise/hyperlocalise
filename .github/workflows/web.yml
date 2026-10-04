@@ -66,9 +66,10 @@ jobs:
       - name: Check hyperlocalise-web
         run: vp check
 
+  # Draft PRs run tests related to the PR diff and skip Next.js build.
+  # Ready PRs and workflow_dispatch run the full suite and build.
   web-test-build:
     name: Hyperlocalise Web Test/Build
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:
@@ -108,6 +109,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Fetch PR base for changed tests
+        if: github.event.pull_request.draft
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        working-directory: ${{ github.workspace }}
+        run: git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
         with:
@@ -139,9 +147,20 @@ jobs:
             ${{ runner.os }}-vitest-
 
       - name: Test hyperlocalise-web
-        run: vp test
+        env:
+          # Only draft PRs get a SHA here. Ready PRs and workflow_dispatch stay full.
+          VITEST_CHANGED_SINCE: ${{ github.event.pull_request.draft && github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "${VITEST_CHANGED_SINCE}" ]; then
+            echo "Draft PR: running tests related to changes since ${VITEST_CHANGED_SINCE}"
+            vp test --changed "${VITEST_CHANGED_SINCE}" --passWithNoTests
+          else
+            vp test
+          fi
 
       - name: Cache Next.js build
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
@@ -152,4 +171,5 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-
 
       - name: Build hyperlocalise-web
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: vp run build
