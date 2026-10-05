@@ -490,6 +490,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "A selected skill needs a tool that is not enabled.";
     }
   | {
+      code: "instructions_or_skill_required";
+      message: "Add a skill or write instructions.";
+    }
+  | {
       code: "project_required";
       message: "Choose a Hyperlocalise project for this automation.";
     }

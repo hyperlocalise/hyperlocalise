@@ -861,10 +861,70 @@ describe("workspace automations", () => {
         automationId: automation.id,
         organizationId: scope.organizationId,
         skillIds: [],
+        instructions: "Research competitors.",
       }),
     );
     expect(detached?.skillIds).toEqual([]);
     expect(detached?.configVersion).toBe(2);
+  });
+
+  it("does not let an update leave an automation without instructions or a skill", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const skillOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web"],
+      }),
+    );
+    const instructionsOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Hand-written",
+        instructions: "Summarise the week.",
+      }),
+    );
+
+    const lastSkillRemoved = await updateWorkspaceAutomation({
+      automationId: skillOnly.id,
+      organizationId: scope.organizationId,
+      skillIds: [],
+    });
+    const instructionsBlanked = await updateWorkspaceAutomation({
+      automationId: instructionsOnly.id,
+      organizationId: scope.organizationId,
+      instructions: "  ",
+    });
+
+    expect(lastSkillRemoved.ok ? null : lastSkillRemoved.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(instructionsBlanked.ok ? null : instructionsBlanked.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(
+      (
+        await getWorkspaceAutomationById({
+          automationId: skillOnly.id,
+          organizationId: scope.organizationId,
+        })
+      )?.skillIds,
+    ).toEqual(["research-web"]);
+
+    // Changes that touch neither field are not held to the rule.
+    const paused = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: skillOnly.id,
+        organizationId: scope.organizationId,
+        status: "paused",
+      }),
+    );
+    expect(paused?.status).toBe("paused");
   });
 
   it("rejects skills that are unknown, do not fit the trigger, or lack their tools", async () => {

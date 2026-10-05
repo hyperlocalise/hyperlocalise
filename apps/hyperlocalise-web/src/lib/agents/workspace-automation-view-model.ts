@@ -174,6 +174,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   skill_trigger_incompatible:
     "A selected skill does not work with this trigger. Remove it or change the trigger.",
   skill_tools_required: "A selected skill needs a tool that was removed. Add the skill again.",
+  instructions_or_skill_required: "Add a skill or write instructions.",
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   gitlab_repository_target_required: "Choose a GitLab project before enabling GitLab tools.",
   gitlab_github_exclusive: "GitHub and GitLab cannot be enabled on the same automation.",
@@ -790,7 +791,7 @@ export function validateWorkspaceAutomationFormState(
   }
 
   if (!form.instructions.trim() && form.skillIds.length === 0) {
-    errors.instructions = "Add a skill or write instructions.";
+    errors.instructions = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES.instructions_or_skill_required;
   }
 
   const payload = formStateToWorkspaceAutomationPayload(form);
@@ -925,6 +926,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "skill_trigger_incompatible":
     case "skill_tools_required":
       return { skills: message };
+    case "instructions_or_skill_required":
+      return { instructions: message };
     case "github_repository_target_required":
     case "github_repository_not_enabled":
     case "github_repository_archived":

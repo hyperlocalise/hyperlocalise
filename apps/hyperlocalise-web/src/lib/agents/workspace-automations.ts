@@ -1161,6 +1161,19 @@ export async function updateWorkspaceAutomation(input: {
   };
   const projectId = readOptionalProjectId(config.projectId);
 
+  // Creation requires instructions or a skill; an update must not take away the last of them.
+  if (
+    existing.kind !== "content_sync" &&
+    (input.instructions !== undefined || input.skillIds !== undefined) &&
+    (input.instructions ?? existing.instructions).trim().length === 0 &&
+    skillIds.length === 0
+  ) {
+    return err({
+      code: "instructions_or_skill_required",
+      message: "Add a skill or write instructions.",
+    });
+  }
+
   const nextSyncConfig = input.syncConfig !== undefined ? input.syncConfig : existing.syncConfig;
   if (configChanged) {
     const validation = validateWorkspaceAutomationConfig({
