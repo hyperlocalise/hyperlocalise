@@ -210,5 +210,8 @@ func parseExistingTargetEntries(path string, content []byte, targetLocale string
 	if strings.EqualFold(filepath.Ext(path), ".csv") {
 		return parseCSVForTargetLocale(content, targetLocale)
 	}
+	if strings.EqualFold(filepath.Ext(path), ".tsv") {
+		return translationfileparser.ParseTSVLocale(content, targetLocale)
+	}
 	return parser.Parse(path, content)
 }

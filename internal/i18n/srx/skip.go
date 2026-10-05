@@ -30,6 +30,7 @@ func FormatSupports(path, parserMode string) bool {
 		strings.HasSuffix(normalized, ".pot"),
 		strings.HasSuffix(normalized, ".srt"),
 		strings.HasSuffix(normalized, ".vtt"),
+		strings.HasSuffix(normalized, ".sbv"),
 		strings.HasSuffix(normalized, ".xcstrings"),
 		strings.HasSuffix(normalized, ".stringsdict"):
 		return false

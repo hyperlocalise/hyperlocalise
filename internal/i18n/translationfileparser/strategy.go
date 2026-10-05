@@ -36,7 +36,7 @@ func NewDefaultStrategy() *Strategy {
 	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
 	// during initialization. We use assignments for static extensions and
 	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
-	parsers := make(map[string]Parser, 35+len(JSTSLocaleModuleExts))
+	parsers := make(map[string]Parser, 39+len(JSTSLocaleModuleExts))
 	parsers[".json"] = JSONParser{}
 	parsers[".jsonc"] = JSONCParser{}
 	parsers[".yaml"] = YAMLParser{}
@@ -63,6 +63,8 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".stringsdict"] = AppleStringsdictParser{}
 	parsers[".xcstrings"] = XCStringsParser{}
 	parsers[".csv"] = CSVParser{}
+	parsers[".tsv"] = CSVParser{Delimiter: '\t'}
+	parsers[".toml"] = TOMLParser{}
 	parsers[".php"] = PHPArrayParser{}
 	parsers[".ftl"] = FluentParser{}
 	parsers[".xml"] = XMLParser{}
@@ -72,6 +74,8 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".ini"] = INIParser{}
 	parsers[".srt"] = SubtitleParser{Kind: SubtitleSRT}
 	parsers[".vtt"] = SubtitleParser{Kind: SubtitleVTT}
+	parsers[".sbv"] = SubtitleParser{Kind: SubtitleSBV}
+	parsers[".svg"] = SVGParser{}
 	parsers[".lottie"] = DotLottieParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
@@ -143,6 +147,13 @@ func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (
 	}
 	if ext == ".csv" {
 		values, err := ParseCSVLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+	if ext == ".tsv" {
+		values, err := ParseTSVLocale(content, locale)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}

@@ -19,6 +19,7 @@ const ALREADY_SEGMENTED_EXTENSIONS = [
   ".pot",
   ".srt",
   ".vtt",
+  ".sbv",
   ".xcstrings",
   ".stringsdict",
 ] as const;

@@ -213,7 +213,7 @@ Hyperlocalise supports Fluent messages, attributes, multiline values, and select
 
 ### Subtitle file mapping patterns
 
-Use `.srt` or `.vtt` mappings for SubRip and WebVTT caption files:
+Use `.srt`, `.vtt`, or `.sbv` mappings for SubRip, WebVTT, and YouTube SBV caption files:
 
 ```yaml
 buckets:
@@ -223,9 +223,11 @@ buckets:
         to: captions/{{target}}.srt
       - from: captions/{{source}}.vtt
         to: captions/{{target}}.vtt
+      - from: captions/{{source}}.sbv
+        to: captions/{{target}}.sbv
 ```
 
-Hyperlocalise translates cue payload text and preserves cue numbers, timestamps, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks. Cues use sequential keys such as `srt.0001`.
+Hyperlocalise translates cue payload text and preserves cue numbers, timestamps, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks. Cues use sequential keys such as `srt.0001` and `sbv.0001`. SBV files use comma-separated `H:MM:SS.mmm` timestamps and have no cue numbers.
 
 ### JS/TS locale module patterns
 

@@ -325,7 +325,9 @@
                           "cli/reference/formats/arb",
                           "cli/reference/formats/php",
                           "cli/reference/formats/fluent",
-                          "cli/reference/formats/csv"
+                          "cli/reference/formats/csv",
+                          "cli/reference/formats/tsv",
+                          "cli/reference/formats/toml"
                         ]
                       },
                       {
@@ -347,7 +349,8 @@
                           "cli/reference/formats/asciidoc",
                           "cli/reference/formats/html",
                           "cli/reference/formats/liquid",
-                          "cli/reference/formats/lottie"
+                          "cli/reference/formats/lottie",
+                          "cli/reference/formats/svg"
                         ]
                       },
                       {
@@ -369,7 +372,8 @@
                         "expanded": false,
                         "pages": [
                           "cli/reference/formats/srt",
-                          "cli/reference/formats/webvtt"
+                          "cli/reference/formats/webvtt",
+                          "cli/reference/formats/sbv"
                         ]
                       }
                     ],

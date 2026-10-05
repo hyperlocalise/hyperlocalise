@@ -271,11 +271,35 @@ func TestHyperlocaliseSyncRecognizesSubtitleFiles(t *testing.T) {
 	if got := inferHyperlocaliseFileFormat("captions/en.vtt"); got != "vtt" {
 		t.Fatalf("inferHyperlocaliseFileFormat(.vtt) = %q, want vtt", got)
 	}
+	if got := inferHyperlocaliseFileFormat("captions/en.sbv"); got != "sbv" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.sbv) = %q, want sbv", got)
+	}
+	if got := inferHyperlocaliseFileFormat("locales/en.toml"); got != "toml" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.toml) = %q, want toml", got)
+	}
+	if got := inferHyperlocaliseFileFormat("locales/messages.tsv"); got != "tsv" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.tsv) = %q, want tsv", got)
+	}
+	if got := inferHyperlocaliseFileFormat("assets/mark.svg"); got != "svg" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.svg) = %q, want svg", got)
+	}
 	if got := contentTypeForPath("captions/en.srt"); got == "application/octet-stream" {
 		t.Fatalf("contentTypeForPath(.srt) = %q, want a text subtitle type", got)
 	}
 	if got := contentTypeForPath("captions/en.vtt"); got == "application/octet-stream" {
 		t.Fatalf("contentTypeForPath(.vtt) = %q, want a text subtitle type", got)
+	}
+	if got := contentTypeForPath("captions/en.sbv"); got != "text/plain" {
+		t.Fatalf("contentTypeForPath(.sbv) = %q, want text/plain", got)
+	}
+	if got := contentTypeForPath("locales/en.toml"); !strings.HasPrefix(got, "application/toml") {
+		t.Fatalf("contentTypeForPath(.toml) = %q, want application/toml", got)
+	}
+	if got := contentTypeForPath("locales/messages.tsv"); !strings.HasPrefix(got, "text/tab-separated-values") {
+		t.Fatalf("contentTypeForPath(.tsv) = %q, want text/tab-separated-values", got)
+	}
+	if got := contentTypeForPath("assets/mark.svg"); !strings.HasPrefix(got, "image/svg+xml") {
+		t.Fatalf("contentTypeForPath(.svg) = %q, want image/svg+xml", got)
 	}
 }
 

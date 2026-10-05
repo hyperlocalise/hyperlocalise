@@ -77,6 +77,19 @@ describe("createJobBodySchema kind and description", () => {
     ).toBe(false);
   });
 
+  it("accepts CLI catalog file formats on file jobs", () => {
+    for (const fileFormat of ["xml", "properties", "php", "ftl", "javascript", "liquid"] as const) {
+      const parsed = createJobBodySchema.safeParse({
+        ...fileBase,
+        fileInput: {
+          ...fileBase.fileInput,
+          fileFormat,
+        },
+      });
+      expect(parsed.success, fileFormat).toBe(true);
+    }
+  });
+
   it("accepts ignoreTranslationMemory on file jobs", () => {
     const parsed = createJobBodySchema.safeParse({
       ...fileBase,

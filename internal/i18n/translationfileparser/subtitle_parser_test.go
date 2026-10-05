@@ -58,6 +58,47 @@ func TestSubtitleParserParsesSRTCuesAndContext(t *testing.T) {
 	}
 }
 
+const sampleSBV = `0:00:00.000,0:00:04.000
+Welcome to the product tour.
+
+0:00:04.180,0:00:06.560
+Open your project
+to begin.
+`
+
+func TestSubtitleParserParsesSBVCuesAndContext(t *testing.T) {
+	values, ctx, err := (SubtitleParser{Kind: SubtitleSBV}).ParseWithContext([]byte(sampleSBV))
+	if err != nil {
+		t.Fatalf("parse sbv: %v", err)
+	}
+
+	want := map[string]string{
+		"sbv.0001": "Welcome to the product tour.",
+		"sbv.0002": "Open your project\nto begin.",
+	}
+	if !reflect.DeepEqual(values, want) {
+		t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
+	}
+	if ctx["sbv.0001"] != "0:00:00.000,0:00:04.000" {
+		t.Fatalf("unexpected sbv.0001 context: %q", ctx["sbv.0001"])
+	}
+}
+
+func TestMarshalSubtitlesReplacesSBVCueText(t *testing.T) {
+	out, err := MarshalSubtitles([]byte(sampleSBV), map[string]string{
+		"sbv.0001": "Bienvenue.",
+	}, SubtitleSBV)
+	if err != nil {
+		t.Fatalf("marshal sbv: %v", err)
+	}
+	if !strings.Contains(string(out), "Bienvenue.") {
+		t.Fatalf("expected replaced cue, got %q", out)
+	}
+	if !strings.Contains(string(out), "0:00:00.000,0:00:04.000") {
+		t.Fatalf("expected preserved timestamp, got %q", out)
+	}
+}
+
 func TestSubtitleParserParsesVTTCuesNotesAndSettings(t *testing.T) {
 	values, ctx, err := (SubtitleParser{Kind: SubtitleVTT}).ParseWithContext([]byte(sampleVTT))
 	if err != nil {

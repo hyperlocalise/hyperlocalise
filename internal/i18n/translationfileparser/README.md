@@ -20,19 +20,22 @@
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.xcstrings` via `XCStringsParser` (Apple/Xcode string catalogs)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.tsv` via `CSVParser` with a tab delimiter
+- `.toml` via `TOMLParser` (string leaves in tables, inline tables, and string arrays)
 - `.php` via `PHPArrayParser` (static PHP locale arrays)
 - `.ftl` via `FluentParser` (Mozilla Fluent messages and attributes)
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` / `.resw` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
 - `.ini` via `INIParser` (Windows-style INI localization files)
-- `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
+- `.srt` / `.vtt` / `.sbv` via `SubtitleParser` (SubRip, WebVTT, and YouTube SBV subtitle cues)
+- `.svg` via `SVGParser` (`text`, `tspan`, `textPath`, `title`, and `desc`)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, and SVG text parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -251,9 +254,26 @@
 - Writeback normalizes translated values to single-line escaped values.
 - Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations return explicit parse errors.
 
-### Subtitles (`.srt`, `.vtt`)
+### TOML (`.toml`)
 
-- Parses SubRip (`.srt`) and WebVTT (`.vtt`) cues into sequential keys such as `srt.0001` and `vtt.0001`.
+- Parses string assignments from tables, inline tables, and string arrays. Nested tables flatten as dotted keys; string arrays use `[index]` keys.
+- Non-string scalars are skipped. Array-of-tables (`[[name]]`) and duplicate flattened keys return parse errors.
+- `MarshalTOML(template, values)` replaces existing string literals in place and appends new dotted keys in sorted order.
+
+### TSV (`.tsv`)
+
+- Same layouts as CSV, using a tab delimiter: `key`/`value` columns or per-locale columns.
+- `ParseTSVLocale` and `TSVHasLocaleColumn` select a locale column when present.
+
+### SVG (`.svg`)
+
+- Extracts character data from `text`, `tspan`, `textPath`, `title`, and `desc` into sequential keys such as `svg.0001`.
+- Skips `style`, `script`, and `metadata` content. Geometry and attributes stay in the file.
+- `MarshalSVG(template, values)` replaces extracted spans and HTML-escapes translations. Extra keys are ignored.
+
+### Subtitles (`.srt`, `.vtt`, `.sbv`)
+
+- Parses SubRip (`.srt`), WebVTT (`.vtt`), and YouTube SBV (`.sbv`) cues into sequential keys such as `srt.0001`, `vtt.0001`, and `sbv.0001`.
 - Cue numbers, timestamps, positioning, and WebVTT cue settings stay in the file structure and are not translated.
 - Cue payload text is the translation unit. Multiline cues become a single value joined with `\n`.
 - `ParseWithContext` returns the timestamp line as entry context, including a non-numeric WebVTT cue identifier when present.

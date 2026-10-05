@@ -480,6 +480,54 @@ func TestStrategyParsesVTT(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesTSV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.tsv", []byte("key\tvalue\nhello\tHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected tsv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesTOML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.toml", []byte("hello = \"Hello\"\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected toml translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSBV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.sbv", []byte("0:00:00.000,0:00:01.000\nHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["sbv.0001"] != "Hello" {
+		t.Fatalf("unexpected sbv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSVG(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("mark.svg", []byte(`<svg><text>Hello</text></svg>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["svg.0001"] != "Hello" {
+		t.Fatalf("unexpected svg translation: %#v", got)
+	}
+}
+
 func TestStrategyRegistersLiquidParser(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -592,7 +640,7 @@ func TestStrategyParsesHTMLExtensions(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.toml", []byte(""))
+	_, err := s.Parse("fr.pdf", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}
