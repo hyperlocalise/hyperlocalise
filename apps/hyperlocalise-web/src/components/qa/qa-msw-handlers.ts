@@ -25,6 +25,7 @@ import {
   qaRunningReport,
   qaWebsiteProjectId,
   qaWebsiteReport,
+  qaWhitespaceFinding,
   qaWorkspaceFindings,
   qaWorkspaceReports,
 } from "./qa.fixture";
@@ -286,6 +287,10 @@ export const qaWorkspaceErrorMswHandlers = createQaMswHandlers({ listError: "err
 export const qaWorkspaceFindingsErrorMswHandlers = createQaMswHandlers({ findingsError: true });
 
 export const qaWorkspaceLoadMoreMswHandlers = createQaMswHandlers({ firstPageSize: 1 });
+
+export const qaWorkspaceWhitespaceMswHandlers = createQaMswHandlers({
+  workspaceFindings: [qaWhitespaceFinding],
+});
 
 export const qaProjectMswHandlers = createQaMswHandlers();
 
