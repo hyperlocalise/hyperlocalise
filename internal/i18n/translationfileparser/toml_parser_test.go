@@ -56,6 +56,25 @@ func TestTOMLParserRejectsArrayOfTables(t *testing.T) {
 	}
 }
 
+func TestTOMLParserDecodesUnicodeEscapes(t *testing.T) {
+	got, err := (TOMLParser{}).Parse([]byte(`hello = "caf\u00e9 \U0001F600"` + "\n"))
+	if err != nil {
+		t.Fatalf("parse toml: %v", err)
+	}
+	if got["hello"] != "café 😀" {
+		t.Fatalf("unexpected decoded value %q", got["hello"])
+	}
+}
+
+func TestTOMLParserRejectsInvalidUnicodeEscapes(t *testing.T) {
+	for _, escape := range []string{`\uD800`, `\U00110000`, `\UFFFFFFFF`} {
+		_, err := (TOMLParser{}).Parse([]byte(`hello = "` + escape + `"` + "\n"))
+		if err == nil || !strings.Contains(err.Error(), "unicode scalar value") {
+			t.Fatalf("expected invalid unicode error for %s, got %v", escape, err)
+		}
+	}
+}
+
 func TestTOMLParserRejectsDuplicateKeys(t *testing.T) {
 	_, err := (TOMLParser{}).Parse([]byte("hello = \"A\"\nhello = \"B\"\n"))
 	if err == nil || !strings.Contains(err.Error(), "duplicate") {

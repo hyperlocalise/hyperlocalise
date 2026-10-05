@@ -484,6 +484,9 @@ func decodeTOMLUnicode(text string, pos, width, line int) (string, int, error) {
 	if err != nil {
 		return "", pos, fmt.Errorf("line %d: invalid toml unicode escape: %w", line, err)
 	}
+	if value > utf8.MaxRune || !utf8.ValidRune(rune(value)) {
+		return "", pos, fmt.Errorf("line %d: toml unicode escape %q is not a valid unicode scalar value", line, text[pos:pos+width])
+	}
 	return string(rune(value)), pos + width, nil
 }
 
