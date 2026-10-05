@@ -1,0 +1,44 @@
+---
+title: "v1.13.2"
+description: "Go CLI release notes for v1.13.2."
+---
+
+`hl run` translates AsciiDoc, INI, Qt Linguist `.ts`, Windows `.resw`, TOML, TSV, YouTube SBV, and SVG text. gettext `.po` files treat Unreal Engine rich-text tags as placeholders. XLIFF 1.2 `seg-source` markers and XLIFF 2.x segments translate independently, and writeback creates missing targets without overwriting source XML.
+
+[View the GitHub release](https://github.com/hyperlocalise/hyperlocalise/releases/tag/v1.13.2) · [Full changelog](https://github.com/hyperlocalise/hyperlocalise/compare/v1.13.1...v1.13.2)
+
+## Breaking changes
+
+- Multi-segment [XLIFF](https://github.com/hyperlocalise/hyperlocalise/pull/2729) units now use `unit-key#segment=segment-id` (XLIFF 1.2 `mid`, or `unit-key#segment-index=N` when an XLIFF 2.x segment has no id) instead of one combined unit key. The first `hl run` after upgrade may translate those segments again and write new lockfile entries. Single-segment unit keys stay the same. See [Translate XLIFF](/cli/reference/formats/xliff).
+
+## Features
+
+- Add [AsciiDoc](https://github.com/hyperlocalise/hyperlocalise/pull/2718) (`.adoc`, `.asciidoc`, `.asc`). Titles, headings, paragraphs, lists, table cells, admonitions, and block titles are translated. Consecutive non-blank lines form one paragraph and write back as a single line. Comments, attribute definitions, block macros, preprocessor directives, YAML front matter, and verbatim blocks stay unchanged. Inline code, links, cross references, attribute references, and `include::` directives are protected; included files are not resolved. `hl check --json-report` maps `adoc.*` findings to the start of that segment. See [Translate AsciiDoc](/cli/reference/formats/asciidoc).
+- Add [INI](https://github.com/hyperlocalise/hyperlocalise/pull/2728) (`.ini`). Keys before the first `[section]` stay unprefixed; sectioned keys flatten as `section.key`. Writeback preserves sections, key order, comments, `=` or `:` separators, and quoting. New keys append to the matching section; unknown sections are created at the end. See [Translate INI](/cli/reference/formats/ini).
+- Add [Windows RESW](https://github.com/hyperlocalise/hyperlocalise/pull/2725) (`.resw`) on the generic XML parser. Each `data` `name` identifies its `value` text. Comments and metadata stay when `run` writes into an existing target whose key set still matches the source. If the source gains keys, `run` uses the source file as the template, so target-only resources are not merged. See [Translate Windows RESW](/cli/reference/formats/resw).
+- Add [Qt Linguist TS](https://github.com/hyperlocalise/hyperlocalise/pull/2727). A `.ts` file with a `<TS>` root is a Qt catalog; TypeScript locale modules keep using the JavaScript parser. Keys are `context|source`, plus `|comment` when a disambiguation comment is present, or an explicit message `id`. Obsolete and vanished messages are skipped. Numerus forms flatten to `key::numerus.0`, `key::numerus.1`, and so on. `%1`, `%n`, `%L1`, and `%Ln` stay in the string. Writeback clears `type="unfinished"` when a value is written and sets `language` / `sourcelanguage` using Qt underscore locales. See [Translate Qt Linguist TS](/cli/reference/formats/qt-linguist).
+- Add [TOML, TSV, YouTube SBV, and SVG text](https://github.com/hyperlocalise/hyperlocalise/pull/2732). TOML translates string leaves (dotted table keys and `items[0]` array indexes) and leaves numbers, booleans, dates, and comments in place. TSV accepts `key`/`value` rows and locale-column tables. SBV translates cue text and keeps `H:MM:SS.mmm,H:MM:SS.mmm` timings; files that look like SubRip or WebVTT are rejected. SVG extracts `text`, `tspan`, `textPath`, `title`, and `desc` as sequential `svg.0001` keys and leaves geometry, `style`, `script`, and `metadata` unchanged. See [Translate TOML](/cli/reference/formats/toml), [Translate TSV](/cli/reference/formats/tsv), [Translate YouTube SBV](/cli/reference/formats/sbv), and [Translate SVG text](/cli/reference/formats/svg).
+- Treat [Unreal Engine rich-text tags in gettext `.po` files](https://github.com/hyperlocalise/hyperlocalise/pull/2717) as placeholders. Style pairs such as `<Highlight>Ready</>` and self-closing decorators such as `<img id="Health"/>` become chips; `{ItemName}` stays a separate placeholder. Writeback restores the original tags, including tags that an existing target moved or changed relative to the source. Named HTML closes, unclosed openings, and prose in angle brackets stay ordinary text. At most 1000 Unreal tags are converted in one entry. See [Unreal Engine rich text](/cli/reference/formats/gettext#unreal-engine-rich-text).
+
+## Fixes
+
+- Translate [XLIFF segments independently](https://github.com/hyperlocalise/hyperlocalise/pull/2729) instead of repeating a combined unit translation across markers. Writeback creates missing targets, copies XLIFF 1.2 `seg-source` structure when a unit has no target, and preserves source XML, namespaces, target attributes, comments, and metadata. Inline code identities, attributes, and native payloads must match the source. Duplicate unit or segment keys, a unit-level value for a multi-segment unit, and ambiguous anonymous-segment alignment fail. See [Translate XLIFF](/cli/reference/formats/xliff).
+
+## Performance
+
+- [ICU invariant parsing](https://github.com/hyperlocalise/hyperlocalise/pull/2708) no longer scans the whole string twice for `{` and `#` before walking placeholders, and allocates the placeholder slice only when the first placeholder appears.
+- [YAML key validation](https://github.com/hyperlocalise/hyperlocalise/pull/2708) formats parent labels only on error paths and checks key bytes with `strings.IndexByte`.
+
+## Tests
+
+- AsciiDoc extract/writeback, paragraph alignment on partial reruns, stacked headings, equals-paragraphs, and bracketed macros.
+- INI section flattening, quote and comment preservation, and new-key insertion around BOM and section comments.
+- RESW `data` name extract, `run --dry-run` planning, and `check` orphaned-key / placeholder findings.
+- Qt Linguist context, disambiguation, numerus, obsolete/vanished skip, and TypeScript `.ts` detection.
+- TOML string-leaf extract, TSV locale-column source selection, SBV cue timings, and SVG text/`tspan`/`title`/`desc` writeback.
+- Unreal PO tag pairs, self-closing decorators, and writeback that restores target-owned markup.
+- XLIFF 1.2 `seg-source` and XLIFF 2.x segment extract, missing-target creation, inline-code validation, and lock key changes for multi-segment units.
+
+## Maintenance
+
+None.
