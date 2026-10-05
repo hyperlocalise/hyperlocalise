@@ -195,6 +195,113 @@ func TestAlignAsciiDocTargetToSource(t *testing.T) {
 	}
 }
 
+func TestAlignAsciiDocTargetToSourceDoesNotShiftWhenParagraphInserted(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("= Guide\n\nExisting intro.\n\nNew section added.\n\nExisting outro.\n")
+	target := []byte("= Guide\n\nIntro existant.\n\nConclusion existante.\n")
+	aligned := AlignAsciiDocTargetToSource(source, target)
+	if aligned["adoc.paragraph"] != "Intro existant." {
+		t.Fatalf("intro=%q, want Intro existant.", aligned["adoc.paragraph"])
+	}
+	if aligned["adoc.paragraph.3"] != "Conclusion existante." {
+		t.Fatalf("outro=%q, want Conclusion existante.", aligned["adoc.paragraph.3"])
+	}
+	if aligned["adoc.paragraph.2"] == "Conclusion existante." || aligned["adoc.paragraph.2"] == "Intro existant." {
+		t.Fatalf("inserted paragraph stole a neighbor translation: %#v", aligned)
+	}
+}
+
+func TestMarshalAsciiDocWithTargetFallbackPreservesNeighborsWhenInserting(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("= Guide\n\nExisting intro.\n\nNew section added.\n\nExisting outro.\n")
+	target := []byte("= Guide\n\nIntro existant.\n\nConclusion existante.\n")
+	got := string(MarshalAsciiDocWithTargetFallback(source, target, map[string]string{
+		"adoc.paragraph.2": "Nouvelle section ajoutee.",
+	}))
+	if !strings.Contains(got, "Intro existant.") {
+		t.Fatalf("expected existing intro preserved, got %q", got)
+	}
+	if !strings.Contains(got, "Nouvelle section ajoutee.") {
+		t.Fatalf("expected inserted paragraph translated, got %q", got)
+	}
+	if !strings.Contains(got, "Conclusion existante.") {
+		t.Fatalf("expected existing outro preserved, got %q", got)
+	}
+}
+
+func TestAsciiDocExtractsHeadingImmediatelyAfterTitle(t *testing.T) {
+	t.Parallel()
+
+	entries, err := AsciiDocParser{}.Parse([]byte("= Guide\n== Install\n\nBody text.\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if entries["adoc.title"] != "Guide" {
+		t.Fatalf("title=%q", entries["adoc.title"])
+	}
+	if entries["adoc.heading"] != "Install" {
+		t.Fatalf("heading=%q, want Install; entries=%#v", entries["adoc.heading"], entries)
+	}
+	if entries["adoc.paragraph"] != "Body text." {
+		t.Fatalf("paragraph=%q", entries["adoc.paragraph"])
+	}
+}
+
+func TestAsciiDocDoesNotTreatEqualsParagraphAsHeading(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("=price is the listed amount.\n")
+	entries, err := AsciiDocParser{}.Parse(source)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, ok := entries["adoc.title"]; ok {
+		t.Fatalf("treated =price as a title: %#v", entries)
+	}
+	if entries["adoc.paragraph"] != "=price is the listed amount." {
+		t.Fatalf("paragraph=%q; entries=%#v", entries["adoc.paragraph"], entries)
+	}
+	got := string(MarshalAsciiDoc(source, entries))
+	if strings.Contains(got, "= price") {
+		t.Fatalf("rewrote paragraph as a heading: %q", got)
+	}
+	if !strings.Contains(got, "=price is the listed amount.") {
+		t.Fatalf("lost paragraph text: %q", got)
+	}
+}
+
+func TestAsciiDocProtectsLinkTargetWithBrackets(t *testing.T) {
+	t.Parallel()
+
+	entries, err := AsciiDocParser{}.Parse([]byte("See link:https://example.com/a[b][label].\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries=%d, want 1: %#v", len(entries), entries)
+	}
+	var text string
+	for _, value := range entries {
+		text = value
+	}
+	if !strings.Contains(text, "label") {
+		t.Fatalf("label missing: %q", text)
+	}
+	if strings.Contains(text, "example.com") || strings.Contains(text, "[b]") {
+		t.Fatalf("link target leaked into translatable text: %q", text)
+	}
+	translated := map[string]string{}
+	for key, value := range entries {
+		translated[key] = strings.ReplaceAll(value, "label", "etiqueta")
+	}
+	got := string(MarshalAsciiDoc([]byte("See link:https://example.com/a[b][label].\n"), translated))
+	if !strings.Contains(got, "link:https://example.com/a[b][etiqueta]") {
+		t.Fatalf("did not restore destination and translated label: %q", got)
+	}
+}
+
 func TestParseAsciiDocDocumentIRStableKeys(t *testing.T) {
 	t.Parallel()
 

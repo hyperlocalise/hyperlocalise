@@ -356,6 +356,35 @@ func TestEntriesCommandEmitsAsciiDocDocumentEnvelope(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandAlignsAsciiDocExtensionAliases(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "guide.adoc")
+	targetPath := filepath.Join(dir, "guide.asciidoc")
+	if err := os.WriteFile(sourcePath, []byte("= Guide\n\nExisting intro.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(targetPath, []byte("= Guide\n\nIntro existant.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", targetPath, "--source", sourcePath})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	payload, err := decodeEntriesCommandStrings(out.Bytes())
+	if err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["adoc.paragraph"] != "Intro existant." {
+		t.Fatalf("expected aliased AsciiDoc source alignment, got %#v", payload)
+	}
+}
+
 func TestEntriesCommandRejectsMismatchedMarkdownSourceExtension(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "guide.md")

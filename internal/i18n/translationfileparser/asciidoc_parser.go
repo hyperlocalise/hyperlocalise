@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -177,11 +178,12 @@ func parseAsciiDocDocument(content []byte) (asciiDocDocument, map[string]string)
 			continue
 		}
 
-		if inTitleHeader {
+		if inTitleHeader && !asciiDocLineEndsDocumentHeader(trimmed) {
 			doc.appendLiteral(line)
 			i++
 			continue
 		}
+		inTitleHeader = false
 
 		if level, title, ok := parseAsciiDocHeading(trimmed); ok {
 			indent := body[:len(body)-len(strings.TrimLeft(body, " \t"))]
@@ -471,11 +473,33 @@ func parseAsciiDocHeading(trimmed string) (int, string, bool) {
 	if level == 0 || level > 6 {
 		return 0, "", false
 	}
+	if level >= len(trimmed) || (trimmed[level] != ' ' && trimmed[level] != '\t') {
+		return 0, "", false
+	}
 	title := strings.TrimSpace(trimmed[level:])
 	if title == "" {
 		return 0, "", false
 	}
 	return level, title, true
+}
+
+func asciiDocLineEndsDocumentHeader(trimmed string) bool {
+	if _, _, ok := parseAsciiDocHeading(trimmed); ok {
+		return true
+	}
+	if isAsciiDocBlockTitle(trimmed) {
+		return true
+	}
+	if _, _, ok := parseAsciiDocAdmonitionParagraph(trimmed); ok {
+		return true
+	}
+	if _, _, ok := parseAsciiDocListItem(trimmed); ok {
+		return true
+	}
+	if _, _, ok := parseAsciiDocDescriptionList(trimmed); ok {
+		return true
+	}
+	return false
 }
 
 func isAsciiDocBlockTitle(trimmed string) bool {
@@ -890,16 +914,28 @@ func asciiDocInlineMacroAt(s string, idx int) (string, bool) {
 }
 
 func findAsciiDocMacroBrackets(s string, afterColon int) (int, int, bool) {
-	open := strings.IndexByte(s[afterColon:], '[')
-	if open < 0 {
+	lastOpen, lastClose := -1, -1
+	i := afterColon
+	for i < len(s) {
+		if s[i] == '[' {
+			close := strings.IndexByte(s[i+1:], ']')
+			if close < 0 {
+				break
+			}
+			lastOpen = i
+			lastClose = i + 1 + close
+			i = lastClose + 1
+			continue
+		}
+		if s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' {
+			break
+		}
+		i++
+	}
+	if lastOpen < 0 {
 		return 0, 0, false
 	}
-	open += afterColon
-	close := strings.IndexByte(s[open+1:], ']')
-	if close < 0 {
-		return 0, 0, false
-	}
-	return open, open + 1 + close, true
+	return lastOpen, lastClose, true
 }
 
 func consumeAsciiDocBareMacro(s string, start int) int {
@@ -1093,58 +1129,274 @@ func MarshalAsciiDocWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 
 func MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, AsciiDocRenderDiagnostics) {
 	sourceDoc, sourceEntries := parseAsciiDocDocument(stripBOM(sourceTemplate))
-	merged := AlignAsciiDocTargetToSource(sourceTemplate, targetTemplate)
-	for key, value := range values {
-		merged[key] = value
-	}
-	for key := range merged {
-		if _, ok := sourceEntries[key]; !ok {
-			delete(merged, key)
+	targetDoc, _ := parseAsciiDocDocument(stripBOM(targetTemplate))
+	fallback := newAsciiDocAligner(sourceDoc, targetDoc)
+	var diags AsciiDocRenderDiagnostics
+	var b strings.Builder
+	for _, part := range sourceDoc.parts {
+		if part.key == "" {
+			b.WriteString(part.literal)
+			continue
 		}
+		if v, ok := values[part.key]; ok {
+			b.WriteString(renderAsciiDocPartWithDiagnostics(part, v, &diags, false))
+			fallback.advance()
+			continue
+		}
+		if _, ok := sourceEntries[part.key]; ok {
+			if text, ok := fallback.take(); ok {
+				b.WriteString(renderAsciiDocPartWithDiagnostics(part, text, &diags, true))
+				continue
+			}
+			b.WriteString(renderAsciiDocPartWithDiagnostics(part, part.source, &diags, true))
+			continue
+		}
+		fallback.advance()
+		b.WriteString(renderAsciiDocPartWithDiagnostics(part, part.source, &diags, true))
 	}
-	return sourceDoc.render(merged)
+	return []byte(b.String()), diags
 }
 
 func AlignAsciiDocTargetToSource(sourceTemplate, targetTemplate []byte) map[string]string {
-	sourceDoc, _ := parseAsciiDocDocument(stripBOM(sourceTemplate))
+	sourceDoc, sourceEntries := parseAsciiDocDocument(stripBOM(sourceTemplate))
 	targetDoc, _ := parseAsciiDocDocument(stripBOM(targetTemplate))
-	targetContexts := targetDoc.keyContexts()
-	used := make([]bool, len(targetContexts))
-	aligned := make(map[string]string)
-
-	byPath := make(map[string][]int)
-	for i, ctx := range targetContexts {
-		byPath[ctx.path] = append(byPath[ctx.path], i)
-	}
-
+	fallback := newAsciiDocAligner(sourceDoc, targetDoc)
+	aligned := make(map[string]string, len(sourceEntries))
 	for _, part := range sourceDoc.parts {
 		if part.key == "" {
 			continue
 		}
-		indexes := byPath[part.path]
-		taken := false
-		for _, idx := range indexes {
-			if used[idx] {
-				continue
-			}
-			used[idx] = true
-			aligned[part.key] = targetContexts[idx].text
-			taken = true
-			break
-		}
-		if taken {
+		if _, ok := sourceEntries[part.key]; !ok {
+			fallback.advance()
 			continue
 		}
-		for i, ctx := range targetContexts {
-			if used[i] {
-				continue
-			}
-			used[i] = true
-			aligned[part.key] = ctx.text
-			break
+		if text, ok := fallback.take(); ok {
+			aligned[part.key] = text
+			continue
 		}
+		aligned[part.key] = ""
 	}
 	return aligned
+}
+
+type asciiDocAligner struct {
+	sourceDoc            asciiDocDocument
+	targetDoc            asciiDocDocument
+	sourceContexts       []asciiDocKeyContext
+	targetContexts       []asciiDocKeyContext
+	targetContextsByPath map[string][]int
+	targetPartUsed       []bool
+	targetCtxCursor      int
+	targetPartCursor     int
+	sourceCtxIdx         int
+	useStructuralPaths   bool
+}
+
+func newAsciiDocAligner(sourceDoc, targetDoc asciiDocDocument) *asciiDocAligner {
+	sourceContexts := sourceDoc.keyContexts()
+	targetContexts := targetDoc.keyContexts()
+	return &asciiDocAligner{
+		sourceDoc:            sourceDoc,
+		targetDoc:            targetDoc,
+		sourceContexts:       sourceContexts,
+		targetContexts:       targetContexts,
+		targetContextsByPath: indexAsciiDocContextsByPath(targetContexts),
+		targetPartUsed:       make([]bool, len(targetDoc.parts)),
+		useStructuralPaths:   len(sourceContexts) == len(targetContexts),
+	}
+}
+
+func (a *asciiDocAligner) advance() {
+	if a.sourceCtxIdx < len(a.sourceContexts) {
+		a.sourceCtxIdx++
+	}
+}
+
+func (a *asciiDocAligner) take() (string, bool) {
+	if a.sourceCtxIdx >= len(a.sourceContexts) {
+		return "", false
+	}
+	sourceCtx := a.sourceContexts[a.sourceCtxIdx]
+	if text, ok := a.takeFallback(sourceCtx); ok {
+		a.sourceCtxIdx++
+		return text, true
+	}
+	a.sourceCtxIdx++
+	return "", false
+}
+
+func (a *asciiDocAligner) takeFallback(sourceCtx asciiDocKeyContext) (string, bool) {
+	if a.useStructuralPaths {
+		if idx, ok := selectAsciiDocContextByPath(a.targetContexts, a.targetPartUsed, a.targetContextsByPath, sourceCtx.path); ok {
+			return a.consumeContext(idx), true
+		}
+	}
+	if idx, ok := selectAsciiDocContextCandidate(a.targetContexts, a.targetPartUsed, sourceCtx, a.targetCtxCursor, a.sourceCtxIdx, len(a.sourceContexts)); ok {
+		return a.consumeContext(idx), true
+	}
+	for _, startAt := range []int{a.targetPartCursor, 0} {
+		if fallback, nextPartCursor, ok := takeAsciiDocFallbackSpan(a.targetDoc, a.targetPartUsed, startAt, sourceCtx); ok {
+			a.targetPartCursor = nextPartCursor
+			return fallback, true
+		}
+	}
+	if !a.useStructuralPaths {
+		return "", false
+	}
+	for i := a.targetCtxCursor; i < len(a.targetContexts); i++ {
+		if a.targetPartUsed[a.targetContexts[i].partIndex] {
+			continue
+		}
+		return a.consumeContext(i), true
+	}
+	for i := range a.targetContexts {
+		if a.targetPartUsed[a.targetContexts[i].partIndex] {
+			continue
+		}
+		return a.consumeContext(i), true
+	}
+	return "", false
+}
+
+func (a *asciiDocAligner) consumeContext(idx int) string {
+	a.targetPartUsed[a.targetContexts[idx].partIndex] = true
+	if idx >= a.targetCtxCursor {
+		a.targetCtxCursor = idx + 1
+	}
+	if a.targetContexts[idx].partIndex+1 > a.targetPartCursor {
+		a.targetPartCursor = a.targetContexts[idx].partIndex + 1
+	}
+	return a.targetContexts[idx].text
+}
+
+func indexAsciiDocContextsByPath(targetContexts []asciiDocKeyContext) map[string][]int {
+	indexed := make(map[string][]int, len(targetContexts))
+	for i := range targetContexts {
+		if targetContexts[i].path == "" {
+			continue
+		}
+		indexed[targetContexts[i].path] = append(indexed[targetContexts[i].path], i)
+	}
+	return indexed
+}
+
+func selectAsciiDocContextByPath(targetContexts []asciiDocKeyContext, targetPartUsed []bool, indexed map[string][]int, path string) (int, bool) {
+	if path == "" {
+		return 0, false
+	}
+	for _, idx := range indexed[path] {
+		if targetPartUsed[targetContexts[idx].partIndex] {
+			continue
+		}
+		return idx, true
+	}
+	return 0, false
+}
+
+func selectAsciiDocContextCandidate(targetContexts []asciiDocKeyContext, targetPartUsed []bool, sourceCtx asciiDocKeyContext, targetCtxCursor, sourceCtxIdx, sourceTotal int) (int, bool) {
+	best := -1
+	bestScore := math.MaxFloat64
+	for i := range targetContexts {
+		if targetPartUsed[targetContexts[i].partIndex] {
+			continue
+		}
+		if targetContexts[i].prevLiteral != sourceCtx.prevLiteral || targetContexts[i].nextLiteral != sourceCtx.nextLiteral {
+			continue
+		}
+		score := asciiDocRelativeIndexDistance(i, len(targetContexts), sourceCtxIdx, sourceTotal)
+		if i < targetCtxCursor {
+			score += 0.25
+		}
+		if score < bestScore {
+			best = i
+			bestScore = score
+		}
+	}
+	if best < 0 {
+		return 0, false
+	}
+	return best, true
+}
+
+func asciiDocRelativeIndexDistance(targetIdx, targetTotal, sourceIdx, sourceTotal int) float64 {
+	if targetTotal <= 1 || sourceTotal <= 1 {
+		return 0
+	}
+	targetPos := float64(targetIdx) / float64(targetTotal-1)
+	sourcePos := float64(sourceIdx) / float64(sourceTotal-1)
+	return math.Abs(targetPos - sourcePos)
+}
+
+func takeAsciiDocFallbackSpan(targetDoc asciiDocDocument, targetPartUsed []bool, startAt int, sourceCtx asciiDocKeyContext) (string, int, bool) {
+	findSpan := func(searchStart int) (int, int, bool) {
+		start := searchStart
+		if sourceCtx.prevLiteral != "" {
+			foundPrev := false
+			for i := searchStart; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" && part.literal == sourceCtx.prevLiteral {
+					start = i + 1
+					foundPrev = true
+					break
+				}
+			}
+			if !foundPrev {
+				return 0, 0, false
+			}
+		}
+		end := len(targetDoc.parts)
+		if sourceCtx.nextLiteral != "" {
+			foundNext := false
+			for i := start; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" && part.literal == sourceCtx.nextLiteral {
+					end = i
+					foundNext = true
+					break
+				}
+			}
+			if !foundNext {
+				return 0, 0, false
+			}
+		} else {
+			for i := start; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" {
+					end = i
+					break
+				}
+			}
+		}
+		if end <= start {
+			return 0, 0, false
+		}
+		for i := start; i < end; i++ {
+			if targetPartUsed[i] {
+				return 0, 0, false
+			}
+		}
+		return start, end, true
+	}
+
+	spanStart, spanEnd, ok := findSpan(startAt)
+	if !ok {
+		return "", startAt, false
+	}
+
+	var b strings.Builder
+	for i := spanStart; i < spanEnd; i++ {
+		targetPartUsed[i] = true
+		if targetDoc.parts[i].key == "" {
+			b.WriteString(targetDoc.parts[i].literal)
+			continue
+		}
+		b.WriteString(expandAsciiDocPlaceholders(targetDoc.parts[i].source, targetDoc.parts[i].placeholders))
+	}
+	nextCursor := startAt
+	if spanEnd > nextCursor {
+		nextCursor = spanEnd
+	}
+	return b.String(), nextCursor, true
 }
 
 func LineForAsciiDocKey(content []byte, key string) int {

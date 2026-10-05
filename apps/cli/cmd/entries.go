@@ -95,9 +95,8 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
 		}
 		if translationfileparser.IsAsciiDocDocumentExtension(path) {
-			sourceExt := strings.ToLower(filepath.Ext(sourcePath))
-			if sourceExt != ext {
-				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", sourceExt, ext)
+			if !translationfileparser.IsAsciiDocDocumentExtension(sourcePath) {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", filepath.Ext(sourcePath), ext)
 			}
 			sourceContent, err := os.ReadFile(sourcePath)
 			if err != nil {
