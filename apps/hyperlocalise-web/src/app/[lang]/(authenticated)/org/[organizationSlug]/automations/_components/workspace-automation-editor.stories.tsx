@@ -241,7 +241,15 @@ export const SuggestsFromInstructions: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByText("Suggested")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Add Ahrefs" })).toBeInTheDocument();
+    const ahrefsChip = canvas.getByRole("button", { name: "Add Ahrefs" });
+    // The chips sit beside the section title, above the instructions box, and a new one flashes.
+    const titleRow = canvas.getByRole("heading", { name: "Agent Instructions" }).parentElement;
+    await expect(titleRow).toContainElement(ahrefsChip);
+    await expect(
+      ahrefsChip.compareDocumentPosition(canvas.getByDisplayValue(/^Research competitors/)) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await expect(ahrefsChip.parentElement).toHaveClass("animate-suggestion-flash");
     await userEvent.click(canvas.getByRole("button", { name: "Add Research the web" }));
     await expect(canvas.getByText("Required for skill")).toBeInTheDocument();
     await expect(

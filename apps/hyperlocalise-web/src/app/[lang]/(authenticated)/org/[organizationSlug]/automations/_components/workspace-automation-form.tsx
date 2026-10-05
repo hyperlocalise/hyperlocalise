@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   PlusIcon,
   CaretDownIcon,
@@ -330,10 +330,26 @@ function GithubEventSwitch({
   );
 }
 
-function EditorSection({ title, children }: { title: string; children: ReactNode }) {
+function EditorSection({
+  title,
+  titleAside,
+  children,
+}: {
+  title: string;
+  titleAside?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
+      {titleAside === undefined ? (
+        <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
+      ) : (
+        // As tall as a suggestion chip, so the content below stays put when one appears.
+        <div className="flex min-h-7.5 flex-wrap items-center gap-x-3 gap-y-2 px-2">
+          <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+          {titleAside}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -2186,6 +2202,8 @@ function SkillsSettings({
   );
 }
 
+const SUGGESTION_TYPING_PAUSE_MS = 300;
+
 const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageDescriptor> = {
   github_sync: workspaceAutomationFormMessages.githubSyncWorkflows,
   gitlab: workspaceAutomationFormMessages.useGitlabRepo,
@@ -2194,83 +2212,111 @@ const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageD
   zernio: workspaceAutomationFormMessages.zernio,
 };
 
+function SuggestionChip({
+  disabled,
+  flashOnMount,
+  onAdd,
+  onDismiss,
+  suggestion,
+}: {
+  disabled?: boolean;
+  flashOnMount: boolean;
+  onAdd: (suggestion: WorkspaceAutomationSuggestion) => void;
+  onDismiss: (suggestion: WorkspaceAutomationSuggestion) => void;
+  suggestion: WorkspaceAutomationSuggestion;
+}) {
+  const intl = useIntl();
+  // Fixed at mount: the highlight has to outlast the re-renders that typing causes.
+  const [flash] = useState(flashOnMount);
+  const name =
+    suggestion.kind === "skill"
+      ? suggestion.skill.name
+      : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
+  const unavailableHint =
+    suggestion.availability === "trigger_mismatch"
+      ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
+      : suggestion.availability !== "connect_first"
+        ? null
+        : suggestion.kind === "skill"
+          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border border-border bg-background",
+        flash && "animate-suggestion-flash motion-reduce:animate-none",
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={disabled || unavailableHint !== null}
+        aria-label={intl.formatMessage(workspaceAutomationFormMessages.addSuggestion, {
+          name,
+        })}
+        className="h-7 gap-1.5 rounded-full pr-1.5 pl-2.5 text-xs"
+        onClick={() => onAdd(suggestion)}
+      >
+        {suggestion.kind === "skill" ? (
+          <SparkleIcon className="size-3.5" />
+        ) : (
+          <PlusIcon className="size-3.5" />
+        )}
+        {name}
+        {unavailableHint ? <span className="text-muted-foreground">{unavailableHint}</span> : null}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        disabled={disabled}
+        aria-label={intl.formatMessage(workspaceAutomationFormMessages.dismissSuggestion, {
+          name,
+        })}
+        className="mr-0.5 rounded-full text-muted-foreground hover:text-foreground"
+        onClick={() => onDismiss(suggestion)}
+      >
+        <XIcon />
+      </Button>
+    </span>
+  );
+}
+
 function SuggestionChips({
   disabled,
   onAdd,
   onDismiss,
+  shownKeys,
   suggestions,
 }: {
   disabled?: boolean;
   onAdd: (suggestion: WorkspaceAutomationSuggestion) => void;
   onDismiss: (suggestion: WorkspaceAutomationSuggestion) => void;
+  /** Suggestions that were already on screen; any other chip is new and flashes once. */
+  shownKeys: ReadonlySet<string>;
   suggestions: WorkspaceAutomationSuggestion[];
 }) {
-  const intl = useIntl();
   if (suggestions.length === 0) {
     return null;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-2">
+    <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted-foreground">
         <FormattedMessage {...workspaceAutomationFormMessages.suggestionsLabel} />
       </span>
-      {suggestions.map((suggestion) => {
-        const name =
-          suggestion.kind === "skill"
-            ? suggestion.skill.name
-            : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
-        const unavailableHint =
-          suggestion.availability === "trigger_mismatch"
-            ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
-            : suggestion.availability !== "connect_first"
-              ? null
-              : suggestion.kind === "skill"
-                ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
-                : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
-
-        return (
-          <span
-            key={suggestion.key}
-            className="inline-flex items-center rounded-full border border-border bg-background"
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled || unavailableHint !== null}
-              aria-label={intl.formatMessage(workspaceAutomationFormMessages.addSuggestion, {
-                name,
-              })}
-              className="h-7 gap-1.5 rounded-full pr-1.5 pl-2.5 text-xs"
-              onClick={() => onAdd(suggestion)}
-            >
-              {suggestion.kind === "skill" ? (
-                <SparkleIcon className="size-3.5" />
-              ) : (
-                <PlusIcon className="size-3.5" />
-              )}
-              {name}
-              {unavailableHint ? (
-                <span className="text-muted-foreground">{unavailableHint}</span>
-              ) : null}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              disabled={disabled}
-              aria-label={intl.formatMessage(workspaceAutomationFormMessages.dismissSuggestion, {
-                name,
-              })}
-              className="mr-0.5 rounded-full text-muted-foreground hover:text-foreground"
-              onClick={() => onDismiss(suggestion)}
-            >
-              <XIcon />
-            </Button>
-          </span>
-        );
-      })}
+      {suggestions.map((suggestion) => (
+        <SuggestionChip
+          key={suggestion.key}
+          disabled={disabled}
+          flashOnMount={!shownKeys.has(suggestion.key)}
+          suggestion={suggestion}
+          onAdd={onAdd}
+          onDismiss={onDismiss}
+        />
+      ))}
     </div>
   );
 }
@@ -3679,6 +3725,25 @@ export function WorkspaceAutomationEditor({
     () => new Set(),
   );
   const [riskySkillId, setRiskySkillId] = useState<string | null>(null);
+  // Suggestions follow the text once typing pauses, so a keyword that is only the start of a
+  // longer word ("pr" in "project") does not flash a chip in and out.
+  const [suggestionText, setSuggestionText] = useState({
+    name: form.name,
+    instructions: form.instructions,
+  });
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSuggestionText((current) =>
+        current.name === form.name && current.instructions === form.instructions
+          ? current
+          : { name: form.name, instructions: form.instructions },
+      );
+    }, SUGGESTION_TYPING_PAUSE_MS);
+    return () => clearTimeout(timeout);
+  }, [form.name, form.instructions]);
+  const [shownSuggestionKeys, setShownSuggestionKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3938,7 +4003,7 @@ export function WorkspaceAutomationEditor({
         : undefined,
   };
   const suggestions = suggestWorkspaceAutomationAdditions({
-    form,
+    form: { ...form, ...suggestionText },
     skillConnections,
     connections: {
       github: githubConnected,
@@ -3949,6 +4014,12 @@ export function WorkspaceAutomationEditor({
     },
     dismissed: dismissedSuggestions,
   });
+  // Kept here, not in the chips: the chips unmount with the settings tab, and coming back to
+  // the tab must not flash suggestions that were already there.
+  const suggestionKeys = suggestions.map((suggestion) => suggestion.key).join("\n");
+  useEffect(() => {
+    setShownSuggestionKeys(new Set(suggestionKeys ? suggestionKeys.split("\n") : []));
+  }, [suggestionKeys]);
   const addSkill = (skillId: string) =>
     onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
   // A skill that declares a risk is attached only after the user confirms it.
@@ -4083,6 +4154,17 @@ export function WorkspaceAutomationEditor({
 
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
+            titleAside={
+              <SuggestionChips
+                disabled={disabled}
+                shownKeys={shownSuggestionKeys}
+                suggestions={suggestions}
+                onAdd={addSuggestion}
+                onDismiss={(suggestion) =>
+                  setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
+                }
+              />
+            }
           >
             <div className="relative rounded-xl">
               <Textarea
@@ -4103,14 +4185,6 @@ export function WorkspaceAutomationEditor({
               />
             </div>
             <FieldError message={errors.instructions} />
-            <SuggestionChips
-              disabled={disabled}
-              suggestions={suggestions}
-              onAdd={addSuggestion}
-              onDismiss={(suggestion) =>
-                setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
-              }
-            />
           </EditorSection>
 
           <SkillsSettings

@@ -76,8 +76,9 @@ Other templates are unchanged.
 ### Suggestions
 
 The editor suggests skills and tools from what the user types in the automation's name and
-instructions. Suggestions appear as chips under the instructions box. A chip only suggests: nothing
-is added until it is clicked, and a chip can be dismissed.
+instructions. Suggestions appear as chips beside the "Agent Instructions" title, above the box,
+once typing pauses, and a chip is highlighted briefly when it first appears. A chip only suggests:
+nothing is added until it is clicked, and a chip can be dismissed.
 
 - Matching is by keyword, in the browser, with no library and no model call. Each skill carries
   its terms in the catalogue; tools that no skill covers (GitHub sync, GitLab, Semrush, Ahrefs,
