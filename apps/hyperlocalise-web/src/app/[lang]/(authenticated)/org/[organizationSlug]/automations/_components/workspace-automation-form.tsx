@@ -2138,6 +2138,14 @@ function SkillsSettings({
                   <SparkleIcon className="mt-0.5 size-4 shrink-0" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span>{skill.name}</span>
+                    {availability === "trigger_mismatch" ? (
+                      // Under the name: beside it, the wording squeezes the name onto two lines.
+                      <span className="text-xs font-medium">
+                        <FormattedMessage
+                          {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                        />
+                      </span>
+                    ) : null}
                     <span className="text-xs text-pretty text-muted-foreground">
                       {skill.description}
                     </span>
@@ -2146,14 +2154,9 @@ function SkillsSettings({
                     <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                     </DropdownMenuHint>
-                  ) : availability === "trigger_mismatch" ? (
-                    <DropdownMenuHint>
-                      <FormattedMessage
-                        {...workspaceAutomationFormMessages.skillOtherTriggerShortcut}
-                      />
-                    </DropdownMenuHint>
-                  ) : listMissingWorkspaceAutomationSkillIntegrations(skill, connections).length >
-                    0 ? (
+                  ) : availability === "available" &&
+                    listMissingWorkspaceAutomationSkillIntegrations(skill, connections).length >
+                      0 ? (
                     // Stays clickable: choosing it explains what to connect.
                     <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
@@ -2206,7 +2209,7 @@ function SuggestionChips({
             : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
         const unavailableHint =
           suggestion.availability === "trigger_mismatch"
-            ? workspaceAutomationFormMessages.skillOtherTriggerShortcut
+            ? workspaceAutomationFormMessages.skillNotApplicableHint
             : suggestion.availability === "connect_first"
               ? workspaceAutomationFormMessages.connectFirstShortcut
               : null;

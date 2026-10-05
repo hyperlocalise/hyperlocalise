@@ -635,10 +635,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "W/GIC1a+rE",
     description: "Accessible label for the button that detaches a skill from the automation",
   },
-  skillOtherTriggerShortcut: {
-    defaultMessage: "Other trigger",
-    id: "PLm70+Vo7Q",
-    description: "Shortcut hint when a skill does not work with the selected trigger",
+  skillNotApplicableHint: {
+    defaultMessage: "Not applicable for this trigger",
+    id: "WLsnSTKJV/",
+    description:
+      "Hint on a skill that cannot be added because it does not work with the selected trigger",
   },
   requiredForSkillBadge: {
     defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
