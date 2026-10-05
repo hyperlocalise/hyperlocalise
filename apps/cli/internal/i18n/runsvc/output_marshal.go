@@ -127,6 +127,10 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleVTT) {
 					template = targetTemplate
 				}
+			case ext == ".xlf" || ext == ".xlif" || ext == ".xliff":
+				if hasExactKeySet(targetEntries, values) && translationfileparser.XLIFFSourceStructureEqual(sourceTemplate, targetTemplate) {
+					template = targetTemplate
+				}
 			case hasExactKeySet(targetEntries, values):
 				template = targetTemplate
 			}
