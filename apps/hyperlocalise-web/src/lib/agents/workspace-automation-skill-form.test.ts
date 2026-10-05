@@ -87,6 +87,32 @@ describe("workspace automation skill form", () => {
     });
   });
 
+  it("does not move a manual trigger to one an attached skill cannot use", () => {
+    const withReview = addSkillToWorkspaceAutomationForm(
+      createDefaultWorkspaceAutomationFormState(),
+      "review-translation-changes",
+    );
+    const uploadSkill = getWorkspaceAutomationSkill("translate-uploaded-source");
+    const commentSkill = getWorkspaceAutomationSkill("comment-on-pull-request");
+    if (!uploadSkill || !commentSkill) {
+      throw new Error("missing skill");
+    }
+
+    // Repository review cannot run on a source upload, so the upload skill is not offered.
+    expect(withReview.triggerMode).toBe("manual");
+    expect(resolveWorkspaceAutomationSkillAvailability(withReview, uploadSkill)).toBe(
+      "trigger_mismatch",
+    );
+    expect(addSkillToWorkspaceAutomationForm(withReview, uploadSkill.id)).toBe(withReview);
+
+    // It can run on a GitHub event, so the comment skill may still move the trigger there.
+    expect(resolveWorkspaceAutomationSkillAvailability(withReview, commentSkill)).toBe("available");
+    expect(addSkillToWorkspaceAutomationForm(withReview, commentSkill.id)).toMatchObject({
+      triggerMode: "github",
+      skillIds: ["review-translation-changes", "comment-on-pull-request"],
+    });
+  });
+
   it("does not attach a skill twice or one that does not fit the chosen trigger", () => {
     const scheduled = {
       ...createDefaultWorkspaceAutomationFormState(),

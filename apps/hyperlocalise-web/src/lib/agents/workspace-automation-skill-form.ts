@@ -15,9 +15,11 @@ import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import {
   getWorkspaceAutomationSkill,
   listWorkspaceAutomationSkillTools,
+  resolveWorkspaceAutomationSkills,
   workspaceAutomationSkillSupportsTrigger,
   type WorkspaceAutomationSkill,
   type WorkspaceAutomationSkillTool,
+  type WorkspaceAutomationSkillTrigger,
 } from "./workspace-automation-skills";
 import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
 
@@ -152,6 +154,32 @@ export function listWorkspaceAutomationFormSkillTools(
   return new Set(listWorkspaceAutomationSkillTools(form.skillIds));
 }
 
+/**
+ * The trigger the form would have with the skill attached, or null when the skill cannot be
+ * attached. A manual trigger is the untouched default, so a skill that needs another trigger may
+ * replace it, but only with one the skills already attached work with too.
+ */
+function resolveTriggerWithSkill(
+  form: Pick<WorkspaceAutomationFormState, "skillIds" | "triggerMode">,
+  skill: WorkspaceAutomationSkill,
+): WorkspaceAutomationSkillTrigger | null {
+  if (workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode)) {
+    return form.triggerMode;
+  }
+  if (form.triggerMode !== "manual") {
+    return null;
+  }
+
+  const attachedSkills = resolveWorkspaceAutomationSkills(form.skillIds);
+  return (
+    skill.triggers.find((trigger) =>
+      attachedSkills.every((attached) =>
+        workspaceAutomationSkillSupportsTrigger(attached, trigger),
+      ),
+    ) ?? null
+  );
+}
+
 export function resolveWorkspaceAutomationSkillAvailability(
   form: Pick<WorkspaceAutomationFormState, "skillIds" | "triggerMode">,
   skill: WorkspaceAutomationSkill,
@@ -159,14 +187,7 @@ export function resolveWorkspaceAutomationSkillAvailability(
   if (form.skillIds.includes(skill.id)) {
     return "attached";
   }
-  // A manual trigger is the untouched default, so a skill may replace it with its own.
-  if (
-    form.triggerMode !== "manual" &&
-    !workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode)
-  ) {
-    return "trigger_mismatch";
-  }
-  return "available";
+  return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";
 }
 
 /** Switches on every tool the form's skills declare. */
@@ -186,23 +207,25 @@ export function addSkillToWorkspaceAutomationForm(
   defaults: WorkspaceAutomationSkillDefaults = {},
 ): WorkspaceAutomationFormState {
   const skill = getWorkspaceAutomationSkill(skillId);
-  if (!skill || resolveWorkspaceAutomationSkillAvailability(form, skill) !== "available") {
+  if (!skill || form.skillIds.includes(skill.id)) {
+    return form;
+  }
+  const triggerMode = resolveTriggerWithSkill(form, skill);
+  if (triggerMode === null) {
     return form;
   }
 
-  const firstTrigger = skill.triggers[0];
-  const needsOwnTrigger =
-    firstTrigger !== undefined && !workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode);
-  const withTrigger: WorkspaceAutomationFormState = needsOwnTrigger
-    ? {
-        ...form,
-        triggerMode: firstTrigger,
-        githubEvents:
-          firstTrigger === "github" && skill.tools.includes("notify_github_comment")
-            ? ["pull_request"]
-            : form.githubEvents,
-      }
-    : form;
+  const withTrigger: WorkspaceAutomationFormState =
+    triggerMode === form.triggerMode
+      ? form
+      : {
+          ...form,
+          triggerMode,
+          githubEvents:
+            triggerMode === "github" && skill.tools.includes("notify_github_comment")
+              ? ["pull_request"]
+              : form.githubEvents,
+        };
 
   return applySkillToolsToWorkspaceAutomationForm(
     { ...withTrigger, skillIds: [...form.skillIds, skill.id] },
