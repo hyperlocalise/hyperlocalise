@@ -5,103 +5,556 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net/url"
+	"sort"
+	"strconv"
 	"strings"
 )
 
-// XLIFFParser parses XLIFF 1.2 and 2.x translation files.
+// XLIFFParser parses XLIFF 1.2 units and independent XLIFF 2.x segments.
 type XLIFFParser struct{}
 
-func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
+// xliffElement records byte ranges so writeback never re-encodes untouched XML.
+type xliffElement struct {
+	token                    xml.StartElement
+	name                     string
+	start, inner, close, end int
+	selfClosing              bool
+	parent                   *xliffElement
+	children                 []*xliffElement
+}
+
+type xliffEntry struct {
+	key                              string
+	unit                             *xliffElement
+	source, target                   *xliffElement
+	segmentedSource, targetContainer *xliffElement
+}
+
+type xliffEdit struct {
+	start, end int
+	value      string
+}
+
+func readXLIFF(content []byte) ([]*xliffElement, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(content))
-
-	// BOLT OPTIMIZATION: Hint capacity for output map based on content size.
-	capacity := len(content) / 256
-	if capacity < 4 {
-		capacity = 4
-	}
-	out := make(map[string]string, capacity)
-
-	// BOLT OPTIMIZATION: Reuse a single xliffUnit struct and its buffers.
-	var unit xliffUnit
-	unitActive := false
-
-	var captureName string
-	var captureStart int
-	var captureDepth int
-
+	var elements []*xliffElement
+	var stack []*xliffElement
 	for {
-		tok, err := decoder.Token()
+		before := int(decoder.InputOffset())
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			if isEOFError(err) {
-				break
-			}
 			return nil, fmt.Errorf("xml decode: %w", err)
 		}
-		offset := int(decoder.InputOffset())
-
-		switch token := tok.(type) {
+		after := int(decoder.InputOffset())
+		switch t := token.(type) {
 		case xml.StartElement:
-			if captureName != "" {
-				captureDepth++
-				continue
+			raw := string(content[before:after])
+			nameEnd := strings.IndexAny(raw[1:], " \t\r\n/>") + 1
+			node := &xliffElement{token: t.Copy(), name: raw[1:nameEnd], start: before, inner: after, selfClosing: strings.HasSuffix(raw, "/>")}
+			if len(stack) > 0 {
+				node.parent = stack[len(stack)-1]
+				node.parent.children = append(node.parent.children, node)
 			}
-
-			switch token.Name.Local {
-			case "trans-unit", "unit":
-				if unitActive {
-					finalizeXLIFFUnit(out, &unit)
-				}
-				unit.key = resolveXLIFFUnitKey(token.Attr)
-				unit.source.Reset()
-				unit.target.Reset()
-				unitActive = true
-			case "source", "target":
-				if unitActive {
-					captureName = token.Name.Local
-					captureStart = offset
-					captureDepth = 0
-				}
-			}
+			elements = append(elements, node)
+			stack = append(stack, node)
 		case xml.EndElement:
-			if captureName != "" {
-				if captureDepth > 0 {
-					captureDepth--
-					continue
+			node := stack[len(stack)-1]
+			node.close, node.end = before, after
+			stack = stack[:len(stack)-1]
+		}
+	}
+	return elements, nil
+}
+
+func xliffChild(node *xliffElement, name string) *xliffElement {
+	for _, child := range node.children {
+		if child.token.Name.Local == name && isXLIFFElement(child) {
+			return child
+		}
+	}
+	return nil
+}
+
+func isXLIFFElement(node *xliffElement) bool {
+	ns := node.token.Name.Space
+	return ns == "" || ns == "urn:oasis:names:tc:xliff:document:1.2" || ns == "urn:oasis:names:tc:xliff:document:2.0"
+}
+
+func xliffEntries(elements []*xliffElement) ([]xliffEntry, error) {
+	var entries []xliffEntry
+	seen := make(map[string]bool)
+	for _, unit := range elements {
+		if !isXLIFFElement(unit) || (unit.token.Name.Local != "unit" && unit.token.Name.Local != "trans-unit") {
+			continue
+		}
+		key := resolveXLIFFUnitKey(unit.token.Attr)
+		if key == "" {
+			continue
+		}
+		containers := []*xliffElement{unit}
+		if unit.token.Name.Local == "unit" {
+			containers = nil
+			for _, child := range unit.children {
+				if child.token.Name.Local == "segment" && isXLIFFElement(child) {
+					containers = append(containers, child)
 				}
-				if token.Name.Local == captureName {
-					// BOLT OPTIMIZATION: Use raw slicing instead of re-encoding tokens via xml.Encoder.
-					// decoder.InputOffset() points after the EndElement '>'. We search back for the '</'
-					// tag start within the element's span.
-					innerContent := content[captureStart:offset]
-					closeStart := bytes.LastIndex(innerContent, []byte("</"))
-					if closeStart >= 0 {
-						val := innerContent[:closeStart]
-						// If the element has children (captureDepth was > 0 during StartElement),
-						// we must ensure it is well-formed XML for the rest of the app's expectations
-						// by re-encoding it if it was originally self-closing or had other structural
-						// oddities. However, the requirement is to preserve the content.
-						// Re-encoding via xml.Encoder (the old way) tended to normalize <ph id="1"/> to <ph id="1"></ph>.
-						// To maintain parity with the old behavior for nested tags, we can use a helper.
-						if captureName == "source" {
-							unit.source.Write(normalizeXLIFFInternalMarkup(val))
-						} else {
-							unit.target.Write(normalizeXLIFFInternalMarkup(val))
+			}
+		}
+		segmentedSource := xliffChild(unit, "seg-source")
+		targetContainer := xliffChild(unit, "target")
+		if unit.token.Name.Local == "trans-unit" && segmentedSource != nil {
+			containers = xliffMarkers(segmentedSource)
+		}
+		for index, container := range containers {
+			entryKey := key
+			segmentID := attrValue(container.token.Attr, "id")
+			if segmentedSource != nil {
+				segmentID = attrValue(container.token.Attr, "mid")
+			}
+			if len(containers) > 1 {
+				if segmentID != "" {
+					entryKey += "#segment=" + url.QueryEscape(segmentID)
+				} else {
+					entryKey += "#segment-index=" + strconv.Itoa(index+1)
+				}
+			}
+			if seen[entryKey] {
+				return nil, fmt.Errorf("ambiguous XLIFF key %q: duplicate unit or segment identity", entryKey)
+			}
+			seen[entryKey] = true
+			entry := xliffEntry{key: entryKey, unit: unit, source: xliffChild(container, "source"), target: xliffChild(container, "target")}
+			if segmentedSource != nil {
+				if segmentID == "" {
+					return nil, fmt.Errorf("XLIFF segmented unit %q has a marker without mid", key)
+				}
+				entry.source, entry.target = container, nil
+				entry.segmentedSource, entry.targetContainer = segmentedSource, targetContainer
+				if targetContainer != nil {
+					for _, marker := range xliffMarkers(targetContainer) {
+						if attrValue(marker.token.Attr, "mid") == segmentID {
+							if entry.target != nil {
+								return nil, fmt.Errorf("duplicate XLIFF target marker %q", segmentID)
+							}
+							entry.target = marker
 						}
 					}
-					captureName = ""
 				}
-			} else if token.Name.Local == "trans-unit" || token.Name.Local == "unit" {
-				if unitActive {
-					finalizeXLIFFUnit(out, &unit)
-					unitActive = false
+			}
+			entries = append(entries, entry)
+		}
+	}
+	return entries, nil
+}
+
+func xliffMarkers(node *xliffElement) []*xliffElement {
+	var markers []*xliffElement
+	for _, child := range node.children {
+		if child.token.Name.Local == "mrk" && isXLIFFElement(child) && attrValue(child.token.Attr, "mtype") == "seg" {
+			markers = append(markers, child)
+		} else {
+			markers = append(markers, xliffMarkers(child)...)
+		}
+	}
+	return markers
+}
+
+func xliffInner(content []byte, node *xliffElement) []byte {
+	if node == nil || node.selfClosing {
+		return nil
+	}
+	return content[node.inner:node.close]
+}
+
+func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
+	elements, err := readXLIFF(content)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := xliffEntries(elements)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		value := xliffInner(content, entry.target)
+		if len(bytes.TrimSpace(value)) == 0 {
+			value = xliffInner(content, entry.source)
+		}
+		if len(value) > 0 {
+			out[entry.key] = normalizeXLIFFMarkup(value)
+		}
+	}
+	return out, nil
+}
+
+// normalizeXLIFFMarkup expands empty tags and escapes character data without
+// changing qualified tag names or attributes inherited from the document.
+func normalizeXLIFFMarkup(value []byte) string {
+	decoder := xml.NewDecoder(bytes.NewReader(value))
+	var out bytes.Buffer
+	var names []string
+	for {
+		before := int(decoder.InputOffset())
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return out.String()
+		}
+		if err != nil {
+			return string(value)
+		}
+		raw := value[before:int(decoder.InputOffset())]
+		switch t := token.(type) {
+		case xml.StartElement:
+			end := bytes.IndexAny(raw[1:], " \t\r\n/>") + 1
+			names = append(names, string(raw[1:end]))
+			if bytes.HasSuffix(raw, []byte("/>")) {
+				out.Write(raw[:len(raw)-2])
+				out.WriteByte('>')
+			} else {
+				out.Write(raw)
+			}
+		case xml.EndElement:
+			name := names[len(names)-1]
+			names = names[:len(names)-1]
+			if len(raw) == 0 {
+				out.WriteString("</" + name + ">")
+			} else {
+				out.Write(raw)
+			}
+		case xml.CharData:
+			_ = xml.EscapeText(&out, t)
+		default:
+			out.Write(raw)
+		}
+	}
+}
+
+// MarshalXLIFF updates segment targets and creates missing targets. Source XML,
+// namespace prefixes, comments, and unmodified metadata retain their original bytes.
+func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
+	elements, err := readXLIFF(template)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := xliffEntries(elements)
+	if err != nil {
+		return nil, err
+	}
+	var edits []xliffEdit
+	for _, node := range elements {
+		if !isXLIFFElement(node) {
+			continue
+		}
+		attrs := make(map[string]string)
+		if node.token.Name.Local == "xliff" && strings.HasPrefix(attrValue(node.token.Attr, "version"), "2") {
+			attrs["srcLang"], attrs["trgLang"] = sourceLocale, targetLocale
+		} else if node.token.Name.Local == "file" {
+			root := node.parent
+			if root != nil && root.token.Name.Local == "xliff" && !strings.HasPrefix(attrValue(root.token.Attr, "version"), "2") {
+				attrs["source-language"], attrs["target-language"] = sourceLocale, targetLocale
+			}
+		}
+		tag := string(template[node.start:node.inner])
+		changed := tag
+		// Fixed order keeps newly added locale attributes deterministic.
+		for _, name := range []string{"source-language", "target-language", "srcLang", "trgLang"} {
+			if value := strings.TrimSpace(attrs[name]); value != "" {
+				changed = setXLIFFTagAttr(changed, name, value)
+			}
+		}
+		if changed != tag {
+			edits = append(edits, xliffEdit{node.start, node.inner, changed})
+		}
+	}
+	segmentedEdits := make(map[*xliffElement][]xliffEdit)
+	for _, entry := range entries {
+		if entry.key != resolveXLIFFUnitKey(entry.unit.token.Attr) {
+			if _, ok := values[resolveXLIFFUnitKey(entry.unit.token.Attr)]; ok {
+				return nil, fmt.Errorf("XLIFF unit %q has multiple segments; use segment keys", resolveXLIFFUnitKey(entry.unit.token.Attr))
+			}
+		}
+		value, ok := values[entry.key]
+		if !ok {
+			continue
+		}
+		if entry.source == nil {
+			return nil, fmt.Errorf("XLIFF entry %q has no source", entry.key)
+		}
+		fragment, err := xliffReplacement(template, entry.source, value)
+		if err != nil {
+			return nil, fmt.Errorf("XLIFF entry %q: %w", entry.key, err)
+		}
+		if entry.segmentedSource != nil && entry.target == nil {
+			if entry.targetContainer != nil {
+				return nil, fmt.Errorf("XLIFF entry %q has no matching target marker; cannot safely update segmented target", entry.key)
+			}
+			segmentedEdits[entry.segmentedSource] = append(segmentedEdits[entry.segmentedSource], xliffContentEdit(template, entry.source, fragment))
+			continue
+		}
+		if entry.target != nil {
+			// Validate prefixes in the actual destination context as well.
+			expected, _ := xliffInlineCodes(entry.source, fragment)
+			actual, err := xliffInlineCodes(entry.target, fragment)
+			if err != nil || !equalXLIFFCodes(expected, actual) {
+				return nil, fmt.Errorf("XLIFF entry %q: incompatible target inline namespace context", entry.key)
+			}
+			edits = append(edits, xliffContentEdit(template, entry.target, fragment))
+		} else {
+			name := "target"
+			if i := strings.IndexByte(entry.source.name, ':'); i >= 0 {
+				name = entry.source.name[:i+1] + name
+			}
+			attr := xliffTargetAttrs(entry.source)
+			edits = append(edits, xliffEdit{entry.source.end, entry.source.end, "<" + name + attr + ">" + fragment + "</" + name + ">"})
+		}
+	}
+	for source, replacements := range segmentedEdits {
+		local := make([]xliffEdit, len(replacements))
+		for i, edit := range replacements {
+			local[i] = xliffEdit{edit.start - source.inner, edit.end - source.inner, edit.value}
+		}
+		inner, err := applyXLIFFEdits(xliffInner(template, source), local)
+		if err != nil {
+			return nil, err
+		}
+		name := "target"
+		if i := strings.IndexByte(source.name, ':'); i >= 0 {
+			name = source.name[:i+1] + name
+		}
+		// XLIFF 1.2 orders target after seg-source and before context/notes.
+		edits = append(edits, xliffEdit{source.end, source.end, "<" + name + xliffTargetAttrs(source) + ">" + string(inner) + "</" + name + ">"})
+	}
+	return applyXLIFFEdits(template, edits)
+}
+
+func xliffTargetAttrs(source *xliffElement) string {
+	var out strings.Builder
+	for _, attr := range source.token.Attr {
+		name := ""
+		if attr.Name.Space == "xmlns" {
+			name = "xmlns:" + attr.Name.Local
+		} else if attr.Name.Space == "" && attr.Name.Local == "xmlns" {
+			name = "xmlns"
+		} else if attr.Name.Space == "http://www.w3.org/XML/1998/namespace" && attr.Name.Local == "space" {
+			name = "xml:space"
+		}
+		if name != "" {
+			out.WriteString(" " + name + `="` + escapeXLIFFText(attr.Value) + `"`)
+		}
+	}
+	return out.String()
+}
+
+func equalXLIFFCodes(a, b map[string]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, count := range a {
+		if b[key] != count {
+			return false
+		}
+	}
+	return true
+}
+
+func xliffContentEdit(template []byte, node *xliffElement, fragment string) xliffEdit {
+	if node.selfClosing {
+		tag := string(template[node.start:node.inner])
+		return xliffEdit{node.start, node.end, tag[:len(tag)-2] + ">" + fragment + "</" + node.name + ">"}
+	}
+	return xliffEdit{node.inner, node.close, fragment}
+}
+
+func applyXLIFFEdits(template []byte, edits []xliffEdit) ([]byte, error) {
+	sort.SliceStable(edits, func(i, j int) bool { return edits[i].start < edits[j].start })
+	var out bytes.Buffer
+	cursor := 0
+	for _, edit := range edits {
+		if edit.start < cursor {
+			return nil, fmt.Errorf("overlapping XLIFF edits")
+		}
+		out.Write(template[cursor:edit.start])
+		out.WriteString(edit.value)
+		cursor = edit.end
+	}
+	out.Write(template[cursor:])
+	return out.Bytes(), nil
+}
+
+func escapeXLIFFText(value string) string {
+	var out bytes.Buffer
+	_ = xml.EscapeText(&out, []byte(value))
+	return out.String()
+}
+
+// setXLIFFTagAttr edits the value of an unqualified attribute only, preserving
+// quoting and all other start-tag bytes. The input has already been XML-validated.
+func setXLIFFTagAttr(tag, name, value string) string {
+	i := strings.IndexAny(tag, " \t\r\n/>")
+	for i < len(tag) {
+		for i < len(tag) && strings.ContainsRune(" \t\r\n", rune(tag[i])) {
+			i++
+		}
+		if i >= len(tag) || tag[i] == '/' || tag[i] == '>' {
+			break
+		}
+		start := i
+		for i < len(tag) && !strings.ContainsRune("= \t\r\n", rune(tag[i])) {
+			i++
+		}
+		attr := tag[start:i]
+		for tag[i] != '=' {
+			i++
+		}
+		i++
+		for strings.ContainsRune(" \t\r\n", rune(tag[i])) {
+			i++
+		}
+		quote := tag[i]
+		i++
+		valueStart := i
+		for tag[i] != quote {
+			i++
+		}
+		if attr == name {
+			return tag[:valueStart] + escapeXLIFFText(value) + tag[i:]
+		}
+		i++
+	}
+	end := len(tag) - 1
+	if tag[end-1] == '/' {
+		end--
+	}
+	return tag[:end] + " " + name + `="` + escapeXLIFFText(value) + `"` + tag[end:]
+}
+
+// xliffReplacement validates mixed XML in its inherited namespace context and
+// prevents translation from dropping or modifying source inline code identities.
+func xliffReplacement(template []byte, source *xliffElement, value string) (string, error) {
+	sourceCodes, err := xliffInlineCodes(source, string(xliffInner(template, source)))
+	if err != nil {
+		return "", err
+	}
+	codes, parseErr := xliffInlineCodes(source, value)
+	if parseErr != nil {
+		if len(sourceCodes) > 0 {
+			return "", fmt.Errorf("invalid inline XML: %w", parseErr)
+		}
+		return escapeXLIFFText(value), nil
+	}
+	if len(sourceCodes) > 0 {
+		if len(codes) != len(sourceCodes) {
+			return "", fmt.Errorf("inline code count differs from source")
+		}
+		for key, count := range sourceCodes {
+			if codes[key] != count {
+				return "", fmt.Errorf("inline code identity or attributes differ from source")
+			}
+		}
+	}
+	return value, nil
+}
+
+func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error) {
+	namespaces := make(map[string]string)
+	for node := source; node != nil; node = node.parent {
+		for _, attr := range node.token.Attr {
+			name := ""
+			if attr.Name.Space == "xmlns" {
+				name = "xmlns:" + attr.Name.Local
+			} else if attr.Name.Space == "" && attr.Name.Local == "xmlns" {
+				name = "xmlns"
+			}
+			if name != "" {
+				if _, exists := namespaces[name]; !exists {
+					namespaces[name] = attr.Value
 				}
 			}
 		}
 	}
-	if unitActive {
-		finalizeXLIFFUnit(out, &unit)
+	var wrapper strings.Builder
+	wrapper.WriteString("<hyperlocalise-root")
+	for name, namespace := range namespaces {
+		wrapper.WriteString(" " + name + `="` + escapeXLIFFText(namespace) + `"`)
 	}
-	return out, nil
+	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
+	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))
+	codes := make(map[string]int)
+	depth := 0
+	closed := false
+	var scopes []map[string]string
+	for {
+		before := int(decoder.InputOffset())
+		token, err := decoder.Token()
+		if err == io.EOF {
+			return codes, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		switch t := token.(type) {
+		case xml.StartElement:
+			if closed {
+				return nil, fmt.Errorf("inline fragment escapes its container")
+			}
+			scope := make(map[string]string)
+			if len(scopes) > 0 {
+				for name, namespace := range scopes[len(scopes)-1] {
+					scope[name] = namespace
+				}
+			}
+			for _, attr := range t.Attr {
+				if attr.Name.Space == "xmlns" {
+					scope["xmlns:"+attr.Name.Local] = attr.Value
+				} else if attr.Name.Space == "" && attr.Name.Local == "xmlns" {
+					scope["xmlns"] = attr.Value
+				}
+			}
+			raw := wrapper.String()[before:int(decoder.InputOffset())]
+			nameEnd := strings.IndexAny(raw[1:], " \t\r\n/>") + 1
+			qualifiedName := raw[1:nameEnd]
+			if colon := strings.IndexByte(qualifiedName, ':'); colon >= 0 && qualifiedName[:colon] != "xml" && scope["xmlns:"+qualifiedName[:colon]] == "" {
+				return nil, fmt.Errorf("undeclared inline namespace prefix %q", qualifiedName[:colon])
+			}
+			if depth > 0 {
+				var attrs []string
+				for _, attr := range t.Attr {
+					if attr.Name.Space != "xmlns" && attr.Name.Local != "xmlns" {
+						attrs = append(attrs, fmt.Sprintf("%q:%q=%q", attr.Name.Space, attr.Name.Local, attr.Value))
+					}
+				}
+				sort.Strings(attrs)
+				key := fmt.Sprintf("%q:%q %s", t.Name.Space, t.Name.Local, strings.Join(attrs, " "))
+				switch t.Name.Local {
+				case "ph", "bpt", "ept", "it", "x", "bx", "ex", "sc", "ec":
+					if t.Name.Space == "" || strings.HasPrefix(t.Name.Space, "urn:oasis:names:tc:xliff:document:") {
+						var payload struct {
+							Inner string `xml:",innerxml"`
+						}
+						if err := decoder.DecodeElement(&payload, &t); err != nil {
+							return nil, err
+						}
+						key += " payload=" + normalizeXLIFFMarkup([]byte(payload.Inner))
+						codes[key]++
+						continue
+					}
+				}
+				codes[key]++
+			}
+			scopes = append(scopes, scope)
+			depth++
+		case xml.EndElement:
+			depth--
+			scopes = scopes[:len(scopes)-1]
+			if depth == 0 {
+				closed = true
+			}
+		}
+	}
 }
 
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
@@ -129,203 +582,6 @@ func resolveXLIFFUnitKey(attrs []xml.Attr) string {
 	return resname
 }
 
-type xliffUnit struct {
-	key    string
-	source bytes.Buffer
-	target bytes.Buffer
-}
-
-func normalizeXLIFFInternalMarkup(val []byte) []byte {
-	// Decode entities and CDATA even if no tags are present.
-	if !bytes.ContainsAny(val, "<&") {
-		return val
-	}
-	// To preserve parity with the old xml.Encoder-based behavior (which expanded self-closing tags),
-	// we use a full decode cycle. To decode entities and CDATA into literal text, we write
-	// CharData tokens directly to the output buffer after flushing the encoder.
-	var out bytes.Buffer
-	enc := xml.NewEncoder(&out)
-	dec := xml.NewDecoder(bytes.NewReader(val))
-	for {
-		tok, err := dec.Token()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return val // On decode error, fallback to original value.
-		}
-		if err := enc.EncodeToken(tok); err != nil {
-			return val
-		}
-	}
-	if err := enc.Flush(); err != nil {
-		return val
-	}
-	return out.Bytes()
-}
-
-func finalizeXLIFFUnit(out map[string]string, unit *xliffUnit) {
-	key := strings.TrimSpace(unit.key)
-	if key == "" {
-		return
-	}
-	value := unit.target.String()
-	if strings.TrimSpace(value) == "" {
-		value = unit.source.String()
-	}
-	if value == "" {
-		return
-	}
-	out[key] = value
-}
-
-// MarshalXLIFF rewrites XLIFF source/target text using values keyed by unit id/name/resname.
-// If a unit has <target>, only target text is updated; otherwise source text is updated.
-func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(template))
-	var out bytes.Buffer
-	encoder := xml.NewEncoder(&out)
-
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, fmt.Errorf("xml decode: %w", err)
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			t = rewriteXLIFFLocaleAttrs(t, sourceLocale, targetLocale)
-			if t.Name.Local == "trans-unit" || t.Name.Local == "unit" {
-				if err := marshalXLIFFUnit(encoder, decoder, template, t, values); err != nil {
-					return nil, err
-				}
-				continue
-			}
-			if err := encoder.EncodeToken(t); err != nil {
-				return nil, fmt.Errorf("xml encode start: %w", err)
-			}
-		case xml.EndElement, xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
-			if err := encoder.EncodeToken(t); err != nil {
-				return nil, fmt.Errorf("xml encode token: %w", err)
-			}
-		}
-	}
-
-	if err := encoder.Flush(); err != nil {
-		return nil, fmt.Errorf("xml encode flush: %w", err)
-	}
-	return out.Bytes(), nil
-}
-
-func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, template []byte, start xml.StartElement, values map[string]string) error {
-	unitKey := resolveXLIFFUnitKey(start.Attr)
-	replacement, hasReplacement := values[unitKey]
-
-	if !hasReplacement {
-		// Just stream tokens directly without cloning/buffering.
-		if err := encoder.EncodeToken(start); err != nil {
-			return fmt.Errorf("xml encode start: %w", err)
-		}
-		depth := 1
-		for depth > 0 {
-			tok, err := decoder.Token()
-			if err != nil {
-				return fmt.Errorf("xml decode unit: %w", err)
-			}
-			switch tok.(type) {
-			case xml.StartElement:
-				depth++
-			case xml.EndElement:
-				depth--
-			}
-			if err := encoder.EncodeToken(tok); err != nil {
-				return fmt.Errorf("xml encode token: %w", err)
-			}
-		}
-		return nil
-	}
-
-	hasTarget := hasXLIFFTargetElement(template[decoder.InputOffset():])
-
-	// Stream and replace on the fly
-	if err := encoder.EncodeToken(start); err != nil {
-		return fmt.Errorf("xml encode start: %w", err)
-	}
-
-	depth := 1
-	var skipTagName string
-	var skipDepth int
-
-	for depth > 0 {
-		tok, err := decoder.Token()
-		if err != nil {
-			return fmt.Errorf("xml decode unit: %w", err)
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			depth++
-			if skipTagName != "" {
-				skipDepth++
-				continue
-			}
-
-			// Check if we should replace this element's contents
-			if (hasTarget && t.Name.Local == "target") || (!hasTarget && t.Name.Local == "source") {
-				if err := encoder.EncodeToken(t); err != nil {
-					return fmt.Errorf("xml encode start: %w", err)
-				}
-				skipTagName = t.Name.Local
-				skipDepth = 0
-				continue
-			}
-
-		case xml.EndElement:
-			depth--
-			if skipTagName != "" {
-				if t.Name.Local == skipTagName && skipDepth == 0 {
-					// Encode the replacement fragment, leaving the element empty when the
-					// replacement carries no text.
-					if strings.TrimSpace(replacement) != "" {
-						if err := encodeXLIFFFragment(encoder, replacement); err != nil {
-							return err
-						}
-					}
-					if err := encoder.EncodeToken(t); err != nil {
-						return fmt.Errorf("xml encode end: %w", err)
-					}
-					skipTagName = ""
-					continue
-				}
-				if skipDepth > 0 {
-					skipDepth--
-				}
-				continue
-			}
-
-		case xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
-			if skipTagName != "" {
-				continue
-			}
-		}
-
-		if skipTagName == "" {
-			if err := encoder.EncodeToken(tok); err != nil {
-				return fmt.Errorf("xml encode token: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
-// hasXLIFFTargetElement reports whether the unit whose children begin at the start of
-// content holds a <target> element. Tokenizing rather than scanning bytes keeps the answer
-// aligned with the elements the caller's decoder reports, including prefixed names such as
-// <x:target> and literal "<target>" text inside CDATA or comments. The scan stops at the
-// unit's own end element, whose matching start element is not part of content.
 func hasXLIFFTargetElement(content []byte) bool {
 	// BOLT OPTIMIZATION: If "target" is absent from content, no <target> or <x:target>
 	// element can exist, avoiding xml.Decoder initialization.
@@ -354,149 +610,5 @@ func hasXLIFFTargetElement(content []byte) bool {
 			}
 			depth--
 		}
-	}
-}
-
-func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
-	// BOLT OPTIMIZATION: Fast-path for plain text to skip expensive xml.Decoder.
-	if !strings.ContainsAny(value, "<&") {
-		if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
-			return fmt.Errorf("xml encode char data: %w", err)
-		}
-		return nil
-	}
-
-	wrapped := "<hyperlocalise-root>" + value + "</hyperlocalise-root>"
-	decoder := xml.NewDecoder(strings.NewReader(wrapped))
-	depth := 0
-	var tokens []xml.Token
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			if err == io.EOF {
-				for _, token := range tokens {
-					if err := encoder.EncodeToken(token); err != nil {
-						return fmt.Errorf("xml encode token: %w", err)
-					}
-				}
-				return nil
-			}
-			// On error, fallback to treating the entire value as plain text.
-			if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
-				return fmt.Errorf("xml encode char data fallback: %w", err)
-			}
-			return nil
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			if depth == 0 && t.Name.Local == "hyperlocalise-root" {
-				depth++
-				continue
-			}
-			depth++
-		case xml.EndElement:
-			depth--
-			if depth == 0 && t.Name.Local == "hyperlocalise-root" {
-				continue
-			}
-		}
-
-		if depth > 0 {
-			tokens = append(tokens, cloneXMLToken(tok))
-		}
-	}
-}
-
-func rewriteXLIFFLocaleAttrs(start xml.StartElement, sourceLocale, targetLocale string) xml.StartElement {
-	src := strings.TrimSpace(sourceLocale)
-	trg := strings.TrimSpace(targetLocale)
-	if src == "" && trg == "" {
-		return start
-	}
-
-	switch start.Name.Local {
-	case "file":
-		if src != "" {
-			start.Attr = upsertXLIFFAttr(start.Attr, "source-language", src)
-		}
-		if trg != "" && attrValue(start.Attr, "source-language") != "" {
-			start.Attr = upsertXLIFFAttr(start.Attr, "target-language", trg)
-		}
-	case "xliff":
-		if isXLIFF20Root(start.Attr) {
-			if src != "" {
-				start.Attr = upsertXLIFFAttr(start.Attr, "srcLang", src)
-			}
-			if trg != "" {
-				start.Attr = upsertXLIFFAttr(start.Attr, "trgLang", trg)
-			}
-		}
-	}
-	return start
-}
-
-func isXLIFF20Root(attrs []xml.Attr) bool {
-	version := attrValue(attrs, "version")
-	return strings.HasPrefix(version, "2")
-}
-
-func upsertXLIFFAttr(attrs []xml.Attr, name, value string) []xml.Attr {
-	for i := range attrs {
-		if attrs[i].Name.Local == name {
-			attrs[i].Value = value
-			return attrs
-		}
-	}
-	return append(attrs, xml.Attr{Name: xml.Name{Local: name}, Value: value})
-}
-
-func cloneXMLToken(tok xml.Token) xml.Token {
-	switch t := tok.(type) {
-	case xml.StartElement:
-		// BOLT OPTIMIZATION: Skip allocation if there are no attributes.
-		if len(t.Attr) == 0 {
-			return t
-		}
-		attrs := make([]xml.Attr, len(t.Attr))
-		copy(attrs, t.Attr)
-		t.Attr = attrs
-		return t
-	case xml.EndElement:
-		return t
-	case xml.CharData:
-		// BOLT OPTIMIZATION: Skip allocation for empty data.
-		if len(t) == 0 {
-			return t
-		}
-		cloned := make(xml.CharData, len(t))
-		copy(cloned, t)
-		return cloned
-	case xml.Comment:
-		// BOLT OPTIMIZATION: Skip allocation for empty comment.
-		if len(t) == 0 {
-			return t
-		}
-		cloned := make(xml.Comment, len(t))
-		copy(cloned, t)
-		return cloned
-	case xml.Directive:
-		// BOLT OPTIMIZATION: Skip allocation for empty directive.
-		if len(t) == 0 {
-			return t
-		}
-		cloned := make(xml.Directive, len(t))
-		copy(cloned, t)
-		return cloned
-	case xml.ProcInst:
-		cloned := xml.ProcInst{Target: t.Target}
-		// BOLT OPTIMIZATION: Skip allocation for empty instruction data.
-		if len(t.Inst) > 0 {
-			cloned.Inst = make([]byte, len(t.Inst))
-			copy(cloned.Inst, t.Inst)
-		}
-		return cloned
-	default:
-		return tok
 	}
 }

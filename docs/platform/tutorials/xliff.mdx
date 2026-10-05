@@ -57,7 +57,7 @@ Use stable `id`, `name`, or `resname` values. Do not derive IDs from array posit
 Keep a `<target>` element in each source unit. During reconstruction, Hyperlocalise preserves `<source>` and writes the translated value into `<target>`.
 
 <Note>
-XLIFF 2.x is supported through `<unit>` elements. Keep one translatable segment per unit in the current workflow so one stable unit ID maps to one translation value.
+XLIFF 2.x supports independent `<segment>` elements within each `<unit>`. Assign stable unit and segment IDs. Single-segment units keep the unit key; multiple segments use `unit-key#segment=segment-id`. See [XLIFF format behavior](/cli/reference/formats/xliff#behavior-and-limitations) for key rules and segmented XLIFF 1.2 support.
 </Note>
 
 ## 2. Map source and targets

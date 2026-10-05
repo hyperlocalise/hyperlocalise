@@ -79,7 +79,7 @@ func TestMarshalXLIFFPreservesInlineMarkupWhenReplacingTarget(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, `>Hello <ph id="1"></ph> world</source>`) {
+	if !strings.Contains(content, `>Hello <ph id="1"/> world</source>`) {
 		t.Fatalf("expected source inline markup preserved, got %q", content)
 	}
 	if !strings.Contains(content, `<target state="translated">Bonjour <ph id="1"></ph> monde</target>`) {
@@ -120,7 +120,7 @@ func TestMarshalXLIFF20PreservesSrcLangAndRewritesTrgLang(t *testing.T) {
 	}
 }
 
-func TestMarshalXLIFF20MultiSegmentCurrentLimitationDuplicatesUnitValuePerTarget(t *testing.T) {
+func TestMarshalXLIFF20MultiSegmentWritesIndependentTargets(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
   <file id="f1">
@@ -137,16 +137,14 @@ func TestMarshalXLIFF20MultiSegmentCurrentLimitationDuplicatesUnitValuePerTarget
   </file>
 </xliff>`)
 
-	out, err := MarshalXLIFF(template, map[string]string{"hello": "Salut tout le monde"}, "en-US", "fr-FR")
+	out, err := MarshalXLIFF(template, map[string]string{"hello#segment-index=1": "Salut ", "hello#segment-index=2": "le monde"}, "en-US", "fr-FR")
 	if err != nil {
 		t.Fatalf("marshal xliff: %v", err)
 	}
 
 	content := string(out)
-	// This locks today's limitation, not desired XLIFF 2.x behavior. When
-	// segment-level rewrite is implemented, replace this with per-segment checks.
-	if strings.Count(content, `>Salut tout le monde</target>`) != 2 {
-		t.Fatalf("expected current unit-level rewrite to replace each segment target with the unit value, got %q", content)
+	if !strings.Contains(content, ">Salut </target>") || !strings.Contains(content, ">le monde</target>") {
+		t.Fatalf("expected independent segment targets, got %q", content)
 	}
 	if !strings.Contains(content, `>Hello </source>`) || !strings.Contains(content, `>world</source>`) {
 		t.Fatalf("expected segment sources preserved when targets exist, got %q", content)
@@ -189,7 +187,7 @@ func TestMarshalXLIFFAddsMissingTargetLocaleAttrs(t *testing.T) {
 	}
 }
 
-func TestMarshalXLIFFReplacesSourceWhenTargetMissing(t *testing.T) {
+func TestMarshalXLIFFCreatesTargetWhenMissing(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US">
@@ -207,12 +205,12 @@ func TestMarshalXLIFFReplacesSourceWhenTargetMissing(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, "<source>Bonjour</source>") {
-		t.Fatalf("expected source text to be replaced when target is missing, got %q", content)
+	if !strings.Contains(content, "<source>Hello</source>") || !strings.Contains(content, "<target>Bonjour</target>") {
+		t.Fatalf("expected source preserved and target created, got %q", content)
 	}
 }
 
-func TestMarshalXLIFFReplacesSourceWithInlineMarkupWhenTargetMissing(t *testing.T) {
+func TestMarshalXLIFFCreatesTargetWithInlineMarkupWhenMissing(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US">
@@ -230,8 +228,8 @@ func TestMarshalXLIFFReplacesSourceWithInlineMarkupWhenTargetMissing(t *testing.
 	}
 
 	content := string(out)
-	if !strings.Contains(content, `<source>Bonjour <g id="1">monde</g></source>`) {
-		t.Fatalf("expected source inline markup replaced when target missing, got %q", content)
+	if !strings.Contains(content, `<source>Hello <g id="1">world</g></source>`) || !strings.Contains(content, `<target>Bonjour <g id="1">monde</g></target>`) {
+		t.Fatalf("expected source inline markup preserved and target created, got %q", content)
 	}
 }
 
@@ -305,7 +303,7 @@ func TestXLIFFParserPreservesWhitespaceOnlyValues(t *testing.T) {
 	}
 }
 
-func TestXLIFFParserConcatenatesMultipleSegmentsInOrder(t *testing.T) {
+func TestXLIFFParserReadsIndependentSegments(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
   <file id="f1">
@@ -326,12 +324,12 @@ func TestXLIFFParserConcatenatesMultipleSegmentsInOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse xliff: %v", err)
 	}
-	if got["hello"] != "Bonjour monde" {
-		t.Fatalf("expected multi-segment target content concatenated in order, got %#v", got["hello"])
+	if len(got) != 2 || got["hello#segment-index=1"] != "Bonjour " || got["hello#segment-index=2"] != "monde" {
+		t.Fatalf("expected independent segment values, got %#v", got)
 	}
 }
 
-func TestXLIFFParserDuplicateUnitIDCollidesByID(t *testing.T) {
+func TestXLIFFParserRejectsDuplicateUnitID(t *testing.T) {
 	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
   <file source-language="en-US" target-language="fr">
@@ -348,15 +346,8 @@ func TestXLIFFParserDuplicateUnitIDCollidesByID(t *testing.T) {
   </file>
 </xliff>`)
 
-	got, err := (XLIFFParser{}).Parse(content)
-	if err != nil {
-		t.Fatalf("parse xliff: %v", err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected duplicate ids to collapse to one key, got %+v", got)
-	}
-	if got["dup"] != "Deuxieme" {
-		t.Fatalf("expected last duplicate id to win, got %+v", got)
+	if _, err := (XLIFFParser{}).Parse(content); err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected duplicate-key error, got %v", err)
 	}
 }
 
