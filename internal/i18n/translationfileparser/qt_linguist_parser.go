@@ -276,9 +276,11 @@ type qtLinguistMessage struct {
 	translationType string
 	numerus         bool
 	numerusForms    []string
-	locations       []string
-	start           xml.StartElement
-	children        []xml.Token
+	// blankPrimaryVariant is set when a kept <lengthvariant> subtree has a blank first variant.
+	blankPrimaryVariant bool
+	locations           []string
+	start               xml.StartElement
+	children            []xml.Token
 }
 
 func newQtLinguistMessage(attrs []xml.Attr) qtLinguistMessage {
@@ -492,25 +494,34 @@ func qtLinguistDecodedValue(inner string) string {
 // the translation holds <lengthvariant> children. Blank leading variants are
 // skipped so a later filled variant is not treated as untranslated.
 func qtLinguistTranslationValue(inner string) string {
-	if !strings.Contains(inner, "<lengthvariant") {
-		return qtLinguistDecodedValue(inner)
-	}
-	if variant, ok := qtLinguistPrimaryLengthVariant(inner); ok {
-		return variant
-	}
-	return qtLinguistDecodedValue(inner)
+	value, _ := qtLinguistTranslationValueWithBlankPrimary(inner)
+	return value
 }
 
-func qtLinguistPrimaryLengthVariant(inner string) (string, bool) {
+// qtLinguistTranslationValueWithBlankPrimary also reports whether the first
+// <lengthvariant> is blank, so writeback can keep type="unfinished".
+func qtLinguistTranslationValueWithBlankPrimary(inner string) (string, bool) {
+	if !strings.Contains(inner, "<lengthvariant") {
+		return qtLinguistDecodedValue(inner), false
+	}
+	variant, ok, blankPrimary := qtLinguistPrimaryLengthVariant(inner)
+	if ok {
+		return variant, blankPrimary
+	}
+	return qtLinguistDecodedValue(inner), blankPrimary
+}
+
+func qtLinguistPrimaryLengthVariant(inner string) (string, bool, bool) {
 	wrapped := []byte("<x>" + inner + "</x>")
 	decoder := xml.NewDecoder(bytes.NewReader(wrapped))
 	depth := 0
 	captureStart := -1
 	foundAny := false
+	blankPrimary := false
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
-			return "", foundAny
+			return "", foundAny, blankPrimary
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
@@ -520,16 +531,20 @@ func qtLinguistPrimaryLengthVariant(inner string) (string, bool) {
 			}
 		case xml.EndElement:
 			if depth == 2 && captureStart >= 0 {
-				foundAny = true
 				variant := qtLinguistDecodedValue(qtLinguistInnerXML(wrapped, captureStart, int(decoder.InputOffset())))
-				if strings.TrimSpace(variant) != "" {
-					return variant, true
+				blank := strings.TrimSpace(variant) == ""
+				if !foundAny {
+					blankPrimary = blank
+				}
+				foundAny = true
+				if !blank {
+					return variant, true, blankPrimary
 				}
 				captureStart = -1
 			}
 			depth--
 			if depth == 0 {
-				return "", foundAny
+				return "", foundAny, blankPrimary
 			}
 		}
 	}
@@ -642,10 +657,14 @@ func readQtLinguistMessage(decoder *xml.Decoder, template []byte, start xml.Star
 						msg.comment = strings.TrimSpace(qtLinguistPlainText(inner))
 					case "translation":
 						if !msg.numerus {
-							msg.translation = qtLinguistTranslationValue(inner)
+							value, blankPrimary := qtLinguistTranslationValueWithBlankPrimary(inner)
+							msg.translation = value
+							msg.blankPrimaryVariant = msg.blankPrimaryVariant || blankPrimary
 						}
 					case "numerusform":
-						msg.numerusForms = append(msg.numerusForms, qtLinguistTranslationValue(inner))
+						value, blankPrimary := qtLinguistTranslationValueWithBlankPrimary(inner)
+						msg.numerusForms = append(msg.numerusForms, value)
+						msg.blankPrimaryVariant = msg.blankPrimaryVariant || blankPrimary
 					}
 					captureName = ""
 				}
@@ -694,7 +713,9 @@ func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, context
 			}
 			if t.Name.Local == "translation" && unchanged && !wroteTranslation {
 				// Keep the original subtree so length variants and markup survive.
-				t.Attr = qtLinguistTranslationAttrs(t.Attr, replacements)
+				if !msg.blankPrimaryVariant {
+					t.Attr = qtLinguistTranslationAttrs(t.Attr, replacements)
+				}
 				if err := encoder.EncodeToken(t); err != nil {
 					return fmt.Errorf("qt linguist xml encode start: %w", err)
 				}

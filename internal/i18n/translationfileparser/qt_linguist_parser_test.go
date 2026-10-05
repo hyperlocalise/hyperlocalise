@@ -464,6 +464,42 @@ func TestQtLinguistSkipsEmptyLeadingLengthVariant(t *testing.T) {
 	}
 }
 
+func TestQtLinguistKeepsUnfinishedWhenPrimaryLengthVariantBlank(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="de">
+<context>
+    <name>Main</name>
+    <message>
+        <source>Preferences</source>
+        <translation type="unfinished" variants="yes"><lengthvariant></lengthvariant><lengthvariant>Einst.</lengthvariant></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s)</source>
+        <translation type="unfinished">
+            <numerusform><lengthvariant></lengthvariant><lengthvariant>1 Datei</lengthvariant></numerusform>
+            <numerusform>%n Dateien</numerusform>
+        </translation>
+    </message>
+</context>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	out, err := MarshalQtLinguist(template, values, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, `<translation type="unfinished" variants="yes"><lengthvariant></lengthvariant><lengthvariant>Einst.</lengthvariant></translation>`) {
+		t.Fatalf("expected unfinished kept for blank primary variant, got %q", got)
+	}
+	if strings.Count(got, `type="unfinished"`) != 2 {
+		t.Fatalf("expected unfinished kept for blank primary numerus variant, got %q", got)
+	}
+}
+
 func TestQtLinguistPreservesLengthVariants(t *testing.T) {
 	t.Parallel()
 	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
