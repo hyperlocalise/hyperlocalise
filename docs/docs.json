@@ -266,6 +266,13 @@
                       "platform/help/contact-support"
                     ],
                     "expanded": false
+                  },
+                  {
+                    "group": "Release notes",
+                    "pages": [
+                      "platform/release-notes"
+                    ],
+                    "expanded": false
                   }
                 ]
               }
