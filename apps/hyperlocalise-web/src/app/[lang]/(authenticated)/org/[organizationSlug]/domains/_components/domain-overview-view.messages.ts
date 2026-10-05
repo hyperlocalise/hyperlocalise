@@ -45,6 +45,46 @@ export const domainOverviewViewMessages = defineMessages({
     id: "bH4OJBTlRQ",
     description: "Overview traffic column",
   },
+  columnEstimatedTraffic: {
+    defaultMessage: "Est. traffic",
+    id: "vS2rZINTCg",
+    description: "Overview estimated traffic column",
+  },
+  capturedAt: {
+    defaultMessage: "Captured {date}",
+    id: "NyfIu9clsR",
+    description: "Overview snapshot timestamp",
+  },
+  refresh: {
+    defaultMessage: "Refresh data",
+    id: "UxD7Hy8Ypk",
+    description: "Refresh provider-backed Overview",
+  },
+  refreshing: {
+    defaultMessage: "Refreshing…",
+    id: "JV74CwQ5fc",
+    description: "Provider-backed Overview refresh in progress",
+  },
+  noSnapshot: {
+    defaultMessage: "No Overview snapshot yet. Refresh to capture this market.",
+    id: "+BP6ejutVt",
+    description: "Overview has no cached provider snapshot",
+  },
+  loadError: {
+    defaultMessage: "We couldn’t load the Overview snapshot.",
+    id: "sucqiW0wUM",
+    description: "Overview load error",
+  },
+  providerDisclosure: {
+    defaultMessage: "Estimated traffic is DataForSEO’s ETV estimate, captured on demand.",
+    id: "g6Tru4ATTb",
+    description: "DataForSEO ETV disclosure",
+  },
+  top10: {
+    defaultMessage: "Top-10 rankings",
+    id: "BGn+NvicLw",
+    description: "Overview metric for top ten rankings",
+  },
   columnPage: {
     defaultMessage: "Page",
     id: "GzdUfM35EF",

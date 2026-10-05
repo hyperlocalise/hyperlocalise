@@ -14,6 +14,7 @@ import type { DomainResearchCatalog } from "@/lib/domains/research-prototype";
 import type { GscDateRange } from "@/lib/gsc/constants";
 import type { GscInspection, GscPerformanceSnapshot } from "@/lib/gsc/types";
 import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
+import type { DomainOverview } from "@/lib/domains/domain-overview";
 
 import type { GoSvcRequestOptions } from "./go-svc-client.types";
 import { GoSvcClientError, orgPath, type GoSvcRequest } from "./go-svc-request";
@@ -238,6 +239,37 @@ export class GoSvcDomainsApi {
       });
     }
     return { catalog: body.catalog, linkedDomain: body.linkedDomain };
+  }
+
+  async getOverview(
+    organizationSlug: string,
+    linkedDomainId: string,
+    marketId: string,
+    options: GoSvcRequestOptions = {},
+  ): Promise<DomainOverview | null> {
+    const response = await this.request.response(
+      researchPath(organizationSlug, linkedDomainId, "overview"),
+      { query: { marketId }, ...options },
+    );
+    const body = await readJsonBody<{
+      overview?: DomainOverview | null;
+      message?: string;
+      error?: string;
+    }>(response);
+    await ensureOk(response, body);
+    return body.overview ?? null;
+  }
+
+  refreshOverview(
+    organizationSlug: string,
+    linkedDomainId: string,
+    body: { marketId: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<{ overview: DomainOverview }>(
+      researchPath(organizationSlug, linkedDomainId, "overview", "refresh"),
+      { method: "POST", body, ...options },
+    );
   }
 
   expandKeywords(

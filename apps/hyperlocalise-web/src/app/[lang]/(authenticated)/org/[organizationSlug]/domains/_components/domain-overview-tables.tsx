@@ -16,27 +16,21 @@ import { useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDomainResearchCatalog } from "./domain-research-context";
 import { cn } from "@/lib/primitives/cn";
 
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { domainOverviewViewMessages as messages } from "./domain-overview-view.messages";
+import type { DomainOverview } from "@/lib/domains/domain-overview";
 
 const KEYWORD_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(3,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 const PAGE_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(2,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 
-export function DomainOverviewTables({ linkedDomainId }: { linkedDomainId: string }) {
+export function DomainOverviewTables({ overview }: { overview: DomainOverview }) {
   const intl = useIntl();
-  const catalog = useDomainResearchCatalog(linkedDomainId);
   const [tab, setTab] = useState<"keywords" | "pages">("keywords");
-
-  if (!catalog) {
-    return null;
-  }
-
-  const rows = tab === "keywords" ? catalog.overviewKeywords : catalog.overviewPages;
+  const rows = tab === "keywords" ? overview.topKeywords : overview.topPages;
 
   return (
     <div className="grid gap-4">
@@ -86,21 +80,21 @@ export function DomainOverviewTables({ linkedDomainId }: { linkedDomainId: strin
               <FormattedMessage {...messages.columnVolume} />
             </span>
             <span className="text-end">
-              <FormattedMessage {...messages.columnTraffic} />
+              <FormattedMessage {...messages.columnEstimatedTraffic} />
             </span>
           </div>
           <div className="divide-y divide-border">
-            {catalog.overviewKeywords.map((row) => (
-              <div key={row.id} className={KEYWORD_GRID}>
+            {overview.topKeywords.map((row) => (
+              <div key={row.keyword} className={KEYWORD_GRID}>
                 <span className="truncate font-medium">{row.keyword}</span>
                 <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {row.position}
+                  {row.position ?? "—"}
                 </span>
                 <span className="text-end tabular-nums text-sm text-muted-foreground">
                   {intl.formatNumber(row.volume)}
                 </span>
                 <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {intl.formatNumber(row.traffic)}
+                  {intl.formatNumber(row.etv, { maximumFractionDigits: 0 })}
                 </span>
               </div>
             ))}
@@ -121,18 +115,18 @@ export function DomainOverviewTables({ linkedDomainId }: { linkedDomainId: strin
               <FormattedMessage {...messages.columnKeywords} />
             </span>
             <span className="text-end">
-              <FormattedMessage {...messages.columnTraffic} />
+              <FormattedMessage {...messages.columnEstimatedTraffic} />
             </span>
           </div>
           <div className="divide-y divide-border">
-            {catalog.overviewPages.map((row) => (
-              <div key={row.id} className={PAGE_GRID}>
-                <span className="truncate font-mono text-sm">{row.path}</span>
+            {overview.topPages.map((row) => (
+              <div key={row.page} className={PAGE_GRID}>
+                <span className="truncate font-mono text-sm">{row.page}</span>
                 <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {intl.formatNumber(row.keywords)}
+                  {intl.formatNumber(row.keywordCount)}
                 </span>
                 <span className="text-end tabular-nums text-sm text-muted-foreground">
-                  {intl.formatNumber(row.traffic)}
+                  {intl.formatNumber(row.etv, { maximumFractionDigits: 0 })}
                 </span>
               </div>
             ))}

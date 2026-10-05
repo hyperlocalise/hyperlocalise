@@ -22,6 +22,8 @@ const (
 type researchService interface {
 	KeywordIdeas(ctx context.Context, input dataforseo.KeywordIdeasInput) (dataforseo.TaskResponse[[]dataforseo.KeywordDataItem], error)
 	DomainRankOverview(ctx context.Context, input dataforseo.DomainRankOverviewInput) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error)
+	RankedKeywords(ctx context.Context, input dataforseo.RankedKeywordsInput) (dataforseo.TaskResponse[dataforseo.RankedKeywordsPage], error)
+	RelevantPages(ctx context.Context, input dataforseo.RelevantPagesInput) (dataforseo.TaskResponse[dataforseo.RelevantPagesPage], error)
 	LiveAdvanced(ctx context.Context, input dataforseo.LiveSerpInput) (dataforseo.TaskResponse[[]dataforseo.SerpItem], error)
 	RankCheck(ctx context.Context, input dataforseo.RankCheckSerpInput) (dataforseo.TaskResponse[dataforseo.RankCheckResult], error)
 }
@@ -46,6 +48,20 @@ func (d *dataForSEOResearch) DomainRankOverview(
 	input dataforseo.DomainRankOverviewInput,
 ) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error) {
 	return d.client.Labs().DomainRankOverview(ctx, input)
+}
+
+func (d *dataForSEOResearch) RankedKeywords(
+	ctx context.Context,
+	input dataforseo.RankedKeywordsInput,
+) (dataforseo.TaskResponse[dataforseo.RankedKeywordsPage], error) {
+	return d.client.Labs().RankedKeywords(ctx, input)
+}
+
+func (d *dataForSEOResearch) RelevantPages(
+	ctx context.Context,
+	input dataforseo.RelevantPagesInput,
+) (dataforseo.TaskResponse[dataforseo.RelevantPagesPage], error) {
+	return d.client.Labs().RelevantPages(ctx, input)
 }
 
 func (d *dataForSEOResearch) LiveAdvanced(
