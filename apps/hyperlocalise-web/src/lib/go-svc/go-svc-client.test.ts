@@ -469,6 +469,47 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
   });
 
+  it("queues memory exports and resolves their signed download URL", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { attemptId: "attempt-1", operation: "export", status: "queued" },
+          {
+            status: 202,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          url: "https://storage.example/export.tmx",
+          method: "GET",
+          expiresAt: "2026-10-05T10:00:00.000Z",
+          filename: "memory.tmx",
+        }),
+      );
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.memory.entries.createExport("acme", "memory-1", {
+        format: "tmx",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });
+    await expect(
+      client.memory.importAttempts.downloadUrl("acme", "memory-1", "attempt-1"),
+    ).resolves.toMatchObject({ filename: "memory.tmx" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/export?format=tmx&sourceLocale=en-US&targetLocale=fr-FR`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/import-attempts/attempt-1/download`,
+    );
+  });
+
   it("rejects invalid base URLs and non-absolute paths", async () => {
     expect(
       () =>

@@ -250,6 +250,73 @@ export type MemoryProject = {
   targetLocales: string[];
 };
 
+export type MemoryInterchangeAttemptStatus =
+  | "upload_pending"
+  | "queued"
+  | "running"
+  | "preview_completed"
+  | "completed"
+  | "partially_successful"
+  | "failed";
+
+export type MemoryInterchangeAttempt = {
+  id: string;
+  organizationId: string;
+  memoryId: string;
+  createdByUserId: string | null;
+  actorDisplayName: string | null;
+  operation: "import" | "export";
+  status: MemoryInterchangeAttemptStatus;
+  importBatchId: string;
+  mode: string;
+  format: "csv" | "tmx";
+  options: GoSvcRecord;
+  sourceFilename: string | null;
+  sourceByteSize: number | null;
+  sourceSha256: string | null;
+  counts: GoSvcRecord | null;
+  headerSrclang: string | null;
+  diagnosticsTruncated: boolean;
+  diagnosticsAvailability: "available" | "expired";
+  diagnosticsExpiresAt: string | null;
+  retentionPolicy: "indefinite";
+  failureCode: string | null;
+  failureMessage?: string | null;
+  processingStartedAt?: string | null;
+  resultFilename: string | null;
+  resultReady: boolean;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type MemoryInterchangeDiagnostic = {
+  id?: string;
+  severity: string;
+  code: string;
+  message: string;
+  unitIndex?: number | null;
+  tuid?: string | null;
+  createdAt?: string;
+};
+
+export type MemoryInterchangeAttemptResponse = {
+  memoryImportAttempt: MemoryInterchangeAttempt;
+  diagnostics: MemoryInterchangeDiagnostic[];
+};
+
+export type MemoryExportJob = {
+  attemptId: string;
+  operation: "export";
+  status: "queued";
+};
+
+export type MemoryInterchangeDownloadUrl = {
+  url: string;
+  method: "GET";
+  expiresAt: string;
+  filename: string | null;
+};
+
 export type TeamRecord = {
   id: string;
   organizationId: string;

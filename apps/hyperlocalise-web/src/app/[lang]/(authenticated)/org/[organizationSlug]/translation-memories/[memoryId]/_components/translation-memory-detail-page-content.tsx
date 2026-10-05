@@ -306,17 +306,6 @@ export function TranslationMemoryDetailPageContent({
             <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
               <FormattedMessage {...messages.projectsToolbar} />
             </Button>
-            {canEdit ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => importActionRef.current?.()}
-              >
-                <UploadSimpleIcon className="size-4" />
-                <FormattedMessage {...messages.importAction} />
-              </Button>
-            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

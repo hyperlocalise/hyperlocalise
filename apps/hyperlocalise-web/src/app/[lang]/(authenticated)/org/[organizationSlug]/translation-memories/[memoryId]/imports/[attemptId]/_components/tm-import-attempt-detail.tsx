@@ -13,14 +13,17 @@
  * Version 2.0 or later.
  */
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
+import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type {
-  MemoryImportAttemptRecord,
-  MemoryImportAttemptResponse,
-  MemoryRecord,
-} from "@/api/routes/memory/memory.schema";
+  MemoryInterchangeAttemptResponse,
+  MemoryInterchangeAttemptStatus,
+  MemoryInterchangeDiagnostic,
+} from "@/lib/go-svc/go-svc-client.types";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +31,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
 
@@ -43,8 +46,6 @@ class ImportReportRequestError extends Error {
   }
 }
 
-type MemoryImportDiagnostic = MemoryImportAttemptResponse["diagnostics"][number];
-
 function MetadataItem({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="min-w-0 space-y-1">
@@ -54,7 +55,7 @@ function MetadataItem({ label, children }: { label: ReactNode; children: ReactNo
   );
 }
 
-function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }) {
+function StatusBadge({ status }: { status: MemoryInterchangeAttemptStatus }) {
   const message =
     status === "upload_pending"
       ? messages.uploadPending
@@ -85,7 +86,11 @@ function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }
   );
 }
 
-export function TmImportDiagnosticList({ diagnostics }: { diagnostics: MemoryImportDiagnostic[] }) {
+export function TmImportDiagnosticList({
+  diagnostics,
+}: {
+  diagnostics: MemoryInterchangeDiagnostic[];
+}) {
   return (
     <ul className="divide-y divide-border rounded-xl border border-border">
       {diagnostics.map((diagnostic, index) => (
@@ -124,22 +129,27 @@ export function TmImportAttemptDetail({
   attemptId: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
+  const [downloadPending, setDownloadPending] = useState(false);
   const attemptQuery = useQuery({
     queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+    enabled: !goSvcLoading,
     queryFn: async ({ signal }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ]["import-attempts"][":attemptId"].$get(
-        { param: { organizationSlug, memoryId, attemptId } },
-        { init: { signal } },
-      );
-      if (!response.ok) {
+      try {
+        return await goSvcClient.memory.importAttempts.get(organizationSlug, memoryId, attemptId, {
+          signal,
+        });
+      } catch (error) {
         throw new ImportReportRequestError(
-          response.status,
-          await readApiError(response, intl.formatMessage(messages.errorTitle)),
+          typeof error === "object" &&
+            error !== null &&
+            "status" in error &&
+            typeof error.status === "number"
+            ? error.status
+            : 500,
+          error instanceof Error ? error.message : intl.formatMessage(messages.errorTitle),
         );
       }
-      return (await response.json()) as MemoryImportAttemptResponse;
     },
     refetchInterval: (query) => {
       const status = query.state.data?.memoryImportAttempt.status;
@@ -200,22 +210,46 @@ export function TmImportAttemptDetail({
     );
   }
 
-  const { memoryImportAttempt: attempt, diagnostics } = attemptQuery.data;
+  const { memoryImportAttempt: attempt, diagnostics } =
+    attemptQuery.data as MemoryInterchangeAttemptResponse;
   const memoryLabel = memoryQuery.data?.name ?? attempt.memoryId;
   const reportUrl = `/api/orgs/${encodeURIComponent(organizationSlug)}/translation-memories/${encodeURIComponent(memoryId)}/import-attempts/${encodeURIComponent(attemptId)}/report`;
   const affectedEntriesUrl = `/org/${organizationSlug}/translation-memories/${memoryId}?origin=import&importBatchId=${encodeURIComponent(attempt.importBatchId)}`;
+  const downloadExport = async () => {
+    setDownloadPending(true);
+    try {
+      const signed = await goSvcClient.memory.importAttempts.downloadUrl(
+        organizationSlug,
+        memoryId,
+        attemptId,
+      );
+      const response = await fetch(signed.url);
+      if (!response.ok) throw new Error("download failed");
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = signed.filename ?? `translation-memory.${attempt.format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      void error;
+      toast.error(intl.formatMessage(messages.downloadFailed));
+    } finally {
+      setDownloadPending(false);
+    }
+  };
   const countItems: Array<{
     label: typeof messages.totalRead;
     value: number;
   }> = attempt.counts
     ? [
-        { label: messages.totalRead, value: attempt.counts.totalRead },
-        { label: messages.created, value: attempt.counts.created },
-        { label: messages.updated, value: attempt.counts.updated },
-        { label: messages.variants, value: attempt.counts.variantCreated },
-        { label: messages.skipped, value: attempt.counts.skipped },
-        { label: messages.warnings, value: attempt.counts.warned },
-        { label: messages.failedCount, value: attempt.counts.failed },
+        { label: messages.totalRead, value: Number(attempt.counts.totalRead ?? 0) },
+        { label: messages.created, value: Number(attempt.counts.created ?? 0) },
+        { label: messages.updated, value: Number(attempt.counts.updated ?? 0) },
+        { label: messages.variants, value: Number(attempt.counts.variantCreated ?? 0) },
+        { label: messages.skipped, value: Number(attempt.counts.skipped ?? 0) },
+        { label: messages.warnings, value: Number(attempt.counts.warned ?? 0) },
+        { label: messages.failedCount, value: Number(attempt.counts.failed ?? 0) },
       ]
     : [];
 
@@ -225,21 +259,33 @@ export function TmImportAttemptDetail({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <TypographyH1 className="text-2xl" weight="medium">
-              <FormattedMessage {...messages.title} />
+              <FormattedMessage
+                {...(attempt.operation === "export" ? messages.exportTitle : messages.title)}
+              />
             </TypographyH1>
             <StatusBadge status={attempt.status} />
           </div>
           <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.subtitle} />
+            <FormattedMessage
+              {...(attempt.operation === "export" ? messages.exportSubtitle : messages.subtitle)}
+            />
           </TypographyP>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" render={<a href={reportUrl} download />}>
-            <FormattedMessage {...messages.download} />
-          </Button>
-          <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
-            <FormattedMessage {...messages.affectedEntries} />
-          </Button>
+          {attempt.operation === "import" ? (
+            <>
+              <Button variant="outline" render={<a href={reportUrl} download />}>
+                <FormattedMessage {...messages.download} />
+              </Button>
+              <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
+                <FormattedMessage {...messages.affectedEntries} />
+              </Button>
+            </>
+          ) : attempt.status === "completed" && attempt.resultReady ? (
+            <Button type="button" disabled={downloadPending} onClick={() => void downloadExport()}>
+              <FormattedMessage {...messages.downloadExport} />
+            </Button>
+          ) : null}
         </div>
       </header>
 

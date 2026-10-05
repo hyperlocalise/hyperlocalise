@@ -30,6 +30,16 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "BsHGinE5HI",
     description: "Translation memory import report page description",
   },
+  exportTitle: {
+    defaultMessage: "Export report",
+    id: "QsPTtPId+V",
+    description: "Translation memory export report page title",
+  },
+  exportSubtitle: {
+    defaultMessage: "A durable record of this translation memory export.",
+    id: "WsYxB1sDR5",
+    description: "Translation memory export report page description",
+  },
   loading: {
     defaultMessage: "Loading import report",
     id: "gq7HYMcSL2",
@@ -64,6 +74,16 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Download JSON report",
     id: "DpujlokITJ",
     description: "Download a machine-readable import report",
+  },
+  downloadExport: {
+    defaultMessage: "Download export",
+    id: "pJ6fZYMSIA",
+    description: "Download a completed translation memory export",
+  },
+  downloadFailed: {
+    defaultMessage: "Download failed.",
+    id: "o91utHaw2M",
+    description: "Translation memory export download error",
   },
   affectedEntries: {
     defaultMessage: "View affected entries",
