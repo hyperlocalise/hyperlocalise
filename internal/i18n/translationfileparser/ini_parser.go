@@ -197,10 +197,12 @@ func parseINIEntry(text string, lineStart, lineEnd, first int, section string, c
 	}
 
 	valuePos := skipINIWhitespace(text, sep+1, lineEnd)
-	valueStart := valuePos
-	valueEnd := lineEnd
-	quote := byte(0)
-	sourceValue := ""
+	var (
+		quote       byte
+		sourceValue string
+		valueStart  int
+		valueEnd    int
+	)
 
 	if valuePos < lineEnd && (text[valuePos] == '"' || text[valuePos] == '\'') {
 		decoded, end, err := decodeINIQuoted(text, valuePos, lineEnd, lineNumber)
