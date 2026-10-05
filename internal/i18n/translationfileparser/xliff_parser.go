@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,6 +30,7 @@ type xliffEntry struct {
 	unit                             *xliffElement
 	source, target                   *xliffElement
 	segmentedSource, targetContainer *xliffElement
+	positional                       bool
 }
 
 type xliffEdit struct {
@@ -126,7 +128,7 @@ func xliffEntries(elements []*xliffElement) ([]xliffEntry, error) {
 				return nil, fmt.Errorf("ambiguous XLIFF key %q: duplicate unit or segment identity", entryKey)
 			}
 			seen[entryKey] = true
-			entry := xliffEntry{key: entryKey, unit: unit, source: xliffChild(container, "source"), target: xliffChild(container, "target")}
+			entry := xliffEntry{key: entryKey, unit: unit, source: xliffChild(container, "source"), target: xliffChild(container, "target"), positional: len(containers) > 1 && segmentID == ""}
 			if segmentedSource != nil {
 				if segmentID == "" {
 					return nil, fmt.Errorf("XLIFF segmented unit %q has a marker without mid", key)
@@ -185,6 +187,97 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 			value = xliffInner(content, entry.source)
 		}
 		if len(value) > 0 {
+			out[entry.key] = normalizeXLIFFMarkup(value)
+		}
+	}
+	return out, nil
+}
+
+// XLIFFSourceStructureEqual reports whether the same entry keys refer to the
+// same sources. Equal key sets alone cannot identify anonymous segments after a reorder.
+func XLIFFSourceStructureEqual(source, target []byte) bool {
+	sourceEntries, err := readXLIFFEntries(source)
+	if err != nil {
+		return false
+	}
+	targetEntries, err := readXLIFFEntries(target)
+	if err != nil || len(sourceEntries) != len(targetEntries) {
+		return false
+	}
+	byKey := make(map[string]xliffEntry, len(targetEntries))
+	for _, entry := range targetEntries {
+		byKey[entry.key] = entry
+	}
+	for _, entry := range sourceEntries {
+		other, exists := byKey[entry.key]
+		if !exists || !sameXLIFFSource(source, entry, target, other) {
+			return false
+		}
+	}
+	return true
+}
+
+func readXLIFFEntries(content []byte) ([]xliffEntry, error) {
+	elements, err := readXLIFF(content)
+	if err != nil {
+		return nil, err
+	}
+	return xliffEntries(elements)
+}
+
+func sameXLIFFSource(source []byte, entry xliffEntry, target []byte, other xliffEntry) bool {
+	if entry.source == nil || other.source == nil {
+		return false
+	}
+	text := normalizeXLIFFMarkup(xliffInner(source, entry.source))
+	otherText := normalizeXLIFFMarkup(xliffInner(target, other.source))
+	if text != otherText {
+		return false
+	}
+	codes, err := xliffInlineCodes(entry.source, text)
+	otherCodes, otherErr := xliffInlineCodes(other.source, otherText)
+	return err == nil && otherErr == nil && equalXLIFFCodes(codes, otherCodes)
+}
+
+// XLIFFTargetEntriesForSource aligns existing target values with current source
+// keys. Anonymous segments that moved are matched by source within their unit;
+// ambiguous matches fail rather than attaching a translation to the wrong source.
+func XLIFFTargetEntriesForSource(source, target []byte) (map[string]string, error) {
+	sourceEntries, err := readXLIFFEntries(source)
+	if err != nil {
+		return nil, err
+	}
+	targetEntries, err := readXLIFFEntries(target)
+	if err != nil {
+		return nil, err
+	}
+	byKey := make(map[string]xliffEntry, len(targetEntries))
+	for _, entry := range targetEntries {
+		byKey[entry.key] = entry
+	}
+	out := make(map[string]string)
+	for _, entry := range sourceEntries {
+		other, exists := byKey[entry.key]
+		if !exists || !sameXLIFFSource(source, entry, target, other) {
+			if !entry.positional {
+				continue
+			}
+			exists = false
+			for _, candidate := range targetEntries {
+				if !candidate.positional || resolveXLIFFUnitKey(entry.unit.token.Attr) != resolveXLIFFUnitKey(candidate.unit.token.Attr) || !sameXLIFFSource(source, entry, target, candidate) {
+					continue
+				}
+				if exists {
+					return nil, fmt.Errorf("ambiguous XLIFF positional segment %q; assign stable segment IDs", entry.key)
+				}
+				other, exists = candidate, true
+			}
+		}
+		if !exists {
+			continue
+		}
+		value := xliffInner(target, other.target)
+		if len(bytes.TrimSpace(value)) > 0 {
 			out[entry.key] = normalizeXLIFFMarkup(value)
 		}
 	}
@@ -349,12 +442,17 @@ func xliffTargetAttrs(source *xliffElement) string {
 	return out.String()
 }
 
-func equalXLIFFCodes(a, b map[string]int) bool {
-	if len(a) != len(b) {
+type xliffInlineSignature struct {
+	codes       map[string]int
+	pairedCodes []string
+}
+
+func equalXLIFFCodes(a, b xliffInlineSignature) bool {
+	if len(a.codes) != len(b.codes) || !slices.Equal(a.pairedCodes, b.pairedCodes) {
 		return false
 	}
-	for key, count := range a {
-		if b[key] != count {
+	for key, count := range a.codes {
+		if b.codes[key] != count {
 			return false
 		}
 	}
@@ -441,25 +539,18 @@ func xliffReplacement(template []byte, source *xliffElement, value string) (stri
 	}
 	codes, parseErr := xliffInlineCodes(source, value)
 	if parseErr != nil {
-		if len(sourceCodes) > 0 {
+		if len(sourceCodes.codes) > 0 {
 			return "", fmt.Errorf("invalid inline XML: %w", parseErr)
 		}
 		return escapeXLIFFText(value), nil
 	}
-	if len(sourceCodes) > 0 {
-		if len(codes) != len(sourceCodes) {
-			return "", fmt.Errorf("inline code count differs from source")
-		}
-		for key, count := range sourceCodes {
-			if codes[key] != count {
-				return "", fmt.Errorf("inline code identity or attributes differ from source")
-			}
-		}
+	if !equalXLIFFCodes(sourceCodes, codes) {
+		return "", fmt.Errorf("inline code identities, attributes, payloads, or native pair order differ from source")
 	}
 	return value, nil
 }
 
-func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error) {
+func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature, error) {
 	namespaces := make(map[string]string)
 	for node := source; node != nil; node = node.parent {
 		for _, attr := range node.token.Attr {
@@ -483,7 +574,7 @@ func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error
 	}
 	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
 	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))
-	codes := make(map[string]int)
+	signature := xliffInlineSignature{codes: make(map[string]int)}
 	depth := 0
 	closed := false
 	var scopes []map[string]string
@@ -491,15 +582,15 @@ func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error
 		before := int(decoder.InputOffset())
 		token, err := decoder.Token()
 		if err == io.EOF {
-			return codes, nil
+			return signature, nil
 		}
 		if err != nil {
-			return nil, err
+			return xliffInlineSignature{}, err
 		}
 		switch t := token.(type) {
 		case xml.StartElement:
 			if closed {
-				return nil, fmt.Errorf("inline fragment escapes its container")
+				return xliffInlineSignature{}, fmt.Errorf("inline fragment escapes its container")
 			}
 			scope := make(map[string]string)
 			if len(scopes) > 0 {
@@ -518,7 +609,7 @@ func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error
 			nameEnd := strings.IndexAny(raw[1:], " \t\r\n/>") + 1
 			qualifiedName := raw[1:nameEnd]
 			if colon := strings.IndexByte(qualifiedName, ':'); colon >= 0 && qualifiedName[:colon] != "xml" && scope["xmlns:"+qualifiedName[:colon]] == "" {
-				return nil, fmt.Errorf("undeclared inline namespace prefix %q", qualifiedName[:colon])
+				return xliffInlineSignature{}, fmt.Errorf("undeclared inline namespace prefix %q", qualifiedName[:colon])
 			}
 			if depth > 0 {
 				var attrs []string
@@ -536,14 +627,18 @@ func xliffInlineCodes(source *xliffElement, value string) (map[string]int, error
 							Inner string `xml:",innerxml"`
 						}
 						if err := decoder.DecodeElement(&payload, &t); err != nil {
-							return nil, err
+							return xliffInlineSignature{}, err
 						}
 						key += " payload=" + normalizeXLIFFMarkup([]byte(payload.Inner))
-						codes[key]++
+						signature.codes[key]++
+						switch t.Name.Local {
+						case "bpt", "ept", "bx", "ex", "sc", "ec":
+							signature.pairedCodes = append(signature.pairedCodes, key)
+						}
 						continue
 					}
 				}
-				codes[key]++
+				signature.codes[key]++
 			}
 			scopes = append(scopes, scope)
 			depth++

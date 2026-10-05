@@ -123,3 +123,54 @@ func TestXLIFFSelfClosingSourceAndEmptyTarget(t *testing.T) {
 		t.Fatalf("empty writeback: %s, %v", out, err)
 	}
 }
+
+func TestXLIFFPlainSourceRejectsIntroducedElements(t *testing.T) {
+	template := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source>Hello</source><target state="translated">Bonjour</target></trans-unit></body></file></xliff>`)
+	for _, value := range []string{`Bonjour <ph id="new"/>`, `Bonjour <g id="new">monde</g>`, `Bonjour <ph xmlns="urn:test:inline" id="new"/>`} {
+		if out, err := MarshalXLIFF(template, map[string]string{"u": value}, "en", "fr"); err == nil || out != nil {
+			t.Fatalf("introduced markup accepted for %q: %s, %v", value, out, err)
+		}
+	}
+	out, err := MarshalXLIFF(template, map[string]string{"u": `Bonjour &lt;ph id="literal"/&gt;`}, "en", "fr")
+	if err != nil || !bytes.Contains(out, []byte(`Bonjour &lt;ph id="literal"/&gt;`)) {
+		t.Fatalf("escaped literal markup should remain text: %s, %v", out, err)
+	}
+}
+
+func TestXLIFFNativePairOrder(t *testing.T) {
+	for _, namespace := range []string{"", ` xmlns="urn:oasis:names:tc:xliff:document:1.2"`} {
+		template := []byte(`<xliff version="1.2"` + namespace + `><file><body><trans-unit id="u"><source>Hello <bpt id="1" rid="p">&lt;b&gt;</bpt>world<ept id="2" rid="p">&lt;/b&gt;</ept></source></trans-unit></body></file></xliff>`)
+		valid := `Bonjour <bpt id="1" rid="p">&lt;b&gt;</bpt>monde<ept id="2" rid="p">&lt;/b&gt;</ept>`
+		if _, err := MarshalXLIFF(template, map[string]string{"u": valid}, "en", "fr"); err != nil {
+			t.Fatalf("valid native pair rejected: %v", err)
+		}
+		reversed := `Bonjour <ept id="2" rid="p">&lt;/b&gt;</ept>monde<bpt id="1" rid="p">&lt;b&gt;</bpt>`
+		if out, err := MarshalXLIFF(template, map[string]string{"u": reversed}, "en", "fr"); err == nil || out != nil {
+			t.Fatalf("reversed native pair accepted: %s, %v", out, err)
+		}
+	}
+}
+
+func TestXLIFFStandalonePlaceholdersCanMove(t *testing.T) {
+	template := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source><ph id="a"/> meets <ph id="b"/></source></trans-unit></body></file></xliff>`)
+	value := `<ph id="b"/> rencontre <ph id="a"/>`
+	if _, err := MarshalXLIFF(template, map[string]string{"u": value}, "en", "fr"); err != nil {
+		t.Fatalf("standalone placeholders should be reorderable: %v", err)
+	}
+}
+
+func TestXLIFFSourceStructureDetectsAnonymousSegmentReorder(t *testing.T) {
+	source := []byte(`<xliff version="2.0"><file><unit id="u"><segment><source>One</source></segment><segment><source>Two</source></segment></unit></file></xliff>`)
+	target := []byte(`<xliff version="2.0"><file><unit id="u"><segment><source>Two</source><target>Deux</target></segment><segment><source>One</source><target>Un</target></segment></unit></file></xliff>`)
+	if XLIFFSourceStructureEqual(source, target) {
+		t.Fatal("reordered anonymous sources accepted as compatible")
+	}
+	values, err := XLIFFTargetEntriesForSource(source, target)
+	if err != nil || values["u#segment-index=1"] != "Un" || values["u#segment-index=2"] != "Deux" {
+		t.Fatalf("translations not aligned by source: %#v, %v", values, err)
+	}
+	aligned := []byte(`<xliff version="2.0"><file><unit id="u"><segment><source>One</source><target>Un</target></segment><segment><source>Two</source><target>Deux</target></segment></unit></file></xliff>`)
+	if !XLIFFSourceStructureEqual(source, aligned) {
+		t.Fatal("matching source structure rejected")
+	}
+}

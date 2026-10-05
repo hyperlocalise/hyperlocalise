@@ -68,13 +68,13 @@ configured target path and updates the lockfile.
 
 - Supports XLIFF 1.2 `trans-unit` and segmented `seg-source` markers, and XLIFF 2.x `segment` elements inside `unit`. XLIFF 2.x `ignorable` content stays unchanged.
 
-- Single-segment units keep their existing unit key: `id`, then `name`, then `resname`. Multiple segments use `unit-key#segment=segment-id`, with a URL-escaped segment ID. XLIFF 1.2 uses each marker's `mid`. XLIFF 2.x segments without IDs use `unit-key#segment-index=1`, `unit-key#segment-index=2`, and so on. Assign stable segment IDs to keep keys consistent when reordering segments.
+- Single-segment units keep their existing unit key: `id`, then `name`, then `resname`. Multiple segments use `unit-key#segment=segment-id`, with a URL-escaped segment ID. XLIFF 1.2 uses each marker's `mid`. XLIFF 2.x segments without IDs use `unit-key#segment-index=1`, `unit-key#segment-index=2`, and so on. Assign stable segment IDs to keep keys consistent when reordering segments. The CLI reuses a target template only when its keys still refer to the same source content. Existing anonymous-segment translations are aligned by source within their unit; ambiguous matches produce an error.
 
 - Parsing reads a non-empty target per segment before falling back to that segment's source. Use source catalogs with empty targets for a first translation.
 
 - Writeback updates existing targets or creates missing targets without replacing source text. It preserves untouched XML bytes, namespace prefixes, target attributes, comments, and metadata. For a missing segmented XLIFF 1.2 target, it copies the `seg-source` structure and updates the translated markers. An existing target without matching markers produces an error rather than guessing segment boundaries.
 
-- Inline code identities, attributes, and native code payloads must match the source. Malformed or changed inline codes produce an error. Plain-text replacements with XML-special characters are escaped when they are not valid XML fragments.
+- Inline code identities, attributes, native code payloads, and native opening/closing code order must match the source. Translations cannot introduce inline elements when the source contains only text. Malformed or changed inline codes produce an error. Plain-text replacements with XML-special characters are escaped when they are not valid XML fragments.
 
 - Duplicate unit or segment keys produce an error. Unit-level replacement values for multi-segment units also produce an error. Translate each segment independently.
 

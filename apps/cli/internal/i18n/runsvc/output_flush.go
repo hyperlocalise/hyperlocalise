@@ -82,6 +82,21 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	if err != nil {
 		return nil, err
 	}
+	if ext := strings.ToLower(filepath.Ext(targetPath)); ext == ".xlf" || ext == ".xlif" || ext == ".xliff" {
+		source, sourceErr := s.readProjectFile(output.sourcePath)
+		if sourceErr != nil {
+			return nil, fmt.Errorf("flush outputs: read XLIFF source %q: %w", output.sourcePath, sourceErr)
+		}
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.XLIFFTargetEntriesForSource(source, target)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: align XLIFF target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read XLIFF target %q: %w", targetPath, targetErr)
+		}
+	}
 	stagedEntries := output.entries
 	if strings.TrimSpace(output.srxSpec) != "" {
 		joined, joinErr := s.joinStagedSRXOutput(output, values)

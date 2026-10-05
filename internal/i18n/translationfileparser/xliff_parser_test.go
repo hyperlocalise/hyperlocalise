@@ -457,7 +457,7 @@ func TestMarshalXLIFFPreservesInlineMarkupWithNamespaceReplacement(t *testing.T)
   <file source-language="en-US" target-language="fr">
     <body>
       <trans-unit id="hello">
-        <source>Hello</source>
+        <source>Hello <ph xmlns="urn:test:inline" id="1"></ph> world</source>
         <target>Hello</target>
       </trans-unit>
     </body>

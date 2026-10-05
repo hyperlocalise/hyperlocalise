@@ -72,3 +72,40 @@ func TestRunXLIFFTranslatesSegmentsAndCreatesTargets(t *testing.T) {
 		t.Fatalf("unchanged segments were retranslated: %d calls", calls)
 	}
 }
+
+func TestXLIFFWritebackWithReorderedAnonymousTarget(t *testing.T) {
+	source := []byte(`<xliff version="2.0"><file><unit id="u"><segment><source>One</source></segment><segment><source>Two</source></segment></unit></file></xliff>`)
+	target := []byte(`<xliff version="2.0"><file><unit id="u"><segment><source>Two</source><target>Deux</target></segment><segment><source>One</source><target>Un</target></segment></unit></file></xliff>`)
+	for _, partial := range []bool{false, true} {
+		svc := newTestService()
+		sourcePath, targetPath := "/tmp/source.xlf", "/tmp/out.xlf"
+		svc.readFile = func(path string) ([]byte, error) {
+			if path == sourcePath {
+				return source, nil
+			}
+			if path == targetPath {
+				return target, nil
+			}
+			return nil, os.ErrNotExist
+		}
+		var out []byte
+		if partial {
+			svc.writeFile = func(_ string, content []byte) error { out = content; return nil }
+			_, err := svc.flushOutputForTarget(targetPath, stagedOutput{sourcePath: sourcePath, sourceLocale: "en", targetLocale: "fr", entries: map[string]string{"u#segment-index=1": "Premier"}}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			var err error
+			out, err = svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"u#segment-index=1": "Premier", "u#segment-index=2": "Deux"})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, want := range []string{`<source>One</source><target>Premier</target>`, `<source>Two</source><target>Deux</target>`} {
+			if !strings.Contains(string(out), want) {
+				t.Fatalf("partial=%t: wrong source/translation association: %s", partial, out)
+			}
+		}
+	}
+}
