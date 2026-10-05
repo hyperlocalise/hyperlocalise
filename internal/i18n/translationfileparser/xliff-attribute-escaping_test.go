@@ -15,7 +15,13 @@ func TestXLIFFAttributeValuesCannotIntroduceAttributes(t *testing.T) {
 			t.Fatalf("invalid XML for %s: %v", escaped, err)
 		}
 		start := token.(xml.StartElement)
-		if attrValue(start.Attr, "target-language") != value {
+		decoded, found := "", false
+		for _, attr := range start.Attr {
+			if attr.Name.Local == "target-language" {
+				decoded, found = attr.Value, true
+			}
+		}
+		if !found || decoded != value {
 			t.Fatalf("attribute value did not round trip: %#v", start.Attr)
 		}
 		for _, attr := range start.Attr {

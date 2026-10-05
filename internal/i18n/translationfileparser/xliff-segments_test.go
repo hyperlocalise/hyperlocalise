@@ -151,6 +151,30 @@ func TestXLIFFNativePairOrder(t *testing.T) {
 	}
 }
 
+func TestXLIFFNativePairsCanSwap(t *testing.T) {
+	template := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source><bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept> and <bpt id="2">&lt;i&gt;</bpt>italic<ept id="2">&lt;/i&gt;</ept></source></trans-unit></body></file></xliff>`)
+	swapped := `<bpt id="2">&lt;i&gt;</bpt>italique<ept id="2">&lt;/i&gt;</ept> et <bpt id="1">&lt;b&gt;</bpt>gras<ept id="1">&lt;/b&gt;</ept>`
+	if _, err := MarshalXLIFF(template, map[string]string{"u": swapped}, "en", "fr"); err != nil {
+		t.Fatalf("swapped complete pairs rejected: %v", err)
+	}
+	crossed := `<ept id="1">&lt;/b&gt;</ept>gras<bpt id="1">&lt;b&gt;</bpt> et <bpt id="2">&lt;i&gt;</bpt>italique<ept id="2">&lt;/i&gt;</ept>`
+	if out, err := MarshalXLIFF(template, map[string]string{"u": crossed}, "en", "fr"); err == nil || out != nil {
+		t.Fatalf("reversed pair accepted: %s, %v", out, err)
+	}
+}
+
+func TestXLIFF2SpanningCodePairsCanSwap(t *testing.T) {
+	template := []byte(`<xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0"><file id="f"><unit id="u"><segment><source><sc id="1"/>a<ec startRef="1"/> <sc id="2"/>b<ec startRef="2"/></source></segment></unit></file></xliff>`)
+	swapped := `<sc id="2"/>B<ec startRef="2"/> <sc id="1"/>A<ec startRef="1"/>`
+	if _, err := MarshalXLIFF(template, map[string]string{"u": swapped}, "en", "fr"); err != nil {
+		t.Fatalf("swapped spanning pairs rejected: %v", err)
+	}
+	reversed := `<ec startRef="1"/>A<sc id="1"/> <sc id="2"/>B<ec startRef="2"/>`
+	if out, err := MarshalXLIFF(template, map[string]string{"u": reversed}, "en", "fr"); err == nil || out != nil {
+		t.Fatalf("reversed spanning pair accepted: %s, %v", out, err)
+	}
+}
+
 func TestXLIFFStandalonePlaceholdersCanMove(t *testing.T) {
 	template := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source><ph id="a"/> meets <ph id="b"/></source></trans-unit></body></file></xliff>`)
 	value := `<ph id="b"/> rencontre <ph id="a"/>`

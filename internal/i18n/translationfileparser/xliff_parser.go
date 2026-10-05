@@ -5,8 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -443,12 +443,14 @@ func xliffTargetAttrs(source *xliffElement) string {
 }
 
 type xliffInlineSignature struct {
-	codes       map[string]int
-	pairedCodes []string
+	codes map[string]int
+	// pairRoles records the open/close order of each paired code so pairs may
+	// move relative to each other but never be reversed internally.
+	pairRoles map[string]string
 }
 
 func equalXLIFFCodes(a, b xliffInlineSignature) bool {
-	if len(a.codes) != len(b.codes) || !slices.Equal(a.pairedCodes, b.pairedCodes) {
+	if len(a.codes) != len(b.codes) || !maps.Equal(a.pairRoles, b.pairRoles) {
 		return false
 	}
 	for key, count := range a.codes {
@@ -555,7 +557,7 @@ func xliffReplacement(template []byte, source *xliffElement, value string) (stri
 		return escapeXLIFFText(value), nil
 	}
 	if !equalXLIFFCodes(sourceCodes, codes) {
-		return "", fmt.Errorf("inline code identities, attributes, payloads, or native pair order differ from source")
+		return "", fmt.Errorf("inline code identities, attributes, payloads, or native pair opening/closing order differ from source")
 	}
 	return value, nil
 }
@@ -584,7 +586,7 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 	}
 	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
 	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))
-	signature := xliffInlineSignature{codes: make(map[string]int)}
+	signature := xliffInlineSignature{codes: make(map[string]int), pairRoles: make(map[string]string)}
 	depth := 0
 	closed := false
 	var scopes []map[string]string
@@ -641,9 +643,8 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 						}
 						key += " payload=" + normalizeXLIFFMarkup([]byte(payload.Inner))
 						signature.codes[key]++
-						switch t.Name.Local {
-						case "bpt", "ept", "bx", "ex", "sc", "ec":
-							signature.pairedCodes = append(signature.pairedCodes, key)
+						if pairID, role, ok := xliffPairRole(t); ok {
+							signature.pairRoles[pairID] += role
 						}
 						continue
 					}
@@ -660,6 +661,43 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 			}
 		}
 	}
+}
+
+// xliffPairRole identifies which native pair a paired inline code belongs to
+// and whether it opens ("o") or closes ("c") that pair.
+func xliffPairRole(t xml.StartElement) (string, string, bool) {
+	rawAttr := func(name string) string {
+		for _, attr := range t.Attr {
+			if attr.Name.Space == "" && attr.Name.Local == name {
+				return attr.Value
+			}
+		}
+		return ""
+	}
+	pairID := func(kind string) string {
+		if rid := rawAttr("rid"); rid != "" {
+			return fmt.Sprintf("%q:%s rid=%q", t.Name.Space, kind, rid)
+		}
+		return fmt.Sprintf("%q:%s id=%q", t.Name.Space, kind, rawAttr("id"))
+	}
+	switch t.Name.Local {
+	case "bpt":
+		return pairID("bpt"), "o", true
+	case "ept":
+		return pairID("bpt"), "c", true
+	case "bx":
+		return pairID("bx"), "o", true
+	case "ex":
+		return pairID("bx"), "c", true
+	case "sc":
+		return fmt.Sprintf("%q:sc id=%q", t.Name.Space, rawAttr("id")), "o", true
+	case "ec":
+		if startRef := rawAttr("startRef"); startRef != "" {
+			return fmt.Sprintf("%q:sc id=%q", t.Name.Space, startRef), "c", true
+		}
+		return fmt.Sprintf("%q:sc id=%q", t.Name.Space, rawAttr("id")), "c", true
+	}
+	return "", "", false
 }
 
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
