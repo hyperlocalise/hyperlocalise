@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -23,6 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { cn } from "@/lib/primitives/cn";
+import { humanizeQaFindingMessage } from "@/lib/qa/humanize-qa-finding-message";
 import {
   createProjectQaReportClient,
   createWorkspaceQaReportClient,
@@ -45,6 +47,21 @@ export function qaCheckLabel(check: string, intl: ReturnType<typeof useIntl>) {
       ? m[check as TranslationQaCheckType]
       : m.check,
   );
+}
+
+function findingAccentClass(finding: QaFindingRow) {
+  if (finding.status === "resolved") return "border-l-success bg-success/10";
+  if (finding.status === "ignored") return "border-l-border bg-muted/50";
+  if (finding.severity === "error") {
+    return "border-l-destructive bg-destructive/10 dark:bg-destructive/15";
+  }
+  return "border-l-warning bg-warning/10 dark:bg-warning/15";
+}
+
+function findingStatusVariant(status: QaFindingRow["status"]) {
+  if (status === "resolved") return "success" as const;
+  if (status === "ignored") return "secondary" as const;
+  return "outline" as const;
 }
 export function QaFindingsTable({
   organizationSlug,
@@ -181,8 +198,11 @@ export function QaFindingsTable({
         const first = rows[0]!;
         const completedAt = lastCompletedByProject?.[first.projectId];
         return (
-          <section key={groupId} className="flex flex-col gap-3 border-b border-border py-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <section
+            key={groupId}
+            className="overflow-hidden rounded-xl border border-border bg-card"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="break-words text-sm font-medium">{first.key}</p>
                 <p className="text-xs text-muted-foreground">
@@ -210,17 +230,21 @@ export function QaFindingsTable({
                 {intl.formatMessage(m.review)}
               </Button>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <p className="mb-1 text-xs text-muted-foreground">{intl.formatMessage(m.source)}</p>
+            <div className="grid gap-px border-y border-border bg-border md:grid-cols-2">
+              <div className="bg-muted/40 px-4 py-3">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  {intl.formatMessage(m.source)}
+                </p>
                 <QaText
                   text={first.sourceText}
                   tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
                   visibleWhitespace={showWhitespace}
                 />
               </div>
-              <div>
-                <p className="mb-1 text-xs text-muted-foreground">{intl.formatMessage(m.target)}</p>
+              <div className="bg-muted/40 px-4 py-3">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  {intl.formatMessage(m.target)}
+                </p>
                 <QaText
                   text={first.targetText}
                   tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
@@ -228,108 +252,131 @@ export function QaFindingsTable({
                 />
               </div>
             </div>
-            {rows.map((finding) => (
-              <div key={finding.id} className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  {canPromote && eligible.some((f) => f.id === finding.id) ? (
-                    <Checkbox
-                      checked={selectedIds.has(finding.id)}
-                      aria-label={intl.formatMessage(m.select, {
-                        key: finding.key,
-                        locale: finding.targetLocale,
-                        check: qaCheckLabel(finding.checkType, intl),
-                      })}
-                      onCheckedChange={(checked) =>
-                        setSelectedIds((current) => {
-                          const next = new Set(current);
-                          if (checked) next.add(finding.id);
-                          else next.delete(finding.id);
-                          return next;
-                        })
-                      }
-                    />
-                  ) : null}
-                  <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
-                    {intl.formatMessage(m[finding.severity])}
-                  </Badge>
-                  <span className="text-sm font-medium">
-                    {qaCheckLabel(finding.checkType, intl)}
-                  </span>
-                  <Badge variant="outline">{intl.formatMessage(m[finding.status ?? "open"])}</Badge>
-                  {finding.issueIdentifier ? (
-                    <Link
-                      className="text-sm underline"
-                      href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
-                    >
-                      {intl.formatMessage(m.linkedIssue, { identifier: finding.issueIdentifier })}
-                    </Link>
-                  ) : null}
-                  {canPromote && finding.status !== "resolved" && !finding.needsRecheck ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={review.isPending}
-                      onClick={() => {
-                        review.reset();
-                        if (finding.status === "ignored")
-                          review.mutate({ id: finding.id, status: "open" });
-                        else {
-                          setIgnoringId(finding.id);
-                          setReason("");
+            {rows.map((finding) => {
+              const displayMessage = humanizeQaFindingMessage(finding.message);
+              return (
+                <div
+                  key={finding.id}
+                  className={cn(
+                    "flex flex-col gap-2 border-l-4 px-4 py-3",
+                    findingAccentClass(finding),
+                  )}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canPromote && eligible.some((f) => f.id === finding.id) ? (
+                      <Checkbox
+                        checked={selectedIds.has(finding.id)}
+                        aria-label={intl.formatMessage(m.select, {
+                          key: finding.key,
+                          locale: finding.targetLocale,
+                          check: qaCheckLabel(finding.checkType, intl),
+                        })}
+                        onCheckedChange={(checked) =>
+                          setSelectedIds((current) => {
+                            const next = new Set(current);
+                            if (checked) next.add(finding.id);
+                            else next.delete(finding.id);
+                            return next;
+                          })
                         }
-                      }}
-                    >
-                      {intl.formatMessage(finding.status === "ignored" ? m.undo : m.ignore)}
-                    </Button>
-                  ) : null}
-                </div>
-                <p className="text-sm whitespace-pre-wrap break-words">{finding.message}</p>
-                {finding.ignoreReason ? (
-                  <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
-                ) : null}
-                {finding.needsRecheck ? (
-                  <p className="text-xs text-muted-foreground">
-                    {intl.formatMessage(m.needsRecheck)}
-                  </p>
-                ) : null}
-                {ignoringId === finding.id ? (
-                  <form
-                    className="flex max-w-xl flex-col gap-3"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      review.mutate({ id: finding.id, status: "ignored", reason });
-                    }}
-                  >
-                    <Field>
-                      <FieldLabel htmlFor={`reason-${finding.id}`}>
-                        {intl.formatMessage(m.reason)}
-                      </FieldLabel>
-                      <Input
-                        id={`reason-${finding.id}`}
-                        value={reason}
-                        onChange={(event) => setReason(event.target.value)}
-                        required
-                        maxLength={1000}
                       />
-                      <FieldDescription>{intl.formatMessage(m.ignoreHelp)}</FieldDescription>
-                    </Field>
-                    <div className="flex gap-2">
-                      <Button size="sm" type="submit" disabled={!reason.trim() || review.isPending}>
-                        {intl.formatMessage(m.saveIgnore)}
-                      </Button>
+                    ) : null}
+                    <Badge variant={finding.severity === "error" ? "destructive" : "warning"}>
+                      {intl.formatMessage(m[finding.severity])}
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {qaCheckLabel(finding.checkType, intl)}
+                    </span>
+                    <Badge variant={findingStatusVariant(finding.status)}>
+                      {intl.formatMessage(m[finding.status ?? "open"])}
+                    </Badge>
+                    {finding.issueIdentifier ? (
+                      <Link
+                        className="text-sm underline"
+                        href={`/org/${encodeURIComponent(organizationSlug)}/issues/${encodeURIComponent(finding.issueIdentifier)}`}
+                      >
+                        {intl.formatMessage(m.linkedIssue, { identifier: finding.issueIdentifier })}
+                      </Link>
+                    ) : null}
+                    {canPromote && finding.status !== "resolved" && !finding.needsRecheck ? (
                       <Button
                         variant="ghost"
                         size="sm"
-                        type="button"
-                        onClick={() => setIgnoringId(null)}
+                        disabled={review.isPending}
+                        onClick={() => {
+                          review.reset();
+                          if (finding.status === "ignored")
+                            review.mutate({ id: finding.id, status: "open" });
+                          else {
+                            setIgnoringId(finding.id);
+                            setReason("");
+                          }
+                        }}
                       >
-                        {intl.formatMessage(m.cancel)}
+                        {intl.formatMessage(finding.status === "ignored" ? m.undo : m.ignore)}
                       </Button>
-                    </div>
-                  </form>
-                ) : null}
-              </div>
-            ))}
+                    ) : null}
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap break-words">{displayMessage}</p>
+                  {displayMessage !== finding.message ? (
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer">
+                        {intl.formatMessage(m.technicalDetails)}
+                      </summary>
+                      <p className="mt-1 whitespace-pre-wrap break-words">{finding.message}</p>
+                    </details>
+                  ) : null}
+                  {finding.ignoreReason ? (
+                    <p className="text-xs text-muted-foreground">{finding.ignoreReason}</p>
+                  ) : null}
+                  {finding.needsRecheck ? (
+                    <p className="text-xs text-muted-foreground">
+                      {intl.formatMessage(m.needsRecheck)}
+                    </p>
+                  ) : null}
+                  {ignoringId === finding.id ? (
+                    <form
+                      className="flex max-w-xl flex-col gap-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        review.mutate({ id: finding.id, status: "ignored", reason });
+                      }}
+                    >
+                      <Field>
+                        <FieldLabel htmlFor={`reason-${finding.id}`}>
+                          {intl.formatMessage(m.reason)}
+                        </FieldLabel>
+                        <Input
+                          id={`reason-${finding.id}`}
+                          value={reason}
+                          onChange={(event) => setReason(event.target.value)}
+                          required
+                          maxLength={1000}
+                        />
+                        <FieldDescription>{intl.formatMessage(m.ignoreHelp)}</FieldDescription>
+                      </Field>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          type="submit"
+                          disabled={!reason.trim() || review.isPending}
+                        >
+                          {intl.formatMessage(m.saveIgnore)}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => setIgnoringId(null)}
+                        >
+                          {intl.formatMessage(m.cancel)}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              );
+            })}
           </section>
         );
       })}
@@ -370,14 +417,7 @@ export function QaText({
       index++;
     }
   }
-  const display = (value: string) =>
-    visibleWhitespace
-      ? value
-          .replaceAll(" ", "·")
-          .replaceAll("\t", "⇥")
-          .replaceAll("\n", "↵\n")
-          .replaceAll("\r", "␍")
-      : value;
+  const nbspLabel = intl.formatMessage(m.nbsp);
   return (
     <p dir="auto" className="text-sm whitespace-pre-wrap break-words">
       {text ? (
@@ -387,10 +427,10 @@ export function QaText({
               key={index}
               className="rounded bg-accent text-accent-foreground underline decoration-dotted"
             >
-              {display(chunk.text)}
+              {renderQaChars(chunk.text, visibleWhitespace, nbspLabel)}
             </mark>
           ) : (
-            <span key={index}>{display(chunk.text)}</span>
+            <span key={index}>{renderQaChars(chunk.text, visibleWhitespace, nbspLabel)}</span>
           ),
         )
       ) : (
@@ -398,4 +438,58 @@ export function QaText({
       )}
     </p>
   );
+}
+
+const NBSP = "\u00a0";
+
+function visibleWhitespaceMark(char: string): string | null {
+  if (char === " ") return "·";
+  if (char === "\t") return "⇥";
+  if (char === "\n") return "↵\n";
+  if (char === "\r") return "␍";
+  return null;
+}
+
+function takeRun(value: string, start: number, char: string): number {
+  let end = start + 1;
+  while (end < value.length && value[end] === char) end += 1;
+  return end;
+}
+
+function renderQaChars(value: string, visibleWhitespace: boolean, nbspLabel: string): ReactNode {
+  const nodes: ReactNode[] = [];
+  for (let index = 0; index < value.length;) {
+    const char = value[index]!;
+    if (char === NBSP) {
+      const end = takeRun(value, index, NBSP);
+      const count = end - index;
+      nodes.push(
+        <mark
+          key={`nbsp-${index}`}
+          title={nbspLabel}
+          className="rounded-sm bg-warning/50 px-0.5 text-warning-foreground"
+        >
+          {(visibleWhitespace ? "·" : NBSP).repeat(count)}
+        </mark>,
+      );
+      index = end;
+      continue;
+    }
+    const mark = visibleWhitespace ? visibleWhitespaceMark(char) : null;
+    if (mark) {
+      const end = takeRun(value, index, char);
+      nodes.push(
+        <span key={index} className="text-muted-foreground">
+          {mark.repeat(end - index)}
+        </span>,
+      );
+      index = end;
+      continue;
+    }
+    const previous = nodes.at(-1);
+    if (typeof previous === "string") nodes[nodes.length - 1] = previous + char;
+    else nodes.push(char);
+    index += 1;
+  }
+  return nodes;
 }

@@ -302,6 +302,11 @@ export const qaMessages = defineMessages({
     description: "QA review: showWhitespace",
     id: "ffIGEm5KON",
   },
+  nbsp: {
+    defaultMessage: "Non-breaking space",
+    description: "QA review: visible non-breaking space mark",
+    id: "0JaRog7D2n",
+  },
   source: { defaultMessage: "Source", description: "QA review: source", id: "dHRuF7Xzja" },
   target: {
     defaultMessage: "Translation",

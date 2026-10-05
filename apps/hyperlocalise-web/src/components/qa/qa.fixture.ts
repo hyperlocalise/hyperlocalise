@@ -247,6 +247,20 @@ export const qaRecheckFinding = finding({
   needsRecheck: true,
 });
 
+export const qaWhitespaceFinding = finding({
+  id: "finding_whitespace",
+  key: "billing.plan.credit",
+  sourcePath: "lang/en-US.json",
+  checkType: "format",
+  severity: "error",
+  targetLocale: "de-DE",
+  category: "syntax",
+  message:
+    'translation invariant violation: whitespace profile mismatch (non-breaking space count differs from source) | source="$2,000 per month AI credit" candidate="$2.000 KI-Guthaben pro Monat"',
+  sourceText: "$2,000\u00a0per month AI credit",
+  targetText: "$2.000 KI-Guthaben pro Monat",
+});
+
 export const qaOlderFinding = finding({
   id: "finding_older",
   runId: qaOlderRunId,

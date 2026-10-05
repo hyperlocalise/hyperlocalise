@@ -45,8 +45,10 @@ export function QaFilter({
           if (next) onChange(next);
         }}
       >
-        <SelectTrigger id={id} aria-label={label}>
-          <SelectValue />
+        <SelectTrigger id={id} aria-label={label} className="w-full">
+          <SelectValue>
+            {options.find((option) => option.value === value)?.label ?? value}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>

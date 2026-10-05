@@ -79,6 +79,10 @@ export const Default: Story = {
       overview.getByRole("region", { name: "Errors and warnings over time" }),
     ).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Language" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Check" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Severity" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("Showing 4 of 4 findings")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create issues (0)" })).toBeDisabled();

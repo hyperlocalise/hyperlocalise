@@ -21,6 +21,7 @@ import {
   qaWorkspaceLoadMoreMswHandlers,
   qaWorkspaceLoadingMswHandlers,
   qaWorkspaceMswHandlers,
+  qaWorkspaceWhitespaceMswHandlers,
 } from "@/components/qa/qa-msw-handlers";
 
 import { QaWorkspacePageContent } from "./qa-workspace-page-content";
@@ -72,6 +73,11 @@ export const Default: Story = {
     await expect(canvas.getByText("1 project needs attention")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Review projects" })).toBeInTheDocument();
     await expect(await canvas.findByText("dashboard.reviews.pending")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Projects" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Language" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Check" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Severity" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
     await expect(canvas.getByText("Placeholder mismatch")).toBeInTheDocument();
     await expect(canvas.getByText("The translation is missing {count}.")).toBeInTheDocument();
     await expect(canvas.getByText("Issue WEB-14")).toBeInTheDocument();
@@ -250,5 +256,23 @@ export const PromoteFindings: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Create issues (2)" }));
     await expect(await canvas.findByText("Issue WEB-21")).toBeInTheDocument();
     await expect(canvas.getByText("Issue WEB-22")).toBeInTheDocument();
+  },
+};
+
+export const WhitespaceMismatch: Story = {
+  parameters: {
+    msw: {
+      handlers: qaWorkspaceWhitespaceMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByText("Non-breaking space count differs from source"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Projects" })).toHaveTextContent("All");
+    await expect(canvas.getByRole("combobox", { name: "Review status" })).toHaveTextContent("Open");
+    await expect(canvas.getByTitle("Non-breaking space")).toBeInTheDocument();
+    await expect(canvas.getByText("Format, tags & ICU")).toBeInTheDocument();
+    await expect(canvas.getByText("Error")).toBeInTheDocument();
   },
 };
