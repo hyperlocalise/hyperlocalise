@@ -121,6 +121,25 @@ export async function executeDurableWorkflowSlice(input: {
   const timer = setInterval(() => {
     void isCancelled().catch(() => controller.abort());
   }, 1000);
+  const renewLease = async () => {
+    const [renewed] = await db
+      .update(schema.visualWorkflowRuns)
+      .set({ leaseExpiresAt: new Date(Date.now() + WORKFLOW_LIMITS.leaseMs) })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, input.run.id),
+          eq(schema.visualWorkflowRuns.leaseToken, input.leaseToken),
+          eq(schema.visualWorkflowRuns.status, "running"),
+        ),
+      )
+      .returning({ id: schema.visualWorkflowRuns.id });
+    if (!renewed) controller.abort();
+  };
+  const leaseTimer = setInterval(() => {
+    void renewLease().catch((error: unknown) =>
+      logger.warn({ error, runId: input.run.id }, "visual workflow lease renewal failed"),
+    );
+  }, WORKFLOW_LIMITS.leaseRenewIntervalMs);
   try {
     const result = await runVisualWorkflowV3Interpreter({
       definition: input.definition,
@@ -389,5 +408,6 @@ export async function executeDurableWorkflowSlice(input: {
     return { ...result, nodeResults };
   } finally {
     clearInterval(timer);
+    clearInterval(leaseTimer);
   }
 }

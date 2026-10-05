@@ -40,6 +40,7 @@ export async function createGitlabRepositorySandbox(input: {
   workosUserId: string;
   gitlabContext: RepositoryAgentGitLabContext;
   cloneDepth?: number;
+  timeoutMs?: number;
 }): Promise<string> {
   const log = logger.child({
     projectId: input.gitlabContext.projectId,
@@ -69,6 +70,7 @@ export async function createGitlabRepositorySandbox(input: {
         username: GITLAB_GIT_OAUTH_USERNAME,
         password: tokenResult.value,
       },
+      timeoutMs: input.timeoutMs,
     });
     log.info({ sandboxId: workspace.id }, "vercel gitlab repository sandbox created");
     return workspace.id;

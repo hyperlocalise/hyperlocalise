@@ -45,7 +45,18 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
 
 ## Workspace Automation Orchestrator
 
-Workspace automations (manual, scheduled, GitHub push, Contentful webhook) create a run record and enqueue `workspaceAutomationExecutionWorkflow`. The orchestrator builds a deterministic tool plan from `toolConfig` and template skills, then executes it with `prepareStep` tool forcing:
+Workspace automations (manual, scheduled, GitHub push, Contentful webhook) create a run record and enqueue `workspaceAutomationExecutionWorkflow`. The orchestrator builds a deterministic tool plan from `toolConfig` and template skills, then executes it as a `WorkflowAgent` (`@ai-sdk/workflow`) with `prepareStep` tool forcing.
+
+Each orchestrator model call and each planned tool runs in its own durable step, so every tool gets a full function duration (`maxDuration`) instead of sharing one. Tool steps reload the run and rebuild the session, then return the updated `stepResults` and terminal status as plain data. A tool that throws becomes an error tool result rather than a step retry, so side-effecting tools are not re-run. Billing reserves one `agent_runs` unit when the run is prepared and settles it with the agent's total token usage on completion.
+
+Long tools are durable loops of their own, and the orchestrator deadline adds each planned tool's budget:
+
+- `use_github_repository` and `use_gitlab_repository` start a sandbox that lives for the whole review, then run a nested `WorkflowAgent` with one step per model call and per repository tool call. The sandbox is reached by id from every step, and the finish or fail step stops it. The repository agent bills its own `agent_runs` unit.
+- `run_github_workflows` dispatches the job in one step, then checks its status in short steps separated by durable `sleep()` calls, so waiting costs no function time.
+
+A retried step re-runs its tool, so side-effecting tools record each call in `workspace_automation_tool_attempts` keyed by `(run_id, tool_call_id)`. A replay returns the recorded outcome. A call left in `started` by a crashed attempt is not repeated, and reports `<tool>_outcome_unknown`. Read-only tools and tools that deduplicate their own side effects skip the ledger.
+
+Every tool step checks the run status. Once a run is `cancelled`, tool steps stop starting work, the agent loops stop, and the run keeps its `cancelled` status on completion.
 
 ```text
 trigger (API / cron / webhook)
@@ -56,13 +67,22 @@ workspace-automation-dispatcher
         v
 workspaceAutomationExecutionWorkflow
         |
-        v
-runWorkspaceOrchestrator (ToolLoopAgent)
+        +-- prepareWorkspaceAutomationStep (plan, mark running, reserve usage; content sync runs here)
         |
-        +-- run_github_workflows ----> githubRepositoryAutomationWorkflow (poll to terminal)
+        v
+WorkflowAgent (one step per model call)
+        |
+        +-- executeWorkspaceOrchestratorToolStep (one step per planned tool)
+        |
+        +-- use_github_repository / use_gitlab_repository
+        |       start sandbox -> nested WorkflowAgent (one step per model / repository tool call) -> finish
+        +-- run_github_workflows ----> githubRepositoryAutomationWorkflow (status step + durable sleep)
         +-- run_contentful_translation -> runContentfulAgent -> run_translation tool (executor)
         +-- notify_slack
         `-- notify_email
+        |
+        v
+completeWorkspaceAutomationStep (terminal status, output summary, settle usage)
 ```
 
 ## Visual Workflow Execution

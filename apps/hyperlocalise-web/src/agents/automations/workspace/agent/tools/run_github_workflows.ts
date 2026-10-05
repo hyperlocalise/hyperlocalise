@@ -32,7 +32,15 @@ import type { WorkspaceOrchestratorSession } from "../context";
 import { resolveGithubWorkflowTriggerBranch } from "./resolve-github-repo-lookback";
 import { resolveGithubWorkflowsIdempotencyKey } from "./resolve-github-workflows-idempotency-key";
 
-function isTerminalGithubJobStatus(status: GithubRepositoryAutomationJobStatus) {
+type GithubRepositoryAutomationJob = NonNullable<
+  Awaited<ReturnType<typeof getGithubRepositoryAutomationJobById>>
+>;
+
+export type RunGithubWorkflowsStart =
+  | { kind: "done"; result: Record<string, unknown> }
+  | { kind: "waiting"; jobId: string; operatorNote: string | null };
+
+export function isTerminalGithubJobStatus(status: GithubRepositoryAutomationJobStatus) {
   return status === "succeeded" || status === "failed" || status === "skipped";
 }
 
@@ -59,6 +67,148 @@ async function waitForGithubJobTerminal(jobId: string) {
   throw new Error("github_repository_automation_job_poll_timeout");
 }
 
+/**
+ * Claim (idempotently) and enqueue the GitHub repository automation job. Returns `waiting` with the
+ * job id when the caller must wait for it to reach a terminal status, then call
+ * {@link finishRunGithubWorkflows}.
+ */
+export async function startRunGithubWorkflows(
+  session: WorkspaceOrchestratorSession,
+  input: { summary?: string },
+): Promise<RunGithubWorkflowsStart> {
+  if (!session.repository) {
+    throw new Error("github_repository_target_required");
+  }
+
+  const operatorNote = input.summary?.trim() || null;
+
+  const githubSettings = workspaceAutomationToGithubSettings(session.automation);
+  if (!githubSettings) {
+    throw new Error("github_workflows_not_configured");
+  }
+
+  const snapshot = session.run.inputSnapshot;
+  const pushBranch = resolveGithubWorkflowTriggerBranch(snapshot);
+  const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
+    configVersion: session.automation.configVersion,
+    githubInstallationRepositoryId: session.repository.id,
+    organizationId: session.organizationId,
+    githubRepositoryId: session.repository.githubRepositoryId,
+    githubInstallationId: session.repository.githubInstallationId,
+    settings: githubSettings,
+    pushBranch,
+  });
+
+  if (!dispatchPayload) {
+    throw new Error("github_dispatch_payload_missing");
+  }
+
+  const scheduledRunAt =
+    typeof snapshot.scheduledRunAt === "string" ? new Date(snapshot.scheduledRunAt) : null;
+
+  const claim = await claimGithubRepositoryAutomationJob({
+    idempotencyKey: resolveGithubWorkflowsIdempotencyKey({
+      session,
+      configVersion: dispatchPayload.configVersion,
+      repositoryId: session.repository.id,
+      githubRepositoryId: session.repository.githubRepositoryId,
+    }),
+    organizationId: session.organizationId,
+    githubInstallationRepositoryId: session.repository.id,
+    githubInstallationId: session.repository.githubInstallationId,
+    githubRepositoryId: session.repository.githubRepositoryId,
+    configVersion: dispatchPayload.configVersion,
+    triggerMode: session.run.triggerSource === "github" ? "push" : "scheduled",
+    triggerBranch: pushBranch ?? null,
+    commitBefore: typeof snapshot.commitBefore === "string" ? snapshot.commitBefore : null,
+    commitAfter: typeof snapshot.commitAfter === "string" ? snapshot.commitAfter : null,
+    workflows: dispatchPayload.workflows,
+    githubDeliveryId:
+      typeof snapshot.githubDeliveryId === "string" ? snapshot.githubDeliveryId : null,
+    scheduledRunAt,
+  });
+
+  await updateWorkspaceAutomationRun({
+    runId: session.run.id,
+    organizationId: session.organizationId,
+    githubRepositoryAutomationJobId: claim.job.id,
+    status: claim.job.status === "skipped" ? "skipped" : "running",
+    startedAt: claim.job.status === "skipped" ? null : new Date(),
+    completedAt: claim.job.status === "skipped" ? new Date() : null,
+    outputSummary:
+      claim.job.status === "skipped"
+        ? {
+            ...(operatorNote ? { operatorNote } : {}),
+            skipReason: claim.job.skipReason ?? "automation_skipped",
+          }
+        : operatorNote
+          ? { operatorNote }
+          : {},
+  });
+
+  if (claim.job.status === "skipped") {
+    session.terminalStatus = "skipped";
+    const result = {
+      jobId: claim.job.id,
+      status: claim.job.status,
+      skipReason: claim.job.skipReason,
+    };
+    session.stepResults.run_github_workflows = result;
+    return { kind: "done", result };
+  }
+
+  if (
+    githubRepositoryAutomationJobHasRunnableWorkflow(dispatchPayload.workflows) &&
+    claim.job.status === "queued"
+  ) {
+    await enqueueGithubRepositoryAutomationJob({ jobId: claim.job.id });
+  }
+
+  return { kind: "waiting", jobId: claim.job.id, operatorNote };
+}
+
+/** Record a terminal GitHub repository automation job on the run and session. */
+export async function finishRunGithubWorkflows(
+  session: WorkspaceOrchestratorSession,
+  input: { terminalJob: GithubRepositoryAutomationJob; operatorNote: string | null },
+) {
+  const { terminalJob, operatorNote } = input;
+  const mappedStatus =
+    terminalJob.status === "succeeded"
+      ? "succeeded"
+      : terminalJob.status === "failed"
+        ? "failed"
+        : "skipped";
+
+  session.terminalStatus = mappedStatus;
+  if (terminalJob.lastError) {
+    session.terminalError = terminalJob.lastError;
+  }
+
+  await updateWorkspaceAutomationRun({
+    runId: session.run.id,
+    organizationId: session.organizationId,
+    status: mappedStatus,
+    outputSummary: {
+      ...(operatorNote ? { operatorNote } : {}),
+      ...terminalJob.resultSummary,
+      ...(terminalJob.skipReason ? { skipReason: terminalJob.skipReason } : {}),
+      githubRepositoryAutomationJobId: terminalJob.id,
+    },
+    error: terminalJob.lastError ? { message: terminalJob.lastError } : null,
+    completedAt: new Date(),
+  });
+
+  const result = {
+    jobId: terminalJob.id,
+    status: terminalJob.status,
+    skipReason: terminalJob.skipReason,
+    resultSummary: terminalJob.resultSummary,
+  };
+  session.stepResults.run_github_workflows = result;
+  return result;
+}
+
 export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
@@ -70,129 +220,16 @@ export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSessi
         .describe("Optional operator note to include in the run record."),
     }),
     execute: async ({ summary }) => {
-      if (!session.repository) {
-        throw new Error("github_repository_target_required");
+      const start = await startRunGithubWorkflows(session, { summary });
+      if (start.kind === "done") {
+        return start.result;
       }
 
-      const operatorNote = summary?.trim() || undefined;
-
-      const githubSettings = workspaceAutomationToGithubSettings(session.automation);
-      if (!githubSettings) {
-        throw new Error("github_workflows_not_configured");
-      }
-
-      const snapshot = session.run.inputSnapshot;
-      const pushBranch = resolveGithubWorkflowTriggerBranch(snapshot);
-      const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
-        configVersion: session.automation.configVersion,
-        githubInstallationRepositoryId: session.repository.id,
-        organizationId: session.organizationId,
-        githubRepositoryId: session.repository.githubRepositoryId,
-        githubInstallationId: session.repository.githubInstallationId,
-        settings: githubSettings,
-        pushBranch,
+      const terminalJob = await waitForGithubJobTerminal(start.jobId);
+      return finishRunGithubWorkflows(session, {
+        terminalJob,
+        operatorNote: start.operatorNote,
       });
-
-      if (!dispatchPayload) {
-        throw new Error("github_dispatch_payload_missing");
-      }
-
-      const scheduledRunAt =
-        typeof snapshot.scheduledRunAt === "string" ? new Date(snapshot.scheduledRunAt) : null;
-
-      const claim = await claimGithubRepositoryAutomationJob({
-        idempotencyKey: resolveGithubWorkflowsIdempotencyKey({
-          session,
-          configVersion: dispatchPayload.configVersion,
-          repositoryId: session.repository.id,
-          githubRepositoryId: session.repository.githubRepositoryId,
-        }),
-        organizationId: session.organizationId,
-        githubInstallationRepositoryId: session.repository.id,
-        githubInstallationId: session.repository.githubInstallationId,
-        githubRepositoryId: session.repository.githubRepositoryId,
-        configVersion: dispatchPayload.configVersion,
-        triggerMode: session.run.triggerSource === "github" ? "push" : "scheduled",
-        triggerBranch: pushBranch ?? null,
-        commitBefore: typeof snapshot.commitBefore === "string" ? snapshot.commitBefore : null,
-        commitAfter: typeof snapshot.commitAfter === "string" ? snapshot.commitAfter : null,
-        workflows: dispatchPayload.workflows,
-        githubDeliveryId:
-          typeof snapshot.githubDeliveryId === "string" ? snapshot.githubDeliveryId : null,
-        scheduledRunAt,
-      });
-
-      await updateWorkspaceAutomationRun({
-        runId: session.run.id,
-        organizationId: session.organizationId,
-        githubRepositoryAutomationJobId: claim.job.id,
-        status: claim.job.status === "skipped" ? "skipped" : "running",
-        startedAt: claim.job.status === "skipped" ? null : new Date(),
-        completedAt: claim.job.status === "skipped" ? new Date() : null,
-        outputSummary:
-          claim.job.status === "skipped"
-            ? {
-                ...(operatorNote ? { operatorNote } : {}),
-                skipReason: claim.job.skipReason ?? "automation_skipped",
-              }
-            : operatorNote
-              ? { operatorNote }
-              : {},
-      });
-
-      if (claim.job.status === "skipped") {
-        session.terminalStatus = "skipped";
-        const result = {
-          jobId: claim.job.id,
-          status: claim.job.status,
-          skipReason: claim.job.skipReason,
-        };
-        session.stepResults.run_github_workflows = result;
-        return result;
-      }
-
-      if (
-        githubRepositoryAutomationJobHasRunnableWorkflow(dispatchPayload.workflows) &&
-        claim.job.status === "queued"
-      ) {
-        await enqueueGithubRepositoryAutomationJob({ jobId: claim.job.id });
-      }
-
-      const terminalJob = await waitForGithubJobTerminal(claim.job.id);
-      const mappedStatus =
-        terminalJob.status === "succeeded"
-          ? "succeeded"
-          : terminalJob.status === "failed"
-            ? "failed"
-            : "skipped";
-
-      session.terminalStatus = mappedStatus;
-      if (terminalJob.lastError) {
-        session.terminalError = terminalJob.lastError;
-      }
-
-      await updateWorkspaceAutomationRun({
-        runId: session.run.id,
-        organizationId: session.organizationId,
-        status: mappedStatus,
-        outputSummary: {
-          ...(operatorNote ? { operatorNote } : {}),
-          ...terminalJob.resultSummary,
-          ...(terminalJob.skipReason ? { skipReason: terminalJob.skipReason } : {}),
-          githubRepositoryAutomationJobId: terminalJob.id,
-        },
-        error: terminalJob.lastError ? { message: terminalJob.lastError } : null,
-        completedAt: new Date(),
-      });
-
-      const result = {
-        jobId: terminalJob.id,
-        status: terminalJob.status,
-        skipReason: terminalJob.skipReason,
-        resultSummary: terminalJob.resultSummary,
-      };
-      session.stepResults.run_github_workflows = result;
-      return result;
     },
   });
 }

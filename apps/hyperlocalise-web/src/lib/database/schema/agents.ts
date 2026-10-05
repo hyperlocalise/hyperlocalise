@@ -164,6 +164,36 @@ export const workspaceAutomationRuns = pgTable(
 );
 
 /**
+ * Records each orchestrator tool call of a workspace automation run, so a retried workflow step
+ * can replay a finished call and refuse to repeat a side effect whose outcome is unknown.
+ */
+export const workspaceAutomationToolAttempts = pgTable(
+  "workspace_automation_tool_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => workspaceAutomationRuns.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    toolCallId: text("tool_call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    status: text("status").$type<"started" | "succeeded" | "failed">().notNull(),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("idx_workspace_automation_tool_attempts_call").on(table.runId, table.toolCallId),
+  ],
+);
+
+/**
  * Stores provider-facing agent executions, including target provider job or task, run kind, actor, input snapshot, output summary, changed items, warnings, status, and linked job.
  */
 export const agentRuns = pgTable(

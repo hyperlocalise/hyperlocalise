@@ -23,7 +23,7 @@ import { serializeErrorForLog } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 
-type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
+export type AgentRuntimeUsageDimensions = Record<string, string | number | boolean | null>;
 
 function logAgentRuntimeUsageError(message: string, input: Record<string, unknown>) {
   console.error(`[agent-runtime-usage] ${message}`, input);
@@ -197,6 +197,53 @@ export async function trackSucceededAgentRuntimeUsage(input: {
 }
 
 /**
+ * Check AI access and reserve agent_runs usage for work that may finish in a
+ * later process (for example a later workflow step). Pair with
+ * {@link completeAgentRuntimeUsage} using the same operation key.
+ */
+export async function beginAgentRuntimeUsage(input: {
+  organizationId: string;
+  operationKey: string;
+  source: string;
+  interactionId?: string | null;
+  dimensions?: AgentRuntimeUsageDimensions;
+}) {
+  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
+  if (!aiFeatures.ok) {
+    throw new AiFeaturesRequiredError(aiFeatures.error);
+  }
+
+  await reserveAgentRuntimeUsage(input);
+}
+
+/** Complete a reservation from {@link beginAgentRuntimeUsage} once the work succeeds. */
+export async function completeAgentRuntimeUsage(input: {
+  organizationId: string;
+  operationKey: string;
+  interactionId?: string | null;
+  dimensions?: AgentRuntimeUsageDimensions;
+  tokenUsage: AiTokenUsage | null;
+  aiCreditModelId?: string;
+  aiCreditCredentialSource?: AiCreditCredentialSource;
+}) {
+  const billableTokenUsage =
+    input.tokenUsage && input.tokenUsage.totalTokens > 0 ? input.tokenUsage : null;
+
+  await trackSucceededAgentRuntimeUsage({
+    organizationId: input.organizationId,
+    operationKey: input.operationKey,
+    dimensions: input.dimensions,
+    interactionId: input.interactionId,
+    tokenUsage: billableTokenUsage,
+    aiCreditModelId:
+      input.aiCreditModelId ??
+      (billableTokenUsage ? hyperlocaliseManagedGatewayModelId : undefined),
+    aiCreditCredentialSource:
+      input.aiCreditCredentialSource ?? (billableTokenUsage ? "gateway" : undefined),
+  });
+}
+
+/**
  * Reserve agent_runs usage, run the work, then complete (+ optional AI Credit)
  * only when the work succeeds. Failures leave the reservation unbilled.
  */
@@ -211,12 +258,7 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   aiCreditModelId?: string | ((result: T) => string | undefined);
   aiCreditCredentialSource?: AiCreditCredentialSource;
 }): Promise<T> {
-  const aiFeatures = await ensureAiFeaturesAllowed({ organizationId: input.organizationId });
-  if (!aiFeatures.ok) {
-    throw new AiFeaturesRequiredError(aiFeatures.error);
-  }
-
-  await reserveAgentRuntimeUsage({
+  await beginAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     source: input.source,
@@ -225,25 +267,18 @@ export async function withAgentRuntimeUsageMetering<T>(input: {
   });
 
   const result = await input.run();
-  const tokenUsage = input.extractTokenUsage?.(result) ?? null;
-  const billableTokenUsage = tokenUsage && tokenUsage.totalTokens > 0 ? tokenUsage : null;
-  const resolvedModelId =
-    typeof input.aiCreditModelId === "function"
-      ? input.aiCreditModelId(result)
-      : input.aiCreditModelId;
-  const aiCreditModelId =
-    resolvedModelId ?? (billableTokenUsage ? hyperlocaliseManagedGatewayModelId : undefined);
-  const aiCreditCredentialSource =
-    input.aiCreditCredentialSource ?? (billableTokenUsage ? "gateway" : undefined);
 
-  await trackSucceededAgentRuntimeUsage({
+  await completeAgentRuntimeUsage({
     organizationId: input.organizationId,
     operationKey: input.operationKey,
     dimensions: input.dimensions,
     interactionId: input.interactionId,
-    tokenUsage: billableTokenUsage,
-    aiCreditModelId,
-    aiCreditCredentialSource,
+    tokenUsage: input.extractTokenUsage?.(result) ?? null,
+    aiCreditModelId:
+      typeof input.aiCreditModelId === "function"
+        ? input.aiCreditModelId(result)
+        : input.aiCreditModelId,
+    aiCreditCredentialSource: input.aiCreditCredentialSource,
   });
 
   return result;

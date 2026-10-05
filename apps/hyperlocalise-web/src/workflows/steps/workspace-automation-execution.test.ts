@@ -10,30 +10,34 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { WorkspaceOrchestratorExecutionSuccess } from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
+import type {
+  WorkspaceOrchestratorExecutionSuccess,
+  WorkspaceOrchestratorPrepared,
+} from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
+
+class OkResult<T> {
+  readonly ok = true;
+
+  constructor(readonly value: T) {}
+}
+
+class ErrResult<E> {
+  readonly ok = false;
+
+  constructor(readonly error: E) {}
+}
 
 const {
-  runWorkspaceOrchestratorMock,
+  prepareWorkspaceOrchestratorRunMock,
+  completeWorkspaceOrchestratorRunMock,
   getWorkspaceAutomationRunByIdMock,
   getWorkspaceAutomationByIdMock,
   executeContentSyncRunMock,
 } = vi.hoisted(() => ({
-  runWorkspaceOrchestratorMock: vi.fn(async (): Promise<unknown> => {
-    class OkResult {
-      readonly ok = true;
-
-      constructor(readonly value: WorkspaceOrchestratorExecutionSuccess) {}
-    }
-
-    return new OkResult({
-      runId: "run-1",
-      status: "succeeded" as const,
-      planTools: [],
-      stepResults: {},
-    });
-  }),
+  prepareWorkspaceOrchestratorRunMock: vi.fn(async (): Promise<unknown> => null),
+  completeWorkspaceOrchestratorRunMock: vi.fn(async (): Promise<unknown> => null),
   getWorkspaceAutomationRunByIdMock: vi.fn(async (): Promise<unknown> => null),
   getWorkspaceAutomationByIdMock: vi.fn(async (): Promise<unknown> => null),
   executeContentSyncRunMock: vi.fn(async () => ({
@@ -48,7 +52,8 @@ const {
 }));
 
 vi.mock("@/agents/automations/workspace/agent/run-workspace-orchestrator", () => ({
-  runWorkspaceOrchestrator: runWorkspaceOrchestratorMock,
+  prepareWorkspaceOrchestratorRun: prepareWorkspaceOrchestratorRunMock,
+  completeWorkspaceOrchestratorRun: completeWorkspaceOrchestratorRunMock,
 }));
 
 vi.mock("@/lib/agents/workspace-automations", () => ({
@@ -60,78 +65,60 @@ vi.mock("@/lib/agents/content-sync/execute-content-sync", () => ({
   executeContentSyncRun: executeContentSyncRunMock,
 }));
 
-import { executeWorkspaceAutomationStep } from "./workspace-automation-execution";
+import {
+  completeWorkspaceAutomationStep,
+  prepareWorkspaceAutomationStep,
+} from "./workspace-automation-execution";
 
-describe("executeWorkspaceAutomationStep", () => {
-  it("delegates to the workspace orchestrator runtime", async () => {
-    getWorkspaceAutomationRunByIdMock.mockReset();
-    getWorkspaceAutomationByIdMock.mockReset();
-    getWorkspaceAutomationRunByIdMock.mockResolvedValue(null);
-    runWorkspaceOrchestratorMock.mockClear();
-    executeContentSyncRunMock.mockClear();
+const event = { workspaceAutomationRunId: "run-1", organizationId: "org-1" };
+const emptyState = { stepResults: {}, terminalStatus: null, terminalError: null };
 
-    const result = await executeWorkspaceAutomationStep({
-      workspaceAutomationRunId: "run-1",
-      organizationId: "org-1",
-    });
+const readyPrepared: WorkspaceOrchestratorPrepared = {
+  kind: "ready",
+  runId: "run-1",
+  model: "anthropic/claude-sonnet-5",
+  instructions: "instructions",
+  userMessage: "message",
+  maxOutputTokens: 1000,
+  planTools: ["notify_slack"],
+  toolSpecs: [{ name: "notify_slack", description: "Notify", inputJsonSchema: {} }],
+};
 
-    expect(runWorkspaceOrchestratorMock).toHaveBeenCalledWith({
-      workspaceAutomationRunId: "run-1",
-      organizationId: "org-1",
-    });
-    expect(result.ok).toBe(true);
+beforeEach(() => {
+  vi.clearAllMocks();
+  getWorkspaceAutomationRunByIdMock.mockResolvedValue(null);
+  getWorkspaceAutomationByIdMock.mockResolvedValue(null);
+});
+
+describe("prepareWorkspaceAutomationStep", () => {
+  it("delegates to the workspace orchestrator and returns a plain object", async () => {
+    prepareWorkspaceOrchestratorRunMock.mockResolvedValueOnce(new OkResult(readyPrepared));
+
+    const result = await prepareWorkspaceAutomationStep(event);
+
+    expect(prepareWorkspaceOrchestratorRunMock).toHaveBeenCalledWith(event);
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
-    if (result.ok) {
-      expect(result.value.status).toBe("succeeded");
-    }
+    expect(result).toEqual({ ok: true, value: readyPrepared });
   });
 
-  it("delegates content sync automations to the content sync runtime", async () => {
-    getWorkspaceAutomationRunByIdMock.mockReset();
-    getWorkspaceAutomationByIdMock.mockReset();
-    getWorkspaceAutomationRunByIdMock.mockResolvedValue({
-      automationId: "automation-1",
-    });
-    getWorkspaceAutomationByIdMock.mockResolvedValue({
-      kind: "content_sync",
-    });
-    runWorkspaceOrchestratorMock.mockClear();
-    executeContentSyncRunMock.mockClear();
+  it("runs content sync automations to completion without the orchestrator", async () => {
+    getWorkspaceAutomationRunByIdMock.mockResolvedValue({ automationId: "automation-1" });
+    getWorkspaceAutomationByIdMock.mockResolvedValue({ kind: "content_sync" });
 
-    const result = await executeWorkspaceAutomationStep({
-      workspaceAutomationRunId: "run-1",
-      organizationId: "org-1",
-    });
+    const result = await prepareWorkspaceAutomationStep(event);
 
     expect(executeContentSyncRunMock).toHaveBeenCalledWith({
       organizationId: "org-1",
       workspaceAutomationRunId: "run-1",
     });
-    expect(runWorkspaceOrchestratorMock).not.toHaveBeenCalled();
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.planTools).toEqual(["content_sync"]);
-    }
+    expect(prepareWorkspaceOrchestratorRunMock).not.toHaveBeenCalled();
+    expect(result.ok && result.value.kind === "completed" && result.value.result.planTools).toEqual(
+      ["content_sync"],
+    );
   });
 
-  it("returns a plain object when the orchestrator returns an error result", async () => {
-    getWorkspaceAutomationRunByIdMock.mockReset();
-    getWorkspaceAutomationByIdMock.mockReset();
-    getWorkspaceAutomationRunByIdMock.mockResolvedValue(null);
-    runWorkspaceOrchestratorMock.mockClear();
-    class ErrResult {
-      readonly ok = false;
-
-      constructor(
-        readonly error: {
-          code: "workspace_orchestrator_failed";
-          message: string;
-          runId: string;
-        },
-      ) {}
-    }
-
-    runWorkspaceOrchestratorMock.mockResolvedValueOnce(
+  it("returns a plain error when the orchestrator returns an error result", async () => {
+    prepareWorkspaceOrchestratorRunMock.mockResolvedValueOnce(
       new ErrResult({
         code: "workspace_orchestrator_failed",
         message: "Orchestrator failed",
@@ -139,42 +126,60 @@ describe("executeWorkspaceAutomationStep", () => {
       }),
     );
 
-    const result = await executeWorkspaceAutomationStep({
-      workspaceAutomationRunId: "run-1",
-      organizationId: "org-1",
-    });
+    const result = await prepareWorkspaceAutomationStep(event);
 
-    expect(result.ok).toBe(false);
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
-    if (!result.ok) {
-      expect(result.error).toEqual({
+    expect(result).toEqual({
+      ok: false,
+      error: {
         code: "workspace_orchestrator_failed",
         message: "Orchestrator failed",
         runId: "run-1",
-      });
-    }
+      },
+    });
   });
 
-  it("returns a plain object when the orchestrator throws", async () => {
-    getWorkspaceAutomationRunByIdMock.mockReset();
-    getWorkspaceAutomationByIdMock.mockReset();
-    getWorkspaceAutomationRunByIdMock.mockResolvedValue(null);
-    runWorkspaceOrchestratorMock.mockClear();
-    runWorkspaceOrchestratorMock.mockRejectedValueOnce(new Error("Runtime unavailable"));
+  it("returns a plain error when preparation throws", async () => {
+    prepareWorkspaceOrchestratorRunMock.mockRejectedValueOnce(new Error("Runtime unavailable"));
 
-    const result = await executeWorkspaceAutomationStep({
-      workspaceAutomationRunId: "run-1",
-      organizationId: "org-1",
-    });
+    const result = await prepareWorkspaceAutomationStep(event);
 
-    expect(result.ok).toBe(false);
-    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
-    if (!result.ok) {
-      expect(result.error).toEqual({
+    expect(result).toEqual({
+      ok: false,
+      error: {
         code: "workspace_orchestrator_failed",
         message: "Runtime unavailable",
         runId: "run-1",
-      });
-    }
+      },
+    });
+  });
+});
+
+describe("completeWorkspaceAutomationStep", () => {
+  it("passes tool state and usage through and returns a plain object", async () => {
+    const success: WorkspaceOrchestratorExecutionSuccess = {
+      runId: "run-1",
+      status: "succeeded",
+      planTools: ["notify_slack"],
+      stepResults: {},
+    };
+    completeWorkspaceOrchestratorRunMock.mockResolvedValueOnce(new OkResult(success));
+    const usage = { inputTokens: 10, outputTokens: 5, totalTokens: 15 };
+
+    const result = await completeWorkspaceAutomationStep({
+      event,
+      planTools: ["notify_slack"],
+      state: emptyState,
+      usage,
+    });
+
+    expect(completeWorkspaceOrchestratorRunMock).toHaveBeenCalledWith({
+      ...event,
+      planTools: ["notify_slack"],
+      state: emptyState,
+      usage,
+    });
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(result).toEqual({ ok: true, value: success });
   });
 });
