@@ -129,6 +129,21 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 	return values, nil
 }
 
+// ParseSource parses a source catalog. Multi-column CSV/TSV files use
+// sourceLocale to select the matching header instead of the first value column.
+func (s *Strategy) ParseSource(path string, content []byte, sourceLocale string) (map[string]string, map[string]string, error) {
+	sourceLocale = strings.TrimSpace(sourceLocale)
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
+	if sourceLocale != "" && (ext == ".csv" || ext == ".tsv") {
+		values, err := s.ParseWithLocale(path, content, sourceLocale)
+		if err != nil {
+			return nil, nil, err
+		}
+		return values, nil, nil
+	}
+	return s.parseWithContext(path, content)
+}
+
 // ParseWithLocale parses content for a specific target locale when the format
 // stores multiple locales in one file (for example Apple .xcstrings catalogs or
 // multi-column CSV files). For other formats, locale is ignored and Parse is used.

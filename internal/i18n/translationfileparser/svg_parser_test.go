@@ -49,6 +49,31 @@ func TestMarshalSVGReplacesTextAndEscapes(t *testing.T) {
 	}
 }
 
+func TestMarshalSVGWritesCDATAWithoutHTMLEscaping(t *testing.T) {
+	template := []byte(`<svg><text><![CDATA[Hello & world]]></text></svg>`)
+	got, err := (SVGParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse svg cdata: %v", err)
+	}
+	if got["svg.0001"] != "Hello & world" {
+		t.Fatalf("unexpected cdata source %q", got["svg.0001"])
+	}
+
+	out, err := MarshalSVG(template, map[string]string{
+		"svg.0001": "Hola & mundo <ok>",
+	})
+	if err != nil {
+		t.Fatalf("marshal svg cdata: %v", err)
+	}
+	rendered := string(out)
+	if !strings.Contains(rendered, "<![CDATA[Hola & mundo <ok>]]>") {
+		t.Fatalf("expected raw CDATA translation, got %q", rendered)
+	}
+	if strings.Contains(rendered, "&amp;") || strings.Contains(rendered, "&lt;") {
+		t.Fatalf("CDATA translation should not be HTML-escaped, got %q", rendered)
+	}
+}
+
 func TestSVGParserSkipsStyleAndScript(t *testing.T) {
 	got, err := (SVGParser{}).Parse([]byte(`<svg><script>var label = "nope"</script><text>Save</text></svg>`))
 	if err != nil {

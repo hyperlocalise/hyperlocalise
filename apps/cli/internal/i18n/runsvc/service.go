@@ -609,7 +609,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						continue
 					}
-					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
+					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath, cfg.Locales.Source)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -836,7 +836,7 @@ func resolvePromptVersion(profile config.LLMProfile) string {
 	}, "\n"))
 }
 
-func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, map[string]string, string, error) {
+func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath, sourceLocale string) (map[string]string, map[string]string, string, error) {
 	content, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -845,7 +845,7 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 		return nil, nil, "", fmt.Errorf("planning tasks: read source file %q: %w", sourcePath, err)
 	}
 
-	entries, entryContext, err := parser.ParseWithContext(sourcePath, content)
+	entries, entryContext, err := parser.ParseSource(sourcePath, content, sourceLocale)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("planning tasks: parse source file %q: %w", sourcePath, err)
 	}
@@ -853,12 +853,12 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 	return entries, entryContext, parserModeForSource(sourcePath, content), nil
 }
 
-func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (plannedSourceSnapshot, error) {
+func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath, sourceLocale string) (plannedSourceSnapshot, error) {
 	if cached, ok := sourceCache[sourcePath]; ok {
 		return cached, nil
 	}
 
-	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath)
+	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath, sourceLocale)
 	if err != nil {
 		return plannedSourceSnapshot{}, err
 	}

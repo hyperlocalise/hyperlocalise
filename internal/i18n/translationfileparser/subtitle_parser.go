@@ -148,7 +148,7 @@ func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument,
 		start = headerEnd
 	} else if looksLikeWebVTTHeader(firstNonEmptySubtitleLine(lines)) {
 		return subtitleDocument{}, fmt.Errorf("%s: file looks like WebVTT; use a .vtt extension", subtitleKindName(kind))
-	} else if kind == SubtitleSBV && strings.Contains(text, "-->") {
+	} else if kind == SubtitleSBV && subtitleHasArrowTimestampLine(lines) {
 		return subtitleDocument{}, fmt.Errorf("sbv: file looks like SubRip or WebVTT; use a .srt or .vtt extension")
 	}
 
@@ -312,6 +312,19 @@ func firstNonEmptySubtitleLine(lines []subtitleLine) string {
 		return ""
 	}
 	return lines[idx].text
+}
+
+func subtitleHasArrowTimestampLine(lines []subtitleLine) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line.text)
+		if !strings.Contains(trimmed, "-->") {
+			continue
+		}
+		if srtTimestampPattern.MatchString(trimmed) || vttTimestampPattern.MatchString(trimmed) {
+			return true
+		}
+	}
+	return false
 }
 
 func looksLikeWebVTTHeader(line string) bool {

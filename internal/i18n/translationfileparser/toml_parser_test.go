@@ -75,6 +75,43 @@ func TestTOMLParserRejectsInvalidUnicodeEscapes(t *testing.T) {
 	}
 }
 
+func TestTOMLParserSkipsNonStringArrayValues(t *testing.T) {
+	got, err := (TOMLParser{}).Parse([]byte("items = [1, \"two\", true, { label = \"Save\" }]\n"))
+	if err != nil {
+		t.Fatalf("parse mixed toml array: %v", err)
+	}
+	want := map[string]string{
+		"items[1]":       "two",
+		"items[3].label": "Save",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestMarshalTOMLInsertsExtraRootKeysBeforeTables(t *testing.T) {
+	template := []byte("hello = \"Hello\"\n[home]\ntitle = \"Welcome\"\n")
+	got, err := MarshalTOML(template, map[string]string{
+		"hello":      "Bonjour",
+		"home.title": "Bienvenue",
+		"obsolete":   "Ancien",
+		"items[0]":   "One",
+	})
+	if err != nil {
+		t.Fatalf("marshal toml: %v", err)
+	}
+	out := string(got)
+	if !strings.Contains(out, "obsolete = \"Ancien\"\n[home]") {
+		t.Fatalf("expected extra root key before [home], got %q", out)
+	}
+	if strings.Contains(out, "items[0]") {
+		t.Fatalf("did not expect flattened array key in writeback, got %q", out)
+	}
+	if strings.Contains(out, "[home]\ntitle = \"Bienvenue\"\nobsolete") {
+		t.Fatalf("extra root key was appended into [home]: %q", out)
+	}
+}
+
 func TestTOMLParserRejectsDuplicateKeys(t *testing.T) {
 	_, err := (TOMLParser{}).Parse([]byte("hello = \"A\"\nhello = \"B\"\n"))
 	if err == nil || !strings.Contains(err.Error(), "duplicate") {

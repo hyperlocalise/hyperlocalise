@@ -220,6 +220,24 @@ func TestSubtitleParserStripsBOMAndSkipsEmptyCues(t *testing.T) {
 	}
 }
 
+func TestSubtitleParserAcceptsSBVCaptionContainingArrow(t *testing.T) {
+	content := []byte("0:00:00.000,0:00:02.000\nClick the --> button\n")
+	got, err := (SubtitleParser{Kind: SubtitleSBV}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse sbv with caption arrow: %v", err)
+	}
+	if got["sbv.0001"] != "Click the --> button" {
+		t.Fatalf("unexpected sbv caption: %#v", got)
+	}
+}
+
+func TestSubtitleParserRejectsSRTTimestampsInSBVFile(t *testing.T) {
+	_, err := (SubtitleParser{Kind: SubtitleSBV}).Parse([]byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"))
+	if err == nil || !strings.Contains(err.Error(), "SubRip or WebVTT") {
+		t.Fatalf("expected sbv/srt mismatch error, got %v", err)
+	}
+}
+
 func TestSubtitleParserRejectsInvalidUTF8AndMissingTimestamps(t *testing.T) {
 	_, err := (SubtitleParser{Kind: SubtitleSRT}).Parse([]byte{0xff, 0xfe, 'a'})
 	if err == nil || !strings.Contains(err.Error(), "UTF-8") {

@@ -146,6 +146,7 @@ type checkConfigIndex struct {
 	sources        []checkSourceDescriptor
 	sourceByPath   map[string]checkSourceDescriptor
 	targetToSource map[string]checkTargetLookup
+	sourceLocale   string
 }
 
 type checkTargetLookup struct {
@@ -491,6 +492,7 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string, co
 	index := &checkConfigIndex{
 		sourceByPath:   make(map[string]checkSourceDescriptor),
 		targetToSource: make(map[string]checkTargetLookup),
+		sourceLocale:   cfg.Locales.Source,
 	}
 
 	for _, bucketName := range buckets {
@@ -1016,7 +1018,7 @@ func collectCheckFindings(ctx context.Context, index *checkConfigIndex, enabledC
 		if !selection.allowsSource(sourceDesc.sourcePath) {
 			continue
 		}
-		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath)
+		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath, index.sourceLocale)
 		if err != nil {
 			return checkReport{}, err
 		}

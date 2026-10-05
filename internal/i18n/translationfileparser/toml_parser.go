@@ -29,9 +29,10 @@ type tomlEntry struct {
 }
 
 type tomlDocument struct {
-	template string
-	entries  []tomlEntry
-	newline  string
+	template        string
+	entries         []tomlEntry
+	newline         string
+	firstTableStart int
 }
 
 func (p TOMLParser) Parse(content []byte) (map[string]string, error) {
@@ -69,9 +70,10 @@ func parseTOMLDocument(content []byte) (tomlDocument, error) {
 	}
 	text := string(content)
 	doc := tomlDocument{
-		template: text,
-		entries:  make([]tomlEntry, 0, 16),
-		newline:  tomlNewline(text),
+		template:        text,
+		entries:         make([]tomlEntry, 0, 16),
+		newline:         tomlNewline(text),
+		firstTableStart: -1,
 	}
 	seen := make(map[string]struct{}, 16)
 	pos := 0
@@ -88,6 +90,9 @@ func parseTOMLDocument(content []byte) (tomlDocument, error) {
 		if text[pos] == '[' {
 			if pos+1 < len(text) && text[pos+1] == '[' {
 				return tomlDocument{}, fmt.Errorf("line %d: toml array-of-tables is not supported", line)
+			}
+			if doc.firstTableStart < 0 {
+				doc.firstTableStart = pos
 			}
 			table, next, err := parseTOMLTableHeader(text, pos, line)
 			if err != nil {
@@ -118,9 +123,39 @@ func (d tomlDocument) render(values map[string]string) []byte {
 	var b strings.Builder
 	b.Grow(len(d.template))
 	cursor := 0
+	insertedExtras := false
+	writeExtras := func() {
+		if insertedExtras {
+			return
+		}
+		insertedExtras = true
+		extras := tomlAppendableExtraKeys(values, seen)
+		if len(extras) == 0 {
+			return
+		}
+		if b.Len() > 0 {
+			out := b.String()
+			if !strings.HasSuffix(out, "\n") && !strings.HasSuffix(out, "\r") {
+				b.WriteString(d.newline)
+			}
+		}
+		for _, key := range extras {
+			seen[key] = struct{}{}
+			b.WriteString(encodeTOMLDottedKey(key))
+			b.WriteString(" = ")
+			b.WriteString(encodeTOMLString(values[key], tomlQuoteBasic))
+			b.WriteString(d.newline)
+		}
+	}
+
 	for _, entry := range d.entries {
 		if entry.valueStart < cursor || entry.valueEnd > len(d.template) {
 			continue
+		}
+		if d.firstTableStart >= 0 && !insertedExtras && entry.valueStart >= d.firstTableStart {
+			b.WriteString(d.template[cursor:d.firstTableStart])
+			cursor = d.firstTableStart
+			writeExtras()
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.flatKey]; ok {
@@ -131,31 +166,57 @@ func (d tomlDocument) render(values map[string]string) []byte {
 		}
 		cursor = entry.valueEnd
 	}
+	if d.firstTableStart >= 0 && !insertedExtras && cursor <= d.firstTableStart {
+		b.WriteString(d.template[cursor:d.firstTableStart])
+		cursor = d.firstTableStart
+		writeExtras()
+	}
 	b.WriteString(d.template[cursor:])
+	if !insertedExtras {
+		writeExtras()
+	}
+	return []byte(b.String())
+}
 
+func tomlAppendableExtraKeys(values map[string]string, seen map[string]struct{}) []string {
 	var extra []string
 	for key := range values {
 		if _, ok := seen[key]; ok {
 			continue
 		}
+		if !isTOMLAppendableKey(key) {
+			continue
+		}
 		extra = append(extra, key)
 	}
-	if len(extra) == 0 {
-		return []byte(b.String())
-	}
 	slices.Sort(extra)
-	out := b.String()
-	if out != "" && !strings.HasSuffix(out, "\n") && !strings.HasSuffix(out, "\r") {
-		out += d.newline
+	return extra
+}
+
+func isTOMLAppendableKey(key string) bool {
+	return key != "" && !strings.ContainsAny(key, "[]")
+}
+
+func encodeTOMLDottedKey(key string) string {
+	parts := strings.Split(key, ".")
+	for i, part := range parts {
+		if !isTOMLBareKey(part) {
+			parts[i] = encodeTOMLString(part, tomlQuoteBasic)
+		}
 	}
-	var suffix strings.Builder
-	for _, key := range extra {
-		suffix.WriteString(key)
-		suffix.WriteString(" = ")
-		suffix.WriteString(encodeTOMLString(values[key], tomlQuoteBasic))
-		suffix.WriteString(d.newline)
+	return strings.Join(parts, ".")
+}
+
+func isTOMLBareKey(key string) bool {
+	if key == "" {
+		return false
 	}
-	return []byte(out + suffix.String())
+	for i := 0; i < len(key); i++ {
+		if !isTOMLBareKeyChar(key[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func skipTOMLIdle(text string, pos int, line *int) int {
@@ -301,22 +362,45 @@ func parseTOMLStringArray(text string, pos int, key string, line int) ([]tomlEnt
 		if text[pos] == ']' {
 			return entries, pos + 1, nil
 		}
-		if text[pos] != '"' && text[pos] != '\'' {
-			return nil, pos, fmt.Errorf("line %d: toml key %q has a non-string array; only string arrays are supported", line, key)
+		switch text[pos] {
+		case '"', '\'':
+			value, quote, end, literalStart, err := parseTOMLString(text, pos, line)
+			if err != nil {
+				return nil, pos, err
+			}
+			entries = append(entries, tomlEntry{
+				flatKey:     key + "[" + strconv.Itoa(index) + "]",
+				sourceValue: value,
+				valueStart:  literalStart,
+				valueEnd:    end,
+				quote:       quote,
+			})
+			index++
+			pos = skipTOMLIdle(text, end, &line)
+		case '[':
+			child, next, err := parseTOMLStringArray(text, pos, key+"["+strconv.Itoa(index)+"]", line)
+			if err != nil {
+				return nil, pos, err
+			}
+			entries = append(entries, child...)
+			index++
+			pos = skipTOMLIdle(text, next, &line)
+		case '{':
+			child, next, err := parseTOMLInlineTable(text, pos, key+"["+strconv.Itoa(index)+"]", line)
+			if err != nil {
+				return nil, pos, err
+			}
+			entries = append(entries, child...)
+			index++
+			pos = skipTOMLIdle(text, next, &line)
+		default:
+			next, err := skipTOMLValue(text, pos, &line)
+			if err != nil {
+				return nil, pos, err
+			}
+			index++
+			pos = skipTOMLIdle(text, next, &line)
 		}
-		value, quote, end, literalStart, err := parseTOMLString(text, pos, line)
-		if err != nil {
-			return nil, pos, err
-		}
-		entries = append(entries, tomlEntry{
-			flatKey:     key + "[" + strconv.Itoa(index) + "]",
-			sourceValue: value,
-			valueStart:  literalStart,
-			valueEnd:    end,
-			quote:       quote,
-		})
-		index++
-		pos = skipTOMLIdle(text, end, &line)
 		if pos >= len(text) {
 			return nil, pos, fmt.Errorf("line %d: unclosed toml array for %q", line, key)
 		}
@@ -328,6 +412,101 @@ func parseTOMLStringArray(text string, pos int, key string, line int) ([]tomlEnt
 			return entries, pos + 1, nil
 		}
 		return nil, pos, fmt.Errorf("line %d: expected ',' or ']' in toml array %q", line, key)
+	}
+}
+
+func skipTOMLValue(text string, pos int, line *int) (int, error) {
+	if pos >= len(text) {
+		return pos, fmt.Errorf("line %d: toml value is missing", *line)
+	}
+	switch text[pos] {
+	case '"', '\'':
+		_, _, end, _, err := parseTOMLString(text, pos, *line)
+		return end, err
+	case '[':
+		return skipTOMLArray(text, pos, line)
+	case '{':
+		return skipTOMLInlineTableValue(text, pos, line)
+	default:
+		end := pos
+		for end < len(text) {
+			ch := text[end]
+			if ch == ',' || ch == ']' || ch == '}' || ch == '#' || ch == '\n' || ch == '\r' {
+				break
+			}
+			end++
+		}
+		if end == pos {
+			return pos, fmt.Errorf("line %d: expected toml value", *line)
+		}
+		return end, nil
+	}
+}
+
+func skipTOMLArray(text string, pos int, line *int) (int, error) {
+	pos++
+	for {
+		pos = skipTOMLIdle(text, pos, line)
+		if pos >= len(text) {
+			return pos, fmt.Errorf("line %d: unclosed toml array", *line)
+		}
+		if text[pos] == ']' {
+			return pos + 1, nil
+		}
+		next, err := skipTOMLValue(text, pos, line)
+		if err != nil {
+			return pos, err
+		}
+		pos = skipTOMLIdle(text, next, line)
+		if pos >= len(text) {
+			return pos, fmt.Errorf("line %d: unclosed toml array", *line)
+		}
+		if text[pos] == ',' {
+			pos++
+			continue
+		}
+		if text[pos] == ']' {
+			return pos + 1, nil
+		}
+		return pos, fmt.Errorf("line %d: expected ',' or ']' in toml array", *line)
+	}
+}
+
+func skipTOMLInlineTableValue(text string, pos int, line *int) (int, error) {
+	pos++
+	for {
+		pos = skipTOMLSpace(text, pos)
+		if pos >= len(text) {
+			return pos, fmt.Errorf("line %d: unclosed toml inline table", *line)
+		}
+		if text[pos] == '}' {
+			return pos + 1, nil
+		}
+		_, next, err := parseTOMLKey(text, pos, *line)
+		if err != nil {
+			return pos, err
+		}
+		pos = skipTOMLSpace(text, next)
+		if pos >= len(text) || text[pos] != '=' {
+			return pos, fmt.Errorf("line %d: toml inline table key must be followed by '='", *line)
+		}
+		pos = skipTOMLSpace(text, pos+1)
+		next, err = skipTOMLValue(text, pos, line)
+		if err != nil {
+			return pos, err
+		}
+		pos = skipTOMLSpace(text, next)
+		if pos >= len(text) {
+			return pos, fmt.Errorf("line %d: unclosed toml inline table", *line)
+		}
+		if text[pos] == ',' {
+			pos++
+			continue
+		}
+		if text[pos] == '}' {
+			return pos + 1, nil
+		}
+		return pos, fmt.Errorf("line %d: expected ',' or '}' in toml inline table", *line)
 	}
 }
 

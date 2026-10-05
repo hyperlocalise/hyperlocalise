@@ -16,6 +16,7 @@ type svgEntry struct {
 	sourceValue string
 	valueStart  int
 	valueEnd    int
+	cdata       bool
 }
 
 type svgDocument struct {
@@ -92,7 +93,7 @@ func parseSVGDocument(content []byte) (svgDocument, error) {
 		}
 		lt += pos
 		if skipDepth == 0 && len(stack) > 0 && svgTextElements[stack[len(stack)-1]] {
-			if entry, ok := svgTextEntry(text[pos:lt], pos, index+1); ok {
+			if entry, ok := svgTextEntry(text[pos:lt], pos, index+1, false); ok {
 				index++
 				doc.entries = append(doc.entries, entry)
 			}
@@ -113,7 +114,7 @@ func parseSVGDocument(content []byte) (svgDocument, error) {
 			}
 			cdataEnd := lt + 9 + end
 			if skipDepth == 0 && len(stack) > 0 && svgTextElements[stack[len(stack)-1]] {
-				if entry, ok := svgTextEntry(text[lt+9:cdataEnd], lt+9, index+1); ok {
+				if entry, ok := svgTextEntry(text[lt+9:cdataEnd], lt+9, index+1, true); ok {
 					index++
 					doc.entries = append(doc.entries, entry)
 				}
@@ -177,7 +178,11 @@ func (d svgDocument) render(values map[string]string) []byte {
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
-			b.WriteString(html.EscapeString(translated))
+			if entry.cdata {
+				b.WriteString(escapeSVGCDATA(translated))
+			} else {
+				b.WriteString(html.EscapeString(translated))
+			}
 		} else {
 			b.WriteString(d.template[entry.valueStart:entry.valueEnd])
 		}
@@ -187,16 +192,25 @@ func (d svgDocument) render(values map[string]string) []byte {
 	return []byte(b.String())
 }
 
-func svgTextEntry(raw string, start, index int) (svgEntry, bool) {
+func svgTextEntry(raw string, start, index int, cdata bool) (svgEntry, bool) {
 	if strings.TrimSpace(raw) == "" {
 		return svgEntry{}, false
 	}
+	sourceValue := raw
+	if !cdata {
+		sourceValue = html.UnescapeString(raw)
+	}
 	return svgEntry{
 		key:         svgCueKey(index),
-		sourceValue: html.UnescapeString(raw),
+		sourceValue: sourceValue,
 		valueStart:  start,
 		valueEnd:    start + len(raw),
+		cdata:       cdata,
 	}, true
+}
+
+func escapeSVGCDATA(value string) string {
+	return strings.ReplaceAll(value, "]]>", "]]]]><![CDATA[>")
 }
 
 func svgCueKey(index int) string {

@@ -109,3 +109,24 @@ func TestStrategyParseWithLocaleReadsTSVTargetLocaleColumn(t *testing.T) {
 		t.Fatalf("unexpected hello translation: %q", got["hello"])
 	}
 }
+
+func TestStrategyParseSourceReadsTSVSourceLocaleWhenNotFirstColumn(t *testing.T) {
+	s := NewDefaultStrategy()
+	content := []byte("id\tfr\ten\nhello\tBonjour\tHello\n")
+
+	got, _, err := s.ParseSource("translations.tsv", content, "en")
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("expected English source column, got %q", got["hello"])
+	}
+
+	defaultParse, err := s.Parse("translations.tsv", content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if defaultParse["hello"] != "Bonjour" {
+		t.Fatalf("expected default parser to keep first value column, got %q", defaultParse["hello"])
+	}
+}
