@@ -173,6 +173,22 @@ func TestXLIFF2SpanningCodePairsCanSwap(t *testing.T) {
 	if out, err := MarshalXLIFF(template, map[string]string{"u": reversed}, "en", "fr"); err == nil || out != nil {
 		t.Fatalf("reversed spanning pair accepted: %s, %v", out, err)
 	}
+	nested := `<sc id="1"/>A <sc id="2"/>B<ec startRef="2"/><ec startRef="1"/>`
+	if _, err := MarshalXLIFF(template, map[string]string{"u": nested}, "en", "fr"); err != nil {
+		t.Fatalf("nested spanning pairs rejected: %v", err)
+	}
+	crossed := `<sc id="1"/>A <sc id="2"/>B<ec startRef="1"/><ec startRef="2"/>`
+	if out, err := MarshalXLIFF(template, map[string]string{"u": crossed}, "en", "fr"); err == nil || out != nil {
+		t.Fatalf("crossed spanning pairs accepted: %s, %v", out, err)
+	}
+}
+
+func TestXLIFFSourceCrossingsMayBePreserved(t *testing.T) {
+	template := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source><bpt id="1">&lt;b&gt;</bpt>a<bpt id="2">&lt;i&gt;</bpt>b<ept id="1">&lt;/b&gt;</ept>c<ept id="2">&lt;/i&gt;</ept></source></trans-unit></body></file></xliff>`)
+	value := `<bpt id="1">&lt;b&gt;</bpt>A<bpt id="2">&lt;i&gt;</bpt>B<ept id="1">&lt;/b&gt;</ept>C<ept id="2">&lt;/i&gt;</ept>`
+	if _, err := MarshalXLIFF(template, map[string]string{"u": value}, "en", "fr"); err != nil {
+		t.Fatalf("source crossing rejected: %v", err)
+	}
 }
 
 func TestXLIFFStandalonePlaceholdersCanMove(t *testing.T) {

@@ -76,7 +76,7 @@ configured target path and updates the lockfile.
 
 - When Hyperlocalise writes translations, it updates existing targets or creates missing ones and keeps your source text. It preserves untouched XML bytes, namespace prefixes, target attributes, comments, and metadata. If a segmented XLIFF 1.2 unit has no target, Hyperlocalise copies the `seg-source` structure and updates the translated markers. If an existing target lacks matching markers, you get an error instead of guessed segment boundaries.
 
-- Keep inline code identities, attributes, and native code payloads the same as the source. You can move standalone codes and complete opening/closing pairs, but each opening code must stay before its matching closing code. You cannot add inline elements when the source contains only text. If you send malformed or changed inline codes, you get an error. Hyperlocalise escapes plain-text replacements with XML-special characters when they are not valid XML fragments.
+- Keep inline code identities, attributes, and native code payloads the same as the source. You can move standalone codes and complete opening/closing pairs, but each opening code must stay before its matching closing code. You cannot make pairs overlap unless they already overlap in the source. You cannot add inline elements when the source contains only text. If you send malformed or changed inline codes, you get an error. Hyperlocalise escapes plain-text replacements with XML-special characters when they are not valid XML fragments.
 
 - If your file has duplicate unit or segment keys, you get an error. You also get an error when you send a unit-level value for a multi-segment unit. Translate each segment independently.
 

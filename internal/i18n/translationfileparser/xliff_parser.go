@@ -447,6 +447,8 @@ type xliffInlineSignature struct {
 	// pairRoles records the open/close order of each paired code so pairs may
 	// move relative to each other but never be reversed internally.
 	pairRoles map[string]string
+	// pairEvents lists paired-code IDs in document order.
+	pairEvents []string
 }
 
 func equalXLIFFCodes(a, b xliffInlineSignature) bool {
@@ -458,7 +460,41 @@ func equalXLIFFCodes(a, b xliffInlineSignature) bool {
 			return false
 		}
 	}
+	allowed := a.crossedPairs()
+	for crossing := range b.crossedPairs() {
+		if !allowed[crossing] {
+			return false
+		}
+	}
 	return true
+}
+
+// crossedPairs returns complete pairs whose spans overlap without nesting.
+// XLIFF permits overlapping spans, so translations may keep crossings from the
+// source but must not introduce new ones.
+func (s xliffInlineSignature) crossedPairs() map[[2]string]bool {
+	type span struct{ start, end int }
+	spans := make(map[string]span)
+	for i, pairID := range s.pairEvents {
+		if s.pairRoles[pairID] != "oc" {
+			continue
+		}
+		if current, ok := spans[pairID]; ok {
+			current.end = i
+			spans[pairID] = current
+		} else {
+			spans[pairID] = span{start: i}
+		}
+	}
+	crossed := make(map[[2]string]bool)
+	for first, x := range spans {
+		for second, y := range spans {
+			if first < second && (x.start < y.start && y.start < x.end && x.end < y.end || y.start < x.start && x.start < y.end && y.end < x.end) {
+				crossed[[2]string{first, second}] = true
+			}
+		}
+	}
+	return crossed
 }
 
 func xliffContentEdit(template []byte, node *xliffElement, fragment string) xliffEdit {
@@ -645,6 +681,7 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 						signature.codes[key]++
 						if pairID, role, ok := xliffPairRole(t); ok {
 							signature.pairRoles[pairID] += role
+							signature.pairEvents = append(signature.pairEvents, pairID)
 						}
 						continue
 					}
