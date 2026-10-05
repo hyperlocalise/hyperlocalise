@@ -13,9 +13,10 @@
 import { useState, type ReactNode } from "react";
 import { PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, within } from "storybook/test";
+import { expect, fn, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
+import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -211,6 +212,107 @@ export const CreateFromContentfulTemplate: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Translate Contentful article")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+  },
+};
+
+export const AddSkillEnablesTools: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(
+      canvas.getByText("Pick what this automation should do. Each skill adds the tools it needs."),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Research the web/ }));
+    await expect(
+      canvas.getByText(/Searches the public web\. Changes nothing\./),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Required for skill")).toBeInTheDocument();
+    await expect(canvas.getByText("1 tool")).toBeInTheDocument();
+  },
+};
+
+export const SuggestsFromInstructions: Story = {
+  args: {
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      name: "Market brief",
+      instructions: "Research competitors each morning, post a brief to Slack and check Ahrefs.",
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByText("Suggested")).toBeInTheDocument();
+    const ahrefsChip = canvas.getByRole("button", { name: "Add Ahrefs" });
+    // The chips sit beside the section title, above the instructions box, and a new one flashes.
+    const titleRow = canvas.getByRole("heading", { name: "Agent Instructions" }).parentElement;
+    await expect(titleRow).toContainElement(ahrefsChip);
+    await expect(
+      ahrefsChip.compareDocumentPosition(canvas.getByDisplayValue(/^Research competitors/)) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await expect(ahrefsChip.parentElement).toHaveClass("animate-suggestion-flash");
+    await userEvent.click(canvas.getByRole("button", { name: "Add Research the web" }));
+    await expect(canvas.getByText("Required for skill")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Add Research the web" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Dismiss suggestion Post results to Slack" }),
+    );
+    await expect(
+      canvas.queryByRole("button", { name: "Add Post results to Slack" }),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const RiskySkillAsksFirst: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Email results/ }));
+    await expect(
+      await body.findByRole("alertdialog", { name: "Add Email results?" }),
+    ).toBeInTheDocument();
+    await expect(body.getByText(/cannot be recalled/)).toBeInTheDocument();
+    await expect(canvas.queryByText("Required for skill")).not.toBeInTheDocument();
+    await userEvent.click(body.getByRole("button", { name: "Add skill" }));
+    await expect(await canvas.findByText("Required for skill")).toBeInTheDocument();
+  },
+};
+
+export const DisconnectedSkillIsGreyedOut: Story = {
+  parameters: {
+    msw: {
+      handlers: automationEditorDisconnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    const slack = await body.findByRole("menuitem", { name: /^Post results to Slack/ });
+    await waitFor(() => expect(slack).toHaveAttribute("aria-disabled", "true"));
+    await expect(within(slack).getByText("Connect Slack first")).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: /^Research the web/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  },
+};
+
+export const CreateWithSkills: Story = {
+  args: {
+    form: ["review-translation-changes", "post-to-slack"].reduce(
+      (form, skillId) => addSkillToWorkspaceAutomationForm(form, skillId),
+      { ...createEmptyAutomationFormFixture(), name: "Review translations" },
+    ),
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByText("Review translation changes")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Required for skill")).toHaveLength(2);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Remove skill Post results to Slack" }),
+    );
+    await expect(canvas.getAllByText("Required for skill")).toHaveLength(1);
+    await expect(canvas.getByText("1 tool")).toBeInTheDocument();
   },
 };
 

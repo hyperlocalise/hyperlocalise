@@ -205,6 +205,7 @@
 
   --animate-marquee: marquee var(--duration) infinite linear;
   --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  --animate-suggestion-flash: suggestion-flash 1.6s ease-out;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -790,6 +791,16 @@ html,
   to {
     filter: blur(0);
     opacity: 1;
+  }
+}
+
+/* Holds a blue highlight, then fades to the element's own colours. */
+@keyframes suggestion-flash {
+  0%,
+  35% {
+    background-color: var(--ds-blue-200);
+    border-color: var(--ds-blue-600);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-blue-600) 30%, transparent);
   }
 }
 

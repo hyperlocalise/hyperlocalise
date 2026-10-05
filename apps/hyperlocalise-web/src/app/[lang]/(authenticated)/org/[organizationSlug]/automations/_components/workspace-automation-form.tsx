@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   PlusIcon,
   CaretDownIcon,
@@ -27,11 +27,13 @@ import {
   EnvelopeIcon,
   MagnifyingGlassIcon,
   SlackLogoIcon,
+  SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
   siGithub,
@@ -48,7 +50,18 @@ import {
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
 import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   ComingSoonBadge,
@@ -108,6 +121,27 @@ import {
   type WorkspaceAutomationGithubTriggerEvent,
   type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  addSkillToWorkspaceAutomationForm,
+  removeSkillFromWorkspaceAutomationForm,
+  resolveWorkspaceAutomationSkillAvailability,
+  type WorkspaceAutomationSkillDefaults,
+} from "@/lib/agents/workspace-automation-skill-form";
+import {
+  getWorkspaceAutomationSkill,
+  listMissingWorkspaceAutomationSkillIntegrations,
+  listWorkspaceAutomationSkillNamesByTool,
+  resolveWorkspaceAutomationSkills,
+  WORKSPACE_AUTOMATION_SKILLS,
+  type WorkspaceAutomationSkillConnections,
+  type WorkspaceAutomationSkillIntegration,
+} from "@/lib/agents/workspace-automation-skills";
+import {
+  addSuggestedToolToWorkspaceAutomationForm,
+  suggestWorkspaceAutomationAdditions,
+  type WorkspaceAutomationSuggestedToolId,
+  type WorkspaceAutomationSuggestion,
+} from "@/lib/agents/workspace-automation-suggestions";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
@@ -296,10 +330,26 @@ function GithubEventSwitch({
   );
 }
 
-function EditorSection({ title, children }: { title: string; children: ReactNode }) {
+function EditorSection({
+  title,
+  titleAside,
+  children,
+}: {
+  title: string;
+  titleAside?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
+      {titleAside === undefined ? (
+        <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
+      ) : (
+        // As tall as a suggestion chip, so the content below stays put when one appears.
+        <div className="flex min-h-7.5 flex-wrap items-center gap-x-3 gap-y-2 px-2">
+          <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+          {titleAside}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -358,11 +408,38 @@ function DeleteToolButton({
   disabled,
   label,
   onClick,
+  requiredBySkills = [],
 }: {
   disabled?: boolean;
   label: string;
   onClick: () => void;
+  /** Attached skills that need the tool. It is then removed by removing those skills. */
+  requiredBySkills?: string[];
 }) {
+  const intl = useIntl();
+
+  if (requiredBySkills.length > 0) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Badge variant="secondary" tabIndex={0}>
+              <FormattedMessage
+                {...workspaceAutomationFormMessages.requiredForSkillBadge}
+                values={{ count: requiredBySkills.length }}
+              />
+            </Badge>
+          }
+        />
+        <TooltipContent side="top" align="end" className="max-w-xs">
+          {intl.formatMessage(workspaceAutomationFormMessages.requiredForSkillTooltip, {
+            skills: intl.formatList(requiredBySkills, { type: "conjunction" }),
+          })}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <Button
       type="button"
@@ -1994,6 +2071,256 @@ function ContentfulTargetLocalesPicker({
   );
 }
 
+const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, MessageDescriptor> = {
+  github: workspaceAutomationFormMessages.skillIntegrationGithub,
+  crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
+  contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
+  slack: workspaceAutomationFormMessages.skillIntegrationSlack,
+  email: workspaceAutomationFormMessages.skillIntegrationEmail,
+};
+
+function formatSkillConnectFirstHint(
+  intl: IntlShape,
+  integrations: WorkspaceAutomationSkillIntegration[],
+) {
+  return intl.formatMessage(workspaceAutomationFormMessages.skillConnectFirstHint, {
+    integrations: intl.formatList(
+      integrations.map((integration) => intl.formatMessage(SKILL_INTEGRATION_LABELS[integration])),
+      { type: "conjunction" },
+    ),
+  });
+}
+
+function SkillsSettings({
+  connections,
+  disabled,
+  error,
+  form,
+  onAddSkill,
+  onChange,
+}: {
+  connections: WorkspaceAutomationSkillConnections;
+  disabled?: boolean;
+  error?: string;
+  form: WorkspaceAutomationFormState;
+  onAddSkill: (skillId: string) => void;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+}) {
+  const intl = useIntl();
+  const attachedSkills = resolveWorkspaceAutomationSkills(form.skillIds);
+
+  return (
+    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.skillsSection)}>
+      <EditorPanel>
+        {attachedSkills.length === 0 ? (
+          <p className="border-b border-border px-3 py-3 text-xs text-muted-foreground">
+            <FormattedMessage {...workspaceAutomationFormMessages.skillsEmpty} />
+          </p>
+        ) : null}
+        {attachedSkills.map((skill) => (
+          <EditorRow
+            key={skill.id}
+            icon={<SparkleIcon className="size-4" />}
+            title={skill.name}
+            description={`${skill.description} ${skill.grants}`}
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeSkill, {
+                  name: skill.name,
+                })}
+                onClick={() => onChange(removeSkillFromWorkspaceAutomationForm(form, skill.id))}
+              />
+            }
+          />
+        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="w-full"
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={disabled}
+                className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
+              />
+            }
+          >
+            <PlusIcon className="size-4" />
+            <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="max-h-(--available-height) w-96 overflow-y-auto"
+            align="start"
+            sideOffset={2}
+          >
+            {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
+              const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
+              const missingIntegrations =
+                availability === "available"
+                  ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                  : [];
+              return (
+                <DropdownMenuItem
+                  key={skill.id}
+                  disabled={availability !== "available" || missingIntegrations.length > 0}
+                  className="items-start"
+                  onClick={() => onAddSkill(skill.id)}
+                >
+                  <SparkleIcon className="mt-0.5 size-4 shrink-0" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span>{skill.name}</span>
+                    {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                    {availability === "trigger_mismatch" ? (
+                      <span className="text-xs font-medium">
+                        <FormattedMessage
+                          {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                        />
+                      </span>
+                    ) : missingIntegrations.length > 0 ? (
+                      <span className="text-xs font-medium">
+                        {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                      </span>
+                    ) : null}
+                    <span className="text-xs text-pretty text-muted-foreground">
+                      {skill.description}
+                    </span>
+                  </span>
+                  {availability === "attached" ? (
+                    <DropdownMenuHint>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuHint>
+                  ) : null}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </EditorPanel>
+      <FieldError message={error} />
+    </EditorSection>
+  );
+}
+
+const SUGGESTION_TYPING_PAUSE_MS = 300;
+
+const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageDescriptor> = {
+  github_sync: workspaceAutomationFormMessages.githubSyncWorkflows,
+  gitlab: workspaceAutomationFormMessages.useGitlabRepo,
+  semrush: workspaceAutomationFormMessages.semrush,
+  ahrefs: workspaceAutomationFormMessages.ahrefs,
+  zernio: workspaceAutomationFormMessages.zernio,
+};
+
+function SuggestionChip({
+  disabled,
+  flashOnMount,
+  onAdd,
+  onDismiss,
+  suggestion,
+}: {
+  disabled?: boolean;
+  flashOnMount: boolean;
+  onAdd: (suggestion: WorkspaceAutomationSuggestion) => void;
+  onDismiss: (suggestion: WorkspaceAutomationSuggestion) => void;
+  suggestion: WorkspaceAutomationSuggestion;
+}) {
+  const intl = useIntl();
+  // Fixed at mount: the highlight has to outlast the re-renders that typing causes.
+  const [flash] = useState(flashOnMount);
+  const name =
+    suggestion.kind === "skill"
+      ? suggestion.skill.name
+      : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
+  const unavailableHint =
+    suggestion.availability === "trigger_mismatch"
+      ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
+      : suggestion.availability !== "connect_first"
+        ? null
+        : suggestion.kind === "skill"
+          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border border-border bg-background",
+        flash && "animate-suggestion-flash motion-reduce:animate-none",
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={disabled || unavailableHint !== null}
+        aria-label={intl.formatMessage(workspaceAutomationFormMessages.addSuggestion, {
+          name,
+        })}
+        className="h-7 gap-1.5 rounded-full pr-1.5 pl-2.5 text-xs"
+        onClick={() => onAdd(suggestion)}
+      >
+        {suggestion.kind === "skill" ? (
+          <SparkleIcon className="size-3.5" />
+        ) : (
+          <PlusIcon className="size-3.5" />
+        )}
+        {name}
+        {unavailableHint ? <span className="text-muted-foreground">{unavailableHint}</span> : null}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        disabled={disabled}
+        aria-label={intl.formatMessage(workspaceAutomationFormMessages.dismissSuggestion, {
+          name,
+        })}
+        className="mr-0.5 rounded-full text-muted-foreground hover:text-foreground"
+        onClick={() => onDismiss(suggestion)}
+      >
+        <XIcon />
+      </Button>
+    </span>
+  );
+}
+
+function SuggestionChips({
+  disabled,
+  onAdd,
+  onDismiss,
+  shownKeys,
+  suggestions,
+}: {
+  disabled?: boolean;
+  onAdd: (suggestion: WorkspaceAutomationSuggestion) => void;
+  onDismiss: (suggestion: WorkspaceAutomationSuggestion) => void;
+  /** Suggestions that were already on screen; any other chip is new and flashes once. */
+  shownKeys: ReadonlySet<string>;
+  suggestions: WorkspaceAutomationSuggestion[];
+}) {
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-muted-foreground">
+        <FormattedMessage {...workspaceAutomationFormMessages.suggestionsLabel} />
+      </span>
+      {suggestions.map((suggestion) => (
+        <SuggestionChip
+          key={suggestion.key}
+          disabled={disabled}
+          flashOnMount={!shownKeys.has(suggestion.key)}
+          suggestion={suggestion}
+          onAdd={onAdd}
+          onDismiss={onDismiss}
+        />
+      ))}
+    </div>
+  );
+}
+
 function ToolsSettings({
   automationId,
   canUpdateKnowledgeMemory,
@@ -2065,6 +2392,7 @@ function ToolsSettings({
   const createNativeTmsJobTargetLocalesFieldId = "create-native-tms-job-target-locales";
   const intl = useIntl();
   const [memoriesOpen, setMemoriesOpen] = useState(false);
+  const skillTools = listWorkspaceAutomationSkillNamesByTool(form.skillIds);
 
   return (
     <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.toolsSection)}>
@@ -2152,6 +2480,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("use_github_repository")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeGithubRepoTool)}
                 onClick={() =>
                   onChange({
@@ -2326,6 +2655,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("notify_github_comment")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeGithubCommentNotifications,
                 )}
@@ -2374,6 +2704,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("notify_slack")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeSlackNotifications)}
                 onClick={() => onChange({ ...form, slackEnabled: false, slackChannelId: "" })}
               />
@@ -2419,6 +2750,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("notify_email")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeEmailNotifications)}
                 onClick={() =>
                   onChange({
@@ -2541,6 +2873,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("run_contentful_translation")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeContentfulTranslate,
                 )}
@@ -2720,6 +3053,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("use_crowdin")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCrowdinTool)}
                 onClick={() =>
                   onChange({
@@ -2776,6 +3110,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("create_native_tms_job")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateJob)}
                 onClick={() =>
                   onChange({
@@ -2851,6 +3186,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("assign_translate_with_agent")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslateWithAgent)}
                 onClick={() =>
                   onChange({
@@ -2873,6 +3209,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("list_issues")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeListIssues)}
                 onClick={() => onChange({ ...form, listIssuesEnabled: false })}
               />
@@ -2890,6 +3227,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("create_issue")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateIssue)}
                 onClick={() => onChange({ ...form, createIssueEnabled: false })}
               />
@@ -3131,6 +3469,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("use_web_search")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeWebSearchTool)}
                 onClick={() =>
                   onChange({
@@ -3382,6 +3721,29 @@ export function WorkspaceAutomationEditor({
 }) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [riskySkillId, setRiskySkillId] = useState<string | null>(null);
+  // Suggestions follow the text once typing pauses, so a keyword that is only the start of a
+  // longer word ("pr" in "project") does not flash a chip in and out.
+  const [suggestionText, setSuggestionText] = useState({
+    name: form.name,
+    instructions: form.instructions,
+  });
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSuggestionText((current) =>
+        current.name === form.name && current.instructions === form.instructions
+          ? current
+          : { name: form.name, instructions: form.instructions },
+      );
+    }, SUGGESTION_TYPING_PAUSE_MS);
+    return () => clearTimeout(timeout);
+  }, [form.name, form.instructions]);
+  const [shownSuggestionKeys, setShownSuggestionKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3613,6 +3975,79 @@ export function WorkspaceAutomationEditor({
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
+  const skillDefaults: WorkspaceAutomationSkillDefaults = {
+    githubInstallationRepositoryId: resolveDefaultGithubRepositoryId(form, repositories),
+    crowdinProjectId: defaultCrowdinProjectId(
+      form,
+      collectCrowdinProjects(projectsQuery.data ?? [], crowdinLiveProjects),
+    ),
+    contentfulConnectionId:
+      contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
+  };
+  const usableSemrushConnections = semrushConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const usableZernioConnections = zernioConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  // Undefined while a status is loading or failed to load, so only a known gap greys a skill out.
+  const skillConnections: WorkspaceAutomationSkillConnections = {
+    github: githubInstallationQuery.isSuccess ? githubConnected : undefined,
+    crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
+    contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
+    slack: slackQuery.isSuccess ? slackConnected : undefined,
+    email: emailConnected
+      ? true
+      : resendPipesQuery.isSuccess && sendgridPipesQuery.isSuccess
+        ? false
+        : undefined,
+  };
+  const suggestions = suggestWorkspaceAutomationAdditions({
+    form: { ...form, ...suggestionText },
+    skillConnections,
+    connections: {
+      github: githubConnected,
+      gitlab: gitlabConnected,
+      semrush: usableSemrushConnections.length > 0,
+      ahrefs: ahrefsConnected,
+      zernio: usableZernioConnections.length > 0,
+    },
+    dismissed: dismissedSuggestions,
+  });
+  // Kept here, not in the chips: the chips unmount with the settings tab, and coming back to
+  // the tab must not flash suggestions that were already there.
+  const suggestionKeys = suggestions.map((suggestion) => suggestion.key).join("\n");
+  useEffect(() => {
+    setShownSuggestionKeys(new Set(suggestionKeys ? suggestionKeys.split("\n") : []));
+  }, [suggestionKeys]);
+  const addSkill = (skillId: string) =>
+    onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
+  // A skill that declares a risk is attached only after the user confirms it.
+  const requestAddSkill = (skillId: string) => {
+    if (getWorkspaceAutomationSkill(skillId)?.risk) {
+      setRiskySkillId(skillId);
+      return;
+    }
+    addSkill(skillId);
+  };
+  const riskySkill = riskySkillId ? getWorkspaceAutomationSkill(riskySkillId) : null;
+  const addSuggestion = (suggestion: WorkspaceAutomationSuggestion) => {
+    if (suggestion.kind === "skill") {
+      requestAddSkill(suggestion.skill.id);
+      return;
+    }
+    onChange(
+      addSuggestedToolToWorkspaceAutomationForm(form, suggestion.toolId, {
+        githubInstallationRepositoryId: skillDefaults.githubInstallationRepositoryId,
+        gitlabPathWithNamespace: resolveDefaultGitlabProject(form, gitlabProjects)
+          ?.pathWithNamespace,
+        semrushConnectionId:
+          usableSemrushConnections.length === 1 ? usableSemrushConnections[0]?.id : undefined,
+        zernioConnectionId:
+          usableZernioConnections.length === 1 ? usableZernioConnections[0]?.id : undefined,
+      }),
+    );
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -3719,6 +4154,17 @@ export function WorkspaceAutomationEditor({
 
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
+            titleAside={
+              <SuggestionChips
+                disabled={disabled}
+                shownKeys={shownSuggestionKeys}
+                suggestions={suggestions}
+                onAdd={addSuggestion}
+                onDismiss={(suggestion) =>
+                  setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
+                }
+              />
+            }
           >
             <div className="relative rounded-xl">
               <Textarea
@@ -3727,7 +4173,9 @@ export function WorkspaceAutomationEditor({
                 disabled={disabled}
                 className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
                 placeholder={intl.formatMessage(
-                  workspaceAutomationFormMessages.instructionsPlaceholder,
+                  form.skillIds.length > 0
+                    ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
+                    : workspaceAutomationFormMessages.instructionsPlaceholder,
                 )}
                 onChange={(event) => onChange({ ...form, instructions: event.target.value })}
               />
@@ -3738,6 +4186,15 @@ export function WorkspaceAutomationEditor({
             </div>
             <FieldError message={errors.instructions} />
           </EditorSection>
+
+          <SkillsSettings
+            connections={skillConnections}
+            disabled={disabled}
+            error={errors.skills}
+            form={form}
+            onAddSkill={requestAddSkill}
+            onChange={onChange}
+          />
 
           <ToolsSettings
             automationId={automationId}
@@ -3772,6 +4229,41 @@ export function WorkspaceAutomationEditor({
           </TabsContent>
         ) : null}
       </Tabs>
+
+      <AlertDialog
+        open={riskySkill !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRiskySkillId(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intl.formatMessage(workspaceAutomationFormMessages.riskySkillTitle, {
+                name: riskySkill?.name ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{riskySkill?.risk}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...workspaceAutomationFormMessages.riskySkillCancel} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (riskySkillId) {
+                  addSkill(riskySkillId);
+                }
+                setRiskySkillId(null);
+              }}
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.riskySkillConfirm} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -91,6 +91,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["translate-uploaded-source"],
       name: "Translate on source upload",
       triggerMode: "source_upload",
       createNativeTmsJobEnabled: true,
@@ -118,6 +121,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["translate-contentful-entries"],
       name: "Translate Contentful article",
       triggerMode: "contentful",
       contentfulEnabled: true,
@@ -187,6 +193,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["summarize-localisation-changes", "post-to-slack"],
       name: "Summarize changes daily",
       triggerMode: "scheduled",
       scheduledCadence: "daily",
@@ -238,6 +247,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["review-translation-changes", "post-to-slack"],
       name: "Review code daily",
       triggerMode: "scheduled",
       scheduledCadence: "daily",
@@ -280,6 +292,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["research-web", "post-to-slack"],
       name: "Daily web research",
       triggerMode: "scheduled",
       scheduledCadence: "daily",
@@ -660,6 +675,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     }),
     activatable: true,
     defaultForm: {
+      // The attached skills carry the procedure.
+      instructions: "",
+      skillIds: ["review-translation-changes", "comment-on-pull-request"],
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],

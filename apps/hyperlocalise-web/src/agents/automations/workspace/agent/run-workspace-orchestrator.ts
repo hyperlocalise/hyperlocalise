@@ -238,6 +238,9 @@ export async function runWorkspaceOrchestrator(input: {
   const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
+    // Read from the automation, as the plan and instructions are, so a run never mixes the
+    // skills of one saved configuration with the tools of another.
+    skillIds: automation.skillIds ?? [],
     userOverride: automation.instructions,
     triggerMode: automation.triggerConfig.mode,
     plan,

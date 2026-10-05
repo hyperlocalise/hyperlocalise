@@ -34,6 +34,10 @@ import {
 import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 import {
+  validateWorkspaceAutomationSkills,
+  type WorkspaceAutomationSkillValidationCode,
+} from "./workspace-automation-skills";
+import {
   contentSyncFingerprintFromConfig,
   resolveContentSyncRepositoryTarget,
   resolveContentSyncTriggerConfig,
@@ -57,6 +61,7 @@ import {
   hoistLegacyWorkspaceAutomationProjectId,
   isContentSyncAutomation,
   normalizeRepositoryTarget,
+  normalizeSkillIds,
   normalizeToolConfig,
   normalizeTriggerConfig,
   readOptionalProjectId,
@@ -112,11 +117,30 @@ export function workspaceAutomationNeedsProject(input: {
   return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
 }
 
+const SKILL_VALIDATION_ERRORS = {
+  skill_not_found: {
+    code: "skill_not_found",
+    message: "A selected skill is no longer available. Remove it and try again.",
+  },
+  skill_trigger_incompatible: {
+    code: "skill_trigger_incompatible",
+    message: "A selected skill does not work with this trigger.",
+  },
+  skill_tools_required: {
+    code: "skill_tools_required",
+    message: "A selected skill needs a tool that is not enabled.",
+  },
+} as const satisfies Record<
+  WorkspaceAutomationSkillValidationCode,
+  WorkspaceAutomationConfigValidationError
+>;
+
 function validateWorkspaceAutomationConfig(input: {
   projectId?: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
+  skillIds?: readonly string[];
   kind?: WorkspaceAutomationKind;
   syncConfig?: ContentSyncConfig | null;
 }): Result<void, WorkspaceAutomationConfigValidationError> {
@@ -144,6 +168,15 @@ function validateWorkspaceAutomationConfig(input: {
 
   if (kind === "content_sync") {
     return ok(undefined);
+  }
+
+  const skillProblem = validateWorkspaceAutomationSkills({
+    skillIds: input.skillIds ?? [],
+    triggerMode: input.triggerConfig.mode,
+    toolConfig: input.toolConfig,
+  });
+  if (skillProblem) {
+    return err(SKILL_VALIDATION_ERRORS[skillProblem]);
   }
 
   const githubTools = input.toolConfig.github;
@@ -723,6 +756,7 @@ function serializeAutomation(
     triggerConfig: normalizeTriggerConfig(row.triggerConfig),
     repositoryTarget: normalizeRepositoryTarget(row.repositoryTarget),
     toolConfig: normalizeToolConfig(rawToolConfig),
+    skillIds: normalizeSkillIds(row.skillIds),
     syncConfig: normalizeContentSyncConfig((row.syncConfig ?? {}) as Record<string, unknown>),
     configVersion: row.configVersion,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
@@ -908,11 +942,13 @@ export async function createWorkspaceAutomation(input: {
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
+  skillIds?: readonly string[];
   syncConfig?: ContentSyncConfig | null;
   nextRunAt?: Date | null;
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
   const kind = resolveWorkspaceAutomationKind(input.kind);
+  const skillIds = kind === "content_sync" ? [] : [...new Set(input.skillIds ?? [])];
   let syncConfig: ContentSyncConfig | null = null;
   if (kind === "content_sync") {
     const syncValidation = validateContentSyncConfig(input.syncConfig ?? null);
@@ -948,6 +984,7 @@ export async function createWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig,
+    skillIds,
     kind,
     syncConfig,
   });
@@ -969,6 +1006,7 @@ export async function createWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig,
+    skillIds,
     syncConfig,
     configVersion: 1,
     nextRunAt: null,
@@ -1028,6 +1066,7 @@ export async function createWorkspaceAutomation(input: {
             : null,
         repositoryTarget: config.repositoryTarget,
         toolConfig,
+        skillIds,
         syncConfig: syncConfig ?? {},
         syncFingerprint:
           kind === "content_sync" && syncConfig
@@ -1065,6 +1104,7 @@ export async function updateWorkspaceAutomation(input: {
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
+  skillIds?: readonly string[];
   syncConfig?: ContentSyncConfig | null;
   nextRunAt?: Date | null;
   db?: DatabaseClient;
@@ -1083,7 +1123,14 @@ export async function updateWorkspaceAutomation(input: {
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined ||
+    input.skillIds !== undefined ||
     input.syncConfig !== undefined;
+  const skillIds =
+    existing.kind === "content_sync"
+      ? []
+      : input.skillIds !== undefined
+        ? [...new Set(input.skillIds)]
+        : (existing.skillIds ?? []);
 
   const parsedConfig = configChanged
     ? workspaceAutomationConfigSchema.parse({
@@ -1114,6 +1161,19 @@ export async function updateWorkspaceAutomation(input: {
   };
   const projectId = readOptionalProjectId(config.projectId);
 
+  // Creation requires instructions or a skill; an update must not take away the last of them.
+  if (
+    existing.kind !== "content_sync" &&
+    (input.instructions !== undefined || input.skillIds !== undefined) &&
+    (input.instructions ?? existing.instructions).trim().length === 0 &&
+    skillIds.length === 0
+  ) {
+    return err({
+      code: "instructions_or_skill_required",
+      message: "Add a skill or write instructions.",
+    });
+  }
+
   const nextSyncConfig = input.syncConfig !== undefined ? input.syncConfig : existing.syncConfig;
   if (configChanged) {
     const validation = validateWorkspaceAutomationConfig({
@@ -1121,6 +1181,7 @@ export async function updateWorkspaceAutomation(input: {
       triggerConfig: config.triggerConfig,
       repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
+      skillIds,
       kind: existing.kind,
       syncConfig: nextSyncConfig,
     });
@@ -1140,6 +1201,7 @@ export async function updateWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
+    skillIds,
     syncConfig: nextSyncConfig,
     configVersion: configChanged ? existing.configVersion + 1 : existing.configVersion,
   };
@@ -1216,6 +1278,7 @@ export async function updateWorkspaceAutomation(input: {
               projectId,
               // Re-persist normalized tool config so legacy per-tool projectIds are stripped.
               toolConfig: config.toolConfig,
+              skillIds,
               syncConfig: nextSyncConfig ?? {},
               syncFingerprint:
                 existing.kind === "content_sync" && nextSyncConfig

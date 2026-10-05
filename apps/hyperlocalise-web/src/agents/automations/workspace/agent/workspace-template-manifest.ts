@@ -12,6 +12,10 @@
  */
 import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
+import {
+  loadWorkspaceSkillProcedures,
+  resolveWorkspaceSkillSharedSkills,
+} from "./workspace-skill-instructions";
 import type {
   WorkspaceAutomationTemplate,
   WorkspaceAutomationTemplateCategory,
@@ -82,9 +86,13 @@ export function resolveWorkspaceTemplateSharedSkills(templateSkillId: string | n
 
 export function resolveWorkspaceOrchestratorSharedSkills(input: {
   templateSkillId?: string | null;
+  skillIds?: readonly string[];
   planTools: readonly string[];
 }): string[] {
-  const fromTemplate = resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null);
+  const fromTemplate = [
+    ...resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null),
+    ...resolveWorkspaceSkillSharedSkills(input.skillIds ?? []),
+  ];
   const skills: string[] = [
     ...(input.planTools.includes("notify_slack") ? ["slack-notifications"] : []),
     ...(input.planTools.includes("notify_github_comment") ? ["github-comment-notifications"] : []),
@@ -102,17 +110,23 @@ export function composeGithubRepoInstructions(input: {
   userOverride?: string | null;
   dynamicSections?: string[];
   templateSkillId?: string | null;
+  skillIds?: readonly string[];
 }) {
+  const skillIds = input.skillIds ?? [];
   const sharedSkills = [
     "recent-source-changes",
     ...resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null),
+    ...resolveWorkspaceSkillSharedSkills(skillIds, "use_github_repository"),
   ];
 
   return composeInstructions({
     automationId: "github-repository",
     sharedSkills: [...new Set(sharedSkills)],
     skills: ["github-repo-agent"],
-    dynamicSections: input.dynamicSections,
+    dynamicSections: [
+      ...(input.dynamicSections ?? []),
+      ...loadWorkspaceSkillProcedures(skillIds, "use_github_repository"),
+    ],
     userOverride: input.userOverride,
   });
 }

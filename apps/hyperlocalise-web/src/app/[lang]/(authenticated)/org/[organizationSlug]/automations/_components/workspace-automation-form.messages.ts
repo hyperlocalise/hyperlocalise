@@ -615,6 +615,114 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "DCeid5ejmn",
     description: "Empty state when Contentful target locales cannot be chosen yet",
   },
+  skillsSection: {
+    defaultMessage: "Skills",
+    id: "DIG49VapuX",
+    description: "Section heading for automation skills",
+  },
+  addSkill: {
+    defaultMessage: "Add Skill",
+    id: "hb3XPziYiC",
+    description: "Button to open the add-skill menu",
+  },
+  skillsEmpty: {
+    defaultMessage: "Pick what this automation should do. Each skill adds the tools it needs.",
+    id: "xYhoLiHtTw",
+    description: "Hint shown in the skills section when no skill is attached",
+  },
+  removeSkill: {
+    defaultMessage: "Remove skill {name}",
+    id: "W/GIC1a+rE",
+    description: "Accessible label for the button that detaches a skill from the automation",
+  },
+  skillNotApplicableHint: {
+    defaultMessage: "Not applicable for this trigger",
+    id: "WLsnSTKJV/",
+    description:
+      "Hint on a skill that cannot be added because it does not work with the selected trigger",
+  },
+  requiredForSkillBadge: {
+    defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
+    id: "CwUciV9/fZ",
+    description: "Badge on a tool row that one or more attached skills need",
+  },
+  requiredForSkillTooltip: {
+    defaultMessage: "Required for {skills}",
+    id: "1itlYEshpl",
+    description:
+      "Tooltip on the badge of a tool row, listing the attached skills that need the tool",
+  },
+  skillConnectFirstHint: {
+    defaultMessage: "Connect {integrations} first",
+    id: "+WGFtpyLP3",
+    description: "Hint on a skill that cannot be added until the named integrations are connected",
+  },
+  skillIntegrationGithub: {
+    defaultMessage: "GitHub",
+    id: "qho0RvsuUF",
+    description: "Name of the GitHub integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationCrowdin: {
+    defaultMessage: "Crowdin",
+    id: "mKDi5gA4Mz",
+    description: "Name of the Crowdin integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationContentful: {
+    defaultMessage: "Contentful",
+    id: "a8MPnEetIK",
+    description:
+      "Name of the Contentful integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationSlack: {
+    defaultMessage: "Slack",
+    id: "SXLP18M0vY",
+    description: "Name of the Slack integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationEmail: {
+    defaultMessage: "an email provider",
+    id: "foebJc8o+q",
+    description:
+      "How the email integration is named in the hint on a skill that needs it connected",
+  },
+  riskySkillTitle: {
+    defaultMessage: "Add {name}?",
+    id: "NRfaLdr7/e",
+    description:
+      "Title of the confirmation shown before attaching a skill that does something irreversible",
+  },
+  riskySkillConfirm: {
+    defaultMessage: "Add skill",
+    id: "u6vs4VuGx2",
+    description: "Button that confirms attaching a risky skill",
+  },
+  riskySkillCancel: {
+    defaultMessage: "Cancel",
+    id: "pYrkNX1dan",
+    description: "Button that cancels attaching a risky skill",
+  },
+  instructionsWithSkillsPlaceholder: {
+    defaultMessage:
+      "Optional. Add anything specific to your team: tone, report format, what to ignore.",
+    id: "kzwi13YrTF",
+    description: "Placeholder for the automation instructions textarea when a skill is attached",
+  },
+  suggestionsLabel: {
+    defaultMessage: "Suggested",
+    id: "boofVI7NrL",
+    description:
+      "Label before the skills and tools suggested from the automation name and instructions",
+  },
+  addSuggestion: {
+    defaultMessage: "Add {name}",
+    id: "M6GfZRzYV+",
+    description:
+      "Accessible label for the button that adds a suggested skill or tool to the automation",
+  },
+  dismissSuggestion: {
+    defaultMessage: "Dismiss suggestion {name}",
+    id: "9hl7/enPE5",
+    description: "Accessible label for the button that hides a suggested skill or tool",
+  },
   toolsSection: {
     defaultMessage: "Tools",
     id: "Z39eNFe81L",

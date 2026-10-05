@@ -80,6 +80,11 @@ export const workspaceAutomations = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     syncFingerprint: text("sync_fingerprint"),
+    // Attached skill ids from the automation skill catalogue; their tools are stored in toolConfig.
+    skillIds: jsonb("skill_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     // Hyperlocalise project owned by the automation header; tools read this value.
     projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     configVersion: integer("config_version").notNull().default(1),

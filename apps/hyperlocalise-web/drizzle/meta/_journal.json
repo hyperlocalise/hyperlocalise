@@ -960,6 +960,13 @@
       "when": 1791199647204,
       "tag": "0136_cultured_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1791202368623,
+      "tag": "0137_young_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

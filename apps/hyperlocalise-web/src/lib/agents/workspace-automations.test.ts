@@ -822,6 +822,143 @@ describe("workspace automations", () => {
     expect(paused?.nextRunAt).toBeNull();
   });
 
+  it("stores attached skills and versions config when they change", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web", "research-web"],
+      }),
+    );
+
+    expect(automation.skillIds).toEqual(["research-web"]);
+    expect(
+      (
+        await getWorkspaceAutomationById({
+          automationId: automation.id,
+          organizationId: scope.organizationId,
+        })
+      )?.skillIds,
+    ).toEqual(["research-web"]);
+
+    const renamed = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        name: "Daily research brief",
+      }),
+    );
+    expect(renamed?.skillIds).toEqual(["research-web"]);
+    expect(renamed?.configVersion).toBe(1);
+
+    const detached = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        skillIds: [],
+        instructions: "Research competitors.",
+      }),
+    );
+    expect(detached?.skillIds).toEqual([]);
+    expect(detached?.configVersion).toBe(2);
+  });
+
+  it("does not let an update leave an automation without instructions or a skill", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const skillOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Research brief",
+        instructions: "",
+        triggerConfig: { mode: "manual" },
+        toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+        skillIds: ["research-web"],
+      }),
+    );
+    const instructionsOnly = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Hand-written",
+        instructions: "Summarise the week.",
+      }),
+    );
+
+    const lastSkillRemoved = await updateWorkspaceAutomation({
+      automationId: skillOnly.id,
+      organizationId: scope.organizationId,
+      skillIds: [],
+    });
+    const instructionsBlanked = await updateWorkspaceAutomation({
+      automationId: instructionsOnly.id,
+      organizationId: scope.organizationId,
+      instructions: "  ",
+    });
+
+    expect(lastSkillRemoved.ok ? null : lastSkillRemoved.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(instructionsBlanked.ok ? null : instructionsBlanked.error.code).toBe(
+      "instructions_or_skill_required",
+    );
+    expect(
+      (
+        await getWorkspaceAutomationById({
+          automationId: skillOnly.id,
+          organizationId: scope.organizationId,
+        })
+      )?.skillIds,
+    ).toEqual(["research-web"]);
+
+    // Changes that touch neither field are not held to the rule.
+    const paused = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: skillOnly.id,
+        organizationId: scope.organizationId,
+        status: "paused",
+      }),
+    );
+    expect(paused?.status).toBe("paused");
+  });
+
+  it("rejects skills that are unknown, do not fit the trigger, or lack their tools", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Research brief",
+      instructions: "",
+      triggerConfig: { mode: "manual" as const },
+    };
+
+    const unknown = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+      skillIds: ["not-a-skill"],
+    });
+    const wrongTrigger = await createWorkspaceAutomation({
+      ...base,
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: { webSearch: { enabled: true, provider: "auto" } },
+      skillIds: ["research-web"],
+    });
+    const missingTool = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {},
+      skillIds: ["research-web"],
+    });
+
+    expect(unknown.ok ? null : unknown.error.code).toBe("skill_not_found");
+    expect(wrongTrigger.ok ? null : wrongTrigger.error.code).toBe("skill_trigger_incompatible");
+    expect(missingTool.ok ? null : missingTool.error.code).toBe("skill_tools_required");
+  });
+
   it("persists the selected language model without versioning config", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automation = expectOk(

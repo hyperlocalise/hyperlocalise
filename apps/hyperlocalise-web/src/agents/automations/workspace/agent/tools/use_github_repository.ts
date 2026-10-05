@@ -115,6 +115,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         const composedInstructions = composeGithubRepoInstructions({
           userOverride: userInstructions,
           templateSkillId,
+          skillIds: session.automation.skillIds ?? [],
           dynamicSections: [
             "This is an automated read-only GitHub repository task.",
             `Repository: ${repositoryRow.fullName}.`,

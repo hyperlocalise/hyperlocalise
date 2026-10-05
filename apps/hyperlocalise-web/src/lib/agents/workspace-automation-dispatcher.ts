@@ -176,6 +176,7 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     automationName: input.automation.name,
     instructions: input.automation.instructions,
     ...input.inputSnapshot,
+    skillIds: input.automation.skillIds ?? [],
   };
 
   const templateSkillId = resolveTemplateSkillId(snapshot);
@@ -226,6 +227,7 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
         ...snapshot,
         effectiveInstructions: composeWorkspaceAutomationInstructions({
           templateSkillId,
+          skillIds: snapshot.skillIds,
           userOverride: input.automation.instructions,
           triggerMode: input.automation.triggerConfig.mode,
           plan,
