@@ -104,6 +104,7 @@
 - For plural forms, uses `msgstr[0]` as the mapped value.
 - Skips header entry (`msgid ""`).
 - Ignores comments and `msgctxt` for now.
+- Unreal Engine rich-text tags in `msgstr` (`<Style>text</>`, `<{name}>text</>`, and self-closing decorators such as `<img id="Health"/>`) become `\x1eHLUEPH_…\x1f` placeholders during parse. `MarshalPOFile` restores the original markup. Named HTML closes, unclosed openings, and prose in angle brackets stay ordinary text. See `docs/cli/reference/formats/gettext.mdx`.
 
 ### HTML
 

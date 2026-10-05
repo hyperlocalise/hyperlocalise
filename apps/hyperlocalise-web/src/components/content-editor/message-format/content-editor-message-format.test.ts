@@ -170,6 +170,30 @@ describe("cat message format utilities", () => {
     expect(analysis.placeholders).toHaveLength(2);
   });
 
+  it("extracts Unreal PO HLUEPH tokens as markup chips", () => {
+    const ue0 = "\u001eHLUEPH_AABBCCDDEEFF_0\u001f";
+    const ue1 = "\u001eHLUEPH_112233445566_1\u001f";
+    const analysis = analyzeCatMessageFormat(`${ue0}Display Name${ue1}`);
+
+    expect(analysis.tokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "markup",
+          name: "UE#0",
+          displayLabel: "UE#0",
+          literal: ue0,
+        }),
+        expect.objectContaining({
+          kind: "markup",
+          name: "UE#1",
+          displayLabel: "UE#1",
+          literal: ue1,
+        }),
+      ]),
+    );
+    expect(analysis.parseError).toBeUndefined();
+  });
+
   it("reports duplicated markup sentinels as extra tokens", () => {
     const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
     const ht1 = "\u001eHLHTPH_112233445566_1\u001f";

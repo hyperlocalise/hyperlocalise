@@ -23,6 +23,7 @@ const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
 const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
 const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
 const lq0 = "\u001eHLLQPH_112233445566_0\u001f";
+const ue0 = "\u001eHLUEPH_AABBCCDDEEFF_0\u001f";
 
 describe("cat internal markup helpers", () => {
   it("extracts markdown boundary sentinels with short labels", () => {
@@ -57,6 +58,22 @@ describe("cat internal markup helpers", () => {
     expect(spans.every((span) => span.literal.startsWith("\u001e"))).toBe(true);
   });
 
+  it("extracts Unreal PO sentinels", () => {
+    const message = `${ue0}Display Name`;
+    const spans = extractInternalMarkupSpans(message);
+
+    expect(spans).toEqual([
+      {
+        family: "UE",
+        index: 0,
+        literal: ue0,
+        start: 0,
+        end: ue0.length,
+        label: "UE#0",
+      },
+    ]);
+  });
+
   it("formats sentinels for plain-text display without leaking control bytes", () => {
     const formatted = formatInternalMarkupForDisplay(
       `Global teams need a ${md0}next-generation CAT tool${md1} today.`,
@@ -76,6 +93,7 @@ describe("cat internal markup helpers", () => {
     expect(internalMarkupLabel("MD", 2)).toBe("MD#2");
     expect(internalMarkupLabel("HT", 0)).toBe("HT#0");
     expect(internalMarkupLabel("LQ", 11)).toBe("LQ#11");
+    expect(internalMarkupLabel("UE", 0)).toBe("UE#0");
   });
 
   it("returns no spans for empty or non-sentinel text", () => {

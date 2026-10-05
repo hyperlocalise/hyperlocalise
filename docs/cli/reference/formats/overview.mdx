@@ -83,7 +83,9 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 
 Behavior depends on the parser and selected source or target template. For example,
 ARB keeps message metadata, SRT retains timestamps, and JSONC writeback does not
-retain comments. Read each format's limitations and run [translation checks](/cli/commands/check).
+retain comments. gettext `.po` files treat Unreal Engine rich-text tags as
+placeholders and restore the original markup on writeback. Read each format's
+limitations and run [translation checks](/cli/commands/check).
 Use the [ICU and placeholder guide](/cli/troubleshooting/icu-placeholders) for
 validation failures. Review plural variants in the consuming application.
 

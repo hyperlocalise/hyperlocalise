@@ -137,6 +137,14 @@ func TestValidateSegmentPassLabelReflectsTokenPresence(t *testing.T) {
 			wantLabel:   passNoTokensLabel,
 			wantMessage: passNoTokensMessage,
 		},
+		{
+			name:        "po_unreal_rich_text_token",
+			path:        "/locales/en-US/messages.po",
+			source:      "A " + testHLUEPHToken + " B",
+			target:      "AA " + testHLUEPHToken + " BB",
+			wantLabel:   passTokensLabel,
+			wantMessage: passTokensMessage,
+		},
 	}
 
 	for _, tt := range tests {

@@ -5,7 +5,10 @@ import (
 	"testing"
 )
 
-var testHLMDPHToken = "\x1eHLMDPH_ABCDEF0123456789_1\x1f"
+var (
+	testHLMDPHToken = "\x1eHLMDPH_ABCDEF0123456789_1\x1f"
+	testHLUEPHToken = "\x1eHLUEPH_ABCDEF012345_0\x1f"
+)
 
 func TestKindForSourcePath(t *testing.T) {
 	tests := []struct {
@@ -255,6 +258,21 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			source:     "plain",
 			translated: "texte {invalid",
 			wantErr:    false,
+		},
+		{
+			name:       "po_unreal_rich_text_ok",
+			path:       "/locales/en-US/messages.po",
+			source:     "A " + testHLUEPHToken + " B",
+			translated: "AA " + testHLUEPHToken + " BB",
+			wantErr:    false,
+		},
+		{
+			name:        "po_unreal_rich_text_mismatch",
+			path:        "/locales/en-US/messages.po",
+			source:      "A " + testHLUEPHToken + " B",
+			translated:  "A B",
+			wantErr:     true,
+			errContains: "unreal",
 		},
 	}
 

@@ -1,12 +1,12 @@
 ---
 title: "Translate gettext PO files with Hyperlocalise"
 sidebarTitle: "Gettext PO"
-description: "Translate gettext PO messages and understand context and plural limitations."
+description: "Translate gettext PO messages, including Unreal Engine rich-text tags, and understand context and plural limitations."
 ---
 
 gettext uses POT files as source message templates and PO files as locale catalogs. These catalogs can include message context and plural forms. For CLI generation, prepare a source-language `.po` with populated `msgstr` values. Direct `.pot` translation is not supported.
 
-Supported extensions: `.po`.
+Supported extensions: `.po`. Unreal Engine localization catalogs that export gettext `.po` files use the same parser.
 
 ## Source file
 
@@ -58,6 +58,51 @@ hyperlocalise run
 The dry run previews the work. The second command writes translations to the
 configured target path and updates the lockfile.
 
+## Unreal Engine rich text
+
+Unreal Engine style tags close with nameless `</>`. Hyperlocalise treats each
+recognized tag as a placeholder so translators edit the surrounding words, not
+the markup. Writeback restores the original tags in the `.po` file, including
+tags that an existing target file moved or changed relative to the source.
+
+Save this source catalog as `locales/en-US/messages.po`:
+
+```text
+msgid "This <{string}>is</> the <text size=\"12\">Display Name</>"
+msgstr "This <{string}>is</> the <text size=\"12\">Display Name</>"
+
+msgid "<Highlight>{ItemName}</> out of energy"
+msgstr "<Highlight>{ItemName}</> out of energy"
+
+msgid "Icon <img id=\"Health\"/> here"
+msgstr "Icon <img id=\"Health\"/> here"
+```
+
+In the Content Editor, each Unreal tag appears as a chip such as **UE#0**. Keep
+every chip. Translate only the visible words. `{ItemName}` stays a separate
+placeholder from the style tags around it.
+
+| In the PO file | Treated as |
+| --- | --- |
+| `<Highlight>Ready</>` | A tag pair around `Ready` |
+| `<Font.Emph>bold</>` | A tag pair; names may include `.` and `-` |
+| `<{string}>is</>` | A tag pair named by a runtime placeholder |
+| `<text size="12">Name</>` | A tag pair; attributes must use `name="value"` |
+| `<Highlight></>` | An empty tag pair you can place text inside |
+| `</>` with no opening tag | A single tag |
+| `<img id="Health"/>` | A self-closing decorator |
+| `<img>portrait</>` | A tag pair, not a decorator |
+| `<span>text</span>` | Ordinary text; named HTML closes are not Unreal tags |
+| `<Highlight>this` with no `</>` | Ordinary text |
+| `<war cry>` or `< bot noises >` | Ordinary text |
+
+Attributes without double quotes, such as `size='12'` or `size=12`, are not
+Unreal tags. The following `</>` is still a tag.
+
+Converts at most 1000 Unreal tags in one entry. Further tags stay plain text and
+round-trip unchanged. Do not nest Unreal tags. The engine renders nested markup
+as literal text.
+
 ## Behavior and limitations
 
 - Uses `msgid` as the entry key and `msgstr` as its value; multiline quoted continuations are supported.
@@ -66,7 +111,9 @@ configured target path and updates the lockfile.
 
 - The header entry is skipped. Context (`msgctxt`) does not distinguish keys, so avoid duplicate IDs distinguished only by context.
 
-- Plural handling maps only `msgstr[0]`; this is not full locale-specific plural generation. Writeback preserves PO structure and replaces mapped values.
+- Plural handling maps only `msgstr[0]`; this is not full locale-specific plural generation. Writeback preserves PO structure and replaces mapped values. Unreal tags in `msgstr[0]` follow the same rules as other entries.
+
+- Unreal Engine rich-text tags in `.po` messages become placeholders during translation and return to the original markup on writeback. See [Unreal Engine rich text](#unreal-engine-rich-text).
 
 ## Next steps
 

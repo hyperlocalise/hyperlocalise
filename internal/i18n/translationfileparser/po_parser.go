@@ -69,6 +69,17 @@ func poOutputMapCapacity(content []byte) int {
 }
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
+	out, err := parsePOFileRaw(content)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range out {
+		out[key] = protectUnrealRichTextValue(value)
+	}
+	return out, nil
+}
+
+func parsePOFileRaw(content []byte) (map[string]string, error) {
 	out := make(map[string]string, poOutputMapCapacity(content))
 
 	var currentMsgID poValue
@@ -251,6 +262,8 @@ func parsePOQuoted(raw string) (string, error) {
 
 // MarshalPOFile preserves .po structure while replacing msgstr/msgstr[0] values by msgid key.
 func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
+	values = expandPOUnrealRichTextValues(values)
+
 	// BOLT OPTIMIZATION: Avoid strings.Split(string(template), "\n") to reduce allocations for large files.
 	// We use a builder to reconstruct the file line by line.
 	var out strings.Builder
