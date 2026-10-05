@@ -114,9 +114,7 @@ export function DashboardPageContent({
 
   const liveProjectsQuery = useTmsLiveProjects(organizationSlug);
   const liveProjects = liveProjectsQuery.data ?? EMPTY_LIVE_PROJECTS;
-  const livePreviewIds = liveProjects
-    .slice(0, OVERVIEW_PROJECT_LIMIT)
-    .map((project) => project.id);
+  const livePreviewIds = liveProjects.slice(0, OVERVIEW_PROJECT_LIMIT).map((project) => project.id);
 
   const storedProjectsQuery = useQuery({
     queryKey: [...overviewSectionQueryKey(organizationSlug, "projects"), livePreviewIds],
