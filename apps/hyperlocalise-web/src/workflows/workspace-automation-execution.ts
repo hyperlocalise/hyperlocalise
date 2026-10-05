@@ -229,6 +229,22 @@ function runPlannedTool(
 }
 
 /**
+ * AI SDK records a thrown tool error as a tool-error part and keeps generating, so a planned
+ * tool that returns `{ ok: false }` without `terminalStatus` would otherwise complete as
+ * succeeded. Stamp the failure onto the run state that later tools and completion read.
+ */
+function withFailedToolState(
+  state: WorkspaceOrchestratorToolState,
+  message: string,
+): WorkspaceOrchestratorToolState {
+  return {
+    ...state,
+    terminalStatus: "failed",
+    terminalError: state.terminalError ?? message,
+  };
+}
+
+/**
  * Runs a workspace automation as a durable agent loop. Each orchestrator model call and each
  * planned tool is its own workflow step (repository agents and GitHub jobs are durable loops of
  * their own), so every tool gets a full function duration and a crash resumes from the last
@@ -268,6 +284,7 @@ export async function workspaceAutomationExecutionWorkflow(
     terminalError: null,
   };
   let cancelled = false;
+  let toolFailedMessage: string | null = null;
 
   const tools: ToolSet = {};
   for (const spec of toolSpecs) {
@@ -286,6 +303,12 @@ export async function workspaceAutomationExecutionWorkflow(
         state = outcome.state;
         if (!outcome.ok) {
           cancelled ||= outcome.cancelled === true;
+          if (!cancelled) {
+            toolFailedMessage ??= outcome.message;
+            if (!state.terminalStatus) {
+              state = withFailedToolState(state, outcome.message);
+            }
+          }
           throw new Error(outcome.message);
         }
         return outcome.output;
@@ -318,6 +341,9 @@ export async function workspaceAutomationExecutionWorkflow(
   }
   if (cancelled) {
     console.warn(`${LOG_PREFIX} agent stopped: run cancelled`, logContext);
+  }
+  if (toolFailedMessage && state.terminalStatus !== "failed") {
+    state = withFailedToolState(state, toolFailedMessage);
   }
 
   const completed = await completeWorkspaceAutomationStep({ event, planTools, state, usage });

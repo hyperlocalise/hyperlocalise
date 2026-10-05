@@ -209,9 +209,55 @@ describe("workspaceAutomationExecutionWorkflow", () => {
 
     await workspaceAutomationExecutionWorkflow(event);
 
-    expect(mocks.steps.executeWorkspaceOrchestratorToolStep).toHaveBeenCalledTimes(2);
+    const calls = mocks.steps.executeWorkspaceOrchestratorToolStep.mock.calls.map(
+      ([input]) => input,
+    );
+    expect(calls.map((input) => input.toolName)).toEqual(["create_issue", "notify_slack"]);
+    expect(calls[1].state).toEqual({
+      ...stateAfter("create_issue"),
+      terminalStatus: "failed",
+      terminalError: "boom",
+    });
     expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalledWith(
-      expect.objectContaining({ state: stateAfter("create_issue", "notify_slack") }),
+      expect.objectContaining({
+        state: {
+          ...stateAfter("create_issue", "notify_slack"),
+          terminalStatus: "failed",
+          terminalError: "boom",
+        },
+      }),
+    );
+  });
+
+  it("keeps a failed planned tool failed when a later tool reports success", async () => {
+    mocks.steps.prepareWorkspaceAutomationStep.mockResolvedValue(
+      ready(["use_semrush", "notify_slack"]),
+    );
+    mocks.steps.executeWorkspaceOrchestratorToolStep
+      .mockResolvedValueOnce({
+        ok: false,
+        message: "semrush_not_connected",
+        state: stateAfter("use_semrush"),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        output: {},
+        state: {
+          ...stateAfter("use_semrush", "notify_slack"),
+          terminalStatus: "succeeded",
+        },
+      });
+
+    await workspaceAutomationExecutionWorkflow(event);
+
+    expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: {
+          ...stateAfter("use_semrush", "notify_slack"),
+          terminalStatus: "failed",
+          terminalError: "semrush_not_connected",
+        },
+      }),
     );
   });
 
@@ -229,7 +275,47 @@ describe("workspaceAutomationExecutionWorkflow", () => {
     await workspaceAutomationExecutionWorkflow(event);
 
     expect(mocks.steps.executeWorkspaceOrchestratorToolStep).toHaveBeenCalledTimes(1);
-    expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalled();
+    expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalledWith(
+      expect.objectContaining({ state: stateAfter() }),
+    );
+  });
+
+  it("marks a failed GitHub workflow start as failed before completing", async () => {
+    mocks.steps.prepareWorkspaceAutomationStep.mockResolvedValue(
+      ready(["run_github_workflows", "notify_slack"]),
+    );
+    mocks.steps.startGithubWorkflowsStep.mockResolvedValue({
+      ok: false,
+      message: "github_workflow_start_failed",
+      state: stateAfter(),
+    });
+    mocks.steps.executeWorkspaceOrchestratorToolStep.mockResolvedValueOnce({
+      ok: true,
+      output: {},
+      state: stateAfter("notify_slack"),
+    });
+
+    await workspaceAutomationExecutionWorkflow(event);
+
+    expect(mocks.steps.executeWorkspaceOrchestratorToolStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "notify_slack",
+        state: {
+          ...stateAfter(),
+          terminalStatus: "failed",
+          terminalError: "github_workflow_start_failed",
+        },
+      }),
+    );
+    expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: {
+          ...stateAfter("notify_slack"),
+          terminalStatus: "failed",
+          terminalError: "github_workflow_start_failed",
+        },
+      }),
+    );
   });
 
   it("fails the run when the agent loop throws", async () => {
