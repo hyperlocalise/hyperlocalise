@@ -50,7 +50,7 @@ import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const client = testClient<AppType>(createApp());
-const apiKeyFixture = createApiKeyTestFixture(client);
+const apiKeyFixture = createApiKeyTestFixture();
 const projectFixture = createProjectTestFixture(client);
 
 describe("canvaConnectionRoutes", () => {
@@ -69,10 +69,9 @@ describe("canvaConnectionRoutes", () => {
     const headers = await apiKeyFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva Connection Key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
 
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
@@ -82,7 +81,7 @@ describe("canvaConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           displayName: "Marketing Canva",
-          apiKeyId: apiKeyBody.apiKey.id,
+          apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
           sourceLocale: "en",
           targetLocales: ["es", "fr"],
@@ -128,10 +127,9 @@ describe("canvaConnectionRoutes", () => {
     const headers = await apiKeyFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva Claim Key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
 
@@ -140,7 +138,7 @@ describe("canvaConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           displayName: "Claim Canva",
-          apiKeyId: apiKeyBody.apiKey.id,
+          apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
           sourceLocale: "en",
           targetLocales: ["es"],

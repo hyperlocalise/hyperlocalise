@@ -74,7 +74,7 @@ import { createApiKeyTestFixture } from "@/api/routes/api-key/api-key.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const client = testClient<AppType>(createApp());
-const apiKeyFixture = createApiKeyTestFixture(client);
+const apiKeyFixture = createApiKeyTestFixture();
 const projectFixture = createProjectTestFixture(client);
 
 describe("canvaIntegrationRoutes", () => {
@@ -94,11 +94,9 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva localize key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
-
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
 
@@ -106,7 +104,7 @@ describe("canvaIntegrationRoutes", () => {
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],
@@ -148,7 +146,7 @@ describe("canvaIntegrationRoutes", () => {
     expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId,
-        apiKeyId: apiKeyBody.apiKey.id,
+        apiKeyId: apiKey.id,
         canvaConnectionId: created.connection.id,
         projectId: projectBody.project.id,
       }),
@@ -161,11 +159,9 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva localize key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
-
     const boundProjectResponse = await projectFixture.createProjectViaApi(identity);
     const boundProjectBody = (await boundProjectResponse.json()) as { project: { id: string } };
     const otherProjectResponse = await projectFixture.createProjectViaApi(identity);
@@ -175,7 +171,7 @@ describe("canvaIntegrationRoutes", () => {
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: boundProjectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],
@@ -226,11 +222,9 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva localize key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
-
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
 
@@ -238,7 +232,7 @@ describe("canvaIntegrationRoutes", () => {
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],
@@ -284,7 +278,7 @@ describe("canvaIntegrationRoutes", () => {
       organizationId,
       canvaConnectionId: created.connection.id,
       projectId: projectBody.project.id,
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
     });
   });
 
@@ -313,17 +307,16 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva localize key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
     const created = await createCanvaConnection({
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva test",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],
@@ -385,17 +378,16 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva session key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string; name: string } };
     const created = await createCanvaConnection({
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva session",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],
@@ -425,17 +417,16 @@ describe("canvaIntegrationRoutes", () => {
     const auth = globalThis.__testApiAuthContext!;
     const organizationId = auth.organization.localOrganizationId;
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva jobs key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
     const created = await createCanvaConnection({
       organizationId,
       userId: auth.user.localUserId,
       displayName: "Canva jobs",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],

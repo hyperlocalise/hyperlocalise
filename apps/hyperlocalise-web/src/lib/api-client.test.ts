@@ -53,7 +53,7 @@ describe("createApiClient", () => {
     expect(typeof org.gitlab.projects.$get).toBe("function");
     expect(typeof org.workspace.$get).toBe("function");
     expect(typeof org.billing["resource-usage"].$get).toBe("function");
-    expect(typeof org["api-keys"].$get).toBe("function");
+    expect("api-keys" in org).toBe(false);
     expect("overview" in org).toBe(false);
     expect(typeof client.api.v1.files.$post).toBe("function");
     expect(typeof client.api.v1.jobs.$post).toBe("function");

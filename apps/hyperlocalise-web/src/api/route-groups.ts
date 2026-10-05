@@ -27,7 +27,6 @@ import type {
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.route";
-import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
@@ -189,7 +188,6 @@ export function createOrgWorkspaceRoutes() {
   return new Hono()
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
-    .route("/api-keys", createApiKeyRoutes())
     .route("/reports", createReportsRoutes());
 }
 
