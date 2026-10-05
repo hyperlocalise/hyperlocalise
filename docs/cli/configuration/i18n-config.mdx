@@ -154,6 +154,16 @@ buckets:
 
 XML entries must be text-only leaf elements keyed by `key`, `id`, or `name`, or nested path-shaped leaves. Android `<resources>` files, mixed-content XML, and CDATA-preserving writeback are not handled by the generic XML parser.
 
+Windows Runtime `.resw` files use the same parser. Map one file per locale, typically under `Strings/<locale>/`:
+
+```yaml
+buckets:
+  winui:
+    files:
+      - from: Strings/en-US/Resources.resw
+        to: Strings/{{target}}/Resources.resw
+```
+
 ### CSV file mapping patterns
 
 Use bucket file mappings to model CSV workflows.

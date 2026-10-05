@@ -1,0 +1,87 @@
+---
+title: "Translate Windows RESW resource files with Hyperlocalise"
+sidebarTitle: "RESW"
+description: "Translate UWP and WinUI .resw string resources while preserving XML comments and metadata."
+---
+
+.resw files store Windows Runtime string resources in XML. UWP, WinUI, and WinAppSDK apps typically keep one file per locale under a `Strings/<locale>/` folder. Hyperlocalise translates `data` string values and preserves comments and other XML structure.
+
+Supported extensions: `.resw`.
+
+## Source file
+
+Save this example as `Strings/en-US/Resources.resw`.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="AppTitle" xml:space="preserve">
+        <value>Contoso</value>
+    </data>
+    <data name="Welcome.Text" xml:space="preserve">
+        <value>Welcome back</value>
+        <comment>Home screen heading</comment>
+    </data>
+</root>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: Strings/en-US/Resources.resw
+              to: Strings/{{target}}/Resources.resw
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Uses the generic XML parser. Each `data` `name` identifies its `value` text, including dotted names such as `Welcome.Text`.
+
+- Comments, attributes, and metadata elements are preserved when `run` writes into an existing target whose key set still matches the source.
+
+- If the source gains keys, `run` uses the source file as the template. Target-only resources and target-only comments are not merged back. This matches other generic XML catalogs, including `.resx`.
+
+- Use text-only resources. Mixed-content XML is unsupported.
+
+- Changed CDATA values are written as escaped text. See [XML](/cli/reference/formats/xml) for shared behavior.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [.NET RESX resource](/cli/reference/formats/resx)
+- [XML localization](/cli/reference/formats/xml)

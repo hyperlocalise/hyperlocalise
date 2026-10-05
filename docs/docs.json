@@ -357,6 +357,7 @@
                           "cli/reference/formats/gettext",
                           "cli/reference/formats/xml",
                           "cli/reference/formats/resx",
+                          "cli/reference/formats/resw",
                           "cli/reference/formats/java-properties"
                         ]
                       },

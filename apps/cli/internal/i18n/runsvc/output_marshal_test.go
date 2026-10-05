@@ -621,6 +621,57 @@ func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testin
 	}
 }
 
+func TestMarshalSourceTemplateTargetRESW(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.resw")
+	targetPath := filepath.Join(t.TempDir(), "target.resw")
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Welcome back</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Salut</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target resw: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".resw", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
+		"AppTitle":     "Contoso",
+		"Welcome.Text": "Bonjour",
+	})
+	if err != nil {
+		t.Fatalf("marshal resw target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "<comment>Home screen heading</comment>") {
+		t.Fatalf("expected comment metadata to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "<value>Bonjour</value>") {
+		t.Fatalf("expected translated resw value, got %q", got)
+	}
+	if strings.Contains(got, "<value>Welcome back</value>") || strings.Contains(got, "<value>Salut</value>") {
+		t.Fatalf("expected source and previous target values to be replaced, got %q", got)
+	}
+}
+
 func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source.properties")
 	targetPath := filepath.Join(t.TempDir(), "target.properties")

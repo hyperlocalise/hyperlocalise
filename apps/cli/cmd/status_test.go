@@ -586,6 +586,59 @@ func TestStatusCommandAndroidXMLResources(t *testing.T) {
 	}
 }
 
+func TestStatusCommandRecognizesRESWFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "Strings", "en-US", "Resources.resw")
+	targetPath := filepath.Join(dir, "Strings", "fr-FR", "Resources.resw")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Hello {0}</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Bonjour {0}</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write target resw: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["fr-FR"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "welcome.message") || !strings.Contains(got, ",fr-FR,translated,unknown,") {
+		t.Fatalf("expected translated .resw row, got: %s", got)
+	}
+}
+
 func TestStatusCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

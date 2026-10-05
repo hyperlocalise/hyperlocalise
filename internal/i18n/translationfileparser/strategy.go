@@ -36,7 +36,7 @@ func NewDefaultStrategy() *Strategy {
 	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
 	// during initialization. We use assignments for static extensions and
 	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
-	parsers := make(map[string]Parser, 30+len(JSTSLocaleModuleExts))
+	parsers := make(map[string]Parser, 35+len(JSTSLocaleModuleExts))
 	parsers[".json"] = JSONParser{}
 	parsers[".jsonc"] = JSONCParser{}
 	parsers[".yaml"] = YAMLParser{}
@@ -67,6 +67,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".ftl"] = FluentParser{}
 	parsers[".xml"] = XMLParser{}
 	parsers[".resx"] = GenericXMLParser{}
+	parsers[".resw"] = GenericXMLParser{}
 	parsers[".properties"] = JavaPropertiesParser{}
 	parsers[".srt"] = SubtitleParser{Kind: SubtitleSRT}
 	parsers[".vtt"] = SubtitleParser{Kind: SubtitleVTT}

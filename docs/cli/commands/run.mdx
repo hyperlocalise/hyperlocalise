@@ -54,7 +54,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli
 - `.php`
 - `.ftl`
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
-- `.xml` and `.resx` for generic XML locale files
+- `.xml`, `.resx`, and `.resw` for generic XML locale files
 - `.properties`
 - `.srt` and `.vtt`
 
@@ -177,12 +177,13 @@ For Mozilla Fluent (`.ftl`), `run` supports top-level messages, message attribut
 - Fluent terms (`-brand = ...`) and term references are not supported and fail with a clear parser error
 - newly appended message keys are sorted deterministically; new attributes can only be appended when their parent message is not already present in the template
 
-For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
+For generic XML (`.xml`, `.resx`, `.resw`), `run` translates text-only leaf elements and preserves unrelated XML structure:
 
 - keyed leaves use `key`, `id`, or `name` attributes, for example `<message key="checkout.cta">Checkout now</message>`
 - nested path-shaped leaves use dotted element paths, for example `<home><title>Welcome</title></home>` -> `home.title`
-- `.resx`-style `<data name="home.title"><value>Welcome</value></data>` entries are supported
-- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved
+- `.resx` and `.resw` `<data name="home.title"><value>Welcome</value></data>` entries are supported
+- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved when the target key set still matches the source
+- if the source gains keys, `run` writes from the source template, so target-only resources are not kept
 - mixed-content values such as `Hello <ph/>` and Android `<resources>` files are rejected instead of being rewritten as generic XML
 
 ## Flags
