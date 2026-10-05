@@ -41,6 +41,7 @@ func TestKindForSourcePathExtended(t *testing.T) {
 		{"file.resx", FormatICUInvariant},
 		{"file.resw", FormatICUInvariant},
 		{"file.ini", FormatICUInvariant},
+		{"file.ts", FormatICUInvariant},
 		{"file.txt", FormatICUInvariant},
 
 		// Trailing space

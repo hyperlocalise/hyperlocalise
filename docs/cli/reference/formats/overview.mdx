@@ -11,7 +11,8 @@ below for a runnable example, configuration, and format-specific limitations.
 ## How file detection works
 
 The CLI selects a parser from the file extension. Android XML also requires an
-Android resource path, and Lottie animations are detected from `.json` content. You do not need to declare a format for each bucket.
+Android resource path, Lottie animations are detected from `.json` content, and
+Qt Linguist catalogs are detected from `.ts` content that has a `<TS>` root. You do not need to declare a format for each bucket.
 Use matching source and target formats unless a workflow explicitly documents a
 conversion.
 
@@ -63,6 +64,7 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 | --- | --- | --- |
 | XLIFF | `.xlf`, `.xlif`, `.xliff` | [Translate XLIFF](/cli/reference/formats/xliff) |
 | gettext PO | `.po` | [Translate gettext PO](/cli/reference/formats/gettext) |
+| Qt Linguist TS | `.ts` | [Translate Qt Linguist TS](/cli/reference/formats/qt-linguist) |
 
 ### Content and documentation
 

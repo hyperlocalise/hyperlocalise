@@ -4665,7 +4665,7 @@ export default {
 	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en", "fr", map[string]string{
 		"title": "Salut",
 		"cta":   "Acheter",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal js/ts target: %v", err)
 	}
@@ -5047,7 +5047,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForXLIFFWhenAllKeysPres
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5080,7 +5080,7 @@ msgstr "Bonjour"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5107,7 +5107,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsWhenAllKeysPr
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5134,7 +5134,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForFluentWhenAllKeysPre
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5178,7 +5178,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsdictWhenAllKe
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5217,7 +5217,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5272,7 +5272,7 @@ func TestMarshalSourceTemplateTargetARBAppendsMissingKeysAndCarriesSourceMetadat
 	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{
 		"hello":   "Salut",
 		"goodbye": "Au revoir",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5333,7 +5333,7 @@ func TestMarshalSourceTemplateTargetARBUsesSourceFallbackWhenTargetInvalid(t *te
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5380,7 +5380,7 @@ msgstr "Supprimer"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5421,7 +5421,7 @@ msgstr "Supprimer"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5460,7 +5460,7 @@ msgstr "New value"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5509,7 +5509,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForXLIFF(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5546,7 +5546,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStrings(t *testing.T)
 	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5595,7 +5595,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStringsdict(t *testin
 	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}

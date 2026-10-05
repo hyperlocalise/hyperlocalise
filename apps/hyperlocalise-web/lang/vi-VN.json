@@ -8243,9 +8243,6 @@
   "GpQTuQOUij": {
     "defaultMessage": "Đang tải {title}"
   },
-  "GpqbnnE7vn": {
-    "defaultMessage": "Sử dụng nút Thêm tệp ở trên để tải lên các tệp JSON, YAML, XLIFF, PO, hình ảnh, tệp Office và các định dạng được hỗ trợ khác."
-  },
   "GpsLS8ojw/": {
     "defaultMessage": "—"
   },
@@ -18697,6 +18694,9 @@
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Tải lên nguồn · yêu cầu dự án"
+  },
+  "fBUXcsxgXO": {
+    "defaultMessage": "Sử dụng nút Thêm tệp ở trên để tải lên các tệp JSON, YAML, XLIFF, PO, Qt TS, hình ảnh, tệp Office và các định dạng được hỗ trợ khác."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Không có phát hiện nào khớp với các bộ lọc này."

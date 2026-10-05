@@ -478,6 +478,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xliff"
 	case ".po":
 		return "po"
+	case ".ts":
+		return "qt-ts"
 	case ".html":
 		return "html"
 	case ".md":
@@ -816,6 +818,9 @@ func writeHyperlocalisePullReport(w io.Writer, report hyperlocalisePullReport, o
 }
 
 func contentTypeForPath(path string) string {
+	if strings.EqualFold(filepath.Ext(path), ".ts") {
+		return "text/xml"
+	}
 	if contentType := mime.TypeByExtension(filepath.Ext(path)); contentType != "" {
 		return contentType
 	}

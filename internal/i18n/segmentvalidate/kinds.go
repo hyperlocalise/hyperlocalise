@@ -26,7 +26,7 @@ func KindForSourcePath(path string) FormatKind {
 	// BOLT OPTIMIZATION: Match common extensions directly on ext to avoid
 	// strings.ToLower heap allocation.
 	switch ext {
-	case ".json", ".properties", ".ini", ".po", ".csv", ".arb", ".strings", ".xcstrings", ".xml", ".resx", ".resw", ".yml", ".yaml":
+	case ".json", ".properties", ".ini", ".po", ".csv", ".arb", ".strings", ".xcstrings", ".xml", ".resx", ".resw", ".yml", ".yaml", ".ts":
 		return FormatICUInvariant
 	case ".html", ".htm", ".srt":
 		return FormatHTML

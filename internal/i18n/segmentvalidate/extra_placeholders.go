@@ -8,9 +8,10 @@ import (
 )
 
 // ExtraPlaceholderPattern matches printf-style (%s, %d, %1$s, %(name)s, %@,
-// %{name}) and shell/template-style (${name}, $name$) placeholders. It is
-// exported so other packages (e.g. spellcheck) can recognize the same
-// placeholder syntax without duplicating the regex.
+// %{name}), Qt Linguist (%1, %n, %L1, %Ln), and shell/template-style
+// (${name}, $name$) placeholders. It is exported so other packages
+// (e.g. spellcheck) can recognize the same placeholder syntax without
+// duplicating the regex.
 //
 // BOLT OPTIMIZATION: Combine individual placeholder patterns into a single
 // regex to reduce the number of passes over the input string. The order of
@@ -22,7 +23,8 @@ var ExtraPlaceholderPattern = regexp.MustCompile(
 		`%(?:[0-9]+\$|\([A-Za-z_][\w]*\))?@|` +
 		`%\{[ \w.-]+\}|` +
 		`\$\{[A-Za-z_][\w.-]*\}|` +
-		`\$[A-Za-z_][\w.+-]*\$`,
+		`\$[A-Za-z_][\w.+-]*\$|` +
+		`%(?:L?(?:\d+|n))`,
 )
 
 func extractExtraPlaceholders(text string) []string {
@@ -56,18 +58,21 @@ func extractExtraPlaceholders(text string) []string {
 
 		// Printf-style %% escapes a literal percent. Skip matches whose
 		// leading '%' is the second half of an escape pair (e.g. %%@).
-		if match[0] != '%' || !IsEscapedPercentAt(text, matchStart) {
-			if out == nil {
-				out = make([]string, 0, 4)
-			}
-			out = append(out, match)
+		if match[0] == '%' && IsEscapedPercentAt(text, matchStart) {
+			pos = advanceExtraPlaceholderPos(pos, matchEnd)
+			continue
+		}
+		// Bare Qt tokens (%1, %n, %L1) must not steal printf/ObjC tails such as %1$s or %10@.
+		if isQtBarePlaceholder(match) && extraPlaceholderHasFormatContinuation(text, matchEnd) {
+			pos = matchStart + 1
+			continue
 		}
 
-		if matchEnd <= pos {
-			pos++
-		} else {
-			pos = matchEnd
+		if out == nil {
+			out = make([]string, 0, 4)
 		}
+		out = append(out, match)
+		pos = advanceExtraPlaceholderPos(pos, matchEnd)
 	}
 
 	if len(out) == 0 {
@@ -94,6 +99,33 @@ func IsEscapedPercentAt(text string, index int) bool {
 		count++
 	}
 	return count%2 == 0
+}
+
+func advanceExtraPlaceholderPos(pos, matchEnd int) int {
+	if matchEnd <= pos {
+		return pos + 1
+	}
+	return matchEnd
+}
+
+var qtBarePlaceholderPattern = regexp.MustCompile(`^%(?:L?(?:\d+|n))$`)
+
+func isQtBarePlaceholder(match string) bool {
+	return qtBarePlaceholderPattern.MatchString(match)
+}
+
+func extraPlaceholderHasFormatContinuation(text string, end int) bool {
+	if end >= len(text) {
+		return false
+	}
+	c := text[end]
+	return c == '$' || c == '@' || c == '('
+}
+
+// ValidateExtraPlaceholderParity reports dropped or added printf, Qt, and
+// template placeholders between source and translation.
+func ValidateExtraPlaceholderParity(source, translated string) error {
+	return validateExtraPlaceholderParity(source, translated)
 }
 
 func validateExtraPlaceholderParity(source, translated string) error {

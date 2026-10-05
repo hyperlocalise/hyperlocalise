@@ -17,7 +17,7 @@ projects follow the [provider's capabilities](/platform/tms).
 | File family | Source upload extensions | Translation path | Review | Target export |
 | --- | --- | --- | --- | --- |
 | Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings`, `.ini` | File translation jobs | Segment views | Reconstructed target file |
-| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.csv` | File translation jobs | Segment views | Reconstructed target file |
+| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.ts`, `.csv` | File translation jobs | Segment views | Reconstructed target file |
 | Web content | `.html` | File translation jobs | Segment views; preview where available | Reconstructed target file |
 | Documentation | `.md`, `.mdx`, `.adoc`, `.asciidoc`, `.asc` | Document translation | File view | Stored target document |
 | Subtitles | `.srt`, `.vtt` | File translation jobs | Segment views | Reconstructed subtitle file |
@@ -40,10 +40,12 @@ For a complete Platform workflow, start with one of these tutorials:
 - [Android string resources](/platform/tutorials/android-string-resources)
 - [XLIFF](/platform/tutorials/xliff)
 - [gettext POT and PO](/platform/tutorials/gettext-pot-po), including Unreal Engine `.po` catalogs with rich-text tags
+- [Qt Linguist TS](/platform/tutorials/qt-linguist)
 
 Some tutorials use repository preprocessing or CLI translation. In particular,
 Android `.xml` and gettext `.pot` are not listed in the native source-upload
-extension set above. Follow each tutorial's preparation and delivery path rather
+extension set above. Native `.ts` uploads are Qt Linguist catalogs, not
+TypeScript locale modules. Follow each tutorial's preparation and delivery path rather
 than assuming a CLI-supported extension can be uploaded directly.
 
 For local translation, the [all-in-one Hyperlocalise CLI](/cli) has its own

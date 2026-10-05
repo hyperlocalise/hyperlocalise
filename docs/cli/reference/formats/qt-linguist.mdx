@@ -1,0 +1,95 @@
+---
+title: "Translate Qt Linguist TS files with Hyperlocalise"
+sidebarTitle: "Qt Linguist"
+description: "Translate Qt Linguist .ts catalogs, including context, disambiguation comments, and numerus forms."
+---
+
+Qt Linguist TS files store source and target strings for Qt and QML applications. `lupdate` writes the catalog from `tr()`, `qsTr()`, and related calls. Hyperlocalise translates `<message>` units and writes a locale-specific `.ts` file you can compile with `lrelease`.
+
+Supported extensions: `.ts`. The CLI detects Qt catalogs from a `<TS>` root so TypeScript locale modules that also use `.ts` keep working.
+
+## Source file
+
+Save this example as `translations/app_en.ts`.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <comment>verb</comment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: translations/app_en.ts
+              to: translations/app_{{target}}.ts
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Keys are `context|source`. A disambiguation `<comment>` becomes `context|source|comment`. An explicit message `id` is used when present. Messages directly under `<TS>` (no `<context>`) use `unknown` as the context name unless they have an `id`.
+
+- Parsing reads a non-empty `<translation>` before falling back to `<source>`. Messages marked `obsolete` or `vanished` are skipped.
+
+- Numerus messages flatten to `key::numerus.0`, `key::numerus.1`, and so on. Include `<numerusform>` placeholders in the source catalog when the target language needs more than one form.
+
+- Writeback updates existing translations, clears `type="unfinished"` when a value is written, and sets `language` and `sourcelanguage` using Qt underscore locales such as `es_ES`.
+
+- `%1`, `%n`, `%L1`, and `%Ln` stay in the string. [Translation checks](/cli/commands/check) fail if a translation drops them. Rich text such as `&lt;b&gt;` is written as character data. `<byte>` elements stay as XML.
+
+- `.ts` files that export a static locale object are [JavaScript and TypeScript locale](/cli/reference/formats/javascript-typescript) modules, not Qt catalogs.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [XLIFF](/cli/reference/formats/xliff)
+- [gettext PO](/cli/reference/formats/gettext)

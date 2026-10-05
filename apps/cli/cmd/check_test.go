@@ -798,6 +798,66 @@ func TestCheckCommandRecognizesRESWFiles(t *testing.T) {
 	assertFindingType(t, report.Findings, checkOrphanedKey)
 }
 
+func TestCheckCommandRecognizesQtLinguistFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "translations", "app_en.ts")
+	targetPath := filepath.Join(dir, "translations", "app_fr.ts")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello %1</source>
+        <translation>Hello %1</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr_FR">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello %1</source>
+        <translation>Bonjour</translation>
+    </message>
+    <message>
+        <source>Extra</source>
+        <translation>Ancien</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write target qt ts: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
 func TestCheckCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

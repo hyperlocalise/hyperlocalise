@@ -15,6 +15,14 @@ func TestExtractExtraPlaceholders(t *testing.T) {
 		{"Wrap $token$ here", []string{"$token$"}},
 		{"Hello {name}", nil},
 		{"step %i of %d", []string{"%d", "%i"}},
+		{"Hello %1", []string{"%1"}},
+		{"%n file(s)", []string{"%n"}},
+		{"Amount %L1", []string{"%L1"}},
+		{"%Ln items", []string{"%Ln"}},
+		{"Size: %1px", []string{"%1"}},
+		{"%Lnx", []string{"%Ln"}},
+		{"Hello %1$s", []string{"%1$s"}},
+		{"Non-standard object with width: %10@", nil},
 	}
 	for _, tt := range tests {
 		got := extractExtraPlaceholders(tt.text)
@@ -36,6 +44,24 @@ func TestValidateExtraPlaceholderParity(t *testing.T) {
 	}
 	if err := validateExtraPlaceholderParity("%s %s", "%s %s"); err != nil {
 		t.Fatalf("expected duplicate placeholder parity pass, got %v", err)
+	}
+	if err := validateExtraPlaceholderParity("Hello %1", "Bonjour %1"); err != nil {
+		t.Fatalf("expected Qt %%1 parity pass, got %v", err)
+	}
+	if err := validateExtraPlaceholderParity("Hello %1", "Bonjour"); err == nil {
+		t.Fatal("expected dropped Qt %1 to fail")
+	}
+	if err := validateExtraPlaceholderParity("%n file(s)", "%n fichiers"); err != nil {
+		t.Fatalf("expected Qt %%n parity pass, got %v", err)
+	}
+	if err := validateExtraPlaceholderParity("Amount %L1", "Montant"); err == nil {
+		t.Fatal("expected dropped Qt %L1 to fail")
+	}
+	if err := validateExtraPlaceholderParity("Size: %1px", "Taille : pixels"); err == nil {
+		t.Fatal("expected dropped Qt %1 adjacent to text to fail")
+	}
+	if err := validateExtraPlaceholderParity("Size: %1px", "Taille : %1px"); err != nil {
+		t.Fatalf("expected Qt %%1 adjacent to text parity pass, got %v", err)
 	}
 }
 

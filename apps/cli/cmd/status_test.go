@@ -682,6 +682,69 @@ func TestStatusCommandRecognizesRESWFiles(t *testing.T) {
 	}
 }
 
+func TestStatusCommandRecognizesQtLinguistFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "translations", "app_en.ts")
+	targetPath := filepath.Join(dir, "translations", "app_fr.ts")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation>Welcome back</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr_FR">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation>Bonjour</translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write target qt ts: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["fr-FR"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "MainWindow|Welcome back") || !strings.Contains(got, ",fr-FR,translated,unknown,") {
+		t.Fatalf("expected translated Qt Linguist row, got: %s", got)
+	}
+}
+
 func TestStatusCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

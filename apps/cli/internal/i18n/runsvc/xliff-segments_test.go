@@ -97,7 +97,7 @@ func TestXLIFFWritebackWithReorderedAnonymousTarget(t *testing.T) {
 			}
 		} else {
 			var err error
-			out, err = svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"u#segment-index=1": "Premier", "u#segment-index=2": "Deux"})
+			out, err = svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"u#segment-index=1": "Premier", "u#segment-index=2": "Deux"}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
