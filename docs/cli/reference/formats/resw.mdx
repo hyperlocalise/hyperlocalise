@@ -1,22 +1,25 @@
 ---
-title: "Translate .NET RESX resource files with Hyperlocalise"
-sidebarTitle: "RESX"
-description: "Translate text resources in .NET RESX files while preserving XML metadata."
+title: "Translate Windows RESW resource files with Hyperlocalise"
+sidebarTitle: "RESW"
+description: "Translate UWP and WinUI .resw string resources while preserving XML comments and metadata."
 ---
 
-.resx files store .NET resources in XML. Hyperlocalise translates supported string resources; preserve non-text application resources according to the behavior below.
+.resw files store Windows Runtime string resources in XML. UWP, WinUI, and WinAppSDK apps typically keep one file per locale under a `Strings/<locale>/` folder. Hyperlocalise translates `data` string values and preserves comments and other XML structure.
 
-Supported extensions: `.resx`.
+Supported extensions: `.resw`.
 
 ## Source file
 
-Save this example as `locales/en-US/messages.resx`.
+Save this example as `Strings/en-US/Resources.resw`.
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-    <data name="home.title" xml:space="preserve">
-        <value>Welcome</value>
+    <data name="AppTitle" xml:space="preserve">
+        <value>Contoso</value>
+    </data>
+    <data name="Welcome.Text" xml:space="preserve">
+        <value>Welcome back</value>
         <comment>Home screen heading</comment>
     </data>
 </root>
@@ -36,8 +39,8 @@ locales:
 buckets:
     messages:
         files:
-            - from: locales/en-US/messages.resx
-              to: locales/{{target}}/messages.resx
+            - from: Strings/en-US/Resources.resw
+              to: Strings/{{target}}/Resources.resw
 
 llm:
     profiles:
@@ -62,11 +65,11 @@ configured target path and updates the lockfile.
 
 ## Behavior and limitations
 
-- Uses the generic XML parser for text resources: `data` names identify their `value` text.
+- Uses the generic XML parser. Each `data` `name` identifies its `value` text, including dotted names such as `Welcome.Text`.
 
-- Comments, attributes, `metadata`, and `resheader` elements are preserved.
+- Comments, attributes, and metadata elements are preserved.
 
-- Use text-only resources. Mixed-content XML is unsupported; do not treat support for text RESX as support for arbitrary serialized .NET objects.
+- Use text-only resources. Mixed-content XML is unsupported.
 
 - Changed CDATA values are written as escaped text. See [XML](/cli/reference/formats/xml) for shared behavior.
 
@@ -78,6 +81,5 @@ configured target path and updates the lockfile.
 
 ## Related formats
 
-- [Windows RESW resource](/cli/reference/formats/resw)
+- [.NET RESX resource](/cli/reference/formats/resx)
 - [XML localization](/cli/reference/formats/xml)
-- [Java .properties](/cli/reference/formats/java-properties)

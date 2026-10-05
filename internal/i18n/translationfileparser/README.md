@@ -22,7 +22,7 @@
 - `.php` via `PHPArrayParser` (static PHP locale arrays)
 - `.ftl` via `FluentParser` (Mozilla Fluent messages and attributes)
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
-- `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
+- `.xml` / `.resx` / `.resw` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
 - `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
@@ -30,7 +30,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, Java properties, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, and SubRip/WebVTT subtitle parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -205,14 +205,14 @@
 - Rejects unsupported translatable resource constructs such as `<string-array>` with clear errors.
 - `MarshalAndroidXMLResources(template, values)` preserves the source or target template layout and replaces only supported resource value bodies.
 
-### Generic XML (`.xml`, `.resx`)
+### Generic XML (`.xml`, `.resx`, `.resw`)
 
 - Parses non-Android XML locale files with text-only leaf entries.
 - Keyed leaves use `key`, `id`, or `name` attributes.
   - Example: `<message key="checkout.cta">Checkout now</message>` -> `checkout.cta=Checkout now`
 - Nested leaves without key attributes use dotted element paths.
   - Example: `<home><title>Welcome</title></home>` -> `home.title=Welcome`
-- `.resx`-style entries are supported.
+- `.resx` and `.resw` entries are supported.
   - Example: `<data name="home.title"><value>Welcome</value></data>` -> `home.title=Welcome`
 - Comments, attributes, and metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved.
 - Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.

@@ -713,6 +713,55 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandRecognizesRESWFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "Strings", "en-US", "Resources.resw")
+	targetPath := filepath.Join(dir, "Strings", "fr-FR", "Resources.resw")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Hello {0}</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="welcome.message" xml:space="preserve">
+    <value>Bonjour</value>
+  </data>
+  <data name="extra" xml:space="preserve">
+    <value>Ancien</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write target resw: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
 func TestCheckCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

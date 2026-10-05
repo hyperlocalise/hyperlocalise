@@ -38,6 +38,8 @@ func TestKindForSourcePathExtended(t *testing.T) {
 
 		// Fallback
 		{"file.json", FormatICUInvariant},
+		{"file.resx", FormatICUInvariant},
+		{"file.resw", FormatICUInvariant},
 		{"file.txt", FormatICUInvariant},
 
 		// Trailing space

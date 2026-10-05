@@ -363,6 +363,33 @@ func TestStrategyParsesGenericXML(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesRESW(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("Strings/fr-FR/Resources.resw", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Contoso</value>
+  </data>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Bienvenue</value>
+    <comment>Home screen heading</comment>
+  </data>
+</root>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["AppTitle"] != "Contoso" {
+		t.Fatalf("unexpected AppTitle: %q", got["AppTitle"])
+	}
+	if got["Welcome.Text"] != "Bienvenue" {
+		t.Fatalf("unexpected Welcome.Text: %q", got["Welcome.Text"])
+	}
+	if _, ok := got["Welcome.Text.comment"]; ok {
+		t.Fatalf("comment metadata must not be parsed: %#v", got)
+	}
+}
+
 func TestStrategyParsesAndroidXMLResourcePath(t *testing.T) {
 	s := NewDefaultStrategy()
 

@@ -151,6 +151,51 @@ func TestRunDryRunRecognizesSubtitleFiles(t *testing.T) {
 	}
 }
 
+func TestRunDryRunRecognizesRESWFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "Strings", "en-US", "Resources.resw")
+	targetPath := filepath.Join(dir, "Strings", "fr-FR", "Resources.resw")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="Welcome.Text" xml:space="preserve">
+    <value>Welcome back</value>
+  </data>
+</root>`), 0o600); err != nil {
+		t.Fatalf("write source resw: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command resw dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .resw dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
 func TestRunDryRunPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
