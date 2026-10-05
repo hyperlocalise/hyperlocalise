@@ -10,20 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getAgentManifest } from "@/agents/_runtime/loader";
+import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
 import {
   resolveWorkspaceAutomationSkills,
   type WorkspaceAutomationSkill,
   type WorkspaceAutomationSkillTool,
 } from "@/lib/agents/workspace-automation-skills";
-
-/** Skill ids recorded on the run when it was dispatched; unknown ids are dropped. */
-export function resolveRunSkillIds(inputSnapshot: Record<string, unknown>): string[] {
-  const skillIds = Array.isArray(inputSnapshot.skillIds)
-    ? inputSnapshot.skillIds.filter((skillId): skillId is string => typeof skillId === "string")
-    : [];
-  return resolveWorkspaceAutomationSkills(skillIds).map((skill) => skill.id);
-}
 
 function skillsForTool(
   skillIds: readonly string[],
@@ -52,16 +44,19 @@ export function resolveWorkspaceSkillSharedSkills(
 }
 
 /**
- * Task text for a tool that runs its own agent: the procedures of the skills that declare the
- * tool, then the customer's instructions. Null when there is neither.
+ * Task text for a tool that runs its own agent: the shared procedures named by the skills that
+ * declare the tool, those skills' own procedures, then the customer's instructions. The shared
+ * procedures are included because the skill text refers to them and the tool's agent sees
+ * nothing else. Null when there is nothing to say.
  */
 export function composeSkillToolInstructions(input: {
-  inputSnapshot: Record<string, unknown>;
+  skillIds: readonly string[];
   tool: WorkspaceAutomationSkillTool;
   customerInstructions: string;
 }): string | null {
   const sections = [
-    ...loadWorkspaceSkillProcedures(resolveRunSkillIds(input.inputSnapshot), input.tool),
+    ...resolveWorkspaceSkillSharedSkills(input.skillIds, input.tool).map(loadSharedSkill),
+    ...loadWorkspaceSkillProcedures(input.skillIds, input.tool),
     input.customerInstructions.trim(),
   ].filter((section) => section.length > 0);
 

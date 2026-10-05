@@ -101,6 +101,7 @@ function session(
     repository?: WorkspaceOrchestratorSession["repository"];
     triggerSource?: WorkspaceAutomationRunRecord["triggerSource"];
     inputSnapshot?: WorkspaceAutomationRunRecord["inputSnapshot"];
+    skillIds?: string[];
   } = {},
 ): WorkspaceOrchestratorSession {
   const automation = {
@@ -117,6 +118,7 @@ function session(
     },
     repositoryTarget: { kind: "github", githubInstallationRepositoryId: "repo-row-1" },
     toolConfig: {},
+    ...(overrides.skillIds ? { skillIds: overrides.skillIds } : {}),
     model: "openai/gpt-6-luna",
     configVersion: 1,
     nextRunAt: null,
@@ -232,6 +234,19 @@ describe("createUseGithubRepositoryTool", () => {
     expect(current.terminalStatus).toBe("succeeded");
     expect(current.stepResults.use_github_repository).toEqual(payload);
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("takes skills from the automation, not from what the run recorded when it was queued", async () => {
+    const current = session({
+      skillIds: ["review-translation-changes"],
+      inputSnapshot: { skillIds: ["summarize-localisation-changes"] },
+    });
+
+    await createUseGithubRepositoryTool(current).execute!({}, toolOptions);
+
+    expect(mocks.composeGithubRepoInstructions).toHaveBeenCalledWith(
+      expect.objectContaining({ skillIds: ["review-translation-changes"] }),
+    );
   });
 
   it("uses the GitHub push commit range for sandbox revision and payload", async () => {

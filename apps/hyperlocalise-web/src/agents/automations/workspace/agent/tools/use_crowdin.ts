@@ -78,7 +78,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
       });
 
       const taskInstructions = composeSkillToolInstructions({
-        inputSnapshot: session.run.inputSnapshot,
+        skillIds: session.automation.skillIds ?? [],
         tool: "use_crowdin",
         customerInstructions: session.automation.instructions,
       });

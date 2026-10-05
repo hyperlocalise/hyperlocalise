@@ -15,16 +15,13 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   composeSkillToolInstructions,
   loadWorkspaceSkillProcedures,
-  resolveRunSkillIds,
 } from "./workspace-skill-instructions";
 
 describe("workspace skill instructions", () => {
-  it("reads known skill ids from a run snapshot", () => {
-    expect(resolveRunSkillIds({ skillIds: ["research-web", "gone", "research-web"] })).toEqual([
-      "research-web",
+  it("ignores skill ids that are unknown or repeated", () => {
+    expect(loadWorkspaceSkillProcedures(["research-web", "gone", "research-web"])).toEqual([
+      expect.stringContaining("## Research the web"),
     ]);
-    expect(resolveRunSkillIds({ skillIds: "research-web" })).toEqual([]);
-    expect(resolveRunSkillIds({})).toEqual([]);
   });
 
   it("limits procedures to the skills that declare the tool", () => {
@@ -38,7 +35,7 @@ describe("workspace skill instructions", () => {
 
   it("puts skill procedures before customer instructions for a tool", () => {
     const instructions = composeSkillToolInstructions({
-      inputSnapshot: { skillIds: ["research-web"] },
+      skillIds: ["research-web"],
       tool: "use_web_search",
       customerInstructions: "  Focus on Japan.  ",
     });
@@ -46,10 +43,24 @@ describe("workspace skill instructions", () => {
     expect(instructions).toMatch(/^## Research the web[\s\S]*\n\nFocus on Japan\.$/);
   });
 
+  it("gives a tool's agent the shared procedure its skill refers to", () => {
+    const instructions = composeSkillToolInstructions({
+      skillIds: ["check-crowdin-concordance"],
+      tool: "use_crowdin",
+      customerInstructions: "",
+    });
+
+    // The skill tells the agent to follow this procedure by name, so its text has to be there.
+    expect(instructions).toContain("Follow the **Crowdin concordance review** procedure");
+    expect(instructions).toMatch(
+      /^## Crowdin concordance review[\s\S]*search_concordance[\s\S]*## Check against Crowdin/,
+    );
+  });
+
   it("returns null without skills or customer instructions", () => {
     expect(
       composeSkillToolInstructions({
-        inputSnapshot: {},
+        skillIds: [],
         tool: "use_crowdin",
         customerInstructions: " ",
       }),

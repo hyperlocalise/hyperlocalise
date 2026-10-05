@@ -57,15 +57,18 @@ a saved automation new tools.
   skills. Changing it bumps `configVersion`.
 - The server rejects unknown skill ids, a skill whose trigger does not match, and a skill whose
   tools are not enabled in `toolConfig`.
-- Instructions become optional when at least one skill is attached.
+- Instructions become optional when at least one skill is attached. An update that would leave an
+  automation with neither is rejected.
 
 ### Run time
 
-- The dispatcher copies `skillIds` into the run's input snapshot, so a run records the skills it
-  ran with.
+- The dispatcher copies `skillIds` into the run's input snapshot as a record of what was attached
+  when the run was queued. The run itself reads the automation's skills when it starts, as it does
+  the instructions and tools, so it never mixes two saved configurations.
 - The orchestrator prompt includes every attached skill's procedure and shared skills.
 - Tools that run their own agent (GitHub, GitLab, Crowdin, web search) receive the procedures of
-  the skills that declare that tool, followed by the customer's instructions.
+  the skills that declare that tool, with the shared procedures those skills name, followed by the
+  customer's instructions.
 - `templateSkillId` in a run snapshot is still honoured for shared skills.
 
 ### Templates

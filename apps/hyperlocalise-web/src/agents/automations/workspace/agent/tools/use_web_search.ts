@@ -112,7 +112,7 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
       });
 
       const taskInstructions = composeSkillToolInstructions({
-        inputSnapshot: session.run.inputSnapshot,
+        skillIds: session.automation.skillIds ?? [],
         tool: "use_web_search",
         customerInstructions: session.automation.instructions,
       });

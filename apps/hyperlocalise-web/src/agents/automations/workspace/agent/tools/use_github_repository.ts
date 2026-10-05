@@ -36,7 +36,6 @@ import {
 } from "@/lib/agents/github/github-repository-automation-sandbox";
 
 import type { WorkspaceOrchestratorSession } from "../context";
-import { resolveRunSkillIds } from "../workspace-skill-instructions";
 import {
   formatGithubPushRangeLabel,
   formatGithubRepoLookbackLabel,
@@ -116,7 +115,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         const composedInstructions = composeGithubRepoInstructions({
           userOverride: userInstructions,
           templateSkillId,
-          skillIds: resolveRunSkillIds(session.run.inputSnapshot),
+          skillIds: session.automation.skillIds ?? [],
           dynamicSections: [
             "This is an automated read-only GitHub repository task.",
             `Repository: ${repositoryRow.fullName}.`,
