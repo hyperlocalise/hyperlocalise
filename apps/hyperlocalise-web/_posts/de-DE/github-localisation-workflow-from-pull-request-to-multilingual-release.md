@@ -15,8 +15,7 @@ tags:
   - release automation
   - translation review
 ---
-
-This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
+Dieser Leitfaden führt Sie Schritt für Schritt durch die Einrichtung eines GitHub-Lokalisierungsworkflows mit GitHub Actions, der hyperlocalise-CLI und der Hyperlocalise-Plattform. Sie beginnen mit einem kleinen Beispiel und verfolgen eine Produktänderung von ihrem ersten Pull Request bis zu einer mehrsprachigen Veröffentlichung.
 
 Am Ende umfasst Ihr Workflow vier Phasen:
 
@@ -53,12 +52,12 @@ Englisch ist das Quellgebietsschema. Französisch und Deutsch sind Zielgebietssc
 
 Sie benötigen:
 
-- a Hyperlocalise project with `en-US` as its source locale and `fr-FR` and `de-DE` as targets;
-- a `HYPERLOCALISE_API_KEY` GitHub Actions secret;
-- a `HYPERLOCALISE_PROJECT_ID` GitHub Actions secret; and
+- ein Hyperlocalise-Projekt mit en-US als Quellgebietsschema und fr-FR sowie de-DE als Zielgebietsschemata;
+- ein GitHub-Actions-Secret namens HYPERLOCALISE\_API\_KEY;
+- ein GitHub-Actions-Secret namens HYPERLOCALISE\_PROJECT\_ID; und
 - Berechtigung zum Hinzufügen von Workflows und Repository-Geheimnissen.
 
-Use a GitHub environment such as `localisation` for production credentials if your organisation requires deployment approvals.
+Verwenden Sie für Produktionszugangsdaten eine GitHub-Umgebung wie localisation, wenn Ihre Organisation Freigaben für Bereitstellungen verlangt.
 
 ## Schritt 1: Quelldateien und Zieldateien zuordnen
 
@@ -216,7 +215,7 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
+Dies ist die Push-Grenze. Nachdem der Feature-Pull-Request in main zusammengeführt wurde, liest hl sync push die Buckets in `i18n.yml` aus und sendet die englischen JSON- und Markdown-Quelldateien an das verknüpfte Hyperlocalise-Projekt.
 
 The job has read-only repository permission because it sends content out but does not modify Git. Its credentials live only in the step that needs them. The `paths` filter prevents unrelated merges from creating unnecessary sync runs.
 
@@ -237,13 +236,13 @@ Sobald die Quellsynchronisierung abgeschlossen ist, überprüfe die neuen Inhalt
 
 Für dieses Beispiel sollte ein Prüfer mehr als nur die wörtliche Genauigkeit überprüfen:
 
-| Inhalt         | Überprüfungsfrage                                          |
-| --------------- | -------------------------------------------------------- |
-| `filters.save`  | Is this clearly an action, rather than a saved state?    |
-| `filters.saved` | Does the term match navigation and settings copy?        |
+| Inhalt           | Überprüfungsfrage                                                              |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `filters.save`   | Is this clearly an action, rather than a saved state?                          |
+| `filters.saved`  | Does the term match navigation and settings copy?                              |
 | Beschreibung     | Passt es zur Benutzeroberfläche und bewahrt die Terminologie „Arbeitsbereich“? |
-| Release-Titel   | Verwendet es denselben Namen wie die Produktfunktion?        |
-| Versionshinweise | Sind Befehle, Menünamen und die Ergebnisse für Benutzer konsistent?  |
+| Release-Titel    | Verwendet es denselben Namen wie die Produktfunktion?                          |
+| Versionshinweise | Sind Befehle, Menünamen und die Ergebnisse für Benutzer konsistent?            |
 
 Füge Produktkontext oder Screenshots hinzu, wenn ein kurzer String mehrdeutig ist. Ein Übersetzer, der nur „Filter speichern“ sieht, kann nicht wissen, ob damit eine Schaltfläche, eine Toast-Nachricht oder eine Seitenüberschrift bezeichnet wird. Dieser Kontext ergänzt die CLI durch die Plattform: Git verschiebt Dateien, während Hyperlocalise das Wissen vermittelt, das für eine fundierte sprachliche Entscheidung erforderlich ist.
 

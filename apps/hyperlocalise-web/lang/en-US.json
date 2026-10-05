@@ -135,6 +135,10 @@
     "defaultMessage": "No Intercom connections yet.",
     "description": "Empty state when no Intercom connections exist"
   },
+  "+BP6ejutVt": {
+    "defaultMessage": "No Overview snapshot yet. Refresh to capture this market.",
+    "description": "Overview has no cached provider snapshot"
+  },
   "+BzVn5MdKT": {
     "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped.",
     "description": "Body when Crowdin project is not linked in Hyperlocalise"
@@ -627,6 +631,10 @@
     "defaultMessage": "Copy JSON",
     "description": "Button that copies canonical workflow JSON to the clipboard"
   },
+  "/9rdVrlT2+": {
+    "defaultMessage": "Queued",
+    "description": "Queued translation memory import status"
+  },
   "/9tSalqpWn": {
     "defaultMessage": "Blocking",
     "description": "GitHub status check mode that can block pull requests"
@@ -979,6 +987,10 @@
     "defaultMessage": "Connect Slack in Integrations to use this tool.",
     "description": "Slack tool description"
   },
+  "/t0AsVdAjV": {
+    "defaultMessage": "Show details",
+    "description": "Expands granular audit fields for one activity"
+  },
   "/ujbXfoTfW": {
     "defaultMessage": "Keeps both plural branches and the required count placeholder.",
     "description": "AI reasoning for the usage segment in the hero CAT mock"
@@ -1182,6 +1194,10 @@
   "0IVc9Jxawk": {
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for domains (project scope unused)"
+  },
+  "0JaRog7D2n": {
+    "defaultMessage": "Non-breaking space",
+    "description": "QA review: visible non-breaking space mark"
   },
   "0Jtniw8gvd": {
     "defaultMessage": "Try refreshing the page.",
@@ -6863,6 +6879,10 @@
     "defaultMessage": "Failed to look up repository context.",
     "description": "Fallback error when repository context lookup fails"
   },
+  "BGn+NvicLw": {
+    "defaultMessage": "Top-10 rankings",
+    "description": "Overview metric for top ten rankings"
+  },
   "BH3cs7sGM9": {
     "defaultMessage": "What Domains checks",
     "description": "Eyebrow for the Domains solutions section"
@@ -8506,6 +8526,10 @@
   "EKVrW1yga/": {
     "defaultMessage": "Run market experiments and show different features by country. Hyperlab tells you what works, then you take that version everywhere.",
     "description": "Meta description for the Hyperlab product page"
+  },
+  "EKx1s7RxNY": {
+    "defaultMessage": "via {name} ({prefix})",
+    "description": "Shows the API key name and prefix used to perform an activity"
   },
   "ELSLC4cOgT": {
     "defaultMessage": "Experiment across markets. Measure what works. Scale what performs.",
@@ -10643,6 +10667,10 @@
     "defaultMessage": "Project",
     "description": "Translation reporting label"
   },
+  "IlhKG5f3r5": {
+    "defaultMessage": "Audit details",
+    "description": "Accessible label for the expanded activity audit panel"
+  },
   "Ilx4ITrXQ9": {
     "defaultMessage": "Proposal review saved",
     "description": "Success toast after saving proposal review decisions"
@@ -11058,6 +11086,10 @@
   "JUfajjODRg": {
     "defaultMessage": "Selected",
     "description": "Shortcut hint for the currently selected project"
+  },
+  "JV74CwQ5fc": {
+    "defaultMessage": "Refreshing…",
+    "description": "Provider-backed Overview refresh in progress"
   },
   "JWYwsX1bkl": {
     "defaultMessage": "Spoken audio for localized voiceovers, previews, and agent replies.",
@@ -13275,6 +13307,10 @@
     "defaultMessage": "This Canva authorization request is missing or expired. Start again from Canva.",
     "description": "Error when the Canva OAuth request cookie is missing"
   },
+  "NyfIu9clsR": {
+    "defaultMessage": "Captured {date}",
+    "description": "Overview snapshot timestamp"
+  },
   "Nywsookzn6": {
     "defaultMessage": "Configure fields shown on issues in this project. Hidden fields keep their values.",
     "description": "Description for the project issue columns settings section"
@@ -13418,6 +13454,10 @@
   "OGfnfxue9S": {
     "defaultMessage": "Search ID, title, description, or source path",
     "description": "Placeholder for the issue list search field"
+  },
+  "OHXGeaHgF2": {
+    "defaultMessage": "Open API keys",
+    "description": "Link from an activity actor to the workspace API keys page"
   },
   "OJJq7qIvtH": {
     "defaultMessage": "Back",
@@ -14147,6 +14187,10 @@
     "defaultMessage": "Manage queries",
     "description": "Secondary action to manage queries for the current CAT segment"
   },
+  "Pnbp7F2YBu": {
+    "defaultMessage": "Occurred",
+    "description": "Audit detail label for the activity timestamp"
+  },
   "PnvBts6aih": {
     "defaultMessage": "Glossary Project Detached",
     "description": "Activity log event type label for detaching a glossary from a project"
@@ -14727,6 +14771,10 @@
     "defaultMessage": "Ask Hyperlocalise…",
     "description": "Default placeholder for the inbox reply composer textarea"
   },
+  "QsPTtPId+V": {
+    "defaultMessage": "Export report",
+    "description": "Translation memory export report page title"
+  },
   "QsoKChySj6": {
     "defaultMessage": "Near limit",
     "description": "Character meter status when the CAT target translation is close to its character limit"
@@ -14742,6 +14790,10 @@
   "Qw3AuwhQJ4": {
     "defaultMessage": "String Hidden",
     "description": "Activity log event type label for hiding strings"
+  },
+  "QxO48L3N9f": {
+    "defaultMessage": "API key ID",
+    "description": "Audit detail label for the actor API key ID"
   },
   "Qy1pnimpzM": {
     "defaultMessage": "Block merge when locales are unresolved",
@@ -15647,6 +15699,10 @@
     "defaultMessage": "Select a text element to jump to its reference frame.",
     "description": "Video refinement workspace: timelineHint"
   },
+  "Sqn6+LQmY6": {
+    "defaultMessage": "Target ID",
+    "description": "Audit detail label for the activity target ID"
+  },
   "SrLx97k5Qr": {
     "defaultMessage": "Saving...",
     "description": "Submit button label while a project is being saved"
@@ -15967,6 +16023,10 @@
     "defaultMessage": "Hourly",
     "description": "Scheduled cadence option for hourly runs"
   },
+  "TREQw433nk": {
+    "defaultMessage": "Selected API key",
+    "description": "Fallback label for a selected API key absent from the current activity page"
+  },
   "TRXXor6TdH": {
     "defaultMessage": "Display name",
     "description": "Label for MCP server display name field"
@@ -16002,6 +16062,10 @@
   "TW8F48aPTu": {
     "defaultMessage": "+{count}",
     "description": "Hidden assignee count shown after the first name in the job detail picker"
+  },
+  "TWTSM0Nfet": {
+    "defaultMessage": "API key prefix",
+    "description": "Audit detail label for the actor API key prefix"
   },
   "TWWOWkYG7q": {
     "defaultMessage": "Step {current} of {total}",
@@ -16794,6 +16858,10 @@
   "UvtZVrIkJR": {
     "defaultMessage": "Remove edges that point to missing steps.",
     "description": "Validation message when an edge references a missing node"
+  },
+  "UxD7Hy8Ypk": {
+    "defaultMessage": "Refresh data",
+    "description": "Refresh provider-backed Overview"
   },
   "UxoXtyoyQB": {
     "defaultMessage": "What can my team do in Content Studio?",
@@ -17711,6 +17779,10 @@
     "defaultMessage": "No segments in queue.",
     "description": "Empty state when the CAT translation queue has no segments"
   },
+  "WsYxB1sDR5": {
+    "defaultMessage": "A durable record of this translation memory export.",
+    "description": "Translation memory export report page description"
+  },
   "WsiwWcs52J": {
     "defaultMessage": "Supported tools",
     "description": "Dropdown section label for available automation tools"
@@ -18231,6 +18303,10 @@
     "defaultMessage": "No teams yet",
     "description": "Empty state title when the workspace has no teams"
   },
+  "XzWD0aBfVa": {
+    "defaultMessage": "Show activity by {name}",
+    "description": "Accessible label for filtering activity logs to one user"
+  },
   "XzqRCb9LWK": {
     "defaultMessage": "Workspace",
     "description": "Role permission matrix group for workspace settings and billing"
@@ -18498,6 +18574,10 @@
   "YRSpPEFYYW": {
     "defaultMessage": "Create",
     "description": "Marketing homepage create"
+  },
+  "YSaCuF5iBS": {
+    "defaultMessage": "Cost per click in the provider currency.",
+    "description": "Keyword research screen: cpcHelp"
   },
   "YTRbiRB1qL": {
     "defaultMessage": "No assigned Hyperlocalise jobs found.",
@@ -18770,10 +18850,6 @@
   "Z+ehClOFAG": {
     "defaultMessage": "No {provider} glossaries",
     "description": "Empty state title for a connected provider with no glossaries"
-  },
-  "Z/LwXy5NwT": {
-    "defaultMessage": "Cost per click in EUR for this sample dataset.",
-    "description": "Keyword research screen: cpcHelp"
   },
   "Z/xptRbaiC": {
     "defaultMessage": "Content Editor",
@@ -19971,6 +20047,10 @@
     "defaultMessage": "Branch",
     "description": "Label next to the project files branch filter select"
   },
+  "bKPrJiNBf6": {
+    "defaultMessage": "Event",
+    "description": "Audit detail label for the activity event type"
+  },
   "bKVGEe8Imh": {
     "defaultMessage": "Checklist",
     "description": "Slash menu item for a task checklist"
@@ -20426,6 +20506,10 @@
   "cEHbuBBOss": {
     "defaultMessage": "API key",
     "description": "Label for Zernio API key field"
+  },
+  "cF190Fnmgc": {
+    "defaultMessage": "Payload",
+    "description": "Audit detail label for the safe activity payload"
   },
   "cF5KFpXkuE": {
     "defaultMessage": "Select a project",
@@ -21175,6 +21259,10 @@
     "defaultMessage": "Digest",
     "description": "Email format option for batched digests"
   },
+  "dZ204EcI3R": {
+    "defaultMessage": "Actor kind",
+    "description": "Audit detail label for the actor kind"
+  },
   "dZcHfTdmF2": {
     "defaultMessage": "Numbered list",
     "description": "Tooltip and accessible label for the numbered list toolbar button"
@@ -21622,6 +21710,10 @@
   "eIzQewHUyw": {
     "defaultMessage": "{format} export",
     "description": "Fallback name for an export that has no filename yet"
+  },
+  "eJnqaPixXK": {
+    "defaultMessage": "API key name",
+    "description": "Audit detail label for the actor API key name"
   },
   "eJpbr2p2dc": {
     "defaultMessage": "{count, plural, one {File uploaded} other {# files uploaded}}",
@@ -22563,6 +22655,10 @@
     "defaultMessage": "Move while the opportunity is open",
     "description": "Story beat title: scale into markets while timing favors you"
   },
+  "g6Tru4ATTb": {
+    "defaultMessage": "Estimated traffic is DataForSEO’s ETV estimate, captured on demand.",
+    "description": "DataForSEO ETV disclosure"
+  },
   "g6yC/xE58y": {
     "defaultMessage": "Cost (USD)",
     "description": "Translation reporting label"
@@ -22714,6 +22810,10 @@
   "gOG3lApYkM": {
     "defaultMessage": "Resolve",
     "description": "Button to mark a Crowdin issue comment as resolved"
+  },
+  "gOeFlAhx0F": {
+    "defaultMessage": "Open members",
+    "description": "Link from an activity actor to the workspace members page"
   },
   "gPLqwOpbOB": {
     "defaultMessage": "Connect your tools and create a project so Hyperlocalise can route translation work to you.",
@@ -23058,6 +23158,10 @@
   "h+QA+7BAPb": {
     "defaultMessage": "Push",
     "description": "GitHub push event checkbox label"
+  },
+  "h+UBaWw3mM": {
+    "defaultMessage": "Upload pending",
+    "description": "Pending translation memory import upload status"
   },
   "h/TaCp7kf5": {
     "defaultMessage": "The connected file is the source of truth. When Drive or SharePoint changes, the next check uses the updated wording.",
@@ -24250,6 +24354,10 @@
   "jDgpB2Pv9x": {
     "defaultMessage": "QA",
     "description": "Project sidebar navigation item for translation QA reports"
+  },
+  "jEIFTvG4wS": {
+    "defaultMessage": "Preview ready",
+    "description": "Completed translation memory import preview status"
   },
   "jEVZfFEPYx": {
     "defaultMessage": "Audiences",
@@ -26135,6 +26243,10 @@
     "defaultMessage": "Enter a valid IANA timezone such as UTC or America/New_York.",
     "description": "API error when scheduled automation timezone is invalid"
   },
+  "mv0siYdD9f": {
+    "defaultMessage": "User ID",
+    "description": "Audit detail label for the actor user ID"
+  },
   "mvMvqeOkdF": {
     "defaultMessage": "Loading QA results…",
     "description": "QA review: loading"
@@ -26463,6 +26575,10 @@
     "defaultMessage": "Unable to load agent runs",
     "description": "Fallback error when agent runs fail to load without an Error message"
   },
+  "nVpf5SOxZJ": {
+    "defaultMessage": "via {name}",
+    "description": "Shows the API key used to perform an activity"
+  },
   "nXCktzp8yW": {
     "defaultMessage": "Automation Workflow",
     "description": "Link from Guidelines to the automation product page"
@@ -26774,6 +26890,10 @@
   "o8nZfgq6Yv": {
     "defaultMessage": "Provider",
     "description": "Label for the active provider name in the summary panel"
+  },
+  "o91utHaw2M": {
+    "defaultMessage": "Download failed.",
+    "description": "Translation memory export download error"
   },
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection.",
@@ -27438,6 +27558,10 @@
   "pHj5D5hJU+": {
     "defaultMessage": "Import",
     "description": "Button to import dictionary words from a text file"
+  },
+  "pJ6fZYMSIA": {
+    "defaultMessage": "Download export",
+    "description": "Download a completed translation memory export"
   },
   "pJSZRmHIFC": {
     "defaultMessage": "That file type is not supported. Use a supported format.",
@@ -29283,6 +29407,10 @@
     "defaultMessage": "Imported by",
     "description": "Import actor field label"
   },
+  "sucqiW0wUM": {
+    "defaultMessage": "We couldn’t load the Overview snapshot.",
+    "description": "Overview load error"
+  },
   "svD7SMchJb": {
     "defaultMessage": "{providerName} is ready for member tokens",
     "description": "Status heading when Crowdin PAT mode is configured"
@@ -30615,6 +30743,10 @@
     "defaultMessage": "Homepage",
     "description": "Second breadcrumb in the marketing hero CAT workspace mock"
   },
+  "vS2rZINTCg": {
+    "defaultMessage": "Est. traffic",
+    "description": "Overview estimated traffic column"
+  },
   "vSUdGKQLPt": {
     "defaultMessage": "SSE",
     "description": "MCP transport option: SSE"
@@ -31466,6 +31598,10 @@
   "wx5NVEjoyn": {
     "defaultMessage": "Manage in Integrations",
     "description": "Link to manage the Search Console pipe on the Integrations page"
+  },
+  "wx9aaNej3W": {
+    "defaultMessage": "Target kind",
+    "description": "Audit detail label for the activity target kind"
   },
   "wy44X4k96P": {
     "defaultMessage": "—",
@@ -32946,6 +33082,10 @@
   "zfKDF52Xgo": {
     "defaultMessage": "Time spent: {duration}",
     "description": "Label showing how long was logged on a comment"
+  },
+  "zfkygqA3L+": {
+    "defaultMessage": "Show activity from {name}",
+    "description": "Accessible label for filtering activity logs to one API key"
   },
   "zg0fvgxUv4": {
     "defaultMessage": "Used in URLs and project scoping. Lowercase letters, numbers, and hyphens only.",
