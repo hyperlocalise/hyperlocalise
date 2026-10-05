@@ -4434,6 +4434,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.resw":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.properties":  []byte("hello=Hello\n"),
+		"/tmp/source.ini":         []byte("hello=Hello\n"),
 		"/tmp/source.srt":         []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
 		"/tmp/source.vtt":         []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"),
 	}
@@ -4469,6 +4470,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 		{target: "/tmp/out.resw", source: "/tmp/source.resw"},
 		{target: "/tmp/out.properties", source: "/tmp/source.properties"},
+		{target: "/tmp/out.ini", source: "/tmp/source.ini"},
 		{target: "/tmp/out.srt", source: "/tmp/source.srt"},
 		{target: "/tmp/out.vtt", source: "/tmp/source.vtt"},
 	}

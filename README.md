@@ -157,6 +157,18 @@ from the reusable infrastructure module use explicitly requested generic
 `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
 `ConfigsFromEnv("NAME", ...)` and `Collection`.
 
+The translation-memory interchange worker uses the dedicated
+`MEMORY_INTERCHANGE_QUEUE_URL` producer variable and publishes versioned
+`{schemaVersion, attemptId, operation}` messages. Its artifact is
+`memory-interchange/bootstrap.zip`, built by
+`make build-memory-interchange-lambda`, and its Lambda function handoff is
+`/hyperlocalise/prod/lambda/memory-interchange/function_name`. Imports upload to
+the `memory-interchange/` object prefix, support an asynchronous preview and
+apply, and exports become downloadable after the worker records a completed
+run. The infrastructure queue must be provisioned before enabling the
+publisher; deploy the real artifact before redriving placeholder or DLQ
+messages.
+
 ### GitHub Action settings
 
 Inputs from [`action.yml`](action.yml):

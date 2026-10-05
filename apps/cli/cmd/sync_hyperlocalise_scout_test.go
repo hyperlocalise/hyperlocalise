@@ -81,6 +81,7 @@ func TestInferHyperlocaliseFileFormat_Scout(t *testing.T) {
 		{"data/items.CSV", "csv"},
 		{"locales/en.FTL", "fluent"},
 		{"config/labels.PROPERTIES", "properties"},
+		{"locales/messages.INI", "ini"},
 		{"subtitles/fr.SRT", "srt"},
 		{"subtitles/fr.VTT", "vtt"},
 		{"assets/logo.PNG", "png"},
@@ -141,6 +142,15 @@ func TestContentTypeForPath_Scout(t *testing.T) {
 		{
 			name: "custom fallback for properties",
 			path: "locales/messages.properties",
+			check: func(t *testing.T, got string) {
+				if got != "text/plain" {
+					t.Errorf("got %q, want text/plain", got)
+				}
+			},
+		},
+		{
+			name: "custom fallback for ini",
+			path: "locales/messages.ini",
 			check: func(t *testing.T, got string) {
 				if got != "text/plain" {
 					t.Errorf("got %q, want text/plain", got)

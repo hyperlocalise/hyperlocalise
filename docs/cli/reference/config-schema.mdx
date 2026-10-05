@@ -93,6 +93,10 @@ Use `buckets.*.files[].from` and `to` to point at `.ftl` files for Mozilla Fluen
 
 Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.
 
+## INI workflow note
+
+Use `buckets.*.files[].from` and `to` to point at per-locale `.ini` files, for example `locales/{{source}}/messages.ini` -> `locales/{{target}}/messages.ini`. Sectioned keys flatten as `section.key`.
+
 ## Subtitle workflow note
 
 Use `buckets.*.files[].from` and `to` to point at `.srt` or `.vtt` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.

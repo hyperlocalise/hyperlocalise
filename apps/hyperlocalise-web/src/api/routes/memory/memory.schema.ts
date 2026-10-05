@@ -368,7 +368,10 @@ export const memoryImportResponseSchema = z.object({
 });
 
 export const memoryImportAttemptStatusSchema = z.enum([
+  "upload_pending",
+  "queued",
   "running",
+  "preview_completed",
   "completed",
   "partially_successful",
   "failed",
@@ -392,7 +395,7 @@ export const memoryImportAttemptRecordSchema = z.object({
   options: z.record(z.string(), z.unknown()),
   sourceFilename: z.string().nullable(),
   sourceByteSize: z.number().int().nonnegative().nullable(),
-  sourceSha256: z.string().length(64),
+  sourceSha256: z.string().length(64).nullable(),
   counts: memoryImportAttemptCountsSchema.nullable(),
   headerSrclang: z.string().nullable(),
   diagnosticsTruncated: z.boolean(),

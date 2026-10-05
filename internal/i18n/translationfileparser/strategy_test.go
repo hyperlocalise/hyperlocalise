@@ -442,6 +442,20 @@ escaped\ key: Ligne un\nLigne deux
 	}
 }
 
+func TestStrategyParsesINI(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("locales/fr.ini", []byte(`[Home]
+welcome=Bienvenue
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["Home.welcome"] != "Bienvenue" {
+		t.Fatalf("unexpected Home.welcome translation: %q", got["Home.welcome"])
+	}
+}
+
 func TestStrategyParsesSRT(t *testing.T) {
 	s := NewDefaultStrategy()
 

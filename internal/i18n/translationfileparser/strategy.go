@@ -69,6 +69,7 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".resx"] = GenericXMLParser{}
 	parsers[".resw"] = GenericXMLParser{}
 	parsers[".properties"] = JavaPropertiesParser{}
+	parsers[".ini"] = INIParser{}
 	parsers[".srt"] = SubtitleParser{Kind: SubtitleSRT}
 	parsers[".vtt"] = SubtitleParser{Kind: SubtitleVTT}
 	parsers[".lottie"] = DotLottieParser{}

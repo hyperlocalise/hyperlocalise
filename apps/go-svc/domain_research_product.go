@@ -21,6 +21,8 @@ func (h *handler) registerDomainResearch(mux *http.ServeMux, verifier SessionVer
 		registerAuthenticated(mux, verifier, pattern, h.workspaceHandle(workspaceDomainsFlag, "Workspace domains is not enabled for this organization", "Insufficient permissions", allow, fn))
 	}
 	route("GET "+base, read, h.getDomainResearch)
+	route("GET "+base+"/overview", read, h.getDomainOverview)
+	route("POST "+base+"/overview/refresh", write, h.refreshDomainOverview)
 	route("POST "+base+"/keywords/expand", write, h.expandDomainKeywords)
 	route("POST "+base+"/keywords/save", write, h.saveDomainKeywords)
 	route("POST "+base+"/serp", read, h.inspectDomainSerp)

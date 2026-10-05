@@ -237,6 +237,15 @@ func writeSyncTestConfig(t *testing.T, dir, extraJSON string) string {
 	return configPath
 }
 
+func TestHyperlocaliseSyncRecognizesINIFiles(t *testing.T) {
+	if got := inferHyperlocaliseFileFormat("locales/en.ini"); got != "ini" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.ini) = %q, want ini", got)
+	}
+	if got := contentTypeForPath("locales/en.ini"); got != "text/plain" {
+		t.Fatalf("contentTypeForPath(.ini) = %q, want text/plain", got)
+	}
+}
+
 func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 	if got := inferHyperlocaliseFileFormat("locales/en.ftl"); got != "fluent" {
 		t.Fatalf("inferHyperlocaliseFileFormat(.ftl) = %q, want fluent", got)

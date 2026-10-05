@@ -500,6 +500,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".ini":
+		return "ini"
 	case ".srt":
 		return "srt"
 	case ".vtt":
@@ -827,7 +829,7 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".adoc", ".asciidoc", ".asc":
 		return "text/asciidoc"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties":
+	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini":
 		return "text/plain"
 	case ".srt":
 		return "application/x-subrip"

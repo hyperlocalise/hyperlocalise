@@ -79,6 +79,7 @@ type handler struct {
 	autumn             *autumn.Client
 	knowledgeMemories  *knowledgeMemoryAPI
 	valkey             valkeyHealthClient
+	overviewCache      dictionaryWordsCache
 	postgres           healthPinger
 }
 

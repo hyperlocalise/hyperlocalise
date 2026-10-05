@@ -713,6 +713,42 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandRecognizesINIFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US", "messages.ini")
+	targetPath := filepath.Join(dir, "locales", "fr-FR", "messages.ini")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("[Home]\nwelcome.message=Hello {0}\n"), 0o600); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("[Home]\nwelcome.message=Bonjour\nextra=Ancien\n"), 0o600); err != nil {
+		t.Fatalf("write target ini: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr-FR"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
 func TestCheckCommandRecognizesRESWFiles(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

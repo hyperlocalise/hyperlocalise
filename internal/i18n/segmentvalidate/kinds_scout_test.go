@@ -40,6 +40,7 @@ func TestKindForSourcePathExtended(t *testing.T) {
 		{"file.json", FormatICUInvariant},
 		{"file.resx", FormatICUInvariant},
 		{"file.resw", FormatICUInvariant},
+		{"file.ini", FormatICUInvariant},
 		{"file.ts", FormatICUInvariant},
 		{"file.txt", FormatICUInvariant},
 
