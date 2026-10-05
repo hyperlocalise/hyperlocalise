@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { GoSvcActivityLogApi } from "./go-svc-activity-log-api";
+import { GoSvcApiKeyApi } from "./go-svc-api-key-api";
 import { GoSvcCatApi } from "./go-svc-cat-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
 import { GoSvcGlossaryApi } from "./go-svc-glossary-api";
@@ -36,6 +37,7 @@ export type { HyperlabGoSvcClient };
 export class GoSvcClient {
   readonly baseUrl: string;
   readonly activityLog: GoSvcActivityLogApi;
+  readonly apiKey: GoSvcApiKeyApi;
   readonly cat: GoSvcCatApi;
   readonly dictionary: GoSvcDictionaryApi;
   readonly domains: GoSvcDomainsApi;
@@ -53,6 +55,7 @@ export class GoSvcClient {
     const request = new GoSvcRequest(options);
     this.baseUrl = request.baseUrl;
     this.activityLog = new GoSvcActivityLogApi(request);
+    this.apiKey = new GoSvcApiKeyApi(request);
     this.cat = new GoSvcCatApi(request);
     this.dictionary = new GoSvcDictionaryApi(request);
     this.domains = new GoSvcDomainsApi(request);

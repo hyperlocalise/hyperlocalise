@@ -304,6 +304,41 @@ export type MembersResponse = {
   memberManagement?: MemberManagement;
 };
 
+export type ApiKeyPermission = "jobs:read" | "jobs:write" | "files:read" | "files:write";
+
+export type ApiKeyOwner = {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+export type ApiKeySummary = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  permissions: string[];
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  owner: ApiKeyOwner | null;
+};
+
+export type CreatedApiKey = {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  permissions: string[];
+  createdAt: string;
+  key: string;
+  owner: ApiKeyOwner | null;
+};
+
+export type CreateApiKeyBody = {
+  name: string;
+  permissions?: ApiKeyPermission[];
+};
+
 export type IssueSheetListQuery = GoSvcPageQuery & {
   view?: "my_work" | "qa_triage" | "source_context" | "all_open";
   status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";

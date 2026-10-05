@@ -20,8 +20,8 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { AccessTokenSummary } from "./access-token-lifecycle";
 
-const { getMock } = vi.hoisted(() => ({
-  getMock: vi.fn(),
+const { listMock } = vi.hoisted(() => ({
+  listMock: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -31,22 +31,17 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          "api-keys": {
-            $get: (...args: unknown[]) => getMock(...args),
-            $post: vi.fn(),
-            ":apiKeyId": {
-              $delete: vi.fn(),
-            },
-          },
-        },
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      apiKey: {
+        list: (...args: unknown[]) => listMock(...args),
+        create: vi.fn(),
+        revoke: vi.fn(),
       },
     },
-  },
+    loading: false,
+  }),
 }));
 
 import { ApiKeySettingsPageContent } from "./api-keys-page-content";
@@ -94,18 +89,15 @@ afterEach(() => {
 
 describe("ApiKeySettingsPageContent", () => {
   it("shows last-used state for organization API keys", async () => {
-    getMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        apiKeys: [
-          createKey(),
-          createKey({
-            id: "key_2",
-            name: "Used key",
-            lastUsedAt: "2026-08-02T09:00:00.000Z",
-          }),
-        ],
-      }),
+    listMock.mockResolvedValue({
+      apiKeys: [
+        createKey(),
+        createKey({
+          id: "key_2",
+          name: "Used key",
+          lastUsedAt: "2026-08-02T09:00:00.000Z",
+        }),
+      ],
     });
 
     renderPage();
@@ -119,17 +111,14 @@ describe("ApiKeySettingsPageContent", () => {
   });
 
   it("keeps revoked organization API keys out of the compatibility list", async () => {
-    getMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        apiKeys: [
-          createKey({
-            id: "key_revoked",
-            name: "Retired key",
-            revokedAt: "2026-08-03T12:00:00.000Z",
-          }),
-        ],
-      }),
+    listMock.mockResolvedValue({
+      apiKeys: [
+        createKey({
+          id: "key_revoked",
+          name: "Retired key",
+          revokedAt: "2026-08-03T12:00:00.000Z",
+        }),
+      ],
     });
 
     renderPage();

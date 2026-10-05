@@ -225,6 +225,39 @@ describe("GoSvcClient", () => {
     await expect(client.team.delete("acme", "team-1")).resolves.toBeUndefined();
   });
 
+  it("lists, creates, and revokes personal access tokens", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ apiKeys: [] }))
+      .mockResolvedValueOnce(
+        Response.json({
+          apiKey: {
+            id: "key-1",
+            name: "CI",
+            keyPrefix: "hl_AbCd",
+            permissions: ["jobs:read"],
+            createdAt: "2026-10-05T00:00:00.000Z",
+            key: "hl_secret",
+            owner: null,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = clientWith(fetchMock);
+
+    await client.apiKey.list("acme");
+    await client.apiKey.create("acme", { name: "CI" });
+    await client.apiKey.revoke("acme", "7f1c9d1e-4b2a-4c3d-8e5f-0a1b2c3d4e5f");
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/api-keys`);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toBe('{"name":"CI"}');
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/api-keys/7f1c9d1e-4b2a-4c3d-8e5f-0a1b2c3d4e5f`,
+    );
+    expect((fetchMock.mock.calls[2][1] as RequestInit).method).toBe("DELETE");
+  });
+
   it("throws typed HTTP errors when the JSON error body is not an object", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response("null", {

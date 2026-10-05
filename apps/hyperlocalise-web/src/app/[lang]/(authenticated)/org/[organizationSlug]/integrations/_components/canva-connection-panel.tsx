@@ -114,20 +114,21 @@ export function CanvaConnectionPanel({
   const apiKeysQuery = useQuery({
     queryKey: ["api-keys", organizationSlug],
     queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["api-keys"].$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error(intl.formatMessage(canvaConnectionPanelMessages.fetchFailed));
+      try {
+        const body = await goSvcClient.apiKey.list(organizationSlug);
+        return (body.apiKeys ?? []).filter(
+          (apiKey) =>
+            !apiKey.revokedAt &&
+            REQUIRED_API_KEY_PERMISSIONS.every((permission) =>
+              apiKey.permissions.includes(permission),
+            ),
+        );
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(canvaConnectionPanelMessages.fetchFailed)),
+          { cause: error },
+        );
       }
-      const body = await response.json();
-      return (body.apiKeys ?? []).filter(
-        (apiKey: { revokedAt?: string | null; permissions: string[] }) =>
-          !apiKey.revokedAt &&
-          REQUIRED_API_KEY_PERMISSIONS.every((permission) =>
-            apiKey.permissions.includes(permission),
-          ),
-      ) as Array<{ id: string; name: string }>;
     },
     enabled: expanded,
   });

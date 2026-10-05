@@ -46,7 +46,7 @@ import {
 import { createCanvaConnection, getCanvaConnectionByToken } from "./connections";
 
 const client = testClient<AppType>(createApp());
-const apiKeyFixture = createApiKeyTestFixture(client);
+const apiKeyFixture = createApiKeyTestFixture();
 const projectFixture = createProjectTestFixture(client);
 
 describe("completeCanvaConnectionClaim", () => {
@@ -68,10 +68,9 @@ describe("completeCanvaConnectionClaim", () => {
       throw new Error("expected test auth context");
     }
 
-    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Canva claim race key",
     });
-    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
     const projectResponse = await projectFixture.createProjectViaApi(identity);
     const projectBody = (await projectResponse.json()) as { project: { id: string } };
 
@@ -79,7 +78,7 @@ describe("completeCanvaConnectionClaim", () => {
       organizationId: auth.organization.localOrganizationId,
       userId: auth.user.localUserId,
       displayName: "Race Canva",
-      apiKeyId: apiKeyBody.apiKey.id,
+      apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
       sourceLocale: "en",
       targetLocales: ["es"],

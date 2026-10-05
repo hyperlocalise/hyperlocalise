@@ -57,7 +57,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
 const app = createApp();
 const client = testClient<AppType>(app);
-const apiKeyFixture = createApiKeyTestFixture(client);
+const apiKeyFixture = createApiKeyTestFixture();
 const projectFixture = createProjectTestFixture(client);
 
 const REDIRECT_URI = "https://canva.example.test/oauth/callback";
@@ -86,17 +86,16 @@ async function createConnectedWorkspace() {
   const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
   await apiKeyFixture.authHeadersFor(identity);
   const auth = globalThis.__testApiAuthContext!;
-  const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+  const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
     name: "Canva OAuth key",
   });
-  const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
   const projectResponse = await projectFixture.createProjectViaApi(identity);
   const projectBody = (await projectResponse.json()) as { project: { id: string } };
   const created = await createCanvaConnection({
     organizationId: auth.organization.localOrganizationId,
     userId: auth.user.localUserId,
     displayName: "Canva OAuth",
-    apiKeyId: apiKeyBody.apiKey.id,
+    apiKeyId: apiKey.id,
     projectId: projectBody.project.id,
     sourceLocale: "en",
     targetLocales: ["es"],
