@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   getLocaleScanExtensions,
+  getSupportedFileTranslationAccept,
   getSupportedSourceUploadAccept,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
@@ -25,6 +26,7 @@ import {
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isSupportedFileTranslationFileFormat,
   isSupportedSourceUploadFormat,
   isVideoTranslationFileFormat,
   isWholeFileTranslationFileFormat,
@@ -45,6 +47,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xliff")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("messages.po")).toBe("po");
+    expect(inferSupportedTranslationFileFormat("translations/app_de.ts")).toBe("qt-ts");
+    expect(inferSupportedFileTranslationFileFormat("app_fr.ts")).toBe("qt-ts");
     expect(inferSupportedTranslationFileFormat("page.html")).toBe("html");
     expect(inferSupportedTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedTranslationFileFormat("page.mdx")).toBe("mdx");
@@ -57,10 +61,42 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedFileTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedTranslationFileFormat("copy.csv")).toBe("csv");
+    expect(inferSupportedTranslationFileFormat("copy.tsv")).toBe("tsv");
+    expect(inferSupportedFileTranslationFileFormat("copy.tsv")).toBe("tsv");
+    expect(inferSupportedTranslationFileFormat("messages.toml")).toBe("toml");
+    expect(inferSupportedFileTranslationFileFormat("messages.toml")).toBe("toml");
+    expect(inferSupportedSourceUploadFormat("locales/en.toml")).toBe("toml");
+    expect(inferSupportedTranslationFileFormat("messages.ini")).toBe("ini");
+    expect(inferSupportedFileTranslationFileFormat("messages.ini")).toBe("ini");
+    expect(inferSupportedSourceUploadFormat("locales/en.ini")).toBe("ini");
+    expect(isSupportedSourceUploadFormat("messages.ini")).toBe(true);
+    expect(inferSupportedTranslationFileFormat("res/values/strings.xml")).toBe("xml");
+    expect(inferSupportedFileTranslationFileFormat("res/values/strings.xml")).toBe("xml");
+    expect(inferSupportedSourceUploadFormat("Resources.resx")).toBe("resx");
+    expect(inferSupportedSourceUploadFormat("Strings/en-US/Resources.resw")).toBe("resw");
+    expect(inferSupportedSourceUploadFormat("messages_en.properties")).toBe("properties");
+    expect(inferSupportedSourceUploadFormat("lang/en/messages.php")).toBe("php");
+    expect(inferSupportedSourceUploadFormat("locales/en.ftl")).toBe("ftl");
+    expect(inferSupportedSourceUploadFormat("locales/en.ts")).toBe("qt-ts");
+    expect(inferSupportedSourceUploadFormat("locales/en.tsx")).toBe("javascript");
+    expect(inferSupportedSourceUploadFormat("locales/en.js")).toBe("javascript");
+    expect(inferSupportedSourceUploadFormat("sections/header.liquid")).toBe("liquid");
+    expect(inferSupportedSourceUploadFormat("page.htm")).toBe("html");
+    expect(inferSupportedSourceUploadFormat("notes.markdown")).toBe("markdown");
+    expect(isSupportedSourceUploadFormat("messages.properties")).toBe(true);
+    expect(isSupportedFileTranslationFileFormat("xml")).toBe(true);
+    expect(isSupportedFileTranslationFileFormat("javascript")).toBe(true);
     expect(inferSupportedTranslationFileFormat("captions.srt")).toBe("srt");
     expect(inferSupportedTranslationFileFormat("captions.vtt")).toBe("vtt");
+    expect(inferSupportedTranslationFileFormat("captions.sbv")).toBe("sbv");
+    expect(inferSupportedTranslationFileFormat("mark.svg")).toBe("svg");
     expect(inferSupportedFileTranslationFileFormat("captions.srt")).toBe("srt");
     expect(inferSupportedFileTranslationFileFormat("captions.vtt")).toBe("vtt");
+    expect(inferSupportedFileTranslationFileFormat("captions.sbv")).toBe("sbv");
+    expect(inferSupportedFileTranslationFileFormat("mark.svg")).toBe("svg");
+    expect(inferSupportedSourceUploadFormat("assets/mark.svg")).toBe("svg");
+    expect(isBinaryTranslationFileFormat("svg")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("svg")).toBe(false);
     expect(inferSupportedTranslationFileFormat("hero.lottie")).toBe("lottie");
     expect(inferSupportedFileTranslationFileFormat("hero.lottie")).toBe("lottie");
     expect(inferSupportedSourceUploadFormat("animations/hero.lottie")).toBe("lottie");
@@ -147,6 +183,10 @@ describe("translation file formats", () => {
         ".json",
         ".srt",
         ".vtt",
+        ".sbv",
+        ".svg",
+        ".tsv",
+        ".toml",
         ".lottie",
         ".png",
         ".mp4",
@@ -155,8 +195,39 @@ describe("translation file formats", () => {
         ".xls",
         ".pptx",
         ".webp",
+        ".xml",
+        ".properties",
+        ".php",
+        ".ftl",
+        ".resx",
+        ".resw",
+        ".liquid",
+        ".ts",
+        ".js",
+        ".htm",
+        ".markdown",
       ]),
     );
+  });
+
+  it("builds a catalog import accept list without office or images", () => {
+    const accept = getSupportedFileTranslationAccept();
+    expect(accept.split(",")).toEqual(
+      expect.arrayContaining([
+        ".xml",
+        ".properties",
+        ".php",
+        ".ftl",
+        ".resx",
+        ".liquid",
+        ".ts",
+        ".tsv",
+        ".toml",
+        ".sbv",
+        ".svg",
+      ]),
+    );
+    expect(accept.split(",")).not.toEqual(expect.arrayContaining([".png", ".mp4", ".docx"]));
   });
 
   it("rejects unsupported file extensions", () => {
@@ -172,13 +243,27 @@ describe("translation file formats", () => {
         "yaml",
         "yml",
         "po",
+        "ts",
         "xlf",
         "xliff",
         "arb",
         "xcstrings",
         "strings",
+        "ini",
+        "xml",
+        "properties",
+        "php",
+        "ftl",
+        "resx",
+        "js",
+        "ts",
+        "liquid",
         "srt",
         "vtt",
+        "sbv",
+        "svg",
+        "tsv",
+        "toml",
       ]),
     );
     expect(getLocaleScanExtensions()).not.toContain("png");

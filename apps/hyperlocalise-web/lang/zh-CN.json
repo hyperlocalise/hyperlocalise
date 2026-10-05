@@ -8243,9 +8243,6 @@
   "GpQTuQOUij": {
     "defaultMessage": "正在加载{title}"
   },
-  "GpqbnnE7vn": {
-    "defaultMessage": "使用上方的“添加文件”来上传 JSON、YAML、XLIFF、PO、图片、Office 文件和其他受支持的格式。"
-  },
   "GpsLS8ojw/": {
     "defaultMessage": "—"
   },
@@ -18697,6 +18694,9 @@
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "上传源文件 · 需要选择项目"
+  },
+  "fBUXcsxgXO": {
+    "defaultMessage": "使用上方的“添加文件”来上传 JSON、YAML、XLIFF、PO、Qt TS、图片、Office 文件和其他受支持的格式。"
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "没有符合这些筛选条件的发现。"

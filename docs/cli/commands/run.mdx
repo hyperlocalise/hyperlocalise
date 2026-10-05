@@ -51,12 +51,17 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli
 - `.stringsdict`
 - `.xcstrings`
 - `.csv`
+- `.tsv`
+- `.toml`
 - `.php`
 - `.ftl`
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml`, `.resx`, and `.resw` for generic XML locale files
+- Qt Linguist `.ts` catalogs (detected from a `<TS>` root)
 - `.properties`
-- `.srt` and `.vtt`
+- `.ini`
+- `.srt`, `.vtt`, and `.sbv`
+- `.svg`
 
 For JSON (`.json`), `run` supports:
 
@@ -142,14 +147,18 @@ Unsupported translatable Android resource shapes such as `<string-array>` fail w
 
 For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
 
-For SubRip and WebVTT subtitles (`.srt`, `.vtt`), `run` translates cue payload text and preserves non-translatable structure:
+For INI files (`.ini`), `run` supports per-locale key/value files with optional `[section]` headers, such as `messages_en.ini` -> `messages_[locale].ini`. Keys before the first section stay unprefixed. Keys inside a section flatten as `section.key`. Comments beginning with `;` or `#` are preserved and adjacent comments can be used as entry context. Quoted values and inline comments after whitespace are supported. On write, existing sections, key order, comments, separators, and spacing are preserved. New keys append to the matching section, and unknown sections are created at the end of the file. Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 fail with clear parse errors.
+
+For SVG (`.svg`), `run` translates visible text in `text`, `tspan`, `textPath`, `title`, and `desc`. Geometry, attributes, and `style` / `script` / `metadata` content stay in the file. Spans use sequential keys such as `svg.0001`. Writeback HTML-escapes translated text and ignores extra keys so markup stays aligned with the template.
+
+For SubRip, WebVTT, and YouTube SBV subtitles (`.srt`, `.vtt`, `.sbv`), `run` translates cue payload text and preserves non-translatable structure:
 
 - cue numbers, timestamps, and positioning or cue settings
 - WebVTT `WEBVTT` headers, `NOTE`, `STYLE`, and `REGION` blocks
 - HTML-like markup inside cues such as `<i>` and `<b>`
 - WebVTT cue spans such as `<c.red>`, `<v Speaker>`, and karaoke timestamps like `<00:01.000>`
 
-Cues are exposed as sequential keys such as `srt.0001` and `vtt.0001`. Timestamp lines are available as entry context. Writeback replaces cue text in place and ignores extra translation keys so cue counts stay aligned with the source file. Blank lines inside translated cue text are dropped so they cannot split cues.
+Cues are exposed as sequential keys such as `srt.0001`, `vtt.0001`, and `sbv.0001`. Timestamp lines are available as entry context. Writeback replaces cue text in place and ignores extra translation keys so cue counts stay aligned with the source file. Blank lines inside translated cue text are dropped so they cannot split cues. SBV cues use `H:MM:SS.mmm,H:MM:SS.mmm` timestamps and have no cue numbers.
 
 Example config mapping:
 
@@ -161,14 +170,18 @@ buckets:
         to: captions/{{target}}.srt
       - from: captions/{{source}}.vtt
         to: captions/{{target}}.vtt
+      - from: captions/{{source}}.sbv
+        to: captions/{{target}}.sbv
 ```
 
-For CSV (`.csv`), `run` supports two layouts:
+For CSV (`.csv`) and TSV (`.tsv`), `run` supports two layouts:
 
 - key/value layout (for example: `key,value`)
 - per-locale column layout (for example: `id,en,fr,de`)
 
-When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+When writing CSV or TSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order. TSV uses tab delimiters.
+
+For TOML (`.toml`), `run` translates string leaves in tables, inline tables, and string arrays. Nested tables flatten as dotted keys, and string arrays use bracket indexes such as `home.items[0]`. Numbers, booleans, dates, and comments stay in the file. Array-of-tables (`[[name]]`) and duplicate keys fail with a parser error. Writeback replaces existing string literals in place and appends new dotted keys at the end of the file.
 
 For Mozilla Fluent (`.ftl`), `run` supports top-level messages, message attributes, multiline values, and select/plural patterns represented as full message values:
 

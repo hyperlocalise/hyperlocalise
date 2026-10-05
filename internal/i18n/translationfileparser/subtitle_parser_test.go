@@ -58,6 +58,47 @@ func TestSubtitleParserParsesSRTCuesAndContext(t *testing.T) {
 	}
 }
 
+const sampleSBV = `0:00:00.000,0:00:04.000
+Welcome to the product tour.
+
+0:00:04.180,0:00:06.560
+Open your project
+to begin.
+`
+
+func TestSubtitleParserParsesSBVCuesAndContext(t *testing.T) {
+	values, ctx, err := (SubtitleParser{Kind: SubtitleSBV}).ParseWithContext([]byte(sampleSBV))
+	if err != nil {
+		t.Fatalf("parse sbv: %v", err)
+	}
+
+	want := map[string]string{
+		"sbv.0001": "Welcome to the product tour.",
+		"sbv.0002": "Open your project\nto begin.",
+	}
+	if !reflect.DeepEqual(values, want) {
+		t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
+	}
+	if ctx["sbv.0001"] != "0:00:00.000,0:00:04.000" {
+		t.Fatalf("unexpected sbv.0001 context: %q", ctx["sbv.0001"])
+	}
+}
+
+func TestMarshalSubtitlesReplacesSBVCueText(t *testing.T) {
+	out, err := MarshalSubtitles([]byte(sampleSBV), map[string]string{
+		"sbv.0001": "Bienvenue.",
+	}, SubtitleSBV)
+	if err != nil {
+		t.Fatalf("marshal sbv: %v", err)
+	}
+	if !strings.Contains(string(out), "Bienvenue.") {
+		t.Fatalf("expected replaced cue, got %q", out)
+	}
+	if !strings.Contains(string(out), "0:00:00.000,0:00:04.000") {
+		t.Fatalf("expected preserved timestamp, got %q", out)
+	}
+}
+
 func TestSubtitleParserParsesVTTCuesNotesAndSettings(t *testing.T) {
 	values, ctx, err := (SubtitleParser{Kind: SubtitleVTT}).ParseWithContext([]byte(sampleVTT))
 	if err != nil {
@@ -176,6 +217,24 @@ func TestSubtitleParserStripsBOMAndSkipsEmptyCues(t *testing.T) {
 	}
 	if len(values) != 1 || values["srt.0001"] != "Hello" {
 		t.Fatalf("unexpected values: %#v", values)
+	}
+}
+
+func TestSubtitleParserAcceptsSBVCaptionContainingArrow(t *testing.T) {
+	content := []byte("0:00:00.000,0:00:02.000\nClick the --> button\n")
+	got, err := (SubtitleParser{Kind: SubtitleSBV}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse sbv with caption arrow: %v", err)
+	}
+	if got["sbv.0001"] != "Click the --> button" {
+		t.Fatalf("unexpected sbv caption: %#v", got)
+	}
+}
+
+func TestSubtitleParserRejectsSRTTimestampsInSBVFile(t *testing.T) {
+	_, err := (SubtitleParser{Kind: SubtitleSBV}).Parse([]byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"))
+	if err == nil || !strings.Contains(err.Error(), "SubRip or WebVTT") {
+		t.Fatalf("expected sbv/srt mismatch error, got %v", err)
 	}
 }
 

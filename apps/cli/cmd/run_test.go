@@ -151,6 +151,46 @@ func TestRunDryRunRecognizesSubtitleFiles(t *testing.T) {
 	}
 }
 
+func TestRunDryRunRecognizesINIFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US", "messages.ini")
+	targetPath := filepath.Join(dir, "locales", "fr-FR", "messages.ini")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("[Home]\nwelcome=Welcome\n"), 0o600); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command ini dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .ini dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
 func TestRunDryRunRecognizesRESWFiles(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -190,6 +230,56 @@ func TestRunDryRunRecognizesRESWFiles(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
 		t.Fatalf("expected .resw dry-run task, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+}
+
+func TestRunDryRunRecognizesQtLinguistFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "translations", "app_en.ts")
+	targetPath := filepath.Join(dir, "translations", "app_fr.ts")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>`), 0o600); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command qt ts dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") || !strings.Contains(out.String(), filepath.ToSlash(targetPath)) {
+		t.Fatalf("expected .ts dry-run task, got %q", out.String())
 	}
 	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
 		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)

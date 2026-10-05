@@ -5,14 +5,66 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
+
+type memoryResearchCache struct {
+	mu     sync.Mutex
+	items  map[string]string
+	counts map[string]int64
+}
+
+func newMemoryResearchCache() *memoryResearchCache {
+	return &memoryResearchCache{items: map[string]string{}, counts: map[string]int64{}}
+}
+
+func (c *memoryResearchCache) Get(_ context.Context, key string) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	value, ok := c.items[key]
+	if !ok {
+		return "", gosvcvalkey.ErrNil
+	}
+	return value, nil
+}
+
+func (c *memoryResearchCache) Set(_ context.Context, key, value string, _ time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items[key] = value
+	return nil
+}
+
+func (c *memoryResearchCache) IncrByWithTTL(_ context.Context, key string, units int, _ time.Duration) (int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.counts[key] += int64(units)
+	return c.counts[key], nil
+}
+
+func TestConsumeDomainResearchQuota(t *testing.T) {
+	h := newHandler()
+	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA)
+	var failure *workspaceError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusServiceUnavailable, failure.status)
+	require.Equal(t, "research_quota_unavailable", failure.code)
+
+	h.researchCache = newMemoryResearchCache()
+	require.NoError(t, h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 2, 2))
+	err = h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, 2)
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusTooManyRequests, failure.status)
+	require.Equal(t, "research_quota_exceeded", failure.code)
+}
 
 func verifiedLinkedDomainRow(id, org string) []any {
 	now := time.Now().UTC()
@@ -67,6 +119,7 @@ func TestExpandDomainKeywords(t *testing.T) {
 	pool := &scriptPool{steps: []dbStep{{op: opQueryRow, scan: verifiedLinkedDomainRow(linkedID, orgID)}}}
 	h := newHandler()
 	h.workspace = &workspaceAPI{pool: pool}
+	h.researchCache = newMemoryResearchCache()
 	h.research = fakeResearch{
 		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
 			Data: []dataforseo.KeywordDataItem{{
@@ -84,6 +137,44 @@ func TestExpandDomainKeywords(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, body.(map[string]any)["ideas"])
+}
+
+func TestListResearchSerpDevicePreferenceIsStable(t *testing.T) {
+	desktop := []byte(`[{"title":"Desktop","url":"https://example.com"}]`)
+	mobile := []byte(`[{"title":"Mobile","url":"https://m.example.com"}]`)
+	table := [][]any{
+		{2250, "fr", "seo tools", "mobile", mobile},
+		{2250, "fr", "seo tools", "desktop", desktop},
+	}
+	keywords := []map[string]any{{
+		"id": "kw", "keyword": "seo tools", "marketId": "france-fr",
+	}}
+	orders := [][]map[string]any{
+		{
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "desktop"},
+		},
+		{
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "desktop"},
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+		},
+	}
+	h := newHandler()
+	for _, ranks := range orders {
+		h.workspace = &workspaceAPI{pool: &scriptPool{steps: []dbStep{{op: opQuery, table: table}}}}
+		serp, err := h.listResearchSerp(context.Background(), "domain", keywords, ranks)
+		require.NoError(t, err)
+		results := serp["kw"].([]dataforseo.OrganicSerpResult)
+		require.Equal(t, "Desktop", results[0].Title)
+	}
+
+	h.workspace = &workspaceAPI{pool: &scriptPool{steps: []dbStep{{op: opQuery, table: table}}}}
+	serp, err := h.listResearchSerp(context.Background(), "domain", keywords, []map[string]any{
+		{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+	})
+	require.NoError(t, err)
+	results := serp["kw"].([]dataforseo.OrganicSerpResult)
+	require.Equal(t, "Mobile", results[0].Title)
 }
 
 func TestDomainResearchProviderHelpers(t *testing.T) {

@@ -229,7 +229,8 @@
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
                           "platform/tutorials/gettext-pot-po",
-                          "platform/tutorials/xliff"
+                          "platform/tutorials/xliff",
+                          "platform/tutorials/qt-linguist"
                         ]
                       }
                     ],
@@ -324,7 +325,9 @@
                           "cli/reference/formats/arb",
                           "cli/reference/formats/php",
                           "cli/reference/formats/fluent",
-                          "cli/reference/formats/csv"
+                          "cli/reference/formats/csv",
+                          "cli/reference/formats/tsv",
+                          "cli/reference/formats/toml"
                         ]
                       },
                       {
@@ -346,7 +349,8 @@
                           "cli/reference/formats/asciidoc",
                           "cli/reference/formats/html",
                           "cli/reference/formats/liquid",
-                          "cli/reference/formats/lottie"
+                          "cli/reference/formats/lottie",
+                          "cli/reference/formats/svg"
                         ]
                       },
                       {
@@ -355,10 +359,12 @@
                         "pages": [
                           "cli/reference/formats/xliff",
                           "cli/reference/formats/gettext",
+                          "cli/reference/formats/qt-linguist",
                           "cli/reference/formats/xml",
                           "cli/reference/formats/resx",
                           "cli/reference/formats/resw",
-                          "cli/reference/formats/java-properties"
+                          "cli/reference/formats/java-properties",
+                          "cli/reference/formats/ini"
                         ]
                       },
                       {
@@ -366,7 +372,8 @@
                         "expanded": false,
                         "pages": [
                           "cli/reference/formats/srt",
-                          "cli/reference/formats/webvtt"
+                          "cli/reference/formats/webvtt",
+                          "cli/reference/formats/sbv"
                         ]
                       }
                     ],

@@ -164,6 +164,16 @@ buckets:
         to: Strings/{{target}}/Resources.resw
 ```
 
+Qt Linguist `.ts` catalogs use a dedicated parser. Map one file per locale. The CLI detects Qt from a `<TS>` root so TypeScript locale modules that also use `.ts` stay on the JavaScript parser:
+
+```yaml
+buckets:
+  qt:
+    files:
+      - from: translations/app_en.ts
+        to: translations/app_{{target}}.ts
+```
+
 ### CSV file mapping patterns
 
 Use bucket file mappings to model CSV workflows.
@@ -203,7 +213,7 @@ Hyperlocalise supports Fluent messages, attributes, multiline values, and select
 
 ### Subtitle file mapping patterns
 
-Use `.srt` or `.vtt` mappings for SubRip and WebVTT caption files:
+Use `.srt`, `.vtt`, or `.sbv` mappings for SubRip, WebVTT, and YouTube SBV caption files:
 
 ```yaml
 buckets:
@@ -213,9 +223,11 @@ buckets:
         to: captions/{{target}}.srt
       - from: captions/{{source}}.vtt
         to: captions/{{target}}.vtt
+      - from: captions/{{source}}.sbv
+        to: captions/{{target}}.sbv
 ```
 
-Hyperlocalise translates cue payload text and preserves cue numbers, timestamps, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks. Cues use sequential keys such as `srt.0001`.
+Hyperlocalise translates cue payload text and preserves cue numbers, timestamps, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks. Cues use sequential keys such as `srt.0001` and `sbv.0001`. SBV files use comma-separated `H:MM:SS.mmm` timestamps and have no cue numbers.
 
 ### JS/TS locale module patterns
 
@@ -268,6 +280,20 @@ buckets:
 ```
 
 Supported resource entries are `<string name="...">` and `<plurals name="..."><item quantity="...">`. Resources marked `translatable="false"` are preserved and skipped. Unsupported translatable resource shapes such as `<string-array>` fail closed so they are not silently dropped.
+
+### INI file mapping patterns
+
+Use `.ini` mappings for Windows-style localization files with one file per locale:
+
+```yaml
+buckets:
+    ini:
+        files:
+            - from: locales/{{source}}/messages.ini
+              to: locales/{{target}}/messages.ini
+```
+
+Keys before the first `[section]` stay unprefixed. Keys inside a section flatten as `section.key`. Hyperlocalise preserves sections, comments, separators, and key order on write.
 
 ### Java properties file mapping patterns
 

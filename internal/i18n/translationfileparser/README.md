@@ -8,6 +8,7 @@
 - `.jsonc` via `JSONCParser`
 - `.yaml` / `.yml` via `YAMLParser`
 - `.js` / `.jsx` / `.mjs` / `.cjs` / `.ts` / `.tsx` / `.mts` / `.cts` via `JSTSLocaleModuleParser`
+- `.ts` Qt Linguist catalogs via `TSFileParser` content detection and `QtLinguistParser`
 - `.arb` via `ARBParser` (Flutter Application Resource Bundle)
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
@@ -19,18 +20,22 @@
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.xcstrings` via `XCStringsParser` (Apple/Xcode string catalogs)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.tsv` via `CSVParser` with a tab delimiter
+- `.toml` via `TOMLParser` (string leaves in tables, inline tables, and string arrays)
 - `.php` via `PHPArrayParser` (static PHP locale arrays)
 - `.ftl` via `FluentParser` (Mozilla Fluent messages and attributes)
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` / `.resw` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
-- `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
+- `.ini` via `INIParser` (Windows-style INI localization files)
+- `.srt` / `.vtt` / `.sbv` via `SubtitleParser` (SubRip, WebVTT, and YouTube SBV subtitle cues)
+- `.svg` via `SVGParser` (`text`, `tspan`, `textPath`, `title`, and `desc`)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, and SVG text parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -64,6 +69,15 @@
 - Accepts JSON with `//` and `/* ... */` comments plus trailing commas.
 - Produces the same flattened dotted-key output shape as the JSON parser.
 - Non-string leaf values are rejected.
+
+### Qt Linguist (`.ts`)
+
+- `TSFileParser` routes `.ts` files with a Qt `<TS>` root to `QtLinguistParser`. Other `.ts` files stay on `JSTSLocaleModuleParser`.
+- Keys are `context|source`. A disambiguation `<comment>` appends `|comment`. An explicit message `id` wins. Messages directly under `<TS>` use `unknown` as the context name unless they have an `id`.
+- Numerus forms flatten to `key::numerus.N`. Empty unfinished translations fall back to `<source>`.
+- `type="obsolete"` and `type="vanished"` messages are skipped.
+- `ParseWithContext` returns `<extracomment>`, `<comment>`, and `<location filename line>` as entry context.
+- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales. `MarshalQtLinguistStaged` additionally takes the keys staged in the current run; unstaged messages whose value is only the source fallback keep their existing `<translation>` and `type="unfinished"`. Rich text is written as escaped character data. Only `<byte>` children are preserved as XML.
 
 ### JS/TS Locale Modules
 
@@ -222,6 +236,15 @@
 - XML marshal values must be decoded plain text, not pre-escaped XML; the serializer escapes translated text and attributes during writeback.
 - Surrounding whitespace inside text-only leaf values is treated as part of the source value and replacement range, so translation providers that trim values may normalize that formatting.
 
+### INI (`.ini`)
+
+- Parses Windows-style INI files with optional `[section]` headers and `key=value` or `key:value` entries.
+- Sectioned keys flatten as `section.key`. Keys before the first section stay unprefixed.
+- Supports `;` and `#` comments, inline comments after whitespace, and single- or double-quoted values with `\n`, `\t`, `\r`, and quote escapes.
+- Adjacent leading comments are returned as entry context by `ParseWithContext`.
+- `MarshalINI(template, values)` preserves section order, comments, separators, and spacing while replacing value literals. New keys append to the matching section; unknown sections are created at the end of the file in sorted order. New unsectioned keys insert before the first section and any comments that belong to it.
+- Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 return explicit parse errors.
+
 ### Java Properties (`.properties`)
 
 - Parses Java-style key/value entries separated by `=`, `:`, or unescaped whitespace.
@@ -231,9 +254,26 @@
 - Writeback normalizes translated values to single-line escaped values.
 - Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations return explicit parse errors.
 
-### Subtitles (`.srt`, `.vtt`)
+### TOML (`.toml`)
 
-- Parses SubRip (`.srt`) and WebVTT (`.vtt`) cues into sequential keys such as `srt.0001` and `vtt.0001`.
+- Parses string assignments from tables, inline tables, and string arrays. Nested tables flatten as dotted keys; string arrays use `[index]` keys.
+- Non-string scalars are skipped. Array-of-tables (`[[name]]`) and duplicate flattened keys return parse errors.
+- `MarshalTOML(template, values)` replaces existing string literals in place and appends new dotted keys in sorted order.
+
+### TSV (`.tsv`)
+
+- Same layouts as CSV, using a tab delimiter: `key`/`value` columns or per-locale columns.
+- `ParseTSVLocale` and `TSVHasLocaleColumn` select a locale column when present.
+
+### SVG (`.svg`)
+
+- Extracts character data from `text`, `tspan`, `textPath`, `title`, and `desc` into sequential keys such as `svg.0001`.
+- Skips `style`, `script`, and `metadata` content. Geometry and attributes stay in the file.
+- `MarshalSVG(template, values)` replaces extracted spans and HTML-escapes translations. Extra keys are ignored.
+
+### Subtitles (`.srt`, `.vtt`, `.sbv`)
+
+- Parses SubRip (`.srt`), WebVTT (`.vtt`), and YouTube SBV (`.sbv`) cues into sequential keys such as `srt.0001`, `vtt.0001`, and `sbv.0001`.
 - Cue numbers, timestamps, positioning, and WebVTT cue settings stay in the file structure and are not translated.
 - Cue payload text is the translation unit. Multiline cues become a single value joined with `\n`.
 - `ParseWithContext` returns the timestamp line as entry context, including a non-numeric WebVTT cue identifier when present.

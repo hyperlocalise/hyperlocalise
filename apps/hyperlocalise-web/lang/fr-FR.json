@@ -8243,9 +8243,6 @@
   "GpQTuQOUij": {
     "defaultMessage": "Chargement de {title}"
   },
-  "GpqbnnE7vn": {
-    "defaultMessage": "Utilisez « Ajouter des fichiers » ci-dessus pour importer des fichiers JSON, YAML, XLIFF, PO, des images, des fichiers Office et d’autres formats pris en charge."
-  },
   "GpsLS8ojw/": {
     "defaultMessage": "—"
   },
@@ -18697,6 +18694,9 @@
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Téléversement de la source · projet requis"
+  },
+  "fBUXcsxgXO": {
+    "defaultMessage": "Utilisez « Ajouter des fichiers » ci-dessus pour importer des fichiers JSON, YAML, XLIFF, PO, Qt TS, des images, des fichiers Office et d’autres formats pris en charge."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Aucun résultat ne correspond à ces filtres."

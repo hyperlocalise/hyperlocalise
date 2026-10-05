@@ -278,10 +278,15 @@ export class GoSvcDomainsApi {
     body: { seedKeyword: string; marketId: string },
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ ideas: import("@/lib/domains/research-prototype").KeywordIdea[] }>(
-      researchPath(organizationSlug, linkedDomainId, "keywords", "expand"),
-      { method: "POST", body, ...options },
-    );
+    return this.request.json<{
+      ideas: import("@/lib/domains/research-prototype").KeywordIdea[];
+      cpcCurrency?: string;
+      capturedAt?: string;
+    }>(researchPath(organizationSlug, linkedDomainId, "keywords", "expand"), {
+      method: "POST",
+      body,
+      ...options,
+    });
   }
 
   saveKeywords(
@@ -290,11 +295,15 @@ export class GoSvcDomainsApi {
     body: {
       marketId: string;
       seedKeyword?: string;
+      capturedAt?: string;
       keywords: Array<{
         keyword: string;
         volume: number;
         kd: number;
         cpc: number;
+        competition?: number;
+        monthlySearches?: { month: string; volume: number }[];
+        capturedAt?: string;
         intent: string;
       }>;
     },
@@ -313,10 +322,15 @@ export class GoSvcDomainsApi {
     body: { keyword: string; marketId: string },
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<{ results: import("@/lib/domains/research-prototype").SerpResult[] }>(
-      researchPath(organizationSlug, linkedDomainId, "serp"),
-      { method: "POST", body, ...options },
-    );
+    return this.request.json<{
+      results: import("@/lib/domains/research-prototype").SerpResult[];
+      capturedAt?: string;
+      cached?: boolean;
+    }>(researchPath(organizationSlug, linkedDomainId, "serp"), {
+      method: "POST",
+      body,
+      ...options,
+    });
   }
 
   trackRanks(

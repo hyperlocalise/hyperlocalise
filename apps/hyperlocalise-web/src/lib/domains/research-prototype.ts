@@ -76,6 +76,7 @@ export type KeywordIdea = {
   marketId?: string;
   competition?: number;
   monthlySearches?: { month: string; volume: number }[];
+  capturedAt?: string;
 };
 
 export type RankRow = {
@@ -137,6 +138,8 @@ export type DomainResearchCatalog = {
   prompt: string;
   promptResults: PromptEngineResult[];
   serpByKeywordId: Record<string, SerpResult[]>;
+  cpcCurrency: string;
+  serpCapturedAtByKeywordId: Record<string, string>;
 };
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
@@ -640,6 +643,8 @@ function catalogFor(
     prompt: "",
     promptResults: [],
     serpByKeywordId: {},
+    cpcCurrency: "EUR",
+    serpCapturedAtByKeywordId: {},
     ...extras,
   };
 }

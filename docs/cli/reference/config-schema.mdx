@@ -93,6 +93,14 @@ Use `buckets.*.files[].from` and `to` to point at `.ftl` files for Mozilla Fluen
 
 Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.
 
+## INI workflow note
+
+Use `buckets.*.files[].from` and `to` to point at per-locale `.ini` files, for example `locales/{{source}}/messages.ini` -> `locales/{{target}}/messages.ini`. Sectioned keys flatten as `section.key`.
+
 ## Subtitle workflow note
 
-Use `buckets.*.files[].from` and `to` to point at `.srt` or `.vtt` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.
+Use `buckets.*.files[].from` and `to` to point at `.srt`, `.vtt`, or `.sbv` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.
+
+## TOML, TSV, and SVG workflow notes
+
+Use matching source and target extensions for TOML locale files (`.toml`), tab-separated catalogs (`.tsv`), and SVG text (`.svg`). TOML translates string leaves only. TSV follows the same key/value and locale-column layouts as CSV. SVG extracts `text`, `tspan`, `textPath`, `title`, and `desc` spans.

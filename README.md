@@ -58,7 +58,7 @@ Other commands include `init`, `completion`, `update`, and `version`.
 
 For review-time validation, `check` also supports `--diff-stdin` to scope findings to changed keys from a unified patch for configured `.json`, `.jsonc`, and `.arb` translation files.
 
-Local generation supports common app resource formats including JSON/JSONC, ARB, XLIFF, PO, HTML, Liquid, Markdown/MDX, AsciiDoc, Apple `.strings`/`.stringsdict`, CSV, and Android `res/values*/strings.xml` resource files.
+Local generation supports common app resource formats including JSON/JSONC, ARB, XLIFF, PO, Qt Linguist `.ts`, HTML, Liquid, Markdown/MDX, AsciiDoc, Apple `.strings`/`.stringsdict`, CSV, and Android `res/values*/strings.xml` resource files.
 
 Use `hyperlocalise --help` for the local command surface, or see the docs for full flags, examples, and provider-specific setup.
 
@@ -156,6 +156,18 @@ the database secret metadata as `DATABASE_URL_SECRET_ARN`,
 from the reusable infrastructure module use explicitly requested generic
 `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
 `ConfigsFromEnv("NAME", ...)` and `Collection`.
+
+The translation-memory interchange worker uses the dedicated
+`MEMORY_INTERCHANGE_QUEUE_URL` producer variable and publishes versioned
+`{schemaVersion, attemptId, operation}` messages. Its artifact is
+`memory-interchange/bootstrap.zip`, built by
+`make build-memory-interchange-lambda`, and its Lambda function handoff is
+`/hyperlocalise/prod/lambda/memory-interchange/function_name`. Imports upload to
+the `memory-interchange/` object prefix, support an asynchronous preview and
+apply, and exports become downloadable after the worker records a completed
+run. The infrastructure queue must be provisioned before enabling the
+publisher; deploy the real artifact before redriving placeholder or DLQ
+messages.
 
 ### GitHub Action settings
 

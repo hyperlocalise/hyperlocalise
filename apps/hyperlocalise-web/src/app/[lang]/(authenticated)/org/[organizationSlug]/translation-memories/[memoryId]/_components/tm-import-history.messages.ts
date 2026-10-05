@@ -101,6 +101,21 @@ export const tmImportHistoryMessages = defineMessages({
     id: "KX9N4t2DlB",
     description: "Compact import result counts",
   },
+  uploadPending: {
+    defaultMessage: "Upload pending",
+    id: "h+UBaWw3mM",
+    description: "Pending translation memory import upload status",
+  },
+  queued: {
+    defaultMessage: "Queued",
+    id: "/9rdVrlT2+",
+    description: "Queued translation memory import status",
+  },
+  previewCompleted: {
+    defaultMessage: "Preview ready",
+    id: "jEIFTvG4wS",
+    description: "Completed translation memory import preview status",
+  },
   running: {
     defaultMessage: "Running",
     id: "xgL5ochSWF",

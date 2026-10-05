@@ -233,6 +233,32 @@ describe("enqueueFileTranslationJob", () => {
     });
   });
 
+  it("accepts CLI catalog source files for file translation jobs", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_properties",
+      filename: "messages_en.properties",
+    });
+
+    const result = await enqueueFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_properties",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "properties",
+      jobQueue: { enqueue: jobQueueEnqueueMock } as never,
+    });
+
+    expect(result).toEqual({ ok: true, jobId: "job_test" });
+    expect(jobQueueEnqueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "translation",
+        type: "file",
+        jobId: "job_test",
+      }),
+    );
+  });
+
   it("accepts png source files for image translation jobs", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_png",

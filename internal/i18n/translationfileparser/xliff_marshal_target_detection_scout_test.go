@@ -5,9 +5,8 @@ import (
 	"testing"
 )
 
-// These cases lock the #1704 streaming hasXLIFFTargetElement contract: literal
-// "<target>" text in comments/CDATA must not flip source→target selection, while
-// a real (including prefixed) target element must.
+// Target discovery ignores comments and CDATA and recognizes prefixed elements.
+// Missing targets are created without changing the source.
 
 func TestMarshalXLIFFIgnoresTargetLiteralInsideComment(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -29,15 +28,8 @@ func TestMarshalXLIFFIgnoresTargetLiteralInsideComment(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, "<source>Bonjour</source>") {
-		t.Fatalf("expected source rewrite when only comment mentions target, got %q", content)
-	}
-	// Comments may still contain the literal text "<target>"; assert no real element.
-	if strings.Contains(content, "<target>") && !strings.Contains(content, "<!-- <target>") {
-		t.Fatalf("expected no real target element to be introduced, got %q", content)
-	}
-	if strings.Contains(content, "<source>Hello</source>") {
-		t.Fatalf("expected original source text to be replaced, got %q", content)
+	if !strings.Contains(content, "<source>Hello</source><target>Bonjour</target>") || !strings.Contains(content, "<!-- <target>fake</target> -->") {
+		t.Fatalf("expected real target created without modifying source or comments, got %q", content)
 	}
 }
 
@@ -59,11 +51,8 @@ func TestMarshalXLIFFIgnoresTargetLiteralInsideCDATA(t *testing.T) {
 	}
 
 	content := string(out)
-	if !strings.Contains(content, "<source>Bonjour</source>") {
-		t.Fatalf("expected source rewrite when CDATA only mentions target, got %q", content)
-	}
-	if strings.Count(content, "<target>") != 0 {
-		t.Fatalf("expected no real target element, got %q", content)
+	if !strings.Contains(content, "<source><![CDATA[<target>not-a-real-target</target>]]></source><target>Bonjour</target>") {
+		t.Fatalf("expected CDATA source preserved and real target created, got %q", content)
 	}
 }
 
@@ -128,7 +117,7 @@ func TestMarshalXLIFFDoesNotLeakTargetDetectionAcrossUnits(t *testing.T) {
 	if !strings.Contains(content, ">Premier</target>") && !strings.Contains(content, "<target>Premier</target>") {
 		t.Fatalf("expected first unit target replaced, got %q", content)
 	}
-	if !strings.Contains(content, "<source>Second</source>") {
-		t.Fatalf("expected second unit source rewritten independently, got %q", content)
+	if !strings.Contains(content, "<source>Beta</source><target>Second</target>") {
+		t.Fatalf("expected second unit target created independently, got %q", content)
 	}
 }

@@ -153,8 +153,8 @@ export const keywordScreenMessages = defineMessages({
     description: "Keyword research screen: competitionHelp",
   },
   cpcHelp: {
-    defaultMessage: "Cost per click in EUR for this sample dataset.",
-    id: "Z/LwXy5NwT",
+    defaultMessage: "Cost per click in the provider currency.",
+    id: "YSaCuF5iBS",
     description: "Keyword research screen: cpcHelp",
   },
   clearSelection: {

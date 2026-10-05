@@ -9,12 +9,13 @@ import (
 	"unicode/utf8"
 )
 
-// SubtitleKind selects SubRip (.srt) or WebVTT (.vtt) parsing rules.
+// SubtitleKind selects SubRip (.srt), WebVTT (.vtt), or YouTube SBV parsing rules.
 type SubtitleKind int
 
 const (
 	SubtitleSRT SubtitleKind = iota
 	SubtitleVTT
+	SubtitleSBV
 )
 
 // SubtitleParser parses subtitle files into translatable cue payloads.
@@ -48,6 +49,7 @@ type subtitleLine struct {
 var (
 	srtTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
 	vttTimestampPattern = regexp.MustCompile(`^(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+	sbvTimestampPattern = regexp.MustCompile(`^\d+:\d{2}:\d{2}\.\d{1,3},\d+:\d{2}:\d{2}\.\d{1,3}$`)
 )
 
 func (p SubtitleParser) Parse(content []byte) (map[string]string, error) {
@@ -130,7 +132,7 @@ func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument,
 		template: text,
 		kind:     kind,
 		newline:  subtitleNewline(text),
-		entries:  make([]subtitleCue, 0, strings.Count(text, "-->")),
+		entries:  make([]subtitleCue, 0, subtitleCapacityHint(text, kind)),
 	}
 	if strings.TrimSpace(text) == "" {
 		return doc, nil
@@ -145,7 +147,9 @@ func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument,
 		}
 		start = headerEnd
 	} else if looksLikeWebVTTHeader(firstNonEmptySubtitleLine(lines)) {
-		return subtitleDocument{}, fmt.Errorf("srt: file looks like WebVTT; use a .vtt extension")
+		return subtitleDocument{}, fmt.Errorf("%s: file looks like WebVTT; use a .vtt extension", subtitleKindName(kind))
+	} else if kind == SubtitleSBV && subtitleHasArrowTimestampLine(lines) {
+		return subtitleDocument{}, fmt.Errorf("sbv: file looks like SubRip or WebVTT; use a .srt or .vtt extension")
 	}
 
 	cueIndex := 0
@@ -310,6 +314,19 @@ func firstNonEmptySubtitleLine(lines []subtitleLine) string {
 	return lines[idx].text
 }
 
+func subtitleHasArrowTimestampLine(lines []subtitleLine) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line.text)
+		if !strings.Contains(trimmed, "-->") {
+			continue
+		}
+		if srtTimestampPattern.MatchString(trimmed) || vttTimestampPattern.MatchString(trimmed) {
+			return true
+		}
+	}
+	return false
+}
+
 func looksLikeWebVTTHeader(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "WEBVTT" {
@@ -333,23 +350,36 @@ func isWebVTTNonCueBlock(first string) bool {
 }
 
 func isSubtitleTimestampLine(line string, kind SubtitleKind) bool {
+	trimmed := strings.TrimSpace(line)
+	if kind == SubtitleSBV {
+		return sbvTimestampPattern.MatchString(trimmed)
+	}
 	// BOLT OPTIMIZATION: Non-timestamp lines (cue IDs, text, blank lines) comprise ~75%
 	// of lines in subtitle files. Fast-path check for "-->" before TrimSpace and regex.
 	if !strings.Contains(line, "-->") {
 		return false
 	}
-	trimmed := strings.TrimSpace(line)
 	if kind == SubtitleVTT {
 		return vttTimestampPattern.MatchString(trimmed)
 	}
 	return srtTimestampPattern.MatchString(trimmed)
 }
 
+func subtitleCapacityHint(text string, kind SubtitleKind) int {
+	if kind == SubtitleSBV {
+		return strings.Count(text, "\n") / 3
+	}
+	return strings.Count(text, "-->")
+}
+
 func subtitleCueKey(kind SubtitleKind, index int) string {
 	// BOLT OPTIMIZATION: Avoid fmt.Sprintf reflection and formatting allocations for cue key formatting.
 	prefix := "srt."
-	if kind == SubtitleVTT {
+	switch kind {
+	case SubtitleVTT:
 		prefix = "vtt."
+	case SubtitleSBV:
+		prefix = "sbv."
 	}
 	if index < 10 {
 		return prefix + "000" + strconv.Itoa(index)
@@ -364,10 +394,14 @@ func subtitleCueKey(kind SubtitleKind, index int) string {
 }
 
 func subtitleKindName(kind SubtitleKind) string {
-	if kind == SubtitleVTT {
+	switch kind {
+	case SubtitleVTT:
 		return "vtt"
+	case SubtitleSBV:
+		return "sbv"
+	default:
+		return "srt"
 	}
-	return "srt"
 }
 
 func subtitleCueContext(entry subtitleCue) string {

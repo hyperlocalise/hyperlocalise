@@ -448,7 +448,14 @@ export const memories = pgTable(
   ],
 );
 
-export type MemoryImportAttemptStatus = "running" | "completed" | "partially_successful" | "failed";
+export type MemoryImportAttemptStatus =
+  | "upload_pending"
+  | "queued"
+  | "running"
+  | "preview_completed"
+  | "completed"
+  | "partially_successful"
+  | "failed";
 
 export type MemoryImportAttemptCounts = {
   totalRead: number;
@@ -477,7 +484,9 @@ export const memoryImportAttempts = pgTable(
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    operation: text("operation").$type<"import" | "export">().notNull().default("import"),
     status: text("status").$type<MemoryImportAttemptStatus>().notNull().default("running"),
+    mode: text("mode").$type<"preview" | "apply" | "export">().notNull().default("apply"),
     format: text("format").$type<"csv" | "tmx">().notNull(),
     options: jsonb("options")
       .$type<Record<string, unknown>>()
@@ -485,7 +494,13 @@ export const memoryImportAttempts = pgTable(
       .default(sql`'{}'::jsonb`),
     sourceFilename: text("source_filename"),
     sourceByteSize: integer("source_byte_size"),
-    sourceSha256: text("source_sha256").notNull(),
+    sourceSha256: text("source_sha256"),
+    sourceObjectLocation: text("source_object_location"),
+    sourceObjectKey: text("source_object_key"),
+    resultObjectLocation: text("result_object_location"),
+    resultObjectKey: text("result_object_key"),
+    resultFilename: text("result_filename"),
+    resultContentType: text("result_content_type"),
     counts: jsonb("counts").$type<MemoryImportAttemptCounts>(),
     headerSrclang: text("header_srclang"),
     diagnosticsTruncated: boolean("diagnostics_truncated").notNull().default(false),
@@ -495,6 +510,8 @@ export const memoryImportAttempts = pgTable(
       .default("available"),
     diagnosticsExpiresAt: timestamp("diagnostics_expires_at", { withTimezone: true }),
     failureCode: text("failure_code"),
+    failureMessage: text("failure_message"),
+    processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },

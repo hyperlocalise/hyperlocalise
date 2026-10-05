@@ -59,6 +59,28 @@ func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesQtLinguistTS(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("translations/app_de.ts", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="de_DE">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>File</source>
+        <translation>Datei</translation>
+    </message>
+</context>
+</TS>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["MainWindow|File"] != "Datei" {
+		t.Fatalf("unexpected Qt Linguist entries: %#v", got)
+	}
+}
+
 func TestStrategyParsesYAML(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -420,6 +442,20 @@ escaped\ key: Ligne un\nLigne deux
 	}
 }
 
+func TestStrategyParsesINI(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("locales/fr.ini", []byte(`[Home]
+welcome=Bienvenue
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["Home.welcome"] != "Bienvenue" {
+		t.Fatalf("unexpected Home.welcome translation: %q", got["Home.welcome"])
+	}
+}
+
 func TestStrategyParsesSRT(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -441,6 +477,54 @@ func TestStrategyParsesVTT(t *testing.T) {
 	}
 	if got["vtt.0001"] != "Hello" {
 		t.Fatalf("unexpected vtt translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesTSV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.tsv", []byte("key\tvalue\nhello\tHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected tsv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesTOML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.toml", []byte("hello = \"Hello\"\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected toml translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSBV(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.sbv", []byte("0:00:00.000,0:00:01.000\nHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["sbv.0001"] != "Hello" {
+		t.Fatalf("unexpected sbv translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesSVG(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("mark.svg", []byte(`<svg><text>Hello</text></svg>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["svg.0001"] != "Hello" {
+		t.Fatalf("unexpected svg translation: %#v", got)
 	}
 }
 
@@ -556,7 +640,7 @@ func TestStrategyParsesHTMLExtensions(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.toml", []byte(""))
+	_, err := s.Parse("fr.pdf", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}

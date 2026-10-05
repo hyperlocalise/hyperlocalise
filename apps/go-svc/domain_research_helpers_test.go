@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +20,38 @@ func TestUniqueResearchKeywords(t *testing.T) {
 		{Keyword: "Rank", Volume: 2},
 	}, rows)
 	require.Empty(t, uniqueResearchKeywords(nil))
+}
+
+func TestResearchDeviceAndMonthlySearches(t *testing.T) {
+	require.Equal(t, "desktop", researchDevice(""))
+	require.Equal(t, "desktop", researchDevice("tablet"))
+	require.Equal(t, "mobile", researchDevice("mobile"))
+	require.Equal(t, "mobile", mergeResearchDevicePreference("", "mobile"))
+	require.Equal(t, "desktop", mergeResearchDevicePreference("mobile", "desktop"))
+	require.Equal(t, "desktop", mergeResearchDevicePreference("desktop", "mobile"))
+
+	value, err := researchMonthlySearchesValue(nil)
+	require.NoError(t, err)
+	require.Nil(t, value)
+
+	encoded, err := researchMonthlySearchesValue([]dataforseo.KeywordMonthlySearch{{Month: "2026-04", Volume: 12}})
+	require.NoError(t, err)
+	require.NotNil(t, encoded)
+}
+
+func TestDecodeResearchSerpResults(t *testing.T) {
+	results, device, ok := decodeResearchSerpResults([]byte(`[{"title":"Home","url":"https://example.com"}]`))
+	require.True(t, ok)
+	require.Equal(t, "", device)
+	require.Equal(t, "Home", results[0].Title)
+
+	results, device, ok = decodeResearchSerpResults([]byte(`{"device":"mobile","results":[{"title":"Mobile","url":"https://m.example.com"}]}`))
+	require.True(t, ok)
+	require.Equal(t, "mobile", device)
+	require.Equal(t, "Mobile", results[0].Title)
+
+	_, _, ok = decodeResearchSerpResults([]byte(`{"broken"`))
+	require.False(t, ok)
 }
 
 func TestResearchIntentAndNullables(t *testing.T) {

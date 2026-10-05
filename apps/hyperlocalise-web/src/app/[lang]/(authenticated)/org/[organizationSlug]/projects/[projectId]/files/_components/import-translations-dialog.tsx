@@ -28,12 +28,14 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  getSupportedFileTranslationAccept,
+  inferSupportedFileTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
 
-const FILE_ACCEPT =
-  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv,.lottie";
+const FILE_ACCEPT = getSupportedFileTranslationAccept();
 
 type ImportTranslationsDialogProps = {
   open: boolean;

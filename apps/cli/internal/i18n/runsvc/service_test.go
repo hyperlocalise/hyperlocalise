@@ -411,7 +411,7 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 func TestRunFailsOnUnsupportedSourceFormat(t *testing.T) {
 	svc := newTestService()
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
-		cfg := testConfig("/tmp/source.toml", "/tmp/out.json")
+		cfg := testConfig("/tmp/source.pdf", "/tmp/out.json")
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
@@ -3353,6 +3353,51 @@ func TestRunWritesCSVPerLocaleLayoutIntoTargetLocaleColumn(t *testing.T) {
 	}
 }
 
+func TestRunReadsTSVSourceLocaleWhenItIsNotTheFirstValueColumn(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.tsv"
+	targetPath := "/tmp/out.tsv"
+	source := "id\tfr\ten\nhello\tBonjour\tHello\n"
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source != "Hello" {
+			return "", errors.New("unexpected source text " + req.Source)
+		}
+		return "Salut", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	if !strings.Contains(out, "hello\tSalut\tHello") {
+		t.Fatalf("expected English source and French target column, got %q", out)
+	}
+}
+
 func TestRunPreservesExistingCSVTargetLocaleValuesForUnchangedKeys(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.csv"
@@ -4434,8 +4479,13 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.resw":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.properties":  []byte("hello=Hello\n"),
+		"/tmp/source.ini":         []byte("hello=Hello\n"),
 		"/tmp/source.srt":         []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
 		"/tmp/source.vtt":         []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"),
+		"/tmp/source.tsv":         []byte("key\tsource\ttarget\nhello\tHello\tHello\n"),
+		"/tmp/source.toml":        []byte("hello = \"Hello\"\n"),
+		"/tmp/source.sbv":         []byte("0:00:00.000,0:00:01.000\nHello\n"),
+		"/tmp/source.svg":         []byte("<svg><text>Hello</text></svg>"),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -4469,14 +4519,19 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 		{target: "/tmp/out.resw", source: "/tmp/source.resw"},
 		{target: "/tmp/out.properties", source: "/tmp/source.properties"},
+		{target: "/tmp/out.ini", source: "/tmp/source.ini"},
 		{target: "/tmp/out.srt", source: "/tmp/source.srt"},
 		{target: "/tmp/out.vtt", source: "/tmp/source.vtt"},
+		{target: "/tmp/out.tsv", source: "/tmp/source.tsv"},
+		{target: "/tmp/out.toml", source: "/tmp/source.toml"},
+		{target: "/tmp/out.sbv", source: "/tmp/source.sbv"},
+		{target: "/tmp/out.svg", source: "/tmp/source.svg"},
 	}
 
 	for _, tc := range cases {
 		values := map[string]string{"hello": "Bonjour"}
 		ext := strings.ToLower(filepath.Ext(tc.target))
-		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
+		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
 			entries, err := svc.newParser().Parse(tc.source, sourceTemplate[tc.source])
 			if err != nil {
 				t.Fatalf("parse %s source: %v", tc.target, err)
@@ -4663,7 +4718,7 @@ export default {
 	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en", "fr", map[string]string{
 		"title": "Salut",
 		"cta":   "Acheter",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal js/ts target: %v", err)
 	}
@@ -5045,7 +5100,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForXLIFFWhenAllKeysPres
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5078,7 +5133,7 @@ msgstr "Bonjour"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5105,7 +5160,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsWhenAllKeysPr
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5132,7 +5187,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForFluentWhenAllKeysPre
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5176,7 +5231,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsdictWhenAllKe
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5215,7 +5270,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5270,7 +5325,7 @@ func TestMarshalSourceTemplateTargetARBAppendsMissingKeysAndCarriesSourceMetadat
 	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{
 		"hello":   "Salut",
 		"goodbye": "Au revoir",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5331,7 +5386,7 @@ func TestMarshalSourceTemplateTargetARBUsesSourceFallbackWhenTargetInvalid(t *te
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5378,7 +5433,7 @@ msgstr "Supprimer"
 		}
 	}
 
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"keep": "Garder"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5419,7 +5474,7 @@ msgstr "Supprimer"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5458,7 +5513,7 @@ msgstr "New value"
 	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5507,7 +5562,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForXLIFF(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".xlf", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5544,7 +5599,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStrings(t *testing.T)
 	content, err := svc.marshalSourceTemplateTarget(".strings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}
@@ -5593,7 +5648,7 @@ func TestMarshalSourceTemplateTargetDeletesAndInsertsKeyForStringsdict(t *testin
 	content, err := svc.marshalSourceTemplateTarget(".stringsdict", targetPath, sourcePath, "en", "fr", map[string]string{
 		"keep":    "Garder",
 		"new_key": "Nouvelle valeur",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal source-template target: %v", err)
 	}

@@ -1,5 +1,5 @@
 {
-  "id": "bb35aa3f-58a4-4737-896f-9a9c5fc06b26",
+  "id": "2ad94730-624d-43a0-9ea8-67e807034a9a",
   "prevId": "c66e607a-f5ac-41b6-b01c-d9d4844e812a",
   "version": "7",
   "dialect": "postgresql",
@@ -6740,12 +6740,26 @@
           "primaryKey": false,
           "notNull": false
         },
+        "operation": {
+          "name": "operation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'import'"
+        },
         "status": {
           "name": "status",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "default": "'running'"
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'apply'"
         },
         "format": {
           "name": "format",
@@ -6776,7 +6790,43 @@
           "name": "source_sha256",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "source_object_location": {
+          "name": "source_object_location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_object_key": {
+          "name": "source_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_object_location": {
+          "name": "result_object_location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_object_key": {
+          "name": "result_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_filename": {
+          "name": "result_filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_content_type": {
+          "name": "result_content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "counts": {
           "name": "counts",
@@ -6813,6 +6863,18 @@
         "failure_code": {
           "name": "failure_code",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_message": {
+          "name": "failure_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processing_started_at": {
+          "name": "processing_started_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -16164,13 +16226,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "skill_ids": {
-          "name": "skill_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         },
         "project_id": {
           "name": "project_id",

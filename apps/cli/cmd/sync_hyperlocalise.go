@@ -478,6 +478,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xliff"
 	case ".po":
 		return "po"
+	case ".ts":
+		return "qt-ts"
 	case ".html":
 		return "html"
 	case ".md":
@@ -494,14 +496,24 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xcstrings"
 	case ".csv":
 		return "csv"
+	case ".tsv":
+		return "tsv"
+	case ".toml":
+		return "toml"
 	case ".ftl":
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".ini":
+		return "ini"
 	case ".srt":
 		return "srt"
 	case ".vtt":
 		return "vtt"
+	case ".sbv":
+		return "sbv"
+	case ".svg":
+		return "svg"
 	case ".png":
 		return "png"
 	case ".jpg", ".jpeg":
@@ -814,6 +826,9 @@ func writeHyperlocalisePullReport(w io.Writer, report hyperlocalisePullReport, o
 }
 
 func contentTypeForPath(path string) string {
+	if strings.EqualFold(filepath.Ext(path), ".ts") {
+		return "text/xml"
+	}
 	if contentType := mime.TypeByExtension(filepath.Ext(path)); contentType != "" {
 		return contentType
 	}
@@ -822,8 +837,14 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".adoc", ".asciidoc", ".asc":
 		return "text/asciidoc"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties":
+	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
 		return "text/plain"
+	case ".toml":
+		return "application/toml"
+	case ".tsv":
+		return "text/tab-separated-values"
+	case ".svg":
+		return "image/svg+xml"
 	case ".srt":
 		return "application/x-subrip"
 	case ".vtt":

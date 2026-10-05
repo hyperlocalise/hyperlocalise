@@ -36,7 +36,7 @@ func NewDefaultStrategy() *Strategy {
 	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
 	// during initialization. We use assignments for static extensions and
 	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
-	parsers := make(map[string]Parser, 35+len(JSTSLocaleModuleExts))
+	parsers := make(map[string]Parser, 39+len(JSTSLocaleModuleExts))
 	parsers[".json"] = JSONParser{}
 	parsers[".jsonc"] = JSONCParser{}
 	parsers[".yaml"] = YAMLParser{}
@@ -63,19 +63,25 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".stringsdict"] = AppleStringsdictParser{}
 	parsers[".xcstrings"] = XCStringsParser{}
 	parsers[".csv"] = CSVParser{}
+	parsers[".tsv"] = CSVParser{Delimiter: '\t'}
+	parsers[".toml"] = TOMLParser{}
 	parsers[".php"] = PHPArrayParser{}
 	parsers[".ftl"] = FluentParser{}
 	parsers[".xml"] = XMLParser{}
 	parsers[".resx"] = GenericXMLParser{}
 	parsers[".resw"] = GenericXMLParser{}
 	parsers[".properties"] = JavaPropertiesParser{}
+	parsers[".ini"] = INIParser{}
 	parsers[".srt"] = SubtitleParser{Kind: SubtitleSRT}
 	parsers[".vtt"] = SubtitleParser{Kind: SubtitleVTT}
+	parsers[".sbv"] = SubtitleParser{Kind: SubtitleSBV}
+	parsers[".svg"] = SVGParser{}
 	parsers[".lottie"] = DotLottieParser{}
 
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}
 	}
+	parsers[".ts"] = TSFileParser{}
 
 	return &Strategy{parsersByExt: parsers}
 }
@@ -123,6 +129,21 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 	return values, nil
 }
 
+// ParseSource parses a source catalog. Multi-column CSV/TSV files use
+// sourceLocale to select the matching header instead of the first value column.
+func (s *Strategy) ParseSource(path string, content []byte, sourceLocale string) (map[string]string, map[string]string, error) {
+	sourceLocale = strings.TrimSpace(sourceLocale)
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
+	if sourceLocale != "" && (ext == ".csv" || ext == ".tsv") {
+		values, err := s.ParseWithLocale(path, content, sourceLocale)
+		if err != nil {
+			return nil, nil, err
+		}
+		return values, nil, nil
+	}
+	return s.parseWithContext(path, content)
+}
+
 // ParseWithLocale parses content for a specific target locale when the format
 // stores multiple locales in one file (for example Apple .xcstrings catalogs or
 // multi-column CSV files). For other formats, locale is ignored and Parse is used.
@@ -141,6 +162,13 @@ func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (
 	}
 	if ext == ".csv" {
 		values, err := ParseCSVLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+	if ext == ".tsv" {
+		values, err := ParseTSVLocale(content, locale)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}

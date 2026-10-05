@@ -27,6 +27,7 @@ import {
   createStoredFile,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
+import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import { readTranslatedFile } from "@/lib/translation/sandbox";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -66,41 +67,6 @@ async function runSandboxCommand(
 function sourceFilename(path: string) {
   const normalizedPath = normalizeSourcePath(path);
   return normalizedPath.split("/").filter(Boolean).at(-1) ?? normalizedPath;
-}
-
-function sourceContentType(path: string) {
-  const format = inferSupportedSourceUploadFormat(path);
-  switch (format) {
-    case "json":
-    case "jsonc":
-    case "arb":
-      return "application/json";
-    case "xliff":
-      return "application/xliff+xml";
-    case "po":
-    case "strings":
-    case "stringsdict":
-      return "text/plain";
-    case "html":
-      return "text/html";
-    case "markdown":
-    case "mdx":
-      return "text/markdown";
-    case "csv":
-      return "text/csv";
-    case "srt":
-      return "application/x-subrip";
-    case "vtt":
-      return "text/vtt";
-    case "png":
-      return "image/png";
-    case "jpeg":
-      return "image/jpeg";
-    case "webp":
-      return "image/webp";
-    default:
-      return "application/octet-stream";
-  }
 }
 
 /**

@@ -225,7 +225,7 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 					continue
 				}
 
-				sourceEntries, err := readEntriesForStatus(parser, sourcePath)
+				sourceEntries, err := readEntriesForStatus(parser, sourcePath, cfg.Locales.Source)
 				sourceMissing := false
 				if err != nil {
 					if os.IsNotExist(err) {
@@ -235,7 +235,7 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 						return nil, err
 					}
 				}
-				sourceStatusEntries, err := readSourceEntriesForStatus(parser, sourcePath)
+				sourceStatusEntries, err := readSourceEntriesForStatus(parser, sourcePath, cfg.Locales.Source)
 				if err != nil {
 					if !os.IsNotExist(err) {
 						return nil, err
@@ -304,19 +304,19 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 	return entries, nil
 }
 
-func readEntriesForStatus(parser *translationfileparser.Strategy, path string) (map[string]string, error) {
+func readEntriesForStatus(parser *translationfileparser.Strategy, path, locale string) (map[string]string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := parser.Parse(path, content)
+	entries, _, err := parser.ParseSource(path, content, locale)
 	if err != nil {
 		return nil, fmt.Errorf("parse translation file %q: %w", path, err)
 	}
 	return entries, nil
 }
 
-func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path string) (map[string]string, error) {
+func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path, locale string) (map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".md" || ext == ".mdx" {
 		content, err := os.ReadFile(path)
@@ -333,7 +333,7 @@ func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path str
 		}
 		return translationfileparser.AlignAsciiDocTargetToSource(content, content), nil
 	}
-	return readEntriesForStatus(parser, path)
+	return readEntriesForStatus(parser, path, locale)
 }
 
 func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, error) {
@@ -361,18 +361,18 @@ func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePa
 		}
 		return translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent), nil
 	}
-	if ext == ".xcstrings" {
+	if ext == ".xcstrings" || ext == ".csv" || ext == ".tsv" {
 		content, err := os.ReadFile(targetPath)
 		if err != nil {
 			return nil, err
 		}
-		entries, err := translationfileparser.ParseXCStringsLocale(content, locale)
+		entries, err := parser.ParseWithLocale(targetPath, content, locale)
 		if err != nil {
 			return nil, fmt.Errorf("parse translation file %q: %w", targetPath, err)
 		}
 		return entries, nil
 	}
-	return readEntriesForStatus(parser, targetPath)
+	return readEntriesForStatus(parser, targetPath, "")
 }
 
 func filterByLocale(entries []storage.Entry, locales []string) []storage.Entry {

@@ -18,7 +18,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".srt", ".vtt":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd", ".adoc", ".asciidoc", ".asc", ".strings", ".stringsdict", ".xcstrings", ".csv", ".tsv", ".toml", ".arb", ".ftl", ".html", ".htm", ".liquid", ".php", ".xml", ".resx", ".resw", ".properties", ".ini", ".srt", ".vtt", ".sbv", ".svg":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -69,8 +69,8 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	if ext == ".liquid" {
 		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".resw" || ext == ".properties" || ext == ".srt" || ext == ".vtt" || isJSTSLocaleModuleExt(ext) {
-		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
+	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".php" || ext == ".xml" || ext == ".resx" || ext == ".resw" || ext == ".properties" || ext == ".ini" || ext == ".toml" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || isJSTSLocaleModuleExt(ext) {
+		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 		return content, nil, err
 	}
 
@@ -86,12 +86,18 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 			return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil, nil
+	case ".tsv":
+		content, err := marshalTSVTarget(template, values, targetLocale)
+		if err != nil {
+			return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil, nil
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
 }
 
-func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
+func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values, stagedEntries map[string]string) ([]byte, error) {
 	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
@@ -125,6 +131,14 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 				}
 			case ext == ".vtt":
 				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleVTT) {
+					template = targetTemplate
+				}
+			case ext == ".sbv":
+				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleSBV) {
+					template = targetTemplate
+				}
+			case ext == ".xlf" || ext == ".xlif" || ext == ".xliff":
+				if hasExactKeySet(targetEntries, values) && translationfileparser.XLIFFSourceStructureEqual(sourceTemplate, targetTemplate) {
 					template = targetTemplate
 				}
 			case hasExactKeySet(targetEntries, values):
@@ -207,6 +221,12 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
+	case ".ini":
+		content, err := translationfileparser.MarshalINI(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	case ".srt":
 		content, err := translationfileparser.MarshalSubtitles(template, values, translationfileparser.SubtitleSRT)
 		if err != nil {
@@ -219,7 +239,32 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
+	case ".sbv":
+		content, err := translationfileparser.MarshalSubtitles(template, values, translationfileparser.SubtitleSBV)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".toml":
+		content, err := translationfileparser.MarshalTOML(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".svg":
+		content, err := translationfileparser.MarshalSVG(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	default:
+		if ext == ".ts" && translationfileparser.LooksLikeQtLinguistTS(template) {
+			content, err := translationfileparser.MarshalQtLinguistStaged(template, values, stagedEntries, sourceLocale, targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		if isJSTSLocaleModuleExt(ext) {
 			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
 			if err != nil {
