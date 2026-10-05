@@ -586,6 +586,49 @@ func TestStatusCommandAndroidXMLResources(t *testing.T) {
 	}
 }
 
+func TestStatusCommandRecognizesINIFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US", "messages.ini")
+	targetPath := filepath.Join(dir, "locales", "fr-FR", "messages.ini")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("[Home]\nwelcome.message=Hello {0}\n"), 0o600); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("[Home]\nwelcome.message=Bonjour {0}\n"), 0o600); err != nil {
+		t.Fatalf("write target ini: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["fr-FR"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "welcome.message") || !strings.Contains(got, ",fr-FR,translated,unknown,") {
+		t.Fatalf("expected translated .ini row, got: %s", got)
+	}
+}
+
 func TestStatusCommandRecognizesRESWFiles(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

@@ -56,6 +56,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/cli
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml`, `.resx`, and `.resw` for generic XML locale files
 - `.properties`
+- `.ini`
 - `.srt` and `.vtt`
 
 For JSON (`.json`), `run` supports:
@@ -141,6 +142,8 @@ Unsupported translatable Android resource shapes such as `<string-array>` fail w
 
 
 For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
+
+For INI files (`.ini`), `run` supports per-locale key/value files with optional `[section]` headers, such as `messages_en.ini` -> `messages_[locale].ini`. Keys before the first section stay unprefixed. Keys inside a section flatten as `section.key`. Comments beginning with `;` or `#` are preserved and adjacent comments can be used as entry context. Quoted values and inline comments after whitespace are supported. On write, existing sections, key order, comments, separators, and spacing are preserved. New keys append to the matching section, and unknown sections are created at the end of the file. Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 fail with clear parse errors.
 
 For SubRip and WebVTT subtitles (`.srt`, `.vtt`), `run` translates cue payload text and preserves non-translatable structure:
 

@@ -672,6 +672,33 @@ func TestMarshalSourceTemplateTargetRESW(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetINI(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.ini")
+	targetPath := filepath.Join(t.TempDir(), "target.ini")
+	source := "; Checkout\n[Home]\nhello = Hello {0}\n"
+	target := "; Checkout translated\n[Home]\nhello = Salut {0}\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source ini: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target ini: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".ini", targetPath, sourcePath, "en", "fr", map[string]string{"Home.hello": "Bonjour {0}"})
+	if err != nil {
+		t.Fatalf("marshal ini target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "; Checkout translated") {
+		t.Fatalf("expected target comments to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "hello = Bonjour {0}") {
+		t.Fatalf("expected translated ini value, got %q", got)
+	}
+}
+
 func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source.properties")
 	targetPath := filepath.Join(t.TempDir(), "target.properties")

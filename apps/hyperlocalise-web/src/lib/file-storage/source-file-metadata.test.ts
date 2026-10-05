@@ -36,6 +36,7 @@ describe("sourceContentType", () => {
 
   it("keeps text and image mappings for existing source formats", () => {
     expect(sourceContentType("messages/en.json")).toBe("application/json");
+    expect(sourceContentType("locales/en.ini")).toBe("text/plain");
     expect(sourceContentType("docs/guide.adoc")).toBe("text/asciidoc");
     expect(sourceContentType("assets/hero.png")).toBe("image/png");
     expect(sourceContentType("unknown.bin")).toBe("application/octet-stream");

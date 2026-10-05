@@ -24,13 +24,14 @@
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` / `.resw` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
+- `.ini` via `INIParser` (Windows-style INI localization files)
 - `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, and SubRip/WebVTT subtitle parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -221,6 +222,15 @@
 - `MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)` also rewrites root-element locale attributes (`xml:lang`, `lang`, `locale`, `language`, `code`) whose values match `sourceLocale`, adapting the original separator style (for example `en_US` -> `vi_VN`, `en` -> `vi`).
 - XML marshal values must be decoded plain text, not pre-escaped XML; the serializer escapes translated text and attributes during writeback.
 - Surrounding whitespace inside text-only leaf values is treated as part of the source value and replacement range, so translation providers that trim values may normalize that formatting.
+
+### INI (`.ini`)
+
+- Parses Windows-style INI files with optional `[section]` headers and `key=value` or `key:value` entries.
+- Sectioned keys flatten as `section.key`. Keys before the first section stay unprefixed.
+- Supports `;` and `#` comments, inline comments after whitespace, and single- or double-quoted values with `\n`, `\t`, `\r`, and quote escapes.
+- Adjacent leading comments are returned as entry context by `ParseWithContext`.
+- `MarshalINI(template, values)` preserves section order, comments, separators, and spacing while replacing value literals. New keys append to the matching section; unknown sections are created at the end of the file in sorted order. New unsectioned keys insert before the first section and any comments that belong to it.
+- Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 return explicit parse errors.
 
 ### Java Properties (`.properties`)
 
