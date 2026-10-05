@@ -30,6 +30,16 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "BsHGinE5HI",
     description: "Translation memory import report page description",
   },
+  exportTitle: {
+    defaultMessage: "Export report",
+    id: "QsPTtPId+V",
+    description: "Translation memory export report page title",
+  },
+  exportSubtitle: {
+    defaultMessage: "A durable record of this translation memory export.",
+    id: "WsYxB1sDR5",
+    description: "Translation memory export report page description",
+  },
   loading: {
     defaultMessage: "Loading import report",
     id: "gq7HYMcSL2",
@@ -65,6 +75,16 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "DpujlokITJ",
     description: "Download a machine-readable import report",
   },
+  downloadExport: {
+    defaultMessage: "Download export",
+    id: "pJ6fZYMSIA",
+    description: "Download a completed translation memory export",
+  },
+  downloadFailed: {
+    defaultMessage: "Download failed.",
+    id: "o91utHaw2M",
+    description: "Translation memory export download error",
+  },
   affectedEntries: {
     defaultMessage: "View affected entries",
     id: "pZzJNiijOV",
@@ -94,6 +114,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Imported by",
     id: "stUnm5XNi2",
     description: "Import actor field label",
+  },
+  exportedBy: {
+    defaultMessage: "Exported by",
+    id: "BDtiDDe7/E",
+    description: "Export actor field label",
   },
   started: {
     defaultMessage: "Started",
@@ -139,6 +164,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Failure code",
     id: "P95tFJIvcW",
     description: "Import failure code field label",
+  },
+  failureMessage: {
+    defaultMessage: "Failure reason",
+    id: "Rgp/V+Ndcw",
+    description: "Label for a recorded translation memory export failure message",
   },
   sourceLanguage: {
     defaultMessage: "Header source language",
@@ -225,10 +255,20 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "2FJ39S/f6p",
     description: "Import failed count",
   },
+  entriesExported: {
+    defaultMessage: "Entries exported",
+    id: "Uc7/iaCod8",
+    description: "Number of translation memory entries in an export",
+  },
   pendingCounts: {
     defaultMessage: "Counts will appear when the import finishes.",
     id: "jhLLn9eNRX",
     description: "Message while import counts are unavailable",
+  },
+  pendingExportCounts: {
+    defaultMessage: "The entry count will appear when the export finishes.",
+    id: "Ir8kybD8uF",
+    description: "Message while export counts are unavailable",
   },
   noDiagnostics: {
     defaultMessage: "No diagnostics were recorded for this import.",

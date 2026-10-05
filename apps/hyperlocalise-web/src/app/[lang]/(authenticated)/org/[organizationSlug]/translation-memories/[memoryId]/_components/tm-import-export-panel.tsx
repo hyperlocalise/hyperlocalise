@@ -15,7 +15,7 @@
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -33,6 +33,8 @@ import {
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
   readMemoryImportFile,
@@ -40,6 +42,7 @@ import {
 import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
+import { tmImportAttemptsQueryKey } from "./tm-import-history";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { tmImportExportPanelMessages as messages } from "./tm-import-export-panel.messages";
 
@@ -78,7 +81,9 @@ export function TmImportExportPanel({
   renderActions?: (actions: { openImport: () => void; openExport: () => void }) => ReactNode;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const router = useRouter();
+  const { client: goSvcClient } = useGoSvcClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [preview, setPreview] = useState<MemoryImportResponse | null>(null);
@@ -175,34 +180,24 @@ export function TmImportExportPanel({
       format?: "csv" | "tmx";
     }) => {
       const format = input?.format ?? exportFormat;
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries.export.$get({
-        param: { organizationSlug, memoryId },
-        query: {
+      try {
+        return await goSvcClient.memory.entries.createExport(organizationSlug, memoryId, {
           format,
           ...(input?.sourceLocale ? { sourceLocale: input.sourceLocale } : {}),
           ...(input?.targetLocale ? { targetLocale: input.targetLocale } : {}),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.exportFailed)));
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.exportFailed)), {
+          cause: error,
+        });
       }
-      const blob = await response.blob();
-      const defaultName = format === "csv" ? "translation-memory.csv" : "translation-memory.tmx";
-      const filename =
-        response.headers.get("content-disposition")?.match(/filename\*=UTF-8''([^;]+)/)?.[1] ??
-        defaultName;
-      return { blob, filename: decodeURIComponent(filename) };
     },
-    onSuccess: ({ blob, filename }) => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
-      URL.revokeObjectURL(url);
+    onSuccess: ({ attemptId }) => {
       setExportOpen(false);
+      void queryClient.invalidateQueries({
+        queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
+      });
+      router.push(`/org/${organizationSlug}/translation-memories/${memoryId}/imports/${attemptId}`);
     },
     onError: (error) => toast.error(error.message),
   });

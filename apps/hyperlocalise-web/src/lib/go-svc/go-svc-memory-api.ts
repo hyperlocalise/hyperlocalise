@@ -15,6 +15,10 @@ import type {
   GoSvcRecord,
   GoSvcRequestOptions,
   MemoryEntry,
+  MemoryExportJob,
+  MemoryInterchangeAttempt,
+  MemoryInterchangeAttemptResponse,
+  MemoryInterchangeDownloadUrl,
   MemoryProject,
   MemoryRecord,
 } from "./go-svc-client.types";
@@ -218,6 +222,22 @@ export class GoSvcMemoryEntriesApi {
     );
   }
 
+  createExport(
+    organizationSlug: string,
+    memoryId: string,
+    query: {
+      format?: "csv" | "tmx";
+      sourceLocale?: string;
+      targetLocale?: string;
+    } = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryExportJob>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries", "export"),
+      { method: "POST", query, ...options },
+    );
+  }
+
   promoteFromProject(
     organizationSlug: string,
     memoryId: string,
@@ -252,7 +272,7 @@ export class GoSvcMemoryImportAttemptsApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{
-      memoryImportAttempts: GoSvcRecord[];
+      memoryImportAttempts: MemoryInterchangeAttempt[];
       nextCursor: string | null;
       total: number;
       pagination: { limit: number; returned: number; hasMore: boolean };
@@ -268,8 +288,27 @@ export class GoSvcMemoryImportAttemptsApi {
     attemptId: string,
     options: GoSvcRequestOptions = {},
   ) {
-    return this.request.json<GoSvcRecord>(
+    return this.request.json<MemoryInterchangeAttemptResponse>(
       orgPath(organizationSlug, "translation-memories", memoryId, "import-attempts", attemptId),
+      options,
+    );
+  }
+
+  downloadUrl(
+    organizationSlug: string,
+    memoryId: string,
+    attemptId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryInterchangeDownloadUrl>(
+      orgPath(
+        organizationSlug,
+        "translation-memories",
+        memoryId,
+        "import-attempts",
+        attemptId,
+        "download",
+      ),
       options,
     );
   }

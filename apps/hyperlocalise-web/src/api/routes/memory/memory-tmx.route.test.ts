@@ -291,6 +291,125 @@ describe("memory TMX import and export", () => {
     expect(inaccessible.status).toBe(404);
   });
 
+  it("lists queued and completed exports in interchange history", async () => {
+    const { identity, memory, organization, user } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await db.insert(schema.memoryImportAttempts).values([
+      {
+        organizationId: organization.id,
+        memoryId: memory.id,
+        createdByUserId: user.id,
+        operation: "export",
+        status: "queued",
+        mode: "export",
+        format: "tmx",
+      },
+      {
+        organizationId: organization.id,
+        memoryId: memory.id,
+        createdByUserId: user.id,
+        operation: "export",
+        status: "completed",
+        mode: "export",
+        format: "csv",
+        resultFilename: "product-tm.csv",
+        resultObjectKey: "memory-interchange/export/product-tm.csv",
+        counts: { entries: 4 },
+      },
+    ]);
+
+    const history = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id },
+        query: { limit: "25" },
+      },
+      { headers },
+    );
+    expect(history.status).toBe(200);
+    const body = (await history.json()) as {
+      total: number;
+      memoryImportAttempts: Array<{
+        operation: string;
+        status: string;
+        resultFilename: string | null;
+        resultReady: boolean;
+        counts: { entries?: number } | null;
+      }>;
+    };
+    expect(body.total).toBe(2);
+    expect(body.memoryImportAttempts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: "export",
+          status: "queued",
+          resultFilename: null,
+          resultReady: false,
+          counts: null,
+        }),
+        expect.objectContaining({
+          operation: "export",
+          status: "completed",
+          resultFilename: "product-tm.csv",
+          resultReady: true,
+          counts: { entries: 4 },
+        }),
+      ]),
+    );
+  });
+
+  it("returns export details and keeps the JSON report import-only", async () => {
+    const { identity, memory, organization, user } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const [failed] = await db
+      .insert(schema.memoryImportAttempts)
+      .values({
+        organizationId: organization.id,
+        memoryId: memory.id,
+        createdByUserId: user.id,
+        operation: "export",
+        status: "failed",
+        mode: "export",
+        format: "tmx",
+        failureCode: "export_failed",
+        failureMessage: "The export file could not be written.",
+      })
+      .returning({ id: schema.memoryImportAttempts.id });
+
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ][":attemptId"].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id, attemptId: failed.id },
+      },
+      { headers },
+    );
+    expect(detail.status).toBe(200);
+    await expect(detail.json()).resolves.toMatchObject({
+      memoryImportAttempt: {
+        id: failed.id,
+        operation: "export",
+        failureCode: "export_failed",
+        failureMessage: "The export file could not be written.",
+      },
+      diagnostics: [],
+    });
+
+    const report = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ][":attemptId"].report.$get(
+      {
+        param: { organizationSlug, memoryId: memory.id, attemptId: failed.id },
+      },
+      { headers },
+    );
+    expect(report.status).toBe(404);
+  });
+
   it("imports multilingual TMX, then re-imports the same tuids without duplicates", async () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);

@@ -383,12 +383,22 @@ export const memoryImportAttemptCountsSchema = memoryImportReportSchema.omit({
   truncatedIssues: true,
 });
 
+export const memoryExportAttemptCountsSchema = z.object({
+  entries: z.number().int().nonnegative(),
+});
+
+export const memoryInterchangeAttemptCountsSchema = z.union([
+  memoryImportAttemptCountsSchema,
+  memoryExportAttemptCountsSchema,
+]);
+
 export const memoryImportAttemptRecordSchema = z.object({
   id: z.string().uuid(),
   organizationId: z.string().uuid(),
   memoryId: z.string().uuid(),
   createdByUserId: z.string().uuid().nullable(),
   actorDisplayName: z.string().nullable(),
+  operation: z.enum(["import", "export"]),
   status: memoryImportAttemptStatusSchema,
   importBatchId: z.string().uuid(),
   format: z.enum(["csv", "tmx"]),
@@ -396,13 +406,16 @@ export const memoryImportAttemptRecordSchema = z.object({
   sourceFilename: z.string().nullable(),
   sourceByteSize: z.number().int().nonnegative().nullable(),
   sourceSha256: z.string().length(64).nullable(),
-  counts: memoryImportAttemptCountsSchema.nullable(),
+  counts: memoryInterchangeAttemptCountsSchema.nullable(),
+  resultFilename: z.string().nullable(),
+  resultReady: z.boolean(),
   headerSrclang: z.string().nullable(),
   diagnosticsTruncated: z.boolean(),
   diagnosticsAvailability: z.enum(["available", "expired"]),
   diagnosticsExpiresAt: z.string().datetime().nullable(),
   retentionPolicy: z.literal("indefinite"),
   failureCode: z.string().nullable(),
+  failureMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   completedAt: z.string().datetime().nullable(),
 });

@@ -467,8 +467,14 @@ export type MemoryImportAttemptCounts = {
   failed: number;
 };
 
+export type MemoryExportAttemptCounts = {
+  entries: number;
+};
+
+export type MemoryInterchangeAttemptCounts = MemoryImportAttemptCounts | MemoryExportAttemptCounts;
+
 /**
- * Append-only identity and canonical summary for a real translation-memory import.
+ * Append-only identity and canonical summary for a translation-memory import or export.
  * Only the running attempt may be finalized, and only once.
  */
 export const memoryImportAttempts = pgTable(
@@ -501,7 +507,7 @@ export const memoryImportAttempts = pgTable(
     resultObjectKey: text("result_object_key"),
     resultFilename: text("result_filename"),
     resultContentType: text("result_content_type"),
-    counts: jsonb("counts").$type<MemoryImportAttemptCounts>(),
+    counts: jsonb("counts").$type<MemoryInterchangeAttemptCounts>(),
     headerSrclang: text("header_srclang"),
     diagnosticsTruncated: boolean("diagnostics_truncated").notNull().default(false),
     diagnosticsAvailability: text("diagnostics_availability")

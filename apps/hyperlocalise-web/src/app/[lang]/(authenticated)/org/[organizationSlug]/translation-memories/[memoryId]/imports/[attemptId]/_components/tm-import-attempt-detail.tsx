@@ -13,14 +13,17 @@
  * Version 2.0 or later.
  */
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
+import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type {
-  MemoryImportAttemptRecord,
-  MemoryImportAttemptResponse,
-  MemoryRecord,
-} from "@/api/routes/memory/memory.schema";
+  MemoryInterchangeAttemptResponse,
+  MemoryInterchangeAttemptStatus,
+  MemoryInterchangeDiagnostic,
+} from "@/lib/go-svc/go-svc-client.types";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -28,10 +31,43 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
+
+const IMPORT_COUNT_FIELDS = [
+  ["totalRead", messages.totalRead],
+  ["created", messages.created],
+  ["updated", messages.updated],
+  ["variantCreated", messages.variants],
+  ["skipped", messages.skipped],
+  ["warned", messages.warnings],
+  ["failed", messages.failedCount],
+] as const;
+
+type InterchangeCountItem = {
+  label: (typeof IMPORT_COUNT_FIELDS)[number][1] | typeof messages.entriesExported;
+  value: number;
+};
+
+export function memoryInterchangeCountItems(attempt: {
+  operation: "import" | "export";
+  counts: Record<string, unknown> | null;
+}): InterchangeCountItem[] {
+  const counts = attempt.counts;
+  if (!counts) return [];
+  if (attempt.operation === "export") {
+    const entries = counts.entries;
+    return typeof entries === "number" && Number.isFinite(entries)
+      ? [{ label: messages.entriesExported, value: entries }]
+      : [];
+  }
+  return IMPORT_COUNT_FIELDS.map(([key, label]) => ({
+    label,
+    value: typeof counts[key] === "number" ? counts[key] : 0,
+  }));
+}
 
 class ImportReportRequestError extends Error {
   status: number;
@@ -43,7 +79,30 @@ class ImportReportRequestError extends Error {
   }
 }
 
-type MemoryImportDiagnostic = MemoryImportAttemptResponse["diagnostics"][number];
+export function TmInterchangeFailureDetails({
+  failureCode,
+  failureMessage,
+}: {
+  failureCode: string | null;
+  failureMessage?: string | null;
+}) {
+  const message = failureMessage?.trim();
+  if (!failureCode && !message) return null;
+  return (
+    <>
+      {failureCode ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
+          <code className="text-xs">{failureCode}</code>
+        </MetadataItem>
+      ) : null}
+      {message ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureMessage} />}>
+          {message}
+        </MetadataItem>
+      ) : null}
+    </>
+  );
+}
 
 function MetadataItem({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -54,7 +113,7 @@ function MetadataItem({ label, children }: { label: ReactNode; children: ReactNo
   );
 }
 
-function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }) {
+function StatusBadge({ status }: { status: MemoryInterchangeAttemptStatus }) {
   const message =
     status === "upload_pending"
       ? messages.uploadPending
@@ -85,7 +144,11 @@ function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }
   );
 }
 
-export function TmImportDiagnosticList({ diagnostics }: { diagnostics: MemoryImportDiagnostic[] }) {
+export function TmImportDiagnosticList({
+  diagnostics,
+}: {
+  diagnostics: MemoryInterchangeDiagnostic[];
+}) {
   return (
     <ul className="divide-y divide-border rounded-xl border border-border">
       {diagnostics.map((diagnostic, index) => (
@@ -124,22 +187,27 @@ export function TmImportAttemptDetail({
   attemptId: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
+  const [downloadPending, setDownloadPending] = useState(false);
   const attemptQuery = useQuery({
     queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+    enabled: !goSvcLoading,
     queryFn: async ({ signal }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ]["import-attempts"][":attemptId"].$get(
-        { param: { organizationSlug, memoryId, attemptId } },
-        { init: { signal } },
-      );
-      if (!response.ok) {
+      try {
+        return await goSvcClient.memory.importAttempts.get(organizationSlug, memoryId, attemptId, {
+          signal,
+        });
+      } catch (error) {
         throw new ImportReportRequestError(
-          response.status,
-          await readApiError(response, intl.formatMessage(messages.errorTitle)),
+          typeof error === "object" &&
+            error !== null &&
+            "status" in error &&
+            typeof error.status === "number"
+            ? error.status
+            : 500,
+          error instanceof Error ? error.message : intl.formatMessage(messages.errorTitle),
         );
       }
-      return (await response.json()) as MemoryImportAttemptResponse;
     },
     refetchInterval: (query) => {
       const status = query.state.data?.memoryImportAttempt.status;
@@ -200,24 +268,38 @@ export function TmImportAttemptDetail({
     );
   }
 
-  const { memoryImportAttempt: attempt, diagnostics } = attemptQuery.data;
+  const { memoryImportAttempt: attempt, diagnostics } =
+    attemptQuery.data as MemoryInterchangeAttemptResponse;
   const memoryLabel = memoryQuery.data?.name ?? attempt.memoryId;
   const reportUrl = `/api/orgs/${encodeURIComponent(organizationSlug)}/translation-memories/${encodeURIComponent(memoryId)}/import-attempts/${encodeURIComponent(attemptId)}/report`;
   const affectedEntriesUrl = `/org/${organizationSlug}/translation-memories/${memoryId}?origin=import&importBatchId=${encodeURIComponent(attempt.importBatchId)}`;
-  const countItems: Array<{
-    label: typeof messages.totalRead;
-    value: number;
-  }> = attempt.counts
-    ? [
-        { label: messages.totalRead, value: attempt.counts.totalRead },
-        { label: messages.created, value: attempt.counts.created },
-        { label: messages.updated, value: attempt.counts.updated },
-        { label: messages.variants, value: attempt.counts.variantCreated },
-        { label: messages.skipped, value: attempt.counts.skipped },
-        { label: messages.warnings, value: attempt.counts.warned },
-        { label: messages.failedCount, value: attempt.counts.failed },
-      ]
-    : [];
+  const downloadExport = async () => {
+    setDownloadPending(true);
+    try {
+      const signed = await goSvcClient.memory.importAttempts.downloadUrl(
+        organizationSlug,
+        memoryId,
+        attemptId,
+      );
+      const response = await fetch(signed.url);
+      if (!response.ok) throw new Error("download failed");
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = signed.filename ?? `translation-memory.${attempt.format}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      void error;
+      toast.error(intl.formatMessage(messages.downloadFailed));
+    } finally {
+      setDownloadPending(false);
+    }
+  };
+  const countItems = memoryInterchangeCountItems(attempt);
+  const filename =
+    (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
+    intl.formatMessage(messages.unknown);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -225,21 +307,33 @@ export function TmImportAttemptDetail({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <TypographyH1 className="text-2xl" weight="medium">
-              <FormattedMessage {...messages.title} />
+              <FormattedMessage
+                {...(attempt.operation === "export" ? messages.exportTitle : messages.title)}
+              />
             </TypographyH1>
             <StatusBadge status={attempt.status} />
           </div>
           <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.subtitle} />
+            <FormattedMessage
+              {...(attempt.operation === "export" ? messages.exportSubtitle : messages.subtitle)}
+            />
           </TypographyP>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" render={<a href={reportUrl} download />}>
-            <FormattedMessage {...messages.download} />
-          </Button>
-          <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
-            <FormattedMessage {...messages.affectedEntries} />
-          </Button>
+          {attempt.operation === "import" ? (
+            <>
+              <Button variant="outline" render={<a href={reportUrl} download />}>
+                <FormattedMessage {...messages.download} />
+              </Button>
+              <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
+                <FormattedMessage {...messages.affectedEntries} />
+              </Button>
+            </>
+          ) : attempt.status === "completed" && attempt.resultReady ? (
+            <Button type="button" disabled={downloadPending} onClick={() => void downloadExport()}>
+              <FormattedMessage {...messages.downloadExport} />
+            </Button>
+          ) : null}
         </div>
       </header>
 
@@ -257,7 +351,13 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.translationMemory} />}>
               {memoryLabel}
             </MetadataItem>
-            <MetadataItem label={<FormattedMessage {...messages.actor} />}>
+            <MetadataItem
+              label={
+                <FormattedMessage
+                  {...(attempt.operation === "export" ? messages.exportedBy : messages.actor)}
+                />
+              }
+            >
               {attempt.actorDisplayName || intl.formatMessage(messages.systemActor)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.started} />}>
@@ -275,7 +375,7 @@ export function TmImportAttemptDetail({
                 : intl.formatMessage(messages.unknown)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.filename} />}>
-              {attempt.sourceFilename || intl.formatMessage(messages.unknown)}
+              {filename}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.byteSize} />}>
               {attempt.sourceByteSize === null
@@ -295,11 +395,10 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.status} />}>
               <StatusBadge status={attempt.status} />
             </MetadataItem>
-            {attempt.failureCode ? (
-              <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
-                <code className="text-xs">{attempt.failureCode}</code>
-              </MetadataItem>
-            ) : null}
+            <TmInterchangeFailureDetails
+              failureCode={attempt.failureCode}
+              failureMessage={attempt.failureMessage}
+            />
             <MetadataItem label={<FormattedMessage {...messages.sha256} />}>
               <code className="break-all text-xs">{attempt.sourceSha256}</code>
             </MetadataItem>
@@ -319,8 +418,14 @@ export function TmImportAttemptDetail({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {attempt.counts ? (
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {countItems.length > 0 ? (
+            <dl
+              className={
+                countItems.length === 1
+                  ? "grid max-w-xs gap-3"
+                  : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"
+              }
+            >
               {countItems.map(({ label, value }) => (
                 <div key={label.id} className="rounded-xl bg-muted/50 p-3">
                   <dt className="text-xs text-muted-foreground">
@@ -332,51 +437,57 @@ export function TmImportAttemptDetail({
             </dl>
           ) : (
             <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.pendingCounts} />
+              <FormattedMessage
+                {...(attempt.operation === "export"
+                  ? messages.pendingExportCounts
+                  : messages.pendingCounts)}
+              />
             </TypographyP>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <FormattedMessage {...messages.diagnostics} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {attempt.diagnosticsAvailability === "expired" ? (
-            <Alert>
-              <AlertTitle>
-                <FormattedMessage {...messages.diagnosticsExpiredTitle} />
-              </AlertTitle>
-              <AlertDescription>
-                <FormattedMessage {...messages.diagnosticsExpiredDescription} />
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              {attempt.diagnosticsTruncated ? (
-                <Alert>
-                  <AlertTitle>
-                    <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
-                  </AlertTitle>
-                  <AlertDescription>
-                    <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {diagnostics.length > 0 ? (
-                <TmImportDiagnosticList diagnostics={diagnostics} />
-              ) : (
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.noDiagnostics} />
-                </TypographyP>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {attempt.operation === "import" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <FormattedMessage {...messages.diagnostics} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {attempt.diagnosticsAvailability === "expired" ? (
+              <Alert>
+                <AlertTitle>
+                  <FormattedMessage {...messages.diagnosticsExpiredTitle} />
+                </AlertTitle>
+                <AlertDescription>
+                  <FormattedMessage {...messages.diagnosticsExpiredDescription} />
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {attempt.diagnosticsTruncated ? (
+                  <Alert>
+                    <AlertTitle>
+                      <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
+                    </AlertTitle>
+                    <AlertDescription>
+                      <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {diagnostics.length > 0 ? (
+                  <TmImportDiagnosticList diagnostics={diagnostics} />
+                ) : (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.noDiagnostics} />
+                  </TypographyP>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </main>
   );
 }

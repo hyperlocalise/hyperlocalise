@@ -175,6 +175,23 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Equal(t, 200, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), `"promoted":1`)
 	})
+	t.Run("list import and export attempts", func(t *testing.T) {
+		api, scope := memoryTestAPI(t, "admin")
+		id := scope.MustMemory(t, "", "Product TM")
+		attemptID := uuid.NewString()
+		_, err := scope.Pool.Exec(t.Context(), `
+			insert into memory_import_attempts (
+				id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
+				result_filename, result_object_key, counts
+			) values ($1,$2,$3,$4,'export','completed','export','tmx','product-tm.tmx','exports/product-tm.tmx','{"entries":2}'::jsonb)`,
+			attemptID, scope.OrganizationID, id, scope.UserID)
+		require.NoError(t, err)
+		rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/import-attempts"), "")
+		require.Equal(t, 200, rec.Code, rec.Body.String())
+		require.Contains(t, rec.Body.String(), attemptID)
+		require.Contains(t, rec.Body.String(), `"operation":"export"`)
+		require.Contains(t, rec.Body.String(), `"entries":2`)
+	})
 	t.Run("list import attempts", func(t *testing.T) {
 		api, scope := memoryTestAPI(t, "admin")
 		id := scope.MustMemory(t, "", "Product TM")

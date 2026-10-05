@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent } from "storybook/test";
 
 import type {
   MemoryEntryRecord,
@@ -201,7 +201,9 @@ export const Default: Story = {
     await expect(canvas.getByText("Paiement")).toBeInTheDocument();
     await expect(canvas.getByText("Save changes")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add entry" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Import" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Import" })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "More translation memory actions" }));
+    await expect(canvas.getByRole("menuitem", { name: "Import" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Marketing Site" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Assign to project" })).toBeInTheDocument();
   },
