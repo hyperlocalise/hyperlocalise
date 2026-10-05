@@ -155,6 +155,21 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "pPyFwoj/go",
     description: "Fallback import actor",
   },
+  uploadPending: {
+    defaultMessage: "Upload pending",
+    id: "h+UBaWw3mM",
+    description: "Pending translation memory import upload status",
+  },
+  queued: {
+    defaultMessage: "Queued",
+    id: "/9rdVrlT2+",
+    description: "Queued translation memory import status",
+  },
+  previewCompleted: {
+    defaultMessage: "Preview ready",
+    id: "jEIFTvG4wS",
+    description: "Completed translation memory import preview status",
+  },
   running: {
     defaultMessage: "Running",
     id: "F/lm8Q5OV6",

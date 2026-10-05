@@ -170,6 +170,7 @@ export async function listMemoryImportAttempts(input: {
   const scope = and(
     eq(schema.memoryImportAttempts.organizationId, input.organizationId),
     eq(schema.memoryImportAttempts.memoryId, input.memoryId),
+    eq(schema.memoryImportAttempts.operation, "import"),
   );
   const cursorWhere = input.cursor
     ? or(
@@ -224,6 +225,7 @@ export async function getMemoryImportAttempt(input: {
         eq(schema.memoryImportAttempts.id, input.attemptId),
         eq(schema.memoryImportAttempts.organizationId, input.organizationId),
         eq(schema.memoryImportAttempts.memoryId, input.memoryId),
+        eq(schema.memoryImportAttempts.operation, "import"),
       ),
     )
     .limit(1);
