@@ -8243,9 +8243,6 @@
   "GpQTuQOUij": {
     "defaultMessage": "{title} wird geladen"
   },
-  "GpqbnnE7vn": {
-    "defaultMessage": "Verwenden Sie oben „Dateien hinzufügen“, um JSON-, YAML-, XLIFF- und PO-Dateien, Bilder, Office-Dateien sowie andere unterstützte Formate hochzuladen."
-  },
   "GpsLS8ojw/": {
     "defaultMessage": "—"
   },
@@ -18697,6 +18694,9 @@
   },
   "fBOGoQ4jb4": {
     "defaultMessage": "Quell-Upload · Projekt erforderlich"
+  },
+  "fBUXcsxgXO": {
+    "defaultMessage": "Verwenden Sie oben „Dateien hinzufügen“, um JSON-, YAML-, XLIFF-, PO- und Qt-TS-Dateien, Bilder, Office-Dateien sowie andere unterstützte Formate hochzuladen."
   },
   "fCRbJ9qc0i": {
     "defaultMessage": "Keine Ergebnisse entsprechen diesen Filtern."

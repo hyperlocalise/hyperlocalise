@@ -58,7 +58,7 @@ export const projectFilesTreePanelMessages = defineMessages({
   noNativeFiles: {
     defaultMessage:
       "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
-    id: "GpqbnnE7vn",
+    id: "fBUXcsxgXO",
     description: "Empty-state description for native projects with no uploaded files",
   },
   loadMore: {
