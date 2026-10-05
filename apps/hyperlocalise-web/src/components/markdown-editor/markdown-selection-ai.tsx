@@ -21,6 +21,10 @@ import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  serializeMarkdownRange,
+  serializeMarkdownSelectionContext,
+} from "./markdown-selection-ai-markdown";
 import { replaceMarkdownSelection } from "./markdown-selection-ai-replace";
 import { markdownSelectionAiMessages as messages } from "./markdown-selection-ai.messages";
 import type {
@@ -32,30 +36,32 @@ const ACTIONS = [
   {
     key: "rewrite",
     instruction:
-      "Rewrite the selected passage for natural phrasing and clarity, preserving its meaning and voice.",
+      "Rewrite the selected passage for natural phrasing and clarity, preserving its meaning, voice, and Markdown formatting.",
   },
   {
     key: "retranslate",
     instruction:
-      "Retranslate only the corresponding selected passage from the original into the target locale. Use the original reference to recover the meaning. If the corresponding original passage is unavailable, explain this limitation rather than inventing a translation.",
+      "Retranslate only the corresponding selected passage from the original into the target locale. Preserve Markdown formatting, links, inline code, names, and placeholders. Use the original reference to recover the meaning. If the corresponding original passage is unavailable, explain this limitation rather than inventing a translation.",
   },
   {
     key: "grammar",
     instruction:
-      "Fix spelling, grammar, and punctuation in the selected passage without changing its meaning or tone.",
+      "Fix spelling, grammar, and punctuation in the selected passage without changing its meaning, tone, or Markdown formatting.",
   },
   {
     key: "shorten",
-    instruction: "Shorten the selected passage while preserving its meaning and important details.",
+    instruction:
+      "Shorten the selected passage while preserving its meaning, important details, and Markdown formatting.",
   },
   {
     key: "formal",
-    instruction: "Make the selected passage more formal, appropriate to the target locale.",
+    instruction:
+      "Make the selected passage more formal, appropriate to the target locale, while preserving Markdown formatting.",
   },
   {
     key: "glossary",
     instruction:
-      "Align the selected passage with the supplied project glossary. Do not invent glossary rules; explain if no relevant guidance is available.",
+      "Align the selected passage with the supplied project glossary. Preserve Markdown formatting. Do not invent glossary rules; explain if no relevant guidance is available.",
   },
 ] as const;
 
@@ -101,7 +107,7 @@ export function MarkdownSelectionAi({
         from,
         to,
         doc: editor.state.doc,
-        text: editor.state.doc.textBetween(from, to, "\n"),
+        text: serializeMarkdownRange(editor, from, to),
       };
     }
     onOpenChange(next);
@@ -123,13 +129,16 @@ export function MarkdownSelectionAi({
     setResult(null);
     setError(null);
     try {
-      const before = snapshot.doc.textBetween(0, snapshot.from, "\n");
-      const after = snapshot.doc.textBetween(snapshot.to, snapshot.doc.content.size, "\n");
-      const sideLength = Math.floor((MAX_CONTEXT_LENGTH - snapshot.text.length) / 2);
       const response = await config.request({
         selectedText: snapshot.text,
         instruction: chosenAction.instruction,
-        documentContext: before.slice(-sideLength) + snapshot.text + after.slice(0, sideLength),
+        documentContext: serializeMarkdownSelectionContext(
+          editor,
+          snapshot.from,
+          snapshot.to,
+          snapshot.text,
+          MAX_CONTEXT_LENGTH,
+        ),
       });
       if (requestVersion.current !== version) return;
       if (!response.suggestion.trim()) throw new Error("empty_suggestion");
@@ -147,7 +156,7 @@ export function MarkdownSelectionAi({
       setError(intl.formatMessage(messages.stale));
       return;
     }
-    // Replace selected wording as text nodes so model output is never parsed as HTML.
+    // Parse Markdown marks into the existing blocks; HTML tags stay literal.
     replaceMarkdownSelection(editor, snapshot.from, snapshot.to, result.suggestion);
     changeOpen(false);
   }

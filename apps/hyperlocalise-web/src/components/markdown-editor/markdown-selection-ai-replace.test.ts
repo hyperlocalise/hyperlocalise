@@ -12,6 +12,7 @@
  */
 // @vitest-environment happy-dom
 import { Editor } from "@tiptap/core";
+import { Markdown } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
@@ -20,11 +21,12 @@ import { replaceMarkdownSelection } from "./markdown-selection-ai-replace";
 let editor: Editor;
 afterEach(() => editor?.destroy());
 
-function createEditor(content: string) {
+function createEditor(content: string, contentType: "html" | "markdown" = "html") {
   editor = new Editor({
     element: document.createElement("div"),
-    extensions: [StarterKit],
+    extensions: [StarterKit, Markdown],
     content,
+    contentType,
   });
   return editor;
 }
@@ -59,6 +61,41 @@ describe("replaceMarkdownSelection", () => {
     const instance = createEditor("<p>Before <strong>selected</strong> after</p>");
     const selected = findText(instance, "selected");
     replaceMarkdownSelection(instance, selected.from, selected.to, "improved");
+    expect(instance.getHTML()).toContain("<strong>improved</strong>");
+    expect(instance.getText()).toBe("Before improved after");
+  });
+
+  it("applies Markdown bold and italic from the model output", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(instance, selected.from, selected.to, "**improved** *text*");
+    expect(instance.getHTML()).toContain("<strong>improved</strong>");
+    expect(instance.getHTML()).toContain("<em>text</em>");
+    expect(instance.getText()).toBe("Before improved text after");
+  });
+
+  it("applies Markdown links from the model output", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(
+      instance,
+      selected.from,
+      selected.to,
+      "[improved](https://example.com)",
+    );
+    expect(instance.getHTML()).toContain('href="https://example.com"');
+    expect(instance.getText()).toBe("Before improved after");
+  });
+
+  it("unwraps fenced Markdown before applying formatting", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(
+      instance,
+      selected.from,
+      selected.to,
+      "```markdown\n**improved**\n```",
+    );
     expect(instance.getHTML()).toContain("<strong>improved</strong>");
     expect(instance.getText()).toBe("Before improved after");
   });
