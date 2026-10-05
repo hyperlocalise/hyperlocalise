@@ -1128,7 +1128,7 @@ func MarshalAsciiDocWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 }
 
 func MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, AsciiDocRenderDiagnostics) {
-	sourceDoc, sourceEntries := parseAsciiDocDocument(stripBOM(sourceTemplate))
+	sourceDoc, _ := parseAsciiDocDocument(stripBOM(sourceTemplate))
 	targetDoc, _ := parseAsciiDocDocument(stripBOM(targetTemplate))
 	fallback := newAsciiDocAligner(sourceDoc, targetDoc)
 	var diags AsciiDocRenderDiagnostics
@@ -1139,19 +1139,14 @@ func MarshalAsciiDocWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 			continue
 		}
 		if v, ok := values[part.key]; ok {
+			_, _ = fallback.takeHighConfidence()
 			b.WriteString(renderAsciiDocPartWithDiagnostics(part, v, &diags, false))
-			fallback.advance()
 			continue
 		}
-		if _, ok := sourceEntries[part.key]; ok {
-			if text, ok := fallback.take(); ok {
-				b.WriteString(renderAsciiDocPartWithDiagnostics(part, text, &diags, true))
-				continue
-			}
-			b.WriteString(renderAsciiDocPartWithDiagnostics(part, part.source, &diags, true))
+		if fallbackText, ok := fallback.takeRemaining(); ok {
+			b.WriteString(renderAsciiDocPartWithDiagnostics(part, fallbackText, &diags, true))
 			continue
 		}
-		fallback.advance()
 		b.WriteString(renderAsciiDocPartWithDiagnostics(part, part.source, &diags, true))
 	}
 	return []byte(b.String()), diags
@@ -1207,32 +1202,39 @@ func newAsciiDocAligner(sourceDoc, targetDoc asciiDocDocument) *asciiDocAligner 
 }
 
 func (a *asciiDocAligner) advance() {
-	if a.sourceCtxIdx < len(a.sourceContexts) {
-		a.sourceCtxIdx++
-	}
+	_, _ = a.take()
 }
 
 func (a *asciiDocAligner) take() (string, bool) {
+	return a.takeWith(a.useStructuralPaths, a.useStructuralPaths)
+}
+
+func (a *asciiDocAligner) takeHighConfidence() (string, bool) {
+	return a.takeWith(false, false)
+}
+
+func (a *asciiDocAligner) takeRemaining() (string, bool) {
+	return a.takeWith(a.useStructuralPaths, true)
+}
+
+func (a *asciiDocAligner) takeWith(usePath, useLastResort bool) (string, bool) {
 	if a.sourceCtxIdx >= len(a.sourceContexts) {
 		return "", false
 	}
 	sourceCtx := a.sourceContexts[a.sourceCtxIdx]
-	if text, ok := a.takeFallback(sourceCtx); ok {
-		a.sourceCtxIdx++
-		return text, true
-	}
+	text, ok := a.takeFallback(sourceCtx, usePath, useLastResort)
 	a.sourceCtxIdx++
-	return "", false
+	return text, ok
 }
 
-func (a *asciiDocAligner) takeFallback(sourceCtx asciiDocKeyContext) (string, bool) {
-	if a.useStructuralPaths {
+func (a *asciiDocAligner) takeFallback(sourceCtx asciiDocKeyContext, usePath, useLastResort bool) (string, bool) {
+	if idx, ok := selectAsciiDocContextCandidate(a.targetContexts, a.targetPartUsed, sourceCtx, a.targetCtxCursor, a.sourceCtxIdx, len(a.sourceContexts)); ok {
+		return a.consumeContext(idx), true
+	}
+	if usePath {
 		if idx, ok := selectAsciiDocContextByPath(a.targetContexts, a.targetPartUsed, a.targetContextsByPath, sourceCtx.path); ok {
 			return a.consumeContext(idx), true
 		}
-	}
-	if idx, ok := selectAsciiDocContextCandidate(a.targetContexts, a.targetPartUsed, sourceCtx, a.targetCtxCursor, a.sourceCtxIdx, len(a.sourceContexts)); ok {
-		return a.consumeContext(idx), true
 	}
 	for _, startAt := range []int{a.targetPartCursor, 0} {
 		if fallback, nextPartCursor, ok := takeAsciiDocFallbackSpan(a.targetDoc, a.targetPartUsed, startAt, sourceCtx); ok {
@@ -1240,7 +1242,7 @@ func (a *asciiDocAligner) takeFallback(sourceCtx asciiDocKeyContext) (string, bo
 			return fallback, true
 		}
 	}
-	if !a.useStructuralPaths {
+	if !useLastResort {
 		return "", false
 	}
 	for i := a.targetCtxCursor; i < len(a.targetContexts); i++ {
