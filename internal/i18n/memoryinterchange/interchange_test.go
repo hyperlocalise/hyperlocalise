@@ -40,3 +40,9 @@ func TestParseInvalidTMXReportsIssue(t *testing.T) {
 		t.Fatalf("unexpected invalid TMX result: issues=%+v err=%v", issues, err)
 	}
 }
+
+func TestNormalizeSourceText(t *testing.T) {
+	if got := NormalizeSourceText("  Ａ  B\tC  "); got != "a b c" {
+		t.Fatalf("NormalizeSourceText() = %q, want %q", got, "a b c")
+	}
+}

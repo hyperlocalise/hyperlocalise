@@ -174,7 +174,8 @@ func (api *memoryAPI) getMemoryInterchangeDownloadHandler(r *http.Request, actor
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
 	}
-	var operation, status, location, key string
+	var operation, status string
+	var location, key *string
 	var filename *string
 	err := api.pool.QueryRow(r.Context(), `select operation, status, result_object_location, result_object_key, result_filename from memory_import_attempts where id=$1 and memory_id=$2 and organization_id=$3`, r.PathValue("attemptId"), m.ID, actor.organizationID).Scan(&operation, &status, &location, &key, &filename)
 	if err != nil {
@@ -183,14 +184,14 @@ func (api *memoryAPI) getMemoryInterchangeDownloadHandler(r *http.Request, actor
 	if operation != "export" {
 		return nil, 0, memoryFailure(400, "memory_download_unsupported", "This run has no export result")
 	}
-	if status != "completed" || key == "" {
+	if status != "completed" || location == nil || key == nil || *location == "" || *key == "" {
 		return nil, 0, memoryFailure(409, "memory_interchange_not_ready", "The memory interchange result is not ready")
 	}
-	signer, err := api.objects.Presigner(location)
+	signer, err := api.objects.Presigner(*location)
 	if err != nil {
 		return nil, 0, err
 	}
-	signed, err := signer.PresignDownload(r.Context(), key, memoryInterchangeDownloadTTL)
+	signed, err := signer.PresignDownload(r.Context(), *key, memoryInterchangeDownloadTTL)
 	if err != nil {
 		return nil, 0, err
 	}

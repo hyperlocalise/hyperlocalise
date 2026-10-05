@@ -8,14 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
-	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -403,96 +401,6 @@ func trimMemoryInput(value string) string {
 	return trimDictionaryInput(value)
 }
 
-func isASCIIWhitespace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
-}
-
-func isNormalizedASCII(s string) bool {
-	if len(s) == 0 {
-		return true
-	}
-	if isASCIIWhitespace(s[0]) || isASCIIWhitespace(s[len(s)-1]) {
-		return false
-	}
-	inSpace := false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if isASCIIWhitespace(c) {
-			if c != ' ' || inSpace {
-				return false
-			}
-			inSpace = true
-		} else {
-			if 'A' <= c && c <= 'Z' {
-				return false
-			}
-			inSpace = false
-		}
-	}
-	return true
-}
-
-// normalizeMemorySourceText normalizes memory source text by normalizing Unicode (NFKC),
-// collapsing consecutive whitespace, lowercasing, and trimming leading/trailing whitespace.
-// Optimized with an ASCII fast-path and single-pass streaming builder to avoid regexp
-// and intermediate string allocations.
 func normalizeMemorySourceText(sourceText string) string {
-	if sourceText == "" {
-		return ""
-	}
-
-	if isASCII(sourceText) {
-		if isNormalizedASCII(sourceText) {
-			return sourceText
-		}
-
-		var b strings.Builder
-		b.Grow(len(sourceText))
-		pendingSpace := false
-		hasWritten := false
-
-		for i := 0; i < len(sourceText); i++ {
-			c := sourceText[i]
-			if isASCIIWhitespace(c) {
-				if hasWritten {
-					pendingSpace = true
-				}
-			} else {
-				if pendingSpace {
-					b.WriteByte(' ')
-					pendingSpace = false
-				}
-				if 'A' <= c && c <= 'Z' {
-					b.WriteByte(c + 32)
-				} else {
-					b.WriteByte(c)
-				}
-				hasWritten = true
-			}
-		}
-		return b.String()
-	}
-
-	// Non-ASCII path
-	normalized := norm.NFKC.String(sourceText)
-	var b strings.Builder
-	b.Grow(len(normalized))
-	pendingSpace := false
-	hasWritten := false
-
-	for _, r := range normalized {
-		if unicode.IsSpace(r) {
-			if hasWritten {
-				pendingSpace = true
-			}
-		} else {
-			if pendingSpace {
-				b.WriteByte(' ')
-				pendingSpace = false
-			}
-			b.WriteRune(unicode.ToLower(r))
-			hasWritten = true
-		}
-	}
-	return b.String()
+	return memoryinterchange.NormalizeSourceText(sourceText)
 }

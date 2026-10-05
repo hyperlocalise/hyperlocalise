@@ -8,11 +8,103 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode"
 
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"golang.org/x/text/unicode/norm"
 )
 
 const FormulaEscapePrefix = "__HYPERLOCALISE_CSV_FORMULA__"
+
+// NormalizeSourceText is the canonical memory-entry source key normalization.
+func NormalizeSourceText(sourceText string) string {
+	if sourceText == "" {
+		return ""
+	}
+	if isASCII(sourceText) && isNormalizedASCII(sourceText) {
+		return sourceText
+	}
+	if isASCII(sourceText) {
+		var builder strings.Builder
+		builder.Grow(len(sourceText))
+		pendingSpace := false
+		hasWritten := false
+		for i := 0; i < len(sourceText); i++ {
+			character := sourceText[i]
+			if isASCIIWhitespace(character) {
+				if hasWritten {
+					pendingSpace = true
+				}
+				continue
+			}
+			if pendingSpace {
+				builder.WriteByte(' ')
+				pendingSpace = false
+			}
+			if character >= 'A' && character <= 'Z' {
+				character += 'a' - 'A'
+			}
+			builder.WriteByte(character)
+			hasWritten = true
+		}
+		return builder.String()
+	}
+	normalized := norm.NFKC.String(sourceText)
+	var builder strings.Builder
+	builder.Grow(len(normalized))
+	pendingSpace := false
+	hasWritten := false
+	for _, r := range normalized {
+		if unicode.IsSpace(r) {
+			if hasWritten {
+				pendingSpace = true
+			}
+			continue
+		}
+		if pendingSpace {
+			builder.WriteByte(' ')
+			pendingSpace = false
+		}
+		builder.WriteRune(unicode.ToLower(r))
+		hasWritten = true
+	}
+	return builder.String()
+}
+
+func isASCII(value string) bool {
+	for index := 0; index < len(value); index++ {
+		if value[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIIWhitespace(value byte) bool {
+	return value == ' ' || value == '\t' || value == '\n' || value == '\r' || value == '\f' || value == '\v'
+}
+
+func isNormalizedASCII(value string) bool {
+	if len(value) == 0 || isASCIIWhitespace(value[0]) || isASCIIWhitespace(value[len(value)-1]) {
+		return false
+	}
+	inSpace := false
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if isASCIIWhitespace(character) {
+			if character != ' ' || inSpace {
+				return false
+			}
+			inSpace = true
+		} else {
+			if character >= 'A' && character <= 'Z' {
+				return false
+			}
+			inSpace = false
+		}
+	}
+	return true
+}
 
 type Candidate struct {
 	SourceLocale string

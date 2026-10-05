@@ -122,7 +122,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	for _, candidate := range candidates {
 		var id string
 		var inserted bool
-		err := tx.QueryRow(ctx, `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) on conflict (memory_id, source_locale, target_locale, normalized_source_text) do update set target_text=excluded.target_text, match_score=excluded.match_score, provenance='import', modified_by_user_id=excluded.created_by_user_id, import_batch_id=excluded.import_batch_id, external_key=coalesce(excluded.external_key,memory_entries.external_key), version=memory_entries.version+1, updated_at=now() returning id, (xmax = 0)`, memoryID, candidate.SourceLocale, candidate.TargetLocale, candidate.SourceText, normalizeSource(candidate.SourceText), candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey).Scan(&id, &inserted)
+		err := tx.QueryRow(ctx, `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) on conflict (memory_id, source_locale, target_locale, normalized_source_text) do update set target_text=excluded.target_text, match_score=excluded.match_score, provenance='import', modified_by_user_id=excluded.created_by_user_id, import_batch_id=excluded.import_batch_id, external_key=coalesce(excluded.external_key,memory_entries.external_key), version=memory_entries.version+1, updated_at=now() returning id, (xmax = 0)`, memoryID, candidate.SourceLocale, candidate.TargetLocale, candidate.SourceText, memoryinterchange.NormalizeSourceText(candidate.SourceText), candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey).Scan(&id, &inserted)
 		if err != nil {
 			return err
 		}
@@ -218,10 +218,6 @@ func persistMemoryDiagnostics(ctx context.Context, pool *pgxpool.Pool, attemptID
 		}
 	}
 	return nil
-}
-
-func normalizeSource(value string) string {
-	return strings.ToLower(strings.Join(strings.Fields(value), " "))
 }
 
 func exportSlug(name string) string {

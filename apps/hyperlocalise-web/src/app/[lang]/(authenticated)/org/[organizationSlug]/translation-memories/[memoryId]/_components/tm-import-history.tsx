@@ -56,13 +56,19 @@ export const tmImportAttemptsQueryKey = (organizationSlug: string, memoryId: str
 
 function ImportStatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }) {
   const message =
-    status === "running"
-      ? messages.running
-      : status === "completed"
-        ? messages.completed
-        : status === "partially_successful"
-          ? messages.partiallySuccessful
-          : messages.failed;
+    status === "upload_pending"
+      ? messages.uploadPending
+      : status === "queued"
+        ? messages.queued
+        : status === "preview_completed"
+          ? messages.previewCompleted
+          : status === "running"
+            ? messages.running
+            : status === "completed"
+              ? messages.completed
+              : status === "partially_successful"
+                ? messages.partiallySuccessful
+                : messages.failed;
   const variant =
     status === "completed"
       ? "success"

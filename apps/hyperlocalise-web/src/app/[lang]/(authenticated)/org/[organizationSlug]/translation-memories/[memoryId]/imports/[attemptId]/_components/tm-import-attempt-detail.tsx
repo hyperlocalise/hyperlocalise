@@ -56,13 +56,19 @@ function MetadataItem({ label, children }: { label: ReactNode; children: ReactNo
 
 function StatusBadge({ status }: { status: MemoryImportAttemptRecord["status"] }) {
   const message =
-    status === "running"
-      ? messages.running
-      : status === "completed"
-        ? messages.completed
-        : status === "partially_successful"
-          ? messages.partiallySuccessful
-          : messages.failed;
+    status === "upload_pending"
+      ? messages.uploadPending
+      : status === "queued"
+        ? messages.queued
+        : status === "preview_completed"
+          ? messages.previewCompleted
+          : status === "running"
+            ? messages.running
+            : status === "completed"
+              ? messages.completed
+              : status === "partially_successful"
+                ? messages.partiallySuccessful
+                : messages.failed;
   const variant =
     status === "completed"
       ? "success"
@@ -135,8 +141,12 @@ export function TmImportAttemptDetail({
       }
       return (await response.json()) as MemoryImportAttemptResponse;
     },
-    refetchInterval: (query) =>
-      query.state.data?.memoryImportAttempt.status === "running" ? 3_000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.memoryImportAttempt.status;
+      return status === "upload_pending" || status === "queued" || status === "running"
+        ? 3_000
+        : false;
+    },
   });
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
