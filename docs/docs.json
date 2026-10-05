@@ -266,6 +266,24 @@
                       "platform/help/contact-support"
                     ],
                     "expanded": false
+                  },
+                  {
+                    "group": "Release notes",
+                    "pages": [
+                      {
+                        "group": "By month",
+                        "root": "platform/release-notes",
+                        "directory": "accordion",
+                        "pages": [
+                          "platform/release-notes/2026-10",
+                          "platform/release-notes/2026-09",
+                          "platform/release-notes/2026-08",
+                          "platform/release-notes/2026-07",
+                          "platform/release-notes/2026-06"
+                        ]
+                      }
+                    ],
+                    "expanded": false
                   }
                 ]
               }
