@@ -119,7 +119,10 @@ func parseTOMLDocument(content []byte) (tomlDocument, error) {
 }
 
 func (d tomlDocument) render(values map[string]string) []byte {
-	seen := make(map[string]struct{}, len(values))
+	seen := make(map[string]struct{}, len(d.entries)+len(values))
+	for _, entry := range d.entries {
+		seen[entry.flatKey] = struct{}{}
+	}
 	var b strings.Builder
 	b.Grow(len(d.template))
 	cursor := 0

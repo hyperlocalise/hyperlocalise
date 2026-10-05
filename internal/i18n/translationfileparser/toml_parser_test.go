@@ -110,6 +110,26 @@ func TestMarshalTOMLInsertsExtraRootKeysBeforeTables(t *testing.T) {
 	if strings.Contains(out, "[home]\ntitle = \"Bienvenue\"\nobsolete") {
 		t.Fatalf("extra root key was appended into [home]: %q", out)
 	}
+	if strings.Contains(out, "home.title") {
+		t.Fatalf("did not expect dotted table key to be rewritten as an extra, got %q", out)
+	}
+	if !strings.Contains(out, "[home]\ntitle = \"Bienvenue\"") {
+		t.Fatalf("expected in-place table title replacement, got %q", out)
+	}
+}
+
+func TestMarshalTOMLDoesNotDuplicateTableKeysAsExtras(t *testing.T) {
+	template := []byte("[home]\ntitle = \"Welcome\"\n")
+	got, err := MarshalTOML(template, map[string]string{
+		"home.title": "Bienvenue",
+	})
+	if err != nil {
+		t.Fatalf("marshal toml: %v", err)
+	}
+	out := string(got)
+	if out != "[home]\ntitle = \"Bienvenue\"\n" {
+		t.Fatalf("unexpected toml writeback %q", out)
+	}
 }
 
 func TestTOMLParserRejectsDuplicateKeys(t *testing.T) {
