@@ -76,6 +76,7 @@ export type KeywordIdea = {
   marketId?: string;
   competition?: number;
   monthlySearches?: { month: string; volume: number }[];
+  capturedAt?: string;
 };
 
 export type RankRow = {

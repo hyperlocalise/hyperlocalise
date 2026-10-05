@@ -112,6 +112,7 @@ function KeywordScreen({
   const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
   const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
   const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
+  const [expandedCapturedAt, setExpandedCapturedAt] = useState<string | undefined>();
   const [seedPending, setSeedPending] = useState(false);
   const [persistPending, setPersistPending] = useState(false);
   const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
@@ -152,6 +153,7 @@ function KeywordScreen({
         marketId,
       });
       setIdeas(body.ideas);
+      setExpandedCapturedAt(body.capturedAt);
       setSelected([]);
       setExpandedMarketId(marketId);
       setSeedKeyword(seed);
@@ -212,6 +214,7 @@ function KeywordScreen({
     const payload = {
       marketId: expandedMarketId ?? market,
       seedKeyword,
+      capturedAt: expandedCapturedAt,
       keywords: selectedRows.map((row) => ({
         keyword: row.keyword,
         volume: row.volume,
@@ -219,6 +222,7 @@ function KeywordScreen({
         cpc: row.cpc,
         competition: row.competition,
         monthlySearches: row.monthlySearches,
+        capturedAt: row.capturedAt,
         intent: row.intent,
       })),
     };

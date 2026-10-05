@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 type domainResearchCache interface {
 	Get(context.Context, string) (string, error)
 	Set(context.Context, string, string, time.Duration) error
-	Incr(context.Context, string) (int64, error)
+	IncrByWithTTL(context.Context, string, int, time.Duration) (int64, error)
 }
 
 const (
@@ -43,19 +42,10 @@ func (h *handler) consumeDomainResearchQuota(ctx context.Context, organizationID
 	quotaCtx, cancel := context.WithTimeout(ctx, domainResearchQuotaTimeout)
 	defer cancel()
 	key := domainResearchCacheKey("quota", organizationID, operation, time.Now().UTC().Format("2006-01-02"))
-	var count int64
-	for i := 0; i < units; i++ {
-		var err error
-		count, err = h.researchCache.Incr(quotaCtx, key)
-		if err != nil {
-			return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
-		}
-	}
-	if count == int64(units) {
-		ttl := time.Until(time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour))
-		if err := h.researchCache.Set(quotaCtx, key, fmt.Sprint(count), ttl); err != nil {
-			return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
-		}
+	ttl := time.Until(time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour))
+	count, err := h.researchCache.IncrByWithTTL(quotaCtx, key, units, ttl)
+	if err != nil {
+		return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
 	}
 	if count > int64(limit) {
 		return workspaceFailure(429, "research_quota_exceeded", "This organization has reached its daily domain research limit.")

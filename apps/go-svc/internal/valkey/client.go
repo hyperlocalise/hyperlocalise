@@ -68,6 +68,16 @@ func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
 	return c.inner.Do(ctx, c.inner.B().Incr().Key(key).Build()).AsInt64()
 }
 
+// IncrByWithTTL increments a key and assigns its expiry atomically when the key
+// is created. This prevents concurrent first writers from overwriting counts.
+func (c *Client) IncrByWithTTL(ctx context.Context, key string, units int, ttl time.Duration) (int64, error) {
+	if c == nil || c.inner == nil {
+		return 0, fmt.Errorf("valkey: client is not configured")
+	}
+	const script = `local value = redis.call('INCRBY', KEYS[1], ARGV[1]); if value == tonumber(ARGV[1]) then redis.call('PEXPIRE', KEYS[1], ARGV[2]); end; return value`
+	return c.inner.Do(ctx, c.inner.B().Eval().Script(script).Numkeys(1).Key(key).Arg(fmt.Sprint(units), fmt.Sprint(ttl.Milliseconds())).Build()).AsInt64()
+}
+
 // Del removes a key. It is safe on a nil Client.
 func (c *Client) Del(ctx context.Context, key string) error {
 	if c == nil || c.inner == nil {

@@ -295,6 +295,7 @@ export class GoSvcDomainsApi {
     body: {
       marketId: string;
       seedKeyword?: string;
+      capturedAt?: string;
       keywords: Array<{
         keyword: string;
         volume: number;
@@ -302,6 +303,7 @@ export class GoSvcDomainsApi {
         cpc: number;
         competition?: number;
         monthlySearches?: { month: string; volume: number }[];
+        capturedAt?: string;
         intent: string;
       }>;
     },

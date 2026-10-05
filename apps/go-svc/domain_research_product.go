@@ -115,6 +115,7 @@ type researchKeywordBody struct {
 	CPC             float64                           `json:"cpc"`
 	Competition     *float64                          `json:"competition,omitempty"`
 	MonthlySearches []dataforseo.KeywordMonthlySearch `json:"monthlySearches,omitempty"`
+	CapturedAt      *time.Time                        `json:"capturedAt,omitempty"`
 	Intent          string                            `json:"intent"`
 }
 
@@ -184,7 +185,17 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 type saveKeywordsBody struct {
 	MarketID    string                `json:"marketId"`
 	SeedKeyword string                `json:"seedKeyword"`
+	CapturedAt  *time.Time            `json:"capturedAt,omitempty"`
 	Keywords    []researchKeywordBody `json:"keywords"`
+}
+
+func firstTime(values ...*time.Time) *time.Time {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any, int, error) {
@@ -229,7 +240,7 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 			do update set volume=excluded.volume, kd=excluded.kd, cpc=excluded.cpc, competition=excluded.competition, monthly_searches=excluded.monthly_searches, cpc_currency=excluded.cpc_currency, metrics_captured_at=excluded.metrics_captured_at, intent=excluded.intent,
 				seed_keyword=excluded.seed_keyword, market_id=excluded.market_id, updated_at=now()`,
 			actor.organizationID, r.PathValue("linkedDomainId"), keyword.Keyword, seedValue, market.ID, market.LocationCode, market.Language,
-			keyword.Volume, keyword.KD, keyword.CPC, keyword.Competition, monthlySearches, "USD", time.Now().UTC(), researchIntent(keyword.Intent),
+			keyword.Volume, keyword.KD, keyword.CPC, keyword.Competition, monthlySearches, "USD", firstTime(keyword.CapturedAt, body.CapturedAt), researchIntent(keyword.Intent),
 		)
 		if err != nil {
 			return nil, 0, err
@@ -248,6 +259,11 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 type serpBody struct {
 	Keyword  string `json:"keyword"`
 	MarketID string `json:"marketId"`
+}
+
+type domainResearchSerpCachePayload struct {
+	Device  string                         `json:"device"`
+	Results []dataforseo.OrganicSerpResult `json:"results"`
 }
 
 func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any, int, error) {
@@ -284,9 +300,9 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 		where linked_domain_id=$1 and location_code=$2 and language_code=$3 and lower(keyword)=lower($4)
 		limit 1`, domain.ID, market.LocationCode, market.Language, keyword).Scan(&capturedAt, &cachedRaw)
 	if snapshotErr == nil && time.Since(capturedAt) < domainResearchSerpCacheTTL {
-		var cachedResults []dataforseo.OrganicSerpResult
-		if err := json.Unmarshal(cachedRaw, &cachedResults); err == nil {
-			return map[string]any{"results": cachedResults, "device": device, "capturedAt": capturedAt, "cached": true}, http.StatusOK, nil
+		var cachedPayload domainResearchSerpCachePayload
+		if err := json.Unmarshal(cachedRaw, &cachedPayload); err == nil && cachedPayload.Device == device {
+			return map[string]any{"results": cachedPayload.Results, "device": device, "capturedAt": capturedAt, "cached": true}, http.StatusOK, nil
 		}
 	} else if snapshotErr != nil && !isNoRows(snapshotErr) {
 		return nil, 0, snapshotErr
@@ -298,7 +314,7 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	if err != nil {
 		return nil, 0, err
 	}
-	payload, err := json.Marshal(results)
+	payload, err := json.Marshal(domainResearchSerpCachePayload{Device: device, Results: results})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -449,6 +465,9 @@ func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any
 	}
 	if len(rows) == 0 {
 		return map[string]any{"ranks": []any{}}, http.StatusOK, nil
+	}
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), domainResearchRankQuota); err != nil {
+		return nil, 0, err
 	}
 	groups := map[string][]trackedKeyword{}
 	for _, row := range rows {
@@ -829,6 +848,12 @@ func (h *handler) listResearchSerp(ctx context.Context, linkedDomainID string, k
 		}
 		id := ids[serpKey(location, language, keyword)]
 		if id == "" {
+			continue
+		}
+		var cachedPayload domainResearchSerpCachePayload
+		if err := json.Unmarshal(raw, &cachedPayload); err == nil && cachedPayload.Device != "" {
+			results := cachedPayload.Results
+			serp[id] = results
 			continue
 		}
 		var results any
