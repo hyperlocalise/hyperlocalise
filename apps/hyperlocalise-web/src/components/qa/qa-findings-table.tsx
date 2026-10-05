@@ -24,10 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
-import {
-  findingNeedsWhitespaceCue,
-  humanizeQaFindingMessage,
-} from "@/lib/qa/humanize-qa-finding-message";
+import { humanizeQaFindingMessage } from "@/lib/qa/humanize-qa-finding-message";
 import {
   createProjectQaReportClient,
   createWorkspaceQaReportClient,
@@ -200,7 +197,6 @@ export function QaFindingsTable({
       {[...groups.entries()].map(([groupId, rows]) => {
         const first = rows[0]!;
         const completedAt = lastCompletedByProject?.[first.projectId];
-        const visibleMarks = showWhitespace || rows.some(findingNeedsWhitespaceCue);
         return (
           <section
             key={groupId}
@@ -242,7 +238,7 @@ export function QaFindingsTable({
                 <QaText
                   text={first.sourceText}
                   tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
-                  visibleWhitespace={visibleMarks}
+                  visibleWhitespace={showWhitespace}
                 />
               </div>
               <div className="bg-muted/40 px-4 py-3">
@@ -252,7 +248,7 @@ export function QaFindingsTable({
                 <QaText
                   text={first.targetText}
                   tokens={rows.flatMap((f) => f.relatedTokens ?? [])}
-                  visibleWhitespace={visibleMarks}
+                  visibleWhitespace={showWhitespace}
                 />
               </div>
             </div>
@@ -444,57 +440,56 @@ export function QaText({
   );
 }
 
+const NBSP = "\u00a0";
+
+function visibleWhitespaceMark(char: string): string | null {
+  if (char === " ") return "·";
+  if (char === "\t") return "⇥";
+  if (char === "\n") return "↵\n";
+  if (char === "\r") return "␍";
+  return null;
+}
+
+function takeRun(value: string, start: number, char: string): number {
+  let end = start + 1;
+  while (end < value.length && value[end] === char) end += 1;
+  return end;
+}
+
 function renderQaChars(value: string, visibleWhitespace: boolean, nbspLabel: string): ReactNode {
   const nodes: ReactNode[] = [];
-  for (let index = 0; index < value.length; index++) {
+  for (let index = 0; index < value.length;) {
     const char = value[index]!;
-    if (char === "\u00a0") {
+    if (char === NBSP) {
+      const end = takeRun(value, index, NBSP);
+      const count = end - index;
       nodes.push(
         <mark
           key={`nbsp-${index}`}
           title={nbspLabel}
           className="rounded-sm bg-warning/50 px-0.5 text-warning-foreground"
         >
-          {visibleWhitespace ? "·" : "\u00a0"}
+          {(visibleWhitespace ? "·" : NBSP).repeat(count)}
         </mark>,
       );
+      index = end;
       continue;
     }
-    if (visibleWhitespace && char === " ") {
+    const mark = visibleWhitespace ? visibleWhitespaceMark(char) : null;
+    if (mark) {
+      const end = takeRun(value, index, char);
       nodes.push(
         <span key={index} className="text-muted-foreground">
-          ·
+          {mark.repeat(end - index)}
         </span>,
       );
-      continue;
-    }
-    if (visibleWhitespace && char === "\t") {
-      nodes.push(
-        <span key={index} className="text-muted-foreground">
-          ⇥
-        </span>,
-      );
-      continue;
-    }
-    if (visibleWhitespace && char === "\n") {
-      nodes.push(
-        <span key={index} className="text-muted-foreground">
-          ↵{"\n"}
-        </span>,
-      );
-      continue;
-    }
-    if (visibleWhitespace && char === "\r") {
-      nodes.push(
-        <span key={index} className="text-muted-foreground">
-          ␍
-        </span>,
-      );
+      index = end;
       continue;
     }
     const previous = nodes.at(-1);
     if (typeof previous === "string") nodes[nodes.length - 1] = previous + char;
     else nodes.push(char);
+    index += 1;
   }
   return nodes;
 }

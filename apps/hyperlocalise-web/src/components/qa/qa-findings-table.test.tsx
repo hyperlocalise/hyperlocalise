@@ -28,4 +28,28 @@ describe("QaText", () => {
 
     expect(screen.getByTitle("Non-breaking space")).toHaveTextContent("·");
   });
+
+  it("highlights non-breaking spaces without turning on space marks", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <QaText text={"a b\u00a0c"} tokens={[]} visibleWhitespace={false} />
+      </IntlProvider>,
+    );
+
+    expect(screen.getByTitle("Non-breaking space").textContent).toBe("\u00a0");
+    expect(screen.queryByText("·")).not.toBeInTheDocument();
+  });
+
+  it("renders ordinary visible whitespace in runs", () => {
+    const { container } = render(
+      <IntlProvider locale="en" messages={{}}>
+        <QaText text={"a   b\t\tc"} tokens={[]} visibleWhitespace />
+      </IntlProvider>,
+    );
+
+    const marks = [...container.querySelectorAll("span")].filter((element) =>
+      /^[·⇥]+$/.test(element.textContent ?? ""),
+    );
+    expect(marks.map((element) => element.textContent)).toEqual(["···", "⇥⇥"]);
+  });
 });
