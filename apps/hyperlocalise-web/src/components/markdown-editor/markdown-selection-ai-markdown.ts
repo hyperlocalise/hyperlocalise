@@ -20,9 +20,21 @@ const HREF_SCHEME_PATTERN = /^([a-z][a-z0-9+.-]*):/i;
 const HTML_TAG_PATTERN =
   /<\/?(?:a|b|em|i|strong|u|s|del|ins|mark|span|div|p|br|img|script|iframe|svg|video|audio|object|embed|style|link|form|input|button|textarea|select|meta|base|html|body|head)\b[^>]*>/gi;
 const FENCED_MARKDOWN_PATTERN = /^```(?:markdown|md)?\n([\s\S]*?)\n```$/i;
-const HTML_PLACEHOLDER_PREFIX = "@@HLHTML_";
 const HTML_PLACEHOLDER_SUFFIX = "@@";
-const HTML_PLACEHOLDER_PATTERN = /@@HLHTML_(\d+)@@/g;
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function htmlPlaceholderPrefix(markdown: string): string {
+  let index = 0;
+  let prefix = "@@HLHTML_";
+  while (markdown.includes(prefix)) {
+    index += 1;
+    prefix = `@@HLHTML${index}_`;
+  }
+  return prefix;
+}
 
 type ParsedTextblock = {
   type: string;
@@ -57,29 +69,33 @@ export function containsHtmlTags(markdown: string): boolean {
   return HTML_TAG_PATTERN.test(markdown);
 }
 
-function extractHtmlTags(markdown: string): { markdown: string; tags: string[] } {
+function extractHtmlTags(markdown: string): { markdown: string; tags: string[]; prefix: string } {
   const tags: string[] = [];
+  const prefix = htmlPlaceholderPrefix(markdown);
   HTML_TAG_PATTERN.lastIndex = 0;
   const next = markdown.replace(HTML_TAG_PATTERN, (tag) => {
     const index = tags.length;
     tags.push(tag);
-    return `${HTML_PLACEHOLDER_PREFIX}${index}${HTML_PLACEHOLDER_SUFFIX}`;
+    return `${prefix}${index}${HTML_PLACEHOLDER_SUFFIX}`;
   });
-  return { markdown: next, tags };
+  return { markdown: next, tags, prefix };
 }
 
-function restoreHtmlTags(nodes: JSONContent[], tags: string[]): JSONContent[] {
+function restoreHtmlTags(nodes: JSONContent[], tags: string[], prefix: string): JSONContent[] {
   if (tags.length === 0) {
     return nodes;
   }
+  const pattern = new RegExp(
+    `${escapeRegex(prefix)}(\\d+)${escapeRegex(HTML_PLACEHOLDER_SUFFIX)}`,
+    "g",
+  );
   return nodes.flatMap((node) => {
     if (node.type !== "text" || !node.text) {
       return [node];
     }
     const parts: JSONContent[] = [];
     let lastIndex = 0;
-    HTML_PLACEHOLDER_PATTERN.lastIndex = 0;
-    for (const match of node.text.matchAll(HTML_PLACEHOLDER_PATTERN)) {
+    for (const match of node.text.matchAll(pattern)) {
       const index = match.index ?? 0;
       if (index > lastIndex) {
         parts.push({
@@ -294,17 +310,17 @@ function inlineMarkdownContent(editor: Editor, line: string): JSONContent[] {
 }
 
 export function suggestionBlocksFromMarkdown(editor: Editor, suggestion: string): JSONContent[][] {
-  const { markdown, tags } = extractHtmlTags(unwrapFencedMarkdown(suggestion));
+  const { markdown, tags, prefix } = extractHtmlTags(unwrapFencedMarkdown(suggestion));
   const lines = markdown.split("\n").filter((line) => line.length > 0);
   if (editor.markdown) {
     const parsed = parsedTextblocks(editor.markdown.parse(markdown)).filter(
       (block) => block.content.length > 0,
     );
     if (shouldKeepParsedBlocks(parsed, lines)) {
-      return parsed.map((block) => restoreHtmlTags(block.content, tags));
+      return parsed.map((block) => restoreHtmlTags(block.content, tags, prefix));
     }
   }
-  return lines.map((line) => restoreHtmlTags(inlineMarkdownContent(editor, line), tags));
+  return lines.map((line) => restoreHtmlTags(inlineMarkdownContent(editor, line), tags, prefix));
 }
 
 export function contentForBlock(

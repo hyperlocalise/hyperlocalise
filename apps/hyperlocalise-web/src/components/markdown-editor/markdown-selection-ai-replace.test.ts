@@ -170,6 +170,13 @@ describe("replaceMarkdownSelection", () => {
     expect(instance.getText()).toBe("Before improved <b>text</b> after");
   });
 
+  it("keeps literal HTML placeholder text that already appears in the suggestion", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(instance, selected.from, selected.to, "<b>ok</b> @@HLHTML_0@@");
+    expect(instance.getText()).toBe("Before <b>ok</b> @@HLHTML_0@@ after");
+  });
+
   it("applies a fenced code suggestion instead of inserting fence markers", () => {
     const instance = createEditor("Before selected after", "markdown");
     const selected = findText(instance, "selected");
