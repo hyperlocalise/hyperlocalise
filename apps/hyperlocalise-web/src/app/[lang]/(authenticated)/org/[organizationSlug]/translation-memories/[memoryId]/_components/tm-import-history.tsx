@@ -38,6 +38,11 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { tmImportHistoryMessages as messages } from "./tm-import-history.messages";
+import {
+  ACTIVE_MEMORY_INTERCHANGE_STATUSES,
+  memoryInterchangeHistoryFilename,
+  memoryInterchangeHistorySummary,
+} from "./tm-import-history-summary";
 
 const PAGE_SIZE = 20;
 
@@ -132,6 +137,14 @@ export function TmImportHistory({
       return (await response.json()) as MemoryImportAttemptsResponse;
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((page) =>
+        page.memoryImportAttempts.some((attempt) =>
+          ACTIVE_MEMORY_INTERCHANGE_STATUSES.has(attempt.status),
+        ),
+      )
+        ? 3_000
+        : false,
   });
   const attempts = useMemo(
     () => attemptsQuery.data?.pages.flatMap((page) => page.memoryImportAttempts) ?? [],
@@ -198,50 +211,70 @@ export function TmImportHistory({
           </div>
         ) : (
           <div className="max-h-[60vh] space-y-3 overflow-y-auto pe-1">
-            {attempts.map((attempt) => (
-              <div
-                key={attempt.id}
-                className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TypographyP className="truncate" weight="medium">
-                      {attempt.sourceFilename || intl.formatMessage(messages.unknownFile)}
-                    </TypographyP>
-                    <ImportStatusBadge status={attempt.status} />
-                  </div>
-                  <TypographyP size="xsmall" tone="subtle">
-                    <FormattedMessage
-                      {...messages.attemptMeta}
-                      values={{
-                        actor:
-                          attempt.actorDisplayName || intl.formatMessage(messages.unknownActor),
-                        date: intl.formatDate(new Date(attempt.createdAt), {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        }),
-                      }}
-                    />
-                  </TypographyP>
-                  {attempt.counts ? (
-                    <TypographyP size="xsmall" tone="subtle">
-                      <FormattedMessage {...messages.counts} values={attempt.counts} />
-                    </TypographyP>
-                  ) : null}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  render={
-                    <OrgNavLink
-                      href={`/org/${organizationSlug}/translation-memories/${memoryId}/imports/${attempt.id}`}
-                    />
-                  }
+            {attempts.map((attempt) => {
+              const filename = memoryInterchangeHistoryFilename(attempt);
+              const summary = memoryInterchangeHistorySummary(attempt);
+              return (
+                <div
+                  key={attempt.id}
+                  className="flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <FormattedMessage {...messages.viewReport} />
-                </Button>
-              </div>
-            ))}
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <TypographyP className="truncate" weight="medium">
+                        {filename ||
+                          (attempt.operation === "export"
+                            ? intl.formatMessage(messages.unnamedExport, {
+                                format: attempt.format.toUpperCase(),
+                              })
+                            : intl.formatMessage(messages.unknownFile))}
+                      </TypographyP>
+                      <Badge variant="outline">
+                        <FormattedMessage
+                          {...(attempt.operation === "export"
+                            ? messages.exportOperation
+                            : messages.importOperation)}
+                        />
+                      </Badge>
+                      <ImportStatusBadge status={attempt.status} />
+                    </div>
+                    <TypographyP size="xsmall" tone="subtle">
+                      <FormattedMessage
+                        {...messages.attemptMeta}
+                        values={{
+                          actor:
+                            attempt.actorDisplayName || intl.formatMessage(messages.unknownActor),
+                          date: intl.formatDate(new Date(attempt.createdAt), {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }),
+                        }}
+                      />
+                    </TypographyP>
+                    {summary?.kind === "import" ? (
+                      <TypographyP size="xsmall" tone="subtle">
+                        <FormattedMessage {...messages.counts} values={summary} />
+                      </TypographyP>
+                    ) : summary?.kind === "export" ? (
+                      <TypographyP size="xsmall" tone="subtle">
+                        <FormattedMessage {...messages.exportCounts} values={summary} />
+                      </TypographyP>
+                    ) : null}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    render={
+                      <OrgNavLink
+                        href={`/org/${organizationSlug}/translation-memories/${memoryId}/imports/${attempt.id}`}
+                      />
+                    }
+                  >
+                    <FormattedMessage {...messages.viewReport} />
+                  </Button>
+                </div>
+              );
+            })}
             {attemptsQuery.hasNextPage ? (
               <div className="flex justify-center pt-1">
                 <Button

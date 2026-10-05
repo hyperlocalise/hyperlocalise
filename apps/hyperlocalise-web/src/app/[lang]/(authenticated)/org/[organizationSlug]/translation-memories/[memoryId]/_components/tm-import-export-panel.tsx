@@ -15,7 +15,7 @@
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ import {
 import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
+import { tmImportAttemptsQueryKey } from "./tm-import-history";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { tmImportExportPanelMessages as messages } from "./tm-import-export-panel.messages";
 
@@ -80,6 +81,7 @@ export function TmImportExportPanel({
   renderActions?: (actions: { openImport: () => void; openExport: () => void }) => ReactNode;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const { client: goSvcClient } = useGoSvcClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,6 +194,9 @@ export function TmImportExportPanel({
     },
     onSuccess: ({ attemptId }) => {
       setExportOpen(false);
+      void queryClient.invalidateQueries({
+        queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
+      });
       router.push(`/org/${organizationSlug}/translation-memories/${memoryId}/imports/${attemptId}`);
     },
     onError: (error) => toast.error(error.message),

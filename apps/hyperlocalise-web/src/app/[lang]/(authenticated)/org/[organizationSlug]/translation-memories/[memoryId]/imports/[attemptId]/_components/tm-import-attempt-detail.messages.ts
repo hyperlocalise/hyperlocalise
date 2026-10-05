@@ -115,6 +115,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "stUnm5XNi2",
     description: "Import actor field label",
   },
+  exportedBy: {
+    defaultMessage: "Exported by",
+    id: "BDtiDDe7/E",
+    description: "Export actor field label",
+  },
   started: {
     defaultMessage: "Started",
     id: "prQSkX6K0N",
@@ -245,10 +250,20 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "2FJ39S/f6p",
     description: "Import failed count",
   },
+  entriesExported: {
+    defaultMessage: "Entries exported",
+    id: "Uc7/iaCod8",
+    description: "Number of translation memory entries in an export",
+  },
   pendingCounts: {
     defaultMessage: "Counts will appear when the import finishes.",
     id: "jhLLn9eNRX",
     description: "Message while import counts are unavailable",
+  },
+  pendingExportCounts: {
+    defaultMessage: "The entry count will appear when the export finishes.",
+    id: "Ir8kybD8uF",
+    description: "Message while export counts are unavailable",
   },
   noDiagnostics: {
     defaultMessage: "No diagnostics were recorded for this import.",

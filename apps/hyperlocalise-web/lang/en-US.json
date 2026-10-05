@@ -427,6 +427,10 @@
     "defaultMessage": "TMS project",
     "description": "Label for the live TMS project picker field"
   },
+  "+rVY1tG/6/": {
+    "defaultMessage": "No imports or exports yet",
+    "description": "Empty import and export history title"
+  },
   "+rmN8L+YLt": {
     "defaultMessage": "Open in {providerKind}",
     "description": "Link label to open the job in the external TMS provider"
@@ -827,6 +831,10 @@
     "defaultMessage": "Saving…",
     "description": "Status text while notification preferences are saving"
   },
+  "/WvxTFZmtz": {
+    "defaultMessage": "{entries, number} exported",
+    "description": "Compact export result count"
+  },
   "/X++ueXvVD": {
     "defaultMessage": "All projects",
     "description": "Project filter option for all translation memories"
@@ -1010,10 +1018,6 @@
   "/zPj/3x/+q": {
     "defaultMessage": "Slack agent enabled",
     "description": "Toast after enabling the Slack agent"
-  },
-  "0+3ELrzEns": {
-    "defaultMessage": "Try again to load the latest import activity.",
-    "description": "Import history error description"
   },
   "0+GXVlndL6": {
     "defaultMessage": "Approve",
@@ -3087,6 +3091,10 @@
     "defaultMessage": "Extract text to refine the translation in your image.",
     "description": "Image viewer: intro"
   },
+  "4/+3RXAa/C": {
+    "defaultMessage": "Import/export history",
+    "description": "Translation memory import and export history dialog title"
+  },
   "4/O19yxuqg": {
     "defaultMessage": "Edit",
     "description": "Link to edit the style guide in project settings"
@@ -3926,10 +3934,6 @@
   "5cSzEqDNOr": {
     "defaultMessage": "Plans and pricing",
     "description": "Marketing homepage pricingTitle"
-  },
-  "5d6Q8OXUl3": {
-    "defaultMessage": "Review imports and open their full diagnostic reports.",
-    "description": "Translation memory import history dialog description"
   },
   "5dgeEUsPxT": {
     "defaultMessage": "France",
@@ -5779,10 +5783,6 @@
     "defaultMessage": "No outputs configured.",
     "description": "Message shown when a Sequence has no outputs"
   },
-  "9Dln9NUE9S": {
-    "defaultMessage": "Import history",
-    "description": "Button that opens translation memory import history"
-  },
   "9DtnBnymqw": {
     "defaultMessage": "Sort",
     "description": "Label for the Crowdin glossary ordering control"
@@ -6079,10 +6079,6 @@
     "defaultMessage": "Italic",
     "description": "Bubble menu button to toggle italic text"
   },
-  "9lcqGrB1lq": {
-    "defaultMessage": "Import history",
-    "description": "Translation memory import history dialog title"
-  },
   "9ll1eHub6k": {
     "defaultMessage": "No style guide yet. Add one in project settings.",
     "description": "Empty state for style guide tab"
@@ -6310,10 +6306,6 @@
   "A7gp0wsRN6": {
     "defaultMessage": "Format",
     "description": "Filter option for format warnings"
-  },
-  "A8n3883pxm": {
-    "defaultMessage": "Import history could not be loaded",
-    "description": "Import history error title"
   },
   "A9BYSi93bG": {
     "defaultMessage": "Response",
@@ -6783,6 +6775,10 @@
     "defaultMessage": "Alert when locales fall behind source",
     "description": "Workflow step 6 description for the help-center-localisation use case"
   },
+  "B8yt0IjyM2": {
+    "defaultMessage": "Try again to load the latest import and export activity.",
+    "description": "Import and export history error description"
+  },
   "B90Z7UPFjc": {
     "defaultMessage": "No project",
     "description": "Option to remove a domain project assignment"
@@ -6838,6 +6834,10 @@
   "BDqDQOB6we": {
     "defaultMessage": "Publish the pages you already have, then fix what search and AI still miss.",
     "description": "Bottom CTA body on the Domains product page"
+  },
+  "BDtiDDe7/E": {
+    "defaultMessage": "Exported by",
+    "description": "Export actor field label"
   },
   "BERSauR8KR": {
     "defaultMessage": "Translatable",
@@ -9615,6 +9615,10 @@
     "defaultMessage": "Could not load the translated file",
     "description": "Error when CAT document viewer fails to fetch an existing target file"
   },
+  "GYwOqW2z7j": {
+    "defaultMessage": "Export",
+    "description": "Translation memory export operation label"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
@@ -10714,6 +10718,10 @@
   "IqfvPpBfRa": {
     "defaultMessage": "Choose a workspace API key with files and jobs read/write access.",
     "description": "Help text for the Canva API key picker"
+  },
+  "Ir8kybD8uF": {
+    "defaultMessage": "The entry count will appear when the export finishes.",
+    "description": "Message while export counts are unavailable"
   },
   "Ir9T3sKw7D": {
     "defaultMessage": "Cancel",
@@ -11871,6 +11879,10 @@
     "defaultMessage": "Checking the domain and opening a safe crawl.",
     "description": "Detail text when a localisation audit is preparing"
   },
+  "LNUnZ4sgEn": {
+    "defaultMessage": "Import/export history",
+    "description": "Button that opens translation memory import and export history"
+  },
   "LNnC/DWQXp": {
     "defaultMessage": "What is wrong with it",
     "description": "Description skeleton heading for the source mistake issue template"
@@ -12131,6 +12143,10 @@
     "defaultMessage": "Original",
     "description": "Badge for the control variant"
   },
+  "Lvrd1itzcD": {
+    "defaultMessage": "Import/export history",
+    "description": "Menu item that opens translation memory import and export history"
+  },
   "LwRsugxcAC": {
     "defaultMessage": "Share",
     "description": "Disabled share button in visual workflow chrome"
@@ -12154,6 +12170,10 @@
   "LyO/knpzIv": {
     "defaultMessage": "No visual workflows yet. Create one to start building on the canvas.",
     "description": "Empty state on the visual workflows list page"
+  },
+  "LyPYie6GUZ": {
+    "defaultMessage": "Queued and completed imports and exports will appear here.",
+    "description": "Empty import and export history description"
   },
   "Lzjyu+8nDt": {
     "defaultMessage": "No locales available",
@@ -12350,6 +12370,10 @@
   "ML8rZ08xO0": {
     "defaultMessage": "Product meaning, screenshots, brand guidance, market notes, and issue history—so reviewers understand intent before they choose wording.",
     "description": "Content Studio FAQ answer about reviewer context"
+  },
+  "MM0m7VaEfu": {
+    "defaultMessage": "You do not have access to this translation memory's import and export history.",
+    "description": "Import and export history unauthorized state description"
   },
   "MMFb5MTldp": {
     "defaultMessage": "{open} open · {inProgress} in progress · {resolved} resolved",
@@ -14227,6 +14251,10 @@
     "defaultMessage": "No target locales yet",
     "description": "Shown when the project has no target locales configured"
   },
+  "Px1DmQ6Gxp": {
+    "defaultMessage": "Import and export history is unavailable",
+    "description": "Import and export history unauthorized state title"
+  },
   "PxhmMvItIU": {
     "defaultMessage": "Full workspace control including billing and organization settings.",
     "description": "Description of the organization admin role"
@@ -14963,10 +14991,6 @@
     "defaultMessage": "Assign translation, review, and QA work based on locale, content type, or expertise.",
     "description": "Capability 2 description for the localisation-operations use case"
   },
-  "RWcC6K686A": {
-    "defaultMessage": "Import history",
-    "description": "Menu item that opens translation memory import history"
-  },
   "RWjNPOBQ+S": {
     "defaultMessage": "Assign an existing workspace member to this team. People must already belong to the workspace before they can join a team.",
     "description": "Description of the add team member dialog"
@@ -15139,6 +15163,10 @@
     "defaultMessage": "Validation unavailable",
     "description": "CAT format check label when segment validation service is unavailable"
   },
+  "RpaqVDCd+1": {
+    "defaultMessage": "Import and export history could not be loaded",
+    "description": "Import and export history error title"
+  },
   "RrEtMWT3+n": {
     "defaultMessage": "Call to action",
     "description": "Brand guideline CTA section title in content ops mock"
@@ -15194,6 +15222,10 @@
   "RueTypLijF": {
     "defaultMessage": "Queries",
     "description": "App shell breadcrumb title for the project Queries page"
+  },
+  "RuyvQfr0dN": {
+    "defaultMessage": "Loading import and export history",
+    "description": "Accessible text while import and export history loads"
   },
   "RvIRC+2k01": {
     "defaultMessage": "Save",
@@ -16578,6 +16610,10 @@
   "Uc51ukp3UG": {
     "defaultMessage": "Build it once. Every language follows it.",
     "description": "Details section headline for the agents automation product page"
+  },
+  "Uc7/iaCod8": {
+    "defaultMessage": "Entries exported",
+    "description": "Number of translation memory entries in an export"
   },
   "UcF3Gc/Vdi": {
     "defaultMessage": "Developer",
@@ -19067,10 +19103,6 @@
     "defaultMessage": "Search models",
     "description": "Accessible label for the pricing model search field"
   },
-  "ZhhmEl6FUY": {
-    "defaultMessage": "No imports yet",
-    "description": "Empty import history title"
-  },
   "Zjsr28k65x": {
     "defaultMessage": "Dense review table with bulk approve and QA issue tracking",
     "description": "Description tooltip for the Reviewer workspace persona"
@@ -19582,10 +19614,6 @@
   "acDZHLMCP3": {
     "defaultMessage": "{memoryName} · {sourceText} → {targetText}",
     "description": "Tooltip title for a TM match badge without a match score"
-  },
-  "acWtHwRkfG": {
-    "defaultMessage": "Completed imports will appear here.",
-    "description": "Empty import history description"
   },
   "acYdm9AkSl": {
     "defaultMessage": "No longer has access",
@@ -21591,6 +21619,10 @@
     "defaultMessage": "Translation mistake",
     "description": "Issue type filter option for a translation mistake"
   },
+  "eIzQewHUyw": {
+    "defaultMessage": "{format} export",
+    "description": "Fallback name for an export that has no filename yet"
+  },
   "eJpbr2p2dc": {
     "defaultMessage": "{count, plural, one {File uploaded} other {# files uploaded}}",
     "description": "Toast after source files upload successfully"
@@ -22694,6 +22726,10 @@
   "gQQcuhRlkz": {
     "defaultMessage": "We could not determine which organization to open.",
     "description": "Access denied page summary when the organization slug is missing"
+  },
+  "gQaOHIIj8G": {
+    "defaultMessage": "Review imports and exports, then open a report to download a finished export.",
+    "description": "Translation memory import and export history dialog description"
   },
   "gRhG9VDHId": {
     "defaultMessage": "Copy",
@@ -23966,10 +24002,6 @@
   "im+pFp1kIC": {
     "defaultMessage": "Started by",
     "description": "QA run trigger label"
-  },
-  "imU5/8V6+u": {
-    "defaultMessage": "You do not have access to this translation memory's import history.",
-    "description": "Import history unauthorized state description"
   },
   "inRpXeF/YP": {
     "defaultMessage": "Add term",
@@ -25875,6 +25907,10 @@
     "defaultMessage": "{count, plural, one {# string} other {# strings}}",
     "description": "Number of strings in the current file, shown next to the file name"
   },
+  "mV7baqXXbb": {
+    "defaultMessage": "Import",
+    "description": "Translation memory import operation label"
+  },
   "mVLREix+gB": {
     "defaultMessage": "Workspace",
     "description": "Feature teaser page label for Hyperlab when opened from a project"
@@ -27018,10 +27054,6 @@
   "oeVZ6ETPjK": {
     "defaultMessage": "Select a member",
     "description": "Placeholder for the member select"
-  },
-  "oeaC1JAaH1": {
-    "defaultMessage": "Loading import history",
-    "description": "Accessible text while import history loads"
   },
   "ofjXB5MTLN": {
     "defaultMessage": "Published",
@@ -31766,10 +31798,6 @@
   "xXvQeFYygi": {
     "defaultMessage": "Ready for the next market?",
     "description": "Final CTA heading on the startups page"
-  },
-  "xYD9jPAzEY": {
-    "defaultMessage": "Import history is unavailable",
-    "description": "Import history unauthorized state title"
   },
   "xYeE5w8BlW": {
     "defaultMessage": "Name, project, or external ID...",

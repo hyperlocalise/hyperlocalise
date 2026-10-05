@@ -36,6 +36,39 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
 
+const IMPORT_COUNT_FIELDS = [
+  ["totalRead", messages.totalRead],
+  ["created", messages.created],
+  ["updated", messages.updated],
+  ["variantCreated", messages.variants],
+  ["skipped", messages.skipped],
+  ["warned", messages.warnings],
+  ["failed", messages.failedCount],
+] as const;
+
+type InterchangeCountItem = {
+  label: (typeof IMPORT_COUNT_FIELDS)[number][1] | typeof messages.entriesExported;
+  value: number;
+};
+
+export function memoryInterchangeCountItems(attempt: {
+  operation: "import" | "export";
+  counts: Record<string, unknown> | null;
+}): InterchangeCountItem[] {
+  const counts = attempt.counts;
+  if (!counts) return [];
+  if (attempt.operation === "export") {
+    const entries = counts.entries;
+    return typeof entries === "number" && Number.isFinite(entries)
+      ? [{ label: messages.entriesExported, value: entries }]
+      : [];
+  }
+  return IMPORT_COUNT_FIELDS.map(([key, label]) => ({
+    label,
+    value: typeof counts[key] === "number" ? counts[key] : 0,
+  }));
+}
+
 class ImportReportRequestError extends Error {
   status: number;
 
@@ -238,20 +271,10 @@ export function TmImportAttemptDetail({
       setDownloadPending(false);
     }
   };
-  const countItems: Array<{
-    label: typeof messages.totalRead;
-    value: number;
-  }> = attempt.counts
-    ? [
-        { label: messages.totalRead, value: Number(attempt.counts.totalRead ?? 0) },
-        { label: messages.created, value: Number(attempt.counts.created ?? 0) },
-        { label: messages.updated, value: Number(attempt.counts.updated ?? 0) },
-        { label: messages.variants, value: Number(attempt.counts.variantCreated ?? 0) },
-        { label: messages.skipped, value: Number(attempt.counts.skipped ?? 0) },
-        { label: messages.warnings, value: Number(attempt.counts.warned ?? 0) },
-        { label: messages.failedCount, value: Number(attempt.counts.failed ?? 0) },
-      ]
-    : [];
+  const countItems = memoryInterchangeCountItems(attempt);
+  const filename =
+    (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
+    intl.formatMessage(messages.unknown);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -303,7 +326,13 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.translationMemory} />}>
               {memoryLabel}
             </MetadataItem>
-            <MetadataItem label={<FormattedMessage {...messages.actor} />}>
+            <MetadataItem
+              label={
+                <FormattedMessage
+                  {...(attempt.operation === "export" ? messages.exportedBy : messages.actor)}
+                />
+              }
+            >
               {attempt.actorDisplayName || intl.formatMessage(messages.systemActor)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.started} />}>
@@ -321,7 +350,7 @@ export function TmImportAttemptDetail({
                 : intl.formatMessage(messages.unknown)}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.filename} />}>
-              {attempt.sourceFilename || intl.formatMessage(messages.unknown)}
+              {filename}
             </MetadataItem>
             <MetadataItem label={<FormattedMessage {...messages.byteSize} />}>
               {attempt.sourceByteSize === null
@@ -365,8 +394,14 @@ export function TmImportAttemptDetail({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {attempt.counts ? (
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {countItems.length > 0 ? (
+            <dl
+              className={
+                countItems.length === 1
+                  ? "grid max-w-xs gap-3"
+                  : "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"
+              }
+            >
               {countItems.map(({ label, value }) => (
                 <div key={label.id} className="rounded-xl bg-muted/50 p-3">
                   <dt className="text-xs text-muted-foreground">
@@ -378,51 +413,57 @@ export function TmImportAttemptDetail({
             </dl>
           ) : (
             <TypographyP size="small" tone="subtle">
-              <FormattedMessage {...messages.pendingCounts} />
+              <FormattedMessage
+                {...(attempt.operation === "export"
+                  ? messages.pendingExportCounts
+                  : messages.pendingCounts)}
+              />
             </TypographyP>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <FormattedMessage {...messages.diagnostics} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {attempt.diagnosticsAvailability === "expired" ? (
-            <Alert>
-              <AlertTitle>
-                <FormattedMessage {...messages.diagnosticsExpiredTitle} />
-              </AlertTitle>
-              <AlertDescription>
-                <FormattedMessage {...messages.diagnosticsExpiredDescription} />
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              {attempt.diagnosticsTruncated ? (
-                <Alert>
-                  <AlertTitle>
-                    <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
-                  </AlertTitle>
-                  <AlertDescription>
-                    <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              {diagnostics.length > 0 ? (
-                <TmImportDiagnosticList diagnostics={diagnostics} />
-              ) : (
-                <TypographyP size="small" tone="subtle">
-                  <FormattedMessage {...messages.noDiagnostics} />
-                </TypographyP>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {attempt.operation === "import" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <FormattedMessage {...messages.diagnostics} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {attempt.diagnosticsAvailability === "expired" ? (
+              <Alert>
+                <AlertTitle>
+                  <FormattedMessage {...messages.diagnosticsExpiredTitle} />
+                </AlertTitle>
+                <AlertDescription>
+                  <FormattedMessage {...messages.diagnosticsExpiredDescription} />
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                {attempt.diagnosticsTruncated ? (
+                  <Alert>
+                    <AlertTitle>
+                      <FormattedMessage {...messages.diagnosticsTruncatedTitle} />
+                    </AlertTitle>
+                    <AlertDescription>
+                      <FormattedMessage {...messages.diagnosticsTruncatedDescription} />
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {diagnostics.length > 0 ? (
+                  <TmImportDiagnosticList diagnostics={diagnostics} />
+                ) : (
+                  <TypographyP size="small" tone="subtle">
+                    <FormattedMessage {...messages.noDiagnostics} />
+                  </TypographyP>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </main>
   );
 }

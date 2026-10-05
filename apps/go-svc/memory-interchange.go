@@ -570,7 +570,9 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 	if err != nil {
 		return nil, 0, err
 	}
-	where := `a.memory_id=$1 and a.organization_id=$2 and a.operation='import'`
+	// Imports and exports share memory_import_attempts. List both so a queued export
+	// remains discoverable after the user leaves its report.
+	where := `a.memory_id=$1 and a.organization_id=$2`
 	args := []any{m.ID, actor.organizationID}
 	cursor := trimMemoryInput(r.URL.Query().Get("cursor"))
 	if cursor != "" {
@@ -604,7 +606,7 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 		attempts = attempts[:limit]
 	}
 	var total int
-	err = api.pool.QueryRow(r.Context(), `select count(*) from memory_import_attempts a where a.memory_id=$1 and a.organization_id=$2 and a.operation='import'`, m.ID, actor.organizationID).Scan(&total)
+	err = api.pool.QueryRow(r.Context(), `select count(*) from memory_import_attempts a where a.memory_id=$1 and a.organization_id=$2`, m.ID, actor.organizationID).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}

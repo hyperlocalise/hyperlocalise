@@ -167,10 +167,11 @@ export async function listMemoryImportAttempts(input: {
   limit: number;
   cursor?: MemoryImportAttemptCursor;
 }) {
+  // Imports and exports share this table. History lists both so a queued export
+  // stays reachable after the user leaves its report.
   const scope = and(
     eq(schema.memoryImportAttempts.organizationId, input.organizationId),
     eq(schema.memoryImportAttempts.memoryId, input.memoryId),
-    eq(schema.memoryImportAttempts.operation, "import"),
   );
   const cursorWhere = input.cursor
     ? or(
@@ -225,6 +226,7 @@ export async function getMemoryImportAttempt(input: {
         eq(schema.memoryImportAttempts.id, input.attemptId),
         eq(schema.memoryImportAttempts.organizationId, input.organizationId),
         eq(schema.memoryImportAttempts.memoryId, input.memoryId),
+        // JSON reports and unit diagnostics belong to imports. Export files use the signed result URL.
         eq(schema.memoryImportAttempts.operation, "import"),
       ),
     )
