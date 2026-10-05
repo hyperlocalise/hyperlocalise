@@ -50,6 +50,40 @@ func (c *memoryResearchCache) IncrByWithTTL(_ context.Context, key string, units
 	return c.counts[key], nil
 }
 
+func TestDomainResearchCacheKeyNormalizesParts(t *testing.T) {
+	require.Equal(t,
+		domainResearchCacheKey("quota", "ORG", "Keyword"),
+		domainResearchCacheKey("quota", " org ", "keyword"),
+	)
+	require.NotEqual(t,
+		domainResearchCacheKey("quota", "org", "keyword"),
+		domainResearchCacheKey("quota", "org", "serp"),
+	)
+}
+
+func TestCachedJSONTreatsCorruptPayloadAsMiss(t *testing.T) {
+	var target map[string]any
+	hit, err := cachedJSON(context.Background(), nil, "missing", &target)
+	require.NoError(t, err)
+	require.False(t, hit)
+
+	cache := newMemoryResearchCache()
+	hit, err = cachedJSON(context.Background(), cache, "missing", &target)
+	require.NoError(t, err)
+	require.False(t, hit)
+
+	require.NoError(t, cache.Set(context.Background(), "broken", "{not-json", time.Minute))
+	hit, err = cachedJSON(context.Background(), cache, "broken", &target)
+	require.NoError(t, err)
+	require.False(t, hit)
+
+	require.NoError(t, cache.Set(context.Background(), "ok", `{"keyword":"seo"}`, time.Minute))
+	hit, err = cachedJSON(context.Background(), cache, "ok", &target)
+	require.NoError(t, err)
+	require.True(t, hit)
+	require.Equal(t, "seo", target["keyword"])
+}
+
 func TestConsumeDomainResearchQuota(t *testing.T) {
 	h := newHandler()
 	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA)
