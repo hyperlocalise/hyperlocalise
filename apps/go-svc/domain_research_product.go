@@ -148,7 +148,7 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 	} else if hit {
 		return cached, http.StatusOK, nil
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "keyword-expansion", 1, domainResearchKeywordQuota); err != nil {
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA); err != nil {
 		return nil, 0, err
 	}
 	ideas, err := h.keywordIdeas(r.Context(), seed, market)
@@ -176,7 +176,7 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 	if h.researchCache != nil {
 		encoded, marshalErr := json.Marshal(response)
 		if marshalErr == nil {
-			_ = h.researchCache.Set(r.Context(), cacheKey, string(encoded), domainResearchKeywordCacheTTL)
+			_ = h.researchCache.Set(r.Context(), cacheKey, string(encoded), DOMAIN_RESEARCH_KEYWORD_CACHE_TTL)
 		}
 	}
 	return response, http.StatusOK, nil
@@ -288,6 +288,7 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	err = h.workspace.pool.QueryRow(r.Context(), `
 		select device from domain_research_tracked_keywords
 		where linked_domain_id=$1 and market_id=$2 and lower(keyword)=lower($3)
+		order by case when device = 'desktop' then 0 else 1 end, device
 		limit 1`, r.PathValue("linkedDomainId"), market.ID, keyword).Scan(&device)
 	if isNoRows(err) {
 		device = "desktop"
@@ -301,14 +302,14 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 		select captured_at, results from domain_research_serp_snapshots
 		where linked_domain_id=$1 and location_code=$2 and language_code=$3 and lower(keyword)=lower($4) and device=$5
 		limit 1`, domain.ID, market.LocationCode, market.Language, keyword, device).Scan(&capturedAt, &cachedRaw)
-	if snapshotErr == nil && time.Since(capturedAt) < domainResearchSerpCacheTTL {
+	if snapshotErr == nil && time.Since(capturedAt) < DOMAIN_RESEARCH_SERP_CACHE_TTL {
 		if results, _, ok := decodeResearchSerpResults(cachedRaw); ok {
 			return map[string]any{"results": results, "device": device, "capturedAt": capturedAt, "cached": true}, http.StatusOK, nil
 		}
 	} else if snapshotErr != nil && !isNoRows(snapshotErr) {
 		return nil, 0, snapshotErr
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "serp-inspection", 1, domainResearchSerpQuota); err != nil {
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "serp-inspection", 1, DOMAIN_RESEARCH_SERP_QUOTA); err != nil {
 		return nil, 0, err
 	}
 	results, err := h.liveOrganicSerp(r.Context(), keyword, market, domain.DomainKey, device)
@@ -367,7 +368,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	if len(rows) > maxRankCheckBatchSize {
 		rows = rows[:maxRankCheckBatchSize]
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), domainResearchRankQuota); err != nil {
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
 		return nil, 0, err
 	}
 	keywords := make([]researchRankCheckKeyword, len(rows))
@@ -464,7 +465,7 @@ func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any
 	if len(rows) == 0 {
 		return map[string]any{"ranks": []any{}}, http.StatusOK, nil
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), domainResearchRankQuota); err != nil {
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
 		return nil, 0, err
 	}
 	groups := map[string][]trackedKeyword{}
@@ -684,6 +685,18 @@ func researchDevice(value string) string {
 	return "desktop"
 }
 
+// mergeResearchDevicePreference keeps one device for a keyword. Desktop wins when
+// both devices are tracked so catalog loads do not flip with unordered rank rows.
+func mergeResearchDevicePreference(current, candidate string) string {
+	if current == "" {
+		return researchDevice(candidate)
+	}
+	if researchDevice(candidate) == "desktop" {
+		return "desktop"
+	}
+	return researchDevice(current)
+}
+
 func researchMonthlySearchesValue(searches []dataforseo.KeywordMonthlySearch) (any, error) {
 	if searches == nil {
 		return nil, nil
@@ -872,7 +885,8 @@ func (h *handler) listResearchSerp(ctx context.Context, linkedDomainID string, k
 		text, _ := rank["keyword"].(string)
 		device, _ := rank["device"].(string)
 		if ok {
-			preferredDevice[serpKey(market.LocationCode, market.Language, text)] = researchDevice(device)
+			key := serpKey(market.LocationCode, market.Language, text)
+			preferredDevice[key] = mergeResearchDevicePreference(preferredDevice[key], device)
 		}
 	}
 	serp := map[string]any{}

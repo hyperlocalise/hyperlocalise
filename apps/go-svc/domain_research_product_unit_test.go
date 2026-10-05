@@ -52,7 +52,7 @@ func (c *memoryResearchCache) IncrByWithTTL(_ context.Context, key string, units
 
 func TestConsumeDomainResearchQuota(t *testing.T) {
 	h := newHandler()
-	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, domainResearchKeywordQuota)
+	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA)
 	var failure *workspaceError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, http.StatusServiceUnavailable, failure.status)
@@ -137,6 +137,44 @@ func TestExpandDomainKeywords(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, body.(map[string]any)["ideas"])
+}
+
+func TestListResearchSerpDevicePreferenceIsStable(t *testing.T) {
+	desktop := []byte(`[{"title":"Desktop","url":"https://example.com"}]`)
+	mobile := []byte(`[{"title":"Mobile","url":"https://m.example.com"}]`)
+	table := [][]any{
+		{2250, "fr", "seo tools", "mobile", mobile},
+		{2250, "fr", "seo tools", "desktop", desktop},
+	}
+	keywords := []map[string]any{{
+		"id": "kw", "keyword": "seo tools", "marketId": "france-fr",
+	}}
+	orders := [][]map[string]any{
+		{
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "desktop"},
+		},
+		{
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "desktop"},
+			{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+		},
+	}
+	h := newHandler()
+	for _, ranks := range orders {
+		h.workspace = &workspaceAPI{pool: &scriptPool{steps: []dbStep{{op: opQuery, table: table}}}}
+		serp, err := h.listResearchSerp(context.Background(), "domain", keywords, ranks)
+		require.NoError(t, err)
+		results := serp["kw"].([]dataforseo.OrganicSerpResult)
+		require.Equal(t, "Desktop", results[0].Title)
+	}
+
+	h.workspace = &workspaceAPI{pool: &scriptPool{steps: []dbStep{{op: opQuery, table: table}}}}
+	serp, err := h.listResearchSerp(context.Background(), "domain", keywords, []map[string]any{
+		{"keyword": "seo tools", "marketId": "france-fr", "device": "mobile"},
+	})
+	require.NoError(t, err)
+	results := serp["kw"].([]dataforseo.OrganicSerpResult)
+	require.Equal(t, "Mobile", results[0].Title)
 }
 
 func TestDomainResearchProviderHelpers(t *testing.T) {

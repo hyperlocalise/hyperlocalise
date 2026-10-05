@@ -26,6 +26,9 @@ func TestResearchDeviceAndMonthlySearches(t *testing.T) {
 	require.Equal(t, "desktop", researchDevice(""))
 	require.Equal(t, "desktop", researchDevice("tablet"))
 	require.Equal(t, "mobile", researchDevice("mobile"))
+	require.Equal(t, "mobile", mergeResearchDevicePreference("", "mobile"))
+	require.Equal(t, "desktop", mergeResearchDevicePreference("mobile", "desktop"))
+	require.Equal(t, "desktop", mergeResearchDevicePreference("desktop", "mobile"))
 
 	value, err := researchMonthlySearchesValue(nil)
 	require.NoError(t, err)

@@ -18,12 +18,12 @@ type domainResearchCache interface {
 }
 
 const (
-	domainResearchKeywordCacheTTL = 7 * 24 * time.Hour
-	domainResearchSerpCacheTTL    = 24 * time.Hour
-	domainResearchQuotaTimeout    = 500 * time.Millisecond
-	domainResearchKeywordQuota    = 100
-	domainResearchSerpQuota       = 500
-	domainResearchRankQuota       = 1000
+	DOMAIN_RESEARCH_KEYWORD_CACHE_TTL = 7 * 24 * time.Hour
+	DOMAIN_RESEARCH_SERP_CACHE_TTL    = 24 * time.Hour
+	DOMAIN_RESEARCH_QUOTA_TIMEOUT     = 500 * time.Millisecond
+	DOMAIN_RESEARCH_KEYWORD_QUOTA     = 100
+	DOMAIN_RESEARCH_SERP_QUOTA        = 500
+	DOMAIN_RESEARCH_RANK_QUOTA        = 1000
 )
 
 func domainResearchCacheKey(prefix string, parts ...string) string {
@@ -42,7 +42,7 @@ func (h *handler) consumeDomainResearchQuota(ctx context.Context, organizationID
 	if h.researchCache == nil {
 		return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
 	}
-	quotaCtx, cancel := context.WithTimeout(ctx, domainResearchQuotaTimeout)
+	quotaCtx, cancel := context.WithTimeout(ctx, DOMAIN_RESEARCH_QUOTA_TIMEOUT)
 	defer cancel()
 	key := domainResearchCacheKey("quota", organizationID, operation, time.Now().UTC().Format("2006-01-02"))
 	ttl := time.Until(time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour))
