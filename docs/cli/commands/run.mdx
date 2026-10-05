@@ -182,7 +182,8 @@ For generic XML (`.xml`, `.resx`, `.resw`), `run` translates text-only leaf elem
 - keyed leaves use `key`, `id`, or `name` attributes, for example `<message key="checkout.cta">Checkout now</message>`
 - nested path-shaped leaves use dotted element paths, for example `<home><title>Welcome</title></home>` -> `home.title`
 - `.resx` and `.resw` `<data name="home.title"><value>Welcome</value></data>` entries are supported
-- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved
+- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved when the target key set still matches the source
+- if the source gains keys, `run` writes from the source template, so target-only resources are not kept
 - mixed-content values such as `Hello <ph/>` and Android `<resources>` files are rejected instead of being rewritten as generic XML
 
 ## Flags

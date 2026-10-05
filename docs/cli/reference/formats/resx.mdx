@@ -64,7 +64,9 @@ configured target path and updates the lockfile.
 
 - Uses the generic XML parser for text resources: `data` names identify their `value` text.
 
-- Comments, attributes, `metadata`, and `resheader` elements are preserved.
+- Comments, attributes, `metadata`, and `resheader` elements are preserved when `run` writes into an existing target whose key set still matches the source.
+
+- If the source gains keys, `run` uses the source file as the template. Target-only resources and target-only comments are not merged back.
 
 - Use text-only resources. Mixed-content XML is unsupported; do not treat support for text RESX as support for arbitrary serialized .NET objects.
 
