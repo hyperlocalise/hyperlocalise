@@ -109,11 +109,14 @@ func (h *handler) getDomainResearch(r *http.Request, actor workspaceActor) (any,
 }
 
 type researchKeywordBody struct {
-	Keyword string  `json:"keyword"`
-	Volume  int     `json:"volume"`
-	KD      int     `json:"kd"`
-	CPC     float64 `json:"cpc"`
-	Intent  string  `json:"intent"`
+	Keyword         string                            `json:"keyword"`
+	Volume          int                               `json:"volume"`
+	KD              int                               `json:"kd"`
+	CPC             float64                           `json:"cpc"`
+	Competition     *float64                          `json:"competition,omitempty"`
+	MonthlySearches []dataforseo.KeywordMonthlySearch `json:"monthlySearches,omitempty"`
+	CapturedAt      *time.Time                        `json:"capturedAt,omitempty"`
+	Intent          string                            `json:"intent"`
 }
 
 type expandKeywordsBody struct {
@@ -137,7 +140,18 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 		}
 		return nil, 0, workspaceFailure(400, "market_not_found", "Unknown research market.")
 	}
-	ideas, err := h.keywordIdeas(r.Context(), strings.TrimSpace(body.SeedKeyword), market)
+	seed := strings.TrimSpace(body.SeedKeyword)
+	cacheKey := domainResearchCacheKey("keyword-ideas", actor.organizationID, seed, market.ID)
+	var cached map[string]any
+	if hit, cacheErr := cachedJSON(r.Context(), h.researchCache, cacheKey, &cached); cacheErr != nil {
+		return nil, 0, cacheErr
+	} else if hit {
+		return cached, http.StatusOK, nil
+	}
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA); err != nil {
+		return nil, 0, err
+	}
+	ideas, err := h.keywordIdeas(r.Context(), seed, market)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -145,22 +159,43 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 	rows := make([]map[string]any, 0, len(ideas))
 	for _, idea := range ideas {
 		rows = append(rows, map[string]any{
-			"id":       "idea:" + itoa(market.LocationCode) + ":" + market.Language + ":" + strings.ToLower(idea.Keyword),
-			"keyword":  idea.Keyword,
-			"volume":   idea.Volume,
-			"kd":       idea.KD,
-			"cpc":      idea.CPC,
-			"intent":   researchIntent(idea.Intent),
-			"marketId": market.ID,
+			"id":              "idea:" + itoa(market.LocationCode) + ":" + market.Language + ":" + strings.ToLower(idea.Keyword),
+			"keyword":         idea.Keyword,
+			"volume":          idea.Volume,
+			"kd":              idea.KD,
+			"cpc":             idea.CPC,
+			"competition":     idea.Competition,
+			"monthlySearches": idea.MonthlySearches,
+			"cpcCurrency":     "USD",
+			"capturedAt":      time.Now().UTC(),
+			"intent":          researchIntent(idea.Intent),
+			"marketId":        market.ID,
 		})
 	}
-	return map[string]any{"ideas": rows, "marketId": market.ID}, http.StatusOK, nil
+	response := map[string]any{"ideas": rows, "marketId": market.ID, "cpcCurrency": "USD", "capturedAt": time.Now().UTC()}
+	if h.researchCache != nil {
+		encoded, marshalErr := json.Marshal(response)
+		if marshalErr == nil {
+			_ = h.researchCache.Set(r.Context(), cacheKey, string(encoded), DOMAIN_RESEARCH_KEYWORD_CACHE_TTL)
+		}
+	}
+	return response, http.StatusOK, nil
 }
 
 type saveKeywordsBody struct {
 	MarketID    string                `json:"marketId"`
 	SeedKeyword string                `json:"seedKeyword"`
+	CapturedAt  *time.Time            `json:"capturedAt,omitempty"`
 	Keywords    []researchKeywordBody `json:"keywords"`
+}
+
+func firstTime(values ...*time.Time) *time.Time {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any, int, error) {
@@ -193,15 +228,23 @@ func (h *handler) saveDomainKeywords(r *http.Request, actor workspaceActor) (any
 	}
 	defer func() { _ = tx.Rollback(r.Context()) }()
 	for _, keyword := range rows {
+		monthlySearches, marshalErr := researchMonthlySearchesValue(keyword.MonthlySearches)
+		if marshalErr != nil {
+			return nil, 0, marshalErr
+		}
 		_, err = tx.Exec(r.Context(), `
 			insert into domain_research_keywords (
-				organization_id, linked_domain_id, keyword, seed_keyword, market_id, location_code, language_code, volume, kd, cpc, intent
-			) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			organization_id, linked_domain_id, keyword, seed_keyword, market_id, location_code, language_code, volume, kd, cpc, competition, monthly_searches, cpc_currency, metrics_captured_at, intent
+			) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 			on conflict (linked_domain_id, location_code, language_code, keyword)
-			do update set volume=excluded.volume, kd=excluded.kd, cpc=excluded.cpc, intent=excluded.intent,
-				seed_keyword=excluded.seed_keyword, market_id=excluded.market_id, updated_at=now()`,
+			do update set volume=excluded.volume, kd=excluded.kd, cpc=excluded.cpc,
+				competition=coalesce(excluded.competition, domain_research_keywords.competition),
+				monthly_searches=coalesce(excluded.monthly_searches, domain_research_keywords.monthly_searches),
+				cpc_currency=excluded.cpc_currency,
+				metrics_captured_at=coalesce(excluded.metrics_captured_at, domain_research_keywords.metrics_captured_at),
+				intent=excluded.intent, seed_keyword=excluded.seed_keyword, market_id=excluded.market_id, updated_at=now()`,
 			actor.organizationID, r.PathValue("linkedDomainId"), keyword.Keyword, seedValue, market.ID, market.LocationCode, market.Language,
-			keyword.Volume, keyword.KD, keyword.CPC, researchIntent(keyword.Intent),
+			keyword.Volume, keyword.KD, keyword.CPC, keyword.Competition, monthlySearches, "USD", firstTime(keyword.CapturedAt, body.CapturedAt), researchIntent(keyword.Intent),
 		)
 		if err != nil {
 			return nil, 0, err
@@ -222,6 +265,11 @@ type serpBody struct {
 	MarketID string `json:"marketId"`
 }
 
+type domainResearchSerpCachePayload struct {
+	Device  string                         `json:"device"`
+	Results []dataforseo.OrganicSerpResult `json:"results"`
+}
+
 func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any, int, error) {
 	var body serpBody
 	if err := decodeWorkspaceBody(r, &body); err != nil || strings.TrimSpace(body.Keyword) == "" {
@@ -240,14 +288,29 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	err = h.workspace.pool.QueryRow(r.Context(), `
 		select device from domain_research_tracked_keywords
 		where linked_domain_id=$1 and market_id=$2 and lower(keyword)=lower($3)
+		order by case when device = 'desktop' then 0 else 1 end, device
 		limit 1`, r.PathValue("linkedDomainId"), market.ID, keyword).Scan(&device)
 	if isNoRows(err) {
 		device = "desktop"
 	} else if err != nil {
 		return nil, 0, err
 	}
-	if device != "mobile" {
-		device = "desktop"
+	device = researchDevice(device)
+	var capturedAt time.Time
+	var cachedRaw []byte
+	snapshotErr := h.workspace.pool.QueryRow(r.Context(), `
+		select captured_at, results from domain_research_serp_snapshots
+		where linked_domain_id=$1 and location_code=$2 and language_code=$3 and lower(keyword)=lower($4) and device=$5
+		limit 1`, domain.ID, market.LocationCode, market.Language, keyword, device).Scan(&capturedAt, &cachedRaw)
+	if snapshotErr == nil && time.Since(capturedAt) < DOMAIN_RESEARCH_SERP_CACHE_TTL {
+		if results, _, ok := decodeResearchSerpResults(cachedRaw); ok {
+			return map[string]any{"results": results, "device": device, "capturedAt": capturedAt, "cached": true}, http.StatusOK, nil
+		}
+	} else if snapshotErr != nil && !isNoRows(snapshotErr) {
+		return nil, 0, snapshotErr
+	}
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "serp-inspection", 1, DOMAIN_RESEARCH_SERP_QUOTA); err != nil {
+		return nil, 0, err
 	}
 	results, err := h.liveOrganicSerp(r.Context(), keyword, market, domain.DomainKey, device)
 	if err != nil {
@@ -259,16 +322,16 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	}
 	_, err = h.workspace.pool.Exec(r.Context(), `
 		insert into domain_research_serp_snapshots (
-			organization_id, linked_domain_id, keyword, location_code, language_code, results, captured_at
-		) values ($1,$2,$3,$4,$5,$6,now())
-		on conflict (linked_domain_id, location_code, language_code, keyword)
+			organization_id, linked_domain_id, keyword, location_code, language_code, device, results, captured_at
+		) values ($1,$2,$3,$4,$5,$6,$7,now())
+		on conflict (linked_domain_id, location_code, language_code, keyword, device)
 		do update set results=excluded.results, captured_at=excluded.captured_at`,
-		actor.organizationID, domain.ID, keyword, market.LocationCode, market.Language, payload,
+		actor.organizationID, domain.ID, keyword, market.LocationCode, market.Language, device, payload,
 	)
 	if err != nil {
 		return nil, 0, err
 	}
-	return map[string]any{"results": results, "device": device}, http.StatusOK, nil
+	return map[string]any{"results": results, "device": device, "capturedAt": time.Now().UTC(), "cached": false}, http.StatusOK, nil
 }
 
 type trackKeywordsBody struct {
@@ -290,10 +353,7 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	if !ok {
 		return nil, 0, workspaceFailure(400, "market_not_found", "Unknown research market.")
 	}
-	device := body.Device
-	if device != "mobile" {
-		device = "desktop"
-	}
+	device := researchDevice(body.Device)
 	if err := validateResearchKeywordBodies(body.Keywords, maxRankCheckBatchSize); err != nil {
 		return nil, 0, err
 	}
@@ -307,6 +367,9 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	}
 	if len(rows) > maxRankCheckBatchSize {
 		rows = rows[:maxRankCheckBatchSize]
+	}
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
+		return nil, 0, err
 	}
 	keywords := make([]researchRankCheckKeyword, len(rows))
 	for i, row := range rows {
@@ -402,21 +465,18 @@ func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any
 	if len(rows) == 0 {
 		return map[string]any{"ranks": []any{}}, http.StatusOK, nil
 	}
+	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
+		return nil, 0, err
+	}
 	groups := map[string][]trackedKeyword{}
 	for _, row := range rows {
-		device := row.device
-		if device != "mobile" {
-			device = "desktop"
-		}
+		device := researchDevice(row.device)
 		key := itoa(row.location) + ":" + row.language + ":" + device
 		groups[key] = append(groups[key], row)
 	}
 	var checks []dataforseo.RankCheckResult
 	for _, group := range groups {
-		device := group[0].device
-		if device != "mobile" {
-			device = "desktop"
-		}
+		device := researchDevice(group[0].device)
 		market := researchMarket{LocationCode: group[0].location, Language: group[0].language}
 		for offset := 0; offset < len(group); offset += maxRankCheckBatchSize {
 			end := offset + maxRankCheckBatchSize
@@ -618,6 +678,55 @@ func researchIntent(value string) string {
 	}
 }
 
+func researchDevice(value string) string {
+	if value == "mobile" {
+		return "mobile"
+	}
+	return "desktop"
+}
+
+// mergeResearchDevicePreference keeps one device for a keyword. Desktop wins when
+// both devices are tracked so catalog loads do not flip with unordered rank rows.
+func mergeResearchDevicePreference(current, candidate string) string {
+	if current == "" {
+		return researchDevice(candidate)
+	}
+	if researchDevice(candidate) == "desktop" {
+		return "desktop"
+	}
+	return researchDevice(current)
+}
+
+func researchMonthlySearchesValue(searches []dataforseo.KeywordMonthlySearch) (any, error) {
+	if searches == nil {
+		return nil, nil
+	}
+	encoded, err := json.Marshal(searches)
+	if err != nil {
+		return nil, err
+	}
+	return encoded, nil
+}
+
+func decodeResearchSerpResults(raw []byte) ([]dataforseo.OrganicSerpResult, string, bool) {
+	var results []dataforseo.OrganicSerpResult
+	if err := json.Unmarshal(raw, &results); err == nil {
+		if results == nil {
+			results = []dataforseo.OrganicSerpResult{}
+		}
+		return results, "", true
+	}
+	var payload domainResearchSerpCachePayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, "", false
+	}
+	results = payload.Results
+	if results == nil {
+		results = []dataforseo.OrganicSerpResult{}
+	}
+	return results, payload.Device, true
+}
+
 func nullableInt(value *int) any {
 	if value == nil {
 		return nil
@@ -645,7 +754,7 @@ func (h *handler) loadResearchCatalog(ctx context.Context, actor workspaceActor,
 	if err != nil {
 		return nil, domain, err
 	}
-	serp, err := h.listResearchSerp(ctx, domain.ID, keywords)
+	serp, err := h.listResearchSerp(ctx, domain.ID, keywords, ranks)
 	if err != nil {
 		return nil, domain, err
 	}
@@ -671,12 +780,22 @@ func (h *handler) loadResearchCatalog(ctx context.Context, actor workspaceActor,
 		"prompt":           "",
 		"promptResults":    []any{},
 		"serpByKeywordId":  serp,
+		"cpcCurrency":      researchCPCCurrency(keywords),
 	}, domain, nil
+}
+
+func researchCPCCurrency(keywords []map[string]any) string {
+	for _, keyword := range keywords {
+		if currency, ok := keyword["cpcCurrency"].(string); ok && currency != "" {
+			return currency
+		}
+	}
+	return "USD"
 }
 
 func (h *handler) listResearchKeywords(ctx context.Context, linkedDomainID string) ([]map[string]any, error) {
 	rows, err := h.workspace.pool.Query(ctx, `
-		select id, keyword, volume, kd, cpc, intent, market_id
+		select id, keyword, volume, kd, cpc, competition, monthly_searches, cpc_currency, metrics_captured_at, intent, market_id
 		from domain_research_keywords
 		where linked_domain_id=$1
 		order by volume desc`, linkedDomainID)
@@ -686,14 +805,27 @@ func (h *handler) listResearchKeywords(ctx context.Context, linkedDomainID strin
 	defer rows.Close()
 	keywords := []map[string]any{}
 	for rows.Next() {
-		var id, keyword, intent, marketID string
+		var id, keyword, intent, marketID, cpcCurrency string
 		var volume, kd int
 		var cpc float64
-		if err := rows.Scan(&id, &keyword, &volume, &kd, &cpc, &intent, &marketID); err != nil {
+		var competition *float64
+		var monthlySearches []byte
+		var capturedAt *time.Time
+		if err := rows.Scan(&id, &keyword, &volume, &kd, &cpc, &competition, &monthlySearches, &cpcCurrency, &capturedAt, &intent, &marketID); err != nil {
 			return nil, err
+		}
+		var trends any
+		if len(monthlySearches) > 0 {
+			if err := json.Unmarshal(monthlySearches, &trends); err != nil {
+				return nil, err
+			}
+		}
+		if cpcCurrency == "" {
+			cpcCurrency = "USD"
 		}
 		keywords = append(keywords, map[string]any{
 			"id": id, "keyword": keyword, "volume": volume, "kd": kd, "cpc": cpc,
+			"competition": competition, "monthlySearches": trends, "cpcCurrency": cpcCurrency, "capturedAt": capturedAt,
 			"intent": researchIntent(intent), "marketId": marketID,
 		})
 	}
@@ -718,9 +850,7 @@ func (h *handler) listResearchRanks(ctx context.Context, linkedDomainID string) 
 		if err := rows.Scan(&id, &keyword, &position, &previous, &pageURL, &volume, &marketID, &device); err != nil {
 			return nil, err
 		}
-		if device != "mobile" {
-			device = "desktop"
-		}
+		device = researchDevice(device)
 		ranks = append(ranks, map[string]any{
 			"id": id, "keyword": keyword, "position": nullableInt(position), "previousPosition": nullableInt(previous),
 			"url": pageURL, "volume": volume, "marketId": marketID, "device": device,
@@ -729,9 +859,9 @@ func (h *handler) listResearchRanks(ctx context.Context, linkedDomainID string) 
 	return ranks, rows.Err()
 }
 
-func (h *handler) listResearchSerp(ctx context.Context, linkedDomainID string, keywords []map[string]any) (map[string]any, error) {
+func (h *handler) listResearchSerp(ctx context.Context, linkedDomainID string, keywords, ranks []map[string]any) (map[string]any, error) {
 	rows, err := h.workspace.pool.Query(ctx, `
-		select location_code, language_code, keyword, results
+		select location_code, language_code, keyword, device, results
 		from domain_research_serp_snapshots
 		where linked_domain_id=$1`, linkedDomainID)
 	if err != nil {
@@ -748,23 +878,48 @@ func (h *handler) listResearchSerp(ctx context.Context, linkedDomainID string, k
 			ids[serpKey(market.LocationCode, market.Language, text)] = id
 		}
 	}
+	preferredDevice := map[string]string{}
+	for _, rank := range ranks {
+		marketID, _ := rank["marketId"].(string)
+		market, ok := researchMarketByID(marketID)
+		text, _ := rank["keyword"].(string)
+		device, _ := rank["device"].(string)
+		if ok {
+			key := serpKey(market.LocationCode, market.Language, text)
+			preferredDevice[key] = mergeResearchDevicePreference(preferredDevice[key], device)
+		}
+	}
 	serp := map[string]any{}
+	matchedDevice := map[string]string{}
 	for rows.Next() {
 		var location int
-		var language, keyword string
+		var language, keyword, device string
 		var raw []byte
-		if err := rows.Scan(&location, &language, &keyword, &raw); err != nil {
+		if err := rows.Scan(&location, &language, &keyword, &device, &raw); err != nil {
 			return nil, err
 		}
-		id := ids[serpKey(location, language, keyword)]
+		key := serpKey(location, language, keyword)
+		id := ids[key]
 		if id == "" {
 			continue
 		}
-		var results any
-		if err := json.Unmarshal(raw, &results); err != nil {
-			return nil, err
+		results, payloadDevice, ok := decodeResearchSerpResults(raw)
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(device) == "" {
+			device = payloadDevice
+		}
+		device = researchDevice(device)
+		preferred := preferredDevice[key]
+		if preferred == "" {
+			preferred = "desktop"
+		}
+		if current, exists := matchedDevice[id]; exists && (current == preferred || device != preferred) {
+			continue
 		}
 		serp[id] = results
+		matchedDevice[id] = device
 	}
 	return serp, rows.Err()
 }

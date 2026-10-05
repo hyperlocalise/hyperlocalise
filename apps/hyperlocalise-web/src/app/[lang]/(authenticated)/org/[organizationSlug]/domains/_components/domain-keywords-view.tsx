@@ -112,6 +112,7 @@ function KeywordScreen({
   const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
   const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
   const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
+  const [expandedCapturedAt, setExpandedCapturedAt] = useState<string | undefined>();
   const [seedPending, setSeedPending] = useState(false);
   const [persistPending, setPersistPending] = useState(false);
   const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
@@ -152,6 +153,7 @@ function KeywordScreen({
         marketId,
       });
       setIdeas(body.ideas);
+      setExpandedCapturedAt(body.capturedAt);
       setSelected([]);
       setExpandedMarketId(marketId);
       setSeedKeyword(seed);
@@ -212,11 +214,15 @@ function KeywordScreen({
     const payload = {
       marketId: expandedMarketId ?? market,
       seedKeyword,
+      capturedAt: expandedCapturedAt,
       keywords: selectedRows.map((row) => ({
         keyword: row.keyword,
         volume: row.volume,
         kd: row.kd,
         cpc: row.cpc,
+        competition: row.competition,
+        monthlySearches: row.monthlySearches,
+        capturedAt: row.capturedAt,
         intent: row.intent,
       })),
     };
@@ -249,7 +255,7 @@ function KeywordScreen({
   }
 
   function exportCsv() {
-    const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows);
+    const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows, catalog.cpcCurrency);
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
@@ -271,7 +277,7 @@ function KeywordScreen({
     return value == null
       ? "—"
       : field === "cpc"
-        ? intl.formatNumber(value, { style: "currency", currency: "EUR" })
+        ? intl.formatNumber(value, { style: "currency", currency: catalog.cpcCurrency || "USD" })
         : intl.formatNumber(value, { maximumFractionDigits: 2 });
   }
   return (

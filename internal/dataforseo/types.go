@@ -87,11 +87,19 @@ type KeywordDataItem map[string]any
 
 // KeywordIdea is a normalized Labs keyword row for Domains research.
 type KeywordIdea struct {
-	Keyword string  `json:"keyword"`
-	Volume  int     `json:"volume"`
-	KD      int     `json:"kd"`
-	CPC     float64 `json:"cpc"`
-	Intent  string  `json:"intent"`
+	Keyword         string                 `json:"keyword"`
+	Volume          int                    `json:"volume"`
+	KD              int                    `json:"kd"`
+	CPC             float64                `json:"cpc"`
+	Competition     *float64               `json:"competition,omitempty"`
+	MonthlySearches []KeywordMonthlySearch `json:"monthlySearches,omitempty"`
+	Intent          string                 `json:"intent"`
+}
+
+// KeywordMonthlySearch is a historical monthly search-volume point.
+type KeywordMonthlySearch struct {
+	Month  string `json:"month"`
+	Volume int    `json:"volume"`
 }
 
 // OrganicSerpResult is a normalized live organic SERP row.

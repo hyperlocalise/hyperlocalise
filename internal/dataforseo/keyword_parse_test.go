@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseKeywordIdeaFromIdeasPayload(t *testing.T) {
+	competition := 0.72
 	idea, ok := ParseKeywordIdea(KeywordDataItem{
 		"keyword": "seo tools",
 		"keyword_info": map[string]any{
@@ -15,6 +16,10 @@ func TestParseKeywordIdeaFromIdeasPayload(t *testing.T) {
 		},
 		"keyword_properties": map[string]any{
 			"keyword_difficulty": float64(41),
+			"competition":        competition,
+			"monthly_searches": []any{
+				map[string]any{"year": float64(2026), "month": float64(1), "search_volume": float64(1200)},
+			},
 		},
 		"search_intent_info": map[string]any{
 			"main_intent": "commercial",
@@ -22,11 +27,13 @@ func TestParseKeywordIdeaFromIdeasPayload(t *testing.T) {
 	})
 	require.True(t, ok)
 	require.Equal(t, KeywordIdea{
-		Keyword: "seo tools",
-		Volume:  1200,
-		KD:      41,
-		CPC:     1.25,
-		Intent:  "commercial",
+		Keyword:         "seo tools",
+		Volume:          1200,
+		KD:              41,
+		CPC:             1.25,
+		Competition:     &competition,
+		MonthlySearches: []KeywordMonthlySearch{{Month: "2026-01", Volume: 1200}},
+		Intent:          "commercial",
 	}, idea)
 }
 
