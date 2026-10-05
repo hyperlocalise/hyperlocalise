@@ -275,6 +275,52 @@ export function resolveWorkspaceAutomationSkills(
     .filter((skill): skill is WorkspaceAutomationSkill => skill !== null);
 }
 
+/** Integrations a skill's tools reach. A tool with none needs nothing connected. */
+export type WorkspaceAutomationSkillIntegration =
+  | "github"
+  | "crowdin"
+  | "contentful"
+  | "slack"
+  | "email";
+
+const SKILL_TOOL_INTEGRATIONS: Record<
+  WorkspaceAutomationSkillTool,
+  WorkspaceAutomationSkillIntegration | null
+> = {
+  use_github_repository: "github",
+  use_crowdin: "crowdin",
+  use_web_search: null,
+  run_contentful_translation: "contentful",
+  create_native_tms_job: null,
+  assign_translate_with_agent: null,
+  list_issues: null,
+  create_issue: null,
+  notify_slack: "slack",
+  notify_email: "email",
+  notify_github_comment: "github",
+};
+
+/**
+ * Whether each integration is connected. Only an explicit `false` counts as not connected, so a
+ * status that is still loading, or failed to load, does not block anything.
+ */
+export type WorkspaceAutomationSkillConnections = Partial<
+  Record<WorkspaceAutomationSkillIntegration, boolean>
+>;
+
+/** Integrations the skill needs that are known to be disconnected. */
+export function listMissingWorkspaceAutomationSkillIntegrations(
+  skill: WorkspaceAutomationSkill,
+  connections: WorkspaceAutomationSkillConnections,
+): WorkspaceAutomationSkillIntegration[] {
+  const needed = skill.tools
+    .map((tool) => SKILL_TOOL_INTEGRATIONS[tool])
+    .filter(
+      (integration): integration is WorkspaceAutomationSkillIntegration => integration !== null,
+    );
+  return [...new Set(needed)].filter((integration) => connections[integration] === false);
+}
+
 /** Names of the attached skills that declare each tool. */
 export function listWorkspaceAutomationSkillNamesByTool(
   skillIds: readonly string[],

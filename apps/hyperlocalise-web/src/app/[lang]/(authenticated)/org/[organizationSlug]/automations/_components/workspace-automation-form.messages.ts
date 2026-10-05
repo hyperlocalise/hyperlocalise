@@ -651,6 +651,53 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Tooltip on the badge of a tool row, listing the attached skills that need the tool",
   },
+  blockedSkillTitle: {
+    defaultMessage: "{name} cannot be added yet",
+    id: "bAKKVVFbfY",
+    description:
+      "Title of the dialog shown when a skill needs an integration that is not connected",
+  },
+  blockedSkillDescription: {
+    defaultMessage:
+      "{count, plural, one {This skill needs {integrations}, which is not connected. Connect it in Integrations, then add the skill again.} other {This skill needs {integrations}, which are not connected. Connect them in Integrations, then add the skill again.}}",
+    id: "0eEq7VTTfY",
+    description: "Body of the dialog shown when a skill needs integrations that are not connected",
+  },
+  blockedSkillOpenIntegrations: {
+    defaultMessage: "Open Integrations",
+    id: "fakC0hPihL",
+    description: "Link in the blocked-skill dialog that opens the Integrations page in a new tab",
+  },
+  blockedSkillClose: {
+    defaultMessage: "Close",
+    id: "n6Pp+FqzhW",
+    description: "Button that closes the blocked-skill dialog",
+  },
+  skillIntegrationGithub: {
+    defaultMessage: "GitHub",
+    id: "DnUr6DL+Dx",
+    description: "Name of the GitHub integration in the blocked-skill dialog",
+  },
+  skillIntegrationCrowdin: {
+    defaultMessage: "Crowdin",
+    id: "sMgNlFO9Xt",
+    description: "Name of the Crowdin integration in the blocked-skill dialog",
+  },
+  skillIntegrationContentful: {
+    defaultMessage: "Contentful",
+    id: "an6jG13CRy",
+    description: "Name of the Contentful integration in the blocked-skill dialog",
+  },
+  skillIntegrationSlack: {
+    defaultMessage: "Slack",
+    id: "Eco7F9JCuE",
+    description: "Name of the Slack integration in the blocked-skill dialog",
+  },
+  skillIntegrationEmail: {
+    defaultMessage: "an email provider",
+    id: "mnhPYvHzq9",
+    description: "How the email integration is named in the blocked-skill dialog",
+  },
   riskySkillTitle: {
     defaultMessage: "Add {name}?",
     id: "NRfaLdr7/e",

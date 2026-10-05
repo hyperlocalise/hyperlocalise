@@ -26,6 +26,9 @@ follow.
 - A skill may declare a `risk`: a plain statement of what it does that cannot be undone. The
   editor shows it and asks for confirmation before attaching the skill, from the menu or from a
   suggestion. Only "Email results" declares one.
+- A skill is not attached while an integration its tools need is known to be disconnected. The
+  editor says which integration and links to Integrations. A status that is still loading does
+  not block, and the server still validates connections on save.
 
 ### Expand at save
 

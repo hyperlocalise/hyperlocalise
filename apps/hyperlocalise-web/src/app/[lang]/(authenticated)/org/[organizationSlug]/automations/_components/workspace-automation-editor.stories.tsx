@@ -271,6 +271,34 @@ export const RiskySkillAsksFirst: Story = {
   },
 };
 
+export const DisconnectedSkillIsNotAdded: Story = {
+  parameters: {
+    msw: {
+      handlers: automationEditorDisconnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Post results to Slack/ }));
+    await expect(
+      await body.findByRole("alertdialog", { name: "Post results to Slack cannot be added yet" }),
+    ).toBeInTheDocument();
+    await expect(
+      body.getByText(/This skill needs Slack, which is not connected/),
+    ).toBeInTheDocument();
+    await expect(body.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
+      "href",
+      "/org/acme/integrations",
+    );
+    await userEvent.click(body.getByRole("button", { name: "Close" }));
+    await expect(canvas.queryByText("Required for skill")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText("Pick what this automation should do. Each skill adds the tools it needs."),
+    ).toBeInTheDocument();
+  },
+};
+
 export const CreateWithSkills: Story = {
   args: {
     form: ["review-translation-changes", "post-to-slack"].reduce(

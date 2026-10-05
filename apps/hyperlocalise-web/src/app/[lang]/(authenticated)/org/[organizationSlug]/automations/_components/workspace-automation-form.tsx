@@ -129,9 +129,12 @@ import {
 } from "@/lib/agents/workspace-automation-skill-form";
 import {
   getWorkspaceAutomationSkill,
+  listMissingWorkspaceAutomationSkillIntegrations,
   listWorkspaceAutomationSkillNamesByTool,
   resolveWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
+  type WorkspaceAutomationSkillConnections,
+  type WorkspaceAutomationSkillIntegration,
 } from "@/lib/agents/workspace-automation-skills";
 import {
   addSuggestedToolToWorkspaceAutomationForm,
@@ -2052,13 +2055,23 @@ function ContentfulTargetLocalesPicker({
   );
 }
 
+const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, MessageDescriptor> = {
+  github: workspaceAutomationFormMessages.skillIntegrationGithub,
+  crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
+  contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
+  slack: workspaceAutomationFormMessages.skillIntegrationSlack,
+  email: workspaceAutomationFormMessages.skillIntegrationEmail,
+};
+
 function SkillsSettings({
+  connections,
   disabled,
   error,
   form,
   onAddSkill,
   onChange,
 }: {
+  connections: WorkspaceAutomationSkillConnections;
   disabled?: boolean;
   error?: string;
   form: WorkspaceAutomationFormState;
@@ -2138,6 +2151,12 @@ function SkillsSettings({
                       <FormattedMessage
                         {...workspaceAutomationFormMessages.skillOtherTriggerShortcut}
                       />
+                    </DropdownMenuHint>
+                  ) : listMissingWorkspaceAutomationSkillIntegrations(skill, connections).length >
+                    0 ? (
+                    // Stays clickable: choosing it explains what to connect.
+                    <DropdownMenuHint>
+                      <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                     </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
@@ -3644,6 +3663,10 @@ export function WorkspaceAutomationEditor({
     () => new Set(),
   );
   const [riskySkillId, setRiskySkillId] = useState<string | null>(null);
+  const [blockedSkill, setBlockedSkill] = useState<{
+    skillId: string;
+    missingIntegrations: WorkspaceAutomationSkillIntegration[];
+  } | null>(null);
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3903,9 +3926,34 @@ export function WorkspaceAutomationEditor({
   });
   const addSkill = (skillId: string) =>
     onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
-  // A skill that declares a risk is attached only after the user confirms it.
+  // Undefined while a status is loading or failed to load, so only a known gap blocks a skill.
+  const skillConnections: WorkspaceAutomationSkillConnections = {
+    github: githubInstallationQuery.isSuccess ? githubConnected : undefined,
+    crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
+    contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
+    slack: slackQuery.isSuccess ? slackConnected : undefined,
+    email: emailConnected
+      ? true
+      : resendPipesQuery.isSuccess && sendgridPipesQuery.isSuccess
+        ? false
+        : undefined,
+  };
+  // A skill is not attached while an integration it needs is disconnected, and one that declares
+  // a risk is attached only after the user confirms it.
   const requestAddSkill = (skillId: string) => {
-    if (getWorkspaceAutomationSkill(skillId)?.risk) {
+    const skill = getWorkspaceAutomationSkill(skillId);
+    if (!skill) {
+      return;
+    }
+    const missingIntegrations = listMissingWorkspaceAutomationSkillIntegrations(
+      skill,
+      skillConnections,
+    );
+    if (missingIntegrations.length > 0) {
+      setBlockedSkill({ skillId, missingIntegrations });
+      return;
+    }
+    if (skill.risk) {
       setRiskySkillId(skillId);
       return;
     }
@@ -4066,6 +4114,7 @@ export function WorkspaceAutomationEditor({
           </EditorSection>
 
           <SkillsSettings
+            connections={skillConnections}
             disabled={disabled}
             error={errors.skills}
             form={form}
@@ -4106,6 +4155,54 @@ export function WorkspaceAutomationEditor({
           </TabsContent>
         ) : null}
       </Tabs>
+
+      <AlertDialog
+        open={blockedSkill !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBlockedSkill(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intl.formatMessage(workspaceAutomationFormMessages.blockedSkillTitle, {
+                name: blockedSkill ? getWorkspaceAutomationSkill(blockedSkill.skillId)?.name : "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(workspaceAutomationFormMessages.blockedSkillDescription, {
+                count: blockedSkill?.missingIntegrations.length ?? 0,
+                integrations: intl.formatList(
+                  (blockedSkill?.missingIntegrations ?? []).map((integration) =>
+                    intl.formatMessage(SKILL_INTEGRATION_LABELS[integration]),
+                  ),
+                  { type: "conjunction" },
+                ),
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...workspaceAutomationFormMessages.blockedSkillClose} />
+            </AlertDialogCancel>
+            {/* A new tab keeps the unsaved automation open. */}
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/org/${organizationSlug}/integrations`}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              }
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.blockedSkillOpenIntegrations} />
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={riskySkill !== null}

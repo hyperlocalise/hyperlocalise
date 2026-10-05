@@ -16,6 +16,7 @@ import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
 import { WORKSPACE_ORCHESTRATOR_TOOL_NAMES } from "@/agents/automations/workspace/agent/plan";
 
 import {
+  listMissingWorkspaceAutomationSkillIntegrations,
   listWorkspaceAutomationSkillNamesByTool,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
@@ -66,6 +67,29 @@ describe("workspace automation skills", () => {
     ]);
     expect(namesByTool.get("notify_slack")).toEqual(["Post results to Slack"]);
     expect(namesByTool.get("notify_email")).toBeUndefined();
+  });
+
+  it("lists the integrations a skill needs that are known to be disconnected", () => {
+    const [review, research, comment] = resolveWorkspaceAutomationSkills([
+      "review-translation-changes",
+      "research-web",
+      "comment-on-pull-request",
+    ]);
+    if (!review || !research || !comment) {
+      throw new Error("missing skill");
+    }
+
+    expect(listMissingWorkspaceAutomationSkillIntegrations(review, { github: false })).toEqual([
+      "github",
+    ]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(comment, { github: false })).toEqual([
+      "github",
+    ]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(review, { github: true })).toEqual([]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(review, {})).toEqual([]);
+    expect(
+      listMissingWorkspaceAutomationSkillIntegrations(research, { github: false, slack: false }),
+    ).toEqual([]);
   });
 
   it("marks only the email skill as risky", () => {
