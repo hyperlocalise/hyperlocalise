@@ -8,6 +8,7 @@
 - `.jsonc` via `JSONCParser`
 - `.yaml` / `.yml` via `YAMLParser`
 - `.js` / `.jsx` / `.mjs` / `.cjs` / `.ts` / `.tsx` / `.mts` / `.cts` via `JSTSLocaleModuleParser`
+- `.ts` Qt Linguist catalogs via `TSFileParser` content detection and `QtLinguistParser`
 - `.arb` via `ARBParser` (Flutter Application Resource Bundle)
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
@@ -30,7 +31,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, and SubRip/WebVTT subtitle parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, and SubRip/WebVTT subtitle parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -64,6 +65,15 @@
 - Accepts JSON with `//` and `/* ... */` comments plus trailing commas.
 - Produces the same flattened dotted-key output shape as the JSON parser.
 - Non-string leaf values are rejected.
+
+### Qt Linguist (`.ts`)
+
+- `TSFileParser` routes `.ts` files with a Qt `<TS>` root to `QtLinguistParser`. Other `.ts` files stay on `JSTSLocaleModuleParser`.
+- Keys are `context|source`. A disambiguation `<comment>` appends `|comment`. An explicit message `id` wins.
+- Numerus forms flatten to `key::numerus.N`. Empty unfinished translations fall back to `<source>`.
+- `type="obsolete"` and `type="vanished"` messages are skipped.
+- `ParseWithContext` returns `<extracomment>`, `<comment>`, and `<location filename line>` as entry context.
+- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales.
 
 ### JS/TS Locale Modules
 

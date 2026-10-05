@@ -672,6 +672,58 @@ func TestMarshalSourceTemplateTargetRESW(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetQtLinguist(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.ts")
+	targetPath := filepath.Join(t.TempDir(), "target.ts")
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr_FR">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation>Salut</translation>
+    </message>
+</context>
+</TS>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source qt ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target qt ts: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
+		"MainWindow|Welcome back": "Bonjour",
+	})
+	if err != nil {
+		t.Fatalf("marshal qt linguist target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, ">Bonjour</translation>") {
+		t.Fatalf("expected translated Qt message, got %q", got)
+	}
+	if !strings.Contains(got, `language="fr_FR"`) {
+		t.Fatalf("expected target locale on TS root, got %q", got)
+	}
+	if strings.Contains(got, ">Welcome back</translation>") || strings.Contains(got, ">Salut</translation>") {
+		t.Fatalf("expected source and previous target values to be replaced, got %q", got)
+	}
+}
+
 func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "source.properties")
 	targetPath := filepath.Join(t.TempDir(), "target.properties")

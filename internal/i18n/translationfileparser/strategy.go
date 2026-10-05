@@ -76,6 +76,7 @@ func NewDefaultStrategy() *Strategy {
 	for _, ext := range JSTSLocaleModuleExts {
 		parsers[ext] = JSTSLocaleModuleParser{}
 	}
+	parsers[".ts"] = TSFileParser{}
 
 	return &Strategy{parsersByExt: parsers}
 }

@@ -164,6 +164,16 @@ buckets:
         to: Strings/{{target}}/Resources.resw
 ```
 
+Qt Linguist `.ts` catalogs use a dedicated parser. Map one file per locale. The CLI detects Qt from a `<TS>` root so TypeScript locale modules that also use `.ts` stay on the JavaScript parser:
+
+```yaml
+buckets:
+  qt:
+    files:
+      - from: translations/app_en.ts
+        to: translations/app_{{target}}.ts
+```
+
 ### CSV file mapping patterns
 
 Use bucket file mappings to model CSV workflows.

@@ -246,6 +246,15 @@ func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 	}
 }
 
+func TestHyperlocaliseSyncRecognizesQtLinguistFiles(t *testing.T) {
+	if got := inferHyperlocaliseFileFormat("translations/app_de.ts"); got != "qt-ts" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.ts) = %q, want qt-ts", got)
+	}
+	if got := contentTypeForPath("translations/app_de.ts"); got != "text/xml" {
+		t.Fatalf("contentTypeForPath(.ts) = %q, want text/xml", got)
+	}
+}
+
 func TestHyperlocaliseSyncRecognizesSubtitleFiles(t *testing.T) {
 	if got := inferHyperlocaliseFileFormat("captions/en.srt"); got != "srt" {
 		t.Fatalf("inferHyperlocaliseFileFormat(.srt) = %q, want srt", got)

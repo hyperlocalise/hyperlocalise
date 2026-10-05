@@ -59,6 +59,28 @@ func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesQtLinguistTS(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("translations/app_de.ts", []byte(`<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="de_DE">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>File</source>
+        <translation>Datei</translation>
+    </message>
+</context>
+</TS>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["MainWindow|File"] != "Datei" {
+		t.Fatalf("unexpected Qt Linguist entries: %#v", got)
+	}
+}
+
 func TestStrategyParsesYAML(t *testing.T) {
 	s := NewDefaultStrategy()
 

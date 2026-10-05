@@ -68,6 +68,7 @@ func TestInferHyperlocaliseFileFormat_Scout(t *testing.T) {
 		{"i18n/messages.XLIFF", "xliff"},
 		{"i18n/messages.XLF", "xliff"},
 		{"po/fr.PO", "po"},
+		{"translations/app_de.TS", "qt-ts"},
 		{"public/index.HTML", "html"},
 		{"docs/readme.MD", "markdown"},
 		{"docs/guide.MDX", "mdx"},

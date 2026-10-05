@@ -220,6 +220,13 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return content, nil
 	default:
+		if ext == ".ts" && translationfileparser.LooksLikeQtLinguistTS(template) {
+			content, err := translationfileparser.MarshalQtLinguist(template, values, sourceLocale, targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		if isJSTSLocaleModuleExt(ext) {
 			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
 			if err != nil {

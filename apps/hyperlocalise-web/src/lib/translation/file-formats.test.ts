@@ -45,6 +45,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xliff")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("messages.po")).toBe("po");
+    expect(inferSupportedTranslationFileFormat("translations/app_de.ts")).toBe("qt-ts");
+    expect(inferSupportedFileTranslationFileFormat("app_fr.ts")).toBe("qt-ts");
     expect(inferSupportedTranslationFileFormat("page.html")).toBe("html");
     expect(inferSupportedTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedTranslationFileFormat("page.mdx")).toBe("mdx");
@@ -172,6 +174,7 @@ describe("translation file formats", () => {
         "yaml",
         "yml",
         "po",
+        "ts",
         "xlf",
         "xliff",
         "arb",

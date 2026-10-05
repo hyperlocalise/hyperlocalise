@@ -229,7 +229,8 @@
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
                           "platform/tutorials/gettext-pot-po",
-                          "platform/tutorials/xliff"
+                          "platform/tutorials/xliff",
+                          "platform/tutorials/qt-linguist"
                         ]
                       }
                     ],
@@ -355,6 +356,7 @@
                         "pages": [
                           "cli/reference/formats/xliff",
                           "cli/reference/formats/gettext",
+                          "cli/reference/formats/qt-linguist",
                           "cli/reference/formats/xml",
                           "cli/reference/formats/resx",
                           "cli/reference/formats/resw",

@@ -9748,7 +9748,7 @@
     "description": "Error state when the team breadcrumb selector fails to load teams"
   },
   "GpqbnnE7vn": {
-    "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, images, Office files, and other supported formats.",
+    "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, Qt TS, images, Office files, and other supported formats.",
     "description": "Empty-state description for native projects with no uploaded files"
   },
   "GpsLS8ojw/": {

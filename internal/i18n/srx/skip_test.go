@@ -45,6 +45,8 @@ func TestShouldSkipValue(t *testing.T) {
 		{name: "icu placeholder", text: "Hello {name}.", want: true},
 		{name: "icu plural", text: "{count, plural, one {# item} other {# items}}", want: true},
 		{name: "printf", text: "Saved %s to disk.", want: true},
+		{name: "qt placeholder", text: "Hello %1.", want: true},
+		{name: "qt numerus", text: "%n file(s) found", want: true},
 		{name: "positional printf", text: "Hello %1$s.", want: true},
 		{name: "fluent var", text: "Hello { $name }.", want: true},
 		{name: "formatjs mode", text: "Hello there.", mode: "formatjs", want: true},

@@ -1,0 +1,118 @@
+---
+title: "Qt Linguist TS"
+description: "Upload Qt Linguist .ts catalogs, translate messages in Platform, and download locale files for lrelease."
+---
+
+This tutorial uses Qt Linguist TS files as the localization boundary for a Qt or QML application. `lupdate` stays responsible for extracting `tr()` and `qsTr()` calls. Hyperlocalise translates the resulting `.ts` catalogs.
+
+Native Platform uploads treat `.ts` as Qt Linguist. TypeScript locale modules that also use `.ts` stay on the [CLI JavaScript and TypeScript workflow](/cli/reference/formats/javascript-typescript).
+
+## Prerequisites
+
+You need:
+
+- a Qt or QML project that produces `.ts` catalogs with `lupdate`;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses one catalog per locale:
+
+```text
+translations/
+├── app_en.ts
+├── app_fr.ts
+└── app_de.ts
+```
+
+## 1. Extract a source catalog
+
+Keep `tr()` and `qsTr()` calls in application code. Use `QT_TRID_NOOP` when a message needs a stable id.
+
+```cpp
+window->setWindowTitle(tr("Welcome back"));
+fileMenu->addAction(tr("Open", "verb"));
+```
+
+Run `lupdate` to write the source catalog:
+
+```bash
+lupdate src -ts translations/app_en.ts
+```
+
+A source message looks like:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="en_US">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Welcome back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <comment>verb</comment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>
+```
+
+Keep empty `<translation>` elements in the source file. Hyperlocalise preserves `<source>` and writes the translated value into `<translation>`.
+
+<Note>
+Messages that share the same source text in different contexts or with different `<comment>` values become separate keys. Obsolete and vanished translations are not imported.
+</Note>
+
+## 2. Map source and targets
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  qt:
+    files:
+      - from: translations/app_en.ts
+        to: translations/app_{{target}}.ts
+
+hyperlocalise:
+  project: $HYPERLOCALISE_PROJECT_ID
+```
+
+## 3. Upload and translate
+
+Upload the source catalog from **Files**, or sync it with the CLI:
+
+```bash
+hyperlocalise sync push
+```
+
+Start a [file translation job](/platform/translation/start). Review units in the [Content Editor](/platform/cat). Keys appear as `MainWindow|Welcome back` and `MainWindow|Open|verb`.
+
+`%1` and `%n` stay in the string. Keep every placeholder when you edit a translation.
+
+## 4. Download and compile
+
+[Download translations](/platform/translation/download) or pull reconstructed catalogs:
+
+```bash
+hyperlocalise sync pull
+lrelease translations/app_fr.ts -qm translations/app_fr.qm
+```
+
+Open the `.ts` file in Qt Linguist if you want a desktop review pass. Then ship the `.qm` files with the application.
+
+## Next steps
+
+- [Supported formats](/platform/file-formats) lists native upload extensions.
+- [Translate Qt Linguist TS](/cli/reference/formats/qt-linguist) covers local `run` behavior.
+- [XLIFF](/platform/tutorials/xliff) is the interchange alternative when a pipeline already emits XLIFF.

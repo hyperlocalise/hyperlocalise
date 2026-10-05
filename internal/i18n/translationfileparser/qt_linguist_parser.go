@@ -1,0 +1,711 @@
+package translationfileparser
+
+import (
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"html"
+	"io"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+const (
+	qtLinguistNumerusKeyInfix = "::numerus."
+	qtLinguistUnknownContext  = "unknown"
+)
+
+var qtLinguistTSRootPattern = regexp.MustCompile(`(?is)^\s*(?:<\?xml\b[^>]*\?>\s*)?(?:<!--.*?-->\s*)*(?:<!DOCTYPE\s+TS\b[^>]*>\s*)?(?:<!--.*?-->\s*)*<TS\b`)
+
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+// QtLinguistParser parses Qt Linguist TS catalogs.
+type QtLinguistParser struct{}
+
+// TSFileParser routes .ts files to Qt Linguist or JavaScript/TypeScript locale modules.
+type TSFileParser struct{}
+
+func (p TSFileParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p TSFileParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
+	if LooksLikeQtLinguistTS(content) {
+		return QtLinguistParser{}.ParseWithContext(content)
+	}
+	return JSTSLocaleModuleParser{}.ParseWithContext(content)
+}
+
+func (p QtLinguistParser) Parse(content []byte) (map[string]string, error) {
+	values, _, err := p.ParseWithContext(content)
+	return values, err
+}
+
+func (p QtLinguistParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
+	if !LooksLikeQtLinguistTS(content) {
+		return nil, nil, fmt.Errorf("qt linguist: missing <TS> root")
+	}
+
+	capacity := len(content) / 256
+	if capacity < 4 {
+		capacity = 4
+	}
+	out := make(map[string]string, capacity)
+	contextByKey := make(map[string]string, capacity)
+
+	decoder := xml.NewDecoder(bytes.NewReader(content))
+	var (
+		contextName   string
+		msg           qtLinguistMessage
+		inContext     bool
+		inMessage     bool
+		captureName   string
+		captureStart  int
+		captureDepth  int
+		locationAttrs []xml.Attr
+	)
+
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if isEOFError(err) {
+				break
+			}
+			return nil, nil, fmt.Errorf("qt linguist xml decode: %w", err)
+		}
+		offset := int(decoder.InputOffset())
+
+		switch token := tok.(type) {
+		case xml.StartElement:
+			if captureName != "" {
+				captureDepth++
+				continue
+			}
+			switch token.Name.Local {
+			case "context":
+				inContext = true
+				contextName = ""
+			case "message":
+				if inContext {
+					msg = newQtLinguistMessage(token.Attr)
+					inMessage = true
+				}
+			case "name":
+				if inContext && !inMessage {
+					captureName = "context-name"
+					captureStart = offset
+					captureDepth = 0
+				}
+			case "source", "comment", "extracomment", "translation", "numerusform":
+				if inMessage {
+					if token.Name.Local == "translation" {
+						msg.translationType = qtLinguistAttr(token.Attr, "type")
+						if msg.numerus {
+							continue
+						}
+					}
+					captureName = token.Name.Local
+					captureStart = offset
+					captureDepth = 0
+				}
+			case "location":
+				if inMessage {
+					locationAttrs = token.Attr
+				}
+			}
+		case xml.EndElement:
+			if captureName != "" {
+				if captureDepth > 0 {
+					captureDepth--
+					continue
+				}
+				if token.Name.Local == captureName || (captureName == "context-name" && token.Name.Local == "name") {
+					inner := qtLinguistInnerXML(content, captureStart, offset)
+					switch captureName {
+					case "context-name":
+						contextName = strings.TrimSpace(qtLinguistPlainText(inner))
+					case "source":
+						msg.source = qtLinguistDecodedValue(inner)
+					case "comment":
+						msg.comment = strings.TrimSpace(qtLinguistPlainText(inner))
+					case "extracomment":
+						msg.extracomment = strings.TrimSpace(qtLinguistPlainText(inner))
+					case "translation":
+						if !msg.numerus {
+							msg.translation = qtLinguistDecodedValue(inner)
+						}
+					case "numerusform":
+						msg.numerusForms = append(msg.numerusForms, qtLinguistDecodedValue(inner))
+					}
+					captureName = ""
+				}
+				continue
+			}
+			switch token.Name.Local {
+			case "location":
+				if inMessage {
+					msg.locations = append(msg.locations, qtLinguistLocation(locationAttrs))
+					locationAttrs = nil
+				}
+			case "message":
+				if inMessage {
+					finalizeQtLinguistMessage(out, contextByKey, contextName, msg)
+					inMessage = false
+				}
+			case "context":
+				inContext = false
+				contextName = ""
+			}
+		}
+	}
+
+	return out, contextByKey, nil
+}
+
+// LooksLikeQtLinguistTS reports whether content is a Qt Linguist TS catalog.
+func LooksLikeQtLinguistTS(content []byte) bool {
+	content = bytes.TrimPrefix(bytes.TrimSpace(content), utf8BOM)
+	if len(content) == 0 {
+		return false
+	}
+	head := content
+	if len(head) > 4096 {
+		head = head[:4096]
+	}
+	return qtLinguistTSRootPattern.Match(head)
+}
+
+// MarshalQtLinguist rewrites message translations and TS locale attributes.
+func MarshalQtLinguist(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
+	if !LooksLikeQtLinguistTS(template) {
+		return nil, fmt.Errorf("qt linguist: missing <TS> root")
+	}
+
+	decoder := xml.NewDecoder(bytes.NewReader(template))
+	var out bytes.Buffer
+	encoder := xml.NewEncoder(&out)
+	contextName := ""
+
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("qt linguist xml decode: %w", err)
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "TS":
+				t = rewriteQtLinguistTSAttrs(t, sourceLocale, targetLocale)
+				if err := encoder.EncodeToken(t); err != nil {
+					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
+				}
+			case "message":
+				if err := marshalQtLinguistMessage(encoder, decoder, template, t, contextName, values); err != nil {
+					return nil, err
+				}
+			case "name":
+				if err := encoder.EncodeToken(t); err != nil {
+					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
+				}
+				inner, err := readQtLinguistSimpleElement(decoder, template, "name")
+				if err != nil {
+					return nil, err
+				}
+				contextName = strings.TrimSpace(qtLinguistPlainText(inner))
+				if inner != "" {
+					if err := encodeQtLinguistFragment(encoder, inner); err != nil {
+						return nil, err
+					}
+				}
+				if err := encoder.EncodeToken(xml.EndElement{Name: t.Name}); err != nil {
+					return nil, fmt.Errorf("qt linguist xml encode end: %w", err)
+				}
+			default:
+				if err := encoder.EncodeToken(t); err != nil {
+					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
+				}
+			}
+		case xml.EndElement, xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
+			if err := encoder.EncodeToken(t); err != nil {
+				return nil, fmt.Errorf("qt linguist xml encode token: %w", err)
+			}
+		}
+	}
+
+	if err := encoder.Flush(); err != nil {
+		return nil, fmt.Errorf("qt linguist xml encode flush: %w", err)
+	}
+	return out.Bytes(), nil
+}
+
+type qtLinguistMessage struct {
+	id              string
+	comment         string
+	extracomment    string
+	source          string
+	translation     string
+	translationType string
+	numerus         bool
+	numerusForms    []string
+	locations       []string
+	start           xml.StartElement
+	children        []xml.Token
+}
+
+func newQtLinguistMessage(attrs []xml.Attr) qtLinguistMessage {
+	return qtLinguistMessage{
+		id:      qtLinguistAttr(attrs, "id"),
+		numerus: strings.EqualFold(qtLinguistAttr(attrs, "numerus"), "yes"),
+	}
+}
+
+func finalizeQtLinguistMessage(out map[string]string, contextByKey map[string]string, contextName string, msg qtLinguistMessage) {
+	if qtLinguistTranslationSkipped(msg.translationType) {
+		return
+	}
+	if strings.TrimSpace(msg.source) == "" {
+		return
+	}
+
+	key := qtLinguistMessageKey(contextName, msg.source, msg.comment, msg.id)
+	entryContext := qtLinguistEntryContext(msg.extracomment, msg.comment, msg.locations)
+
+	if msg.numerus {
+		if len(msg.numerusForms) == 0 {
+			value := strings.TrimSpace(msg.translation)
+			if value == "" {
+				value = msg.source
+			}
+			out[key+qtLinguistNumerusKeyInfix+"0"] = value
+			if entryContext != "" {
+				contextByKey[key+qtLinguistNumerusKeyInfix+"0"] = entryContext
+			}
+			return
+		}
+		for i, form := range msg.numerusForms {
+			value := form
+			if strings.TrimSpace(value) == "" {
+				value = msg.source
+			}
+			formKey := key + qtLinguistNumerusKeyInfix + strconv.Itoa(i)
+			out[formKey] = value
+			if entryContext != "" {
+				contextByKey[formKey] = entryContext
+			}
+		}
+		return
+	}
+
+	value := msg.translation
+	if strings.TrimSpace(value) == "" {
+		value = msg.source
+	}
+	if value == "" {
+		return
+	}
+	out[key] = value
+	if entryContext != "" {
+		contextByKey[key] = entryContext
+	}
+}
+
+func qtLinguistMessageKey(contextName, source, comment, id string) string {
+	if trimmedID := strings.TrimSpace(id); trimmedID != "" {
+		return trimmedID
+	}
+	contextName = strings.TrimSpace(contextName)
+	if contextName == "" {
+		contextName = qtLinguistUnknownContext
+	}
+	key := contextName + "|" + source
+	if trimmedComment := strings.TrimSpace(comment); trimmedComment != "" {
+		key += "|" + trimmedComment
+	}
+	return key
+}
+
+func qtLinguistEntryContext(extracomment, comment string, locations []string) string {
+	parts := make([]string, 0, 3)
+	if extracomment = strings.TrimSpace(extracomment); extracomment != "" {
+		parts = append(parts, extracomment)
+	}
+	if comment = strings.TrimSpace(comment); comment != "" {
+		parts = append(parts, comment)
+	}
+	filtered := make([]string, 0, len(locations))
+	for _, location := range locations {
+		if location = strings.TrimSpace(location); location != "" {
+			filtered = append(filtered, location)
+		}
+	}
+	if len(filtered) > 0 {
+		parts = append(parts, strings.Join(filtered, ", "))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func qtLinguistLocation(attrs []xml.Attr) string {
+	filename := qtLinguistAttr(attrs, "filename")
+	line := qtLinguistAttr(attrs, "line")
+	switch {
+	case filename != "" && line != "":
+		return filename + ":" + line
+	case filename != "":
+		return filename
+	default:
+		return ""
+	}
+}
+
+func qtLinguistTranslationSkipped(translationType string) bool {
+	switch strings.ToLower(strings.TrimSpace(translationType)) {
+	case "obsolete", "vanished":
+		return true
+	default:
+		return false
+	}
+}
+
+func qtLinguistAttr(attrs []xml.Attr, name string) string {
+	for _, attr := range attrs {
+		if attr.Name.Local == name {
+			return strings.TrimSpace(attr.Value)
+		}
+	}
+	return ""
+}
+
+func qtLinguistInnerXML(content []byte, captureStart, offset int) string {
+	if captureStart < 0 || offset > len(content) || captureStart > offset {
+		return ""
+	}
+	inner := content[captureStart:offset]
+	closeStart := bytes.LastIndex(inner, []byte("</"))
+	if closeStart < 0 {
+		return ""
+	}
+	return string(inner[:closeStart])
+}
+
+func qtLinguistPlainText(inner string) string {
+	if strings.ContainsAny(inner, "<>") {
+		return strings.TrimSpace(inner)
+	}
+	return html.UnescapeString(inner)
+}
+
+func qtLinguistDecodedValue(inner string) string {
+	if !strings.Contains(inner, "<") {
+		return html.UnescapeString(inner)
+	}
+	return inner
+}
+
+func qtLinguistLocale(locale string) string {
+	return strings.ReplaceAll(strings.TrimSpace(locale), "-", "_")
+}
+
+func rewriteQtLinguistTSAttrs(start xml.StartElement, sourceLocale, targetLocale string) xml.StartElement {
+	sourceLocale = qtLinguistLocale(sourceLocale)
+	targetLocale = qtLinguistLocale(targetLocale)
+	cloned := xml.CopyToken(start).(xml.StartElement)
+	cloned.Attr = append([]xml.Attr(nil), start.Attr...)
+
+	setAttr := func(name, value string) {
+		if value == "" {
+			return
+		}
+		for i := range cloned.Attr {
+			if cloned.Attr[i].Name.Local == name {
+				cloned.Attr[i].Value = value
+				return
+			}
+		}
+		cloned.Attr = append(cloned.Attr, xml.Attr{Name: xml.Name{Local: name}, Value: value})
+	}
+	setAttr("language", targetLocale)
+	setAttr("sourcelanguage", sourceLocale)
+	return cloned
+}
+
+func readQtLinguistSimpleElement(decoder *xml.Decoder, template []byte, name string) (string, error) {
+	captureStart := int(decoder.InputOffset())
+	depth := 1
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if err != nil {
+			return "", fmt.Errorf("qt linguist xml decode %s: %w", name, err)
+		}
+		switch tok.(type) {
+		case xml.StartElement:
+			depth++
+		case xml.EndElement:
+			depth--
+		}
+	}
+	return qtLinguistInnerXML(template, captureStart, int(decoder.InputOffset())), nil
+}
+
+func marshalQtLinguistMessage(encoder *xml.Encoder, decoder *xml.Decoder, template []byte, start xml.StartElement, contextName string, values map[string]string) error {
+	msg, err := readQtLinguistMessage(decoder, template, start)
+	if err != nil {
+		return err
+	}
+	return writeQtLinguistMessage(encoder, msg, contextName, values)
+}
+
+func readQtLinguistMessage(decoder *xml.Decoder, template []byte, start xml.StartElement) (qtLinguistMessage, error) {
+	msg := newQtLinguistMessage(start.Attr)
+	msg.start = start
+	depth := 1
+	var (
+		captureName  string
+		captureStart int
+		captureDepth int
+	)
+
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if err != nil {
+			return msg, fmt.Errorf("qt linguist xml decode message: %w", err)
+		}
+		offset := int(decoder.InputOffset())
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if captureName != "" {
+				captureDepth++
+				msg.children = append(msg.children, xml.CopyToken(t))
+				continue
+			}
+			if t.Name.Local == "source" || t.Name.Local == "comment" || t.Name.Local == "translation" || t.Name.Local == "numerusform" {
+				if t.Name.Local == "translation" {
+					msg.translationType = qtLinguistAttr(t.Attr, "type")
+					if msg.numerus {
+						msg.children = append(msg.children, xml.CopyToken(t))
+						continue
+					}
+				}
+				captureName = t.Name.Local
+				captureStart = offset
+				captureDepth = 0
+			}
+			msg.children = append(msg.children, xml.CopyToken(t))
+		case xml.EndElement:
+			depth--
+			if captureName != "" {
+				if captureDepth > 0 {
+					captureDepth--
+					msg.children = append(msg.children, xml.CopyToken(t))
+					continue
+				}
+				if t.Name.Local == captureName {
+					inner := qtLinguistInnerXML(template, captureStart, offset)
+					switch captureName {
+					case "source":
+						msg.source = qtLinguistDecodedValue(inner)
+					case "comment":
+						msg.comment = strings.TrimSpace(qtLinguistPlainText(inner))
+					case "translation":
+						if !msg.numerus {
+							msg.translation = qtLinguistDecodedValue(inner)
+						}
+					case "numerusform":
+						msg.numerusForms = append(msg.numerusForms, qtLinguistDecodedValue(inner))
+					}
+					captureName = ""
+				}
+			}
+			if depth > 0 {
+				msg.children = append(msg.children, xml.CopyToken(t))
+			}
+		default:
+			msg.children = append(msg.children, xml.CopyToken(t))
+		}
+	}
+	return msg, nil
+}
+
+func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, contextName string, values map[string]string) error {
+	if err := encoder.EncodeToken(msg.start); err != nil {
+		return fmt.Errorf("qt linguist xml encode start: %w", err)
+	}
+	if qtLinguistTranslationSkipped(msg.translationType) || strings.TrimSpace(msg.source) == "" {
+		for _, child := range msg.children {
+			if err := encoder.EncodeToken(child); err != nil {
+				return fmt.Errorf("qt linguist xml encode token: %w", err)
+			}
+		}
+		if err := encoder.EncodeToken(xml.EndElement{Name: msg.start.Name}); err != nil {
+			return fmt.Errorf("qt linguist xml encode end: %w", err)
+		}
+		return nil
+	}
+
+	key := qtLinguistMessageKey(contextName, msg.source, msg.comment, msg.id)
+	replacements := qtLinguistReplacements(key, msg, values)
+	skipTranslationDepth := 0
+	wroteTranslation := false
+
+	for _, child := range msg.children {
+		switch t := child.(type) {
+		case xml.StartElement:
+			if skipTranslationDepth > 0 {
+				skipTranslationDepth++
+				continue
+			}
+			if t.Name.Local == "translation" && replacements != nil {
+				if err := writeQtLinguistTranslation(encoder, t, replacements, msg.numerus); err != nil {
+					return err
+				}
+				skipTranslationDepth = 1
+				wroteTranslation = true
+				continue
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("qt linguist xml encode start: %w", err)
+			}
+		case xml.EndElement:
+			if skipTranslationDepth > 0 {
+				skipTranslationDepth--
+				continue
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("qt linguist xml encode end: %w", err)
+			}
+		default:
+			if skipTranslationDepth > 0 {
+				continue
+			}
+			if err := encoder.EncodeToken(child); err != nil {
+				return fmt.Errorf("qt linguist xml encode token: %w", err)
+			}
+		}
+	}
+
+	if !wroteTranslation && replacements != nil {
+		if err := writeQtLinguistTranslation(encoder, xml.StartElement{Name: xml.Name{Local: "translation"}}, replacements, msg.numerus); err != nil {
+			return err
+		}
+	}
+
+	if err := encoder.EncodeToken(xml.EndElement{Name: msg.start.Name}); err != nil {
+		return fmt.Errorf("qt linguist xml encode end: %w", err)
+	}
+	return nil
+}
+
+func qtLinguistReplacements(key string, msg qtLinguistMessage, values map[string]string) []string {
+	if msg.numerus {
+		maxIndex := len(msg.numerusForms) - 1
+		for existingKey := range values {
+			if !strings.HasPrefix(existingKey, key+qtLinguistNumerusKeyInfix) {
+				continue
+			}
+			index, err := strconv.Atoi(strings.TrimPrefix(existingKey, key+qtLinguistNumerusKeyInfix))
+			if err != nil || index < 0 {
+				continue
+			}
+			if index > maxIndex {
+				maxIndex = index
+			}
+		}
+		if maxIndex < 0 {
+			if value, ok := values[key]; ok {
+				return []string{value}
+			}
+			return nil
+		}
+		forms := make([]string, maxIndex+1)
+		missing := true
+		for i := 0; i <= maxIndex; i++ {
+			formKey := key + qtLinguistNumerusKeyInfix + strconv.Itoa(i)
+			if value, ok := values[formKey]; ok {
+				forms[i] = value
+				missing = false
+				continue
+			}
+			if i < len(msg.numerusForms) && strings.TrimSpace(msg.numerusForms[i]) != "" {
+				forms[i] = msg.numerusForms[i]
+				continue
+			}
+			if value, ok := values[key]; ok && i == 0 {
+				forms[i] = value
+				missing = false
+				continue
+			}
+			forms[i] = msg.source
+		}
+		if missing {
+			if value, ok := values[key]; ok {
+				return []string{value}
+			}
+			return nil
+		}
+		return forms
+	}
+	if value, ok := values[key]; ok {
+		return []string{value}
+	}
+	return nil
+}
+
+func writeQtLinguistTranslation(encoder *xml.Encoder, start xml.StartElement, replacements []string, numerus bool) error {
+	start.Attr = qtLinguistTranslationAttrsWithoutUnfinished(start.Attr)
+	if err := encoder.EncodeToken(start); err != nil {
+		return fmt.Errorf("qt linguist xml encode start: %w", err)
+	}
+	if numerus || len(replacements) > 1 {
+		for _, form := range replacements {
+			if err := encoder.EncodeToken(xml.StartElement{Name: xml.Name{Local: "numerusform"}}); err != nil {
+				return fmt.Errorf("qt linguist xml encode start: %w", err)
+			}
+			if strings.TrimSpace(form) != "" {
+				if err := encodeQtLinguistFragment(encoder, form); err != nil {
+					return err
+				}
+			}
+			if err := encoder.EncodeToken(xml.EndElement{Name: xml.Name{Local: "numerusform"}}); err != nil {
+				return fmt.Errorf("qt linguist xml encode end: %w", err)
+			}
+		}
+	} else if len(replacements) == 1 && strings.TrimSpace(replacements[0]) != "" {
+		if err := encodeQtLinguistFragment(encoder, replacements[0]); err != nil {
+			return err
+		}
+	}
+	if err := encoder.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
+		return fmt.Errorf("qt linguist xml encode end: %w", err)
+	}
+	return nil
+}
+
+func qtLinguistTranslationAttrsWithoutUnfinished(attrs []xml.Attr) []xml.Attr {
+	if len(attrs) == 0 {
+		return nil
+	}
+	out := make([]xml.Attr, 0, len(attrs))
+	for _, attr := range attrs {
+		if attr.Name.Local == "type" && strings.EqualFold(strings.TrimSpace(attr.Value), "unfinished") {
+			continue
+		}
+		out = append(out, attr)
+	}
+	return out
+}
+
+func encodeQtLinguistFragment(encoder *xml.Encoder, value string) error {
+	if !strings.ContainsAny(value, "<&") {
+		if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
+			return fmt.Errorf("qt linguist xml encode char data: %w", err)
+		}
+		return nil
+	}
+	return encodeXLIFFFragment(encoder, value)
+}

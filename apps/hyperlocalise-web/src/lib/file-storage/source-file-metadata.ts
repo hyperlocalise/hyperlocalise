@@ -28,6 +28,8 @@ export function sourceContentType(path: string) {
       return "application/json";
     case "xliff":
       return "application/xliff+xml";
+    case "qt-ts":
+      return "text/xml";
     case "po":
     case "strings":
     case "stringsdict":
