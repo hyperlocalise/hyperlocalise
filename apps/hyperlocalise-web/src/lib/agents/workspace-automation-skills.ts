@@ -49,6 +49,12 @@ export type WorkspaceAutomationKeywords = {
   patterns?: readonly RegExp[];
 };
 
+/**
+ * A suggestion is only an offer, so a wrong one costs less than a missing one: naming a pull
+ * request suggests both reading it and commenting on it.
+ */
+const PULL_REQUEST_KEYWORDS = ["pull request", "pr"] as const;
+
 /** Shared by everything that reads a repository, so naming a repository alone suggests nothing. */
 export const REPOSITORY_KEYWORDS = ["github", "repo", "repository"] as const;
 
@@ -96,6 +102,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
         "missing translation",
         "placeholder",
         "icu",
+        PULL_REQUEST_KEYWORDS,
       ],
       weak: [["review", "audit"], ["commit", "diff"], "i18n", "risk", REPOSITORY_KEYWORDS],
     },
@@ -254,12 +261,8 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     triggers: ["github"],
     sharedSkills: [],
     keywords: {
-      // Naming a pull request is not asking for a comment on it, so that alone is only weak.
-      strong: [["pr comment", "pull request comment", "sticky comment"]],
-      weak: [["pull request", "pr"], "comment", "merge"],
-      patterns: [
-        /(?<![\p{L}\p{N}])comment(?:s|ing)?[\s-]+(?:on|in|to)[\s-]+(?:[\p{L}]+[\s-]+){0,2}(?:pull[\s-]+requests?|prs?)(?![\p{L}\p{N}])/iu,
-      ],
+      strong: [PULL_REQUEST_KEYWORDS, "sticky comment"],
+      weak: ["comment", "merge"],
     },
   },
 ];

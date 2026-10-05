@@ -83,19 +83,20 @@ describe("workspace automation suggestions", () => {
     expect(suggest("Fix the open file handling.")).toEqual([]);
   });
 
-  it("does not take a mention of a pull request as a request to comment on it", () => {
+  it("takes a mention of a pull request as wanting to read it and to comment on it", () => {
     expect(
       suggest(
         "Ignoring all files in the pr except for the readme, open a new issue, saying to update the readme file from git.",
       ),
-    ).toEqual(["skill:file-issues-for-findings"]);
-    expect(suggest("Run on every pull request.")).toEqual([]);
-    expect(suggest("Leave a comment on each new pull request.")).toEqual([
+    ).toEqual([
+      "skill:file-issues-for-findings",
+      "skill:review-translation-changes",
       "skill:comment-on-pull-request",
     ]);
-    expect(suggest("Summarise the PR in a sticky comment.")).toContain(
+    expect(suggest("Run on every pull request.")).toEqual([
+      "skill:review-translation-changes",
       "skill:comment-on-pull-request",
-    );
+    ]);
   });
 
   it("matches whole words in any case, with plurals and hyphens", () => {
@@ -172,6 +173,7 @@ describe("workspace automation suggestions", () => {
       }),
     ).toMatchObject([
       { key: "skill:comment-on-pull-request", availability: "trigger_mismatch" },
+      { key: "skill:review-translation-changes", availability: "available" },
       { key: "tool:semrush", availability: "connect_first" },
     ]);
   });
