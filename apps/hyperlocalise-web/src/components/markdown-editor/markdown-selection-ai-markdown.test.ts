@@ -82,6 +82,21 @@ describe("serializeMarkdownRange", () => {
       ),
     ).toBe("Before **selected** after");
   });
+
+  it("keeps a paragraph break between the preceding block and the selection", () => {
+    const instance = createEditor("First\n\nSecond");
+    const selected = findText(instance, "Second");
+    const selectedMarkdown = serializeMarkdownRange(instance, selected.from, selected.to);
+    expect(
+      serializeMarkdownSelectionContext(
+        instance,
+        selected.from,
+        selected.to,
+        selectedMarkdown,
+        16_384,
+      ),
+    ).toBe("First\n\nSecond");
+  });
 });
 
 describe("unwrapFencedMarkdown", () => {

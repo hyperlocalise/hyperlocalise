@@ -87,6 +87,27 @@ describe("replaceMarkdownSelection", () => {
     expect(instance.getText()).toBe("Before improved after");
   });
 
+  it("keeps relative Markdown links", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(instance, selected.from, selected.to, "[guide](../docs/guide.md)");
+    expect(instance.getHTML()).toContain('href="../docs/guide.md"');
+    expect(instance.getText()).toBe("Before guide after");
+  });
+
+  it("drops javascript links while keeping the link label", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(
+      instance,
+      selected.from,
+      selected.to,
+      "[improved](javascript:alert(1))",
+    );
+    expect(instance.getHTML()).not.toContain("javascript:");
+    expect(instance.getText()).toBe("Before improved after");
+  });
+
   it("unwraps fenced Markdown before applying formatting", () => {
     const instance = createEditor("Before selected after", "markdown");
     const selected = findText(instance, "selected");
@@ -109,6 +130,18 @@ describe("replaceMarkdownSelection", () => {
     expect(instance.getHTML()).toContain("<p>Deuxieme para</p>");
     expect(instance.getHTML()).not.toContain("<br");
     expect(instance.getText()).toBe("Hello monde\n\nDeuxieme para");
+  });
+
+  it("maps blank-line Markdown paragraphs onto the selected blocks", () => {
+    const instance = createEditor("<p>Hello world</p><p>Second para</p><p>Third para</p>");
+    const world = findText(instance, "world");
+    const third = findText(instance, "Third");
+    replaceMarkdownSelection(instance, world.from, third.to, "monde\n\nDeuxieme\n\nTroisieme");
+    expect(instance.getHTML()).toContain("<p>Hello monde</p>");
+    expect(instance.getHTML()).toContain("<p>Deuxieme</p>");
+    expect(instance.getHTML()).toContain("<p>Troisieme para</p>");
+    expect(instance.getHTML()).not.toContain("<br");
+    expect(instance.getText()).toBe("Hello monde\n\nDeuxieme\n\nTroisieme para");
   });
 
   it("keeps a list item when replacing its selected wording", () => {

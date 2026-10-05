@@ -15,7 +15,8 @@ import type { Editor, JSONContent } from "@tiptap/core";
 const INLINE_NODE_TYPES = new Set(["text", "hardBreak", "mdxInline"]);
 const TEXTBLOCK_NODE_TYPES = new Set(["paragraph", "heading", "codeBlock"]);
 const ALLOWED_MARKS = new Set(["bold", "italic", "strike", "code", "link"]);
-const SAFE_HREF_PATTERN = /^(https?:|mailto:|mention:|#|\/)/i;
+const SAFE_HREF_SCHEME_PATTERN = /^(https?|mailto|mention)$/i;
+const HREF_SCHEME_PATTERN = /^([a-z][a-z0-9+.-]*):/i;
 const HTML_TAG_PATTERN =
   /<\/?(?:a|b|em|i|strong|u|s|del|ins|mark|span|div|p|br|img|script|iframe|svg|video|audio|object|embed|style|link|form|input|button|textarea|select|meta|base|html|body|head)\b[^>]*>/gi;
 const FENCED_MARKDOWN_PATTERN = /^```(?:markdown|md)?\n([\s\S]*?)\n```$/i;
@@ -65,6 +66,29 @@ export function serializeMarkdownRange(editor: Editor, from: number, to: number)
   return markdown.replace(/\n+$/, "");
 }
 
+function startsTextblock(editor: Editor, pos: number): boolean {
+  const $pos = editor.state.doc.resolve(pos);
+  return $pos.parent.isTextblock && $pos.parentOffset === 0;
+}
+
+function endsTextblock(editor: Editor, pos: number): boolean {
+  const $pos = editor.state.doc.resolve(pos);
+  return $pos.parent.isTextblock && $pos.parentOffset === $pos.parent.content.size;
+}
+
+function joinMarkdown(left: string, right: string, blockBreak: boolean): string {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  if (!blockBreak) {
+    return `${left}${right}`;
+  }
+  return `${left.replace(/\n+$/, "")}\n\n${right.replace(/^\n+/, "")}`;
+}
+
 export function serializeMarkdownSelectionContext(
   editor: Editor,
   from: number,
@@ -75,11 +99,22 @@ export function serializeMarkdownSelectionContext(
   const before = serializeMarkdownRange(editor, 0, from);
   const after = serializeMarkdownRange(editor, to, editor.state.doc.content.size);
   const sideLength = Math.max(0, Math.floor((maxLength - selectedMarkdown.length) / 2));
-  return `${before.slice(-sideLength)}${selectedMarkdown}${after.slice(0, sideLength)}`;
+  const prefix = before.slice(-sideLength);
+  const suffix = after.slice(0, sideLength);
+  return joinMarkdown(
+    joinMarkdown(prefix, selectedMarkdown, prefix.length > 0 && startsTextblock(editor, from)),
+    suffix,
+    suffix.length > 0 && endsTextblock(editor, to),
+  );
 }
 
 function isSafeHref(href: string): boolean {
-  return SAFE_HREF_PATTERN.test(href);
+  const trimmed = href.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const scheme = HREF_SCHEME_PATTERN.exec(trimmed)?.[1];
+  return scheme ? SAFE_HREF_SCHEME_PATTERN.test(scheme) : true;
 }
 
 function sanitizeMarks(marks: JSONContent["marks"]): JSONContent["marks"] {
@@ -183,9 +218,17 @@ function inlineMarkdownContent(editor: Editor, line: string): JSONContent[] {
 }
 
 export function suggestionBlocksFromMarkdown(editor: Editor, suggestion: string): JSONContent[][] {
-  return unwrapFencedMarkdown(suggestion)
-    .split("\n")
-    .map((line) => inlineMarkdownContent(editor, line));
+  const markdown = unwrapFencedMarkdown(suggestion);
+  const lines = markdown.split("\n").filter((line) => line.length > 0);
+  if (editor.markdown && !containsHtmlTags(markdown)) {
+    const parsed = parsedTextblocks(editor.markdown.parse(markdown)).filter(
+      (nodes) => nodes.length > 0,
+    );
+    if (parsed.length > 0 && (parsed.length > 1 || lines.length <= 1)) {
+      return parsed;
+    }
+  }
+  return lines.map((line) => inlineMarkdownContent(editor, line));
 }
 
 export function contentForBlock(
