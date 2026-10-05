@@ -75,6 +75,37 @@ last=Dernier
 	}
 }
 
+func TestINIParserPreservesUnknownQuotedEscapes(t *testing.T) {
+	content := []byte("path=\"C:\\Users\\App\"\nmixed=\"keep \\x and \\\\ slash\"\n")
+
+	got, err := (INIParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse ini: %v", err)
+	}
+	assertINIValue(t, got, "path", `C:\Users\App`)
+	assertINIValue(t, got, "mixed", `keep \x and \ slash`)
+}
+
+func TestMarshalINIRoundTripsUnknownQuotedEscapes(t *testing.T) {
+	template := []byte("path=\"C:\\Users\\App\"\n")
+	got, err := MarshalINI(template, map[string]string{
+		"path": `C:\Users\App`,
+	})
+	if err != nil {
+		t.Fatalf("marshal ini: %v", err)
+	}
+	want := "path=\"C:\\\\Users\\\\App\"\n"
+	if string(got) != want {
+		t.Fatalf("ini output mismatch\n got: %q\nwant: %q", got, want)
+	}
+
+	parsed, err := (INIParser{}).Parse(got)
+	if err != nil {
+		t.Fatalf("reparse marshaled ini: %v", err)
+	}
+	assertINIValue(t, parsed, "path", `C:\Users\App`)
+}
+
 func TestINIParserAndMarshalHandleUTF8BOM(t *testing.T) {
 	template := []byte("\xef\xbb\xbf[Home]\nwelcome=Hello\n")
 
@@ -203,6 +234,28 @@ func TestMarshalINIPreservesInlineComments(t *testing.T) {
 	if string(got) != want {
 		t.Fatalf("ini output mismatch\n got: %q\nwant: %q", got, want)
 	}
+}
+
+func TestMarshalINIKeepsBOMBeforeInsertedGlobalKeys(t *testing.T) {
+	template := []byte("\xef\xbb\xbf[Home]\nwelcome=Hello\n")
+	rendered, err := MarshalINI(template, map[string]string{
+		"Home.welcome": "Bonjour",
+		"title":        "Bienvenue",
+	})
+	if err != nil {
+		t.Fatalf("marshal ini with BOM: %v", err)
+	}
+	want := "\ufefftitle=Bienvenue\n[Home]\nwelcome=Bonjour\n"
+	if string(rendered) != want {
+		t.Fatalf("ini output mismatch\n got: %q\nwant: %q", rendered, want)
+	}
+
+	parsed, err := (INIParser{}).Parse(rendered)
+	if err != nil {
+		t.Fatalf("reparse marshaled ini with BOM: %v", err)
+	}
+	assertINIValue(t, parsed, "title", "Bienvenue")
+	assertINIValue(t, parsed, "Home.welcome", "Bonjour")
 }
 
 func TestMarshalINIAppendsGlobalKeysBeforeFirstSection(t *testing.T) {

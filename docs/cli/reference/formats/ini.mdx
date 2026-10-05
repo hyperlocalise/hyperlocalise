@@ -73,7 +73,7 @@ translation jobs and segment review. See [Supported formats](/platform/file-form
 
 - Leading comments provide context. Writeback preserves sections, key order, comments, separators, and spacing.
 
-- Quoted values keep their quote style. Unquoted translations that contain `;`, `#`, or leading or trailing spaces are written in double quotes.
+- Quoted values keep their quote style. Unquoted translations that contain `;`, `#`, or leading or trailing spaces are written in double quotes. Quoted escapes `\n`, `\t`, `\r`, `\\`, `\"`, and `\'` decode to those characters. Other backslash sequences stay as written.
 
 - New keys append to the matching section. Unknown sections are created at the end of the file in sorted order.
 

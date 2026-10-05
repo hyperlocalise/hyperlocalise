@@ -117,7 +117,7 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 			if firstSectionStart < 0 {
 				firstSectionStart = contentStart
 				if !hasINIEntriesInSection(doc.entries, "") {
-					doc.insertAt[""] = contentStart
+					doc.insertAt[""] = iniGlobalInsertOffset(text, contentStart)
 				}
 			}
 			currentSection = section
@@ -256,7 +256,10 @@ func decodeINIQuoted(text string, start, end, lineNumber int) (string, int, erro
 				b.WriteByte('\t')
 			case 'r':
 				b.WriteByte('\r')
+			case '\\', '"', '\'':
+				b.WriteByte(ch)
 			default:
+				b.WriteByte('\\')
 				b.WriteByte(ch)
 			}
 			escaped = false
@@ -412,8 +415,18 @@ func formatINIEntries(section string, keys []string, values map[string]string, n
 	return b.String()
 }
 
+func iniGlobalInsertOffset(text string, contentStart int) int {
+	if contentStart == 0 && strings.HasPrefix(text, "\ufeff") {
+		return len("\ufeff")
+	}
+	return contentStart
+}
+
 func iniInsertionPrefix(template string, at int, newline string) string {
 	if at <= 0 || at > len(template) {
+		return ""
+	}
+	if at == len("\ufeff") && strings.HasPrefix(template, "\ufeff") {
 		return ""
 	}
 	prev := template[at-1]
