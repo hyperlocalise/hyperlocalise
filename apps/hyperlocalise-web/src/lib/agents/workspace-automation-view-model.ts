@@ -37,6 +37,7 @@ import {
 import type { EmailProviderSlug } from "@/lib/email/constants";
 import { parseSlackConversationId } from "./slack/channel-query";
 import { isValidAutomationTimeZone } from "./automation-time-zones";
+import { hasWorkspaceAutomationScheduledWorkflow } from "./workspace-automation-scheduled-workflow";
 import { applySkillToolsToWorkspaceAutomationForm } from "./workspace-automation-skill-form";
 import { validateWorkspaceAutomationSkills } from "./workspace-automation-skills";
 import {
@@ -908,6 +909,14 @@ export function validateWorkspaceAutomationFormState(
     !isValidAutomationTimeZone(form.scheduledTimezone.trim() || "UTC")
   ) {
     errors.scheduledTimezone = "Choose a valid timezone.";
+  }
+
+  if (
+    form.triggerMode === "scheduled" &&
+    !errors.trigger &&
+    !hasWorkspaceAutomationScheduledWorkflow(payload.toolConfig)
+  ) {
+    errors.trigger = WORKSPACE_AUTOMATION_API_ERROR_MESSAGES.scheduled_workflow_required;
   }
 
   if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {

@@ -638,6 +638,28 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("requires a schedule to have a tool that produces work", () => {
+    const deliveryOnly = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Daily note",
+      instructions: "Post a note.",
+      triggerMode: "scheduled" as const,
+      slackEnabled: true,
+      slackChannelId: "C0123456789",
+    };
+
+    expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
+      trigger:
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+    });
+    expect(
+      validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
+    ).toEqual({});
+    expect(
+      validateWorkspaceAutomationFormState({ ...deliveryOnly, triggerMode: "manual" }),
+    ).toEqual({});
+  });
+
   it("requires Semrush connection IDs when that tool is enabled", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
