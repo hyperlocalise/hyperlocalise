@@ -15,10 +15,12 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   isWorkspaceAutomationProposalEmpty,
   normalizeWorkspaceAutomationProposal,
+  WORKSPACE_AUTOMATION_TRIGGER_WORK_SKILL_IDS,
   workspaceAutomationProposalSchema,
   type WorkspaceAutomationProposalBase,
   type WorkspaceAutomationProposalInput,
 } from "./workspace-automation-proposal";
+import { getWorkspaceAutomationSkill } from "./workspace-automation-skills";
 import {
   WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS,
   WORKSPACE_AUTOMATION_NAME_MAX_CHARS,
@@ -281,6 +283,53 @@ describe("normalizeWorkspaceAutomationProposal", () => {
       { code: "skill_removed_for_trigger", skillId: "comment-on-pull-request" },
     ]);
   });
+
+  it("attaches the skill that does the work of a source upload or Contentful trigger", () => {
+    const upload = normalizeWorkspaceAutomationProposal(
+      proposalInput({ trigger: triggerInput({ mode: "source_upload" }) }),
+      proposalBase(),
+    );
+    const contentful = normalizeWorkspaceAutomationProposal(
+      proposalInput({ trigger: triggerInput({ mode: "contentful" }) }),
+      proposalBase(),
+    );
+
+    expect(upload.addSkillIds).toEqual(["translate-uploaded-source"]);
+    expect(upload.notes).toEqual([
+      { code: "skill_added_for_trigger", skillId: "translate-uploaded-source" },
+    ]);
+    expect(contentful.addSkillIds).toEqual(["translate-contentful-entries"]);
+  });
+
+  it("does not attach a trigger's skill twice or against a request to remove it", () => {
+    const attached = normalizeWorkspaceAutomationProposal(
+      proposalInput({ trigger: triggerInput({ mode: "contentful" }) }),
+      proposalBase({ triggerMode: "scheduled", skillIds: ["translate-contentful-entries"] }),
+    );
+    const requested = normalizeWorkspaceAutomationProposal(
+      proposalInput({
+        trigger: triggerInput({ mode: "source_upload" }),
+        addSkillIds: ["translate-uploaded-source"],
+      }),
+      proposalBase(),
+    );
+    const unchanged = normalizeWorkspaceAutomationProposal(
+      proposalInput({ trigger: triggerInput({ mode: "source_upload" }) }),
+      proposalBase({ triggerMode: "source_upload" }),
+    );
+
+    expect(attached.addSkillIds).toEqual([]);
+    expect(requested.addSkillIds).toEqual(["translate-uploaded-source"]);
+    expect(requested.notes).toEqual([]);
+    expect(unchanged.addSkillIds).toEqual([]);
+  });
+
+  it.each(Object.entries(WORKSPACE_AUTOMATION_TRIGGER_WORK_SKILL_IDS))(
+    "names a skill that runs on the %s trigger",
+    (mode, skillId) => {
+      expect(getWorkspaceAutomationSkill(skillId)?.triggers).toContain(mode);
+    },
+  );
 
   it("keeps attached skills when the trigger mode does not change", () => {
     const proposal = normalizeWorkspaceAutomationProposal(

@@ -48,6 +48,14 @@ const MAX_TIME_ZONE_CHARS = 64;
 const MAX_PROPOSAL_NOTES = 32;
 const PULL_REQUEST_COMMENT_SKILL_ID = "comment-on-pull-request";
 
+/** The skill that does a trigger's work. The editor's trigger menu switches the same tools on. */
+export const WORKSPACE_AUTOMATION_TRIGGER_WORK_SKILL_IDS: Partial<
+  Record<WorkspaceAutomationProposalTriggerMode, string>
+> = {
+  source_upload: "translate-uploaded-source",
+  contentful: "translate-contentful-entries",
+};
+
 /**
  * What the model writes. Every key is present and null means "leave as it is". Ids are plain
  * strings so one wrong id does not reject the whole call; the normaliser drops what it cannot use.
@@ -107,6 +115,7 @@ export const WORKSPACE_AUTOMATION_PROPOSAL_NOTE_CODES = [
   "skill_already_attached",
   "skill_not_attached",
   "trigger_set_for_skill",
+  "skill_added_for_trigger",
   "skill_removed_for_trigger",
   "time_zone_not_recognised",
   "branch_pattern_dropped",
@@ -314,7 +323,8 @@ function resolveImpliedTrigger(
 /**
  * Turns what the model wrote into a change that can be applied as it stands: unknown and
  * contradictory skill ids are dropped, trigger values are checked, a trigger a skill needs is made
- * explicit, and attached skills the new trigger cannot run are detached.
+ * explicit, the skill a new trigger needs is attached, and attached skills the new trigger cannot
+ * run are detached.
  */
 export function normalizeWorkspaceAutomationProposal(
   input: WorkspaceAutomationProposalInput,
@@ -363,6 +373,20 @@ export function normalizeWorkspaceAutomationProposal(
         notes.push({ code: "skill_removed_for_trigger", skillId });
       }
     }
+  }
+
+  const workSkillId =
+    trigger && trigger.mode !== base.triggerMode
+      ? WORKSPACE_AUTOMATION_TRIGGER_WORK_SKILL_IDS[trigger.mode]
+      : undefined;
+  if (
+    workSkillId &&
+    !base.skillIds.includes(workSkillId) &&
+    !addSkillIds.includes(workSkillId) &&
+    !requestedRemove.includes(workSkillId)
+  ) {
+    addSkillIds.push(workSkillId);
+    notes.push({ code: "skill_added_for_trigger", skillId: workSkillId });
   }
 
   const name = input.name?.trim().slice(0, WORKSPACE_AUTOMATION_NAME_MAX_CHARS) ?? "";
