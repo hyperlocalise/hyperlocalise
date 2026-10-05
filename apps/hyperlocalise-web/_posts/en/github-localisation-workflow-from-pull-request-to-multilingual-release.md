@@ -65,7 +65,7 @@ Use a GitHub environment such as `localisation` for production credentials if yo
 Create `i18n.yml` at the repository root:
 
 ```yaml
-version: hyperlocalise@1.13.1
+version: hyperlocalise@1.13.2
 
 locales:
   source: en-US
