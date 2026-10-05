@@ -97,6 +97,25 @@ describe("serializeMarkdownRange", () => {
       ),
     ).toBe("First\n\nSecond");
   });
+
+  it("keeps a paragraph break when the selection starts at the block gap", () => {
+    const instance = createEditor("First\n\nSecond");
+    const from = instance.state.doc.child(0).nodeSize;
+    const to = instance.state.doc.content.size;
+    const selectedMarkdown = serializeMarkdownRange(instance, from, to);
+    expect(serializeMarkdownSelectionContext(instance, from, to, selectedMarkdown, 16_384)).toBe(
+      "First\n\nSecond",
+    );
+  });
+
+  it("keeps a paragraph break when the selection ends at the block gap", () => {
+    const instance = createEditor("First\n\nSecond");
+    const to = instance.state.doc.child(0).nodeSize;
+    const selectedMarkdown = serializeMarkdownRange(instance, 0, to);
+    expect(serializeMarkdownSelectionContext(instance, 0, to, selectedMarkdown, 16_384)).toBe(
+      "First\n\nSecond",
+    );
+  });
 });
 
 describe("unwrapFencedMarkdown", () => {

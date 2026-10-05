@@ -20,6 +20,14 @@ const HREF_SCHEME_PATTERN = /^([a-z][a-z0-9+.-]*):/i;
 const HTML_TAG_PATTERN =
   /<\/?(?:a|b|em|i|strong|u|s|del|ins|mark|span|div|p|br|img|script|iframe|svg|video|audio|object|embed|style|link|form|input|button|textarea|select|meta|base|html|body|head)\b[^>]*>/gi;
 const FENCED_MARKDOWN_PATTERN = /^```(?:markdown|md)?\n([\s\S]*?)\n```$/i;
+const HTML_PLACEHOLDER_PREFIX = "@@HLHTML_";
+const HTML_PLACEHOLDER_SUFFIX = "@@";
+const HTML_PLACEHOLDER_PATTERN = /@@HLHTML_(\d+)@@/g;
+
+type ParsedTextblock = {
+  type: string;
+  content: JSONContent[];
+};
 
 function asNodeArray(content: JSONContent | JSONContent[] | undefined): JSONContent[] {
   if (!content) {
@@ -49,6 +57,58 @@ export function containsHtmlTags(markdown: string): boolean {
   return HTML_TAG_PATTERN.test(markdown);
 }
 
+function extractHtmlTags(markdown: string): { markdown: string; tags: string[] } {
+  const tags: string[] = [];
+  HTML_TAG_PATTERN.lastIndex = 0;
+  const next = markdown.replace(HTML_TAG_PATTERN, (tag) => {
+    const index = tags.length;
+    tags.push(tag);
+    return `${HTML_PLACEHOLDER_PREFIX}${index}${HTML_PLACEHOLDER_SUFFIX}`;
+  });
+  return { markdown: next, tags };
+}
+
+function restoreHtmlTags(nodes: JSONContent[], tags: string[]): JSONContent[] {
+  if (tags.length === 0) {
+    return nodes;
+  }
+  return nodes.flatMap((node) => {
+    if (node.type !== "text" || !node.text) {
+      return [node];
+    }
+    const parts: JSONContent[] = [];
+    let lastIndex = 0;
+    HTML_PLACEHOLDER_PATTERN.lastIndex = 0;
+    for (const match of node.text.matchAll(HTML_PLACEHOLDER_PATTERN)) {
+      const index = match.index ?? 0;
+      if (index > lastIndex) {
+        parts.push({
+          type: "text",
+          text: node.text.slice(lastIndex, index),
+          ...(node.marks ? { marks: node.marks } : {}),
+        });
+      }
+      const tag = tags[Number(match[1])];
+      if (tag) {
+        parts.push({
+          type: "text",
+          text: tag,
+          ...(node.marks ? { marks: node.marks } : {}),
+        });
+      }
+      lastIndex = index + match[0].length;
+    }
+    if (lastIndex < node.text.length) {
+      parts.push({
+        type: "text",
+        text: node.text.slice(lastIndex),
+        ...(node.marks ? { marks: node.marks } : {}),
+      });
+    }
+    return parts;
+  });
+}
+
 export function serializeMarkdownRange(editor: Editor, from: number, to: number): string {
   if (from >= to) {
     return "";
@@ -68,12 +128,18 @@ export function serializeMarkdownRange(editor: Editor, from: number, to: number)
 
 function startsTextblock(editor: Editor, pos: number): boolean {
   const $pos = editor.state.doc.resolve(pos);
-  return $pos.parent.isTextblock && $pos.parentOffset === 0;
+  if ($pos.parent.isTextblock) {
+    return $pos.parentOffset === 0;
+  }
+  return Boolean($pos.nodeAfter?.isBlock);
 }
 
 function endsTextblock(editor: Editor, pos: number): boolean {
   const $pos = editor.state.doc.resolve(pos);
-  return $pos.parent.isTextblock && $pos.parentOffset === $pos.parent.content.size;
+  if ($pos.parent.isTextblock) {
+    return $pos.parentOffset === $pos.parent.content.size;
+  }
+  return Boolean($pos.nodeBefore?.isBlock);
 }
 
 function joinMarkdown(left: string, right: string, blockBreak: boolean): string {
@@ -184,11 +250,11 @@ export function applySharedMarks(
   });
 }
 
-function parsedTextblocks(parsed: JSONContent): JSONContent[][] {
-  const blocks: JSONContent[][] = [];
+function parsedTextblocks(parsed: JSONContent): ParsedTextblock[] {
+  const blocks: ParsedTextblock[] = [];
   const walk = (node: JSONContent) => {
     if (TEXTBLOCK_NODE_TYPES.has(node.type ?? "")) {
-      blocks.push(sanitizeInline(flattenInline(node)));
+      blocks.push({ type: node.type ?? "paragraph", content: sanitizeInline(flattenInline(node)) });
       return;
     }
     for (const child of asNodeArray(node.content)) {
@@ -201,34 +267,44 @@ function parsedTextblocks(parsed: JSONContent): JSONContent[][] {
   return blocks;
 }
 
+function shouldKeepParsedBlocks(parsed: ParsedTextblock[], lines: string[]): boolean {
+  if (parsed.length === 0) {
+    return false;
+  }
+  if (parsed.length > 1 || lines.length <= 1) {
+    return true;
+  }
+  return parsed[0]?.type !== "paragraph";
+}
+
 function inlineMarkdownContent(editor: Editor, line: string): JSONContent[] {
   if (!line) {
     return [];
   }
-  if (!editor.markdown || containsHtmlTags(line)) {
+  if (!editor.markdown) {
     return [{ type: "text", text: line }];
   }
   const blocks = parsedTextblocks(editor.markdown.parse(line));
-  if (blocks.every((nodes) => nodes.length === 0)) {
+  if (blocks.every((block) => block.content.length === 0)) {
     return [{ type: "text", text: line }];
   }
-  return blocks.flatMap((nodes, index) =>
-    index === 0 ? nodes : [{ type: "hardBreak" }, ...nodes],
+  return blocks.flatMap((block, index) =>
+    index === 0 ? block.content : [{ type: "hardBreak" }, ...block.content],
   );
 }
 
 export function suggestionBlocksFromMarkdown(editor: Editor, suggestion: string): JSONContent[][] {
-  const markdown = unwrapFencedMarkdown(suggestion);
+  const { markdown, tags } = extractHtmlTags(unwrapFencedMarkdown(suggestion));
   const lines = markdown.split("\n").filter((line) => line.length > 0);
-  if (editor.markdown && !containsHtmlTags(markdown)) {
+  if (editor.markdown) {
     const parsed = parsedTextblocks(editor.markdown.parse(markdown)).filter(
-      (nodes) => nodes.length > 0,
+      (block) => block.content.length > 0,
     );
-    if (parsed.length > 0 && (parsed.length > 1 || lines.length <= 1)) {
-      return parsed;
+    if (shouldKeepParsedBlocks(parsed, lines)) {
+      return parsed.map((block) => restoreHtmlTags(block.content, tags));
     }
   }
-  return lines.map((line) => inlineMarkdownContent(editor, line));
+  return lines.map((line) => restoreHtmlTags(inlineMarkdownContent(editor, line), tags));
 }
 
 export function contentForBlock(

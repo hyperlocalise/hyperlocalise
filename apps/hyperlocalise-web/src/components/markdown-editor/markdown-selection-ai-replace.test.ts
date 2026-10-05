@@ -160,4 +160,21 @@ describe("replaceMarkdownSelection", () => {
     expect(instance.getHTML()).toContain("&lt;b&gt;");
     expect(instance.getText()).toBe("Before improved <b>text</b> after");
   });
+
+  it("applies Markdown marks when the same line also has a literal HTML tag", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(instance, selected.from, selected.to, "**improved** <b>text</b>");
+    expect(instance.getHTML()).toContain("<strong>improved</strong>");
+    expect(instance.getHTML()).toContain("&lt;b&gt;");
+    expect(instance.getText()).toBe("Before improved <b>text</b> after");
+  });
+
+  it("applies a fenced code suggestion instead of inserting fence markers", () => {
+    const instance = createEditor("Before selected after", "markdown");
+    const selected = findText(instance, "selected");
+    replaceMarkdownSelection(instance, selected.from, selected.to, "```js\nfoo()\n```");
+    expect(instance.getText()).toBe("Before foo() after");
+    expect(instance.getHTML()).not.toContain("```");
+  });
 });
