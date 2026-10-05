@@ -32,6 +32,11 @@ build-glossary-interchange-lambda: ## build the glossary-interchange Lambda boot
 	@mkdir -p dist/glossary-interchange-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/glossary-interchange-lambda/bootstrap ./apps/glossary-interchange-lambda
 
+.PHONY: build-memory-interchange-lambda
+build-memory-interchange-lambda: ## build the memory-interchange Lambda bootstrap binary
+	@mkdir -p dist/memory-interchange-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/memory-interchange-lambda/bootstrap ./apps/memory-interchange-lambda
+
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build
 	@go build -o /dev/null ./apps/public-api

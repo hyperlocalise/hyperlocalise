@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
 	"golang.org/x/text/unicode/norm"
 )
@@ -23,8 +24,10 @@ const (
 )
 
 type memoryAPI struct {
-	pool       dictionaryPool
-	membership organizationMembershipLookup
+	pool        dictionaryPool
+	membership  organizationMembershipLookup
+	objects     *objectstore.Registry
+	interchange memoryInterchangePublisher
 }
 
 type memoryActor struct{ userID, organizationID, role string }
@@ -125,6 +128,8 @@ func (api *memoryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+m+"/{memoryId}/entries", owned((*memoryAPI).listMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries", owned((*memoryAPI).createMemoryEntryHandler))
 	route("GET "+m+"/{memoryId}/entries/export", owned((*memoryAPI).exportMemoryEntriesHandler))
+	route("POST "+m+"/{memoryId}/entries/export", owned((*memoryAPI).createMemoryExportHandler))
+	route("POST "+m+"/{memoryId}/entries/import/uploads", owned((*memoryAPI).createMemoryImportUploadHandler))
 	route("POST "+m+"/{memoryId}/entries/import", owned((*memoryAPI).importMemoryEntriesHandler))
 	route("POST "+m+"/{memoryId}/entries/promote-from-project", owned((*memoryAPI).promoteMemoryFromProjectHandler))
 	route("GET "+m+"/{memoryId}/entries/{entryId}", owned((*memoryAPI).getMemoryEntryHandler))
@@ -133,6 +138,7 @@ func (api *memoryAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+m+"/{memoryId}/import-attempts", owned((*memoryAPI).listMemoryImportAttemptsHandler))
 	route("GET "+m+"/{memoryId}/import-attempts/{attemptId}", owned((*memoryAPI).getMemoryImportAttemptHandler))
 	route("GET "+m+"/{memoryId}/import-attempts/{attemptId}/report", owned((*memoryAPI).getMemoryImportAttemptReportHandler))
+	route("GET "+m+"/{memoryId}/import-attempts/{attemptId}/download", owned((*memoryAPI).getMemoryInterchangeDownloadHandler))
 }
 
 func (api *memoryAPI) withOwnedMemory(fn func(*memoryAPI, *http.Request, memoryActor, memoryRecord) (any, int, error)) func(*http.Request, memoryActor) (any, int, error) {

@@ -88,10 +88,14 @@ func main() {
 	if interchangeErr != nil {
 		log.Printf("configure glossary interchange publisher: %v", interchangeErr)
 	}
+	memoryInterchangePublisher, memoryInterchangeErr := newMemoryInterchangePublisher(context.Background())
+	if memoryInterchangeErr != nil {
+		log.Printf("configure memory interchange publisher: %v", memoryInterchangeErr)
+	}
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
-	h.memories = &memoryAPI{}
+	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
 	h.qaReports = &qaReportAPI{}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{
@@ -179,6 +183,7 @@ func main() {
 		log.Fatalf("configure object storage: %v", err)
 	}
 	h.glossaries.objects = h.objects
+	h.memories.objects = h.objects
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)

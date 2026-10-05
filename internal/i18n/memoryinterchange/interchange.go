@@ -1,0 +1,245 @@
+package memoryinterchange
+
+import (
+	"bytes"
+	"encoding/csv"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+)
+
+const FormulaEscapePrefix = "__HYPERLOCALISE_CSV_FORMULA__"
+
+type Candidate struct {
+	SourceLocale string
+	TargetLocale string
+	SourceText   string
+	TargetText   string
+	MatchScore   int
+	ExternalKey  *string
+	UnitIndex    int
+	Tuid         *string
+}
+
+type Issue struct {
+	Severity  string
+	Code      string
+	Message   string
+	UnitIndex *int
+	Tuid      *string
+}
+
+func Parse(format, content string) ([]Candidate, []Issue, *string, error) {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "csv":
+		return ParseCSV(content), nil, nil, nil
+	case "tmx":
+		candidates, issues, header := ParseTMX(content)
+		return candidates, issues, header, nil
+	default:
+		return nil, nil, nil, fmt.Errorf("unsupported memory interchange format %q", format)
+	}
+}
+
+func ParseCSV(content string) []Candidate {
+	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
+	reader.FieldsPerRecord = -1
+	rows, err := reader.ReadAll()
+	if err != nil || len(rows) == 0 {
+		return nil
+	}
+	start := 0
+	if len(rows[0]) >= 2 {
+		joined := strings.ToLower(strings.Join(rows[0], " "))
+		if strings.Contains(joined, "source") || strings.Contains(joined, "locale") {
+			start = 1
+		}
+	}
+	candidates := make([]Candidate, 0, len(rows)-start)
+	for i := start; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) < 4 {
+			continue
+		}
+		score := 100
+		if len(row) > 4 {
+			if n, parseErr := strconv.Atoi(strings.TrimSpace(row[4])); parseErr == nil {
+				score = n
+			}
+		}
+		sourceLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(row[0])), "_", "-")
+		targetLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(row[1])), "_", "-")
+		sourceText := unescapeFormula(row[2])
+		targetText := unescapeFormula(row[3])
+		if sourceLocale == "" || targetLocale == "" || strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
+			continue
+		}
+		candidates = append(candidates, Candidate{SourceLocale: sourceLocale, TargetLocale: targetLocale, SourceText: sourceText, TargetText: targetText, MatchScore: score, UnitIndex: i + 1})
+	}
+	return candidates
+}
+
+func ParseTMX(content string) ([]Candidate, []Issue, *string) {
+	issues := []Issue{}
+	var headerSrclang *string
+	candidates := []Candidate{}
+	decoder := xml.NewDecoder(strings.NewReader(content))
+	unitIndex := 0
+	for {
+		tok, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, []Issue{{Severity: "error", Code: "invalid_tmx", Message: "Unable to parse TMX content"}}, nil
+		}
+		start, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		switch start.Name.Local {
+		case "header":
+			for _, attr := range start.Attr {
+				if attr.Name.Local == "srclang" && attr.Value != "" {
+					value := strings.ReplaceAll(attr.Value, "_", "-")
+					headerSrclang = &value
+				}
+			}
+		case "tu":
+			unitIndex++
+			var tuid *string
+			for _, attr := range start.Attr {
+				if attr.Name.Local == "tuid" && attr.Value != "" {
+					value := attr.Value
+					tuid = &value
+				}
+			}
+			type tuv struct{ locale, text string }
+			tuvs := []tuv{}
+			depth := 1
+			var currentLocale string
+			var collecting bool
+			var segment strings.Builder
+			for depth > 0 {
+				inner, innerErr := decoder.Token()
+				if innerErr != nil {
+					break
+				}
+				switch value := inner.(type) {
+				case xml.StartElement:
+					depth++
+					if value.Name.Local == "tuv" {
+						currentLocale = ""
+						for _, attr := range value.Attr {
+							if attr.Name.Local == "lang" {
+								currentLocale = strings.ReplaceAll(attr.Value, "_", "-")
+							}
+						}
+					}
+					if value.Name.Local == "seg" {
+						collecting = true
+						segment.Reset()
+					}
+				case xml.EndElement:
+					if value.Name.Local == "seg" && collecting {
+						tuvs = append(tuvs, tuv{locale: currentLocale, text: segment.String()})
+						collecting = false
+					}
+					depth--
+				case xml.CharData:
+					if collecting {
+						segment.Write(value)
+					}
+				}
+			}
+			if len(tuvs) < 2 {
+				idx := unitIndex
+				issues = append(issues, Issue{Severity: "error", Code: "invalid_tu", Message: "Translation unit requires at least two tuv segments", UnitIndex: &idx, Tuid: tuid})
+				continue
+			}
+			source := tuvs[0]
+			if headerSrclang != nil {
+				for _, candidate := range tuvs {
+					if strings.EqualFold(candidate.locale, *headerSrclang) {
+						source = candidate
+						break
+					}
+				}
+			}
+			for _, target := range tuvs {
+				if target.locale == source.locale && target.text == source.text {
+					continue
+				}
+				if strings.TrimSpace(target.text) == "" || target.locale == "" {
+					continue
+				}
+				var externalKey *string
+				if tuid != nil {
+					key := "tmx:" + *tuid + ":" + target.locale
+					externalKey = &key
+				}
+				candidates = append(candidates, Candidate{SourceLocale: source.locale, TargetLocale: target.locale, SourceText: source.text, TargetText: target.text, MatchScore: 100, ExternalKey: externalKey, UnitIndex: unitIndex, Tuid: tuid})
+			}
+		}
+	}
+	return candidates, issues, headerSrclang
+}
+
+func SerializeCSV(rows []Candidate) ([]byte, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("\ufeffsource_locale,target_locale,source_text,target_text,match_score\r\n")
+	writer := csv.NewWriter(&buffer)
+	writer.UseCRLF = true
+	for _, row := range rows {
+		if err := writer.Write([]string{escapeFormula(row.SourceLocale), escapeFormula(row.TargetLocale), escapeFormula(row.SourceText), escapeFormula(row.TargetText), strconv.Itoa(row.MatchScore)}); err != nil {
+			return nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
+func SerializeTMX(rows []Candidate) []byte {
+	exportRows := make([]editor_export.Row, 0, len(rows))
+	for index, row := range rows {
+		key := strconv.Itoa(index + 1)
+		if row.ExternalKey != nil && *row.ExternalKey != "" {
+			key = *row.ExternalKey
+		}
+		exportRows = append(exportRows, editor_export.Row{Key: key, SourceLocale: row.SourceLocale, TargetLocale: row.TargetLocale, SourceText: row.SourceText, TargetText: row.TargetText})
+	}
+	return editor_export.SerializeTMX(exportRows)
+}
+
+func escapeFormula(value string) string {
+	if strings.HasPrefix(value, FormulaEscapePrefix) {
+		return FormulaEscapePrefix + value
+	}
+	trimmed := strings.TrimLeft(value, " \t")
+	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return FormulaEscapePrefix + value
+	}
+	return value
+}
+
+func unescapeFormula(value string) string {
+	if !strings.HasPrefix(value, FormulaEscapePrefix) {
+		return value
+	}
+	rest := strings.TrimPrefix(value, FormulaEscapePrefix)
+	if strings.HasPrefix(rest, FormulaEscapePrefix) {
+		return rest
+	}
+	trimmed := strings.TrimLeft(rest, " \t")
+	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+		return rest
+	}
+	return value
+}

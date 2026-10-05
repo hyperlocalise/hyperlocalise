@@ -13,6 +13,8 @@ on:
       - internal/secretsmanager/**
       - apps/activity-log-lambda/**
       - apps/glossary-interchange-lambda/**
+      - apps/memory-interchange-lambda/**
+      - internal/i18n/memoryinterchange/**
       - .github/actions/go-bootstrap/**
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
@@ -42,6 +44,7 @@ jobs:
     outputs:
       activity-log: ${{ steps.paths.outputs.activity-log }}
       glossary-interchange: ${{ steps.paths.outputs.glossary-interchange }}
+      memory-interchange: ${{ steps.paths.outputs.memory-interchange }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -73,6 +76,19 @@ jobs:
               - 'go.sum'
               - 'MODULE.bazel'
               - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/workflows/lambda-deploy.yml'
+            memory-interchange:
+              - 'apps/memory-interchange-lambda/**'
+              - 'internal/i18n/memoryinterchange/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
               - 'internal/secretsmanager/**'
               - '.github/actions/go-bootstrap/**'
               - '.github/actions/provision-lambda/**'
@@ -180,6 +196,60 @@ jobs:
         run: |
           {
             echo "## Glossary-interchange Lambda deployed"
+            echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  memory_interchange_deploy:
+    name: Build and deploy memory-interchange Lambda
+    needs: changed_paths
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test memory-interchange Lambda
+        run: go test ./apps/memory-interchange-lambda ./internal/i18n/memoryinterchange
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-memory-interchange-lambda-deploy
+
+      - name: Build and deploy memory-interchange Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: /hyperlocalise/prod/lambda/memory-interchange/function_name
+          build-command: make build-memory-interchange-lambda
+          binary-path: dist/memory-interchange-lambda/bootstrap
+          s3-key: memory-interchange/bootstrap.zip
+
+      - name: Summarize memory-interchange deployment
+        shell: bash
+        env:
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
+        run: |
+          {
+            echo "## Memory-interchange Lambda deployed"
             echo
             echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"

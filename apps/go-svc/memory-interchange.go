@@ -22,7 +22,9 @@ import (
 type memoryImportPayload struct {
 	Format         string  `json:"format"`
 	Content        string  `json:"content"`
+	AttemptID      string  `json:"attemptId"`
 	DryRun         *bool   `json:"dryRun"`
+	Mode           string  `json:"mode"`
 	MaxUnits       *int    `json:"maxUnits"`
 	SourceFilename *string `json:"sourceFilename"`
 	SourceByteSize *int    `json:"sourceByteSize"`
@@ -142,8 +144,11 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	var payload memoryImportPayload
-	if err := readMemoryBody(r, []string{"format", "content", "dryRun", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
+	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "dryRun", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
 		return nil, 0, err
+	}
+	if strings.TrimSpace(payload.AttemptID) != "" {
+		return api.finalizeMemoryImport(r.Context(), actor, m, payload)
 	}
 	format := strings.ToLower(trimMemoryInput(payload.Format))
 	if format != "csv" && format != "tmx" {
@@ -578,7 +583,7 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 		where += ` and (a.created_at, a.id) < ($` + strconv.Itoa(pos-1) + `::timestamptz, $` + strconv.Itoa(pos) + `::uuid)`
 	}
 	args = append(args, limit+1)
-	rows, err := api.pool.Query(r.Context(), `select a.id, a.organization_id, a.memory_id, a.created_by_user_id, a.status, a.format, a.options, a.source_filename, a.source_byte_size, a.source_sha256, a.counts, a.header_srclang, a.diagnostics_truncated, a.diagnostics_availability, a.diagnostics_expires_at, a.failure_code, a.created_at, a.completed_at, coalesce(nullif(trim(concat(coalesce(u.first_name,''),' ',coalesce(u.last_name,''))),''), u.email) from memory_import_attempts a left join users u on u.id=a.created_by_user_id where `+where+` order by a.created_at desc, a.id desc limit $`+strconv.Itoa(len(args)), args...)
+	rows, err := api.pool.Query(r.Context(), `select a.id, a.organization_id, a.memory_id, a.created_by_user_id, a.operation, a.status, a.mode, a.format, a.options, a.source_filename, a.source_byte_size, a.source_sha256, a.counts, a.header_srclang, a.diagnostics_truncated, a.diagnostics_availability, a.diagnostics_expires_at, a.failure_code, a.failure_message, a.processing_started_at, a.result_filename, a.result_object_key, a.created_at, a.completed_at, coalesce(nullif(trim(concat(coalesce(u.first_name,''),' ',coalesce(u.last_name,''))),''), u.email) from memory_import_attempts a left join users u on u.id=a.created_by_user_id where `+where+` order by a.created_at desc, a.id desc limit $`+strconv.Itoa(len(args)), args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -618,27 +623,32 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 
 func scanMemoryImportAttempt(row pgx.Row) (map[string]any, error) {
 	var (
-		id, orgID, memoryID, status, format, sha, diagnosticsAvailability string
-		createdBy, sourceFilename, headerSrclang, failureCode, actorName  *string
-		sourceByteSize                                                    *int
-		options, counts                                                   []byte
-		diagnosticsTruncated                                              bool
-		diagnosticsExpiresAt                                              *time.Time
-		createdAt                                                         time.Time
-		completedAt                                                       *time.Time
+		id, orgID, memoryID, operation, status, mode, format, diagnosticsAvailability                    string
+		createdBy, sourceFilename, headerSrclang, failureCode, failureMessage, resultFilename, actorName *string
+		sha                                                                                              *string
+		sourceByteSize                                                                                   *int
+		options, counts                                                                                  []byte
+		diagnosticsTruncated                                                                             bool
+		diagnosticsExpiresAt                                                                             *time.Time
+		processingStartedAt                                                                              *time.Time
+		resultObjectKey                                                                                  *string
+		createdAt                                                                                        time.Time
+		completedAt                                                                                      *time.Time
 	)
-	err := row.Scan(&id, &orgID, &memoryID, &createdBy, &status, &format, &options, &sourceFilename, &sourceByteSize, &sha, &counts, &headerSrclang, &diagnosticsTruncated, &diagnosticsAvailability, &diagnosticsExpiresAt, &failureCode, &createdAt, &completedAt, &actorName)
+	err := row.Scan(&id, &orgID, &memoryID, &createdBy, &operation, &status, &mode, &format, &options, &sourceFilename, &sourceByteSize, &sha, &counts, &headerSrclang, &diagnosticsTruncated, &diagnosticsAvailability, &diagnosticsExpiresAt, &failureCode, &failureMessage, &processingStartedAt, &resultFilename, &resultObjectKey, &createdAt, &completedAt, &actorName)
 	if err != nil {
 		return nil, err
 	}
 	return map[string]any{
 		"id": id, "organizationId": orgID, "memoryId": memoryID, "createdByUserId": createdBy,
-		"actorDisplayName": actorName, "status": status, "importBatchId": id, "format": format,
+		"actorDisplayName": actorName, "operation": operation, "status": status, "mode": mode, "importBatchId": id, "format": format,
 		"options": jsonObjectOrEmpty(options), "sourceFilename": sourceFilename, "sourceByteSize": sourceByteSize,
 		"sourceSha256": sha, "counts": jsonObjectOrEmpty(counts), "headerSrclang": headerSrclang,
 		"diagnosticsTruncated": diagnosticsTruncated, "diagnosticsAvailability": diagnosticsAvailability,
 		"diagnosticsExpiresAt": formatMemoryTimePtr(diagnosticsExpiresAt), "retentionPolicy": "indefinite",
-		"failureCode": failureCode, "createdAt": formatMemoryTime(createdAt), "completedAt": formatMemoryTimePtr(completedAt),
+		"failureCode": failureCode, "failureMessage": failureMessage, "processingStartedAt": formatMemoryTimePtr(processingStartedAt),
+		"resultFilename": resultFilename, "resultReady": resultObjectKey != nil && strings.TrimSpace(*resultObjectKey) != "",
+		"createdAt": formatMemoryTime(createdAt), "completedAt": formatMemoryTimePtr(completedAt),
 	}, nil
 }
 
@@ -664,7 +674,7 @@ func (api *memoryAPI) getMemoryImportAttemptReport(ctx context.Context, actor me
 }
 
 func (api *memoryAPI) loadMemoryImportAttempt(ctx context.Context, actor memoryActor, m memoryRecord, attemptID string) (map[string]any, []map[string]any, error) {
-	row := api.pool.QueryRow(ctx, `select a.id, a.organization_id, a.memory_id, a.created_by_user_id, a.status, a.format, a.options, a.source_filename, a.source_byte_size, a.source_sha256, a.counts, a.header_srclang, a.diagnostics_truncated, a.diagnostics_availability, a.diagnostics_expires_at, a.failure_code, a.created_at, a.completed_at, coalesce(nullif(trim(concat(coalesce(u.first_name,''),' ',coalesce(u.last_name,''))),''), u.email) from memory_import_attempts a left join users u on u.id=a.created_by_user_id where a.id=$1 and a.memory_id=$2 and a.organization_id=$3`, attemptID, m.ID, actor.organizationID)
+	row := api.pool.QueryRow(ctx, `select a.id, a.organization_id, a.memory_id, a.created_by_user_id, a.operation, a.status, a.mode, a.format, a.options, a.source_filename, a.source_byte_size, a.source_sha256, a.counts, a.header_srclang, a.diagnostics_truncated, a.diagnostics_availability, a.diagnostics_expires_at, a.failure_code, a.failure_message, a.processing_started_at, a.result_filename, a.result_object_key, a.created_at, a.completed_at, coalesce(nullif(trim(concat(coalesce(u.first_name,''),' ',coalesce(u.last_name,''))),''), u.email) from memory_import_attempts a left join users u on u.id=a.created_by_user_id where a.id=$1 and a.memory_id=$2 and a.organization_id=$3`, attemptID, m.ID, actor.organizationID)
 	attempt, err := scanMemoryImportAttempt(row)
 	if errorsIsNoRows(err) {
 		return nil, nil, missingMemory()
