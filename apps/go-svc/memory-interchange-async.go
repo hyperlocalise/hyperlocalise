@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	memoryInterchangeUploadTTL   = 15 * time.Minute
-	memoryInterchangeDownloadTTL = 10 * time.Minute
-	memoryInterchangeMaxBytes    = 100 * 1024 * 1024
+	MEMORY_INTERCHANGE_UPLOAD_TTL   = 15 * time.Minute
+	MEMORY_INTERCHANGE_DOWNLOAD_TTL = 10 * time.Minute
+	MEMORY_INTERCHANGE_MAX_BYTES    = 100 * 1024 * 1024
 )
 
 type memoryImportUploadRequest struct {
@@ -37,6 +37,9 @@ func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor mem
 	}
 	if err := requireNativeMemory(m); err != nil {
 		return nil, 0, err
+	}
+	if m.Status == "archived" {
+		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
@@ -64,7 +67,7 @@ func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor mem
 	if err != nil {
 		return nil, 0, err
 	}
-	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{Key: key, ContentType: contentType, IfAbsent: true}, memoryInterchangeUploadTTL)
+	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{Key: key, ContentType: contentType, IfAbsent: true}, MEMORY_INTERCHANGE_UPLOAD_TTL)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -82,6 +85,9 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	}
 	if err := requireNativeMemory(m); err != nil {
 		return nil, 0, err
+	}
+	if m.Status == "archived" {
+		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	mode := strings.TrimSpace(payload.Mode)
 	if mode == "" {
@@ -114,7 +120,7 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		if statErr != nil {
 			return nil, 0, memoryFailure(409, "memory_import_upload_missing", "The memory import upload has not completed")
 		}
-		if info.Size <= 0 || info.Size > memoryInterchangeMaxBytes {
+		if info.Size <= 0 || info.Size > MEMORY_INTERCHANGE_MAX_BYTES {
 			return nil, 0, memoryFailure(413, "memory_import_upload_too_large", "The memory import upload is empty or exceeds the 100 MB limit")
 		}
 	}
@@ -191,7 +197,7 @@ func (api *memoryAPI) getMemoryInterchangeDownloadHandler(r *http.Request, actor
 	if err != nil {
 		return nil, 0, err
 	}
-	signed, err := signer.PresignDownload(r.Context(), *key, memoryInterchangeDownloadTTL)
+	signed, err := signer.PresignDownload(r.Context(), *key, MEMORY_INTERCHANGE_DOWNLOAD_TTL)
 	if err != nil {
 		return nil, 0, err
 	}

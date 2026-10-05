@@ -570,7 +570,7 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 	if err != nil {
 		return nil, 0, err
 	}
-	where := `a.memory_id=$1 and a.organization_id=$2`
+	where := `a.memory_id=$1 and a.organization_id=$2 and a.operation='import'`
 	args := []any{m.ID, actor.organizationID}
 	cursor := trimMemoryInput(r.URL.Query().Get("cursor"))
 	if cursor != "" {
@@ -604,7 +604,7 @@ func (api *memoryAPI) listMemoryImportAttempts(r *http.Request, actor memoryActo
 		attempts = attempts[:limit]
 	}
 	var total int
-	err = api.pool.QueryRow(r.Context(), `select count(*) from memory_import_attempts a where a.memory_id=$1 and a.organization_id=$2`, m.ID, actor.organizationID).Scan(&total)
+	err = api.pool.QueryRow(r.Context(), `select count(*) from memory_import_attempts a where a.memory_id=$1 and a.organization_id=$2 and a.operation='import'`, m.ID, actor.organizationID).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -639,11 +639,15 @@ func scanMemoryImportAttempt(row pgx.Row) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	countsValue := any(nil)
+	if len(counts) > 0 {
+		countsValue = json.RawMessage(counts)
+	}
 	return map[string]any{
 		"id": id, "organizationId": orgID, "memoryId": memoryID, "createdByUserId": createdBy,
 		"actorDisplayName": actorName, "operation": operation, "status": status, "mode": mode, "importBatchId": id, "format": format,
 		"options": jsonObjectOrEmpty(options), "sourceFilename": sourceFilename, "sourceByteSize": sourceByteSize,
-		"sourceSha256": sha, "counts": jsonObjectOrEmpty(counts), "headerSrclang": headerSrclang,
+		"sourceSha256": sha, "counts": countsValue, "headerSrclang": headerSrclang,
 		"diagnosticsTruncated": diagnosticsTruncated, "diagnosticsAvailability": diagnosticsAvailability,
 		"diagnosticsExpiresAt": formatMemoryTimePtr(diagnosticsExpiresAt), "retentionPolicy": "indefinite",
 		"failureCode": failureCode, "failureMessage": failureMessage, "processingStartedAt": formatMemoryTimePtr(processingStartedAt),

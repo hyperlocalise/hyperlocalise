@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const maxMemoryInterchangeBytes int64 = 100 * 1024 * 1024
+const MAX_MEMORY_INTERCHANGE_BYTES int64 = 100 * 1024 * 1024
 
 func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message memoryInterchangeMessage) error {
 	var operation, mode, format, location, sourceKey string
@@ -43,7 +43,7 @@ func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, object
 	}
 	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, _ = pool.Exec(failureCtx, `update memory_import_attempts set status='failed', processing_started_at=null, failure_code='memory_interchange_failed', failure_message=$2, completed_at=now() where id=$1`, message.AttemptID, safeFailureMessage(runErr))
+	_, _ = pool.Exec(failureCtx, `update memory_import_attempts set status='queued', processing_started_at=null, failure_code='memory_interchange_retryable', failure_message=$2, completed_at=null where id=$1 and status='running'`, message.AttemptID, safeFailureMessage(runErr))
 	return runErr
 }
 
@@ -56,7 +56,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if err != nil {
 		return err
 	}
-	if info.Size <= 0 || info.Size > maxMemoryInterchangeBytes {
+	if info.Size <= 0 || info.Size > MAX_MEMORY_INTERCHANGE_BYTES {
 		return fmt.Errorf("memory import object exceeds the 100 MB limit")
 	}
 	body, _, err := store.Get(ctx, key)
@@ -64,11 +64,11 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		return err
 	}
 	defer func() { _ = body.Close() }()
-	data, err := io.ReadAll(io.LimitReader(body, maxMemoryInterchangeBytes+1))
+	data, err := io.ReadAll(io.LimitReader(body, MAX_MEMORY_INTERCHANGE_BYTES+1))
 	if err != nil {
 		return err
 	}
-	if int64(len(data)) > maxMemoryInterchangeBytes {
+	if int64(len(data)) > MAX_MEMORY_INTERCHANGE_BYTES {
 		return fmt.Errorf("memory import object exceeds the 100 MB limit")
 	}
 	maxUnits := 1_000_000
@@ -115,9 +115,12 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	defer func() { _ = tx.Rollback(ctx) }()
 	var created, updated int
 	var userID *string
-	var memoryID string
-	if err := tx.QueryRow(ctx, `select created_by_user_id::text, memory_id::text from memory_import_attempts where id=$1`, attemptID).Scan(&userID, &memoryID); err != nil {
+	var memoryID, memoryStatus string
+	if err := tx.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus); err != nil {
 		return err
+	}
+	if memoryStatus == "archived" {
+		return fmt.Errorf("translation memory is archived")
 	}
 	for _, candidate := range candidates {
 		var id string
@@ -132,9 +135,6 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 			updated++
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
 	counts["created"] = created
 	counts["updated"] = updated
 	countsJSON, _ = json.Marshal(counts)
@@ -142,8 +142,10 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if counts["failed"].(int) > 0 {
 		status = "partially_successful"
 	}
-	_, err = pool.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1`, attemptID, status, hashHex, countsJSON, headerValue)
-	return err
+	if _, err = tx.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1 and status='running'`, attemptID, status, hashHex, countsJSON, headerValue); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func runMemoryExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, attemptID, format string, options []byte) error {

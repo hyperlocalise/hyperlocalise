@@ -143,7 +143,11 @@ func newRegistry(ctx context.Context) (*objectstore.Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	return objectstore.NewRegistry("s3-files", map[string]objectstore.Store{"s3-files": store})
+	location := strings.TrimSpace(os.Getenv("OBJECT_STORAGE_DEFAULT_LOCATION"))
+	if location == "" {
+		location = "s3-files"
+	}
+	return objectstore.NewRegistry(location, map[string]objectstore.Store{location: store})
 }
 
 func main() {

@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
-const memoryInterchangeQueueURLEnv = "MEMORY_INTERCHANGE_QUEUE_URL"
+const MEMORY_INTERCHANGE_QUEUE_URL_ENV = "MEMORY_INTERCHANGE_QUEUE_URL"
 
 type memoryInterchangeMessage struct {
 	SchemaVersion int    `json:"schemaVersion"`
@@ -40,9 +40,9 @@ type sqsMemoryInterchangePublisher struct {
 }
 
 func newMemoryInterchangePublisher(ctx context.Context) (memoryInterchangePublisher, error) {
-	queueURL := strings.TrimSpace(os.Getenv(memoryInterchangeQueueURLEnv))
+	queueURL := strings.TrimSpace(os.Getenv(MEMORY_INTERCHANGE_QUEUE_URL_ENV))
 	if queueURL == "" {
-		slog.Warn("memory_interchange_publisher_disabled", "reason", "missing_queue_url", "environment_variable", memoryInterchangeQueueURLEnv)
+		slog.Warn("memory_interchange_publisher_disabled", "reason", "missing_queue_url", "environment_variable", MEMORY_INTERCHANGE_QUEUE_URL_ENV)
 		return nil, nil
 	}
 	config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(strings.TrimSpace(os.Getenv("AWS_REGION"))))
