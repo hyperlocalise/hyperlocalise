@@ -17,4 +17,5 @@ Platform maps `.ts` uploads to format id `qt-ts`. CLI still sniffs content, so e
 
 - Platform file pickers accept `.ts` as Qt Linguist, not as TypeScript locale modules.
 - `hl run` / `hl entries` reconstruct TS XML through `MarshalQtLinguist`, including `language` / `sourcelanguage` and clearing `type="unfinished"` when a value is written.
-- SRX stays enabled for `.ts` paths so TypeScript locale modules are unchanged. Qt `%1` / `%n` placeholders skip sentence splitting.
+- SRX stays enabled for `.ts` paths so TypeScript locale modules are unchanged. Qt `%1` / `%n` / `%L1` / `%Ln` placeholders skip sentence splitting and participate in placeholder-parity checks.
+- Messages may appear under `<context>` or directly under `<TS>`. Rich text is written as escaped character data. Only `<byte>` children are preserved as XML.

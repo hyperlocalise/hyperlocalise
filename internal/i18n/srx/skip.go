@@ -10,7 +10,7 @@ var (
 	icuMessagePattern = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\s*,\s*(plural|select|selectordinal)\b`)
 	icuPlaceholder    = regexp.MustCompile(`\{[A-Za-z_][A-Za-z0-9_]*\}`)
 	printfPattern     = regexp.MustCompile(`%(?:\d+\$)?[-+#0 ]*\d*(?:\.\d+)?[sdifFeEgGxXucpo@]`)
-	qtPlaceholder     = regexp.MustCompile(`%(?:L?\d+|n)`)
+	qtPlaceholder     = regexp.MustCompile(`%(?:L?(?:\d+|n))`)
 	fluentVarPattern  = regexp.MustCompile(`\{\s*\$[A-Za-z_][A-Za-z0-9_]*`)
 )
 

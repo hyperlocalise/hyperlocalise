@@ -779,8 +779,8 @@ func TestCheckCommandRecognizesQtLinguistFiles(t *testing.T) {
 <context>
     <name>MainWindow</name>
     <message>
-        <source>Hello {name}</source>
-        <translation>Hello {name}</translation>
+        <source>Hello %1</source>
+        <translation>Hello %1</translation>
     </message>
 </context>
 </TS>`), 0o600); err != nil {
@@ -792,7 +792,7 @@ func TestCheckCommandRecognizesQtLinguistFiles(t *testing.T) {
 <context>
     <name>MainWindow</name>
     <message>
-        <source>Hello {name}</source>
+        <source>Hello %1</source>
         <translation>Bonjour</translation>
     </message>
     <message>

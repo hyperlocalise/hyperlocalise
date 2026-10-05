@@ -158,6 +158,50 @@ func TestMarshalQtLinguistUpdatesTranslationAndLocale(t *testing.T) {
 	}
 }
 
+func TestQtLinguistParserReadsRootMessages(t *testing.T) {
+	t.Parallel()
+	values, _, err := (QtLinguistParser{}).ParseWithContext([]byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="en">
+<message id="welcome.root">
+    <source>Welcome</source>
+    <translation type="unfinished"></translation>
+</message>
+<message>
+    <source>Open</source>
+    <translation>Open</translation>
+</message>
+</TS>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["welcome.root"] != "Welcome" {
+		t.Fatalf("expected root message id, got %#v", values)
+	}
+	if values["unknown|Open"] != "Open" {
+		t.Fatalf("expected unknown-context key, got %#v", values)
+	}
+}
+
+func TestMarshalQtLinguistUpdatesRootMessages(t *testing.T) {
+	t.Parallel()
+	out, err := MarshalQtLinguist([]byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="en">
+<message id="welcome.root">
+    <source>Welcome</source>
+    <translation type="unfinished"></translation>
+</message>
+</TS>`), map[string]string{
+		"welcome.root": "Bienvenue",
+	}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, ">Bienvenue</translation>") {
+		t.Fatalf("expected root-level translation, got %q", got)
+	}
+}
+
 func TestMarshalQtLinguistPreservesRichText(t *testing.T) {
 	t.Parallel()
 	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
@@ -170,6 +214,13 @@ func TestMarshalQtLinguistPreservesRichText(t *testing.T) {
     </message>
 </context>
 </TS>`)
+	values, _, err := (QtLinguistParser{}).ParseWithContext(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["Dialog|Click <b>OK</b>"] != "Click <b>OK</b>" {
+		t.Fatalf("expected decoded rich text, got %#v", values)
+	}
 	out, err := MarshalQtLinguist(template, map[string]string{
 		"Dialog|Click <b>OK</b>": "Klicke <b>OK</b>",
 	}, "en", "de")
@@ -177,8 +228,45 @@ func TestMarshalQtLinguistPreservesRichText(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 	got := string(out)
-	if !strings.Contains(got, "Klicke") || !strings.Contains(got, "OK") {
-		t.Fatalf("expected rich-text translation, got %q", got)
+	if !strings.Contains(got, "Klicke &lt;b&gt;OK&lt;/b&gt;") {
+		t.Fatalf("expected escaped rich-text character data, got %q", got)
+	}
+	if strings.Contains(got, "<b>OK</b>") {
+		t.Fatalf("did not expect literal HTML children, got %q", got)
+	}
+}
+
+func TestMarshalQtLinguistPreservesByteElements(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="en">
+<context>
+    <name>Dialog</name>
+    <message>
+        <source>Hello<byte value="x9"/>world</source>
+        <translation type="unfinished">Hello<byte value="x9"/>world</translation>
+    </message>
+</context>
+</TS>`)
+	values, _, err := (QtLinguistParser{}).ParseWithContext(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !strings.Contains(values["Dialog|Hello<byte value=\"x9\"/>world"], `<byte value="x9"/>`) {
+		t.Fatalf("expected byte tag in decoded value, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, map[string]string{
+		`Dialog|Hello<byte value="x9"/>world`: `Hallo<byte value="x9"/>Welt`,
+	}, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "Hallo") || !strings.Contains(got, "Welt") {
+		t.Fatalf("expected translated text around byte, got %q", got)
+	}
+	if !strings.Contains(got, `<byte value="x9">`) && !strings.Contains(got, `<byte value="x9"/>`) {
+		t.Fatalf("expected byte element, got %q", got)
 	}
 }
 

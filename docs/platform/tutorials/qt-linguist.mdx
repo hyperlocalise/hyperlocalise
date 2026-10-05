@@ -98,7 +98,7 @@ hyperlocalise sync push
 
 Start a [file translation job](/platform/translation/start). Review units in the [Content Editor](/platform/cat). Keys appear as `MainWindow|Welcome back` and `MainWindow|Open|verb`.
 
-`%1` and `%n` stay in the string. Keep every placeholder when you edit a translation.
+`%1`, `%n`, `%L1`, and `%Ln` stay in the string. Keep every placeholder when you edit a translation. Rich text stays escaped (`&lt;b&gt;`); only `<byte>` is stored as an XML child.
 
 ## 4. Download and compile
 

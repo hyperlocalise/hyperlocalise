@@ -16,7 +16,10 @@ const (
 	qtLinguistUnknownContext  = "unknown"
 )
 
-var qtLinguistTSRootPattern = regexp.MustCompile(`(?is)^\s*(?:<\?xml\b[^>]*\?>\s*)?(?:<!--.*?-->\s*)*(?:<!DOCTYPE\s+TS\b[^>]*>\s*)?(?:<!--.*?-->\s*)*<TS\b`)
+var (
+	qtLinguistTSRootPattern  = regexp.MustCompile(`(?is)^\s*(?:<\?xml\b[^>]*\?>\s*)?(?:<!--.*?-->\s*)*(?:<!DOCTYPE\s+TS\b[^>]*>\s*)?(?:<!--.*?-->\s*)*<TS\b`)
+	qtLinguistByteTagPattern = regexp.MustCompile(`(?i)<byte\b[^>]*(?:/>|>\s*</byte\s*>)`)
+)
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
@@ -88,10 +91,8 @@ func (p QtLinguistParser) ParseWithContext(content []byte) (map[string]string, m
 				inContext = true
 				contextName = ""
 			case "message":
-				if inContext {
-					msg = newQtLinguistMessage(token.Attr)
-					inMessage = true
-				}
+				msg = newQtLinguistMessage(token.Attr)
+				inMessage = true
 			case "name":
 				if inContext && !inMessage {
 					captureName = "context-name"
@@ -400,11 +401,49 @@ func qtLinguistPlainText(inner string) string {
 	return html.UnescapeString(inner)
 }
 
+func qtLinguistCanonicalByteTag(raw string) string {
+	start, ok := qtLinguistParseByteElement(raw)
+	if !ok {
+		return raw
+	}
+	var b strings.Builder
+	b.WriteString("<byte")
+	for _, attr := range start.Attr {
+		b.WriteByte(' ')
+		if attr.Name.Space != "" {
+			b.WriteString(attr.Name.Space)
+			b.WriteByte(':')
+		}
+		b.WriteString(attr.Name.Local)
+		b.WriteString(`="`)
+		b.WriteString(html.EscapeString(attr.Value))
+		b.WriteByte('"')
+	}
+	b.WriteString("/>")
+	return b.String()
+}
+
 func qtLinguistDecodedValue(inner string) string {
 	if !strings.Contains(inner, "<") {
 		return html.UnescapeString(inner)
 	}
-	return inner
+	locs := qtLinguistByteTagPattern.FindAllStringIndex(inner, -1)
+	if len(locs) == 0 {
+		return html.UnescapeString(inner)
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range locs {
+		if loc[0] > last {
+			b.WriteString(html.UnescapeString(inner[last:loc[0]]))
+		}
+		b.WriteString(qtLinguistCanonicalByteTag(inner[loc[0]:loc[1]]))
+		last = loc[1]
+	}
+	if last < len(inner) {
+		b.WriteString(html.UnescapeString(inner[last:]))
+	}
+	return b.String()
 }
 
 func qtLinguistLocale(locale string) string {
@@ -700,12 +739,63 @@ func qtLinguistTranslationAttrsWithoutUnfinished(attrs []xml.Attr) []xml.Attr {
 	return out
 }
 
-func encodeQtLinguistFragment(encoder *xml.Encoder, value string) error {
-	if !strings.ContainsAny(value, "<&") {
-		if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
-			return fmt.Errorf("qt linguist xml encode char data: %w", err)
-		}
+func encodeQtLinguistCharData(encoder *xml.Encoder, value string) error {
+	if value == "" {
 		return nil
 	}
-	return encodeXLIFFFragment(encoder, value)
+	if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
+		return fmt.Errorf("qt linguist xml encode char data: %w", err)
+	}
+	return nil
+}
+
+func qtLinguistParseByteElement(raw string) (xml.StartElement, bool) {
+	decoder := xml.NewDecoder(strings.NewReader(raw))
+	tok, err := decoder.Token()
+	if err != nil {
+		return xml.StartElement{}, false
+	}
+	start, ok := tok.(xml.StartElement)
+	if !ok || !strings.EqualFold(start.Name.Local, "byte") {
+		return xml.StartElement{}, false
+	}
+	return start, true
+}
+
+func encodeQtLinguistFragment(encoder *xml.Encoder, value string) error {
+	if !strings.Contains(value, "<") {
+		return encodeQtLinguistCharData(encoder, value)
+	}
+	locs := qtLinguistByteTagPattern.FindAllStringIndex(value, -1)
+	if len(locs) == 0 {
+		return encodeQtLinguistCharData(encoder, value)
+	}
+	last := 0
+	for _, loc := range locs {
+		if loc[0] > last {
+			if err := encodeQtLinguistCharData(encoder, value[last:loc[0]]); err != nil {
+				return err
+			}
+		}
+		raw := value[loc[0]:loc[1]]
+		start, ok := qtLinguistParseByteElement(raw)
+		if !ok {
+			if err := encodeQtLinguistCharData(encoder, raw); err != nil {
+				return err
+			}
+			last = loc[1]
+			continue
+		}
+		if err := encoder.EncodeToken(start); err != nil {
+			return fmt.Errorf("qt linguist xml encode start: %w", err)
+		}
+		if err := encoder.EncodeToken(xml.EndElement{Name: start.Name}); err != nil {
+			return fmt.Errorf("qt linguist xml encode end: %w", err)
+		}
+		last = loc[1]
+	}
+	if last < len(value) {
+		return encodeQtLinguistCharData(encoder, value[last:])
+	}
+	return nil
 }

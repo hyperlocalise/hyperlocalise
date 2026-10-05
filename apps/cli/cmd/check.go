@@ -1702,6 +1702,9 @@ func validateCheckInvariant(candidate, baseline storage.Entry) []string {
 	if !icuparser.SamePlaceholderSet(baseInv.Placeholders, candInv.Placeholders) {
 		diags = append(diags, fmt.Sprintf("placeholder parity mismatch (expected %v, got %v)", baseInv.Placeholders, candInv.Placeholders))
 	}
+	if err := segmentvalidate.ValidateExtraPlaceholderParity(baseline.Value, candidate.Value); err != nil {
+		diags = append(diags, err.Error())
+	}
 	if !icuparser.SameICUBlocks(baseInv.ICUBlocks, candInv.ICUBlocks) {
 		diags = append(diags, fmt.Sprintf("ICU parity mismatch (expected %s, got %s)", icuparser.FormatICUBlocks(baseInv.ICUBlocks), icuparser.FormatICUBlocks(candInv.ICUBlocks)))
 	}

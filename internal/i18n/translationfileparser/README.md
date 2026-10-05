@@ -69,11 +69,11 @@
 ### Qt Linguist (`.ts`)
 
 - `TSFileParser` routes `.ts` files with a Qt `<TS>` root to `QtLinguistParser`. Other `.ts` files stay on `JSTSLocaleModuleParser`.
-- Keys are `context|source`. A disambiguation `<comment>` appends `|comment`. An explicit message `id` wins.
+- Keys are `context|source`. A disambiguation `<comment>` appends `|comment`. An explicit message `id` wins. Messages directly under `<TS>` use `unknown` as the context name unless they have an `id`.
 - Numerus forms flatten to `key::numerus.N`. Empty unfinished translations fall back to `<source>`.
 - `type="obsolete"` and `type="vanished"` messages are skipped.
 - `ParseWithContext` returns `<extracomment>`, `<comment>`, and `<location filename line>` as entry context.
-- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales.
+- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales. Rich text is written as escaped character data. Only `<byte>` children are preserved as XML.
 
 ### JS/TS Locale Modules
 
