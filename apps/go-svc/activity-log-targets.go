@@ -38,9 +38,25 @@ func activityLogTargetKey(kind, id string) string {
 }
 
 func payloadTargetDisplayName(payload map[string]any) *string {
-	for _, key := range []string{"name", "fileName", "integrationKind", "keyPrefix"} {
-		if value, ok := payload[key].(string); ok && strings.TrimSpace(value) != "" {
-			trimmed := strings.TrimSpace(value)
+	// BOLT OPTIMIZATION: Unroll payload key lookups to avoid slice allocations for key list,
+	// and eliminate redundant strings.TrimSpace calls.
+	if val, ok := payload["name"].(string); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			return &trimmed
+		}
+	}
+	if val, ok := payload["fileName"].(string); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			return &trimmed
+		}
+	}
+	if val, ok := payload["integrationKind"].(string); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			return &trimmed
+		}
+	}
+	if val, ok := payload["keyPrefix"].(string); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			return &trimmed
 		}
 	}
