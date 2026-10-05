@@ -406,7 +406,7 @@ func (d iniDocument) render(values map[string]string) []byte {
 			continue
 		}
 		out.WriteString(d.template[cursor:e.start])
-		if e.start == e.end {
+		if e.start == e.end && e.order > 0 {
 			out.WriteString(iniInsertionPrefix(d.template, e.start, newline))
 		}
 		out.WriteString(e.text)
