@@ -137,6 +137,8 @@ export type DomainResearchCatalog = {
   prompt: string;
   promptResults: PromptEngineResult[];
   serpByKeywordId: Record<string, SerpResult[]>;
+  cpcCurrency: string;
+  serpCapturedAtByKeywordId: Record<string, string>;
 };
 
 export const DOMAIN_RESEARCH_MARKETS: DomainResearchMarket[] = [
@@ -640,6 +642,8 @@ function catalogFor(
     prompt: "",
     promptResults: [],
     serpByKeywordId: {},
+    cpcCurrency: "EUR",
+    serpCapturedAtByKeywordId: {},
     ...extras,
   };
 }

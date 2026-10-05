@@ -80,6 +80,7 @@ type handler struct {
 	knowledgeMemories  *knowledgeMemoryAPI
 	valkey             valkeyHealthClient
 	overviewCache      dictionaryWordsCache
+	researchCache      domainResearchCache
 	postgres           healthPinger
 }
 

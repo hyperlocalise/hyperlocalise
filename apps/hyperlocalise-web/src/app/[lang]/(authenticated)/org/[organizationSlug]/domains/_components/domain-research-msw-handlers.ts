@@ -85,6 +85,8 @@ export function mergedResearchCatalog(linkedDomainId: string): DomainResearchCat
       prompt: "",
       promptResults: [],
       serpByKeywordId: {},
+      cpcCurrency: "EUR",
+      serpCapturedAtByKeywordId: {},
     };
   }
   if (localeCatalogs.length <= 1) {

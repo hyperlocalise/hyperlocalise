@@ -78,14 +78,14 @@ export function filterKeywordIdeas(
     });
 }
 
-export function keywordIdeasCsv(rows: KeywordIdea[]) {
+export function keywordIdeasCsv(rows: KeywordIdea[], cpcCurrency = "USD") {
   const cell = (value: string | number | undefined) => {
     let text = String(value ?? "");
     if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
     return '"' + text.replaceAll('"', '""') + '"';
   };
   return [
-    ["Keyword", "Volume", "KD", "CPC (EUR)", "Competition", "Intent"],
+    ["Keyword", "Volume", "KD", `CPC (${cpcCurrency})`, "Competition", "Intent"],
     ...rows.map((row) => [row.keyword, row.volume, row.kd, row.cpc, row.competition, row.intent]),
   ]
     .map((row) => row.map(cell).join(","))

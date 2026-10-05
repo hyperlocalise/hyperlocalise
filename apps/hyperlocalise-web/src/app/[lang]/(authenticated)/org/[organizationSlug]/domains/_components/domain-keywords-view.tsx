@@ -217,6 +217,8 @@ function KeywordScreen({
         volume: row.volume,
         kd: row.kd,
         cpc: row.cpc,
+        competition: row.competition,
+        monthlySearches: row.monthlySearches,
         intent: row.intent,
       })),
     };
@@ -249,7 +251,7 @@ function KeywordScreen({
   }
 
   function exportCsv() {
-    const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows);
+    const csv = keywordIdeasCsv(selectedRows.length ? selectedRows : rows, catalog.cpcCurrency);
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
@@ -271,7 +273,7 @@ function KeywordScreen({
     return value == null
       ? "—"
       : field === "cpc"
-        ? intl.formatNumber(value, { style: "currency", currency: "EUR" })
+        ? intl.formatNumber(value, { style: "currency", currency: catalog.cpcCurrency || "USD" })
         : intl.formatNumber(value, { maximumFractionDigits: 2 });
   }
   return (

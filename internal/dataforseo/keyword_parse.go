@@ -1,6 +1,7 @@
 package dataforseo
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -51,13 +52,22 @@ func ParseKeywordIdea(item KeywordDataItem) (KeywordIdea, bool) {
 		payload["intent"],
 		item["intent"],
 	))
+	competition := firstFloatPointer(info["competition"], properties["competition"], payload["competition"], item["competition"])
+	monthlySearches := parseMonthlySearches(
+		info["monthly_searches"],
+		properties["monthly_searches"],
+		payload["monthly_searches"],
+		item["monthly_searches"],
+	)
 
 	return KeywordIdea{
-		Keyword: keyword,
-		Volume:  volume,
-		KD:      kd,
-		CPC:     cpc,
-		Intent:  intent,
+		Keyword:         keyword,
+		Volume:          volume,
+		KD:              kd,
+		CPC:             cpc,
+		Competition:     competition,
+		MonthlySearches: monthlySearches,
+		Intent:          intent,
 	}, true
 }
 
@@ -115,6 +125,54 @@ func firstFloat(values ...any) float64 {
 		}
 	}
 	return 0
+}
+
+func firstFloatPointer(values ...any) *float64 {
+	for _, value := range values {
+		if parsed := floatFromAny(value); parsed != nil {
+			return parsed
+		}
+	}
+	return nil
+}
+
+func parseMonthlySearches(values ...any) []KeywordMonthlySearch {
+	for _, value := range values {
+		items, ok := value.([]any)
+		if !ok {
+			continue
+		}
+		result := make([]KeywordMonthlySearch, 0, len(items))
+		for _, item := range items {
+			row, ok := mapFromAny(item)
+			if !ok {
+				continue
+			}
+			year := intFromAny(row["year"])
+			month := intFromAny(row["month"])
+			volume := intFromAny(firstNonNil(row["search_volume"], row["volume"]))
+			if year == nil || month == nil || volume == nil || *month < 1 || *month > 12 {
+				continue
+			}
+			result = append(result, KeywordMonthlySearch{
+				Month:  fmt.Sprintf("%04d-%02d", *year, *month),
+				Volume: *volume,
+			})
+		}
+		if len(result) > 0 {
+			return result
+		}
+	}
+	return nil
+}
+
+func firstNonNil(values ...any) any {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func floatFromAny(value any) *float64 {

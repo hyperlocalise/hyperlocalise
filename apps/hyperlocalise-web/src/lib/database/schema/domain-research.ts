@@ -60,6 +60,10 @@ export const domainResearchKeywords = pgTable(
     volume: integer("volume").notNull().default(0),
     kd: integer("kd").notNull().default(0),
     cpc: doublePrecision("cpc").notNull().default(0),
+    competition: doublePrecision("competition"),
+    monthlySearches: jsonb("monthly_searches").$type<{ month: string; volume: number }[]>(),
+    cpcCurrency: text("cpc_currency").notNull().default("USD"),
+    metricsCapturedAt: timestamp("metrics_captured_at", { withTimezone: true }),
     intent: text("intent").$type<DomainResearchKeywordIntent>().notNull().default("informational"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
