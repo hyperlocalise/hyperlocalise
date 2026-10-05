@@ -229,7 +229,7 @@
 - Sectioned keys flatten as `section.key`. Keys before the first section stay unprefixed.
 - Supports `;` and `#` comments, inline comments after whitespace, and single- or double-quoted values with `\n`, `\t`, `\r`, and quote escapes.
 - Adjacent leading comments are returned as entry context by `ParseWithContext`.
-- `MarshalINI(template, values)` preserves section order, comments, separators, and spacing while replacing value literals. New keys append to the matching section; unknown sections are created at the end of the file in sorted order.
+- `MarshalINI(template, values)` preserves section order, comments, separators, and spacing while replacing value literals. New keys append to the matching section; unknown sections are created at the end of the file in sorted order. New unsectioned keys insert before the first section and any comments that belong to it.
 - Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 return explicit parse errors.
 
 ### Java Properties (`.properties`)

@@ -224,6 +224,36 @@ func TestMarshalINIQuotesValuesThatNeedQuoting(t *testing.T) {
 	}
 }
 
+func TestINIParserTreatsInlineCommentAfterEmptyValueAsComment(t *testing.T) {
+	content := []byte("title= ; translator note\nempty= # keep hash\nliteral=;not a comment\n")
+
+	got, err := (INIParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse ini: %v", err)
+	}
+	assertINIValue(t, got, "title", "")
+	assertINIValue(t, got, "empty", "")
+	assertINIValue(t, got, "literal", ";not a comment")
+}
+
+func TestMarshalINIPreservesInlineCommentAfterEmptyValue(t *testing.T) {
+	template := []byte("title= ; translator note\n")
+	got, err := MarshalINI(template, map[string]string{"title": "Bienvenue"})
+	if err != nil {
+		t.Fatalf("marshal ini: %v", err)
+	}
+	want := "title=Bienvenue ; translator note\n"
+	if string(got) != want {
+		t.Fatalf("ini output mismatch\n got: %q\nwant: %q", got, want)
+	}
+
+	parsed, err := (INIParser{}).Parse(got)
+	if err != nil {
+		t.Fatalf("reparse marshaled ini: %v", err)
+	}
+	assertINIValue(t, parsed, "title", "Bienvenue")
+}
+
 func TestMarshalINIPreservesInlineComments(t *testing.T) {
 	template := []byte("title=Welcome ; keep me\n")
 	got, err := MarshalINI(template, map[string]string{"title": "Bienvenue"})
@@ -256,6 +286,32 @@ func TestMarshalINIKeepsBOMBeforeInsertedGlobalKeys(t *testing.T) {
 	}
 	assertINIValue(t, parsed, "title", "Bienvenue")
 	assertINIValue(t, parsed, "Home.welcome", "Bonjour")
+}
+
+func TestMarshalINIInsertsGlobalKeysBeforeFirstSectionComments(t *testing.T) {
+	template := []byte("; Home screen\n[Home]\ncta=Start\n")
+	got, err := MarshalINI(template, map[string]string{
+		"Home.cta": "Commencer",
+		"title":    "Bienvenue",
+	})
+	if err != nil {
+		t.Fatalf("marshal ini: %v", err)
+	}
+	want := "title=Bienvenue\n; Home screen\n[Home]\ncta=Commencer\n"
+	if string(got) != want {
+		t.Fatalf("ini output mismatch\n got:\n%s\nwant:\n%s", got, want)
+	}
+
+	_, contextByKey, err := (INIParser{}).ParseWithContext(got)
+	if err != nil {
+		t.Fatalf("reparse marshaled ini: %v", err)
+	}
+	if contextByKey["Home.cta"] != "Home screen" {
+		t.Fatalf("unexpected context after insert: %#v", contextByKey)
+	}
+	if _, ok := contextByKey["title"]; ok {
+		t.Fatalf("title must not inherit the section comment: %#v", contextByKey)
+	}
 }
 
 func TestMarshalINIAppendsGlobalKeysBeforeFirstSection(t *testing.T) {

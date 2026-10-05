@@ -83,6 +83,7 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 	}
 	seen := make(map[string]int, 16)
 	var pendingComments []string
+	pendingCommentStart := -1
 	currentSection := ""
 	currentLine := 1
 	firstSectionStart := -1
@@ -96,6 +97,7 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 
 		if first >= len(rawLine) {
 			pendingComments = nil
+			pendingCommentStart = -1
 			pos = next
 			continue
 		}
@@ -105,6 +107,9 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 			comment := rawLine[first+1:]
 			if len(comment) > 0 && (comment[0] == ' ' || comment[0] == '\t') {
 				comment = comment[1:]
+			}
+			if pendingCommentStart < 0 {
+				pendingCommentStart = contentStart
 			}
 			pendingComments = append(pendingComments, comment)
 			pos = next
@@ -117,7 +122,11 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 			if firstSectionStart < 0 {
 				firstSectionStart = contentStart
 				if !hasINIEntriesInSection(doc.entries, "") {
-					doc.insertAt[""] = iniGlobalInsertOffset(text, contentStart)
+					insertAt := contentStart
+					if pendingCommentStart >= 0 {
+						insertAt = pendingCommentStart
+					}
+					doc.insertAt[""] = iniGlobalInsertOffset(text, insertAt)
 				}
 			}
 			currentSection = section
@@ -135,6 +144,7 @@ func parseINIDocument(content []byte) (iniDocument, error) {
 			return iniDocument{}, err
 		}
 		pendingComments = nil
+		pendingCommentStart = -1
 
 		if previousLine, ok := seen[entry.flatKey]; ok {
 			return iniDocument{}, fmt.Errorf("line %d: duplicate ini key %q first defined on line %d", entry.line, entry.flatKey, previousLine)
@@ -214,7 +224,7 @@ func parseINIEntry(text string, lineStart, lineEnd, first int, section string, c
 		valueStart = valuePos
 		valueEnd = end
 	} else {
-		inline := indexINIInlineComment(text, valuePos, lineEnd)
+		inline := indexINIInlineComment(text, sep+1, lineEnd)
 		rawEnd := lineEnd
 		if inline >= 0 {
 			rawEnd = inline
@@ -223,6 +233,10 @@ func parseINIEntry(text string, lineStart, lineEnd, first int, section string, c
 		sourceValue = strings.TrimRight(rawValue, " \t")
 		valueStart = valuePos
 		valueEnd = valuePos + len(sourceValue)
+		if sourceValue == "" && inline >= 0 {
+			valueStart = sep + 1
+			valueEnd = sep + 1
+		}
 	}
 
 	var commentsClone []string
@@ -277,6 +291,10 @@ func decodeINIQuoted(text string, start, end, lineNumber int) (string, int, erro
 	return "", start, fmt.Errorf("line %d: unclosed ini quoted value", lineNumber)
 }
 
+// indexINIInlineComment returns the start of an inline `;` or `#` comment.
+// start must be the first byte after `=` or `:`. A delimiter there is a value,
+// not a comment; the same delimiter after whitespace is a comment, including
+// when the value is empty.
 func indexINIInlineComment(text string, start, end int) int {
 	for i := start; i < end; i++ {
 		ch := text[i]
