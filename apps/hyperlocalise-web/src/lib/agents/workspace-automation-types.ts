@@ -103,7 +103,10 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "web_chat",
 ]);
 
-const branchPatternSchema = z
+export const WORKSPACE_AUTOMATION_NAME_MAX_CHARS = 120;
+export const WORKSPACE_AUTOMATION_INSTRUCTIONS_MAX_CHARS = 20_000;
+
+export const branchPatternSchema = z
   .string()
   .trim()
   .min(1)
