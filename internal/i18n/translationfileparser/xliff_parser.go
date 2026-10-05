@@ -436,7 +436,7 @@ func xliffTargetAttrs(source *xliffElement) string {
 			name = "xml:space"
 		}
 		if name != "" {
-			out.WriteString(" " + name + `="` + escapeXLIFFText(attr.Value) + `"`)
+			out.WriteString(" " + name + `="` + escapeXLIFFAttrValue(attr.Value) + `"`)
 		}
 	}
 	return out.String()
@@ -489,6 +489,16 @@ func escapeXLIFFText(value string) string {
 	return out.String()
 }
 
+// escapeXLIFFAttrValue explicitly protects both attribute quote delimiters.
+// xml.EscapeText already escapes them; keep these replacements explicit for
+// static analyzers and to preserve the attribute contract if text escaping changes.
+func escapeXLIFFAttrValue(value string) string {
+	escaped := escapeXLIFFText(value)
+	escaped = strings.ReplaceAll(escaped, `"`, "&#34;")
+	escaped = strings.ReplaceAll(escaped, "'", "&#39;")
+	return escaped
+}
+
 // setXLIFFTagAttr edits the value of an unqualified attribute only, preserving
 // quoting and all other start-tag bytes. The input has already been XML-validated.
 func setXLIFFTagAttr(tag, name, value string) string {
@@ -519,7 +529,7 @@ func setXLIFFTagAttr(tag, name, value string) string {
 			i++
 		}
 		if attr == name {
-			return tag[:valueStart] + escapeXLIFFText(value) + tag[i:]
+			return tag[:valueStart] + escapeXLIFFAttrValue(value) + tag[i:]
 		}
 		i++
 	}
@@ -527,7 +537,7 @@ func setXLIFFTagAttr(tag, name, value string) string {
 	if tag[end-1] == '/' {
 		end--
 	}
-	return tag[:end] + " " + name + `="` + escapeXLIFFText(value) + `"` + tag[end:]
+	return tag[:end] + " " + name + `="` + escapeXLIFFAttrValue(value) + `"` + tag[end:]
 }
 
 // xliffReplacement validates mixed XML in its inherited namespace context and
@@ -570,7 +580,7 @@ func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature,
 	var wrapper strings.Builder
 	wrapper.WriteString("<hyperlocalise-root")
 	for name, namespace := range namespaces {
-		wrapper.WriteString(" " + name + `="` + escapeXLIFFText(namespace) + `"`)
+		wrapper.WriteString(" " + name + `="` + escapeXLIFFAttrValue(namespace) + `"`)
 	}
 	wrapper.WriteString(">" + value + "</hyperlocalise-root>")
 	decoder := xml.NewDecoder(strings.NewReader(wrapper.String()))
