@@ -269,6 +269,20 @@ buckets:
 
 Supported resource entries are `<string name="...">` and `<plurals name="..."><item quantity="...">`. Resources marked `translatable="false"` are preserved and skipped. Unsupported translatable resource shapes such as `<string-array>` fail closed so they are not silently dropped.
 
+### INI file mapping patterns
+
+Use `.ini` mappings for Windows-style localization files with one file per locale:
+
+```yaml
+buckets:
+    ini:
+        files:
+            - from: locales/{{source}}/messages.ini
+              to: locales/{{target}}/messages.ini
+```
+
+Keys before the first `[section]` stay unprefixed. Keys inside a section flatten as `section.key`. Hyperlocalise preserves sections, comments, separators, and key order on write.
+
 ### Java properties file mapping patterns
 
 Use `.properties` mappings for Java resource bundles with one file per locale:

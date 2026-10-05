@@ -31,6 +31,7 @@ export function sourceContentType(path: string) {
     case "po":
     case "strings":
     case "stringsdict":
+    case "ini":
       return "text/plain";
     case "html":
       return "text/html";

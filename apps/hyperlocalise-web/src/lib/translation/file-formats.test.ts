@@ -57,6 +57,10 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedFileTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedTranslationFileFormat("copy.csv")).toBe("csv");
+    expect(inferSupportedTranslationFileFormat("messages.ini")).toBe("ini");
+    expect(inferSupportedFileTranslationFileFormat("messages.ini")).toBe("ini");
+    expect(inferSupportedSourceUploadFormat("locales/en.ini")).toBe("ini");
+    expect(isSupportedSourceUploadFormat("messages.ini")).toBe(true);
     expect(inferSupportedTranslationFileFormat("captions.srt")).toBe("srt");
     expect(inferSupportedTranslationFileFormat("captions.vtt")).toBe("vtt");
     expect(inferSupportedFileTranslationFileFormat("captions.srt")).toBe("srt");
@@ -177,6 +181,7 @@ describe("translation file formats", () => {
         "arb",
         "xcstrings",
         "strings",
+        "ini",
         "srt",
         "vtt",
       ]),

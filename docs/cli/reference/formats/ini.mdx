@@ -1,0 +1,92 @@
+---
+title: "Translate INI files with Hyperlocalise"
+sidebarTitle: "INI"
+description: "Translate Windows-style INI localization files while preserving sections, comments, and quoting."
+---
+
+INI files store keyed strings for desktop apps, games, and other tools that use
+`[section]` headers. Use this guide to translate those values and understand
+how Hyperlocalise flattens keys and writes them back.
+
+Supported extensions: `.ini`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.ini`.
+
+```ini
+# Application title
+title=Welcome
+
+; Home screen
+[Home]
+cta=Get started
+greeting=Hello, {name}!
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.ini
+              to: locales/{{target}}/messages.ini
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+Hyperlocalise Platform native projects also accept `.ini` uploads for file
+translation jobs and segment review. See [Supported formats](/platform/file-formats).
+
+## Behavior and limitations
+
+- Keys before the first `[section]` stay unprefixed. Keys inside a section flatten as `section.key`, for example `Home.cta`.
+
+- Supports `=` or `:` separators, `;` and `#` comments, inline comments after whitespace, and single- or double-quoted values.
+
+- Leading comments provide context. Writeback preserves sections, key order, comments, separators, and spacing.
+
+- Quoted values keep their quote style. Unquoted translations that contain `;`, `#`, or leading or trailing spaces are written in double quotes.
+
+- New keys append to the matching section. Unknown sections are created at the end of the file in sorted order.
+
+- Duplicate flattened keys, empty section names, unclosed quotes or headers, missing separators, and invalid UTF-8 are rejected.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [Java .properties](/cli/reference/formats/java-properties)
+- [YAML localization](/cli/reference/formats/yaml)
+- [Windows RESW resource](/cli/reference/formats/resw)
