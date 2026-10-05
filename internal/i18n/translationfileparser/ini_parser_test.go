@@ -210,6 +210,18 @@ func TestINIParserLineNumbersWithCarriageReturn(t *testing.T) {
 	}
 }
 
+func TestMarshalINIWritesEmptyUnquotedValue(t *testing.T) {
+	template := []byte("title=\n")
+	got, err := MarshalINI(template, map[string]string{"title": "Bienvenue"})
+	if err != nil {
+		t.Fatalf("marshal ini: %v", err)
+	}
+	want := "title=Bienvenue\n"
+	if string(got) != want {
+		t.Fatalf("ini output mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
 func TestMarshalINIQuotesValuesThatNeedQuoting(t *testing.T) {
 	template := []byte("title=Welcome\n")
 	got, err := MarshalINI(template, map[string]string{
