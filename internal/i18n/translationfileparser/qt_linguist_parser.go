@@ -489,26 +489,28 @@ func qtLinguistDecodedValue(inner string) string {
 }
 
 // qtLinguistTranslationValue returns the primary (longest) length variant when
-// the translation holds <lengthvariant> children.
+// the translation holds <lengthvariant> children. Blank leading variants are
+// skipped so a later filled variant is not treated as untranslated.
 func qtLinguistTranslationValue(inner string) string {
 	if !strings.Contains(inner, "<lengthvariant") {
 		return qtLinguistDecodedValue(inner)
 	}
-	if variant, ok := qtLinguistFirstLengthVariant(inner); ok {
-		return qtLinguistDecodedValue(variant)
+	if variant, ok := qtLinguistPrimaryLengthVariant(inner); ok {
+		return variant
 	}
 	return qtLinguistDecodedValue(inner)
 }
 
-func qtLinguistFirstLengthVariant(inner string) (string, bool) {
+func qtLinguistPrimaryLengthVariant(inner string) (string, bool) {
 	wrapped := []byte("<x>" + inner + "</x>")
 	decoder := xml.NewDecoder(bytes.NewReader(wrapped))
 	depth := 0
 	captureStart := -1
+	foundAny := false
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
-			return "", false
+			return "", foundAny
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
@@ -518,11 +520,16 @@ func qtLinguistFirstLengthVariant(inner string) (string, bool) {
 			}
 		case xml.EndElement:
 			if depth == 2 && captureStart >= 0 {
-				return qtLinguistInnerXML(wrapped, captureStart, int(decoder.InputOffset())), true
+				foundAny = true
+				variant := qtLinguistDecodedValue(qtLinguistInnerXML(wrapped, captureStart, int(decoder.InputOffset())))
+				if strings.TrimSpace(variant) != "" {
+					return variant, true
+				}
+				captureStart = -1
 			}
 			depth--
 			if depth == 0 {
-				return "", false
+				return "", foundAny
 			}
 		}
 	}

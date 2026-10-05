@@ -419,6 +419,51 @@ func TestMarshalQtLinguistPartialNumerusStaysUnfinished(t *testing.T) {
 	}
 }
 
+func TestQtLinguistSkipsEmptyLeadingLengthVariant(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="de">
+<context>
+    <name>Main</name>
+    <message>
+        <source>Preferences</source>
+        <translation variants="yes"><lengthvariant></lengthvariant><lengthvariant>Einst.</lengthvariant></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s)</source>
+        <translation>
+            <numerusform><lengthvariant></lengthvariant><lengthvariant>1 Datei</lengthvariant></numerusform>
+            <numerusform><lengthvariant></lengthvariant><lengthvariant>%n Dateien</lengthvariant></numerusform>
+        </translation>
+    </message>
+</context>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["Main|Preferences"] != "Einst." {
+		t.Fatalf("expected later length variant, got %#v", values)
+	}
+	if values["Main|%n file(s)::numerus.0"] != "1 Datei" {
+		t.Fatalf("expected later numerus length variant, got %#v", values)
+	}
+	if values["Main|%n file(s)::numerus.1"] != "%n Dateien" {
+		t.Fatalf("expected later numerus length variant, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, values, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, `<translation variants="yes"><lengthvariant></lengthvariant><lengthvariant>Einst.</lengthvariant></translation>`) {
+		t.Fatalf("expected existing variants preserved, got %q", got)
+	}
+	if !strings.Contains(got, `<numerusform><lengthvariant></lengthvariant><lengthvariant>1 Datei</lengthvariant></numerusform>`) {
+		t.Fatalf("expected existing numerus variants preserved, got %q", got)
+	}
+}
+
 func TestQtLinguistPreservesLengthVariants(t *testing.T) {
 	t.Parallel()
 	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
