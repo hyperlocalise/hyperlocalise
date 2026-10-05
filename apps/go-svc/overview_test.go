@@ -183,6 +183,20 @@ func TestOverviewRoutes(t *testing.T) {
 
 		rec := overviewRequest(api, scope, scope.OrgPath("/overview/projects"))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		var preview struct {
+			Projects []overviewProjectItem `json:"projects"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &preview))
+		previewIDs := make([]string, 0, len(preview.Projects))
+		for _, project := range preview.Projects {
+			if project.Source == "external_tms" {
+				previewIDs = append(previewIDs, project.ID)
+			}
+		}
+		require.Equal(t, []string{newer, middle}, previewIDs)
+
+		rec = overviewRequest(api, scope, scope.OrgPath("/overview/projects")+"?id="+older)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var body struct {
 			Projects []overviewProjectItem `json:"projects"`
 		}
@@ -193,8 +207,8 @@ func TestOverviewRoutes(t *testing.T) {
 			byID[project.ID] = project
 		}
 		require.Contains(t, byID, older)
-		require.Contains(t, byID, middle)
-		require.Contains(t, byID, newer)
+		require.NotContains(t, byID, middle)
+		require.NotContains(t, byID, newer)
 		require.Equal(t, 1, byID[older].FailedCount)
 		require.NotNil(t, byID[older].Domain)
 		require.Equal(t, scope.Slug+".docs.example", *byID[older].Domain)

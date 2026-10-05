@@ -15,7 +15,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ import { WORKSPACE_FEATURE_UNAVAILABLE_REASON } from "@/lib/flags/workos-flag-en
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
+  OVERVIEW_PROJECT_LIMIT,
   mergeOverviewProjectsWithLive,
   type OverviewLiveProjectSource,
   type WorkspaceOverviewSnapshot,
@@ -111,11 +112,21 @@ export function DashboardPageContent({
     },
   });
 
+  const liveProjectsQuery = useTmsLiveProjects(organizationSlug);
+  const liveProjects = liveProjectsQuery.data ?? EMPTY_LIVE_PROJECTS;
+  const livePreviewIds = liveProjects
+    .slice(0, OVERVIEW_PROJECT_LIMIT)
+    .map((project) => project.id);
+
   const storedProjectsQuery = useQuery({
-    queryKey: overviewSectionQueryKey(organizationSlug, "projects"),
+    queryKey: [...overviewSectionQueryKey(organizationSlug, "projects"), livePreviewIds],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       try {
-        const body = await goSvcClient.overview.projects(organizationSlug);
+        const body = await goSvcClient.overview.projects(
+          organizationSlug,
+          livePreviewIds.length > 0 ? { query: { id: livePreviewIds } } : {},
+        );
         return body.projects;
       } catch (error) {
         throw overviewQueryError(error);
@@ -148,8 +159,6 @@ export function DashboardPageContent({
     },
   });
 
-  const liveProjectsQuery = useTmsLiveProjects(organizationSlug);
-  const liveProjects = liveProjectsQuery.data ?? EMPTY_LIVE_PROJECTS;
   const storedProjects = storedProjectsQuery.data ?? EMPTY_OVERVIEW.projects;
   const projects = useMemo(
     () =>
@@ -178,7 +187,10 @@ export function DashboardPageContent({
       overview={overview}
       automationsEnabled={automationsEnabled}
       sectionStatus={{
-        metrics: { isLoading: metricsQuery.isLoading, isError: metricsQuery.isError },
+        metrics: {
+          isLoading: metricsQuery.isLoading,
+          isError: metricsQuery.isError && metricsQuery.data === undefined,
+        },
         activity: { isLoading: activityQuery.isLoading, isError: activityQuery.isError },
         projects: {
           isLoading:

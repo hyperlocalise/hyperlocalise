@@ -3,15 +3,36 @@ package main
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 )
 
 func (api *overviewAPI) projectsHandler(r *http.Request, actor overviewActor) (any, int, error) {
-	projects, err := api.listPreviewProjects(r.Context(), actor)
+	projects, err := api.listPreviewProjects(r.Context(), actor, parseOverviewProjectIDs(r.URL.Query()["id"]))
 	if err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{"projects": projects}, http.StatusOK, nil
+}
+
+func parseOverviewProjectIDs(values []string) []string {
+	ids := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		id := strings.TrimSpace(value)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+		if len(ids) >= overviewProjectLimit {
+			break
+		}
+	}
+	return ids
 }
 
 type overviewProjectSource struct {
@@ -22,7 +43,10 @@ type overviewProjectSource struct {
 	openJobCount         int
 }
 
-func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewActor) ([]overviewProjectItem, error) {
+func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewActor, requestedIDs []string) ([]overviewProjectItem, error) {
+	if requestedIDs == nil {
+		requestedIDs = []string{}
+	}
 	rows, err := api.pool.Query(ctx, `
         with candidates as (
             select p.id, p.name, p.source, p.external_provider_kind, p.source_locale, p.target_locales,
@@ -46,11 +70,11 @@ func (api *overviewAPI) listPreviewProjects(ctx context.Context, actor overviewA
         )
         select id, name, source, external_provider_kind, source_locale, target_locales, open_job_count
         from candidates
-        where (source = 'external_tms' and source_rank <= $5)
+        where id = any($5)
+           or (cardinality($5::text[]) = 0 and source = 'external_tms' and source_rank <= $4)
            or (source <> 'external_tms' and source_rank <= $4)
         order by case source when 'external_tms' then 0 else 1 end, source_rank`,
-		actor.organizationID, actor.canReadAllTeams(), actor.userID, overviewProjectLimit,
-		overviewProjectCandidateLimit)
+		actor.organizationID, actor.canReadAllTeams(), actor.userID, overviewProjectLimit, requestedIDs)
 	if err != nil {
 		return nil, err
 	}

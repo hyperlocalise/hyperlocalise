@@ -106,13 +106,16 @@ function renderDashboard(automationsEnabled = true) {
     defaultOptions: { queries: { retry: false } },
   });
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <IntlProvider locale="en" messages={{}}>
-        <DashboardPageContent organizationSlug="acme" automationsEnabled={automationsEnabled} />
-      </IntlProvider>
-    </QueryClientProvider>,
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <IntlProvider locale="en" messages={{}}>
+          <DashboardPageContent organizationSlug="acme" automationsEnabled={automationsEnabled} />
+        </IntlProvider>
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 describe("DashboardPageContent", () => {
@@ -151,9 +154,35 @@ describe("DashboardPageContent", () => {
 
     expect(apiMocks.metrics).toHaveBeenCalledWith("acme");
     expect(apiMocks.activity).toHaveBeenCalledWith("acme");
-    expect(apiMocks.projects).toHaveBeenCalledWith("acme");
+    expect(apiMocks.projects).toHaveBeenCalledWith("acme", {});
     expect(apiMocks.board).toHaveBeenCalledWith("acme");
     expect(apiMocks.automations).toHaveBeenCalledWith("acme");
+  });
+
+  it("loads stored extras for the live preview project ids", async () => {
+    apiMocks.metrics.mockResolvedValue({ metrics: dashboardOverviewFixture.metrics });
+    apiMocks.activity.mockResolvedValue({ activity: [] });
+    apiMocks.projects.mockResolvedValue({ projects: dashboardOverviewFixture.projects });
+    apiMocks.board.mockResolvedValue({ board: [] });
+    apiMocks.automations.mockResolvedValue({ automations: [] });
+    apiMocks.liveProjects.mockReturnValue({
+      data: [
+        { id: "ext:crowdin:oldest", name: "Oldest" },
+        { id: "ext:crowdin:older", name: "Older" },
+        { id: "ext:crowdin:newest", name: "Newest" },
+      ],
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+    });
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(apiMocks.projects).toHaveBeenCalledWith("acme", {
+        query: { id: ["ext:crowdin:oldest", "ext:crowdin:older"] },
+      });
+    });
   });
 
   it("lets activity render while metrics is still loading", async () => {
@@ -209,6 +238,30 @@ describe("DashboardPageContent", () => {
       expect(latestViewProps?.sectionStatus?.metrics?.isError).toBe(true);
       expect(latestViewProps?.sectionStatus?.activity?.isError).toBe(false);
       expect(latestViewProps?.overview.metrics.jobs.count).toBe(0);
+    });
+  });
+
+  it("keeps cached metrics visible when a refresh fails", async () => {
+    apiMocks.metrics
+      .mockResolvedValueOnce({ metrics: dashboardOverviewFixture.metrics })
+      .mockRejectedValueOnce(new Error("metrics refresh failed"));
+    apiMocks.activity.mockResolvedValue({ activity: [] });
+    apiMocks.projects.mockResolvedValue({ projects: [] });
+    apiMocks.board.mockResolvedValue({ board: [] });
+    apiMocks.automations.mockResolvedValue({ automations: [] });
+
+    const { queryClient } = renderDashboard();
+
+    await waitFor(() => {
+      expect(latestViewProps?.overview.metrics.jobs.count).toBe(48);
+      expect(latestViewProps?.sectionStatus?.metrics?.isError).toBe(false);
+    });
+
+    await queryClient.refetchQueries({ queryKey: ["workspace-overview", "acme", "metrics"] });
+
+    await waitFor(() => {
+      expect(latestViewProps?.overview.metrics.jobs.count).toBe(48);
+      expect(latestViewProps?.sectionStatus?.metrics?.isError).toBe(false);
     });
   });
 

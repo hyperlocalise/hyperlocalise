@@ -19,7 +19,7 @@ import type {
 } from "@/lib/workspace/overview-snapshot-model";
 
 import type { GoSvcRequestOptions } from "./go-svc-client.types";
-import { orgPath, type GoSvcRequest } from "./go-svc-request";
+import { orgPath, type GoSvcJsonRequest, type GoSvcRequest } from "./go-svc-request";
 
 export class GoSvcOverviewApi {
   constructor(private readonly request: GoSvcRequest) {}
@@ -38,7 +38,7 @@ export class GoSvcOverviewApi {
     );
   }
 
-  projects(organizationSlug: string, options: GoSvcRequestOptions = {}) {
+  projects(organizationSlug: string, options: GoSvcJsonRequest = {}) {
     return this.request.json<{ projects: OverviewProjectItem[] }>(
       orgPath(organizationSlug, "overview", "projects"),
       options,

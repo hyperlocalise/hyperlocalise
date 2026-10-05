@@ -467,6 +467,21 @@ describe("GoSvcClient", () => {
     await expect(request.json("/v1/orgs/acme/teams")).rejects.toBe(abortError);
   });
 
+  it("loads overview project extras for selected live ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ projects: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.overview.projects("acme / eu", {
+      query: { id: ["ext:crowdin:oldest", "ext:crowdin:older"] },
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/overview/projects?id=ext%3Acrowdin%3Aoldest&id=ext%3Acrowdin%3Aolder`,
+    );
+  });
+
   it("loads overview sections from dedicated go-svc routes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({

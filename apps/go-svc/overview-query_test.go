@@ -147,6 +147,17 @@ func TestRequestLogPathOverview(t *testing.T) {
 	require.Equal(t, "/v1/orgs/{organizationSlug}/overview/{resource}", requestLogPath("/v1/orgs/acme/overview/metrics"))
 }
 
+func TestParseOverviewProjectIDs(t *testing.T) {
+	require.Empty(t, parseOverviewProjectIDs(nil))
+	require.Equal(t, []string{"ext:crowdin:oldest", "ext:crowdin:older"}, parseOverviewProjectIDs([]string{
+		" ext:crowdin:oldest ",
+		"",
+		"ext:crowdin:oldest",
+		"ext:crowdin:older",
+		"ext:crowdin:newest",
+	}))
+}
+
 func activityIDs(items []overviewActivityItem) []string {
 	ids := make([]string, 0, len(items))
 	for _, item := range items {
