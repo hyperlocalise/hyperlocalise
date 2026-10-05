@@ -36,8 +36,11 @@ func domainResearchCacheKey(prefix string, parts ...string) string {
 }
 
 func (h *handler) consumeDomainResearchQuota(ctx context.Context, organizationID, operation string, units, limit int) error {
-	if h.researchCache == nil || units <= 0 {
+	if units <= 0 {
 		return nil
+	}
+	if h.researchCache == nil {
+		return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
 	}
 	quotaCtx, cancel := context.WithTimeout(ctx, domainResearchQuotaTimeout)
 	defer cancel()

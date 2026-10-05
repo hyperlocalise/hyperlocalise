@@ -1,5 +1,5 @@
 {
-  "id": "2f0afa8b-5266-4933-a1c0-2c7c629442cd",
+  "id": "1dae6e57-bd2b-4314-ad4c-3b7e31c649b4",
   "prevId": "2ad94730-624d-43a0-9ea8-67e807034a9a",
   "version": "7",
   "dialect": "postgresql",
@@ -25102,6 +25102,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "device": {
+          "name": "device",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'desktop'"
+        },
         "results": {
           "name": "results",
           "type": "jsonb",
@@ -25117,8 +25124,8 @@
         }
       },
       "indexes": {
-        "uq_domain_research_serp_domain_market_kw": {
-          "name": "uq_domain_research_serp_domain_market_kw",
+        "uq_domain_research_serp_domain_market_kw_device": {
+          "name": "uq_domain_research_serp_domain_market_kw_device",
           "columns": [
             {
               "expression": "linked_domain_id",
@@ -25140,6 +25147,12 @@
             },
             {
               "expression": "keyword",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "device",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

@@ -68,6 +68,7 @@ func TestDomainResearchProductLifecycle(t *testing.T) {
 	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
 	linkedDomainID := mustVerifiedLinkedDomain(t, scope)
 	h := workspaceHandler(scope, "admin", stubWorkspaceFlags{enabled: true})
+	h.researchCache = newMemoryResearchCache()
 	h.research = fakeResearch{
 		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
 			Data: []dataforseo.KeywordDataItem{{
@@ -102,12 +103,33 @@ func TestDomainResearchProductLifecycle(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"ideas"`)
 
+	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/keywords/save", `{"marketId":"france-fr","seedKeyword":"seo","capturedAt":"2026-04-01T00:00:00Z","keywords":[{"keyword":"seo tools","volume":1200,"kd":38,"cpc":2.4,"competition":0.42,"monthlySearches":[{"month":"2026-03","volume":1100}],"capturedAt":"2026-04-01T00:00:00Z","intent":"commercial"}]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
 	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/keywords/save", `{"marketId":"france-fr","seedKeyword":"seo","keywords":[{"keyword":"seo tools","volume":1200,"kd":38,"cpc":2.4,"intent":"commercial"}]}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"competition":0.42`)
+	require.Contains(t, rec.Body.String(), `"2026-03"`)
 
 	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/serp", `{"keyword":"seo tools","marketId":"france-fr"}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"results"`)
+	require.Contains(t, rec.Body.String(), `"cached":false`)
+
+	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/ranks", `{"marketId":"france-fr","device":"mobile","keywords":[{"keyword":"seo tools","volume":1200,"kd":38,"cpc":2.4,"intent":"commercial"}]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/serp", `{"keyword":"seo tools","marketId":"france-fr"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"cached":false`)
+	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/serp", `{"keyword":"seo tools","marketId":"france-fr"}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"cached":true`)
+	var snapshotCount int
+	err := scope.Pool.QueryRow(t.Context(), `
+        select count(*) from domain_research_serp_snapshots
+        where linked_domain_id=$1 and lower(keyword)=lower('seo tools')`, linkedDomainID).Scan(&snapshotCount)
+	require.NoError(t, err)
+	require.Equal(t, 2, snapshotCount)
 
 	rec = workspaceRequest(t, h, scope, http.MethodPost, base+"/ranks", `{"marketId":"france-fr","device":"desktop","keywords":[{"keyword":"seo tools","volume":1200,"kd":38,"cpc":2.4,"intent":"commercial"}]}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -120,7 +142,7 @@ func TestDomainResearchProductLifecycle(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	pendingID := uuid.NewString()
-	_, err := scope.Pool.Exec(t.Context(), `
+	_, err = scope.Pool.Exec(t.Context(), `
         insert into linked_domains (
             id, organization_id, created_by_user_id, domain_key, domain_slug, source_url, status, verification_token
         ) values ($1, $2, $3, 'pending.com', 'pending-com', 'https://pending.com/', 'pending_verification', 'token')`,

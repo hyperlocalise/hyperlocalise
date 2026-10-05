@@ -5,14 +5,66 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
+
+type memoryResearchCache struct {
+	mu     sync.Mutex
+	items  map[string]string
+	counts map[string]int64
+}
+
+func newMemoryResearchCache() *memoryResearchCache {
+	return &memoryResearchCache{items: map[string]string{}, counts: map[string]int64{}}
+}
+
+func (c *memoryResearchCache) Get(_ context.Context, key string) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	value, ok := c.items[key]
+	if !ok {
+		return "", gosvcvalkey.ErrNil
+	}
+	return value, nil
+}
+
+func (c *memoryResearchCache) Set(_ context.Context, key, value string, _ time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items[key] = value
+	return nil
+}
+
+func (c *memoryResearchCache) IncrByWithTTL(_ context.Context, key string, units int, _ time.Duration) (int64, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.counts[key] += int64(units)
+	return c.counts[key], nil
+}
+
+func TestConsumeDomainResearchQuota(t *testing.T) {
+	h := newHandler()
+	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, domainResearchKeywordQuota)
+	var failure *workspaceError
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusServiceUnavailable, failure.status)
+	require.Equal(t, "research_quota_unavailable", failure.code)
+
+	h.researchCache = newMemoryResearchCache()
+	require.NoError(t, h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 2, 2))
+	err = h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, 2)
+	require.ErrorAs(t, err, &failure)
+	require.Equal(t, http.StatusTooManyRequests, failure.status)
+	require.Equal(t, "research_quota_exceeded", failure.code)
+}
 
 func verifiedLinkedDomainRow(id, org string) []any {
 	now := time.Now().UTC()
@@ -67,6 +119,7 @@ func TestExpandDomainKeywords(t *testing.T) {
 	pool := &scriptPool{steps: []dbStep{{op: opQueryRow, scan: verifiedLinkedDomainRow(linkedID, orgID)}}}
 	h := newHandler()
 	h.workspace = &workspaceAPI{pool: pool}
+	h.researchCache = newMemoryResearchCache()
 	h.research = fakeResearch{
 		ideas: dataforseo.TaskResponse[[]dataforseo.KeywordDataItem]{
 			Data: []dataforseo.KeywordDataItem{{
