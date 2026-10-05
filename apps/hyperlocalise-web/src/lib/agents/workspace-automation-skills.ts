@@ -33,6 +33,23 @@ export type WorkspaceAutomationSkillTool = (typeof WORKSPACE_AUTOMATION_SKILL_TO
 
 export type WorkspaceAutomationSkillTrigger = WorkspaceAutomationTriggerConfig["mode"];
 
+/** One term, or alternatives for the same idea that count as a single match. */
+export type WorkspaceAutomationKeywordTerm = string | readonly string[];
+
+/**
+ * Terms matched as whole words against what the user typed. A strong term suggests the item on
+ * its own; weak terms only count when two different ones match.
+ */
+export type WorkspaceAutomationKeywords = {
+  strong: readonly WorkspaceAutomationKeywordTerm[];
+  weak: readonly WorkspaceAutomationKeywordTerm[];
+  /** Strong signals that are not plain words, such as an email address. */
+  patterns?: readonly RegExp[];
+};
+
+/** Shared by everything that reads a repository, so naming a repository alone suggests nothing. */
+export const REPOSITORY_KEYWORDS = ["github", "repo", "repository"] as const;
+
 export type WorkspaceAutomationSkill = {
   /** Also the file name of the procedure under the workspace agent's skills folder. */
   id: string;
@@ -43,6 +60,7 @@ export type WorkspaceAutomationSkill = {
   tools: readonly WorkspaceAutomationSkillTool[];
   triggers: readonly WorkspaceAutomationSkillTrigger[];
   sharedSkills: readonly string[];
+  keywords: WorkspaceAutomationKeywords;
 };
 
 const RUN_TRIGGERS = ["manual", "scheduled"] as const;
@@ -59,6 +77,18 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["use_github_repository"],
     triggers: REPOSITORY_TRIGGERS,
     sharedSkills: ["translation-review"],
+    keywords: {
+      strong: [
+        "translation review",
+        ["localisation review", "localization review"],
+        ["code review", "review code", "review changes"],
+        ["hard coded", "hardcoded"],
+        "missing translation",
+        "placeholder",
+        "icu",
+      ],
+      weak: [["review", "audit"], ["commit", "diff"], "i18n", "risk", REPOSITORY_KEYWORDS],
+    },
   },
   {
     id: "summarize-localisation-changes",
@@ -68,6 +98,19 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["use_github_repository"],
     triggers: REPOSITORY_TRIGGERS,
     sharedSkills: [],
+    keywords: {
+      strong: [
+        "changelog",
+        "what changed",
+        ["summarise changes", "summarize changes", "summary of changes"],
+        ["localisation changes", "localization changes"],
+      ],
+      weak: [
+        ["summarise", "summarize", "summary", "digest", "recap", "briefing"],
+        ["commit", "change"],
+        REPOSITORY_KEYWORDS,
+      ],
+    },
   },
   {
     id: "check-crowdin-concordance",
@@ -78,6 +121,14 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["use_crowdin"],
     triggers: REPOSITORY_TRIGGERS,
     sharedSkills: ["crowdin-concordance-review"],
+    keywords: {
+      strong: ["crowdin", "concordance"],
+      weak: [
+        ["glossary", "glossaries", "terminology"],
+        ["translation memory", "tm"],
+        "style guide",
+      ],
+    },
   },
   {
     id: "research-web",
@@ -88,6 +139,15 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["use_web_search"],
     triggers: RUN_TRIGGERS,
     sharedSkills: [],
+    keywords: {
+      strong: [
+        ["web search", "search the web", "search the internet"],
+        "research",
+        "competitor",
+        "news",
+      ],
+      weak: ["market", "pricing", "trend", "industry", ["source", "citation"], "latest"],
+    },
   },
   {
     id: "translate-uploaded-source",
@@ -98,6 +158,15 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["create_native_tms_job", "assign_translate_with_agent"],
     triggers: ["source_upload"],
     sharedSkills: [],
+    keywords: {
+      strong: [
+        ["source upload", "uploaded file", "uploaded source", "source file"],
+        "translation job",
+        ["create job", "create a job"],
+        "translate with agent",
+      ],
+      weak: [["upload", "uploaded"], "translate", "target locale"],
+    },
   },
   {
     id: "translate-contentful-entries",
@@ -107,6 +176,17 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["run_contentful_translation"],
     triggers: ["contentful", "manual", "scheduled"],
     sharedSkills: [],
+    keywords: {
+      strong: ["contentful"],
+      weak: [
+        "cms",
+        ["entry", "entries"],
+        ["article", "help center", "help centre"],
+        "rich text",
+        "draft",
+        "translate",
+      ],
+    },
   },
   {
     id: "post-to-slack",
@@ -116,6 +196,11 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["notify_slack"],
     triggers: DELIVERY_TRIGGERS,
     sharedSkills: [],
+    keywords: {
+      strong: ["slack"],
+      weak: ["channel", ["notify", "alert", "ping"]],
+      patterns: [/(?<![\p{L}\p{N}])#[a-z][a-z0-9_-]+/iu],
+    },
   },
   {
     id: "email-results",
@@ -125,6 +210,11 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["notify_email"],
     triggers: DELIVERY_TRIGGERS,
     sharedSkills: [],
+    keywords: {
+      strong: [["email", "e-mail"], "inbox"],
+      weak: ["recipient", ["notify", "alert"]],
+      patterns: [/[\w.+-]+@[\w-]+\.[\w.-]+/u],
+    },
   },
   {
     id: "comment-on-pull-request",
@@ -134,6 +224,10 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     tools: ["notify_github_comment"],
     triggers: ["github"],
     sharedSkills: [],
+    keywords: {
+      strong: [["pull request", "pr"], "sticky comment"],
+      weak: ["comment", "merge"],
+    },
   },
 ];
 
