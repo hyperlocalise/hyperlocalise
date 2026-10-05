@@ -1,0 +1,90 @@
+---
+title: "Translate AsciiDoc files with Hyperlocalise"
+sidebarTitle: "AsciiDoc"
+description: "Translate AsciiDoc documentation while preserving macros, attributes, and verbatim blocks."
+---
+
+AsciiDoc is a plain-text authoring format used for technical documentation, including Antora and Asciidoctor sites. Hyperlocalise translates prose and leaves structure, macros, and verbatim blocks unchanged.
+
+Supported extensions: `.adoc`, `.asciidoc`, `.asc`.
+
+## Source file
+
+Save this example as `locales/en-US/messages.adoc`.
+
+```asciidoc
+= Product guide
+:product-name: Widget
+
+Welcome to the setup guide.
+
+== Install
+
+Read link:https://example.com[the setup guide] to get started.
+
+NOTE: Remember to save your work.
+```
+
+## Configure your files
+
+Use this `i18n.yml` for the example, or add its file mapping to your existing bucket.
+See [path templates](/cli/configuration/path-templates) for other layouts.
+
+```yaml
+locales:
+    source: en-US
+    targets:
+        - es-ES
+
+buckets:
+    messages:
+        files:
+            - from: locales/en-US/messages.adoc
+              to: locales/{{target}}/messages.adoc
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+The dry run previews the work. The second command writes translations to the
+configured target path and updates the lockfile.
+
+## Behavior and limitations
+
+- Translates document titles, headings, paragraphs, list items, description lists, table cells, admonitions, and block titles.
+
+- Consecutive non-blank lines form one paragraph. The translated paragraph is written as a single line.
+
+- Comments, attribute definitions, block macros, preprocessor directives, YAML front matter, and verbatim blocks stay unchanged.
+
+- Inline code, links, cross references, attribute references, bare URLs, anchors, passthroughs, and issue references such as `#4580` are protected as placeholders. Link labels stay translatable.
+
+- `include::` directives are preserved. Included files are not resolved. Upload each file on its own.
+
+- Segments use structural keys such as `adoc.title` and `adoc.paragraph`. Review generated files when you restructure source content.
+
+## Next steps
+
+- [Check translations](/cli/commands/check) before committing generated files.
+- [Local translation workflow](/cli/workflows/local-generation) explains repeat runs.
+- [Browse all file formats](/cli/reference/formats/overview).
+
+## Related formats
+
+- [Markdown](/cli/reference/formats/markdown)
+- [MDX](/cli/reference/formats/mdx)
+- [HTML](/cli/reference/formats/html)
