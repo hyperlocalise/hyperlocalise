@@ -17,12 +17,15 @@ import {
   resolveWorkspaceAutomationSkillAvailability,
 } from "./workspace-automation-skill-form";
 import {
+  listMissingWorkspaceAutomationSkillIntegrations,
   REPOSITORY_KEYWORDS,
   WORKSPACE_AUTOMATION_SKILLS,
   workspaceAutomationSkillToolEnabled,
   type WorkspaceAutomationKeywords,
   type WorkspaceAutomationKeywordTerm,
   type WorkspaceAutomationSkill,
+  type WorkspaceAutomationSkillConnections,
+  type WorkspaceAutomationSkillIntegration,
 } from "./workspace-automation-skills";
 import {
   formStateToWorkspaceAutomationPayload,
@@ -92,7 +95,9 @@ export type WorkspaceAutomationSuggestion =
       kind: "skill";
       key: string;
       skill: WorkspaceAutomationSkill;
-      availability: "available" | "trigger_mismatch";
+      availability: "available" | "trigger_mismatch" | "connect_first";
+      /** Integrations to connect before the skill can be added. Empty unless that is the reason. */
+      missingIntegrations: WorkspaceAutomationSkillIntegration[];
     }
   | {
       kind: "tool";
@@ -211,6 +216,7 @@ function skillToolsAddedByHand(
 export function suggestWorkspaceAutomationAdditions(input: {
   form: WorkspaceAutomationFormState;
   connections?: WorkspaceAutomationSuggestedToolConnections;
+  skillConnections?: WorkspaceAutomationSkillConnections;
   dismissed?: ReadonlySet<string>;
 }): WorkspaceAutomationSuggestion[] {
   const { form } = input;
@@ -232,9 +238,19 @@ export function suggestWorkspaceAutomationAdditions(input: {
     }
     const score = scoreKeywords(text, skill.keywords);
     if (score > 0) {
+      const missingIntegrations =
+        availability === "available"
+          ? listMissingWorkspaceAutomationSkillIntegrations(skill, input.skillConnections ?? {})
+          : [];
       scored.push({
         score,
-        suggestion: { kind: "skill", key: `skill:${skill.id}`, skill, availability },
+        suggestion: {
+          kind: "skill",
+          key: `skill:${skill.id}`,
+          skill,
+          availability: missingIntegrations.length > 0 ? "connect_first" : availability,
+          missingIntegrations,
+        },
       });
     }
   }

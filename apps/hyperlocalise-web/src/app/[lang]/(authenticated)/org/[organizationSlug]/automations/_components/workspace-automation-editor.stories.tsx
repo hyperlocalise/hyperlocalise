@@ -13,7 +13,7 @@
 import { useState, type ReactNode } from "react";
 import { PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, within } from "storybook/test";
+import { expect, fn, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
 import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
@@ -271,7 +271,7 @@ export const RiskySkillAsksFirst: Story = {
   },
 };
 
-export const DisconnectedSkillIsNotAdded: Story = {
+export const DisconnectedSkillIsGreyedOut: Story = {
   parameters: {
     msw: {
       handlers: automationEditorDisconnectedMswHandlers,
@@ -280,22 +280,13 @@ export const DisconnectedSkillIsNotAdded: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: /^Post results to Slack/ }));
-    await expect(
-      await body.findByRole("alertdialog", { name: "Post results to Slack cannot be added yet" }),
-    ).toBeInTheDocument();
-    await expect(
-      body.getByText(/This skill needs Slack, which is not connected/),
-    ).toBeInTheDocument();
-    await expect(body.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
-      "href",
-      "/org/acme/integrations",
+    const slack = await body.findByRole("menuitem", { name: /^Post results to Slack/ });
+    await waitFor(() => expect(slack).toHaveAttribute("aria-disabled", "true"));
+    await expect(within(slack).getByText("Connect Slack first")).toBeInTheDocument();
+    await expect(body.getByRole("menuitem", { name: /^Research the web/ })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
     );
-    await userEvent.click(body.getByRole("button", { name: "Close" }));
-    await expect(canvas.queryByText("Required for skill")).not.toBeInTheDocument();
-    await expect(
-      canvas.getByText("Pick what this automation should do. Each skill adds the tools it needs."),
-    ).toBeInTheDocument();
   },
 };
 

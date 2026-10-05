@@ -652,52 +652,37 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Tooltip on the badge of a tool row, listing the attached skills that need the tool",
   },
-  blockedSkillTitle: {
-    defaultMessage: "{name} cannot be added yet",
-    id: "bAKKVVFbfY",
-    description:
-      "Title of the dialog shown when a skill needs an integration that is not connected",
-  },
-  blockedSkillDescription: {
-    defaultMessage:
-      "{count, plural, one {This skill needs {integrations}, which is not connected. Connect it in Integrations, then add the skill again.} other {This skill needs {integrations}, which are not connected. Connect them in Integrations, then add the skill again.}}",
-    id: "0eEq7VTTfY",
-    description: "Body of the dialog shown when a skill needs integrations that are not connected",
-  },
-  blockedSkillOpenIntegrations: {
-    defaultMessage: "Open Integrations",
-    id: "fakC0hPihL",
-    description: "Link in the blocked-skill dialog that opens the Integrations page in a new tab",
-  },
-  blockedSkillClose: {
-    defaultMessage: "Close",
-    id: "n6Pp+FqzhW",
-    description: "Button that closes the blocked-skill dialog",
+  skillConnectFirstHint: {
+    defaultMessage: "Connect {integrations} first",
+    id: "+WGFtpyLP3",
+    description: "Hint on a skill that cannot be added until the named integrations are connected",
   },
   skillIntegrationGithub: {
     defaultMessage: "GitHub",
-    id: "DnUr6DL+Dx",
-    description: "Name of the GitHub integration in the blocked-skill dialog",
+    id: "qho0RvsuUF",
+    description: "Name of the GitHub integration in the hint on a skill that needs it connected",
   },
   skillIntegrationCrowdin: {
     defaultMessage: "Crowdin",
-    id: "sMgNlFO9Xt",
-    description: "Name of the Crowdin integration in the blocked-skill dialog",
+    id: "mKDi5gA4Mz",
+    description: "Name of the Crowdin integration in the hint on a skill that needs it connected",
   },
   skillIntegrationContentful: {
     defaultMessage: "Contentful",
-    id: "an6jG13CRy",
-    description: "Name of the Contentful integration in the blocked-skill dialog",
+    id: "a8MPnEetIK",
+    description:
+      "Name of the Contentful integration in the hint on a skill that needs it connected",
   },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
-    id: "Eco7F9JCuE",
-    description: "Name of the Slack integration in the blocked-skill dialog",
+    id: "SXLP18M0vY",
+    description: "Name of the Slack integration in the hint on a skill that needs it connected",
   },
   skillIntegrationEmail: {
     defaultMessage: "an email provider",
-    id: "mnhPYvHzq9",
-    description: "How the email integration is named in the blocked-skill dialog",
+    id: "foebJc8o+q",
+    description:
+      "How the email integration is named in the hint on a skill that needs it connected",
   },
   riskySkillTitle: {
     defaultMessage: "Add {name}?",

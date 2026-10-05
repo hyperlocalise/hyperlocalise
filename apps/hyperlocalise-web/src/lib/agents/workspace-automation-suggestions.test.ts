@@ -148,6 +148,18 @@ describe("workspace automation suggestions", () => {
     ]);
   });
 
+  it("marks a skill whose integration is known to be disconnected", () => {
+    const suggestions = suggestWorkspaceAutomationAdditions({
+      form: formWith("Post to Slack and email me."),
+      skillConnections: { slack: false, email: true },
+    });
+
+    expect(suggestions).toMatchObject([
+      { key: "skill:post-to-slack", availability: "connect_first", missingIntegrations: ["slack"] },
+      { key: "skill:email-results", availability: "available", missingIntegrations: [] },
+    ]);
+  });
+
   it("does not suggest a repository tool that conflicts with the one in use", () => {
     expect(suggest("Sync with GitLab.", { githubEnabled: true, githubMode: "agent" })).toEqual([]);
     expect(suggest("Sync with GitLab.")).toEqual(["tool:github_sync", "tool:gitlab"]);

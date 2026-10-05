@@ -2063,6 +2063,18 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
 
+function formatSkillConnectFirstHint(
+  intl: IntlShape,
+  integrations: WorkspaceAutomationSkillIntegration[],
+) {
+  return intl.formatMessage(workspaceAutomationFormMessages.skillConnectFirstHint, {
+    integrations: intl.formatList(
+      integrations.map((integration) => intl.formatMessage(SKILL_INTEGRATION_LABELS[integration])),
+      { type: "conjunction" },
+    ),
+  });
+}
+
 function SkillsSettings({
   connections,
   disabled,
@@ -2128,22 +2140,30 @@ function SkillsSettings({
           >
             {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
               const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
+              const missingIntegrations =
+                availability === "available"
+                  ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                  : [];
               return (
                 <DropdownMenuItem
                   key={skill.id}
-                  disabled={availability !== "available"}
+                  disabled={availability !== "available" || missingIntegrations.length > 0}
                   className="items-start"
                   onClick={() => onAddSkill(skill.id)}
                 >
                   <SparkleIcon className="mt-0.5 size-4 shrink-0" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span>{skill.name}</span>
+                    {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
                     {availability === "trigger_mismatch" ? (
-                      // Under the name: beside it, the wording squeezes the name onto two lines.
                       <span className="text-xs font-medium">
                         <FormattedMessage
                           {...workspaceAutomationFormMessages.skillNotApplicableHint}
                         />
+                      </span>
+                    ) : missingIntegrations.length > 0 ? (
+                      <span className="text-xs font-medium">
+                        {formatSkillConnectFirstHint(intl, missingIntegrations)}
                       </span>
                     ) : null}
                     <span className="text-xs text-pretty text-muted-foreground">
@@ -2153,13 +2173,6 @@ function SkillsSettings({
                   {availability === "attached" ? (
                     <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuHint>
-                  ) : availability === "available" &&
-                    listMissingWorkspaceAutomationSkillIntegrations(skill, connections).length >
-                      0 ? (
-                    // Stays clickable: choosing it explains what to connect.
-                    <DropdownMenuHint>
-                      <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                     </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
@@ -2209,10 +2222,12 @@ function SuggestionChips({
             : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
         const unavailableHint =
           suggestion.availability === "trigger_mismatch"
-            ? workspaceAutomationFormMessages.skillNotApplicableHint
-            : suggestion.availability === "connect_first"
-              ? workspaceAutomationFormMessages.connectFirstShortcut
-              : null;
+            ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
+            : suggestion.availability !== "connect_first"
+              ? null
+              : suggestion.kind === "skill"
+                ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+                : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
 
         return (
           <span
@@ -2237,9 +2252,7 @@ function SuggestionChips({
               )}
               {name}
               {unavailableHint ? (
-                <span className="text-muted-foreground">
-                  <FormattedMessage {...unavailableHint} />
-                </span>
+                <span className="text-muted-foreground">{unavailableHint}</span>
               ) : null}
             </Button>
             <Button
@@ -3666,10 +3679,6 @@ export function WorkspaceAutomationEditor({
     () => new Set(),
   );
   const [riskySkillId, setRiskySkillId] = useState<string | null>(null);
-  const [blockedSkill, setBlockedSkill] = useState<{
-    skillId: string;
-    missingIntegrations: WorkspaceAutomationSkillIntegration[];
-  } | null>(null);
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3916,20 +3925,7 @@ export function WorkspaceAutomationEditor({
   const usableZernioConnections = zernioConnections.filter(
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
-  const suggestions = suggestWorkspaceAutomationAdditions({
-    form,
-    connections: {
-      github: githubConnected,
-      gitlab: gitlabConnected,
-      semrush: usableSemrushConnections.length > 0,
-      ahrefs: ahrefsConnected,
-      zernio: usableZernioConnections.length > 0,
-    },
-    dismissed: dismissedSuggestions,
-  });
-  const addSkill = (skillId: string) =>
-    onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
-  // Undefined while a status is loading or failed to load, so only a known gap blocks a skill.
+  // Undefined while a status is loading or failed to load, so only a known gap greys a skill out.
   const skillConnections: WorkspaceAutomationSkillConnections = {
     github: githubInstallationQuery.isSuccess ? githubConnected : undefined,
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
@@ -3941,22 +3937,23 @@ export function WorkspaceAutomationEditor({
         ? false
         : undefined,
   };
-  // A skill is not attached while an integration it needs is disconnected, and one that declares
-  // a risk is attached only after the user confirms it.
+  const suggestions = suggestWorkspaceAutomationAdditions({
+    form,
+    skillConnections,
+    connections: {
+      github: githubConnected,
+      gitlab: gitlabConnected,
+      semrush: usableSemrushConnections.length > 0,
+      ahrefs: ahrefsConnected,
+      zernio: usableZernioConnections.length > 0,
+    },
+    dismissed: dismissedSuggestions,
+  });
+  const addSkill = (skillId: string) =>
+    onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
+  // A skill that declares a risk is attached only after the user confirms it.
   const requestAddSkill = (skillId: string) => {
-    const skill = getWorkspaceAutomationSkill(skillId);
-    if (!skill) {
-      return;
-    }
-    const missingIntegrations = listMissingWorkspaceAutomationSkillIntegrations(
-      skill,
-      skillConnections,
-    );
-    if (missingIntegrations.length > 0) {
-      setBlockedSkill({ skillId, missingIntegrations });
-      return;
-    }
-    if (skill.risk) {
+    if (getWorkspaceAutomationSkill(skillId)?.risk) {
       setRiskySkillId(skillId);
       return;
     }
@@ -4158,54 +4155,6 @@ export function WorkspaceAutomationEditor({
           </TabsContent>
         ) : null}
       </Tabs>
-
-      <AlertDialog
-        open={blockedSkill !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setBlockedSkill(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {intl.formatMessage(workspaceAutomationFormMessages.blockedSkillTitle, {
-                name: blockedSkill ? getWorkspaceAutomationSkill(blockedSkill.skillId)?.name : "",
-              })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {intl.formatMessage(workspaceAutomationFormMessages.blockedSkillDescription, {
-                count: blockedSkill?.missingIntegrations.length ?? 0,
-                integrations: intl.formatList(
-                  (blockedSkill?.missingIntegrations ?? []).map((integration) =>
-                    intl.formatMessage(SKILL_INTEGRATION_LABELS[integration]),
-                  ),
-                  { type: "conjunction" },
-                ),
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              <FormattedMessage {...workspaceAutomationFormMessages.blockedSkillClose} />
-            </AlertDialogCancel>
-            {/* A new tab keeps the unsaved automation open. */}
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href={`/org/${organizationSlug}/integrations`}
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              }
-            >
-              <FormattedMessage {...workspaceAutomationFormMessages.blockedSkillOpenIntegrations} />
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog
         open={riskySkill !== null}
