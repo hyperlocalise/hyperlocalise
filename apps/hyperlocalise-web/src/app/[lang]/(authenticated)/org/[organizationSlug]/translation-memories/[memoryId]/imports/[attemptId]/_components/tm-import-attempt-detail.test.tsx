@@ -16,7 +16,11 @@ import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
-import { memoryInterchangeCountItems, TmImportDiagnosticList } from "./tm-import-attempt-detail";
+import {
+  memoryInterchangeCountItems,
+  TmImportDiagnosticList,
+  TmInterchangeFailureDetails,
+} from "./tm-import-attempt-detail";
 
 describe("TmImportDiagnosticList", () => {
   it("renders a zero-based diagnostic unit index", () => {
@@ -69,5 +73,32 @@ describe("memoryInterchangeCountItems", () => {
 
   it("does not invent import zeros when an export has no entry count yet", () => {
     expect(memoryInterchangeCountItems({ operation: "export", counts: null })).toEqual([]);
+  });
+});
+
+describe("TmInterchangeFailureDetails", () => {
+  it("shows the recorded reason when an export fails", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TmInterchangeFailureDetails
+          failureCode="export_failed"
+          failureMessage="The export file could not be written."
+        />
+      </IntlProvider>,
+    );
+
+    expect(screen.getByText("export_failed")).toBeInTheDocument();
+    expect(screen.getByText("Failure reason")).toBeInTheDocument();
+    expect(screen.getByText("The export file could not be written.")).toBeInTheDocument();
+  });
+
+  it("hides a blank failure reason", () => {
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TmInterchangeFailureDetails failureCode={null} failureMessage="   " />
+      </IntlProvider>,
+    );
+
+    expect(screen.queryByText("Failure reason")).not.toBeInTheDocument();
   });
 });

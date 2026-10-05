@@ -469,6 +469,27 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
   });
 
+  it("lists translation memory interchange attempts from go-svc", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        memoryImportAttempts: [],
+        nextCursor: null,
+        total: 0,
+        pagination: { limit: 20, returned: 0, hasMore: false },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await client.memory.importAttempts.list("acme", "memory-1", {
+      limit: 20,
+      cursor: "cursor-1",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/import-attempts?limit=20&cursor=cursor-1`,
+    );
+  });
+
   it("queues memory exports and resolves their signed download URL", async () => {
     const fetchMock = vi
       .fn()

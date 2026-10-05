@@ -361,6 +361,55 @@ describe("memory TMX import and export", () => {
     );
   });
 
+  it("returns export details and keeps the JSON report import-only", async () => {
+    const { identity, memory, organization, user } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const [failed] = await db
+      .insert(schema.memoryImportAttempts)
+      .values({
+        organizationId: organization.id,
+        memoryId: memory.id,
+        createdByUserId: user.id,
+        operation: "export",
+        status: "failed",
+        mode: "export",
+        format: "tmx",
+        failureCode: "export_failed",
+        failureMessage: "The export file could not be written.",
+      })
+      .returning({ id: schema.memoryImportAttempts.id });
+
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ][":attemptId"].$get(
+      {
+        param: { organizationSlug, memoryId: memory.id, attemptId: failed.id },
+      },
+      { headers },
+    );
+    expect(detail.status).toBe(200);
+    await expect(detail.json()).resolves.toMatchObject({
+      memoryImportAttempt: {
+        id: failed.id,
+        operation: "export",
+        failureCode: "export_failed",
+        failureMessage: "The export file could not be written.",
+      },
+      diagnostics: [],
+    });
+
+    const report = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"][
+      "import-attempts"
+    ][":attemptId"].report.$get(
+      {
+        param: { organizationSlug, memoryId: memory.id, attemptId: failed.id },
+      },
+      { headers },
+    );
+    expect(report.status).toBe(404);
+  });
+
   it("imports multilingual TMX, then re-imports the same tuids without duplicates", async () => {
     const { identity, memory } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);

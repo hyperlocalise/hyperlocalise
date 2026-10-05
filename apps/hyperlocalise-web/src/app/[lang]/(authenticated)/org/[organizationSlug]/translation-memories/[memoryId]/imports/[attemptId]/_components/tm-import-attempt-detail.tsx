@@ -79,6 +79,31 @@ class ImportReportRequestError extends Error {
   }
 }
 
+export function TmInterchangeFailureDetails({
+  failureCode,
+  failureMessage,
+}: {
+  failureCode: string | null;
+  failureMessage?: string | null;
+}) {
+  const message = failureMessage?.trim();
+  if (!failureCode && !message) return null;
+  return (
+    <>
+      {failureCode ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
+          <code className="text-xs">{failureCode}</code>
+        </MetadataItem>
+      ) : null}
+      {message ? (
+        <MetadataItem label={<FormattedMessage {...messages.failureMessage} />}>
+          {message}
+        </MetadataItem>
+      ) : null}
+    </>
+  );
+}
+
 function MetadataItem({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="min-w-0 space-y-1">
@@ -370,11 +395,10 @@ export function TmImportAttemptDetail({
             <MetadataItem label={<FormattedMessage {...messages.status} />}>
               <StatusBadge status={attempt.status} />
             </MetadataItem>
-            {attempt.failureCode ? (
-              <MetadataItem label={<FormattedMessage {...messages.failureCode} />}>
-                <code className="text-xs">{attempt.failureCode}</code>
-              </MetadataItem>
-            ) : null}
+            <TmInterchangeFailureDetails
+              failureCode={attempt.failureCode}
+              failureMessage={attempt.failureMessage}
+            />
             <MetadataItem label={<FormattedMessage {...messages.sha256} />}>
               <code className="break-all text-xs">{attempt.sourceSha256}</code>
             </MetadataItem>

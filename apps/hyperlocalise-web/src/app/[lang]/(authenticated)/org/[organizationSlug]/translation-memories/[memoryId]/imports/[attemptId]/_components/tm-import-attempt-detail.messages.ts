@@ -165,6 +165,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "P95tFJIvcW",
     description: "Import failure code field label",
   },
+  failureMessage: {
+    defaultMessage: "Failure reason",
+    id: "Rgp/V+Ndcw",
+    description: "Label for a recorded translation memory export failure message",
+  },
   sourceLanguage: {
     defaultMessage: "Header source language",
     id: "gZjFsvipta",

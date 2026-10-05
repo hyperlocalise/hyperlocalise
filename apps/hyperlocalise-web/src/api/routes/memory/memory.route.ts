@@ -327,6 +327,7 @@ function toMemoryImportAttemptRecord(
     diagnosticsExpiresAt: attempt.diagnosticsExpiresAt?.toISOString() ?? null,
     retentionPolicy: "indefinite",
     failureCode: attempt.failureCode,
+    failureMessage: attempt.failureMessage,
     createdAt: attempt.createdAt.toISOString(),
     completedAt: attempt.completedAt?.toISOString() ?? null,
   };
@@ -720,6 +721,7 @@ export function createMemoryRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           memoryId: memory.id,
           attemptId: params.attemptId,
+          operation: "import",
         });
         if (!result) return memoryNotFoundResponse(c);
 

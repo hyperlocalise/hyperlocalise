@@ -15095,6 +15095,10 @@
     "defaultMessage": "Name on the site",
     "description": "Label for a flag key field"
   },
+  "Rgp/V+Ndcw": {
+    "defaultMessage": "Failure reason",
+    "description": "Label for a recorded translation memory export failure message"
+  },
   "RhmMBU70/7": {
     "defaultMessage": "Launch campaign email",
     "description": "TM match context for a launch campaign string in the CAT mock"

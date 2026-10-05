@@ -415,6 +415,7 @@ export const memoryImportAttemptRecordSchema = z.object({
   diagnosticsExpiresAt: z.string().datetime().nullable(),
   retentionPolicy: z.literal("indefinite"),
   failureCode: z.string().nullable(),
+  failureMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   completedAt: z.string().datetime().nullable(),
 });

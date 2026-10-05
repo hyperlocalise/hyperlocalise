@@ -212,6 +212,8 @@ export async function getMemoryImportAttempt(input: {
   organizationId: string;
   memoryId: string;
   attemptId: string;
+  /** Restrict the lookup. The JSON report download stays import-only. */
+  operation?: "import";
 }): Promise<{ attempt: MemoryImportAttemptRecord; diagnostics: TmxIssue[] } | null> {
   const [row] = await db
     .select({
@@ -226,8 +228,7 @@ export async function getMemoryImportAttempt(input: {
         eq(schema.memoryImportAttempts.id, input.attemptId),
         eq(schema.memoryImportAttempts.organizationId, input.organizationId),
         eq(schema.memoryImportAttempts.memoryId, input.memoryId),
-        // JSON reports and unit diagnostics belong to imports. Export files use the signed result URL.
-        eq(schema.memoryImportAttempts.operation, "import"),
+        input.operation ? eq(schema.memoryImportAttempts.operation, input.operation) : undefined,
       ),
     )
     .limit(1);

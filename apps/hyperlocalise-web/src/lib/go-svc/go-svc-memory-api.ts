@@ -16,6 +16,7 @@ import type {
   GoSvcRequestOptions,
   MemoryEntry,
   MemoryExportJob,
+  MemoryInterchangeAttempt,
   MemoryInterchangeAttemptResponse,
   MemoryInterchangeDownloadUrl,
   MemoryProject,
@@ -271,7 +272,7 @@ export class GoSvcMemoryImportAttemptsApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{
-      memoryImportAttempts: GoSvcRecord[];
+      memoryImportAttempts: MemoryInterchangeAttempt[];
       nextCursor: string | null;
       total: number;
       pagination: { limit: number; returned: number; hasMore: boolean };
