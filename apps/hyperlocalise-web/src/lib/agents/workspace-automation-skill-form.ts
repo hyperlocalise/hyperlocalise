@@ -83,6 +83,10 @@ function enableSkillTool(
       return { ...form, createNativeTmsJobEnabled: true };
     case "assign_translate_with_agent":
       return { ...form, assignTranslateWithAgentEnabled: true };
+    case "list_issues":
+      return { ...form, listIssuesEnabled: true };
+    case "create_issue":
+      return { ...form, createIssueEnabled: true };
     case "notify_slack":
       return { ...form, slackEnabled: true };
     case "notify_email":
@@ -128,6 +132,10 @@ function disableSkillTool(
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":
       return { ...form, assignTranslateWithAgentEnabled: false };
+    case "list_issues":
+      return { ...form, listIssuesEnabled: false };
+    case "create_issue":
+      return { ...form, createIssueEnabled: false };
     case "notify_slack":
       return { ...form, slackEnabled: false, slackChannelId: "" };
     case "notify_email":

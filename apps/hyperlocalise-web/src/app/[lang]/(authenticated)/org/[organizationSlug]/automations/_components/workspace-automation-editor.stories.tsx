@@ -226,7 +226,7 @@ export const AddSkillEnablesTools: Story = {
     await expect(
       canvas.getByText(/Searches the public web\. Changes nothing\./),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("From skill")).toBeInTheDocument();
+    await expect(canvas.getByText("Required for skill")).toBeInTheDocument();
     await expect(canvas.getByText("1 tool")).toBeInTheDocument();
   },
 };
@@ -243,7 +243,7 @@ export const SuggestsFromInstructions: Story = {
     await expect(canvas.getByText("Suggested")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add Ahrefs" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Add Research the web" }));
-    await expect(canvas.getByText("From skill")).toBeInTheDocument();
+    await expect(canvas.getByText("Required for skill")).toBeInTheDocument();
     await expect(
       canvas.queryByRole("button", { name: "Add Research the web" }),
     ).not.toBeInTheDocument();
@@ -256,6 +256,21 @@ export const SuggestsFromInstructions: Story = {
   },
 };
 
+export const RiskySkillAsksFirst: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Email results/ }));
+    await expect(
+      await body.findByRole("alertdialog", { name: "Add Email results?" }),
+    ).toBeInTheDocument();
+    await expect(body.getByText(/cannot be recalled/)).toBeInTheDocument();
+    await expect(canvas.queryByText("Required for skill")).not.toBeInTheDocument();
+    await userEvent.click(body.getByRole("button", { name: "Add skill" }));
+    await expect(await canvas.findByText("Required for skill")).toBeInTheDocument();
+  },
+};
+
 export const CreateWithSkills: Story = {
   args: {
     form: ["review-translation-changes", "post-to-slack"].reduce(
@@ -265,11 +280,11 @@ export const CreateWithSkills: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByText("Review translation changes")).toBeInTheDocument();
-    await expect(canvas.getAllByText("From skill")).toHaveLength(2);
+    await expect(canvas.getAllByText("Required for skill")).toHaveLength(2);
     await userEvent.click(
       canvas.getByRole("button", { name: "Remove skill Post results to Slack" }),
     );
-    await expect(canvas.getAllByText("From skill")).toHaveLength(1);
+    await expect(canvas.getAllByText("Required for skill")).toHaveLength(1);
     await expect(canvas.getByText("1 tool")).toBeInTheDocument();
   },
 };

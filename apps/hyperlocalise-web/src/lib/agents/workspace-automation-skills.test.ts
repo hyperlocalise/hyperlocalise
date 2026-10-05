@@ -16,6 +16,7 @@ import { getAgentManifest, loadSharedSkill } from "@/agents/_runtime/loader";
 import { WORKSPACE_ORCHESTRATOR_TOOL_NAMES } from "@/agents/automations/workspace/agent/plan";
 
 import {
+  listWorkspaceAutomationSkillNamesByTool,
   listWorkspaceAutomationSkillTools,
   resolveWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
@@ -50,6 +51,27 @@ describe("workspace automation skills", () => {
         (skill) => skill.id,
       ),
     ).toEqual(["post-to-slack"]);
+  });
+
+  it("names the attached skills that need each tool", () => {
+    const namesByTool = listWorkspaceAutomationSkillNamesByTool([
+      "review-translation-changes",
+      "summarize-localisation-changes",
+      "post-to-slack",
+    ]);
+
+    expect(namesByTool.get("use_github_repository")).toEqual([
+      "Review translation changes",
+      "Summarise localisation changes",
+    ]);
+    expect(namesByTool.get("notify_slack")).toEqual(["Post results to Slack"]);
+    expect(namesByTool.get("notify_email")).toBeUndefined();
+  });
+
+  it("marks only the email skill as risky", () => {
+    expect(
+      WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.risk).map((skill) => skill.id),
+    ).toEqual(["email-results"]);
   });
 
   it("lists the tools of several skills without duplicates", () => {

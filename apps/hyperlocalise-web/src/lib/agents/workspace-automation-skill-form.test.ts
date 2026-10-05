@@ -139,6 +139,18 @@ describe("workspace automation skill form", () => {
     });
   });
 
+  it("switches both Queries tools on and off with the issue skill", () => {
+    const attached = addSkillToWorkspaceAutomationForm(
+      createDefaultWorkspaceAutomationFormState(),
+      "file-issues-for-findings",
+    );
+
+    expect(attached).toMatchObject({ listIssuesEnabled: true, createIssueEnabled: true });
+    expect(
+      removeSkillFromWorkspaceAutomationForm(attached, "file-issues-for-findings"),
+    ).toMatchObject({ skillIds: [], listIssuesEnabled: false, createIssueEnabled: false });
+  });
+
   it("saves a skill-only automation without instructions", () => {
     const form = {
       ...addSkillToWorkspaceAutomationForm(

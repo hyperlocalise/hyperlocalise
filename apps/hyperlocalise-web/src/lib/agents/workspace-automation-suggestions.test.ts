@@ -63,6 +63,13 @@ describe("workspace automation suggestions", () => {
     expect(suggest("Find backlinks for our domain.")).toEqual(["tool:ahrefs"]);
   });
 
+  it("suggests the issue skill, not the separate Queries tools", () => {
+    expect(suggest("File an issue for every blocker.")).toEqual(["skill:file-issues-for-findings"]);
+    expect(suggest("Create a ticket for each issue found.")).toEqual([
+      "skill:file-issues-for-findings",
+    ]);
+  });
+
   it("matches whole words in any case, with plurals and hyphens", () => {
     expect(suggest("Comment on new PRs.")).toContain("skill:comment-on-pull-request");
     expect(suggest("Plan the next sprint.")).toEqual([]);

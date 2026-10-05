@@ -37,8 +37,6 @@ export const MAX_WORKSPACE_AUTOMATION_SUGGESTIONS = 5;
 export const WORKSPACE_AUTOMATION_SUGGESTED_TOOL_IDS = [
   "github_sync",
   "gitlab",
-  "list_issues",
-  "create_issue",
   "semrush",
   "ahrefs",
   "zernio",
@@ -62,23 +60,6 @@ const SUGGESTED_TOOL_KEYWORDS: Record<
     weak: [["validation", "validate"], "coverage", REPOSITORY_KEYWORDS],
   },
   gitlab: { strong: ["gitlab", "merge request"], weak: [] },
-  list_issues: {
-    strong: [["open issue", "existing issue", "list issues"]],
-    weak: ["queries", ["backlog", "triage"], "issue"],
-  },
-  create_issue: {
-    strong: [
-      [
-        "file an issue",
-        "file issues",
-        "create issue",
-        "create an issue",
-        "open a ticket",
-        "raise a query",
-      ],
-    ],
-    weak: ["ticket", "issue", ["track", "follow up"]],
-  },
   semrush: {
     strong: ["semrush", "keyword research", "search volume"],
     weak: ["seo", ["keyword", "ranking"], ["traffic", "organic"]],
@@ -175,10 +156,6 @@ function isSuggestedToolEnabled(
       return form.githubEnabled && form.githubMode === "sync";
     case "gitlab":
       return form.gitlabEnabled;
-    case "list_issues":
-      return form.listIssuesEnabled;
-    case "create_issue":
-      return form.createIssueEnabled;
     case "semrush":
       return form.semrushEnabled;
     case "ahrefs":
@@ -207,9 +184,6 @@ function resolveSuggestedToolAvailability(
       return form.githubEnabled || form.gitlabEnabled ? null : requires(connections.github);
     case "gitlab":
       return form.githubEnabled || form.githubCommentEnabled ? null : requires(connections.gitlab);
-    case "list_issues":
-    case "create_issue":
-      return "available";
     case "semrush":
       return requires(connections.semrush);
     case "ahrefs":
@@ -317,10 +291,6 @@ export function addSuggestedToolToWorkspaceAutomationForm(
         githubCommentEnabled: false,
         githubInstallationRepositoryId: "",
       };
-    case "list_issues":
-      return { ...form, listIssuesEnabled: true };
-    case "create_issue":
-      return { ...form, createIssueEnabled: true };
     case "semrush":
       return {
         ...form,

@@ -50,7 +50,18 @@ import {
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { IntegrationLogo } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integration-logo";
 import { KnowledgeMemoryEditor } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/knowledge/_components/knowledge-memory-editor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
   ComingSoonBadge,
@@ -112,12 +123,13 @@ import {
 } from "@/lib/agents/workspace-automation-types";
 import {
   addSkillToWorkspaceAutomationForm,
-  listWorkspaceAutomationFormSkillTools,
   removeSkillFromWorkspaceAutomationForm,
   resolveWorkspaceAutomationSkillAvailability,
   type WorkspaceAutomationSkillDefaults,
 } from "@/lib/agents/workspace-automation-skill-form";
 import {
+  getWorkspaceAutomationSkill,
+  listWorkspaceAutomationSkillNamesByTool,
   resolveWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
 } from "@/lib/agents/workspace-automation-skills";
@@ -375,21 +387,37 @@ function EditorRow({
 
 function DeleteToolButton({
   disabled,
-  fromSkill,
   label,
   onClick,
+  requiredBySkills = [],
 }: {
   disabled?: boolean;
-  /** The tool belongs to an attached skill, so it is removed by removing the skill. */
-  fromSkill?: boolean;
   label: string;
   onClick: () => void;
+  /** Attached skills that need the tool. It is then removed by removing those skills. */
+  requiredBySkills?: string[];
 }) {
-  if (fromSkill) {
+  const intl = useIntl();
+
+  if (requiredBySkills.length > 0) {
     return (
-      <Badge variant="secondary">
-        <FormattedMessage {...workspaceAutomationFormMessages.fromSkillBadge} />
-      </Badge>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Badge variant="secondary" tabIndex={0}>
+              <FormattedMessage
+                {...workspaceAutomationFormMessages.requiredForSkillBadge}
+                values={{ count: requiredBySkills.length }}
+              />
+            </Badge>
+          }
+        />
+        <TooltipContent side="top" align="end" className="max-w-xs">
+          {intl.formatMessage(workspaceAutomationFormMessages.requiredForSkillTooltip, {
+            skills: intl.formatList(requiredBySkills, { type: "conjunction" }),
+          })}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -2025,16 +2053,16 @@ function ContentfulTargetLocalesPicker({
 }
 
 function SkillsSettings({
-  defaults,
   disabled,
   error,
   form,
+  onAddSkill,
   onChange,
 }: {
-  defaults: WorkspaceAutomationSkillDefaults;
   disabled?: boolean;
   error?: string;
   form: WorkspaceAutomationFormState;
+  onAddSkill: (skillId: string) => void;
   onChange: (next: WorkspaceAutomationFormState) => void;
 }) {
   const intl = useIntl();
@@ -2092,9 +2120,7 @@ function SkillsSettings({
                   key={skill.id}
                   disabled={availability !== "available"}
                   className="items-start"
-                  onClick={() =>
-                    onChange(addSkillToWorkspaceAutomationForm(form, skill.id, defaults))
-                  }
+                  onClick={() => onAddSkill(skill.id)}
                 >
                   <SparkleIcon className="mt-0.5 size-4 shrink-0" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -2128,8 +2154,6 @@ function SkillsSettings({
 const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageDescriptor> = {
   github_sync: workspaceAutomationFormMessages.githubSyncWorkflows,
   gitlab: workspaceAutomationFormMessages.useGitlabRepo,
-  list_issues: workspaceAutomationFormMessages.listIssues,
-  create_issue: workspaceAutomationFormMessages.createIssue,
   semrush: workspaceAutomationFormMessages.semrush,
   ahrefs: workspaceAutomationFormMessages.ahrefs,
   zernio: workspaceAutomationFormMessages.zernio,
@@ -2287,7 +2311,7 @@ function ToolsSettings({
   const createNativeTmsJobTargetLocalesFieldId = "create-native-tms-job-target-locales";
   const intl = useIntl();
   const [memoriesOpen, setMemoriesOpen] = useState(false);
-  const skillTools = listWorkspaceAutomationFormSkillTools(form);
+  const skillTools = listWorkspaceAutomationSkillNamesByTool(form.skillIds);
 
   return (
     <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.toolsSection)}>
@@ -2375,7 +2399,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("use_github_repository")}
+                requiredBySkills={skillTools.get("use_github_repository")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeGithubRepoTool)}
                 onClick={() =>
                   onChange({
@@ -2550,7 +2574,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("notify_github_comment")}
+                requiredBySkills={skillTools.get("notify_github_comment")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeGithubCommentNotifications,
                 )}
@@ -2599,7 +2623,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("notify_slack")}
+                requiredBySkills={skillTools.get("notify_slack")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeSlackNotifications)}
                 onClick={() => onChange({ ...form, slackEnabled: false, slackChannelId: "" })}
               />
@@ -2645,7 +2669,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("notify_email")}
+                requiredBySkills={skillTools.get("notify_email")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeEmailNotifications)}
                 onClick={() =>
                   onChange({
@@ -2768,7 +2792,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("run_contentful_translation")}
+                requiredBySkills={skillTools.get("run_contentful_translation")}
                 label={intl.formatMessage(
                   workspaceAutomationFormMessages.removeContentfulTranslate,
                 )}
@@ -2948,7 +2972,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("use_crowdin")}
+                requiredBySkills={skillTools.get("use_crowdin")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCrowdinTool)}
                 onClick={() =>
                   onChange({
@@ -3005,7 +3029,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("create_native_tms_job")}
+                requiredBySkills={skillTools.get("create_native_tms_job")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateJob)}
                 onClick={() =>
                   onChange({
@@ -3081,7 +3105,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("assign_translate_with_agent")}
+                requiredBySkills={skillTools.get("assign_translate_with_agent")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslateWithAgent)}
                 onClick={() =>
                   onChange({
@@ -3104,6 +3128,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("list_issues")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeListIssues)}
                 onClick={() => onChange({ ...form, listIssuesEnabled: false })}
               />
@@ -3121,6 +3146,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
+                requiredBySkills={skillTools.get("create_issue")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateIssue)}
                 onClick={() => onChange({ ...form, createIssueEnabled: false })}
               />
@@ -3362,7 +3388,7 @@ function ToolsSettings({
             action={
               <DeleteToolButton
                 disabled={disabled}
-                fromSkill={skillTools.has("use_web_search")}
+                requiredBySkills={skillTools.get("use_web_search")}
                 label={intl.formatMessage(workspaceAutomationFormMessages.removeWebSearchTool)}
                 onClick={() =>
                   onChange({
@@ -3617,6 +3643,7 @@ export function WorkspaceAutomationEditor({
   const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [riskySkillId, setRiskySkillId] = useState<string | null>(null);
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3874,9 +3901,20 @@ export function WorkspaceAutomationEditor({
     },
     dismissed: dismissedSuggestions,
   });
+  const addSkill = (skillId: string) =>
+    onChange(addSkillToWorkspaceAutomationForm(form, skillId, skillDefaults));
+  // A skill that declares a risk is attached only after the user confirms it.
+  const requestAddSkill = (skillId: string) => {
+    if (getWorkspaceAutomationSkill(skillId)?.risk) {
+      setRiskySkillId(skillId);
+      return;
+    }
+    addSkill(skillId);
+  };
+  const riskySkill = riskySkillId ? getWorkspaceAutomationSkill(riskySkillId) : null;
   const addSuggestion = (suggestion: WorkspaceAutomationSuggestion) => {
     if (suggestion.kind === "skill") {
-      onChange(addSkillToWorkspaceAutomationForm(form, suggestion.skill.id, skillDefaults));
+      requestAddSkill(suggestion.skill.id);
       return;
     }
     onChange(
@@ -3995,14 +4033,6 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
           />
 
-          <SkillsSettings
-            defaults={skillDefaults}
-            disabled={disabled}
-            error={errors.skills}
-            form={form}
-            onChange={onChange}
-          />
-
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
           >
@@ -4034,6 +4064,14 @@ export function WorkspaceAutomationEditor({
               }
             />
           </EditorSection>
+
+          <SkillsSettings
+            disabled={disabled}
+            error={errors.skills}
+            form={form}
+            onAddSkill={requestAddSkill}
+            onChange={onChange}
+          />
 
           <ToolsSettings
             automationId={automationId}
@@ -4068,6 +4106,41 @@ export function WorkspaceAutomationEditor({
           </TabsContent>
         ) : null}
       </Tabs>
+
+      <AlertDialog
+        open={riskySkill !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRiskySkillId(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intl.formatMessage(workspaceAutomationFormMessages.riskySkillTitle, {
+                name: riskySkill?.name ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{riskySkill?.risk}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...workspaceAutomationFormMessages.riskySkillCancel} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (riskySkillId) {
+                  addSkill(riskySkillId);
+                }
+                setRiskySkillId(null);
+              }}
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.riskySkillConfirm} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

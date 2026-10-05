@@ -23,6 +23,9 @@ follow.
 - Each skill's procedure is a markdown file with the same id under
   `src/agents/automations/workspace/agent/skills/`. A test keeps the two in step.
 - Skills ship with the app. Customer-authored skills are out of scope.
+- A skill may declare a `risk`: a plain statement of what it does that cannot be undone. The
+  editor shows it and asks for confirmation before attaching the skill, from the menu or from a
+  suggestion. Only "Email results" declares one.
 
 ### Expand at save
 
@@ -36,6 +39,9 @@ a saved automation new tools.
 - Settings a skill cannot know (repository, Slack channel, Crowdin project, recipients) stay in
   the tool rows. They are prefilled when the workspace has one obvious choice.
 - "Add tool" stays for tools no skill covers.
+- The editor shows Triggers, Agent Instructions, Skills, then Tools. A tool row that attached
+  skills need carries a "Required for skill" badge in place of its remove button; hovering it
+  names the skills.
 
 ### Persistence
 
@@ -66,8 +72,8 @@ instructions. Suggestions appear as chips under the instructions box. A chip onl
 is added until it is clicked, and a chip can be dismissed.
 
 - Matching is by keyword, in the browser, with no library and no model call. Each skill carries
-  its terms in the catalogue; tools that no skill covers (GitHub sync, GitLab, the two Queries
-  tools, Semrush, Ahrefs, Zernio) carry theirs in `workspace-automation-suggestions.ts`.
+  its terms in the catalogue; tools that no skill covers (GitHub sync, GitLab, Semrush, Ahrefs,
+  Zernio) carry theirs in `workspace-automation-suggestions.ts`.
 - A strong term, such as "Slack" or "Crowdin", suggests its item on its own. Weak terms, such as
   "review" or "translate", suggest an item only when two different ones match. Alternatives for
   one idea count once, so naming a repository alone suggests nothing.
@@ -79,6 +85,12 @@ is added until it is clicked, and a chip can be dismissed.
   suggested. A skill that does not fit the trigger, or a tool whose integration is not connected,
   is shown disabled with the reason.
 - MCP server, Memories and Knowledge files are never suggested.
+
+### Tools left without a skill
+
+- Semrush and Ahrefs: every call spends paid API units from the customer's own subscription.
+- Zernio: creates paid ads.
+- GitHub sync and GitLab: not decided.
 
 ## Out of scope
 

@@ -24,6 +24,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "run_contentful_translation",
   "create_native_tms_job",
   "assign_translate_with_agent",
+  "list_issues",
+  "create_issue",
   "notify_slack",
   "notify_email",
   "notify_github_comment",
@@ -61,6 +63,8 @@ export type WorkspaceAutomationSkill = {
   triggers: readonly WorkspaceAutomationSkillTrigger[];
   sharedSkills: readonly string[];
   keywords: WorkspaceAutomationKeywords;
+  /** What the skill does that cannot be undone. The user confirms this before it is attached. */
+  risk?: string;
 };
 
 const RUN_TRIGGERS = ["manual", "scheduled"] as const;
@@ -189,6 +193,30 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "file-issues-for-findings",
+    name: "File issues for findings",
+    description:
+      "Check the project's open Queries issues, then file one issue for each new finding.",
+    grants: "Reads and creates Queries issues in the project, up to 20 in a run.",
+    tools: ["list_issues", "create_issue"],
+    triggers: REPOSITORY_TRIGGERS,
+    sharedSkills: [],
+    keywords: {
+      strong: [
+        [
+          "file an issue",
+          "file issues",
+          "create issue",
+          "create an issue",
+          "open a ticket",
+          "raise a query",
+        ],
+        ["open issue", "existing issue", "list issues"],
+      ],
+      weak: ["queries", "ticket", "issue", ["backlog", "triage"], ["track", "follow up"]],
+    },
+  },
+  {
     id: "post-to-slack",
     name: "Post results to Slack",
     description: "Post the outcome of each run to a Slack channel.",
@@ -215,6 +243,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
       weak: ["recipient", ["notify", "alert"]],
       patterns: [/[\w.+-]+@[\w-]+\.[\w.-]+/u],
     },
+    risk: "Emails are sent as soon as a run finishes and cannot be recalled. They go from your connected sender to every recipient you list, and the agent writes the text.",
   },
   {
     id: "comment-on-pull-request",
@@ -244,6 +273,19 @@ export function resolveWorkspaceAutomationSkills(
   return [...new Set(skillIds)]
     .map((skillId) => getWorkspaceAutomationSkill(skillId))
     .filter((skill): skill is WorkspaceAutomationSkill => skill !== null);
+}
+
+/** Names of the attached skills that declare each tool. */
+export function listWorkspaceAutomationSkillNamesByTool(
+  skillIds: readonly string[],
+): Map<WorkspaceAutomationSkillTool, string[]> {
+  const namesByTool = new Map<WorkspaceAutomationSkillTool, string[]>();
+  for (const skill of resolveWorkspaceAutomationSkills(skillIds)) {
+    for (const tool of skill.tools) {
+      namesByTool.set(tool, [...(namesByTool.get(tool) ?? []), skill.name]);
+    }
+  }
+  return namesByTool;
 }
 
 export function workspaceAutomationSkillSupportsTrigger(
@@ -305,6 +347,10 @@ export function workspaceAutomationSkillToolEnabled(
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":
       return Boolean(toolConfig.assignTranslateWithAgent?.enabled);
+    case "list_issues":
+      return Boolean(toolConfig.listIssues?.enabled);
+    case "create_issue":
+      return Boolean(toolConfig.createIssue?.enabled);
     case "notify_slack":
       return Boolean(toolConfig.slack?.enabled);
     case "notify_email":

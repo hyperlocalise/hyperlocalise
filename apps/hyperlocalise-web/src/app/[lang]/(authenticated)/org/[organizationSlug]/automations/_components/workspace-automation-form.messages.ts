@@ -640,10 +640,32 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "PLm70+Vo7Q",
     description: "Shortcut hint when a skill does not work with the selected trigger",
   },
-  fromSkillBadge: {
-    defaultMessage: "From skill",
-    id: "dyqxYYUMI3",
-    description: "Badge on a tool row that an attached skill needs",
+  requiredForSkillBadge: {
+    defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
+    id: "CwUciV9/fZ",
+    description: "Badge on a tool row that one or more attached skills need",
+  },
+  requiredForSkillTooltip: {
+    defaultMessage: "Required for {skills}",
+    id: "1itlYEshpl",
+    description:
+      "Tooltip on the badge of a tool row, listing the attached skills that need the tool",
+  },
+  riskySkillTitle: {
+    defaultMessage: "Add {name}?",
+    id: "NRfaLdr7/e",
+    description:
+      "Title of the confirmation shown before attaching a skill that does something irreversible",
+  },
+  riskySkillConfirm: {
+    defaultMessage: "Add skill",
+    id: "u6vs4VuGx2",
+    description: "Button that confirms attaching a risky skill",
+  },
+  riskySkillCancel: {
+    defaultMessage: "Cancel",
+    id: "pYrkNX1dan",
+    description: "Button that cancels attaching a risky skill",
   },
   instructionsWithSkillsPlaceholder: {
     defaultMessage:
