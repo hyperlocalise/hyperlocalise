@@ -651,6 +651,23 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "kzwi13YrTF",
     description: "Placeholder for the automation instructions textarea when a skill is attached",
   },
+  suggestionsLabel: {
+    defaultMessage: "Suggested",
+    id: "boofVI7NrL",
+    description:
+      "Label before the skills and tools suggested from the automation name and instructions",
+  },
+  addSuggestion: {
+    defaultMessage: "Add {name}",
+    id: "M6GfZRzYV+",
+    description:
+      "Accessible label for the button that adds a suggested skill or tool to the automation",
+  },
+  dismissSuggestion: {
+    defaultMessage: "Dismiss suggestion {name}",
+    id: "9hl7/enPE5",
+    description: "Accessible label for the button that hides a suggested skill or tool",
+  },
   toolsSection: {
     defaultMessage: "Tools",
     id: "Z39eNFe81L",

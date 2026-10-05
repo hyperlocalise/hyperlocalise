@@ -59,6 +59,27 @@ a saved automation new tools.
 Templates whose work is covered by skills attach those skills and leave instructions empty.
 Other templates are unchanged.
 
+### Suggestions
+
+The editor suggests skills and tools from what the user types in the automation's name and
+instructions. Suggestions appear as chips under the instructions box. A chip only suggests: nothing
+is added until it is clicked, and a chip can be dismissed.
+
+- Matching is by keyword, in the browser, with no library and no model call. Each skill carries
+  its terms in the catalogue; tools that no skill covers (GitHub sync, GitLab, the two Queries
+  tools, Semrush, Ahrefs, Zernio) carry theirs in `workspace-automation-suggestions.ts`.
+- A strong term, such as "Slack" or "Crowdin", suggests its item on its own. Weak terms, such as
+  "review" or "translate", suggest an item only when two different ones match. Alternatives for
+  one idea count once, so naming a repository alone suggests nothing.
+- Terms match whole words in any case, with a plain plural. An email address and a `#channel`
+  name are strong signals.
+- Negation is not detected. Instructions tell the agent what to do, so a strong term is taken to
+  mean the user wants that item.
+- Attached skills, tools already on, and tools that conflict with the repository in use are not
+  suggested. A skill that does not fit the trigger, or a tool whose integration is not connected,
+  is shown disabled with the reason.
+- MCP server, Memories and Knowledge files are never suggested.
+
 ## Out of scope
 
 - Letting the model decide per run whether to call a skill's tool. Every planned tool is still
@@ -77,3 +98,5 @@ Other templates are unchanged.
 - Run-time tests: composed instructions include skill procedures and shared skills; the
   dispatcher snapshots `skillIds`.
 - Editor stories for adding and removing a skill.
+- Suggestion tests: strong and weak matching, whole-word matching, ordering, filtering of items
+  already added, and the editor story for adding and dismissing a chip.

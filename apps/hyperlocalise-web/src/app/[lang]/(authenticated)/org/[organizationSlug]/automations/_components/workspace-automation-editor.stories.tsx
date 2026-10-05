@@ -231,6 +231,31 @@ export const AddSkillEnablesTools: Story = {
   },
 };
 
+export const SuggestsFromInstructions: Story = {
+  args: {
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      name: "Market brief",
+      instructions: "Research competitors each morning, post a brief to Slack and check Ahrefs.",
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByText("Suggested")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add Ahrefs" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add Research the web" }));
+    await expect(canvas.getByText("From skill")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Add Research the web" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Dismiss suggestion Post results to Slack" }),
+    );
+    await expect(
+      canvas.queryByRole("button", { name: "Add Post results to Slack" }),
+    ).not.toBeInTheDocument();
+  },
+};
+
 export const CreateWithSkills: Story = {
   args: {
     form: ["review-translation-changes", "post-to-slack"].reduce(

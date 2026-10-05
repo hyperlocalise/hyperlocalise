@@ -30,9 +30,10 @@ import {
   SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
   siGithub,
@@ -120,6 +121,12 @@ import {
   resolveWorkspaceAutomationSkills,
   WORKSPACE_AUTOMATION_SKILLS,
 } from "@/lib/agents/workspace-automation-skills";
+import {
+  addSuggestedToolToWorkspaceAutomationForm,
+  suggestWorkspaceAutomationAdditions,
+  type WorkspaceAutomationSuggestedToolId,
+  type WorkspaceAutomationSuggestion,
+} from "@/lib/agents/workspace-automation-suggestions";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
@@ -2118,6 +2125,97 @@ function SkillsSettings({
   );
 }
 
+const SUGGESTED_TOOL_LABELS: Record<WorkspaceAutomationSuggestedToolId, MessageDescriptor> = {
+  github_sync: workspaceAutomationFormMessages.githubSyncWorkflows,
+  gitlab: workspaceAutomationFormMessages.useGitlabRepo,
+  list_issues: workspaceAutomationFormMessages.listIssues,
+  create_issue: workspaceAutomationFormMessages.createIssue,
+  semrush: workspaceAutomationFormMessages.semrush,
+  ahrefs: workspaceAutomationFormMessages.ahrefs,
+  zernio: workspaceAutomationFormMessages.zernio,
+};
+
+function SuggestionChips({
+  disabled,
+  onAdd,
+  onDismiss,
+  suggestions,
+}: {
+  disabled?: boolean;
+  onAdd: (suggestion: WorkspaceAutomationSuggestion) => void;
+  onDismiss: (suggestion: WorkspaceAutomationSuggestion) => void;
+  suggestions: WorkspaceAutomationSuggestion[];
+}) {
+  const intl = useIntl();
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-2">
+      <span className="text-xs text-muted-foreground">
+        <FormattedMessage {...workspaceAutomationFormMessages.suggestionsLabel} />
+      </span>
+      {suggestions.map((suggestion) => {
+        const name =
+          suggestion.kind === "skill"
+            ? suggestion.skill.name
+            : intl.formatMessage(SUGGESTED_TOOL_LABELS[suggestion.toolId]);
+        const unavailableHint =
+          suggestion.availability === "trigger_mismatch"
+            ? workspaceAutomationFormMessages.skillOtherTriggerShortcut
+            : suggestion.availability === "connect_first"
+              ? workspaceAutomationFormMessages.connectFirstShortcut
+              : null;
+
+        return (
+          <span
+            key={suggestion.key}
+            className="inline-flex items-center rounded-full border border-border bg-background"
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={disabled || unavailableHint !== null}
+              aria-label={intl.formatMessage(workspaceAutomationFormMessages.addSuggestion, {
+                name,
+              })}
+              className="h-7 gap-1.5 rounded-full pr-1.5 pl-2.5 text-xs"
+              onClick={() => onAdd(suggestion)}
+            >
+              {suggestion.kind === "skill" ? (
+                <SparkleIcon className="size-3.5" />
+              ) : (
+                <PlusIcon className="size-3.5" />
+              )}
+              {name}
+              {unavailableHint ? (
+                <span className="text-muted-foreground">
+                  <FormattedMessage {...unavailableHint} />
+                </span>
+              ) : null}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              disabled={disabled}
+              aria-label={intl.formatMessage(workspaceAutomationFormMessages.dismissSuggestion, {
+                name,
+              })}
+              className="mr-0.5 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={() => onDismiss(suggestion)}
+            >
+              <XIcon />
+            </Button>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function ToolsSettings({
   automationId,
   canUpdateKnowledgeMemory,
@@ -3516,6 +3614,9 @@ export function WorkspaceAutomationEditor({
 }) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const { client: goSvcClient } = useGoSvcClient();
 
   const projectsQuery = useQuery({
@@ -3756,6 +3857,40 @@ export function WorkspaceAutomationEditor({
     contentfulConnectionId:
       contentfulConnections.length === 1 ? contentfulConnections[0]?.id : undefined,
   };
+  const usableSemrushConnections = semrushConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const usableZernioConnections = zernioConnections.filter(
+    (connection) => connection.enabled && connection.validationStatus === "valid",
+  );
+  const suggestions = suggestWorkspaceAutomationAdditions({
+    form,
+    connections: {
+      github: githubConnected,
+      gitlab: gitlabConnected,
+      semrush: usableSemrushConnections.length > 0,
+      ahrefs: ahrefsConnected,
+      zernio: usableZernioConnections.length > 0,
+    },
+    dismissed: dismissedSuggestions,
+  });
+  const addSuggestion = (suggestion: WorkspaceAutomationSuggestion) => {
+    if (suggestion.kind === "skill") {
+      onChange(addSkillToWorkspaceAutomationForm(form, suggestion.skill.id, skillDefaults));
+      return;
+    }
+    onChange(
+      addSuggestedToolToWorkspaceAutomationForm(form, suggestion.toolId, {
+        githubInstallationRepositoryId: skillDefaults.githubInstallationRepositoryId,
+        gitlabPathWithNamespace: resolveDefaultGitlabProject(form, gitlabProjects)
+          ?.pathWithNamespace,
+        semrushConnectionId:
+          usableSemrushConnections.length === 1 ? usableSemrushConnections[0]?.id : undefined,
+        zernioConnectionId:
+          usableZernioConnections.length === 1 ? usableZernioConnections[0]?.id : undefined,
+      }),
+    );
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -3890,6 +4025,14 @@ export function WorkspaceAutomationEditor({
               />
             </div>
             <FieldError message={errors.instructions} />
+            <SuggestionChips
+              disabled={disabled}
+              suggestions={suggestions}
+              onAdd={addSuggestion}
+              onDismiss={(suggestion) =>
+                setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
+              }
+            />
           </EditorSection>
 
           <ToolsSettings
