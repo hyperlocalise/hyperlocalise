@@ -73,6 +73,7 @@ type handler struct {
 	activityLog        activityLogPublisher
 	contentEditor      *editorCatAPI
 	projects           *projectAPI
+	overview           *overviewAPI
 	publicTranslations *publicTranslationsAPI
 	workspace          *workspaceAPI
 	autumn             *autumn.Client
@@ -126,6 +127,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.projects != nil {
 		h.projects.register(mux, verifier)
+	}
+	if h.overview != nil {
+		h.overview.register(mux, verifier)
 	}
 	if h.publicTranslations != nil {
 		h.publicTranslations.register(mux)

@@ -67,7 +67,6 @@ import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createReportsRoutes } from "./routes/reports/reports.route";
-import { createOverviewRoutes } from "./routes/overview/overview.route";
 
 export type OrgScopedRouteOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -191,8 +190,7 @@ export function createOrgWorkspaceRoutes() {
     .route("/workspace", createWorkspaceRoutes())
     .route("/billing", createBillingRoutes())
     .route("/api-keys", createApiKeyRoutes())
-    .route("/reports", createReportsRoutes())
-    .route("/overview", createOverviewRoutes());
+    .route("/reports", createReportsRoutes());
 }
 
 export function createOrgScopedAppRoutes(options: OrgScopedRouteOptions) {

@@ -467,7 +467,43 @@ describe("GoSvcClient", () => {
     await expect(request.json("/v1/orgs/acme/teams")).rejects.toBe(abortError);
   });
 
-  it("deletes an issue-sheet query over DELETE", async () => {
+  it("loads overview project extras for selected live ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ projects: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.overview.projects("acme / eu", {
+      query: { id: ["ext:crowdin:oldest", "ext:crowdin:older"] },
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/overview/projects?id=ext%3Acrowdin%3Aoldest&id=ext%3Acrowdin%3Aolder`,
+    );
+  });
+
+  it("loads overview sections from dedicated go-svc routes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        metrics: {
+          jobs: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+          translations: { count: 0, series: [0, 0, 0, 0, 0, 0, 0] },
+          automations: null,
+          issues: { open: 0, p1: 0 },
+        },
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await client.overview.metrics("acme / eu");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/overview/metrics`);
+    expect(init.method).toBe("GET");
+  });
+
+  it("deletes issue-sheet resources with encoded path segments", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     const client = clientWith(fetchMock);
 
