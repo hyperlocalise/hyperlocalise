@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestDecodeMemoryInterchangeMessage(t *testing.T) {
 	tests := []struct {
@@ -24,5 +27,15 @@ func TestDecodeMemoryInterchangeMessage(t *testing.T) {
 				t.Fatalf("decodeMemoryInterchangeMessage() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestPermanentMemoryInterchangeFailure(t *testing.T) {
+	permanent := permanentMemoryInterchangeFailure(errors.New("invalid format"))
+	if !isPermanentMemoryInterchangeFailure(permanent) {
+		t.Fatal("expected wrapped permanent failure to be classified as permanent")
+	}
+	if isPermanentMemoryInterchangeFailure(errors.New("temporary storage failure")) {
+		t.Fatal("expected unwrapped failure to remain retryable")
 	}
 }

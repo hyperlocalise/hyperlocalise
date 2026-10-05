@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -18,6 +19,23 @@ import (
 )
 
 const MAX_MEMORY_INTERCHANGE_BYTES int64 = 100 * 1024 * 1024
+
+type permanentMemoryInterchangeError struct {
+	cause error
+}
+
+func (e permanentMemoryInterchangeError) Error() string { return e.cause.Error() }
+
+func (e permanentMemoryInterchangeError) Unwrap() error { return e.cause }
+
+func permanentMemoryInterchangeFailure(err error) error {
+	return permanentMemoryInterchangeError{cause: err}
+}
+
+func isPermanentMemoryInterchangeFailure(err error) bool {
+	var permanent permanentMemoryInterchangeError
+	return errors.As(err, &permanent)
+}
 
 func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message memoryInterchangeMessage) error {
 	var operation, mode, format, location, sourceKey string
@@ -43,7 +61,13 @@ func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, object
 	}
 	failureCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, _ = pool.Exec(failureCtx, `update memory_import_attempts set status='queued', processing_started_at=null, failure_code='memory_interchange_retryable', failure_message=$2, completed_at=null where id=$1 and status='running'`, message.AttemptID, safeFailureMessage(runErr))
+	status := "queued"
+	failureCode := "memory_interchange_retryable"
+	if isPermanentMemoryInterchangeFailure(runErr) {
+		status = "failed"
+		failureCode = "memory_interchange_failed"
+	}
+	_, _ = pool.Exec(failureCtx, `update memory_import_attempts set status=$2, processing_started_at=null, failure_code=$3, failure_message=$4, completed_at=case when $2='failed' then now() else null end where id=$1 and status='running'`, message.AttemptID, status, failureCode, safeFailureMessage(runErr))
 	return runErr
 }
 
@@ -57,7 +81,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		return err
 	}
 	if info.Size <= 0 || info.Size > MAX_MEMORY_INTERCHANGE_BYTES {
-		return fmt.Errorf("memory import object exceeds the 100 MB limit")
+		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import object exceeds the 100 MB limit"))
 	}
 	body, _, err := store.Get(ctx, key)
 	if err != nil {
@@ -69,7 +93,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		return err
 	}
 	if int64(len(data)) > MAX_MEMORY_INTERCHANGE_BYTES {
-		return fmt.Errorf("memory import object exceeds the 100 MB limit")
+		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import object exceeds the 100 MB limit"))
 	}
 	maxUnits := 1_000_000
 	var parsedOptions struct {
@@ -80,7 +104,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	}
 	candidates, issues, header, err := memoryinterchange.Parse(format, string(data))
 	if err != nil {
-		return err
+		return permanentMemoryInterchangeFailure(err)
 	}
 	if len(candidates) > maxUnits {
 		candidates = candidates[:maxUnits]
@@ -120,7 +144,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		return err
 	}
 	if memoryStatus == "archived" {
-		return fmt.Errorf("translation memory is archived")
+		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
 	}
 	for _, candidate := range candidates {
 		var id string
