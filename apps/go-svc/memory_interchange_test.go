@@ -128,3 +128,28 @@ func TestMemoryImportForbiddenForMember(t *testing.T) {
 	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
 	require.Equal(t, 403, rec.Code)
 }
+
+func TestMemoryImportAttemptStatusOnPartialParseErrors(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	id := scope.MustMemory(t, "", "Product TM")
+	tmx := `<?xml version="1.0" encoding="UTF-8"?><tmx version="1.4"><header srclang="en-US"/><body>` +
+		`<tu tuid="good"><tuv xml:lang="en-US"><seg>Hello</seg></tuv><tuv xml:lang="fr-FR"><seg>Bonjour</seg></tuv></tu>` +
+		`<tu tuid="bad"><tuv xml:lang="en-US"><seg>Only one locale</seg></tuv></tu>` +
+		`</body></tmx>`
+	body, err := json.Marshal(map[string]string{"format": "tmx", "content": tmx})
+	require.NoError(t, err)
+	importRec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), string(body))
+	require.Equal(t, 201, importRec.Code, importRec.Body.String())
+	var payload struct {
+		Imported        int    `json:"imported"`
+		ImportAttemptID string `json:"importAttemptId"`
+	}
+	require.NoError(t, json.Unmarshal(importRec.Body.Bytes(), &payload))
+	require.Equal(t, 1, payload.Imported)
+	require.NotEmpty(t, payload.ImportAttemptID)
+
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/import-attempts/"+payload.ImportAttemptID), "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"status":"partially_successful"`)
+	require.Contains(t, rec.Body.String(), `"invalid_tu"`)
+}

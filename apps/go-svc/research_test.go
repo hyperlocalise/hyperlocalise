@@ -166,6 +166,44 @@ func TestOverviewMarketUsesFallbackMarketsWhenDomainHasNone(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestTrackedOverviewCountsClassifiesRankDeltas(t *testing.T) {
+	pool := &scriptPool{steps: []dbStep{{
+		op: opQuery,
+		table: [][]any{
+			{3, 8},
+			{8, 3},
+			{5, 5},
+			{4, nil},
+			{nil, 2},
+		},
+	}}}
+	h := newHandler()
+	h.workspace = &workspaceAPI{pool: pool}
+
+	tracked, improved, declined, unchanged, unranked, err := h.trackedOverviewCounts(
+		context.Background(),
+		"linked-domain",
+		researchMarket{LocationCode: 2250, Language: "fr"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, 5, tracked)
+	require.Equal(t, 1, improved)
+	require.Equal(t, 1, declined)
+	require.Equal(t, 2, unchanged)
+	require.Equal(t, 1, unranked)
+	require.NoError(t, pool.failed)
+}
+
+func TestDomainOverviewCacheKeyIncludesMarket(t *testing.T) {
+	france := researchMarket{LocationCode: 2250, Language: "fr"}
+	us := researchMarket{LocationCode: 2840, Language: "en"}
+	first := domainOverviewCacheKey("org", "domain", france)
+	require.Equal(t, first, domainOverviewCacheKey("org", "domain", france))
+	require.NotEqual(t, first, domainOverviewCacheKey("org", "domain", us))
+	require.Contains(t, first, "2250")
+	require.Contains(t, first, "fr")
+}
+
 func overviewIntPointer(value int) *int { return &value }
 
 func (f fakeResearch) LiveAdvanced(
