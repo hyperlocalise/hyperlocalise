@@ -73,7 +73,7 @@
 - Numerus forms flatten to `key::numerus.N`. Empty unfinished translations fall back to `<source>`.
 - `type="obsolete"` and `type="vanished"` messages are skipped.
 - `ParseWithContext` returns `<extracomment>`, `<comment>`, and `<location filename line>` as entry context.
-- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales. Rich text is written as escaped character data. Only `<byte>` children are preserved as XML.
+- `MarshalQtLinguist(template, values, sourceLocale, targetLocale)` updates `<translation>` text, writes numerus forms, clears `type="unfinished"`, and sets `language` / `sourcelanguage` using Qt underscore locales. `MarshalQtLinguistStaged` additionally takes the keys staged in the current run; unstaged messages whose value is only the source fallback keep their existing `<translation>` and `type="unfinished"`. Rich text is written as escaped character data. Only `<byte>` children are preserved as XML.
 
 ### JS/TS Locale Modules
 

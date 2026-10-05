@@ -158,7 +158,7 @@ func TestMarshalSourceTemplateTargetRejectsAndroidXMLAtNonAndroidPath(t *testing
 		return nil, os.ErrNotExist
 	}
 
-	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"}, nil)
 	if err == nil || !strings.Contains(err.Error(), "require a specialized parser") {
 		t.Fatalf("expected specialized Android XML path error, got %v", err)
 	}
@@ -340,7 +340,7 @@ func TestMarshalSourceTemplateTargetFallsBackToSourceOnKeyMismatch(t *testing.T)
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	content, err := svc.marshalSourceTemplateTarget(".po", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"}, nil)
 	if err != nil {
 		t.Fatalf("marshal source template target: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestMarshalSourceTemplateTargetXCStringsWritesTargetLocale(t *testing.T) {
 		"hello":                    "Bonjour %@",
 		"item_count::plural.one":   "%lld article",
 		"item_count::plural.other": "%lld articles",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -516,7 +516,7 @@ func TestMarshalSourceTemplateTargetXCStringsPrefersTargetLocaleTemplate(t *test
 	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"item_count::plural.one":   "%lld article",
 		"item_count::plural.other": "%lld articles",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -604,7 +604,7 @@ func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testin
 	svc.readFile = os.ReadFile
 	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
 		"hello": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal xcstrings target: %v", err)
 	}
@@ -656,7 +656,7 @@ func TestMarshalSourceTemplateTargetRESW(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".resw", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
 		"AppTitle":     "Contoso",
 		"Welcome.Text": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal resw target: %v", err)
 	}
@@ -708,7 +708,7 @@ func TestMarshalSourceTemplateTargetQtLinguist(t *testing.T) {
 	svc.readFile = os.ReadFile
 	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en-US", "fr-FR", map[string]string{
 		"MainWindow|Welcome back": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal qt linguist target: %v", err)
 	}
@@ -738,7 +738,7 @@ func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"})
+	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"}, nil)
 	if err != nil {
 		t.Fatalf("marshal properties target: %v", err)
 	}
@@ -766,7 +766,7 @@ func TestMarshalSourceTemplateTargetSubtitles(t *testing.T) {
 
 	svc := newTestService()
 	svc.readFile = os.ReadFile
-	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{"srt.0001": "Bonjour"})
+	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{"srt.0001": "Bonjour"}, nil)
 	if err != nil {
 		t.Fatalf("marshal srt target: %v", err)
 	}
@@ -797,7 +797,7 @@ func TestMarshalSourceTemplateTargetSubtitlesRejectsStaleTimings(t *testing.T) {
 	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{
 		"srt.0001": "Nouvelle intro",
 		"srt.0002": "Bonjour",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("marshal srt target: %v", err)
 	}

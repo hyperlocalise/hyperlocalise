@@ -202,6 +202,105 @@ func TestMarshalQtLinguistUpdatesRootMessages(t *testing.T) {
 	}
 }
 
+func TestMarshalQtLinguistResetsContextForRootMessagesAfterContext(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="en">
+<context>
+    <name>Previous</name>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<message>
+    <source>Open</source>
+    <translation type="unfinished"></translation>
+</message>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, ok := values["unknown|Open"]; !ok {
+		t.Fatalf("expected unknown-context key, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, map[string]string{
+		"Previous|Save": "Enregistrer",
+		"unknown|Open":  "Ouvrir",
+	}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, ">Ouvrir</translation>") {
+		t.Fatalf("expected root message after context to be translated, got %q", got)
+	}
+	if !strings.Contains(got, ">Enregistrer</translation>") {
+		t.Fatalf("expected context message to be translated, got %q", got)
+	}
+}
+
+func TestMarshalQtLinguistStagedPreservesUnstagedUnfinished(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="fr">
+<context>
+    <name>Main</name>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	values["Main|Save"] = "Enregistrer"
+	values["Main|Close"] = "Fermer"
+	out, err := MarshalQtLinguistStaged(template, values, map[string]string{
+		"Main|Save": "Enregistrer",
+	}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, "<translation>Enregistrer</translation>") {
+		t.Fatalf("expected staged translation to be finished, got %q", got)
+	}
+	if !strings.Contains(got, "<source>Open</source>\n        <translation type=\"unfinished\"></translation>") {
+		t.Fatalf("expected unstaged entry to stay unfinished and empty, got %q", got)
+	}
+	if strings.Contains(got, ">Open</translation>") {
+		t.Fatalf("expected source fallback not to be written, got %q", got)
+	}
+	if !strings.Contains(got, "<translation>Fermer</translation>") {
+		t.Fatalf("expected unstaged real translation to be written, got %q", got)
+	}
+	if strings.Count(got, `type="unfinished"`) != 2 {
+		t.Fatalf("expected unstaged Open and numerus entries to stay unfinished, got %q", got)
+	}
+	if strings.Contains(got, ">%n file(s)</numerusform>") {
+		t.Fatalf("expected numerus source fallback not to be written, got %q", got)
+	}
+}
+
 func TestMarshalQtLinguistPreservesRichText(t *testing.T) {
 	t.Parallel()
 	template := []byte(`<?xml version="1.0" encoding="utf-8"?>

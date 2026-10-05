@@ -19,6 +19,8 @@ func TestExtractExtraPlaceholders(t *testing.T) {
 		{"%n file(s)", []string{"%n"}},
 		{"Amount %L1", []string{"%L1"}},
 		{"%Ln items", []string{"%Ln"}},
+		{"Size: %1px", []string{"%1"}},
+		{"%Lnx", []string{"%Ln"}},
 		{"Hello %1$s", []string{"%1$s"}},
 		{"Non-standard object with width: %10@", nil},
 	}
@@ -54,6 +56,12 @@ func TestValidateExtraPlaceholderParity(t *testing.T) {
 	}
 	if err := validateExtraPlaceholderParity("Amount %L1", "Montant"); err == nil {
 		t.Fatal("expected dropped Qt %L1 to fail")
+	}
+	if err := validateExtraPlaceholderParity("Size: %1px", "Taille : pixels"); err == nil {
+		t.Fatal("expected dropped Qt %1 adjacent to text to fail")
+	}
+	if err := validateExtraPlaceholderParity("Size: %1px", "Taille : %1px"); err != nil {
+		t.Fatalf("expected Qt %%1 adjacent to text parity pass, got %v", err)
 	}
 }
 

@@ -179,7 +179,16 @@ func LooksLikeQtLinguistTS(content []byte) bool {
 }
 
 // MarshalQtLinguist rewrites message translations and TS locale attributes.
+// Every key in values is treated as staged.
 func MarshalQtLinguist(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
+	return MarshalQtLinguistStaged(template, values, nil, sourceLocale, targetLocale)
+}
+
+// MarshalQtLinguistStaged rewrites message translations and TS locale attributes.
+// Messages absent from staged whose value is only the source fallback keep their
+// existing <translation>, including type="unfinished". A nil staged map treats
+// every key in values as staged.
+func MarshalQtLinguistStaged(template []byte, values, staged map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
 	if !LooksLikeQtLinguistTS(template) {
 		return nil, fmt.Errorf("qt linguist: missing <TS> root")
 	}
@@ -207,8 +216,13 @@ func MarshalQtLinguist(template []byte, values map[string]string, sourceLocale, 
 					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
 				}
 			case "message":
-				if err := marshalQtLinguistMessage(encoder, decoder, template, t, contextName, values); err != nil {
+				if err := marshalQtLinguistMessage(encoder, decoder, template, t, contextName, values, staged); err != nil {
 					return nil, err
+				}
+			case "context":
+				contextName = ""
+				if err := encoder.EncodeToken(t); err != nil {
+					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
 				}
 			case "name":
 				if err := encoder.EncodeToken(t); err != nil {
@@ -232,7 +246,14 @@ func MarshalQtLinguist(template []byte, values map[string]string, sourceLocale, 
 					return nil, fmt.Errorf("qt linguist xml encode start: %w", err)
 				}
 			}
-		case xml.EndElement, xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
+		case xml.EndElement:
+			if t.Name.Local == "context" {
+				contextName = ""
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return nil, fmt.Errorf("qt linguist xml encode token: %w", err)
+			}
+		case xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
 			if err := encoder.EncodeToken(t); err != nil {
 				return nil, fmt.Errorf("qt linguist xml encode token: %w", err)
 			}
@@ -491,12 +512,12 @@ func readQtLinguistSimpleElement(decoder *xml.Decoder, template []byte, name str
 	return qtLinguistInnerXML(template, captureStart, int(decoder.InputOffset())), nil
 }
 
-func marshalQtLinguistMessage(encoder *xml.Encoder, decoder *xml.Decoder, template []byte, start xml.StartElement, contextName string, values map[string]string) error {
+func marshalQtLinguistMessage(encoder *xml.Encoder, decoder *xml.Decoder, template []byte, start xml.StartElement, contextName string, values, staged map[string]string) error {
 	msg, err := readQtLinguistMessage(decoder, template, start)
 	if err != nil {
 		return err
 	}
-	return writeQtLinguistMessage(encoder, msg, contextName, values)
+	return writeQtLinguistMessage(encoder, msg, contextName, values, staged)
 }
 
 func readQtLinguistMessage(decoder *xml.Decoder, template []byte, start xml.StartElement) (qtLinguistMessage, error) {
@@ -571,7 +592,7 @@ func readQtLinguistMessage(decoder *xml.Decoder, template []byte, start xml.Star
 	return msg, nil
 }
 
-func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, contextName string, values map[string]string) error {
+func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, contextName string, values, staged map[string]string) error {
 	if err := encoder.EncodeToken(msg.start); err != nil {
 		return fmt.Errorf("qt linguist xml encode start: %w", err)
 	}
@@ -589,6 +610,9 @@ func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, context
 
 	key := qtLinguistMessageKey(contextName, msg.source, msg.comment, msg.id)
 	replacements := qtLinguistReplacements(key, msg, values)
+	if replacements != nil && !qtLinguistMessageStaged(key, staged) && qtLinguistOnlySourceFallback(replacements, msg.source) {
+		replacements = nil
+	}
 	skipTranslationDepth := 0
 	wroteTranslation := false
 
@@ -693,6 +717,31 @@ func qtLinguistReplacements(key string, msg qtLinguistMessage, values map[string
 		return []string{value}
 	}
 	return nil
+}
+
+func qtLinguistMessageStaged(key string, staged map[string]string) bool {
+	if staged == nil {
+		return true
+	}
+	if _, ok := staged[key]; ok {
+		return true
+	}
+	prefix := key + qtLinguistNumerusKeyInfix
+	for stagedKey := range staged {
+		if strings.HasPrefix(stagedKey, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func qtLinguistOnlySourceFallback(replacements []string, source string) bool {
+	for _, value := range replacements {
+		if value != source {
+			return false
+		}
+	}
+	return true
 }
 
 func writeQtLinguistTranslation(encoder *xml.Encoder, start xml.StartElement, replacements []string, numerus bool) error {

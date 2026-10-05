@@ -119,7 +119,7 @@ func extraPlaceholderHasFormatContinuation(text string, end int) bool {
 		return false
 	}
 	c := text[end]
-	return c == '$' || c == '@' || c == '(' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+	return c == '$' || c == '@' || c == '('
 }
 
 // ValidateExtraPlaceholderParity reports dropped or added printf, Qt, and
