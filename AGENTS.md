@@ -29,14 +29,31 @@ Do not finalize work until all commands complete successfully.
 
 ## Cursor Cloud specific instructions
 
+The Cloud Agent environment prepares unit tests. Boot starts Docker, Postgres 18, and Valkey 8, writes `apps/hyperlocalise-web/.env` when it is missing, and applies Drizzle migrations. It does not start `vp run dev`, `go-svc`, or other app servers.
+
+`dockerd` in this VM needs the `fuse-overlayfs` storage driver (`/etc/docker/daemon.json`). Postgres is on `:5432` and Valkey is on `:6379`. Go tests that talk to those services need:
+
+```
+DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+VALKEY_URL=redis://127.0.0.1:6379
+GO_SVC_INTEGRATION=1
+```
+
+`vp` is on `/usr/local/bin/vp` (Vite+ shims live in `$HOME/.local/share/vite-plus/bin`). Unit-test commands:
+
+- Go: `go test ./...`
+- Web: `vp test` in `apps/hyperlocalise-web`
+- Figma plugin: `vp test` in `apps/figma-plugin`
+- Canva app: `vp test` in `apps/canva-app`
+
 ### Prerequisites
 
-Docker must be running for the web app (PostgreSQL). Start the daemon and compose stack:
+Docker must be running for unit tests that use PostgreSQL or Valkey. If the compose stack is not already up:
 
 ```
 sudo dockerd &>/tmp/dockerd.log &
 sudo chmod 666 /var/run/docker.sock
-docker compose up -d          # starts Postgres 18 on :5432
+docker compose up -d          # Postgres 18 on :5432 and Valkey 8 on :6379
 ```
 
 Ensure `$(go env GOPATH)/bin` is on PATH for `golangci-lint`. The Makefile `bootstrap` target installs it, but it may build with a lower Go version. If `make lint` fails with a Go version mismatch, rebuild it from the workspace module:
