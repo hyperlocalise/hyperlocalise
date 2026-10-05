@@ -219,6 +219,9 @@ func parseINIEntry(text string, lineStart, lineEnd, first int, section string, c
 		if err != nil {
 			return iniEntry{}, err
 		}
+		if rest := skipINIWhitespace(text, end, lineEnd); rest < lineEnd && text[rest] != ';' && text[rest] != '#' {
+			return iniEntry{}, fmt.Errorf("line %d: unexpected text after ini quoted value", lineNumber)
+		}
 		quote = text[valuePos]
 		sourceValue = decoded
 		valueStart = valuePos
@@ -477,7 +480,7 @@ func splitINIKey(flat string, knownSections []string) (string, string) {
 	if best != "" {
 		return best, flat[len(best)+1:]
 	}
-	if idx := strings.LastIndex(flat, "."); idx > 0 {
+	if idx := strings.LastIndex(flat, "."); idx > 0 && idx < len(flat)-1 {
 		return flat[:idx], flat[idx+1:]
 	}
 	return "", flat

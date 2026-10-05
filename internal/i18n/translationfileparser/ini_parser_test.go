@@ -178,6 +178,25 @@ func TestINIParserRejectsUnclosedQuote(t *testing.T) {
 	}
 }
 
+func TestINIParserRejectsTextAfterQuotedValue(t *testing.T) {
+	_, err := (INIParser{}).Parse([]byte("title=\"Hello\"unexpected\n"))
+	if err == nil {
+		t.Fatal("expected trailing text error")
+	}
+	if !strings.Contains(err.Error(), "unexpected text after ini quoted value") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestINIParserAllowsCommentAfterQuotedValue(t *testing.T) {
+	got, err := (INIParser{}).Parse([]byte("title=\"Hello\" ; note\nother='Hi';note\n"))
+	if err != nil {
+		t.Fatalf("parse ini: %v", err)
+	}
+	assertINIValue(t, got, "title", "Hello")
+	assertINIValue(t, got, "other", "Hi")
+}
+
 func TestINIParserRejectsMissingSeparator(t *testing.T) {
 	_, err := (INIParser{}).Parse([]byte("not-an-entry\n"))
 	if err == nil {
@@ -372,6 +391,23 @@ func TestSplitINIKeyPrefersLongestKnownSection(t *testing.T) {
 	if section != "Software.MyApp" || key != "Name" {
 		t.Fatalf("splitINIKey = %q, %q", section, key)
 	}
+}
+
+func TestMarshalINIWritesTrailingDotKeyAsGlobal(t *testing.T) {
+	template := []byte("[Home]\ncta=Start\n")
+	got, err := MarshalINI(template, map[string]string{"foo.": "Bar"})
+	if err != nil {
+		t.Fatalf("marshal ini: %v", err)
+	}
+	want := "foo.=Bar\n[Home]\ncta=Start\n"
+	if string(got) != want {
+		t.Fatalf("ini output mismatch\n got:\n%s\nwant:\n%s", got, want)
+	}
+	parsed, err := (INIParser{}).Parse(got)
+	if err != nil {
+		t.Fatalf("reparse ini: %v", err)
+	}
+	assertINIValue(t, parsed, "foo.", "Bar")
 }
 
 func assertINIValue(t *testing.T, got map[string]string, key, want string) {
