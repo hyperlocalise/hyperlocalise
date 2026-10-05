@@ -141,7 +141,7 @@ describe("cat-file-view-capabilities", () => {
     ).toBe("office");
   });
 
-  it("defaults markdown and mdx to file view with the document editor", () => {
+  it("defaults markdown, mdx, and asciidoc to file view with the document editor", () => {
     expect(resolveCatFileViewCapabilities({ sourcePath: "docs/intro.md" })).toEqual({
       family: "document",
       availableViews: ["file"],
@@ -151,6 +151,12 @@ describe("cat-file-view-capabilities", () => {
     expect(resolveCatFileViewCapabilities({ sourcePath: "docs/page.mdx" }).viewerId).toBe(
       "markdown",
     );
+    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/guide.adoc" })).toEqual({
+      family: "document",
+      availableViews: ["file"],
+      defaultView: "file",
+      viewerId: "markdown",
+    });
     expect(
       resolveCatFileViewCapabilities({
         sourcePath: "CAT_ALL_FILES",

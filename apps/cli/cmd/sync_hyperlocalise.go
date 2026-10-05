@@ -484,6 +484,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "markdown"
 	case ".mdx":
 		return "mdx"
+	case ".adoc", ".asciidoc", ".asc":
+		return "asciidoc"
 	case ".strings":
 		return "strings"
 	case ".stringsdict":
@@ -539,7 +541,7 @@ func isHyperlocaliseOfficeFileFormat(format string) bool {
 
 func isHyperlocaliseDocumentFileFormat(format string) bool {
 	switch format {
-	case "markdown", "mdx":
+	case "markdown", "mdx", "asciidoc":
 		return true
 	default:
 		return false
@@ -818,6 +820,8 @@ func contentTypeForPath(path string) string {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".mdx":
 		return "text/markdown"
+	case ".adoc", ".asciidoc", ".asc":
+		return "text/asciidoc"
 	case ".po", ".strings", ".stringsdict", ".ftl", ".properties":
 		return "text/plain"
 	case ".srt":

@@ -1155,6 +1155,21 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 		targetEntries := translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, ext == ".mdx")
 		return targetEntries, sourceContent, targetContent, true, nil
 	}
+	if translationfileparser.IsAsciiDocDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent)
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
 
 	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath, locale)
 	if err != nil {
@@ -1267,7 +1282,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
-		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isMarkdownPath(targetPath))
+		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isProseDocumentPath(targetPath))
 		if shouldCheckInvariant {
 			diags := validateCheckInvariant(storage.Entry{Key: key, Locale: locale, Value: targetValue}, storage.Entry{Key: key, Locale: locale, Value: sourceValue})
 			if _, ok := checkSet[checkPlaceholder]; ok {
@@ -1289,7 +1304,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 					}
 				}
 			}
-			if _, ok := checkSet[checkICUShape]; ok && !isMarkdownPath(targetPath) {
+			if _, ok := checkSet[checkICUShape]; ok && !isProseDocumentPath(targetPath) {
 				for _, diag := range diags {
 					if strings.Contains(diag, "ICU parity mismatch") || strings.Contains(diag, "invalid ICU/braces structure") || strings.Contains(diag, "duplicate # tokens") {
 						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
@@ -1667,6 +1682,10 @@ func hasCheck(checkSet map[string]struct{}, name string) bool {
 func isMarkdownPath(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	return ext == ".md" || ext == ".mdx"
+}
+
+func isProseDocumentPath(path string) bool {
+	return isMarkdownPath(path) || translationfileparser.IsAsciiDocDocumentExtension(path)
 }
 
 func validateCheckInvariant(candidate, baseline storage.Entry) []string {
@@ -2117,6 +2136,11 @@ func (r *checkLocationResolver) resolveInFile(filePath, key, value string) (stri
 	ext := strings.ToLower(filepath.Ext(filePath))
 	if (ext == ".md" || ext == ".mdx") && strings.HasPrefix(key, "md.") {
 		if line := translationfileparser.LineForMarkdownKey(content, ext == ".mdx", key); line > 0 {
+			return filePath, line
+		}
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(filePath) && strings.HasPrefix(key, "adoc.") {
+		if line := translationfileparser.LineForAsciiDocKey(content, key); line > 0 {
 			return filePath, line
 		}
 	}

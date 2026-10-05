@@ -28,6 +28,11 @@ export function isMdxFilename(filename: string) {
   return filename.toLowerCase().endsWith(".mdx");
 }
 
+export function isAsciidocFilename(filename: string) {
+  const lower = filename.toLowerCase();
+  return lower.endsWith(".adoc") || lower.endsWith(".asciidoc") || lower.endsWith(".asc");
+}
+
 /**
  * Schema and Markdown syntax for a document. Underline is left out because
  * Markdown cannot store it. Tokenizers are registered on a private `Marked`

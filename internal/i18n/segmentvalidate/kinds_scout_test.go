@@ -10,6 +10,9 @@ func TestKindForSourcePathExtended(t *testing.T) {
 		// Existing supported extensions
 		{"file.md", FormatMarkdown},
 		{"file.mdx", FormatMarkdown},
+		{"file.adoc", FormatAsciiDoc},
+		{"file.asciidoc", FormatAsciiDoc},
+		{"file.asc", FormatAsciiDoc},
 		{"file.html", FormatHTML},
 		{"file.liquid", FormatLiquid},
 

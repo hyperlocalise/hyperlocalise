@@ -336,6 +336,7 @@
                         "pages": [
                           "cli/reference/formats/markdown",
                           "cli/reference/formats/mdx",
+                          "cli/reference/formats/asciidoc",
                           "cli/reference/formats/html",
                           "cli/reference/formats/liquid",
                           "cli/reference/formats/lottie"

@@ -20,6 +20,7 @@ export const supportedTranslationFileFormats = [
   "html",
   "markdown",
   "mdx",
+  "asciidoc",
   "strings",
   "stringsdict",
   "xcstrings",
@@ -49,6 +50,7 @@ export const supportedFileTranslationFileFormats = [
   "html",
   "markdown",
   "mdx",
+  "asciidoc",
   "strings",
   "stringsdict",
   "xcstrings",
@@ -78,6 +80,9 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".html": "html",
   ".md": "markdown",
   ".mdx": "mdx",
+  ".adoc": "asciidoc",
+  ".asciidoc": "asciidoc",
+  ".asc": "asciidoc",
   ".strings": "strings",
   ".stringsdict": "stringsdict",
   ".xcstrings": "xcstrings",
@@ -149,12 +154,12 @@ export function isBinaryTranslationFileFormat(
   );
 }
 
-export const supportedDocumentTranslationFileFormats = ["markdown", "mdx"] as const;
+export const supportedDocumentTranslationFileFormats = ["markdown", "mdx", "asciidoc"] as const;
 
 export type SupportedDocumentTranslationFileFormat =
   (typeof supportedDocumentTranslationFileFormats)[number];
 
-/** Markdown/MDX documents stored and edited as whole files, not CAT string keys. */
+/** Markdown/MDX/AsciiDoc documents stored and edited as whole files, not CAT string keys. */
 export function isDocumentTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is SupportedDocumentTranslationFileFormat {

@@ -273,6 +273,7 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.Equal(t, editorCatKindVideo, editorCatSourceKind("clip.mp4"))
 	require.Equal(t, editorCatKindOffice, editorCatSourceKind("brief.docx"))
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("readme.md"))
+	require.Equal(t, editorCatKindDocument, editorCatSourceKind("guide.adoc"))
 	require.Equal(t, editorCatKindText, editorCatSourceKind("locales/en.json"))
 	require.True(t, looksLikeEditorCatImageURL("https://cdn.example.com/a.png"))
 	require.False(t, looksLikeEditorCatImageURL("HTTP://example.com/image.png"))

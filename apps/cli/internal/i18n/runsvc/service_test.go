@@ -4420,6 +4420,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.po":          []byte("msgid \"hello\"\nmsgstr \"Hello\"\n"),
 		"/tmp/source.md":          []byte("# Hello\n"),
 		"/tmp/source.mdx":         []byte("# Hello\n"),
+		"/tmp/source.adoc":        []byte("= Hello\n"),
 		"/tmp/source.strings":     []byte("\"hello\" = \"Hello\";\n"),
 		"/tmp/source.stringsdict": []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>hello</key><string>Hello</string></dict></plist>"),
 		"/tmp/source.xcstrings":   []byte(`{"sourceLanguage":"en","strings":{"hello":{"localizations":{"en":{"stringUnit":{"state":"translated","value":"Hello"}}}}},"version":"1.0"}`),
@@ -4452,6 +4453,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.po", source: "/tmp/source.po"},
 		{target: "/tmp/out.md", source: "/tmp/source.md"},
 		{target: "/tmp/out.mdx", source: "/tmp/source.mdx"},
+		{target: "/tmp/out.adoc", source: "/tmp/source.adoc"},
 		{target: "/tmp/out.strings", source: "/tmp/source.strings"},
 		{target: "/tmp/out.stringsdict", source: "/tmp/source.stringsdict"},
 		{target: "/tmp/out.xcstrings", source: "/tmp/source.xcstrings"},
@@ -4472,7 +4474,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 	for _, tc := range cases {
 		values := map[string]string{"hello": "Bonjour"}
 		ext := strings.ToLower(filepath.Ext(tc.target))
-		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" {
+		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
 			entries, err := svc.newParser().Parse(tc.source, sourceTemplate[tc.source])
 			if err != nil {
 				t.Fatalf("parse %s source: %v", tc.target, err)

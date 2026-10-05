@@ -48,6 +48,10 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("page.html")).toBe("html");
     expect(inferSupportedTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedTranslationFileFormat("page.mdx")).toBe("mdx");
+    expect(inferSupportedTranslationFileFormat("guide.adoc")).toBe("asciidoc");
+    expect(inferSupportedTranslationFileFormat("manual.asciidoc")).toBe("asciidoc");
+    expect(inferSupportedTranslationFileFormat("notes.asc")).toBe("asciidoc");
+    expect(inferSupportedFileTranslationFileFormat("guide.adoc")).toBe("asciidoc");
     expect(inferSupportedTranslationFileFormat("Localizable.strings")).toBe("strings");
     expect(inferSupportedTranslationFileFormat("Localizable.stringsdict")).toBe("stringsdict");
     expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
@@ -119,17 +123,21 @@ describe("translation file formats", () => {
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
   });
 
-  it("treats markdown and mdx as whole-file documents, not binary", () => {
+  it("treats markdown, mdx, and asciidoc as whole-file documents, not binary", () => {
     expect(inferSupportedDocumentTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedDocumentTranslationFileFormat("page.mdx")).toBe("mdx");
+    expect(inferSupportedDocumentTranslationFileFormat("guide.adoc")).toBe("asciidoc");
     expect(isDocumentTranslationFileFormat("markdown")).toBe(true);
     expect(isDocumentTranslationFileFormat("mdx")).toBe(true);
+    expect(isDocumentTranslationFileFormat("asciidoc")).toBe(true);
     expect(isDocumentTranslationFileFormat("json")).toBe(false);
     expect(isWholeFileTranslationFileFormat("markdown")).toBe(true);
     expect(isWholeFileTranslationFileFormat("mdx")).toBe(true);
+    expect(isWholeFileTranslationFileFormat("asciidoc")).toBe(true);
     expect(isWholeFileTranslationFileFormat("json")).toBe(false);
     expect(isBinaryTranslationFileFormat("markdown")).toBe(false);
     expect(isBinaryTranslationFileFormat("mdx")).toBe(false);
+    expect(isBinaryTranslationFileFormat("asciidoc")).toBe(false);
   });
 
   it("builds a source-upload accept list including office and images", () => {

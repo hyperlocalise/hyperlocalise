@@ -56,6 +56,9 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".mkdn"] = MarkdownParser{MDX: false}
 	parsers[".mdwn"] = MarkdownParser{MDX: false}
 	parsers[".mkd"] = MarkdownParser{MDX: false}
+	parsers[".adoc"] = AsciiDocParser{}
+	parsers[".asciidoc"] = AsciiDocParser{}
+	parsers[".asc"] = AsciiDocParser{}
 	parsers[".strings"] = AppleStringsParser{}
 	parsers[".stringsdict"] = AppleStringsdictParser{}
 	parsers[".xcstrings"] = XCStringsParser{}
@@ -164,6 +167,14 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 	if IsMarkdownDocumentExtension(path) {
 		mdx := IsMarkdownDocumentMDX(path)
 		doc := ParseMarkdownDocumentIR(content, mdx)
+		entries := doc.ingestEntries()
+		if entries == nil {
+			entries = map[string]IngestEntry{}
+		}
+		return entries, nil
+	}
+	if IsAsciiDocDocumentExtension(path) {
+		doc := ParseAsciiDocDocumentIR(content)
 		entries := doc.ingestEntries()
 		if entries == nil {
 			entries = map[string]IngestEntry{}

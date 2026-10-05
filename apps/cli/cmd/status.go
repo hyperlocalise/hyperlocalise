@@ -326,6 +326,13 @@ func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path str
 		mdx := ext == ".mdx"
 		return translationfileparser.AlignMarkdownTargetToSource(content, content, mdx), nil
 	}
+	if translationfileparser.IsAsciiDocDocumentExtension(path) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return translationfileparser.AlignAsciiDocTargetToSource(content, content), nil
+	}
 	return readEntriesForStatus(parser, path)
 }
 
@@ -342,6 +349,17 @@ func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePa
 		}
 		mdx := strings.ToLower(filepath.Ext(targetPath)) == ".mdx"
 		return translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, mdx), nil
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(targetPath) {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			return nil, err
+		}
+		return translationfileparser.AlignAsciiDocTargetToSource(sourceContent, targetContent), nil
 	}
 	if ext == ".xcstrings" {
 		content, err := os.ReadFile(targetPath)
@@ -689,7 +707,7 @@ func computeStatus(entry storage.Entry) string {
 
 func shouldTrackSourceValueForStatus(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".md", ".mdx":
+	case ".md", ".mdx", ".adoc", ".asciidoc", ".asc":
 		return true
 	default:
 		return false

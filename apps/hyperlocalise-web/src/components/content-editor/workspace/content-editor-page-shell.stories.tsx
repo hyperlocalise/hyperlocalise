@@ -47,7 +47,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Full CAT page shell. Select files in the left tree to preview every supported editor format: PO, YAML, ARB, XLIFF, JSON/JSONC, HTML, strings, xcstrings, CSV, SRT, VTT, images, markdown, MDX, Word, Excel, PowerPoint, and video.",
+          "Full CAT page shell. Select files in the left tree to preview every supported editor format: PO, YAML, ARB, XLIFF, JSON/JSONC, HTML, strings, xcstrings, CSV, SRT, VTT, images, markdown, MDX, AsciiDoc, Word, Excel, PowerPoint, and video.",
       },
     },
   },

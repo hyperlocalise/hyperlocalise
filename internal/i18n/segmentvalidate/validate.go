@@ -140,6 +140,11 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 			return false, fmt.Errorf("raw HTML syntax introduced in translated liquid")
 		}
 		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+	case FormatAsciiDoc:
+		if err = translationfileparser.ValidateAsciiDocInternalPlaceholders(source, translated); err != nil {
+			return false, err
+		}
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	default:
 		if err = translationfileparser.ValidateUnrealRichTextPlaceholders(source, translated); err != nil {
 			return false, err

@@ -66,7 +66,7 @@ func newEntriesCmd() *cobra.Command {
 		&sourcePath,
 		"source",
 		"",
-		"source file used to align markdown/MDX target documents onto source slot ids",
+		"source file used to align markdown/MDX/AsciiDoc target documents onto source slot ids",
 	)
 	cmd.Flags().StringVar(
 		&srxSpec,
@@ -94,10 +94,26 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale, s
 			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, mdx)
 			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
 		}
+		if translationfileparser.IsAsciiDocDocumentExtension(path) {
+			if !translationfileparser.IsAsciiDocDocumentExtension(sourcePath) {
+				return nil, fmt.Errorf("entries source extension %q does not match target extension %q", filepath.Ext(sourcePath), ext)
+			}
+			sourceContent, err := os.ReadFile(sourcePath)
+			if err != nil {
+				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
+			}
+			sourceDoc := translationfileparser.ParseAsciiDocDocumentIR(sourceContent)
+			aligned := translationfileparser.AlignAsciiDocTargetToSource(sourceContent, content)
+			return encodeDocumentEntriesCommandOutput(sourceDoc.WithBlockText(aligned), path, content, locale, srxSpec)
+		}
 	}
 
 	if translationfileparser.IsMarkdownDocumentExtension(path) {
 		doc := translationfileparser.ParseMarkdownDocumentIR(content, translationfileparser.IsMarkdownDocumentMDX(path))
+		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
+	}
+	if translationfileparser.IsAsciiDocDocumentExtension(path) {
+		doc := translationfileparser.ParseAsciiDocDocumentIR(content)
 		return encodeDocumentEntriesCommandOutput(doc, path, content, locale, srxSpec)
 	}
 
