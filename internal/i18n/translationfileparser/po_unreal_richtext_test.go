@@ -144,7 +144,7 @@ func TestProtectUnrealRichTextPairsAndDecorators(t *testing.T) {
 			if tt.wantCount > 0 && !strings.Contains(got, unrealRichTextSentinelMarker) {
 				t.Fatalf("expected sentinels in %q", got)
 			}
-			if expanded := expandUnrealRichTextPlaceholders(got, placeholders); expanded != tt.in {
+			if expanded := expandUnrealRichTextPlaceholders(got); expanded != tt.in {
 				t.Fatalf("expand = %q, want original %q", expanded, tt.in)
 			}
 		})
@@ -229,6 +229,67 @@ msgstr "<Highlight>{ItemName}</> out of energy"
 	}
 	if !strings.Contains(content, `msgstr "<Highlight>{ItemName}</> sans énergie"`) {
 		t.Fatalf("expected restored energy string, got:\n%s", content)
+	}
+}
+
+func TestMarshalPOFileRestoresTargetOriginUnrealTags(t *testing.T) {
+	source := []byte(`msgid ""
+msgstr ""
+"Language: en\n"
+
+msgid "ready"
+msgstr "<Highlight>Ready</>"
+
+msgid "added"
+msgstr "New string"
+`)
+	target := []byte(`msgid ""
+msgstr ""
+"Language: fr\n"
+
+msgid "ready"
+msgstr "<Gold>Prêt</>"
+
+msgid "retired"
+msgstr "<Font.Emph>Gone</>"
+`)
+
+	values, err := (POFileParser{}).Parse(target)
+	if err != nil {
+		t.Fatalf("parse target: %v", err)
+	}
+	sourceValues, err := (POFileParser{}).Parse(source)
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	values["added"] = sourceValues["added"]
+
+	out, err := MarshalPOFile(source, values)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	content := string(out)
+	if strings.Contains(content, "HLUEPH_") || strings.Contains(content, "\x1e") {
+		t.Fatalf("marshal leaked sentinels:\n%s", content)
+	}
+	if !strings.Contains(content, `msgstr "<Gold>Prêt</>"`) {
+		t.Fatalf("expected retained target tags, got:\n%s", content)
+	}
+	if strings.Contains(content, `<Highlight>`) {
+		t.Fatalf("source tags replaced retained target tags:\n%s", content)
+	}
+}
+
+func TestExpandUnrealRichTextPlaceholdersDecodesMovedTags(t *testing.T) {
+	protected, placeholders := protectUnrealRichTextLimited(`<B>oui</><A>non</>`, unrealRichTextTagLimit)
+	if len(placeholders) != 4 {
+		t.Fatalf("placeholder count = %d, want 4", len(placeholders))
+	}
+	if got := expandUnrealRichTextPlaceholders(protected); got != `<B>oui</><A>non</>` {
+		t.Fatalf("expand = %q", got)
+	}
+	if decode, ok := decodeUnrealRichTextPlaceholder(makeUnrealRichTextPlaceholder(0, `<Gold>`)); !ok || decode != `<Gold>` {
+		t.Fatalf("decode placeholder = %q ok=%v", decode, ok)
 	}
 }
 

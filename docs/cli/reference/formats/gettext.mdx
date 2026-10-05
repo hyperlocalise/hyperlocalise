@@ -62,7 +62,8 @@ configured target path and updates the lockfile.
 
 Unreal Engine style tags close with nameless `</>`. Hyperlocalise treats each
 recognized tag as a placeholder so translators edit the surrounding words, not
-the markup. Writeback restores the original tags in the `.po` file.
+the markup. Writeback restores the original tags in the `.po` file, including
+tags that an existing target file moved or changed relative to the source.
 
 Save this source catalog as `locales/en-US/messages.po`:
 

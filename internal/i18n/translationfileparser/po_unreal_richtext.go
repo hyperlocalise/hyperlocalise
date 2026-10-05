@@ -1,7 +1,6 @@
 package translationfileparser
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"slices"
@@ -14,7 +13,7 @@ const (
 	unrealRichTextSentinelMarker = "\x1eHLUEPH_"
 )
 
-var unrealRichTextPlaceholderPattern = regexp.MustCompile(`\x1eHLUEPH_[A-F0-9]{12}_[0-9]+\x1f`)
+var unrealRichTextPlaceholderPattern = regexp.MustCompile(`\x1eHLUEPH_[A-F0-9]+_[0-9]+\x1f`)
 
 type unrealTagSpan struct {
 	start int
@@ -248,66 +247,79 @@ func isUnrealASCIIDigit(b byte) bool {
 }
 
 func makeUnrealRichTextPlaceholder(index int, literal string) string {
-	var buf [128]byte
-	hInput := strconv.AppendInt(buf[:0], int64(index), 10)
-	hInput = append(hInput, ':')
-	hInput = append(hInput, literal...)
-	sum := sha256.Sum256(hInput)
-
 	var sb strings.Builder
-	sb.Grow(32)
+	sb.Grow(len(unrealRichTextSentinelMarker) + len(literal)*2 + 8)
 	sb.WriteString(unrealRichTextSentinelMarker)
-	for i := 0; i < 6; i++ {
-		b := sum[i]
-		sb.WriteByte(hexDigits[b>>4])
-		sb.WriteByte(hexDigits[b&0x0f])
-	}
+	writeUnrealRichTextLiteralHex(&sb, literal)
 	sb.WriteByte('_')
 	sb.WriteString(strconv.Itoa(index))
 	sb.WriteByte('\x1f')
 	return sb.String()
 }
 
-func collectUnrealRichTextPlaceholders(s string) map[string]string {
-	if !strings.Contains(s, "<") {
-		return nil
-	}
-	_, placeholders := protectUnrealRichTextLimited(s, unrealRichTextTagLimit)
-	return placeholders
-}
-
-func mergeUnrealRichTextPlaceholders(dst map[string]string, source string) {
-	for token, literal := range collectUnrealRichTextPlaceholders(source) {
-		dst[token] = literal
+func writeUnrealRichTextLiteralHex(sb *strings.Builder, literal string) {
+	for i := 0; i < len(literal); i++ {
+		b := literal[i]
+		sb.WriteByte(hexDigits[b>>4])
+		sb.WriteByte(hexDigits[b&0x0f])
 	}
 }
 
-func expandUnrealRichTextPlaceholders(rendered string, placeholders map[string]string) string {
-	if len(placeholders) == 0 || !strings.Contains(rendered, unrealRichTextSentinelMarker) {
+func decodeUnrealRichTextPlaceholder(token string) (string, bool) {
+	if !strings.HasPrefix(token, unrealRichTextSentinelMarker) || !strings.HasSuffix(token, "\x1f") {
+		return "", false
+	}
+	body := token[len(unrealRichTextSentinelMarker) : len(token)-1]
+	us := strings.LastIndexByte(body, '_')
+	if us <= 0 {
+		return "", false
+	}
+	return decodeUnrealRichTextLiteralHex(body[:us])
+}
+
+func decodeUnrealRichTextLiteralHex(hex string) (string, bool) {
+	if len(hex) == 0 || len(hex)%2 != 0 {
+		return "", false
+	}
+	out := make([]byte, len(hex)/2)
+	for i := 0; i < len(out); i++ {
+		hi, ok := unhexUnrealRichTextNibble(hex[i*2])
+		if !ok {
+			return "", false
+		}
+		lo, ok := unhexUnrealRichTextNibble(hex[i*2+1])
+		if !ok {
+			return "", false
+		}
+		out[i] = hi<<4 | lo
+	}
+	return string(out), true
+}
+
+func unhexUnrealRichTextNibble(b byte) (byte, bool) {
+	switch {
+	case b >= '0' && b <= '9':
+		return b - '0', true
+	case b >= 'A' && b <= 'F':
+		return b - 'A' + 10, true
+	case b >= 'a' && b <= 'f':
+		return b - 'a' + 10, true
+	default:
+		return 0, false
+	}
+}
+
+func expandUnrealRichTextPlaceholders(rendered string) string {
+	if !strings.Contains(rendered, unrealRichTextSentinelMarker) {
 		return rendered
 	}
-	if len(placeholders) == 1 {
-		for ph, original := range placeholders {
-			return strings.ReplaceAll(rendered, ph, original)
+	return unrealRichTextPlaceholderPattern.ReplaceAllStringFunc(rendered, func(token string) string {
+		literal, ok := decodeUnrealRichTextPlaceholder(token)
+		if !ok {
+			return token
 		}
-	}
-	oldnew := make([]string, 0, len(placeholders)*2)
-	for ph, original := range placeholders {
-		oldnew = append(oldnew, ph, original)
-	}
-	return strings.NewReplacer(oldnew...).Replace(rendered)
-}
-
-func expandPOUnrealRichText(translated, msgid, msgstr string) string {
-	if !strings.Contains(translated, unrealRichTextSentinelMarker) {
-		return translated
-	}
-	placeholders := make(map[string]string, 4)
-	mergeUnrealRichTextPlaceholders(placeholders, msgid)
-	if msgstr != "" && msgstr != msgid {
-		mergeUnrealRichTextPlaceholders(placeholders, msgstr)
-	}
-	return expandUnrealRichTextPlaceholders(translated, placeholders)
+		return literal
+	})
 }
 
 func poValuesHaveUnrealPlaceholders(values map[string]string) bool {
@@ -319,19 +331,15 @@ func poValuesHaveUnrealPlaceholders(values map[string]string) bool {
 	return false
 }
 
-func expandPOUnrealRichTextValues(template []byte, values map[string]string) (map[string]string, error) {
+func expandPOUnrealRichTextValues(values map[string]string) map[string]string {
 	if !poValuesHaveUnrealPlaceholders(values) {
-		return values, nil
-	}
-	raw, err := parsePOFileRaw(template)
-	if err != nil {
-		return nil, err
+		return values
 	}
 	expanded := make(map[string]string, len(values))
 	for key, value := range values {
-		expanded[key] = expandPOUnrealRichText(value, key, raw[key])
+		expanded[key] = expandUnrealRichTextPlaceholders(value)
 	}
-	return expanded, nil
+	return expanded
 }
 
 // UnrealRichTextPlaceholderTokens returns sorted Unreal rich-text sentinel tokens.

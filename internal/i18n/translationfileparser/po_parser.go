@@ -262,11 +262,7 @@ func parsePOQuoted(raw string) (string, error) {
 
 // MarshalPOFile preserves .po structure while replacing msgstr/msgstr[0] values by msgid key.
 func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
-	expanded, err := expandPOUnrealRichTextValues(template, values)
-	if err != nil {
-		return nil, err
-	}
-	values = expanded
+	values = expandPOUnrealRichTextValues(values)
 
 	// BOLT OPTIMIZATION: Avoid strings.Split(string(template), "\n") to reduce allocations for large files.
 	// We use a builder to reconstruct the file line by line.
