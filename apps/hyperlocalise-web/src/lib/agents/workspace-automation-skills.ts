@@ -208,18 +208,12 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: [],
     keywords: {
-      strong: [
-        [
-          "file an issue",
-          "file issues",
-          "create issue",
-          "create an issue",
-          "open a ticket",
-          "raise a query",
-        ],
-        ["open issue", "existing issue", "list issues"],
-      ],
+      strong: [["open issue", "existing issue", "list issues"]],
       weak: ["queries", "ticket", "issue", ["backlog", "triage"], ["track", "follow up"]],
+      // "open a new issue", "file tickets", "raise a query": a verb, a few filler words, the noun.
+      patterns: [
+        /(?<![\p{L}\p{N}])(?:open(?:s|ing)?|creat(?:e|es|ing)|fil(?:e|es|ing)|rais(?:e|es|ing)|log(?:s|ging)?|submit(?:s|ting)?)[\s-]+(?:(?:a|an|the|new|one|another|separate)[\s-]+){0,3}(?:issues?|tickets?|query|queries)(?![\p{L}\p{N}])/iu,
+      ],
     },
   },
   {
@@ -260,8 +254,12 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     triggers: ["github"],
     sharedSkills: [],
     keywords: {
-      strong: [["pull request", "pr"], "sticky comment"],
-      weak: ["comment", "merge"],
+      // Naming a pull request is not asking for a comment on it, so that alone is only weak.
+      strong: [["pr comment", "pull request comment", "sticky comment"]],
+      weak: [["pull request", "pr"], "comment", "merge"],
+      patterns: [
+        /(?<![\p{L}\p{N}])comment(?:s|ing)?[\s-]+(?:on|in|to)[\s-]+(?:[\p{L}]+[\s-]+){0,2}(?:pull[\s-]+requests?|prs?)(?![\p{L}\p{N}])/iu,
+      ],
     },
   },
 ];
