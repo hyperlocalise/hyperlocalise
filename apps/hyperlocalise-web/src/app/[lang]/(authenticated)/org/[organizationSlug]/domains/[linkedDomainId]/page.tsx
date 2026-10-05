@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
+import { hasCapability } from "@/api/auth/policy";
+import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { DomainOverviewView } from "../_components/domain-overview-view";
 import { DomainResearchShell } from "../_components/domain-research-shell";
@@ -25,6 +27,7 @@ export default async function DomainDetailPage({
   params: Promise<{ organizationSlug: string; linkedDomainId: string }>;
 }) {
   const { organizationSlug, linkedDomainId } = await params;
+  const auth = await requireAppCapability("projects:read", { organizationSlug });
 
   return (
     <DomainResearchShell
@@ -32,7 +35,11 @@ export default async function DomainDetailPage({
       linkedDomainId={linkedDomainId}
       surface="overview"
     >
-      <DomainOverviewView linkedDomainId={linkedDomainId} organizationSlug={organizationSlug} />
+      <DomainOverviewView
+        linkedDomainId={linkedDomainId}
+        organizationSlug={organizationSlug}
+        canRefresh={hasCapability(auth.membership.role, "projects:write")}
+      />
     </DomainResearchShell>
   );
 }

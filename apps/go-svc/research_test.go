@@ -19,6 +19,10 @@ type fakeResearch struct {
 	ideasErr    error
 	overview    dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem]
 	overviewErr error
+	ranked      dataforseo.TaskResponse[dataforseo.RankedKeywordsPage]
+	rankedErr   error
+	pages       dataforseo.TaskResponse[dataforseo.RelevantPagesPage]
+	pagesErr    error
 	serp        dataforseo.TaskResponse[[]dataforseo.SerpItem]
 	serpErr     error
 	rank        dataforseo.TaskResponse[dataforseo.RankCheckResult]
@@ -39,6 +43,20 @@ func (f fakeResearch) DomainRankOverview(
 	_ dataforseo.DomainRankOverviewInput,
 ) (dataforseo.TaskResponse[[]dataforseo.DomainRankOverviewItem], error) {
 	return f.overview, f.overviewErr
+}
+
+func (f fakeResearch) RankedKeywords(
+	_ context.Context,
+	_ dataforseo.RankedKeywordsInput,
+) (dataforseo.TaskResponse[dataforseo.RankedKeywordsPage], error) {
+	return f.ranked, f.rankedErr
+}
+
+func (f fakeResearch) RelevantPages(
+	_ context.Context,
+	_ dataforseo.RelevantPagesInput,
+) (dataforseo.TaskResponse[dataforseo.RelevantPagesPage], error) {
+	return f.pages, f.pagesErr
 }
 
 func TestMarketVisibilityNormalizesOrganicMetrics(t *testing.T) {
@@ -119,6 +137,36 @@ func TestMarketOrganicMetricsEmptyAndMissing(t *testing.T) {
 	require.Equal(t, 0, body.Top10Count)
 	require.False(t, body.HasOrganicVisibility)
 }
+
+func TestDomainOverviewNormalizesLabsRows(t *testing.T) {
+	keywords := normalizeOverviewKeywords([]dataforseo.DomainRankedKeywordItem{{
+		"keyword_data": map[string]any{
+			"keyword":      "localization platform",
+			"keyword_info": map[string]any{"search_volume": float64(900)},
+		},
+		"ranked_serp_element": map[string]any{
+			"serp_item": map[string]any{"rank_absolute": float64(4), "etv": float64(120), "url": "https://example.com/localization"},
+		},
+	}})
+	require.Equal(t, []domainOverviewKeyword{{Keyword: "localization platform", Position: overviewIntPointer(4), Volume: 900, ETV: 120, URL: "https://example.com/localization"}}, keywords)
+
+	pages := normalizeOverviewPages([]dataforseo.RelevantPageItem{{
+		"page_address": "https://example.com/localization",
+		"metrics":      map[string]any{"organic": map[string]any{"count": float64(12), "etv": float64(340)}},
+	}})
+	require.Equal(t, []domainOverviewPage{{Page: "https://example.com/localization", KeywordCount: 12, ETV: 340}}, pages)
+}
+
+func TestOverviewMarketUsesFallbackMarketsWhenDomainHasNone(t *testing.T) {
+	market, err := overviewMarket(linkedDomainRecord{}, "vietnam-vi")
+	require.NoError(t, err)
+	require.Equal(t, "vietnam-vi", market.ID)
+
+	_, err = overviewMarket(linkedDomainRecord{}, "australia-en")
+	require.Error(t, err)
+}
+
+func overviewIntPointer(value int) *int { return &value }
 
 func (f fakeResearch) LiveAdvanced(
 	_ context.Context,

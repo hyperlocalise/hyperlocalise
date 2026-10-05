@@ -197,6 +197,7 @@ func main() {
 	}
 	if valkeyClient != nil {
 		h.valkey = valkeyClient
+		h.overviewCache = valkeyClient
 		h.dictionaries.wordsCache = valkeyClient
 		h.glossaries.readCache = valkeyClient
 		defer valkeyClient.Close()
