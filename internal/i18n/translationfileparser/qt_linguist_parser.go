@@ -50,6 +50,7 @@ func (p QtLinguistParser) ParseWithContext(content []byte) (map[string]string, m
 	if !LooksLikeQtLinguistTS(content) {
 		return nil, nil, fmt.Errorf("qt linguist: missing <TS> root")
 	}
+	content = bytes.TrimPrefix(content, utf8BOM)
 
 	capacity := len(content) / 256
 	if capacity < 4 {
@@ -135,10 +136,10 @@ func (p QtLinguistParser) ParseWithContext(content []byte) (map[string]string, m
 						msg.extracomment = strings.TrimSpace(qtLinguistPlainText(inner))
 					case "translation":
 						if !msg.numerus {
-							msg.translation = qtLinguistDecodedValue(inner)
+							msg.translation = qtLinguistTranslationValue(inner)
 						}
 					case "numerusform":
-						msg.numerusForms = append(msg.numerusForms, qtLinguistDecodedValue(inner))
+						msg.numerusForms = append(msg.numerusForms, qtLinguistTranslationValue(inner))
 					}
 					captureName = ""
 				}
@@ -171,11 +172,7 @@ func LooksLikeQtLinguistTS(content []byte) bool {
 	if len(content) == 0 {
 		return false
 	}
-	head := content
-	if len(head) > 4096 {
-		head = head[:4096]
-	}
-	return qtLinguistTSRootPattern.Match(head)
+	return qtLinguistTSRootPattern.Match(content)
 }
 
 // MarshalQtLinguist rewrites message translations and TS locale attributes.
@@ -193,8 +190,12 @@ func MarshalQtLinguistStaged(template []byte, values, staged map[string]string, 
 		return nil, fmt.Errorf("qt linguist: missing <TS> root")
 	}
 
-	decoder := xml.NewDecoder(bytes.NewReader(template))
 	var out bytes.Buffer
+	if bytes.HasPrefix(template, utf8BOM) {
+		template = template[len(utf8BOM):]
+		out.Write(utf8BOM)
+	}
+	decoder := xml.NewDecoder(bytes.NewReader(template))
 	encoder := xml.NewEncoder(&out)
 	contextName := ""
 
@@ -291,7 +292,7 @@ func finalizeQtLinguistMessage(out map[string]string, contextByKey map[string]st
 	if qtLinguistTranslationSkipped(msg.translationType) {
 		return
 	}
-	if strings.TrimSpace(msg.source) == "" {
+	if !qtLinguistMessageKeyed(msg) {
 		return
 	}
 
@@ -304,10 +305,16 @@ func finalizeQtLinguistMessage(out map[string]string, contextByKey map[string]st
 			if value == "" {
 				value = msg.source
 			}
+			if value == "" {
+				return
+			}
 			out[key+qtLinguistNumerusKeyInfix+"0"] = value
 			if entryContext != "" {
 				contextByKey[key+qtLinguistNumerusKeyInfix+"0"] = entryContext
 			}
+			return
+		}
+		if strings.TrimSpace(msg.source) == "" && qtLinguistAllBlank(msg.numerusForms) {
 			return
 		}
 		for i, form := range msg.numerusForms {
@@ -335,6 +342,20 @@ func finalizeQtLinguistMessage(out map[string]string, contextByKey map[string]st
 	if entryContext != "" {
 		contextByKey[key] = entryContext
 	}
+}
+
+// qtLinguistMessageKeyed reports whether a message has a source or an explicit id to key it by.
+func qtLinguistMessageKeyed(msg qtLinguistMessage) bool {
+	return strings.TrimSpace(msg.source) != "" || strings.TrimSpace(msg.id) != ""
+}
+
+func qtLinguistAllBlank(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func qtLinguistMessageKey(contextName, source, comment, id string) string {
@@ -467,6 +488,46 @@ func qtLinguistDecodedValue(inner string) string {
 	return b.String()
 }
 
+// qtLinguistTranslationValue returns the primary (longest) length variant when
+// the translation holds <lengthvariant> children.
+func qtLinguistTranslationValue(inner string) string {
+	if !strings.Contains(inner, "<lengthvariant") {
+		return qtLinguistDecodedValue(inner)
+	}
+	if variant, ok := qtLinguistFirstLengthVariant(inner); ok {
+		return qtLinguistDecodedValue(variant)
+	}
+	return qtLinguistDecodedValue(inner)
+}
+
+func qtLinguistFirstLengthVariant(inner string) (string, bool) {
+	wrapped := []byte("<x>" + inner + "</x>")
+	decoder := xml.NewDecoder(bytes.NewReader(wrapped))
+	depth := 0
+	captureStart := -1
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			return "", false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth == 2 && t.Name.Local == "lengthvariant" && captureStart < 0 {
+				captureStart = int(decoder.InputOffset())
+			}
+		case xml.EndElement:
+			if depth == 2 && captureStart >= 0 {
+				return qtLinguistInnerXML(wrapped, captureStart, int(decoder.InputOffset())), true
+			}
+			depth--
+			if depth == 0 {
+				return "", false
+			}
+		}
+	}
+}
+
 func qtLinguistLocale(locale string) string {
 	return strings.ReplaceAll(strings.TrimSpace(locale), "-", "_")
 }
@@ -574,10 +635,10 @@ func readQtLinguistMessage(decoder *xml.Decoder, template []byte, start xml.Star
 						msg.comment = strings.TrimSpace(qtLinguistPlainText(inner))
 					case "translation":
 						if !msg.numerus {
-							msg.translation = qtLinguistDecodedValue(inner)
+							msg.translation = qtLinguistTranslationValue(inner)
 						}
 					case "numerusform":
-						msg.numerusForms = append(msg.numerusForms, qtLinguistDecodedValue(inner))
+						msg.numerusForms = append(msg.numerusForms, qtLinguistTranslationValue(inner))
 					}
 					captureName = ""
 				}
@@ -596,7 +657,7 @@ func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, context
 	if err := encoder.EncodeToken(msg.start); err != nil {
 		return fmt.Errorf("qt linguist xml encode start: %w", err)
 	}
-	if qtLinguistTranslationSkipped(msg.translationType) || strings.TrimSpace(msg.source) == "" {
+	if qtLinguistTranslationSkipped(msg.translationType) || !qtLinguistMessageKeyed(msg) {
 		for _, child := range msg.children {
 			if err := encoder.EncodeToken(child); err != nil {
 				return fmt.Errorf("qt linguist xml encode token: %w", err)
@@ -613,6 +674,7 @@ func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, context
 	if replacements != nil && !qtLinguistMessageStaged(key, staged) && qtLinguistOnlySourceFallback(replacements, msg.source) {
 		replacements = nil
 	}
+	unchanged := replacements != nil && qtLinguistReplacementsUnchanged(msg, replacements)
 	skipTranslationDepth := 0
 	wroteTranslation := false
 
@@ -623,7 +685,16 @@ func writeQtLinguistMessage(encoder *xml.Encoder, msg qtLinguistMessage, context
 				skipTranslationDepth++
 				continue
 			}
-			if t.Name.Local == "translation" && replacements != nil {
+			if t.Name.Local == "translation" && unchanged && !wroteTranslation {
+				// Keep the original subtree so length variants and markup survive.
+				t.Attr = qtLinguistTranslationAttrs(t.Attr, replacements)
+				if err := encoder.EncodeToken(t); err != nil {
+					return fmt.Errorf("qt linguist xml encode start: %w", err)
+				}
+				wroteTranslation = true
+				continue
+			}
+			if t.Name.Local == "translation" && replacements != nil && !unchanged {
 				if err := writeQtLinguistTranslation(encoder, t, replacements, msg.numerus); err != nil {
 					return err
 				}
@@ -701,9 +772,7 @@ func qtLinguistReplacements(key string, msg qtLinguistMessage, values map[string
 			if value, ok := values[key]; ok && i == 0 {
 				forms[i] = value
 				missing = false
-				continue
 			}
-			forms[i] = msg.source
 		}
 		if missing {
 			if value, ok := values[key]; ok {
@@ -737,7 +806,39 @@ func qtLinguistMessageStaged(key string, staged map[string]string) bool {
 
 func qtLinguistOnlySourceFallback(replacements []string, source string) bool {
 	for _, value := range replacements {
-		if value != source {
+		if value != source && strings.TrimSpace(value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+func qtLinguistReplacementsUnchanged(msg qtLinguistMessage, replacements []string) bool {
+	if msg.numerus {
+		if len(msg.numerusForms) != len(replacements) {
+			return false
+		}
+		for i, form := range msg.numerusForms {
+			if form != replacements[i] {
+				return false
+			}
+		}
+		return true
+	}
+	return len(replacements) == 1 && replacements[0] == msg.translation
+}
+
+// qtLinguistTranslationAttrs drops type="unfinished" only when every form has a translation.
+func qtLinguistTranslationAttrs(attrs []xml.Attr, replacements []string) []xml.Attr {
+	if len(replacements) == 0 || !qtLinguistAllFilled(replacements) {
+		return attrs
+	}
+	return qtLinguistTranslationAttrsWithoutUnfinished(attrs)
+}
+
+func qtLinguistAllFilled(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
 			return false
 		}
 	}
@@ -745,7 +846,11 @@ func qtLinguistOnlySourceFallback(replacements []string, source string) bool {
 }
 
 func writeQtLinguistTranslation(encoder *xml.Encoder, start xml.StartElement, replacements []string, numerus bool) error {
-	start.Attr = qtLinguistTranslationAttrsWithoutUnfinished(start.Attr)
+	start.Attr = qtLinguistTranslationAttrs(start.Attr, replacements)
+	if !qtLinguistAllFilled(replacements) && qtLinguistAttr(start.Attr, "type") == "" {
+		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "type"}, Value: "unfinished"})
+	}
+	start.Attr = qtLinguistAttrsWithout(start.Attr, "variants")
 	if err := encoder.EncodeToken(start); err != nil {
 		return fmt.Errorf("qt linguist xml encode start: %w", err)
 	}
@@ -772,6 +877,16 @@ func writeQtLinguistTranslation(encoder *xml.Encoder, start xml.StartElement, re
 		return fmt.Errorf("qt linguist xml encode end: %w", err)
 	}
 	return nil
+}
+
+func qtLinguistAttrsWithout(attrs []xml.Attr, name string) []xml.Attr {
+	out := attrs[:0:0]
+	for _, attr := range attrs {
+		if attr.Name.Local != name {
+			out = append(out, attr)
+		}
+	}
+	return out
 }
 
 func qtLinguistTranslationAttrsWithoutUnfinished(attrs []xml.Attr) []xml.Attr {

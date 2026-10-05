@@ -369,6 +369,127 @@ func TestMarshalQtLinguistPreservesByteElements(t *testing.T) {
 	}
 }
 
+func TestQtLinguistHandlesUTF8BOM(t *testing.T) {
+	t.Parallel()
+	template := []byte("\ufeff<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<TS version=\"2.1\"><context><name>C</name><message><source>Hi</source><translation type=\"unfinished\"></translation></message></context></TS>")
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["C|Hi"] != "Hi" {
+		t.Fatalf("expected BOM catalog to parse, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, map[string]string{"C|Hi": "Salut"}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.HasPrefix(got, "\ufeff<?xml") {
+		t.Fatalf("expected BOM preserved before declaration, got %q", got)
+	}
+	if !strings.Contains(got, "<translation>Salut</translation>") {
+		t.Fatalf("expected translation written, got %q", got)
+	}
+}
+
+func TestMarshalQtLinguistPartialNumerusStaysUnfinished(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="fr">
+<context>
+    <name>Main</name>
+    <message numerus="yes">
+        <source>%n file(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+</TS>`)
+	out, err := MarshalQtLinguist(template, map[string]string{
+		"Main|%n file(s)::numerus.0": "%n fichier",
+	}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	if !strings.Contains(got, `<translation type="unfinished"><numerusform>%n fichier</numerusform><numerusform></numerusform></translation>`) {
+		t.Fatalf("expected untranslated form left empty and unfinished, got %q", got)
+	}
+}
+
+func TestQtLinguistPreservesLengthVariants(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="de">
+<context>
+    <name>Main</name>
+    <message>
+        <source>Preferences</source>
+        <translation variants="yes"><lengthvariant>Einstellungen</lengthvariant><lengthvariant>Einst.</lengthvariant></translation>
+    </message>
+</context>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["Main|Preferences"] != "Einstellungen" {
+		t.Fatalf("expected primary length variant, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, values, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `<translation variants="yes"><lengthvariant>Einstellungen</lengthvariant><lengthvariant>Einst.</lengthvariant></translation>`) {
+		t.Fatalf("expected unchanged length variants preserved, got %q", out)
+	}
+	out, err = MarshalQtLinguist(template, map[string]string{"Main|Preferences": "Optionen"}, "en", "de")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `<translation>Optionen</translation>`) {
+		t.Fatalf("expected replaced translation without stale variants, got %q", out)
+	}
+}
+
+func TestQtLinguistIDBasedEmptySource(t *testing.T) {
+	t.Parallel()
+	template := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<TS version="2.1" language="fr">
+<context>
+    <name>Main</name>
+    <message id="app.greeting">
+        <source></source>
+        <translation>Hello</translation>
+    </message>
+</context>
+</TS>`)
+	values, err := (QtLinguistParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if values["app.greeting"] != "Hello" {
+		t.Fatalf("expected id-keyed entry, got %#v", values)
+	}
+	out, err := MarshalQtLinguist(template, map[string]string{"app.greeting": "Bonjour"}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), "<translation>Bonjour</translation>") {
+		t.Fatalf("expected id-keyed translation written, got %q", out)
+	}
+}
+
+func TestLooksLikeQtLinguistTSWithLongPrologue(t *testing.T) {
+	t.Parallel()
+	content := "<?xml version=\"1.0\"?>\n<!-- " + strings.Repeat("license ", 1000) + "-->\n<TS version=\"2.1\"></TS>"
+	if !LooksLikeQtLinguistTS([]byte(content)) {
+		t.Fatal("expected detection past a long leading comment")
+	}
+}
+
 func TestQtLinguistParserRejectsNonTS(t *testing.T) {
 	t.Parallel()
 	if _, err := (QtLinguistParser{}).Parse([]byte(`export default { a: "b" };`)); err == nil {
