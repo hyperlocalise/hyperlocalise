@@ -37,6 +37,7 @@ import {
   CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME,
   loadContentfulAgentClient,
 } from "./tools/build-contentful-tools";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const CONTENTFUL_AGENT_STEP_LIMIT = 2;
 const logger = createLogger("contentful-agent");
@@ -131,6 +132,7 @@ export async function runContentfulAgent(
 
     const tools = buildContentfulAgentTools(session);
     const agent = new ToolLoopAgent({
+      telemetry: createAiTelemetry("contentful-agent"),
       model: getHyperlocaliseAgentModel(),
       instructions: composedInstructions,
       tools,

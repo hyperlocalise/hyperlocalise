@@ -43,6 +43,7 @@ import {
   resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const GITHUB_REPO_AGENT_STEP_LIMIT = 16;
 
@@ -151,6 +152,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         ]) as ToolSet;
 
         const agent = new ToolLoopAgent({
+          telemetry: createAiTelemetry("repository-agent"),
           model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: composedInstructions,

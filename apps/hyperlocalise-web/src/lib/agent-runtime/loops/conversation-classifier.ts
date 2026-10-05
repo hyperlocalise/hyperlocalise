@@ -14,6 +14,7 @@ import { generateText, Output, type LanguageModel, type ModelMessage } from "ai"
 import { z } from "zod";
 
 import type { RepositoryGitHubContextResolution } from "@/lib/agents/repository-context";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 export const conversationClassificationSchema = z.object({
   needsRepositoryTools: z.boolean(),
@@ -120,6 +121,7 @@ export function createConversationClassifier({ model }: CreateConversationClassi
   return async (input: ClassifyConversationInput): Promise<ConversationClassification> => {
     const { output, usage } = await generateText({
       model,
+      telemetry: createAiTelemetry("conversation-classification"),
       output: Output.object({
         schema: conversationClassificationSchema,
       }),

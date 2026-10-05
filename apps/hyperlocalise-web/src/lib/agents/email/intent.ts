@@ -14,6 +14,7 @@ import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 import type { EmailAgentIntentKind } from "./types";
 
 const emailRequestIntentSchema = z.object({
@@ -112,6 +113,7 @@ export function createEmailRequestInterpreter({ model }: CreateEmailRequestInter
   return async (input: { subject: string; text: string }) => {
     const { output } = await generateText({
       model,
+      telemetry: createAiTelemetry("email-intent"),
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),
@@ -145,6 +147,7 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
   return async (input: { text: string }) => {
     const { output } = await generateText({
       model,
+      telemetry: createAiTelemetry("email-intent"),
       output: Output.object({
         schema: emailRequestIntentSchema,
       }),

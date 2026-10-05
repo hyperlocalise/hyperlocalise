@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { createLogger } from "@/lib/log";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 import type { LocalisationAuditFinding, LocalisationAuditFindingSeverity } from "../types";
 import { clampScore } from "./shared";
@@ -100,6 +101,7 @@ export async function scoreCreditsWithLuna(input: {
   try {
     const { output } = await generateText({
       model: getHyperlocaliseAgentModel(),
+      telemetry: createAiTelemetry("localisation-audit"),
       output: Output.object({ schema: lunaOutputSchema }),
       prompt: [
         "You are scoring website localisation credits from 0 to 100.",

@@ -30,6 +30,7 @@ import { createAhrefsMcpClient, listAhrefsMcpTools } from "@/lib/ahrefs/mcp-clie
 import { isErr } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const AHREFS_TOOL_STEP_LIMIT = 10;
 
@@ -93,6 +94,7 @@ export function createUseAhrefsTool(session: WorkspaceOrchestratorSession) {
         requestSignal = AbortSignal.timeout(WORKFLOW_AGENT_TIMEOUT.totalMs);
 
         const agent = new ToolLoopAgent({
+          telemetry: createAiTelemetry("workspace-automation"),
           model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: [

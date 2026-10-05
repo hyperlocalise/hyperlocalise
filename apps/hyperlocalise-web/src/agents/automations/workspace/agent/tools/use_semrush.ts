@@ -30,6 +30,7 @@ import { loadSemrushConnectionWithApiKey } from "@/lib/semrush/connections";
 import { createSemrushMcpClient, listSemrushMcpTools } from "@/lib/semrush/mcp-client";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { createAiTelemetry } from "@/lib/observability/ai-telemetry";
 
 const SEMRUSH_TOOL_STEP_LIMIT = 10;
 
@@ -100,6 +101,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
         requestSignal = AbortSignal.timeout(WORKFLOW_AGENT_TIMEOUT.totalMs);
 
         const agent = new ToolLoopAgent({
+          telemetry: createAiTelemetry("workspace-automation"),
           model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: [
