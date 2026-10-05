@@ -25,15 +25,24 @@ export function sourceContentType(path: string) {
     case "json":
     case "jsonc":
     case "arb":
+    case "xcstrings":
       return "application/json";
+    case "yaml":
+      return "application/yaml";
     case "xliff":
       return "application/xliff+xml";
     case "qt-ts":
       return "text/xml";
+    case "xml":
+    case "resx":
+    case "resw":
+    case "stringsdict":
+      return "application/xml";
     case "po":
     case "strings":
-    case "stringsdict":
     case "ini":
+    case "ftl":
+    case "properties":
       return "text/plain";
     case "html":
       return "text/html";
@@ -44,6 +53,24 @@ export function sourceContentType(path: string) {
       return "text/asciidoc";
     case "csv":
       return "text/csv";
+    case "tsv":
+      return "text/tab-separated-values";
+    case "toml":
+      return "application/toml";
+    case "sbv":
+      return "text/plain";
+    case "svg":
+      return "image/svg+xml";
+    case "php":
+      return "application/x-httpd-php";
+    case "javascript":
+      return "text/javascript";
+    case "liquid":
+      return "application/liquid";
+    case "srt":
+      return "application/x-subrip";
+    case "vtt":
+      return "text/vtt";
     case "png":
       return "image/png";
     case "jpeg":

@@ -411,7 +411,7 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 func TestRunFailsOnUnsupportedSourceFormat(t *testing.T) {
 	svc := newTestService()
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
-		cfg := testConfig("/tmp/source.toml", "/tmp/out.json")
+		cfg := testConfig("/tmp/source.pdf", "/tmp/out.json")
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
@@ -3353,6 +3353,51 @@ func TestRunWritesCSVPerLocaleLayoutIntoTargetLocaleColumn(t *testing.T) {
 	}
 }
 
+func TestRunReadsTSVSourceLocaleWhenItIsNotTheFirstValueColumn(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.tsv"
+	targetPath := "/tmp/out.tsv"
+	source := "id\tfr\ten\nhello\tBonjour\tHello\n"
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source != "Hello" {
+			return "", errors.New("unexpected source text " + req.Source)
+		}
+		return "Salut", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	if !strings.Contains(out, "hello\tSalut\tHello") {
+		t.Fatalf("expected English source and French target column, got %q", out)
+	}
+}
+
 func TestRunPreservesExistingCSVTargetLocaleValuesForUnchangedKeys(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.csv"
@@ -4437,6 +4482,10 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.ini":         []byte("hello=Hello\n"),
 		"/tmp/source.srt":         []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
 		"/tmp/source.vtt":         []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"),
+		"/tmp/source.tsv":         []byte("key\tsource\ttarget\nhello\tHello\tHello\n"),
+		"/tmp/source.toml":        []byte("hello = \"Hello\"\n"),
+		"/tmp/source.sbv":         []byte("0:00:00.000,0:00:01.000\nHello\n"),
+		"/tmp/source.svg":         []byte("<svg><text>Hello</text></svg>"),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -4473,12 +4522,16 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.ini", source: "/tmp/source.ini"},
 		{target: "/tmp/out.srt", source: "/tmp/source.srt"},
 		{target: "/tmp/out.vtt", source: "/tmp/source.vtt"},
+		{target: "/tmp/out.tsv", source: "/tmp/source.tsv"},
+		{target: "/tmp/out.toml", source: "/tmp/source.toml"},
+		{target: "/tmp/out.sbv", source: "/tmp/source.sbv"},
+		{target: "/tmp/out.svg", source: "/tmp/source.svg"},
 	}
 
 	for _, tc := range cases {
 		values := map[string]string{"hello": "Bonjour"}
 		ext := strings.ToLower(filepath.Ext(tc.target))
-		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
+		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".sbv" || ext == ".svg" || ext == ".md" || ext == ".mdx" || ext == ".adoc" {
 			entries, err := svc.newParser().Parse(tc.source, sourceTemplate[tc.source])
 			if err != nil {
 				t.Fatalf("parse %s source: %v", tc.target, err)

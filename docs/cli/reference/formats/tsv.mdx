@@ -1,21 +1,21 @@
 ---
-title: "Translate CSV localization files with Hyperlocalise"
-sidebarTitle: "CSV"
-description: "Translate key-value CSV files and locale-column tables."
+title: "Translate TSV localization files with Hyperlocalise"
+sidebarTitle: "TSV"
+description: "Translate key-value TSV files and locale-column tables."
 ---
 
-CSV catalogs exchange messages in rows and columns. Column structure determines which content Hyperlocalise treats as keys and translation values; use the source layout below before translating an existing spreadsheet export.
+TSV catalogs exchange messages in tab-separated rows and columns. Column structure determines which content Hyperlocalise treats as keys and translation values; use the source layout below before translating an existing spreadsheet export.
 
-Supported extensions: `.csv`.
+Supported extensions: `.tsv`.
 
 ## Source file
 
-Save this example as `locales/en-US/messages.csv`.
+Save this example as `locales/en-US/messages.tsv`.
 
-```csv
-key,value
-home.title,Welcome
-home.greeting,"Hello, {name}!"
+```tsv
+key	value
+home.title	Welcome
+home.greeting	Hello, {name}!
 ```
 
 ## Configure your files
@@ -32,8 +32,8 @@ locales:
 buckets:
     messages:
         files:
-            - from: locales/en-US/messages.csv
-              to: locales/{{target}}/messages.csv
+            - from: locales/en-US/messages.tsv
+              to: locales/{{target}}/messages.tsv
 
 llm:
     profiles:
@@ -56,13 +56,16 @@ hyperlocalise run
 The dry run previews the work. The second command writes translations to the
 configured target path and updates the lockfile.
 
+Hyperlocalise Platform native projects also accept `.tsv` uploads for file
+translation jobs and segment review. See [Supported formats](/platform/file-formats).
+
 ## Behavior and limitations
 
-- The example uses a header row with `key` and `value`. CSV quoting handles commas and multiline values.
+- The example uses a header row with `key` and `value`. Fields are separated by tabs.
 
 - Locale-column layouts are also supported. Source and target locales select the corresponding columns.
 
-- Existing rows retain their order; newly appended keys are sorted. CSV quoting and line endings may be normalized.
+- Existing rows retain their order; newly appended keys are sorted. Quoting and line endings may be normalized.
 
 - This page covers translation files. For `status --output csv`, see [Command output](/cli/reference/output-formats).
 
@@ -74,6 +77,5 @@ configured target path and updates the lockfile.
 
 ## Related formats
 
-- [TSV localization](/cli/reference/formats/tsv)
+- [CSV localization](/cli/reference/formats/csv)
 - [JSON localization](/cli/reference/formats/json)
-- [gettext PO](/cli/reference/formats/gettext)

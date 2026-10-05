@@ -17,6 +17,7 @@ func TestFormatSupports(t *testing.T) {
 		{path: "messages.po", want: false},
 		{path: "captions.srt", want: false},
 		{path: "captions.vtt", want: false},
+		{path: "captions.sbv", want: false},
 		{path: "Localizable.xcstrings", want: false},
 		{path: "Localizable.stringsdict", want: false},
 		{path: "messages.json", mode: "formatjs", want: false},

@@ -52,6 +52,12 @@ describe("inferAttachmentContentType", () => {
     expect(inferAttachmentContentType("messages.yaml")).toBe("text/yaml; charset=utf-8");
     expect(inferAttachmentContentType("captions.srt")).toBe("application/x-subrip; charset=utf-8");
     expect(inferAttachmentContentType("captions.vtt")).toBe("text/vtt; charset=utf-8");
+    expect(inferAttachmentContentType("captions.sbv")).toBe("text/plain; charset=utf-8");
+    expect(inferAttachmentContentType("messages.tsv")).toBe(
+      "text/tab-separated-values; charset=utf-8",
+    );
+    expect(inferAttachmentContentType("messages.toml")).toBe("application/toml; charset=utf-8");
+    expect(inferAttachmentContentType("mark.svg")).toBe("image/svg+xml; charset=utf-8");
   });
 
   it("falls back to octet-stream for unknown or extensionless files", () => {

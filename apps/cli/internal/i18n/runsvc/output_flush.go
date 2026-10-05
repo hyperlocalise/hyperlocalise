@@ -180,7 +180,7 @@ func (s *Service) joinStagedSRXOutput(output stagedOutput, existing map[string]s
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: compile srx %q: %w", output.srxSpec, err)
 	}
-	sourceEntries, parserMode, err := s.loadSourceEntriesForJoin(output.sourcePath)
+	sourceEntries, parserMode, err := s.loadSourceEntriesForJoin(output.sourcePath, output.sourceLocale)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (s *Service) joinStagedSRXOutput(output stagedOutput, existing map[string]s
 	return joinSRXStagedEntries(doc, output.sourcePath, parserMode, output.sourceLocale, output.targetLocale, sourceEntries, output.entries, existing), nil
 }
 
-func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string, string, error) {
+func (s *Service) loadSourceEntriesForJoin(sourcePath, sourceLocale string) (map[string]string, string, error) {
 	content, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -199,7 +199,7 @@ func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string
 		return nil, "", fmt.Errorf("flush outputs: read source file %q: %w", sourcePath, err)
 	}
 	parser := s.newParser()
-	entries, _, parseErr := parser.ParseWithContext(sourcePath, content)
+	entries, _, parseErr := parser.ParseSource(sourcePath, content, sourceLocale)
 	if parseErr != nil {
 		return nil, "", fmt.Errorf("flush outputs: parse source file %q: %w", sourcePath, parseErr)
 	}
@@ -209,6 +209,9 @@ func (s *Service) loadSourceEntriesForJoin(sourcePath string) (map[string]string
 func parseExistingTargetEntries(path string, content []byte, targetLocale string, parser *translationfileparser.Strategy) (map[string]string, error) {
 	if strings.EqualFold(filepath.Ext(path), ".csv") {
 		return parseCSVForTargetLocale(content, targetLocale)
+	}
+	if strings.EqualFold(filepath.Ext(path), ".tsv") {
+		return translationfileparser.ParseTSVLocale(content, targetLocale)
 	}
 	return parser.Parse(path, content)
 }

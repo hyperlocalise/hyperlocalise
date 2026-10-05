@@ -51,12 +51,14 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 | JavaScript and TypeScript locale | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | [Translate JavaScript and TypeScript locale](/cli/reference/formats/javascript-typescript) |
 | Java .properties | `.properties` | [Translate Java .properties](/cli/reference/formats/java-properties) |
 | INI localization | `.ini` | [Translate INI](/cli/reference/formats/ini) |
+| TOML localization | `.toml` | [Translate TOML](/cli/reference/formats/toml) |
 | .NET RESX resource | `.resx` | [Translate .NET RESX resource](/cli/reference/formats/resx) |
 | Windows RESW resource | `.resw` | [Translate Windows RESW resource](/cli/reference/formats/resw) |
 | PHP localization | `.php` | [Translate PHP localization](/cli/reference/formats/php) |
 | Fluent localization | `.ftl` | [Translate Fluent localization](/cli/reference/formats/fluent) |
 | XML localization | `.xml` | [Translate XML localization](/cli/reference/formats/xml) |
 | CSV localization | `.csv` | [Translate CSV localization](/cli/reference/formats/csv) |
+| TSV localization | `.tsv` | [Translate TSV localization](/cli/reference/formats/tsv) |
 
 ### Translation exchange
 
@@ -76,6 +78,7 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 | HTML | `.html`, `.htm` | [Translate HTML](/cli/reference/formats/html) |
 | Liquid template | `.liquid` | [Translate Liquid template](/cli/reference/formats/liquid) |
 | Lottie animation text | `.json`, `.lottie` | [Translate Lottie animation text](/cli/reference/formats/lottie) |
+| SVG text | `.svg` | [Translate SVG text](/cli/reference/formats/svg) |
 
 ### Subtitles and captions
 
@@ -83,6 +86,7 @@ For text, CSV, or JSON printed by CLI commands, see [Command output](/cli/refere
 | --- | --- | --- |
 | SRT subtitle | `.srt` | [Translate SRT subtitle](/cli/reference/formats/srt) |
 | WebVTT subtitle | `.vtt` | [Translate WebVTT subtitle](/cli/reference/formats/webvtt) |
+| YouTube SBV subtitle | `.sbv` | [Translate YouTube SBV subtitle](/cli/reference/formats/sbv) |
 
 ## Are placeholders, plurals, and comments preserved?
 
@@ -102,8 +106,8 @@ them: context, plural forms, comments, and metadata can differ.
 
 ## Do all formats work with every TMS and Platform?
 
-Local translation, provider file commands, TMS entry sync, and Platform uploads have
-separate support boundaries. Shared TMS entry sync currently requires flat JSON;
-provider file commands follow the provider's import/export contract. Consult
+Native Platform uploads accept the same catalog extensions as this CLI. Shared TMS
+entry sync currently requires flat JSON. Provider file commands follow the
+provider's import/export contract. Consult
 [TMS integrations](/cli/storage/overview) or [Platform file formats](/platform/file-formats)
 for the destination you use.

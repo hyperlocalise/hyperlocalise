@@ -36,7 +36,9 @@ spellcheck:
 
 	fromConfig, err := resolveCheckDictionaryDir(cfg, "", configPath)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(dir, ".hyperlocalise/dictionaries"), fromConfig)
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(resolvedDir, ".hyperlocalise/dictionaries"), fromConfig)
 
 	override := filepath.Join(dir, "override-dicts")
 	fromFlag, err := resolveCheckDictionaryDir(cfg, override, configPath)

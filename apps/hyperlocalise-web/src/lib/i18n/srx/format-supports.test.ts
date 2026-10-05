@@ -23,5 +23,6 @@ describe("sourcePathSupportsSrxSegmentation", () => {
   it("rejects already-segmented formats", () => {
     expect(sourcePathSupportsSrxSegmentation("strings.xliff")).toBe(false);
     expect(sourcePathSupportsSrxSegmentation("movie.srt")).toBe(false);
+    expect(sourcePathSupportsSrxSegmentation("movie.sbv")).toBe(false);
   });
 });

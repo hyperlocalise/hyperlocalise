@@ -74,3 +74,59 @@ func TestStrategyParseWithLocaleReadsCSVTargetLocaleColumn(t *testing.T) {
 		t.Fatalf("unexpected hello translation: %q", got["hello"])
 	}
 }
+
+func TestParseTSVLocaleReadsTargetColumn(t *testing.T) {
+	content := []byte("id\ten\tfr\nhello\tHello\tBonjour\n")
+
+	got, err := ParseTSVLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse tsv locale: %v", err)
+	}
+	if got["hello"] != "Bonjour" {
+		t.Fatalf("unexpected fr value: %q", got["hello"])
+	}
+}
+
+func TestTSVHasLocaleColumn(t *testing.T) {
+	has, err := TSVHasLocaleColumn([]byte("key\ten\tfr\nhello\tHello\tBonjour\n"), "FR")
+	if err != nil {
+		t.Fatalf("TSVHasLocaleColumn: %v", err)
+	}
+	if !has {
+		t.Fatalf("expected to find fr column")
+	}
+}
+
+func TestStrategyParseWithLocaleReadsTSVTargetLocaleColumn(t *testing.T) {
+	s := NewDefaultStrategy()
+	content := []byte("id\ten\tfr\nhello\tHello\tBonjour\n")
+
+	got, err := s.ParseWithLocale("translations.tsv", content, "fr")
+	if err != nil {
+		t.Fatalf("parse with locale: %v", err)
+	}
+	if got["hello"] != "Bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
+func TestStrategyParseSourceReadsTSVSourceLocaleWhenNotFirstColumn(t *testing.T) {
+	s := NewDefaultStrategy()
+	content := []byte("id\tfr\ten\nhello\tBonjour\tHello\n")
+
+	got, _, err := s.ParseSource("translations.tsv", content, "en")
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("expected English source column, got %q", got["hello"])
+	}
+
+	defaultParse, err := s.Parse("translations.tsv", content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if defaultParse["hello"] != "Bonjour" {
+		t.Fatalf("expected default parser to keep first value column, got %q", defaultParse["hello"])
+	}
+}

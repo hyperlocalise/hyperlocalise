@@ -1,24 +1,22 @@
 ---
-title: "Translate SRT subtitle files with Hyperlocalise"
-sidebarTitle: "SubRip subtitles"
-description: "Translate SubRip cue text while preserving subtitle numbers and timing."
+title: "Translate YouTube SBV subtitle files with Hyperlocalise"
+sidebarTitle: "YouTube SBV"
+description: "Translate YouTube SBV cue text while preserving comma-separated timestamps."
 ---
 
-SubRip (SRT) subtitle files contain numbered cues with timestamps and text. Hyperlocalise translates cue text while retaining timings; it does not retime subtitles for a different reading speed.
+YouTube SBV subtitle files contain cue timestamps and text without cue numbers. Hyperlocalise translates cue text while retaining timings; it does not retime subtitles for a different reading speed.
 
-Supported extensions: `.srt`.
+Supported extensions: `.sbv`.
 
 ## Source file
 
-Save this example as `locales/en-US/messages.srt`.
+Save this example as `locales/en-US/messages.sbv`.
 
 ```text
-1
-00:00:01,000 --> 00:00:04,000
+0:00:01.000,0:00:04.000
 Welcome to the product tour.
 
-2
-00:00:05,000 --> 00:00:08,000
+0:00:05.000,0:00:08.000
 Open your project to begin.
 ```
 
@@ -36,8 +34,8 @@ locales:
 buckets:
     messages:
         files:
-            - from: locales/en-US/messages.srt
-              to: locales/{{target}}/messages.srt
+            - from: locales/en-US/messages.sbv
+              to: locales/{{target}}/messages.sbv
 
 llm:
     profiles:
@@ -60,11 +58,16 @@ hyperlocalise run
 The dry run previews the work. The second command writes translations to the
 configured target path and updates the lockfile.
 
+Hyperlocalise Platform native projects also accept `.sbv` uploads for file
+translation jobs and segment review. See [Supported formats](/platform/file-formats).
+
 ## Behavior and limitations
 
-- Each cue is one translation unit, including multiline text. Keys are sequential, such as `srt.0001`.
+- Each cue is one translation unit, including multiline text. Keys are sequential, such as `sbv.0001`.
 
-- Cue numbers, timestamps, and positioning remain unchanged. Timing is supplied as translation context.
+- Timestamps use `H:MM:SS.mmm,H:MM:SS.mmm` and remain unchanged. Timing is supplied as translation context.
+
+- Files that look like SubRip or WebVTT are rejected. Use a `.srt` or `.vtt` extension for those formats.
 
 - Writeback replaces cue text. Extra keys are ignored, and blank lines inside translated text are removed to avoid creating new cues.
 
@@ -78,5 +81,5 @@ configured target path and updates the lockfile.
 
 ## Related formats
 
+- [SRT subtitle](/cli/reference/formats/srt)
 - [WebVTT subtitle](/cli/reference/formats/webvtt)
-- [YouTube SBV subtitle](/cli/reference/formats/sbv)

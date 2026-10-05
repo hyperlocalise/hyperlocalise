@@ -16,11 +16,11 @@ projects follow the [provider's capabilities](/platform/tms).
 
 | File family | Source upload extensions | Translation path | Review | Target export |
 | --- | --- | --- | --- | --- |
-| Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings`, `.ini` | File translation jobs | Segment views | Reconstructed target file |
-| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.ts`, `.csv` | File translation jobs | Segment views | Reconstructed target file |
-| Web content | `.html` | File translation jobs | Segment views; preview where available | Reconstructed target file |
-| Documentation | `.md`, `.mdx`, `.adoc`, `.asciidoc`, `.asc` | Document translation | File view | Stored target document |
-| Subtitles | `.srt`, `.vtt` | File translation jobs | Segment views | Reconstructed subtitle file |
+| Application messages | `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.strings`, `.stringsdict`, `.xcstrings`, `.ini`, `.toml`, `.xml`, `.resx`, `.resw`, `.properties`, `.php`, `.ftl`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.tsx`, `.mts`, `.cts` | File translation jobs | Segment views | Reconstructed target file |
+| Exchange and tabular catalogs | `.xlf`, `.xlif`, `.xliff`, `.po`, `.ts`, `.csv`, `.tsv` | File translation jobs | Segment views | Reconstructed target file |
+| Web content | `.html`, `.htm`, `.liquid`, `.svg` | File translation jobs | Segment views; preview where available | Reconstructed target file |
+| Documentation | `.md`, `.markdown`, `.mdown`, `.mkdn`, `.mdwn`, `.mkd`, `.mdx`, `.adoc`, `.asciidoc`, `.asc` | Document translation | File view | Stored target document |
+| Subtitles | `.srt`, `.vtt`, `.sbv` | File translation jobs | Segment views | Reconstructed subtitle file |
 | Images | `.png`, `.jpg`, `.jpeg`, `.webp` | Image translation workflow | Image file view | Stored target image |
 | Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
 | Office documents | `.docx`, `.xlsx`, `.xls`, `.pptx` | Manual localization in File view | Upload or edit translated file | Stored target file when available |
@@ -42,15 +42,14 @@ For a complete Platform workflow, start with one of these tutorials:
 - [gettext POT and PO](/platform/tutorials/gettext-pot-po), including Unreal Engine `.po` catalogs with rich-text tags
 - [Qt Linguist TS](/platform/tutorials/qt-linguist)
 
-Some tutorials use repository preprocessing or CLI translation. In particular,
-Android `.xml` and gettext `.pot` are not listed in the native source-upload
-extension set above. Native `.ts` uploads are Qt Linguist catalogs, not
-TypeScript locale modules. Follow each tutorial's preparation and delivery path rather
-than assuming a CLI-supported extension can be uploaded directly.
+Native source upload accepts the same catalog extensions as the
+[CLI file-format guides](/cli/reference/formats/overview). Upload
+`strings.xml` for Android string resources; other `.xml` files use the generic
+XML parser. Direct `.pot` upload is not supported: prepare a source-language
+`.po` first, then upload or sync that catalog. Native `.ts` uploads are Qt
+Linguist catalogs, not TypeScript locale modules.
 
-For local translation, the [all-in-one Hyperlocalise CLI](/cli) has its own
-[file-format guides](/cli/reference/formats/overview), including additional formats
-such as Java properties, PHP, Fluent, and RESX.
+For local translation, use the [all-in-one Hyperlocalise CLI](/cli).
 
 ## Upload, translate, review, and export
 
@@ -73,10 +72,10 @@ than a segment queue.
 
 ## Does Platform support every CLI or TMS file format?
 
-No. Local CLI parsing, native Platform uploads, and provider imports are separate
-contracts. Use the table above for native uploads, the provider's import rules for
-connected projects, and the [CLI format overview](/cli/reference/formats/overview)
-for local translation. Supporting an export format does not imply a matching
-source-upload format.
+Native uploads now accept the same catalog extensions as the CLI, plus images,
+video, and Office files. Local CLI parsing, native Platform uploads, and
+provider imports remain separate contracts: a listed extension still needs valid
+content, and connected TMS projects follow the provider's import rules.
+Supporting an export format does not imply a matching source-upload format.
 
 If an accepted file cannot open, check [upload troubleshooting](/platform/help/uploads).

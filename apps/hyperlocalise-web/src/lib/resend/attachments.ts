@@ -55,6 +55,10 @@ export function toBase64AttachmentContent(content: AttachmentContent): string {
 const utf8AttachmentContentTypes: Record<string, string> = {
   ".arb": "application/json; charset=utf-8",
   ".csv": "text/csv; charset=utf-8",
+  ".sbv": "text/plain; charset=utf-8",
+  ".svg": "image/svg+xml; charset=utf-8",
+  ".toml": "application/toml; charset=utf-8",
+  ".tsv": "text/tab-separated-values; charset=utf-8",
   ".html": "text/html; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".jsonc": "application/json; charset=utf-8",

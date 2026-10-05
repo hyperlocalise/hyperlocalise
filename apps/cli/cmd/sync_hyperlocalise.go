@@ -496,6 +496,10 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xcstrings"
 	case ".csv":
 		return "csv"
+	case ".tsv":
+		return "tsv"
+	case ".toml":
+		return "toml"
 	case ".ftl":
 		return "fluent"
 	case ".properties":
@@ -506,6 +510,10 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "srt"
 	case ".vtt":
 		return "vtt"
+	case ".sbv":
+		return "sbv"
+	case ".svg":
+		return "svg"
 	case ".png":
 		return "png"
 	case ".jpg", ".jpeg":
@@ -829,8 +837,14 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".adoc", ".asciidoc", ".asc":
 		return "text/asciidoc"
-	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini":
+	case ".po", ".strings", ".stringsdict", ".ftl", ".properties", ".ini", ".sbv":
 		return "text/plain"
+	case ".toml":
+		return "application/toml"
+	case ".tsv":
+		return "text/tab-separated-values"
+	case ".svg":
+		return "image/svg+xml"
 	case ".srt":
 		return "application/x-subrip"
 	case ".vtt":
