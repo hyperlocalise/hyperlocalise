@@ -67,9 +67,15 @@ export type WorkspaceAutomationSkill = {
   risk?: string;
 };
 
-const RUN_TRIGGERS = ["manual", "scheduled"] as const;
 const REPOSITORY_TRIGGERS = ["manual", "scheduled", "github"] as const;
-const DELIVERY_TRIGGERS = ["manual", "scheduled", "github", "contentful", "source_upload"] as const;
+/** Every trigger whose runs go through the orchestrator. Web chat runs a different agent. */
+const ORCHESTRATED_TRIGGERS = [
+  "manual",
+  "scheduled",
+  "github",
+  "contentful",
+  "source_upload",
+] as const;
 
 export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = [
   {
@@ -123,7 +129,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
       "Check strings under review against the Crowdin glossary, translation memory and style guide.",
     grants: "Reads your Crowdin project. Changes nothing.",
     tools: ["use_crowdin"],
-    triggers: REPOSITORY_TRIGGERS,
+    triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: ["crowdin-concordance-review"],
     keywords: {
       strong: ["crowdin", "concordance"],
@@ -141,7 +147,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
       "Search the live web for competitor, market and localisation changes, with sources.",
     grants: "Searches the public web. Changes nothing.",
     tools: ["use_web_search"],
-    triggers: RUN_TRIGGERS,
+    triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: [],
     keywords: {
       strong: [
@@ -199,7 +205,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
       "Check the project's open Queries issues, then file one issue for each new finding.",
     grants: "Reads and creates Queries issues in the project, up to 20 in a run.",
     tools: ["list_issues", "create_issue"],
-    triggers: REPOSITORY_TRIGGERS,
+    triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: [],
     keywords: {
       strong: [
@@ -222,7 +228,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description: "Post the outcome of each run to a Slack channel.",
     grants: "Posts messages to the Slack channel you choose.",
     tools: ["notify_slack"],
-    triggers: DELIVERY_TRIGGERS,
+    triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: [],
     keywords: {
       strong: ["slack"],
@@ -236,7 +242,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description: "Email the outcome of each run to the people you list.",
     grants: "Sends email from your connected sender to the recipients you list.",
     tools: ["notify_email"],
-    triggers: DELIVERY_TRIGGERS,
+    triggers: ORCHESTRATED_TRIGGERS,
     sharedSkills: [],
     keywords: {
       strong: [["email", "e-mail"], "inbox"],

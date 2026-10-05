@@ -183,9 +183,9 @@ describe("workspace automation skill form", () => {
     expect(validateWorkspaceAutomationFormState({ ...form, webSearchEnabled: false }).skills).toBe(
       "A selected skill needs a tool that was removed. Add the skill again.",
     );
-    expect(
-      validateWorkspaceAutomationFormState({ ...form, triggerMode: "source_upload" }).skills,
-    ).toBe("A selected skill does not work with this trigger. Remove it or change the trigger.");
+    expect(validateWorkspaceAutomationFormState({ ...form, triggerMode: "web_chat" }).skills).toBe(
+      "A selected skill does not work with this trigger. Remove it or change the trigger.",
+    );
   });
 
   it("requires instructions when no skill is attached", () => {

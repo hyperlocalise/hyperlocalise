@@ -884,12 +884,8 @@ describe("workspace automations", () => {
     });
     const wrongTrigger = await createWorkspaceAutomation({
       ...base,
-      triggerConfig: { mode: "source_upload" },
-      projectId: scope.projectId,
-      toolConfig: {
-        webSearch: { enabled: true, provider: "auto" },
-        createNativeTmsJob: { enabled: true, useProjectTargetLocales: true, targetLocales: [] },
-      },
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: { webSearch: { enabled: true, provider: "auto" } },
       skillIds: ["research-web"],
     });
     const missingTool = await createWorkspaceAutomation({

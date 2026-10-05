@@ -23,6 +23,10 @@ follow.
 - Each skill's procedure is a markdown file with the same id under
   `src/agents/automations/workspace/agent/skills/`. A test keeps the two in step.
 - Skills ship with the app. Customer-authored skills are out of scope.
+- A skill lists a trigger only when its tools can do something useful there. Research, Crowdin
+  and issue skills, and Slack and email delivery, work on every trigger except web chat, which
+  runs a different agent. Uploaded-file translation needs the source-upload trigger, the pull
+  request comment needs a GitHub event, and Contentful translation needs an entry.
 - A skill may declare a `risk`: a plain statement of what it does that cannot be undone. The
   editor shows it and asks for confirmation before attaching the skill, from the menu or from a
   suggestion. Only "Email results" declares one.

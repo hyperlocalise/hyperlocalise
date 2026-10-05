@@ -92,6 +92,25 @@ describe("workspace automation skills", () => {
     ).toEqual([]);
   });
 
+  it("offers research, Crowdin and issue skills on every orchestrated trigger", () => {
+    const skills = resolveWorkspaceAutomationSkills([
+      "research-web",
+      "check-crowdin-concordance",
+      "file-issues-for-findings",
+    ]);
+
+    expect(skills).toHaveLength(3);
+    for (const skill of skills) {
+      expect(skill.triggers).toEqual([
+        "manual",
+        "scheduled",
+        "github",
+        "contentful",
+        "source_upload",
+      ]);
+    }
+  });
+
   it("marks only the email skill as risky", () => {
     expect(
       WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.risk).map((skill) => skill.id),
