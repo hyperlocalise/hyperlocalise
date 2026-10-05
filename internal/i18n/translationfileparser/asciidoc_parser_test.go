@@ -231,6 +231,54 @@ func TestMarshalAsciiDocWithTargetFallbackPreservesNeighborsWhenInserting(t *tes
 	}
 }
 
+func TestMarshalAsciiDocKeepsUnmatchedParagraphInsteadOfListItem(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("= Guide\n\nNew intro paragraph.\n\n* First step\n* Second step\n")
+	target := []byte("= Guide\n\n* Premiere etape\n* Deuxieme etape\n")
+	got := string(MarshalAsciiDocWithTargetFallback(source, target, map[string]string{}))
+	if !strings.Contains(got, "New intro paragraph.") {
+		t.Fatalf("expected unmatched paragraph to keep source text, got %q", got)
+	}
+	if strings.Contains(got, "Premiere etape") && strings.Index(got, "Premiere etape") < strings.Index(got, "*") {
+		t.Fatalf("new paragraph received a list item translation: %q", got)
+	}
+	if !strings.Contains(got, "* Premiere etape") || !strings.Contains(got, "* Deuxieme etape") {
+		t.Fatalf("expected list items to keep target translations, got %q", got)
+	}
+}
+
+func TestAlignAsciiDocDoesNotAssignListItemToNewParagraph(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("= Guide\n\nNew intro paragraph.\n\n* First step\n* Second step\n")
+	target := []byte("= Guide\n\n* Premiere etape\n* Deuxieme etape\n")
+	aligned := AlignAsciiDocTargetToSource(source, target)
+	if aligned["adoc.paragraph"] == "Premiere etape" || aligned["adoc.paragraph"] == "Deuxieme etape" {
+		t.Fatalf("new paragraph received a list item translation: %#v", aligned)
+	}
+	if aligned["adoc.list_item"] != "Premiere etape" {
+		t.Fatalf("first list item=%q, want Premiere etape; aligned=%#v", aligned["adoc.list_item"], aligned)
+	}
+	if aligned["adoc.list_item.2"] != "Deuxieme etape" {
+		t.Fatalf("second list item=%q, want Deuxieme etape; aligned=%#v", aligned["adoc.list_item.2"], aligned)
+	}
+}
+
+func TestMarshalAsciiDocDoesNotReuseListItemAsParagraphWhenCountsMatch(t *testing.T) {
+	t.Parallel()
+
+	source := []byte("= Guide\n\nA new paragraph in place of the list.\n")
+	target := []byte("= Guide\n\n* Ancienne etape\n")
+	got := string(MarshalAsciiDocWithTargetFallback(source, target, map[string]string{}))
+	if !strings.Contains(got, "A new paragraph in place of the list.") {
+		t.Fatalf("expected unmatched paragraph to keep source text, got %q", got)
+	}
+	if strings.Contains(got, "Ancienne etape") {
+		t.Fatalf("paragraph received a list item translation: %q", got)
+	}
+}
+
 func TestAsciiDocExtractsHeadingImmediatelyAfterTitle(t *testing.T) {
 	t.Parallel()
 

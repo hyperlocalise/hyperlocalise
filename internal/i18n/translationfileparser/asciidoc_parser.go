@@ -1214,6 +1214,9 @@ func (a *asciiDocAligner) takeHighConfidence() (string, bool) {
 }
 
 func (a *asciiDocAligner) takeRemaining() (string, bool) {
+	// Allow last-resort reuse of leftover target blocks, but takeFallback still
+	// requires the same structural path so a new paragraph cannot pick up an
+	// unused list item.
 	return a.takeWith(a.useStructuralPaths, true)
 }
 
@@ -1245,19 +1248,26 @@ func (a *asciiDocAligner) takeFallback(sourceCtx asciiDocKeyContext, usePath, us
 	if !useLastResort {
 		return "", false
 	}
-	for i := a.targetCtxCursor; i < len(a.targetContexts); i++ {
-		if a.targetPartUsed[a.targetContexts[i].partIndex] {
-			continue
+	return a.takeLastResort(sourceCtx)
+}
+
+func (a *asciiDocAligner) takeLastResort(sourceCtx asciiDocKeyContext) (string, bool) {
+	tryRange := func(from, to int) (string, bool) {
+		for i := from; i < to; i++ {
+			if a.targetPartUsed[a.targetContexts[i].partIndex] {
+				continue
+			}
+			if a.targetContexts[i].path != sourceCtx.path {
+				continue
+			}
+			return a.consumeContext(i), true
 		}
-		return a.consumeContext(i), true
+		return "", false
 	}
-	for i := range a.targetContexts {
-		if a.targetPartUsed[a.targetContexts[i].partIndex] {
-			continue
-		}
-		return a.consumeContext(i), true
+	if text, ok := tryRange(a.targetCtxCursor, len(a.targetContexts)); ok {
+		return text, true
 	}
-	return "", false
+	return tryRange(0, a.targetCtxCursor)
 }
 
 func (a *asciiDocAligner) consumeContext(idx int) string {
