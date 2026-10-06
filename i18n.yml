@@ -1,5 +1,6 @@
 # Minimal starter config.
 # Read this file top-to-bottom: locales -> buckets -> groups -> llm.
+version: hyperlocalise@1.13.3
 locales:
   # Source locale: the language your original content is written in.
   source: en-US
