@@ -173,7 +173,9 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
           ...(input.search ? { search: input.search } : {}),
           ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
           ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
-          ...(input.queueFilterQualifier ? { queueFilterQualifier: input.queueFilterQualifier } : {}),
+          ...(input.queueFilterQualifier
+            ? { queueFilterQualifier: input.queueFilterQualifier }
+            : {}),
           ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
           offset: input.offset,
           limit: input.limit,

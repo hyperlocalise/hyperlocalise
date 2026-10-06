@@ -305,7 +305,10 @@ export function ContentEditorAdvancedQueueFilterDialog({
             <FormattedMessage {...messages.stringsSection} />
           </p>
 
-          <FilterRow label={<FormattedMessage {...messages.stringsAdded} />} htmlFor="cat-added-from">
+          <FilterRow
+            label={<FormattedMessage {...messages.stringsAdded} />}
+            htmlFor="cat-added-from"
+          >
             <DateRangeFields
               fromId="cat-added-from"
               toId="cat-added-to"
@@ -401,7 +404,10 @@ export function ContentEditorAdvancedQueueFilterDialog({
             </>
           ) : null}
 
-          <FilterRow label={<FormattedMessage {...messages.stringType} />} htmlFor="cat-string-type">
+          <FilterRow
+            label={<FormattedMessage {...messages.stringType} />}
+            htmlFor="cat-string-type"
+          >
             <FilterSelect
               id="cat-string-type"
               value={draft.stringType}
@@ -529,7 +535,11 @@ export function ContentEditorAdvancedQueueFilterDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => setDraft(EMPTY_ADVANCED_QUEUE_FILTER)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setDraft(EMPTY_ADVANCED_QUEUE_FILTER)}
+          >
             <FormattedMessage {...messages.reset} />
           </Button>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

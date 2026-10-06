@@ -73,28 +73,29 @@ export const crowdinQaIssueQualifiers = [
 export const crowdinMachineTranslationQualifiers = ["tm", "mt", "ai"] as const;
 export const nativeMachineTranslationQualifiers = ["translation_job", "agent", "import"] as const;
 
-export const crowdinQaCroqlByQualifier: Record<(typeof crowdinQaIssueQualifiers)[number], string> = {
-  empty_translation: "has empty translation qa issues",
-  translation_length: "has translation length qa issues",
-  tags_mismatch: "has tags mismatch qa issues",
-  spaces_mismatch: "has spaces mismatch qa issues",
-  variables_mismatch: "has variables mismatch qa issues",
-  punctuation_mismatch: "has punctuation mismatch qa issues",
-  character_case_mismatch: "has character case mismatch qa issues",
-  special_characters_mismatch: "has special characters mismatch qa issues",
-  incorrect_translation: "has incorrect translation qa issues",
-  spelling: "has spelling qa issues",
-  icu_syntax: "has icu syntax qa issues",
-  terms: "has terms qa issues",
-  duplicate_translation: "has duplicate translation qa issues",
-  ftl_syntax: "has ftl syntax qa issues",
-  android_syntax: "has android syntax qa issues",
-  numbers_mismatch: "has numbers mismatch qa issues",
-  ai: "has ai qa issues",
-  outdated_translation: "has outdated translation qa issues",
-  mdx_syntax: "has mdx syntax qa issues",
-  custom: "has custom qa issues",
-};
+export const crowdinQaCroqlByQualifier: Record<(typeof crowdinQaIssueQualifiers)[number], string> =
+  {
+    empty_translation: "has empty translation qa issues",
+    translation_length: "has translation length qa issues",
+    tags_mismatch: "has tags mismatch qa issues",
+    spaces_mismatch: "has spaces mismatch qa issues",
+    variables_mismatch: "has variables mismatch qa issues",
+    punctuation_mismatch: "has punctuation mismatch qa issues",
+    character_case_mismatch: "has character case mismatch qa issues",
+    special_characters_mismatch: "has special characters mismatch qa issues",
+    incorrect_translation: "has incorrect translation qa issues",
+    spelling: "has spelling qa issues",
+    icu_syntax: "has icu syntax qa issues",
+    terms: "has terms qa issues",
+    duplicate_translation: "has duplicate translation qa issues",
+    ftl_syntax: "has ftl syntax qa issues",
+    android_syntax: "has android syntax qa issues",
+    numbers_mismatch: "has numbers mismatch qa issues",
+    ai: "has ai qa issues",
+    outdated_translation: "has outdated translation qa issues",
+    mdx_syntax: "has mdx syntax qa issues",
+    custom: "has custom qa issues",
+  };
 
 const isoDateSchema = z
   .string()
@@ -129,7 +130,9 @@ export const contentEditorAdvancedQueueFilterSchema = z
   })
   .strict();
 
-export type ContentEditorAdvancedQueueFilter = z.infer<typeof contentEditorAdvancedQueueFilterSchema>;
+export type ContentEditorAdvancedQueueFilter = z.infer<
+  typeof contentEditorAdvancedQueueFilterSchema
+>;
 export type ContentEditorLabelIncludeMode = (typeof contentEditorLabelIncludeModes)[number];
 export type ContentEditorLabelExcludeMode = (typeof contentEditorLabelExcludeModes)[number];
 export type ContentEditorStringType = (typeof contentEditorStringTypes)[number];
@@ -138,14 +141,13 @@ export type ContentEditorApprovalStatus = (typeof contentEditorApprovalStatuses)
 export type ContentEditorPresenceFilter = (typeof contentEditorPresenceFilters)[number];
 export type ContentEditorVisibilityFilter = (typeof contentEditorVisibilityFilters)[number];
 export type CrowdinQaIssueQualifier = (typeof crowdinQaIssueQualifiers)[number];
-export type CrowdinMachineTranslationQualifier = (typeof crowdinMachineTranslationQualifiers)[number];
+export type CrowdinMachineTranslationQualifier =
+  (typeof crowdinMachineTranslationQualifiers)[number];
 export type NativeMachineTranslationQualifier = (typeof nativeMachineTranslationQualifiers)[number];
 
 export const EMPTY_ADVANCED_QUEUE_FILTER: ContentEditorAdvancedQueueFilter = {};
 
-export function isAdvancedQueueFilterSupportedForProvider(
-  providerKind: string | null | undefined,
-) {
+export function isAdvancedQueueFilterSupportedForProvider(providerKind: string | null | undefined) {
   return providerKind == null || providerKind === "native" || providerKind === "crowdin";
 }
 
@@ -174,9 +176,7 @@ export function catQueueFilterQueryParams(input: {
   };
 }
 
-export function isCatQueueFilterEmpty(
-  filter: ContentEditorAdvancedQueueFilter | null | undefined,
-) {
+export function isCatQueueFilterEmpty(filter: ContentEditorAdvancedQueueFilter | null | undefined) {
   if (!filter) {
     return true;
   }
@@ -356,9 +356,9 @@ export function catQueueHasServerSideFilter(input: {
 }) {
   return Boolean(
     input.search?.trim() ||
-      (input.queueFilter && input.queueFilter !== "all") ||
-      input.queueFilterQualifier ||
-      (input.advancedFilter && !isCatQueueFilterEmpty(input.advancedFilter)),
+    (input.queueFilter && input.queueFilter !== "all") ||
+    input.queueFilterQualifier ||
+    (input.advancedFilter && !isCatQueueFilterEmpty(input.advancedFilter)),
   );
 }
 

@@ -247,10 +247,7 @@ export function ContentEditorQueueFilterMenu({
 
       <DropdownMenuGroup>
         {renderSubmenu("qa_issues", crowdinQaQualifiersForProvider(providerKind))}
-        {renderSubmenu(
-          "machine_translated",
-          machineTranslationQualifiersForProvider(providerKind),
-        )}
+        {renderSubmenu("machine_translated", machineTranslationQualifiersForProvider(providerKind))}
         {trailingFilters.map((filter) =>
           available.has(filter) ? (
             <FilterItem

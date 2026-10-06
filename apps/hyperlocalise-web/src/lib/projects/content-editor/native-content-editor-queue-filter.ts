@@ -86,7 +86,9 @@ function nativeHasIssuesSql(
   input: { organizationId: string; projectId: string; targetLocale: string },
   issueType?: string,
 ) {
-  const issueTypeSql = issueType ? sql`and ${schema.issueSheetIssues.issueType} = ${issueType}` : sql``;
+  const issueTypeSql = issueType
+    ? sql`and ${schema.issueSheetIssues.issueType} = ${issueType}`
+    : sql``;
   const commentIssueTypeSql = issueType
     ? sql`and ${schema.projectTranslationComments.issueType} = ${issueType}`
     : sql``;
@@ -143,7 +145,9 @@ function nativeMachineTranslatedSql(
 }
 
 function nativeDateBoundSql(
-  column: typeof schema.projectTranslationKeys.createdAt,
+  column:
+    | typeof schema.projectTranslationKeys.createdAt
+    | typeof schema.projectTranslationKeys.updatedAt,
   from?: string,
   to?: string,
 ) {
@@ -266,7 +270,10 @@ export function nativeQueueFilterCondition(input: {
         where ${translationMatch} and trim(${schema.projectTranslations.text}) != ''
       )`);
     }
-    if (advanced.translationStatus === "translated" || advanced.translationStatus === "partially_translated") {
+    if (
+      advanced.translationStatus === "translated" ||
+      advanced.translationStatus === "partially_translated"
+    ) {
       fragments.push(sql`exists (
         select 1 from ${schema.projectTranslations}
         where ${translationMatch} and trim(${schema.projectTranslations.text}) != ''
@@ -278,7 +285,10 @@ export function nativeQueueFilterCondition(input: {
         where ${translationMatch} and ${schema.projectTranslations.status} = 'approved'
       )`);
     }
-    if (advanced.approvalStatus === "not_approved" || advanced.approvalStatus === "partially_approved") {
+    if (
+      advanced.approvalStatus === "not_approved" ||
+      advanced.approvalStatus === "partially_approved"
+    ) {
       fragments.push(sql`exists (
         select 1 from ${schema.projectTranslations}
         where ${translationMatch}

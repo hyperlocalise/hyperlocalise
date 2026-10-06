@@ -106,12 +106,12 @@ export const contentEditorQueuePanelMessages = defineMessages({
   },
   filterAll: {
     defaultMessage: "Show all",
-    id: "V+8wDWpBnh",
+    id: "aggh0s0fXQ",
     description: "CAT queue filter option showing every segment in file order",
   },
   filterAllUntranslatedFirst: {
     defaultMessage: "All, untranslated first",
-    id: "catFilterAllUntranslatedFirst",
+    id: "BhgOPviIC8",
     description: "CAT queue filter that shows every segment with untranslated strings first",
   },
   filterUntranslated: {
@@ -121,7 +121,7 @@ export const contentEditorQueuePanelMessages = defineMessages({
   },
   filterNeedsReview: {
     defaultMessage: "Not approved",
-    id: "cMuLE7Fon0",
+    id: "rH4ldF4MqE",
     description: "CAT queue filter option for translated segments awaiting review",
   },
   filterReviewed: {
@@ -131,7 +131,7 @@ export const contentEditorQueuePanelMessages = defineMessages({
   },
   filterHasIssues: {
     defaultMessage: "With unresolved issues",
-    id: "U+tI5HA1qo",
+    id: "beHJ/K7bHj",
     description: "CAT queue filter option for segments with open issue comments",
   },
   filterSkipped: {
@@ -171,12 +171,12 @@ export const contentEditorQueuePanelMessages = defineMessages({
   },
   filterAdvanced: {
     defaultMessage: "Advanced Filter…",
-    id: "catFilterAdvanced",
+    id: "hdRdVbVgtJ",
     description: "CAT queue filter option that opens the advanced filter dialog",
   },
   filterSubmenuAll: {
     defaultMessage: "All",
-    id: "catFilterSubmenuAll",
+    id: "nIiT/eaRfU",
     description: "Submenu option that applies a CAT filter without a more specific qualifier",
   },
   sortQueueAria: {

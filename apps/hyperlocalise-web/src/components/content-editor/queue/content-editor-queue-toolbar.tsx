@@ -138,9 +138,7 @@ export function ContentEditorQueueToolbar({
   const isSelecting = canEnterSelectionMode && selectionMode;
   const showBulkBar = isSelecting && selectedCount > 0;
   const hasActiveFilter =
-    queueFilter !== "all" ||
-    Boolean(queueFilterQualifier) ||
-    !isCatQueueFilterEmpty(queueAdvanced);
+    queueFilter !== "all" || Boolean(queueFilterQualifier) || !isCatQueueFilterEmpty(queueAdvanced);
   const filterButtonMessage = resolveQueueFilterButtonMessage({
     queueFilter,
     queueSort,
