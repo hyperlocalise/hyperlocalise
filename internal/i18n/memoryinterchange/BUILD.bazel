@@ -1,11 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 go_library(
     name = "memoryinterchange",
     srcs = [
         "import_plan.go",
         "interchange.go",
-        "testdata.go",
     ],
-    embedsrcs = glob(["testdata/**"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange",
     visibility = ["//visibility:public"],
     deps = [
@@ -13,4 +13,14 @@ go_library(
         "@org_golang_x_text//language",
         "@org_golang_x_text//unicode/norm",
     ],
+)
+
+go_test(
+    name = "memoryinterchange_test",
+    srcs = [
+        "import_plan_test.go",
+        "interchange_test.go",
+    ],
+    embed = [":memoryinterchange"],
+    deps = ["//internal/i18n/memoryinterchange/fixtures:fixtures"],
 )
