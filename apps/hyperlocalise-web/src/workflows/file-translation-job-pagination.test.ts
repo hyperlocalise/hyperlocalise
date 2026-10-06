@@ -17,6 +17,7 @@ import {
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
+  nextFileTranslationPageDecision,
   parseDeferredByLimit,
 } from "./file-translation-pagination";
 
@@ -51,6 +52,47 @@ describe("file translation pagination", () => {
     expect(calculateFileTranslationSandboxTimeoutMs(1_000_000)).toBe(
       FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
     );
+  });
+});
+
+describe("nextFileTranslationPageDecision", () => {
+  it("continues paging after a partial CLI page so failed keys can resume", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 1,
+        acceptedCount: 99,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("continue");
+  });
+
+  it("finishes when every pending key was accepted", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 0,
+        acceptedCount: 99,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("done");
+  });
+
+  it("aborts a hard CLI failure so leftover locales can retry", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: true,
+        invalidCount: 0,
+        pendingCount: 100,
+        acceptedCount: 0,
+        deferredByLimit: 0,
+        failedCount: 1,
+      }),
+    ).toBe("abort");
   });
 });
 

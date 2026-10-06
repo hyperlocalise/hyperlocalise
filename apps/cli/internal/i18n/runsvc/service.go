@@ -41,6 +41,12 @@ type Input struct {
 	Prune         bool
 	PruneLimit    int
 	PruneForce    bool
+	// KeepCompletedOnFailure leaves successful lock entries in place when a
+	// sibling key in the same target fails. The default rolls those entries
+	// back so the next run retries the whole target. A failed target file
+	// write still rolls back this run's entries for every target that was
+	// not written.
+	KeepCompletedOnFailure bool
 	// MaxTranslations caps how many executable tasks run in this session after lock
 	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
 	// later run without --force can continue.
