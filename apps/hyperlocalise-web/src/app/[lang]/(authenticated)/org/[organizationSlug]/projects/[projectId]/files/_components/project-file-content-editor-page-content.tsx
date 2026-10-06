@@ -47,11 +47,14 @@ import {
   resolveProjectFileContentEditorTargetLocales,
 } from "@/lib/projects/project-file-content-editor-routing";
 import {
+  parseCatWorkspaceQueueAdvancedParam,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
   buildCatNavigationSearchParams,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type {
   ContentEditorQueueFilter,
   ContentEditorQueueSort,
@@ -102,6 +105,10 @@ export function ProjectFileContentEditorPageContent(
             initialQueueFilter: parseCatWorkspaceQueueFilterParam(live.queueFilter) ?? "all",
             initialQueueSort: parseCatWorkspaceQueueSortParam(live.queueSort) ?? "file_order",
             initialSearch: parseCatWorkspaceSearchParam(live.search),
+            initialQueueFilterQualifier: parseCatWorkspaceQueueFilterQualifierParam(
+              live.queueFilterQualifier,
+            ),
+            initialQueueAdvanced: parseCatWorkspaceQueueAdvancedParam(live.queueAdvanced),
           }
         : {})}
     />
@@ -119,6 +126,8 @@ function ProjectFileContentEditorPageContentInner({
   initialQueueFilter = "all",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   externalResourceId = null,
   resourceType = null,
   branch = null,
@@ -136,6 +145,8 @@ function ProjectFileContentEditorPageContentInner({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
   branch?: string | null;
@@ -724,6 +735,8 @@ function ProjectFileContentEditorPageContentInner({
         initialQueueFilter={initialQueueFilter}
         initialQueueSort={initialQueueSort}
         initialSearch={initialSearch}
+        initialQueueFilterQualifier={initialQueueFilterQualifier}
+        initialQueueAdvanced={initialQueueAdvanced}
         sourcePathsFilter={sourcePaths}
         layout="fullscreen"
         className="min-h-0 flex-1"

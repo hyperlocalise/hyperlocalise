@@ -22,6 +22,7 @@ import {
   installEditorCacheBudget,
 } from "./content-editor-cache-budget";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
@@ -35,10 +36,16 @@ import {
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { mergeContentEditorQueuePages } from "@/components/content-editor/queue/merge-content-editor-queue-pages";
 import {
+  parseCatWorkspaceQueueAdvancedParam,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import {
+  serializeAdvancedQueueFilter,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 import {
   canReuseCatQueuePlaceholderData,
@@ -75,11 +82,15 @@ function queueStateFromInitials(input: {
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
 }) {
   return {
     search: input.initialSearch ?? "",
     queueFilter: input.initialQueueFilter ?? "all",
     queueSort: input.initialQueueSort ?? "file_order",
+    queueFilterQualifier: input.initialQueueFilterQualifier,
+    queueAdvanced: input.initialQueueAdvanced,
   } as const;
 }
 
@@ -89,7 +100,30 @@ function queueStateFromLocationSearch(search: string) {
     search: parseCatWorkspaceSearchParam(params.get("search")),
     queueFilter: parseCatWorkspaceQueueFilterParam(params.get("queueFilter")) ?? "all",
     queueSort: parseCatWorkspaceQueueSortParam(params.get("queueSort")) ?? "file_order",
+    queueFilterQualifier: parseCatWorkspaceQueueFilterQualifierParam(
+      params.get("queueFilterQualifier"),
+    ),
+    queueAdvanced: parseCatWorkspaceQueueAdvancedParam(params.get("queueAdvanced")),
   } as const;
+}
+
+function queueStateForNavigation(
+  input: {
+    initialQueueFilter?: ContentEditorQueueFilter;
+    initialQueueSort?: ContentEditorQueueSort;
+    initialSearch?: string;
+    initialQueueFilterQualifier?: string;
+    initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
+  },
+  locationSearch: string,
+) {
+  const initial = queueStateFromInitials(input);
+  const fromUrl = queueStateFromLocationSearch(locationSearch);
+  return {
+    ...initial,
+    queueFilterQualifier: fromUrl.queueFilterQualifier ?? initial.queueFilterQualifier,
+    queueAdvanced: fromUrl.queueAdvanced ?? initial.queueAdvanced,
+  };
 }
 
 export function useContentEditorSegmentQuery(input: {
@@ -103,6 +137,8 @@ export function useContentEditorSegmentQuery(input: {
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   pageLimit?: number;
   sourcePaths?: string | null;
   /** Native only: one row per identical source string. */
@@ -111,14 +147,21 @@ export function useContentEditorSegmentQuery(input: {
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const locationSearch = useSearchParams()?.toString() ?? "";
   installEditorCacheBudget(queryClient);
   const providerFallback = useRef(new Set<string>());
-  const restoredQueue = queueStateFromInitials(input);
+  const restoredQueue = queueStateForNavigation(input, locationSearch);
   const [search, setSearch] = useState(restoredQueue.search);
   const [queueFilter, setQueueFilter] = useState<ContentEditorQueueFilter>(
     restoredQueue.queueFilter,
   );
   const [queueSort, setQueueSort] = useState<ContentEditorQueueSort>(restoredQueue.queueSort);
+  const [queueFilterQualifier, setQueueFilterQualifier] = useState<string | undefined>(
+    restoredQueue.queueFilterQualifier,
+  );
+  const [queueAdvanced, setQueueAdvanced] = useState<ContentEditorAdvancedQueueFilter | undefined>(
+    restoredQueue.queueAdvanced,
+  );
   const fileIdentity = `${input.projectId}\0${input.sourcePath}`;
   const [appliedFileIdentity, setAppliedFileIdentity] = useState(fileIdentity);
   if (appliedFileIdentity !== fileIdentity) {
@@ -126,6 +169,8 @@ export function useContentEditorSegmentQuery(input: {
     setSearch(restoredQueue.search);
     setQueueFilter(restoredQueue.queueFilter);
     setQueueSort(restoredQueue.queueSort);
+    setQueueFilterQualifier(restoredQueue.queueFilterQualifier);
+    setQueueAdvanced(restoredQueue.queueAdvanced);
   }
   const limit = input.pageLimit ?? defaultCatPageLimit;
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -139,6 +184,8 @@ export function useContentEditorSegmentQuery(input: {
       setSearch(restored.search);
       setQueueFilter(restored.queueFilter);
       setQueueSort(restored.queueSort);
+      setQueueFilterQualifier(restored.queueFilterQualifier);
+      setQueueAdvanced(restored.queueAdvanced);
     };
     window.addEventListener("popstate", applyRestoredQueue);
     return () => window.removeEventListener("popstate", applyRestoredQueue);
@@ -152,6 +199,7 @@ export function useContentEditorSegmentQuery(input: {
     return input.externalResourceId ?? discoveredExternalResourceIdRef.current;
   }, [input.externalResourceId]);
 
+  const serializedQueueAdvanced = serializeAdvancedQueueFilter(queueAdvanced);
   const baseQueryKey = useMemo(
     () =>
       projectFileCatBaseQueryKey({
@@ -164,6 +212,8 @@ export function useContentEditorSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         queueSort,
+        queueFilterQualifier,
+        queueAdvanced: serializedQueueAdvanced,
         limit,
         sourcePaths: input.sourcePaths,
         grouped: input.grouped,
@@ -181,6 +231,8 @@ export function useContentEditorSegmentQuery(input: {
       limit,
       serverQueueFilter,
       queueSort,
+      queueFilterQualifier,
+      serializedQueueAdvanced,
     ],
   );
 
@@ -237,6 +289,8 @@ export function useContentEditorSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         queueSort,
+        ...(queueFilterQualifier ? { queueFilterQualifier } : {}),
+        ...(serializedQueueAdvanced ? { queueAdvanced: serializedQueueAdvanced } : {}),
         limit,
         offset: pageParam.offset,
         ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
@@ -271,6 +325,8 @@ export function useContentEditorSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         queueSort,
+        queueFilterQualifier,
+        queueAdvanced: serializedQueueAdvanced,
         limit,
         signal,
         offset: pageParam.offset,
@@ -354,6 +410,8 @@ export function useContentEditorSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         queueSort,
+        queueFilterQualifier,
+        queueAdvanced: serializedQueueAdvanced,
         limit,
         offset: 0,
         sourcePaths: input.sourcePaths,
@@ -372,6 +430,8 @@ export function useContentEditorSegmentQuery(input: {
       limit,
       serverQueueFilter,
       queueSort,
+      queueFilterQualifier,
+      serializedQueueAdvanced,
     ],
   );
 
@@ -384,6 +444,10 @@ export function useContentEditorSegmentQuery(input: {
     setQueueFilter,
     queueSort,
     setQueueSort,
+    queueFilterQualifier,
+    setQueueFilterQualifier,
+    queueAdvanced,
+    setQueueAdvanced,
     debouncedSearch,
     isSearchPending,
     pagination,

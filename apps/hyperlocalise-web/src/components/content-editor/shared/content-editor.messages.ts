@@ -105,9 +105,14 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "Accessible label for queue row indicator when a segment has unsaved edits",
   },
   filterAll: {
-    defaultMessage: "All strings",
-    id: "V+8wDWpBnh",
-    description: "CAT queue filter option showing every segment",
+    defaultMessage: "Show all",
+    id: "aggh0s0fXQ",
+    description: "CAT queue filter option showing every segment in file order",
+  },
+  filterAllUntranslatedFirst: {
+    defaultMessage: "All, untranslated first",
+    id: "BhgOPviIC8",
+    description: "CAT queue filter that shows every segment with untranslated strings first",
   },
   filterUntranslated: {
     defaultMessage: "Untranslated",
@@ -115,8 +120,8 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "CAT queue filter option for segments without a target translation",
   },
   filterNeedsReview: {
-    defaultMessage: "Needs review",
-    id: "cMuLE7Fon0",
+    defaultMessage: "Not approved",
+    id: "rH4ldF4MqE",
     description: "CAT queue filter option for translated segments awaiting review",
   },
   filterReviewed: {
@@ -125,8 +130,8 @@ export const contentEditorQueuePanelMessages = defineMessages({
     description: "CAT queue filter option for approved segments",
   },
   filterHasIssues: {
-    defaultMessage: "Has issues",
-    id: "U+tI5HA1qo",
+    defaultMessage: "With unresolved issues",
+    id: "beHJ/K7bHj",
     description: "CAT queue filter option for segments with open issue comments",
   },
   filterSkipped: {
@@ -163,6 +168,16 @@ export const contentEditorQueuePanelMessages = defineMessages({
     defaultMessage: "With comments",
     id: "DU3T9+E0+x",
     description: "CAT queue filter option for Crowdin strings that have comments",
+  },
+  filterAdvanced: {
+    defaultMessage: "Advanced Filter…",
+    id: "hdRdVbVgtJ",
+    description: "CAT queue filter option that opens the advanced filter dialog",
+  },
+  filterSubmenuAll: {
+    defaultMessage: "All",
+    id: "nIiT/eaRfU",
+    description: "Submenu option that applies a CAT filter without a more specific qualifier",
   },
   sortQueueAria: {
     defaultMessage: "Sort queue",

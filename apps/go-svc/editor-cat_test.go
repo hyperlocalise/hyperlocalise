@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -245,6 +246,39 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "not_hidden", notHidden.queueFilter)
+	withExtras, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"qa_issues"},
+		"queueFilterQualifier": {"spelling"},
+		"queueAdvanced":        {`{"stringType":"icu","visibility":"hidden"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "spelling", withExtras.queueFilterQualifier)
+	require.Equal(t, "icu", withExtras.advancedFilter.StringType)
+	require.Equal(t, "hidden", withExtras.advancedFilter.Visibility)
+	impossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2026-02-31","stringType":"icu"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "", impossibleDate.advancedFilter.AddedFrom)
+	require.Equal(t, "icu", impossibleDate.advancedFilter.StringType)
+	onlyImpossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"updatedTo":"2026-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Nil(t, onlyImpossibleDate.advancedFilter)
+	leapDay, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2024-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "2024-02-29", leapDay.advancedFilter.AddedFrom)
 	_, err = parseEditorCatQueueQuery(map[string][]string{"sourcePath": {"a.json"}})
 	require.Error(t, err)
 	_, err = parseEditorCatQueueQuery(map[string][]string{
@@ -367,6 +401,46 @@ func TestEditorCatQueueWholeFile(t *testing.T) {
 	require.Equal(t, "hero.png", body.ContentEditorQueue.SourcePath)
 	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
 	require.Equal(t, "image_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+
+	plainRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"plain"}`)), "")
+	require.Equal(t, http.StatusOK, plainRec.Code, plainRec.Body.String())
+	var plainBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(plainRec.Body.Bytes(), &plainBody))
+	require.Empty(t, plainBody.ContentEditorQueue.Segments)
+
+	assetRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"asset"}`)), "")
+	require.Equal(t, http.StatusOK, assetRec.Code, assetRec.Body.String())
+	var assetBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(assetRec.Body.Bytes(), &assetBody))
+	require.Len(t, assetBody.ContentEditorQueue.Segments, 1)
+}
+
+func TestEditorCatWholeFileMatchesAdvanced(t *testing.T) {
+	image := editorCatWholeFileSubject{
+		contentKind: "image_file",
+		hasTarget:   true,
+		status:      "needs_review",
+		createdAt:   time.Date(2026, 3, 2, 15, 0, 0, 0, time.UTC),
+		updatedAt:   time.Date(2026, 3, 4, 8, 0, 0, 0, time.UTC),
+	}
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, nil))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "plain"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "asset"}))
+	office := image
+	office.contentKind = "office_file"
+	require.False(t, editorCatWholeFileMatchesAdvanced(office, &editorCatAdvancedFilter{StringType: "asset"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "hidden"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "visible"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{TranslationStatus: "untranslated"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{ApprovalStatus: "not_approved"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Comments: "with"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-01", AddedTo: "2026-03-02"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-03"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{contentKind: "image_file"}, &editorCatAdvancedFilter{AddedFrom: "2026-03-01"}))
 }
 
 func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {
@@ -719,9 +793,9 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	const orgN, projectN, localeN = 1, 2, 4
 
 	require.Empty(t, editorCatQueueFilterSQL("all", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("unknown", orgN, projectN, localeN))
+	require.Contains(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN), "t.provenance in ('translation_job','agent','import')")
+	require.Contains(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN), "from project_translation_comments c")
 
 	untranslated := editorCatQueueFilterSQL("untranslated", orgN, projectN, localeN)
 	require.Contains(t, untranslated, "not exists (select 1 from project_translations t where")
@@ -757,9 +831,41 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
+	require.True(t, editorCatQueueFilterBindsLocale("machine_translated"))
+	require.True(t, editorCatQueueFilterBindsLocale("with_comments"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
 	require.False(t, editorCatQueueFilterBindsLocale("not_hidden"))
+
+	qaSpelling := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "qa_issues", queueFilterQualifier: "spelling"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, qaSpelling, "q.check_type=$4")
+
+	mtAgent := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "machine_translated", queueFilterQualifier: "agent"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, mtAgent, "t.provenance=$4")
+
+	advancedSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		AddedFrom:         "2026-01-01",
+		StringType:        "icu",
+		TranslationStatus: "untranslated",
+		Visibility:        "visible",
+	}, orgN, projectN, localeN, &[]any{"org", "project", "de-DE"})
+	require.Contains(t, advancedSQL, "k.created_at >= CAST($4 AS date)")
+	require.Contains(t, advancedSQL, "k.type = 'icu'")
+	require.Contains(t, advancedSQL, "k.is_hidden = false")
+	require.Contains(t, advancedSQL, "not exists (select 1 from project_translations t where")
+
+	plainSQL := editorCatStringTypeSQL("plain")
+	require.Contains(t, plainSQL, "k.type is null")
+	require.Contains(t, plainSQL, "k.type = ''")
+	require.Contains(t, plainSQL, "'text'")
+	require.Contains(t, plainSQL, "'plain'")
+	require.Contains(t, plainSQL, "'string'")
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {

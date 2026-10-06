@@ -20,6 +20,7 @@ import type {
   ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { applyCatWorkspaceQueryParams } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 /**
  * Keeps queueFilter + queueSort + search in the URL so locale/file remounts restore them.
@@ -29,6 +30,8 @@ export function useContentEditorWorkspaceQuerySync(input: {
   queueSort: ContentEditorQueueSort;
   search: string;
   debouncedSearch: string;
+  queueFilterQualifier?: string;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -45,6 +48,8 @@ export function useContentEditorWorkspaceQuerySync(input: {
       queueFilter: input.queueFilter,
       queueSort: input.queueSort,
       search: input.debouncedSearch,
+      queueFilterQualifier: input.queueFilterQualifier ?? null,
+      queueAdvanced: input.queueAdvanced ?? null,
     });
     const nextString = next.toString();
     if (nextString === searchParamsString) {
@@ -56,5 +61,13 @@ export function useContentEditorWorkspaceQuerySync(input: {
       "",
       `${nextString ? `${pathname}?${nextString}` : pathname}${window.location.hash}`,
     );
-  }, [input.debouncedSearch, input.queueFilter, input.queueSort, pathname, searchParamsString]);
+  }, [
+    input.debouncedSearch,
+    input.queueFilter,
+    input.queueSort,
+    input.queueFilterQualifier,
+    input.queueAdvanced,
+    pathname,
+    searchParamsString,
+  ]);
 }

@@ -50,6 +50,7 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
 import type {
@@ -141,6 +142,8 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilter = "all",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   sourcePathsFilter = null,
   layout = "default",
   className,
@@ -164,6 +167,8 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   sourcePathsFilter?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
@@ -259,6 +264,10 @@ export function ProjectFileContentEditorWorkspace({
     setQueueFilter,
     queueSort,
     setQueueSort,
+    queueFilterQualifier,
+    setQueueFilterQualifier,
+    queueAdvanced,
+    setQueueAdvanced,
     debouncedSearch,
     isSearchPending,
     pagination,
@@ -278,6 +287,8 @@ export function ProjectFileContentEditorWorkspace({
     initialQueueFilter,
     initialQueueSort,
     initialSearch,
+    initialQueueFilterQualifier,
+    initialQueueAdvanced,
     pageLimit,
     goSvcClient,
     sourcePaths: sourcePathsFilter,
@@ -289,6 +300,8 @@ export function ProjectFileContentEditorWorkspace({
     queueSort,
     search,
     debouncedSearch,
+    queueFilterQualifier,
+    queueAdvanced,
   });
 
   const [isExporting, setIsExporting] = useState(false);
@@ -312,6 +325,8 @@ export function ProjectFileContentEditorWorkspace({
           search: debouncedSearch,
           queueFilter: toServerQueueFilterForExport(queueFilter),
           queueSort,
+          queueFilterQualifier,
+          queueAdvanced,
           externalResourceId,
           resourceType,
           sourcePaths: sourcePathsFilter,
@@ -333,6 +348,8 @@ export function ProjectFileContentEditorWorkspace({
       projectId,
       queueFilter,
       queueSort,
+      queueFilterQualifier,
+      queueAdvanced,
       resourceType,
       sourceLocale,
       sourcePath,
@@ -359,7 +376,16 @@ export function ProjectFileContentEditorWorkspace({
     }
 
     setQueueFilter("all");
-  }, [availableQueueFilters, contentEditorFile, queueFilter, setQueueFilter]);
+    setQueueFilterQualifier(undefined);
+    setQueueAdvanced(undefined);
+  }, [
+    availableQueueFilters,
+    contentEditorFile,
+    queueFilter,
+    setQueueAdvanced,
+    setQueueFilter,
+    setQueueFilterQualifier,
+  ]);
 
   useEffect(() => {
     if (!contentEditorFile) {
@@ -1044,6 +1070,8 @@ export function ProjectFileContentEditorWorkspace({
         setOpenedSegmentKey(segment.key);
         setSearch(segment.key);
         setQueueFilter("all");
+        setQueueFilterQualifier(undefined);
+        setQueueAdvanced(undefined);
         if (onOpenTranslationLocale) {
           onOpenTranslationLocale(locale, segment.key);
         } else {
@@ -1072,6 +1100,8 @@ export function ProjectFileContentEditorWorkspace({
       contentEditorFile,
       setSearch,
       setQueueFilter,
+      setQueueFilterQualifier,
+      setQueueAdvanced,
     ],
   );
 
@@ -1360,6 +1390,10 @@ export function ProjectFileContentEditorWorkspace({
                   queueSort={queueSort}
                   onQueueSortChange={setQueueSort}
                   availableQueueSorts={availableQueueSorts}
+                  queueFilterQualifier={queueFilterQualifier}
+                  onQueueFilterQualifierChange={setQueueFilterQualifier}
+                  queueAdvanced={queueAdvanced}
+                  onQueueAdvancedChange={setQueueAdvanced}
                   isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
                   isQueueFetchingPage={isFetchingPage}
                   isQueueListLoading={isQueueListLoading}

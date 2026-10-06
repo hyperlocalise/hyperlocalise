@@ -42,6 +42,7 @@ import type {
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import { ContentEditorQueueToolbarConnected } from "@/components/content-editor/queue/content-editor-queue-toolbar-connected";
 import { contentEditorWorkspaceContainerMessages } from "@/components/content-editor/shared/content-editor.messages";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import type {
   ContentEditorSegment,
   ContentEditorWorkspaceState,
@@ -94,6 +95,10 @@ export interface ContentEditorWorkspaceContainerProps {
   queueSort?: ContentEditorQueueSort;
   onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
   availableQueueSorts?: ContentEditorQueueSort[];
+  queueFilterQualifier?: string;
+  onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
+  onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueListLoading?: boolean;
@@ -149,6 +154,10 @@ const ContentEditorWorkspaceContainerObserver = observer(
     queueSort,
     onQueueSortChange,
     availableQueueSorts,
+    queueFilterQualifier,
+    onQueueFilterQualifierChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
     isQueueSearchPending,
     isQueueFetchingPage,
     isQueueListLoading,
@@ -259,6 +268,13 @@ const ContentEditorWorkspaceContainerObserver = observer(
           queueSort={queueSort}
           onQueueSortChange={onQueueSortChange}
           availableQueueSorts={availableQueueSorts}
+          queueFilterQualifier={queueFilterQualifier}
+          onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+          queueAdvanced={queueAdvanced}
+          onQueueAdvancedChange={onQueueAdvancedChange}
+          providerKind={lazySegment?.contentEditorFile?.provider?.kind}
+          organizationSlug={lazySegment?.organizationSlug}
+          projectId={lazySegment?.projectId}
           isSearching={isQueueSearchPending}
           isQueueLoading={isQueueBulkBlocked}
           visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}

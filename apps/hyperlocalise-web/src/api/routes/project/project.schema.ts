@@ -302,6 +302,10 @@ export const projectFileCatQuerySchema = z.object({
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
   queueSort: projectFileCatQueueSortSchema.optional(),
+  /** Submenu qualifier for QA, machine translation, or unresolved-issue filters. */
+  queueFilterQualifier: z.string().trim().min(1).max(64).optional(),
+  /** JSON blob of Crowdin-style advanced CAT filters. */
+  queueAdvanced: z.string().trim().min(1).max(4096).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   phraseScanPage: z.coerce.number().int().min(1).optional(),
@@ -310,6 +314,15 @@ export const projectFileCatQuerySchema = z.object({
   sortBucketOffset: z.coerce.number().int().min(0).optional(),
   /** Native only. Collapses identical source strings into one segment with `occurrenceCount`. */
   grouped: z.enum(["true"]).optional(),
+});
+
+export const projectFileCatLabelSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  title: z.string().trim().min(1).max(256),
+});
+
+export const projectFileCatLabelsResponseSchema = z.object({
+  labels: z.array(projectFileCatLabelSchema),
 });
 
 export const projectFileCatActivityLogQuerySchema = z.object({

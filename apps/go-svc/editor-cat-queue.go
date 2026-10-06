@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -83,14 +84,16 @@ type editorCatDocumentView struct {
 }
 
 type editorCatQueueQuery struct {
-	sourcePath   string
-	targetLocale string
-	search       string
-	queueFilter  string
-	queueSort    string
-	offset       int
-	limit        int
-	sourcePaths  []string
+	sourcePath           string
+	targetLocale         string
+	search               string
+	queueFilter          string
+	queueFilterQualifier string
+	queueSort            string
+	advancedFilter       *editorCatAdvancedFilter
+	offset               int
+	limit                int
+	sourcePaths          []string
 	// grouped collapses identical source strings into one representative segment.
 	grouped bool
 }
@@ -124,6 +127,11 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 	if queueSort != "file_order" && queueSort != "untranslated_first" {
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
+	queueFilterQualifier := parseEditorCatQueueFilterQualifier(values.Get("queueFilterQualifier"))
+	advancedFilter, err := parseEditorCatAdvancedFilter(values.Get("queueAdvanced"))
+	if err != nil {
+		return editorCatQueueQuery{}, err
+	}
 	offset, err := parseEditorCatIntQuery(values, "offset", 0, 0, 1_000_000)
 	if err != nil {
 		return editorCatQueueQuery{}, err
@@ -137,15 +145,17 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		sourcePaths = parsed
 	}
 	return editorCatQueueQuery{
-		sourcePath:   sourcePath,
-		targetLocale: targetLocale,
-		search:       search,
-		queueFilter:  queueFilter,
-		queueSort:    queueSort,
-		offset:       offset,
-		limit:        limit,
-		sourcePaths:  sourcePaths,
-		grouped:      trimEditorCat(values.Get("grouped")) == "true",
+		sourcePath:           sourcePath,
+		targetLocale:         targetLocale,
+		search:               search,
+		queueFilter:          queueFilter,
+		queueFilterQualifier: queueFilterQualifier,
+		queueSort:            queueSort,
+		advancedFilter:       advancedFilter,
+		offset:               offset,
+		limit:                limit,
+		sourcePaths:          sourcePaths,
+		grouped:              trimEditorCat(values.Get("grouped")) == "true",
 	}, nil
 }
 
@@ -177,6 +187,7 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 		"queue_kind", editorCatQueueKind(query.sourcePath),
 		"target_locale", query.targetLocale,
 		"queue_filter", query.queueFilter,
+		"queue_filter_qualifier", query.queueFilterQualifier,
 		"queue_sort", query.queueSort,
 		"limit", query.limit,
 		"offset", query.offset,
@@ -191,7 +202,10 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	} else {
 		queue, err = api.loadTextFileQueue(r, actor, project, query)
 		if err == nil && isEditorCatDocument(query.sourcePath) {
-			unfiltered := query.search == "" && (query.queueFilter == "" || query.queueFilter == "all")
+			unfiltered := query.search == "" &&
+				(query.queueFilter == "" || query.queueFilter == "all") &&
+				query.queueFilterQualifier == "" &&
+				query.advancedFilter == nil
 			empty := len(queue.Segments) == 0 && (queue.Pagination == nil || queue.Pagination.TotalCount == 0)
 			if unfiltered && empty {
 				queue, err = api.loadWholeFileQueue(r, actor, project, query)
@@ -290,7 +304,7 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 	if kind == editorCatKindVideo {
 		variantTable = "project_video_variants"
 	}
-	var sourceStored, targetStored, variantID *string
+	var sourceStored, targetStored, variantID, variantStatus *string
 	err = api.pool.QueryRow(r.Context(), `
         select v.stored_file_id
         from repository_source_file_versions v
@@ -301,9 +315,15 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		return editorCatQueueFile{}, err
 	}
 	_ = api.pool.QueryRow(r.Context(), `
-        select id, stored_file_id from `+variantTable+`
+        select id, stored_file_id, status from `+variantTable+`
         where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
-        limit 1`, actor.organizationID, project.ID, query.sourcePath, query.targetLocale).Scan(&variantID, &targetStored)
+        limit 1`, actor.organizationID, project.ID, query.sourcePath, query.targetLocale).Scan(&variantID, &targetStored, &variantStatus)
+	var createdAt, updatedAt time.Time
+	if err = api.pool.QueryRow(r.Context(), `
+        select created_at, updated_at from repository_source_files
+        where id=$1`, sourceFileID).Scan(&createdAt, &updatedAt); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	var sourceURL, targetURL *string
 	if sourceStored != nil && *sourceStored != "" {
 		url := editorCatAssetPath(actor.organizationSlug, project.ID, *sourceStored)
@@ -322,6 +342,20 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		TargetAssetURL:   targetURL,
 		ImageVariantID:   variantID,
 	}
+	segments := []editorCatSegment{}
+	status := ""
+	if variantStatus != nil {
+		status = *variantStatus
+	}
+	if editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{
+		contentKind: contentKind,
+		hasTarget:   targetStored != nil && *targetStored != "",
+		status:      status,
+		createdAt:   createdAt,
+		updatedAt:   updatedAt,
+	}, query.advancedFilter) {
+		segments = append(segments, segment)
+	}
 	return editorCatQueueFile{
 		SourcePath:          query.sourcePath,
 		Filename:            filenameFromSourcePath(query.sourcePath),
@@ -329,7 +363,7 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           false,
-		Segments:            []editorCatSegment{segment},
+		Segments:            segments,
 	}, nil
 }
 
@@ -386,66 +420,6 @@ func escapeEditorCatIlike(value string) string {
 	return replacer.Replace(value)
 }
 
-func editorCatQueueFilterSQL(filter string, orgN, projectN, localeN int) string {
-	translationMatch := `t.translation_key_id = k.id and t.organization_id=$` + strconv.Itoa(orgN) +
-		` and t.project_id=$` + strconv.Itoa(projectN) + ` and t.target_locale=$` + strconv.Itoa(localeN)
-	switch filter {
-	case "untranslated":
-		return ` and not exists (select 1 from project_translations t where ` + translationMatch + ` and trim(t.text) != '')`
-	case "reviewed":
-		return ` and exists (select 1 from project_translations t where ` + translationMatch + ` and t.status='approved')`
-	case "needs_review":
-		return ` and exists (select 1 from project_translations t where ` + translationMatch + ` and trim(t.text) != '' and t.status != 'approved')`
-	case "has_issues":
-		return ` and (
-            exists (
-                select 1 from issue_sheet_issues i
-                where i.translation_key_id = k.id and i.organization_id=$` + strconv.Itoa(orgN) + `
-                  and i.project_id=$` + strconv.Itoa(projectN) + ` and i.target_locale=$` + strconv.Itoa(localeN) + `
-                  and i.status in ('open', 'in_progress')
-            )
-            or exists (
-                select 1 from project_translation_comments c
-                where c.translation_key_id = k.id and c.organization_id=$` + strconv.Itoa(orgN) + `
-                  and c.project_id=$` + strconv.Itoa(projectN) + ` and c.target_locale=$` + strconv.Itoa(localeN) + `
-                  and c.type='issue' and c.status='unresolved'
-                  and not exists (select 1 from issue_sheet_issues i where i.linked_comment_id = c.id)
-            )
-        )`
-	case "qa_issues":
-		return ` and exists (
-            select 1 from translation_qa_findings q
-            where q.translation_key_id = k.id and q.organization_id=$` + strconv.Itoa(orgN) + `
-              and q.project_id=$` + strconv.Itoa(projectN) + ` and q.target_locale=$` + strconv.Itoa(localeN) + `
-              and q.status='open'
-              and q.run_id = (
-                  select r.id from translation_qa_runs r
-                  where r.organization_id=$` + strconv.Itoa(orgN) + ` and r.project_id=$` + strconv.Itoa(projectN) + `
-                    and r.status='succeeded'
-                  order by r.completed_at desc nulls last, r.created_at desc
-                  limit 1
-              )
-        )`
-	case "hidden":
-		return ` and k.is_hidden = true`
-	case "not_hidden":
-		return ` and k.is_hidden = false`
-	default:
-		return ""
-	}
-}
-
-// editorCatQueueFilterBindsLocale reports whether the filter SQL references the
-// target-locale placeholder. "all" and the deferred filters do not.
-func editorCatQueueFilterBindsLocale(filter string) bool {
-	switch filter {
-	case "untranslated", "reviewed", "needs_review", "has_issues", "qa_issues":
-		return true
-	default:
-		return false
-	}
-}
-
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
 	args := []any{actor.organizationID, project.ID}
 	where := `k.organization_id=$1 and k.project_id=$2`
@@ -484,12 +458,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	// whose SQL actually references it. The count query has no ORDER BY, so a
 	// sort that needs the locale must not add that argument to the count.
 	countArgs := append([]any(nil), args...)
-	filterLocale := 0
-	if editorCatQueueFilterBindsLocale(query.queueFilter) {
-		countArgs = append(countArgs, query.targetLocale)
-		filterLocale = len(countArgs)
-	}
-	where += editorCatQueueFilterSQL(query.queueFilter, 1, 2, filterLocale)
+	where, countArgs = appendEditorCatQueueFilterSQL(where, countArgs, query, 1, 2)
 
 	join := ""
 	if includeSourcePath {
@@ -511,7 +480,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	}
 	listArgs := append([]any(nil), countArgs...)
 	if query.queueSort == "untranslated_first" {
-		if !editorCatQueueFilterBindsLocale(query.queueFilter) {
+		if !editorCatQueueNeedsLocale(query) {
 			listArgs = append(listArgs, query.targetLocale)
 		}
 		localeN := strconv.Itoa(len(listArgs))

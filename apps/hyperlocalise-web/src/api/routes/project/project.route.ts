@@ -81,6 +81,7 @@ import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveContentEditorAllFiles,
   getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatLabels,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
   getTmsProviderLiveFileDetail,
@@ -1220,6 +1221,30 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return c.json({ contentEditorQueue: result.contentEditorQueue }, 200);
       },
     )
+    .get("/:projectId/files/detail/cat/labels", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const auth = c.var.auth;
+      const target = await resolveProjectResourceTarget(auth, params.projectId);
+
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind !== "provider") {
+        return c.json({ labels: [] }, 200);
+      }
+
+      try {
+        const labels = await getTmsProviderLiveCatLabels(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          { actorUserId: auth.user.localUserId },
+        );
+        return c.json({ labels }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .get(
       "/:projectId/files/detail/cat",
       validateProjectParams,

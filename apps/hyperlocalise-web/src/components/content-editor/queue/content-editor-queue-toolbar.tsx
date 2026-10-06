@@ -19,6 +19,7 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -28,15 +29,14 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import { isCatQueueFilterEmpty } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -45,7 +45,11 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "./content-editor-queue-filter";
-import { queueFilterMessageByValue } from "./content-editor-queue-filter-messages";
+import {
+  ContentEditorQueueFilterMenu,
+  resolveQueueFilterButtonMessage,
+} from "./content-editor-queue-filter-menu";
+import { ContentEditorAdvancedQueueFilterDialog } from "./content-editor-advanced-queue-filter-dialog";
 import { ContentEditorOverflowMenu } from "./content-editor-overflow-menu";
 import { ContentEditorViewMenu } from "./content-editor-view-menu";
 import { contentEditorBulkBarMessages } from "@/components/content-editor/shared/content-editor-chrome.messages";
@@ -61,6 +65,13 @@ export function ContentEditorQueueToolbar({
   queueSort = "file_order",
   onQueueSortChange,
   availableQueueSorts = contentEditorQueueSortValues,
+  queueFilterQualifier,
+  onQueueFilterQualifierChange,
+  queueAdvanced,
+  onQueueAdvancedChange,
+  providerKind,
+  organizationSlug,
+  projectId,
   selectionMode = false,
   onSelectionModeChange,
   selectedCount = 0,
@@ -89,6 +100,13 @@ export function ContentEditorQueueToolbar({
   queueSort?: ContentEditorQueueSort;
   onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
   availableQueueSorts?: ContentEditorQueueSort[];
+  queueFilterQualifier?: string;
+  onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
+  onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
+  providerKind?: string | null;
+  organizationSlug?: string;
+  projectId?: string;
   selectionMode?: boolean;
   onSelectionModeChange?: (enabled: boolean) => void;
   selectedCount?: number;
@@ -115,10 +133,17 @@ export function ContentEditorQueueToolbar({
   adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const canEnterSelectionMode = Boolean(onSelectionModeChange);
   const isSelecting = canEnterSelectionMode && selectionMode;
   const showBulkBar = isSelecting && selectedCount > 0;
-  const hasActiveFilter = queueFilter !== "all";
+  const hasActiveFilter =
+    queueFilter !== "all" || Boolean(queueFilterQualifier) || !isCatQueueFilterEmpty(queueAdvanced);
+  const filterButtonMessage = resolveQueueFilterButtonMessage({
+    queueFilter,
+    queueSort,
+    queueAdvanced,
+  });
   // Placeholder reuse or a not-yet-ingested cache hit can keep chrome mounted
   // while the store still holds the previous page — never treat those ids as
   // bulk targets.
@@ -182,46 +207,64 @@ export function ContentEditorQueueToolbar({
           ) : null}
 
           {onQueueFilterChange ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "h-8 shrink-0 gap-1.5 font-normal",
-                      hasActiveFilter && "border-grove-400/40",
-                    )}
-                    aria-label={intl.formatMessage(contentEditorQueuePanelMessages.filterQueueAria)}
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 shrink-0 gap-1.5 font-normal",
+                        hasActiveFilter && "border-grove-400/40",
+                      )}
+                      aria-label={intl.formatMessage(
+                        contentEditorQueuePanelMessages.filterQueueAria,
+                      )}
+                    />
+                  }
+                >
+                  <FunnelIcon className="size-3.5" />
+                  <span className="text-xs">
+                    <FormattedMessage {...filterButtonMessage} />
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <ContentEditorQueueFilterMenu
+                    queueFilter={queueFilter}
+                    queueSort={queueSort}
+                    queueFilterQualifier={queueFilterQualifier}
+                    queueAdvanced={queueAdvanced}
+                    availableQueueFilters={availableQueueFilters}
+                    availableQueueSorts={availableQueueSorts}
+                    providerKind={providerKind}
+                    onSelect={(selection) => {
+                      onQueueFilterChange(selection.filter);
+                      onQueueFilterQualifierChange?.(selection.qualifier);
+                      onQueueAdvancedChange?.(undefined);
+                      if (selection.sort) {
+                        onQueueSortChange?.(selection.sort);
+                      }
+                    }}
+                    onOpenAdvanced={() => setAdvancedOpen(true)}
                   />
-                }
-              >
-                <FunnelIcon className="size-3.5" />
-                <span className="text-xs">
-                  <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>
-                    <FormattedMessage {...contentEditorQueuePanelMessages.filterQueueAria} />
-                  </DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={queueFilter}
-                    onValueChange={(value) =>
-                      onQueueFilterChange(value as ContentEditorQueueFilter)
-                    }
-                  >
-                    {availableQueueFilters.map((filterValue) => (
-                      <DropdownMenuRadioItem key={filterValue} value={filterValue}>
-                        <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ContentEditorAdvancedQueueFilterDialog
+                open={advancedOpen}
+                onOpenChange={setAdvancedOpen}
+                value={queueAdvanced}
+                providerKind={providerKind}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                onApply={(filter) => {
+                  onQueueFilterChange("all");
+                  onQueueFilterQualifierChange?.(undefined);
+                  onQueueAdvancedChange?.(filter);
+                }}
+              />
+            </>
           ) : null}
 
           {isSelecting ? selectAllButton : null}
@@ -251,7 +294,7 @@ export function ContentEditorQueueToolbar({
           availableQueueSorts={availableQueueSorts}
         />
         <ContentEditorOverflowMenu
-          filterLabel={intl.formatMessage(queueFilterMessageByValue[queueFilter])}
+          filterLabel={intl.formatMessage(filterButtonMessage)}
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
         />

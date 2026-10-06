@@ -18,6 +18,8 @@ import type {
   ProjectFileContentEditorQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import { nativeQueueFilterCondition } from "@/lib/projects/content-editor/native-content-editor-queue-filter";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { incrementMemoryEntryVersionSql } from "@/lib/memory/memory-entry-lifecycle";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
@@ -125,109 +127,29 @@ function translationKeysQueueFilterCondition(input: {
   projectId: string;
   targetLocale?: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
 }) {
-  const filter = input.queueFilter;
-  if (!filter || filter === "all") {
-    return undefined;
-  }
-
-  // Hidden / not hidden are source-key flags, independent of the CAT locale.
-  switch (filter) {
-    case "hidden":
-      return eq(schema.projectTranslationKeys.isHidden, true);
-    case "not_hidden":
-      return eq(schema.projectTranslationKeys.isHidden, false);
-  }
-
   if (!input.targetLocale) {
-    return undefined;
+    // Hidden / not hidden are source-key flags, independent of the CAT locale.
+    switch (input.queueFilter) {
+      case "hidden":
+        return eq(schema.projectTranslationKeys.isHidden, true);
+      case "not_hidden":
+        return eq(schema.projectTranslationKeys.isHidden, false);
+      default:
+        return undefined;
+    }
   }
 
-  const translationMatch = sql`
-    ${schema.projectTranslations.translationKeyId} = ${schema.projectTranslationKeys.id}
-    and ${schema.projectTranslations.organizationId} = ${input.organizationId}
-    and ${schema.projectTranslations.projectId} = ${input.projectId}
-    and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
-  `;
-
-  switch (filter) {
-    case "untranslated":
-      return sql`not exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and trim(${schema.projectTranslations.text}) != ''
-      )`;
-    case "reviewed":
-      return sql`exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and ${schema.projectTranslations.status} = 'approved'
-      )`;
-    case "needs_review":
-      return sql`exists (
-        select 1
-        from ${schema.projectTranslations}
-        where ${translationMatch}
-          and trim(${schema.projectTranslations.text}) != ''
-          and ${schema.projectTranslations.status} != 'approved'
-      )`;
-    case "has_issues":
-      // Sheet issues are the source of truth for new native CAT issues. Also keep
-      // unmirrored legacy `type='issue'` comments (pre-sheet / failed mirror) so
-      // the Has issues queue does not hide open work after the Issues migration.
-      // Mirrored comments are excluded: resolving the sheet leaves the comment
-      // unresolved, and counting those would pin segments in this filter forever.
-      return sql`(
-        exists (
-          select 1
-          from ${schema.issueSheetIssues}
-          where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
-            and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
-            and ${schema.issueSheetIssues.projectId} = ${input.projectId}
-            and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
-            and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
-        )
-        or exists (
-          select 1
-          from ${schema.projectTranslationComments}
-          where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
-            and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
-            and ${schema.projectTranslationComments.projectId} = ${input.projectId}
-            and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
-            and ${schema.projectTranslationComments.type} = 'issue'
-            and ${schema.projectTranslationComments.status} = 'unresolved'
-            and not exists (
-              select 1
-              from ${schema.issueSheetIssues}
-              where ${schema.issueSheetIssues.linkedCommentId} = ${schema.projectTranslationComments.id}
-            )
-        )
-      )`;
-    case "qa_issues":
-      return sql`exists (
-        select 1
-        from ${schema.translationQaFindings}
-        where ${schema.translationQaFindings.translationKeyId} = ${schema.projectTranslationKeys.id}
-          and ${schema.translationQaFindings.organizationId} = ${input.organizationId}
-          and ${schema.translationQaFindings.projectId} = ${input.projectId}
-          and ${schema.translationQaFindings.targetLocale} = ${input.targetLocale}
-          and ${schema.translationQaFindings.status} = 'open'
-          and ${schema.translationQaFindings.runId} = (
-            select ${schema.translationQaRuns.id}
-            from ${schema.translationQaRuns}
-            where ${schema.translationQaRuns.organizationId} = ${input.organizationId}
-              and ${schema.translationQaRuns.projectId} = ${input.projectId}
-              and ${schema.translationQaRuns.status} = 'succeeded'
-            order by ${schema.translationQaRuns.completedAt} desc nulls last,
-              ${schema.translationQaRuns.createdAt} desc
-            limit 1
-          )
-      )`;
-    default:
-      return undefined;
-  }
+  return nativeQueueFilterCondition({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale,
+    queueFilter: input.queueFilter,
+    queueFilterQualifier: input.queueFilterQualifier,
+    advancedFilter: input.advancedFilter,
+  });
 }
 
 export class ProjectTranslationService extends ProjectServiceBase {
@@ -244,6 +166,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .select({
         id: schema.repositorySourceFiles.id,
         sourcePath: schema.repositorySourceFiles.sourcePath,
+        createdAt: schema.repositorySourceFiles.createdAt,
+        updatedAt: schema.repositorySourceFiles.updatedAt,
       })
       .from(schema.repositorySourceFiles)
       .where(
@@ -518,6 +442,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale?: string;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }) {
     const [row] = await this.database
       .select({ total: count() })
@@ -531,6 +457,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
             projectId: input.projectId,
             targetLocale: input.targetLocale,
             queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
           }),
         ),
       );
@@ -547,6 +475,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
   }) {
     const limit = input.limit ?? 2_000;
@@ -573,6 +503,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
             projectId: input.projectId,
             targetLocale: input.targetLocale,
             queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
           }),
         ),
       )
@@ -594,6 +526,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     targetLocale?: string;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     sourcePaths?: readonly string[] | null;
   }) {
     const [row] = await this.database
@@ -613,6 +547,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
             projectId: input.projectId,
             targetLocale: input.targetLocale,
             queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
           }),
         ),
       );
@@ -628,6 +564,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileContentEditorQueueFilter;
+    queueFilterQualifier?: string;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
     sourcePaths?: readonly string[] | null;
   }) {
@@ -661,6 +599,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
             projectId: input.projectId,
             targetLocale: input.targetLocale,
             queueFilter: input.queueFilter,
+            queueFilterQualifier: input.queueFilterQualifier,
+            advancedFilter: input.advancedFilter,
           }),
         ),
       )

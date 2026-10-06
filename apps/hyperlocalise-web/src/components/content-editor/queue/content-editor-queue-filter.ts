@@ -62,11 +62,16 @@ export function isQueueFilterSupportedForProvider(
   }
 
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
+    return (
+      providerKind === "crowdin" ||
+      providerKind === "smartling" ||
+      providerKind === "native" ||
+      providerKind === null
+    );
   }
 
   if (filter === "machine_translated" || filter === "with_comments") {
-    return providerKind === "crowdin";
+    return providerKind === "crowdin" || providerKind === "native" || providerKind === null;
   }
 
   if (

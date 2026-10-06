@@ -84,6 +84,8 @@ export async function collectCatFilteredExportRows(
     search: string;
     queueFilter: ProjectFileContentEditorQueueFilter;
     queueSort?: ProjectFileContentEditorQueueSort;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
     externalResourceId?: string | null;
     resourceType?: "file" | "key";
     sourcePaths?: string | null;
@@ -117,6 +119,8 @@ export async function collectCatFilteredExportRows(
       search: input.search,
       queueFilter: input.queueFilter,
       queueSort,
+      queueFilterQualifier: input.queueFilterQualifier,
+      queueAdvanced: input.queueAdvanced,
       limit,
       offset,
       phraseScanPage,

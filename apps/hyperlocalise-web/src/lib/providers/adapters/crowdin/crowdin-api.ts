@@ -19,6 +19,13 @@
  */
 
 import type { ProjectFileContentEditorQueueFilter } from "@/api/routes/project/project.schema";
+import {
+  croqlDateRangePredicate,
+  croqlLabelPredicates,
+  crowdinQaCroqlByQualifier,
+  type ContentEditorAdvancedQueueFilter,
+  type CrowdinQaIssueQualifier,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -81,10 +88,40 @@ function crowdinLanguageSummaryPredicate(locale: string) {
   return `language = @language:"${locale}"`;
 }
 
+function crowdinQaPredicate(languageSummary: string, qualifier?: string) {
+  const qaClause =
+    qualifier && qualifier in crowdinQaCroqlByQualifier
+      ? crowdinQaCroqlByQualifier[qualifier as CrowdinQaIssueQualifier]
+      : "has qa issues";
+  return `count of languages summary where (${languageSummary} and ${qaClause}) > 0`;
+}
+
+function crowdinMachineTranslationPredicate(languageSummary: string, qualifier?: string) {
+  if (qualifier === "tm") {
+    return `count of languages summary where (${languageSummary} and is translated by tm) > 0`;
+  }
+  if (qualifier === "mt") {
+    return `count of languages summary where (${languageSummary} and is translated by mt) > 0`;
+  }
+  if (qualifier === "ai") {
+    return `count of languages summary where (${languageSummary} and is translated by ai) > 0`;
+  }
+  return `count of languages summary where (${languageSummary} and is auto translated) > 0`;
+}
+
+function crowdinUnresolvedIssuePredicate(qualifier?: string) {
+  if (!qualifier) {
+    return "count of comments where (has unresolved issue) > 0";
+  }
+
+  return `count of comments where (has unresolved issue and issueType = "${escapeCrowdinCroqlString(qualifier)}") > 0`;
+}
+
 function crowdinQueueFilterPredicates(
   queueFilter: ProjectFileContentEditorQueueFilter | undefined,
   languageSummary: string,
-  locale: string,
+  _locale: string,
+  qualifier?: string,
 ) {
   switch (queueFilter) {
     case "untranslated":
@@ -102,23 +139,89 @@ function crowdinQueueFilterPredicates(
     case "reviewed":
       return [`count of languages summary where (${languageSummary} and is approved) > 0`];
     case "has_issues":
-      return ["count of comments where (has unresolved issue) > 0"];
+      return [crowdinUnresolvedIssuePredicate(qualifier)];
     case "hidden":
       return ["is hidden"];
     case "not_hidden":
       return ["not is hidden"];
     case "qa_issues":
-      return [`count of languages summary where (${languageSummary} and has qa issues) > 0`];
+      return [crowdinQaPredicate(languageSummary, qualifier)];
     case "machine_translated":
-      return [
-        `count of translations where (language = @language:"${locale}" and is pre translated) > 0`,
-      ];
+      return [crowdinMachineTranslationPredicate(languageSummary, qualifier)];
     case "with_comments":
       return ["count of comments > 0"];
     case "all":
     default:
       return [];
   }
+}
+
+function crowdinAdvancedFilterPredicates(
+  filter: ContentEditorAdvancedQueueFilter | undefined,
+  languageSummary: string,
+) {
+  if (!filter) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  const added = croqlDateRangePredicate("added", filter.addedFrom, filter.addedTo);
+  if (added) parts.push(added);
+  const updated = croqlDateRangePredicate("updated", filter.updatedFrom, filter.updatedTo);
+  if (updated) parts.push(updated);
+  parts.push(
+    ...croqlLabelPredicates({
+      includeLabelMode: filter.includeLabelMode,
+      includeLabelIds: filter.includeLabelIds,
+      excludeLabelMode: filter.excludeLabelMode,
+      excludeLabelIds: filter.excludeLabelIds,
+    }),
+  );
+
+  if (filter.stringType === "plain") parts.push("type is plain");
+  if (filter.stringType === "plural") parts.push("type is plural");
+  if (filter.stringType === "icu") parts.push("type is icu");
+  if (filter.stringType === "asset") parts.push("type is asset");
+
+  if (filter.translationStatus === "translated") {
+    parts.push(`count of languages summary where (${languageSummary} and is translated) > 0`);
+  }
+  if (filter.translationStatus === "untranslated") {
+    parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+  }
+  if (filter.translationStatus === "partially_translated") {
+    parts.push(
+      `count of languages summary where (${languageSummary} and is partially translated) > 0`,
+    );
+  }
+
+  if (filter.approvalStatus === "approved") {
+    parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
+  }
+  if (filter.approvalStatus === "not_approved") {
+    parts.push(`count of languages summary where (${languageSummary} and not is approved) > 0`);
+  }
+  if (filter.approvalStatus === "partially_approved") {
+    parts.push(
+      `count of languages summary where (${languageSummary} and is partially approved) > 0`,
+    );
+  }
+
+  if (filter.qaIssues === "with") {
+    parts.push(crowdinQaPredicate(languageSummary, filter.qaIssueType));
+  }
+  if (filter.qaIssues === "without") {
+    parts.push(`count of languages summary where (${languageSummary} and has qa issues) = 0`);
+  }
+
+  if (filter.comments === "with") parts.push("count of comments > 0");
+  if (filter.comments === "without") parts.push("count of comments = 0");
+  if (filter.screenshots === "with") parts.push("count of screenshots > 0");
+  if (filter.screenshots === "without") parts.push("count of screenshots = 0");
+  if (filter.visibility === "hidden") parts.push("is hidden");
+  if (filter.visibility === "visible") parts.push("not is hidden");
+
+  return parts;
 }
 
 function crowdinStatusBandPredicate(band: CrowdinQueueStatusBand, languageSummary: string) {
@@ -138,6 +241,8 @@ export function buildCrowdinFileQueueCroql(input: {
   fileIds?: readonly number[];
   targetLocale: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
   search?: string;
   statusBand?: CrowdinQueueStatusBand;
 }) {
@@ -163,7 +268,15 @@ export function buildCrowdinFileQueueCroql(input: {
 
   const locale = escapeCrowdinCroqlString(input.targetLocale);
   const languageSummary = crowdinLanguageSummaryPredicate(locale);
-  parts.push(...crowdinQueueFilterPredicates(input.queueFilter, languageSummary, locale));
+  parts.push(
+    ...crowdinQueueFilterPredicates(
+      input.queueFilter,
+      languageSummary,
+      locale,
+      input.queueFilterQualifier,
+    ),
+  );
+  parts.push(...crowdinAdvancedFilterPredicates(input.advancedFilter, languageSummary));
 
   if (input.statusBand && input.statusBand !== input.queueFilter) {
     parts.push(crowdinStatusBandPredicate(input.statusBand, languageSummary));
@@ -287,6 +400,13 @@ export interface CrowdinSourceString {
   context: string | null;
   isHidden: boolean;
   labelIds: number[] | null;
+}
+
+export interface CrowdinLabel {
+  id: number;
+  projectId: number;
+  title: string;
+  isSystem?: boolean;
 }
 
 export interface CrowdinScreenshotTagPosition {
@@ -1078,11 +1198,10 @@ export class CrowdinApiClient {
     return revisions;
   }
 
-  /**
-   * List source strings for a given project.
-   *
-   * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
-   */
+  async listLabels(projectId: number): Promise<CrowdinLabel[]> {
+    return this.listPaginated<CrowdinLabel>(`/projects/${projectId}/labels`);
+  }
+
   async listScreenshots(
     projectId: number,
     options?: {
@@ -1134,6 +1253,11 @@ export class CrowdinApiClient {
     return screenshots;
   }
 
+  /**
+   * List source strings for a given project.
+   *
+   * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
+   */
   async listSourceStrings(
     projectId: number,
     options?: {
