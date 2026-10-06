@@ -43,6 +43,65 @@ func TestEditorCatTargetsMarkdownKeys(t *testing.T) {
 	require.Equal(t, "Intro FR", body.Targets[0].Targets["fr"].Text)
 }
 
+func TestEditorCatTargetsMarkdownWholeFile(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+fileID+`","sourcePath":"docs/intro.md"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Targets []editorCatTargetRow `json:"targets"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Targets, 1)
+	require.Nil(t, body.Targets[0].Targets["fr"])
+}
+
+func TestEditorCatTargetsMarkdownWholeFileVariant(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into project_image_variants (
+            organization_id, project_id, repository_source_file_id, source_path, target_locale, status
+        ) values ($1, $2, $3, 'docs/intro.md', 'fr', 'approved')`,
+		scope.OrganizationID, scope.ProjectID, fileID)
+	require.NoError(t, err)
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+fileID+`","sourcePath":"docs/intro.md"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Targets []editorCatTargetRow `json:"targets"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "document", *body.Targets[0].Targets["fr"].ContentKind)
+	require.True(t, body.Targets[0].Targets["fr"].IsApproved)
+}
+
+func TestEditorCatTargetsMarkdownKeyAndWholeFile(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	mustEditorCatTranslation(t, scope, keyID, "fr", "Intro FR", "approved")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+keyID+`","sourcePath":"docs/intro.md"},{"externalStringId":"`+fileID+`","sourcePath":"docs/intro.md"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Targets []editorCatTargetRow `json:"targets"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Len(t, body.Targets, 2)
+	require.Equal(t, "Intro FR", body.Targets[0].Targets["fr"].Text)
+	require.Nil(t, body.Targets[1].Targets["fr"])
+}
+
+func TestEditorCatTargetsUnknownMarkdownID(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+testEditorCatKeyID+`","sourcePath":"docs/intro.md"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestEditorCatTargetsInaccessibleKey(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "member")
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),

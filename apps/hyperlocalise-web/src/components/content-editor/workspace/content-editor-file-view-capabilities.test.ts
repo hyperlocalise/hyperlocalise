@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   clampCatWorkspaceViewMode,
   contentEditorMultilingualGallerySegments,
+  isCatDocumentFileViewSegmentId,
   isCatFileViewAvailable,
   overlayCatDocumentFileViewSegment,
   isCatImageFileSegment,
@@ -278,6 +279,8 @@ describe("cat-file-view-capabilities", () => {
       imageVariantId: "variant_md",
       targetText: "/target.md",
     });
+    expect(isCatDocumentFileViewSegmentId(overlay.id, { externalStringId: "file_1" })).toBe(true);
+    expect(isCatDocumentFileViewSegmentId("key-uuid", { externalStringId: "file_1" })).toBe(false);
   });
 
   it("keeps an already file-backed document segment unchanged", () => {

@@ -400,6 +400,14 @@ func TestEditorCatQueueMarkdownWithoutKeysFallsBackToDocument(t *testing.T) {
 	require.Nil(t, body.ContentEditorQueue.DocumentView)
 }
 
+func TestEditorCatMarkdownWholeFileTarget(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+fileID+"/target?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"target":null`)
+}
+
 func TestEditorCatMarkdownKeyTarget(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")

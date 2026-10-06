@@ -71,6 +71,7 @@ import { useContentEditorGroupingMode } from "../groups/use-content-editor-group
 import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
 import { groupMessages } from "../groups/content-editor-groups.messages";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
+import { isCatDocumentFileViewSegmentId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 import {
   attemptCatPageNavigation,
   type ContentEditorPageNavigationGuard,
@@ -582,10 +583,8 @@ export function ProjectFileContentEditorWorkspace({
         (entry) => entry.externalStringId === segmentId,
       );
       if (
-        segment?.contentKind === "image_file" ||
-        segment?.contentKind === "video_file" ||
-        segment?.contentKind === "office_file" ||
-        segment?.contentKind === "document"
+        isFileBackedCatSegment(segment?.contentKind) ||
+        isCatDocumentFileViewSegmentId(segmentId, contentEditorFile.documentView)
       ) {
         const statusFallback = intl.formatMessage(
           segment?.contentKind === "video_file"
@@ -637,6 +636,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       contentEditorFile?.canEditTranslations,
+      contentEditorFile?.documentView,
       contentEditorFile?.segments,
       intl,
       isNativeProject,

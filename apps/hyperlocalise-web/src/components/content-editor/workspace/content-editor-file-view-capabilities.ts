@@ -178,6 +178,14 @@ export type ContentEditorDocumentView = {
   imageVariantId?: string | null;
 };
 
+/** File view overlays the source-file ID, which is not a queue key segment. */
+export function isCatDocumentFileViewSegmentId(
+  segmentId: string,
+  documentView?: { externalStringId: string } | null,
+) {
+  return documentView != null && documentView.externalStringId === segmentId;
+}
+
 /** File view for native markdown should edit the stored document, not the selected key. */
 export function overlayCatDocumentFileViewSegment<
   T extends {
