@@ -3,6 +3,8 @@ package memoryinterchange
 import (
 	"strings"
 	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange/fixtures"
 )
 
 func TestParseTMXUsesHeaderSourceAndTuidKeys(t *testing.T) {
@@ -28,7 +30,10 @@ func TestCSVFormulaRoundTrip(t *testing.T) {
 	if !strings.Contains(string(body), FormulaEscapePrefix+"=SUM(A1)") {
 		t.Fatalf("formula was not escaped: %s", body)
 	}
-	parsed := ParseCSV(string(body))
+	parsed, issues := ParseCSV(string(body))
+	if len(issues) != 0 {
+		t.Fatalf("CSV round trip issues: %+v", issues)
+	}
 	if len(parsed) != 1 || parsed[0].SourceText != "=SUM(A1)" || parsed[0].TargetText != "@mention" {
 		t.Fatalf("CSV round trip failed: %+v", parsed)
 	}
@@ -49,14 +54,18 @@ func TestNormalizeSourceText(t *testing.T) {
 
 func TestParseCSV_RejectsGenericSourceTargetHeader(t *testing.T) {
 	csv := "source,target\nHello,Bonjour\n"
-	if candidates := ParseCSV(csv); len(candidates) != 0 {
+	candidates, issues := ParseCSV(csv)
+	if len(candidates) != 0 {
 		t.Fatalf("ParseCSV() len = %d, want 0 for non-locale header", len(candidates))
+	}
+	if len(issues) != 0 {
+		t.Fatalf("ParseCSV() issues = %+v, want none", issues)
 	}
 }
 
 func TestParseCSV_CanonicalizesLocaleHeaders(t *testing.T) {
 	csv := "en-us,fr-fr\nHello,Bonjour\n"
-	candidates := ParseCSV(csv)
+	candidates, _ := ParseCSV(csv)
 	if len(candidates) != 1 {
 		t.Fatalf("ParseCSV() len = %d, want 1", len(candidates))
 	}
@@ -65,8 +74,26 @@ func TestParseCSV_CanonicalizesLocaleHeaders(t *testing.T) {
 	}
 }
 
+func TestParseCSV_ReportsInvalidLocales(t *testing.T) {
+	csv := "source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour\nbad locale,fr-FR,Hi,Salut\n"
+	candidates, issues := ParseCSV(csv)
+	if len(candidates) != 1 {
+		t.Fatalf("ParseCSV() len = %d, want 1 valid row", len(candidates))
+	}
+	if len(issues) != 1 || issues[0].Code != "invalid_locale" {
+		t.Fatalf("ParseCSV() issues = %+v, want one invalid_locale", issues)
+	}
+	if issues[0].UnitIndex == nil || *issues[0].UnitIndex != 3 {
+		t.Fatalf("unexpected unit index: %+v", issues[0].UnitIndex)
+	}
+}
+
 func TestParseCSV_CrowdinTwoColumnFixture(t *testing.T) {
-	candidates := ParseCSV(string(ReadTestdata(t, "crowdin-two-column.csv")))
+	data, err := fixtures.Read("crowdin-two-column.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, _ := ParseCSV(string(data))
 	if len(candidates) != 2 {
 		t.Fatalf("ParseCSV() len = %d, want 2", len(candidates))
 	}
@@ -79,7 +106,11 @@ func TestParseCSV_CrowdinTwoColumnFixture(t *testing.T) {
 }
 
 func TestParseTMX_CrowdinWithPropFixture(t *testing.T) {
-	candidates, issues, header, err := Parse("tmx", string(ReadTestdata(t, "crowdin-with-prop.tmx")))
+	data, err := fixtures.Read("crowdin-with-prop.tmx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates, issues, header, err := Parse("tmx", string(data))
 	if err != nil || len(issues) != 0 || header == nil || *header != "en" {
 		t.Fatalf("Parse() = candidates=%d issues=%d header=%v err=%v", len(candidates), len(issues), header, err)
 	}

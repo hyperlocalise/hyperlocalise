@@ -89,6 +89,9 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if m.Status == "archived" {
 		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
+	if payload.DryRun != nil && *payload.DryRun {
+		return nil, 0, memoryFailure(400, "memory_import_dry_run_unsupported", "Translation memory import dry-run is no longer supported. Upload the file and queue a preview instead.")
+	}
 	mode := strings.TrimSpace(payload.Mode)
 	if mode == "" {
 		mode = "apply"

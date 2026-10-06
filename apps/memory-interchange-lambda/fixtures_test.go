@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange/fixtures"
 )
 
 func TestMemoryImportParseFixtures(t *testing.T) {
@@ -17,7 +18,10 @@ func TestMemoryImportParseFixtures(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.file, func(t *testing.T) {
-			data := memoryinterchange.ReadTestdata(t, tc.file)
+			data, readErr := fixtures.Read(tc.file)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
 			candidates, issues, _, err := memoryinterchange.Parse(tc.format, string(data))
 			if err != nil {
 				t.Fatalf("Parse() err = %v", err)

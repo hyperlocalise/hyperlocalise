@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   memoryInterchangeCountItems,
@@ -232,6 +232,13 @@ describe("memoryInterchangeReportSamples", () => {
 });
 
 describe("TmImportAttemptDetail import actions", () => {
+  beforeEach(() => {
+    memoryGetMock.mockImplementation(async () => ({
+      ok: true as const,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    }));
+  });
+
   it("does not offer Import entries while preview is running", async () => {
     getAttemptMock.mockResolvedValue(importAttemptResponse("running"));
     renderDetail();
@@ -254,6 +261,51 @@ describe("TmImportAttemptDetail import actions", () => {
     renderDetail({ currentUserId: "user-1" });
 
     await screen.findByText("Import report");
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries while memory status is loading", async () => {
+    let resolveMemory: (value: {
+      ok: boolean;
+      json?: () => Promise<{ memory: { name: string; status: string } }>;
+    }) => void = () => {};
+    memoryGetMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMemory = resolve;
+        }),
+    );
+    getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+
+    resolveMemory({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    });
+    expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
+  });
+
+  it("hides Import entries when the memory is archived", async () => {
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "archived" } }),
+    });
+    getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries when memory metadata cannot be loaded", async () => {
+    memoryGetMock.mockResolvedValue({ ok: false });
+    getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
     expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
   });
 

@@ -352,7 +352,9 @@ export function TmImportAttemptDetail({
   const canConfirmPreviewImport =
     canWriteMemories &&
     attempt.createdByUserId === currentUserId &&
-    memoryQuery.data?.status !== "archived";
+    memoryQuery.isSuccess &&
+    memoryQuery.data != null &&
+    memoryQuery.data.status !== "archived";
   const countItems = memoryInterchangeCountItems(attempt);
   const reportSamples = memoryInterchangeReportSamples(attempt);
   const showReportSamples =

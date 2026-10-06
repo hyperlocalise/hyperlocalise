@@ -130,7 +130,8 @@ type Issue struct {
 func Parse(format, content string) ([]Candidate, []Issue, *string, error) {
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "csv":
-		return ParseCSV(content), nil, nil, nil
+		candidates, issues := ParseCSV(content)
+		return candidates, issues, nil, nil
 	case "tmx":
 		candidates, issues, header := ParseTMX(content)
 		return candidates, issues, header, nil
@@ -200,12 +201,21 @@ func parseCSVCrowdinTwoColumn(rows [][]string) []Candidate {
 	return candidates
 }
 
-func ParseCSV(content string) []Candidate {
+func csvInvalidLocaleIssue(rowNum int, field, raw string) Issue {
+	unitIndex := rowNum
+	message := fmt.Sprintf("Skipping row %d: %s is not a valid BCP 47 locale.", rowNum, field)
+	if trimmed := strings.TrimSpace(raw); trimmed != "" {
+		message = fmt.Sprintf("Skipping row %d: %s locale %q is not a valid BCP 47 tag.", rowNum, field, trimmed)
+	}
+	return Issue{Severity: "warning", Code: "invalid_locale", Message: message, UnitIndex: &unitIndex}
+}
+
+func ParseCSV(content string) ([]Candidate, []Issue) {
 	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
 	reader.FieldsPerRecord = -1
 	rows, err := reader.ReadAll()
 	if err != nil || len(rows) == 0 {
-		return nil
+		return nil, nil
 	}
 	start := 0
 	if len(rows[0]) >= 2 {
@@ -216,12 +226,14 @@ func ParseCSV(content string) []Candidate {
 	}
 	if !csvHasFourColumnDataRows(rows, start) {
 		if crowdin := parseCSVCrowdinTwoColumn(rows); len(crowdin) > 0 {
-			return crowdin
+			return crowdin, nil
 		}
 	}
 	candidates := make([]Candidate, 0, len(rows)-start)
+	issues := []Issue{}
 	for i := start; i < len(rows); i++ {
 		row := rows[i]
+		rowNum := i + 1
 		if len(row) < 4 {
 			continue
 		}
@@ -233,10 +245,12 @@ func ParseCSV(content string) []Candidate {
 		}
 		sourceLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(row[0])))
 		if !ok {
+			issues = append(issues, csvInvalidLocaleIssue(rowNum, "source", row[0]))
 			continue
 		}
 		targetLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(row[1])))
 		if !ok {
+			issues = append(issues, csvInvalidLocaleIssue(rowNum, "target", row[1]))
 			continue
 		}
 		sourceText := unescapeFormula(row[2])
@@ -244,9 +258,9 @@ func ParseCSV(content string) []Candidate {
 		if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 			continue
 		}
-		candidates = append(candidates, Candidate{SourceLocale: sourceLocale, TargetLocale: targetLocale, SourceText: sourceText, TargetText: targetText, MatchScore: score, UnitIndex: i + 1})
+		candidates = append(candidates, Candidate{SourceLocale: sourceLocale, TargetLocale: targetLocale, SourceText: sourceText, TargetText: targetText, MatchScore: score, UnitIndex: rowNum})
 	}
-	return candidates
+	return candidates, issues
 }
 
 func ParseTMX(content string) ([]Candidate, []Issue, *string) {
