@@ -24,7 +24,7 @@ export type { VercelSandboxImageScope } from "@/lib/flags/release-flags";
 export const sandboxRipgrepReleaseVersion = "15.2.0";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.2";
+export const sandboxHyperlocaliseReleaseVersion = "1.13.3";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
