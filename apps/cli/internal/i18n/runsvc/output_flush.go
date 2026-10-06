@@ -36,8 +36,9 @@ func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Contex
 }
 
 type targetFlushError struct {
-	TargetPath string
-	Err        error
+	TargetPath       string
+	UnwrittenTargets []string
+	Err              error
 }
 
 func (e *targetFlushError) Error() string {
@@ -69,14 +70,18 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 		ctx = context.Background()
 	}
 	var warnings []string
-	for _, targetPath := range targetPaths {
+	for i, targetPath := range targetPaths {
 		output, ok := staged[targetPath]
 		if !ok {
 			output = pruneMetadata[targetPath]
 		}
 		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
 		if err != nil {
-			return nil, &targetFlushError{TargetPath: targetPath, Err: err}
+			return nil, &targetFlushError{
+				TargetPath:       targetPath,
+				UnwrittenTargets: slices.Clone(targetPaths[i:]),
+				Err:              err,
+			}
 		}
 		warnings = append(warnings, targetWarnings...)
 	}

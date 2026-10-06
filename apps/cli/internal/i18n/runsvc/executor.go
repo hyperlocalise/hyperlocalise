@@ -906,16 +906,34 @@ func (s *Service) rollbackLockForTarget(lockState *lockfile.File, targetPath str
 	return removedPersisted, true
 }
 
-func (s *Service) rollbackLockAfterFailedFlush(lockPath string, lockState *lockfile.File, planned []Task, flushErr error) (int, error) {
+func flushRollbackTargets(flushErr error) map[string]struct{} {
 	var targetErr *targetFlushError
-	if !errors.As(flushErr, &targetErr) || strings.TrimSpace(targetErr.TargetPath) == "" {
+	if !errors.As(flushErr, &targetErr) {
+		return nil
+	}
+	targets := make(map[string]struct{}, len(targetErr.UnwrittenTargets)+1)
+	add := func(path string) {
+		if path = strings.TrimSpace(path); path != "" {
+			targets[path] = struct{}{}
+		}
+	}
+	add(targetErr.TargetPath)
+	for _, path := range targetErr.UnwrittenTargets {
+		add(path)
+	}
+	return targets
+}
+
+func (s *Service) rollbackLockAfterFailedFlush(lockPath string, lockState *lockfile.File, thisRunTasks []Task, flushErr error) (int, error) {
+	unwritten := flushRollbackTargets(flushErr)
+	if len(unwritten) == 0 {
 		return 0, nil
 	}
 
 	removed := 0
 	seen := map[string]struct{}{}
-	for _, task := range planned {
-		if task.TargetPath != targetErr.TargetPath {
+	for _, task := range thisRunTasks {
+		if _, ok := unwritten[task.TargetPath]; !ok {
 			continue
 		}
 		for _, id := range taskIdentityCandidates(task, s.projectRoot) {
@@ -933,8 +951,13 @@ func (s *Service) rollbackLockAfterFailedFlush(lockPath string, lockState *lockf
 	if removed == 0 {
 		return 0, nil
 	}
+	var targetErr *targetFlushError
+	failedTarget := ""
+	if errors.As(flushErr, &targetErr) {
+		failedTarget = targetErr.TargetPath
+	}
 	if err := s.saveLock(lockPath, *lockState); err != nil {
-		return 0, fmt.Errorf("persist lock rollback after failed flush of %q: %w", targetErr.TargetPath, err)
+		return 0, fmt.Errorf("persist lock rollback after failed flush of %q: %w", failedTarget, err)
 	}
 	return removed, nil
 }

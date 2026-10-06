@@ -265,7 +265,10 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	report.Warnings = append(report.Warnings, flushWarnings...)
 	if err != nil {
 		if in.KeepCompletedOnFailure {
-			removed, rbErr := s.rollbackLockAfterFailedFlush(in.LockPath, state, planned, err)
+			thisRunTasks := make([]Task, 0, len(executable)+len(copyTasks))
+			thisRunTasks = append(thisRunTasks, executable...)
+			thisRunTasks = append(thisRunTasks, copyTasks...)
+			removed, rbErr := s.rollbackLockAfterFailedFlush(in.LockPath, state, thisRunTasks, err)
 			if rbErr != nil {
 				err = errors.Join(err, rbErr)
 			}

@@ -1245,6 +1245,160 @@ func TestRunKeepCompletedOnFailureRollsBackLockWhenFinalizeWriteFails(t *testing
 	}
 }
 
+func TestRunKeepCompletedOnFailureRollsBackLaterUnwrittenTargets(t *testing.T) {
+	svc := newTestService()
+	sourceA := "/tmp/source-a.json"
+	sourceB := "/tmp/source-b.json"
+	targetA := "/tmp/out-a.json"
+	targetB := "/tmp/out-b.json"
+	lockState := &lockfile.File{LocaleStates: map[string]lockfile.LocaleCheckpoint{}, RunCompleted: map[string]lockfile.RunCompletion{}}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourceA, targetA)
+		cfg.Buckets["ui"] = config.BucketConfig{
+			Files: []config.BucketFileMapping{
+				{From: sourceA, To: targetA},
+				{From: sourceB, To: targetB},
+			},
+		}
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourceA:
+			return []byte(`{"ok":"hello","bad":"boom"}`), nil
+		case sourceB:
+			return []byte(`{"ok":"world","bad":"boom"}`), nil
+		case targetA, targetB:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == targetA {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true, Workers: 1})
+	if err == nil {
+		t.Fatal("expected finalize write failure")
+	}
+	if report.Succeeded != 2 || report.Failed != 2 {
+		t.Fatalf("unexpected execution totals: %+v", report)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetA, "ok")]; ok {
+		t.Fatalf("expected failed target lock entry to be rolled back, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetB, "ok")]; ok {
+		t.Fatalf("expected later unwritten target lock entry to be rolled back, got %+v", lockState.RunCompleted)
+	}
+}
+
+func TestRunKeepCompletedOnFailurePreservesPriorLockEntriesWhenFinalizeWriteFails(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	files := map[string][]byte{
+		sourcePath: []byte(`{"ok":"hello","bad":"boom","worse":"explode"}`),
+		targetPath: []byte(`{"existing":"v"}`),
+	}
+	var lockState lockfile.File
+	failBoom := true
+	failExplode := true
+	failWrite := false
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+		return content, nil
+	}
+	svc.writeFile = func(path string, content []byte) error {
+		if failWrite && path == targetPath {
+			return errors.New("disk full")
+		}
+		files[path] = append([]byte(nil), content...)
+		return nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		cloned := lockState
+		if cloned.RunCompleted == nil {
+			cloned.RunCompleted = map[string]lockfile.RunCompletion{}
+		}
+		if cloned.RunCheckpoint == nil {
+			cloned.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+		}
+		return &cloned, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockState = f
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" && failBoom {
+			return "", errors.New("translation failed")
+		}
+		if req.Source == "explode" && failExplode {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+
+	first, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("first run: %v", err)
+	}
+	if first.Succeeded != 1 || first.Failed != 2 || first.PersistedToLock != 1 {
+		t.Fatalf("unexpected first run report: %+v", first)
+	}
+	priorID := taskIdentity(targetPath, "ok")
+	if _, ok := lockState.RunCompleted[priorID]; !ok {
+		t.Fatalf("expected first-run success to stay completed, got %+v", lockState.RunCompleted)
+	}
+
+	failBoom = false
+	failWrite = true
+	_, err = svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err == nil {
+		t.Fatal("expected second-run finalize write failure")
+	}
+	if _, ok := lockState.RunCompleted[priorID]; !ok {
+		t.Fatalf("expected prior completed key to survive failed write, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "bad")]; ok {
+		t.Fatalf("expected this-run key to be rolled back after failed write, got %+v", lockState.RunCompleted)
+	}
+
+	failWrite = false
+	failExplode = false
+	third, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err != nil {
+		t.Fatalf("third run: %v", err)
+	}
+	if third.SkippedByLock != 1 || third.ExecutableTotal != 2 || third.Succeeded != 2 || third.Failed != 0 {
+		t.Fatalf("expected resume of only the unfinished keys, got %+v", third)
+	}
+}
+
 func TestRunLockWriterBatchesAndFlushesOnShutdown(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
