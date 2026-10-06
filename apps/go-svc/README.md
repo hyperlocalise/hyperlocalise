@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -31,8 +31,8 @@ These must match the web app's WorkOS configuration. Without them, valid session
 | `WORKOS_API_HOSTNAME` | `api.workos.com` | WorkOS API host used for session refresh and JWKS (`/sso/jwks/{client_id}`). Point at the WorkOS emulator in local e2e. |
 | `WORKOS_API_HTTPS` | `true` | Set `false` for the local emulator. |
 | `WORKOS_API_PORT` | _(unset)_ | Optional port for a non-default WorkOS API host. |
-| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, public translation download, and Hyperlab OFREP evaluate routes. |
-| `WORKOS_AUTHKIT_DOMAIN` | _(unset)_ | AuthKit domain without a scheme (for example `your-app.authkit.app`). Sets the Agent Registration JWT issuer (`https://{domain}`) and JWKS (`https://{domain}/.well-known/jwks.json`) for the public translation download. When unset, agent bearer tokens are rejected with 401; `X-API-Key` tokens still work. |
+| `DATABASE_URL` | _(unset)_ | Postgres URL shared with the web app. Required for dictionary, glossary, translation-memory, team, member, issue-sheet, public translation download, public job read, and Hyperlab OFREP evaluate routes. |
+| `WORKOS_AUTHKIT_DOMAIN` | _(unset)_ | AuthKit domain without a scheme (for example `your-app.authkit.app`). Sets the Agent Registration JWT issuer (`https://{domain}`) and JWKS (`https://{domain}/.well-known/jwks.json`) for the public translation download and job reads. When unset, agent bearer tokens are rejected with 401; `X-API-Key` tokens still work. |
 | `HYPERLOCALISE_PUBLIC_APP_URL` | _(unset)_ | Public web app URL (for example `https://hyperlocalise.com`). Its origin adds `{origin}/api/v1` and `{origin}/mcp` to the accepted Agent Registration JWT audiences (alongside `WORKOS_CLIENT_ID`) and is used in the `WWW-Authenticate` resource-metadata URL. When unset, the challenge falls back to the request origin. |
 | `VALKEY_ENDPOINT` | _(unset)_ | Valkey hostname. When set without `VALKEY_URL`, go-svc builds a URL from this endpoint, `VALKEY_PORT`, and `VALKEY_TLS`. |
 | `VALKEY_PORT` | `6379` | Valkey port used with `VALKEY_ENDPOINT`. |
@@ -223,6 +223,9 @@ For tracing, the ECS task definition sets `DD_TRACE_AGENT_URL`, `DD_TRACE_ENABLE
 | `POST` | `/v1/domains/gsc/performance` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Query Search Analytics clicks, impressions, CTR, and position |
 | `POST` | `/v1/domains/gsc/inspect` | WorkOS session cookie or Bearer access token + `X-Go-Svc-Research-Token` | Inspect one URL against a Search Console property |
 | `GET` | `/v1/projects/{projectId}/translations/download` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `files:read` | Download one source file's translations for a locale as JSON |
+| `GET` | `/v1/jobs/latest` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | Latest succeeded file translation job for a project source path |
+| `GET` | `/v1/jobs/{jobId}` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job with its stored output file metadata |
+| `GET` | `/v1/jobs/{jobId}/status` | `X-API-Key` personal access token or Agent Registration Bearer JWT, plus `jobs:read` | One job's kind and lifecycle status |
 | `POST` | `/ofrep/v1/evaluate/flags/{key}` | Publishable `hlk_...` key | Evaluate one Hyperlab flag (OFREP) |
 | `POST` | `/ofrep/v1/evaluate/flags` | Publishable `hlk_...` key | Evaluate all Hyperlab flags (OFREP bulk) |
 
@@ -318,6 +321,31 @@ JSON body while retaining their original file extension.
 Lottie sources (`.lottie`, or `.json` containing only Lottie text keys) are not
 supported because native download does not use Blob storage. Responses include
 `Cache-Control: no-store`.
+
+## Public job reads
+
+Read job status and stored result metadata:
+
+- `GET /v1/jobs/latest?projectId=...&sourcePath=...`
+- `GET /v1/jobs/{jobId}`
+- `GET /v1/jobs/{jobId}/status`
+
+All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
+
+Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
+
+`/v1/jobs/latest` normalizes `sourcePath` and returns the latest successful `file_result` translation job for the newest matching source file version, skipping queued or failed jobs.
+
+| Status | `error` | When |
+|--------|---------|------|
+| 400 | `invalid_job_payload` | Invalid `/latest` query |
+| 401 | `unauthorized` | Missing or invalid credentials |
+| 403 | `forbidden` | Missing `jobs:read` or workspace access |
+| 404 | `job_not_found` | Job is missing, inaccessible, or no latest match exists |
+| 404 | `project_not_found` | Project is missing or inaccessible |
+| 503 | `public_api_unavailable` | Database is unavailable |
+
+Responses include `Cache-Control: no-store`.
 
 ## Content editor (CAT)
 
