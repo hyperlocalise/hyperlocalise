@@ -25,6 +25,7 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
+  normalizeMemoryImportUploadBytes,
   suggestedMemoryNameFromFilename,
 } from "@/lib/memory/decode-import-file";
 
@@ -354,6 +355,23 @@ export function TranslationMemoriesPageContent({
           intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
         );
       }
+      // Lambda-backed import: normalize to UTF-8 before upload (see the
+      // translation memory import flow). Re-encoded text can grow, so
+      // re-check the limit against the bytes actually uploaded.
+      const importUploadBytes = normalizeMemoryImportUploadBytes(
+        new Uint8Array(await file.arrayBuffer()),
+      );
+      if (
+        importUploadBytes.byteLength <= 0 ||
+        importUploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+      ) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
+            maxMegabytes: 100,
+          }),
+        );
+      }
       let upload;
       try {
         upload = await goSvcClient.memory.entries.createImportUpload(organizationSlug, memoryId, {
@@ -377,7 +395,7 @@ export function TranslationMemoriesPageContent({
       const uploaded = await fetch(upload.upload.url, {
         method: upload.upload.method,
         headers,
-        body: file,
+        body: importUploadBytes,
       });
       if (!uploaded.ok) {
         throw new CreateMemoryImportError(

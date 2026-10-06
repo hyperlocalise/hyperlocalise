@@ -224,6 +224,14 @@ func TestFinalizeMemoryImportQueuesPreviewWhenUploadExists(t *testing.T) {
 	require.Len(t, publisher.messages, 1)
 	require.Equal(t, "import", publisher.messages[0].Operation)
 	require.Equal(t, attemptID, publisher.messages[0].AttemptID)
+
+	var status string
+	var sourceByteSize *int32
+	err = scope.Pool.QueryRow(t.Context(), `select status, source_byte_size from memory_import_attempts where id=$1`, attemptID).Scan(&status, &sourceByteSize)
+	require.NoError(t, err)
+	require.Equal(t, "queued", status)
+	require.NotNil(t, sourceByteSize)
+	require.Equal(t, int32(6), *sourceByteSize)
 }
 
 func TestFinalizeMemoryImportQueuesApplyFromPreview(t *testing.T) {
@@ -236,8 +244,8 @@ func TestFinalizeMemoryImportQueuesApplyFromPreview(t *testing.T) {
 	_, err := scope.Pool.Exec(t.Context(), `
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
-			source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','preview_completed','preview','tmx','r2-primary','memory-interchange/apply-ready.tmx')`,
+			source_object_location, source_object_key, source_byte_size
+		) values ($1,$2,$3,$4,'import','preview_completed','preview','tmx','r2-primary','memory-interchange/apply-ready.tmx', 6)`,
 		attemptID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 
@@ -250,10 +258,13 @@ func TestFinalizeMemoryImportQueuesApplyFromPreview(t *testing.T) {
 	require.Equal(t, attemptID, publisher.messages[0].AttemptID)
 
 	var status, mode string
-	err = scope.Pool.QueryRow(t.Context(), `select status, mode from memory_import_attempts where id=$1`, attemptID).Scan(&status, &mode)
+	var sourceByteSize *int32
+	err = scope.Pool.QueryRow(t.Context(), `select status, mode, source_byte_size from memory_import_attempts where id=$1`, attemptID).Scan(&status, &mode, &sourceByteSize)
 	require.NoError(t, err)
 	require.Equal(t, "queued", status)
 	require.Equal(t, "apply", mode)
+	require.NotNil(t, sourceByteSize)
+	require.Equal(t, int32(6), *sourceByteSize)
 }
 
 func TestMemoryInterchangeDownloadGuards(t *testing.T) {

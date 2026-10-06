@@ -31,7 +31,10 @@ import {
 } from "@/components/ui/dialog";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { memoryImportFormatFromFilename } from "@/lib/memory/decode-import-file";
+import {
+  memoryImportFormatFromFilename,
+  normalizeMemoryImportUploadBytes,
+} from "@/lib/memory/decode-import-file";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { tmImportAttemptsQueryKey } from "./tm-import-history";
@@ -81,6 +84,15 @@ export function TmImportExportPanel({
       if (file.size <= 0 || file.size > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES) {
         throw new Error(intl.formatMessage(messages.importFileTooLarge, { maxMegabytes: 100 }));
       }
+      // The Lambda parses stored bytes as UTF-8, so normalize encodings
+      // (e.g. UTF-16 CSV/TMX) before upload. Re-encoded CJK text can grow,
+      // so re-check the limit against the bytes actually uploaded.
+      const uploadBytes = normalizeMemoryImportUploadBytes(
+        new Uint8Array(await file.arrayBuffer()),
+      );
+      if (uploadBytes.byteLength <= 0 || uploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES) {
+        throw new Error(intl.formatMessage(messages.importFileTooLarge, { maxMegabytes: 100 }));
+      }
       let upload;
       try {
         upload = await goSvcClient.memory.entries.createImportUpload(organizationSlug, memoryId, {
@@ -100,7 +112,7 @@ export function TmImportExportPanel({
       const uploaded = await fetch(upload.upload.url, {
         method: upload.upload.method,
         headers,
-        body: file,
+        body: uploadBytes,
       });
       if (!uploaded.ok) {
         throw new Error(intl.formatMessage(messages.uploadFailed));

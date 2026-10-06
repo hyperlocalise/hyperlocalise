@@ -75,3 +75,15 @@ export async function readMemoryImportFile(file: File) {
   }
   return { ok: true as const, content: decodeMemoryImportBytes(bytes) };
 }
+
+/**
+ * Normalizes raw import file bytes to UTF-8 for the async upload path. The
+ * memory-interchange Lambda parses stored bytes as UTF-8, so UTF-16 CSV/TMX
+ * files (BOM or heuristic detection, same as `decodeMemoryImportBytes`) are
+ * re-encoded here — restoring the behavior the old inline flow got from
+ * `readMemoryImportFile`. A leading BOM is stripped so CSV headers and the
+ * TMX prolog parse cleanly.
+ */
+export function normalizeMemoryImportUploadBytes(bytes: Uint8Array) {
+  return new TextEncoder().encode(decodeMemoryImportBytes(bytes).replace(/^\uFEFF/, ""));
+}

@@ -111,6 +111,7 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if err != nil {
 		return nil, 0, err
 	}
+	var sourceByteSize *int32
 	if status == "upload_pending" {
 		store, resolveErr := api.objects.Resolve(location)
 		if resolveErr != nil {
@@ -123,12 +124,16 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		if info.Size <= 0 || info.Size > MEMORY_INTERCHANGE_MAX_BYTES {
 			return nil, 0, memoryFailure(413, "memory_import_upload_too_large", "The memory import upload is empty or exceeds the 100 MB limit")
 		}
+		// Persist the trusted object-store size so the report shows the file
+		// size. The upload path no longer sends a client-provided size.
+		size := int32(info.Size)
+		sourceByteSize = &size
 	}
 	if mode == "apply" && status != "preview_completed" && status != "queued" {
 		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
 	}
 	options, _ := json.Marshal(map[string]any{"maxUnits": payload.MaxUnits, "mode": mode})
-	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued' where id=$1 and status in ('upload_pending','preview_completed')`, payload.AttemptID, mode, options)
+	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status in ('upload_pending','preview_completed')`, payload.AttemptID, mode, options, sourceByteSize)
 	if err != nil {
 		return nil, 0, err
 	}

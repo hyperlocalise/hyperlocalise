@@ -28,7 +28,12 @@ import {
 const { getAttemptMock, queueImportMock, memoryGetMock } = vi.hoisted(() => ({
   getAttemptMock: vi.fn(),
   queueImportMock: vi.fn(async () => ({ attemptId: "attempt-1", status: "queued" })),
-  memoryGetMock: vi.fn(async () => ({ ok: false as const })),
+  memoryGetMock: vi.fn(
+    async (): Promise<{
+      ok: boolean;
+      json?: () => Promise<{ memory: { name: string; status: string } }>;
+    }> => ({ ok: false as const }),
+  ),
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
@@ -70,13 +75,13 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function previewAttemptResponse(status: string) {
+function previewAttemptResponse(status: string, createdByUserId: string | null = "user-1") {
   return {
     memoryImportAttempt: {
       id: "attempt-1",
       organizationId: "org-1",
       memoryId: "memory-1",
-      createdByUserId: null,
+      createdByUserId,
       actorDisplayName: "Ada",
       operation: "import",
       status,
@@ -111,14 +116,20 @@ function previewAttemptResponse(status: string) {
   };
 }
 
-function renderDetail() {
+function renderDetail(props?: { currentUserId?: string; canWriteMemories?: boolean }) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        <TmImportAttemptDetail organizationSlug="acme" memoryId="memory-1" attemptId="attempt-1" />
+        <TmImportAttemptDetail
+          organizationSlug="acme"
+          memoryId="memory-1"
+          attemptId="attempt-1"
+          currentUserId={props?.currentUserId ?? "user-1"}
+          canWriteMemories={props?.canWriteMemories ?? true}
+        />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -208,6 +219,38 @@ describe("TmImportAttemptDetail apply action", () => {
     await screen.findByText("View affected entries");
 
     expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries for a viewer who did not start the import", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed", "user-2"));
+    renderDetail({ currentUserId: "user-1" });
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries without memory write access", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail({ canWriteMemories: false });
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries when the memory is archived", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "archived" } }),
+    });
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+    memoryGetMock.mockResolvedValue({ ok: false });
   });
 });
 

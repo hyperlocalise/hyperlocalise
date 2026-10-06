@@ -182,10 +182,14 @@ export function TmImportAttemptDetail({
   organizationSlug,
   memoryId,
   attemptId,
+  currentUserId,
+  canWriteMemories,
 }: {
   organizationSlug: string;
   memoryId: string;
   attemptId: string;
+  currentUserId: string;
+  canWriteMemories: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -322,6 +326,14 @@ export function TmImportAttemptDetail({
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
     intl.formatMessage(messages.unknown);
+  // Applying mirrors finalizeMemoryImport: only the uploader, with memory
+  // write access, on a non-archived memory. Everyone else would get a 409,
+  // so don't offer the action.
+  const canApplyImport =
+    attempt.status === "preview_completed" &&
+    canWriteMemories &&
+    attempt.createdByUserId === currentUserId &&
+    memoryQuery.data?.status !== "archived";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -344,7 +356,7 @@ export function TmImportAttemptDetail({
         <div className="flex flex-wrap gap-2">
           {attempt.operation === "import" ? (
             <>
-              {attempt.status === "preview_completed" ? (
+              {canApplyImport ? (
                 <Button
                   type="button"
                   disabled={applyImport.isPending}
