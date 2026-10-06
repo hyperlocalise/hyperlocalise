@@ -237,8 +237,10 @@ func beginMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
 }
 
 func rollbackMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, "rollback to savepoint "+memoryImportApplyItemSavepoint)
-	return err
+	if _, err := tx.Exec(ctx, "rollback to savepoint "+memoryImportApplyItemSavepoint); err != nil {
+		return err
+	}
+	return releaseMemoryImportItemSavepoint(ctx, tx)
 }
 
 func releaseMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
