@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -32,6 +32,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
@@ -187,6 +188,7 @@ export function TmImportAttemptDetail({
   attemptId: string;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
   const [downloadPending, setDownloadPending] = useState(false);
   const attemptQuery = useQuery({
@@ -226,6 +228,26 @@ export function TmImportAttemptDetail({
       const body = await response.json();
       return body.memory as MemoryRecord;
     },
+  });
+  const applyImport = useMutation({
+    mutationFn: async () => {
+      try {
+        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId,
+          mode: "apply",
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.applyFailed)), {
+          cause: error,
+        });
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+      });
+    },
+    onError: (error) => toast.error(error.message),
   });
 
   if (attemptQuery.isPending) {
@@ -322,12 +344,23 @@ export function TmImportAttemptDetail({
         <div className="flex flex-wrap gap-2">
           {attempt.operation === "import" ? (
             <>
+              {attempt.status === "preview_completed" ? (
+                <Button
+                  type="button"
+                  disabled={applyImport.isPending}
+                  onClick={() => applyImport.mutate()}
+                >
+                  <FormattedMessage {...messages.applyImport} />
+                </Button>
+              ) : null}
               <Button variant="outline" render={<a href={reportUrl} download />}>
                 <FormattedMessage {...messages.download} />
               </Button>
-              <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
-                <FormattedMessage {...messages.affectedEntries} />
-              </Button>
+              {attempt.status === "completed" || attempt.status === "partially_successful" ? (
+                <Button render={<OrgNavLink href={affectedEntriesUrl} />}>
+                  <FormattedMessage {...messages.affectedEntries} />
+                </Button>
+              ) : null}
             </>
           ) : attempt.status === "completed" && attempt.resultReady ? (
             <Button type="button" disabled={downloadPending} onClick={() => void downloadExport()}>

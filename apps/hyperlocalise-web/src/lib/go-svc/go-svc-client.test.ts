@@ -531,6 +531,59 @@ describe("GoSvcClient", () => {
     );
   });
 
+  it("creates memory import uploads and queues preview then apply", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            attemptId: "attempt-1",
+            operation: "import",
+            status: "upload_pending",
+            upload: {
+              url: "https://storage.example/upload.tmx",
+              method: "PUT",
+              headers: { "Content-Type": ["application/xml"] },
+              expiresAt: "2026-10-06T10:00:00.000Z",
+            },
+          },
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "queued" }))
+      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "queued" }));
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.memory.entries.createImportUpload("acme", "memory-1", {
+        format: "tmx",
+        sourceFilename: "memory.tmx",
+        contentType: "application/xml",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "upload_pending" });
+    await expect(
+      client.memory.entries.queueImport("acme", "memory-1", {
+        attemptId: "attempt-1",
+        mode: "preview",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });
+    await expect(
+      client.memory.entries.queueImport("acme", "memory-1", {
+        attemptId: "attempt-1",
+        mode: "apply",
+      }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import/uploads`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import`,
+    );
+    expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
+  });
+
   it("rejects invalid base URLs and non-absolute paths", async () => {
     expect(
       () =>

@@ -310,6 +310,27 @@ export type MemoryExportJob = {
   status: "queued";
 };
 
+export type MemoryImportUploadSession = {
+  attemptId: string;
+  operation: "import";
+  status: "upload_pending";
+  upload: {
+    url: string;
+    method: "PUT";
+    headers: Record<string, string[]>;
+    expiresAt: string;
+  };
+};
+
+export type MemoryImportQueueResponse = {
+  attemptId: string;
+  operation: "import";
+  mode: string;
+  status: "queued";
+  format: string;
+  previousMode: string;
+};
+
 export type MemoryInterchangeDownloadUrl = {
   url: string;
   method: "GET";

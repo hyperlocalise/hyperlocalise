@@ -12,15 +12,117 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   memoryInterchangeCountItems,
+  TmImportAttemptDetail,
   TmImportDiagnosticList,
   TmInterchangeFailureDetails,
 } from "./tm-import-attempt-detail";
+
+const { getAttemptMock, queueImportMock, memoryGetMock } = vi.hoisted(() => ({
+  getAttemptMock: vi.fn(),
+  queueImportMock: vi.fn(async () => ({ attemptId: "attempt-1", status: "queued" })),
+  memoryGetMock: vi.fn(async () => ({ ok: false as const })),
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      memory: {
+        importAttempts: { get: getAttemptMock },
+        entries: { queueImport: queueImportMock },
+      },
+    },
+    loading: false,
+  }),
+}));
+
+vi.mock("@/lib/api-client-instance", () => ({
+  apiClient: {
+    api: {
+      orgs: {
+        ":organizationSlug": {
+          "translation-memories": {
+            ":memoryId": {
+              $get: () => memoryGetMock(),
+            },
+          },
+        },
+      },
+    },
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/en/org/acme/translation-memories/memory-1/imports/attempt-1",
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+function previewAttemptResponse(status: string) {
+  return {
+    memoryImportAttempt: {
+      id: "attempt-1",
+      organizationId: "org-1",
+      memoryId: "memory-1",
+      createdByUserId: null,
+      actorDisplayName: "Ada",
+      operation: "import",
+      status,
+      importBatchId: "attempt-1",
+      mode: "preview",
+      format: "tmx",
+      options: {},
+      sourceFilename: "memory.tmx",
+      sourceByteSize: 42,
+      sourceSha256: "abc",
+      counts: {
+        totalRead: 3,
+        created: 0,
+        updated: 0,
+        variantCreated: 0,
+        skipped: 0,
+        warned: 0,
+        failed: 0,
+      },
+      headerSrclang: "en",
+      diagnosticsTruncated: false,
+      diagnosticsAvailability: "available",
+      diagnosticsExpiresAt: null,
+      retentionPolicy: "indefinite",
+      failureCode: null,
+      resultFilename: null,
+      resultReady: false,
+      createdAt: "2026-10-06T00:00:00.000000Z",
+      completedAt: null,
+    },
+    diagnostics: [],
+  };
+}
+
+function renderDetail() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <IntlProvider locale="en">
+      <QueryClientProvider client={queryClient}>
+        <TmImportAttemptDetail organizationSlug="acme" memoryId="memory-1" attemptId="attempt-1" />
+      </QueryClientProvider>
+    </IntlProvider>,
+  );
+}
 
 describe("TmImportDiagnosticList", () => {
   it("renders a zero-based diagnostic unit index", () => {
@@ -73,6 +175,39 @@ describe("memoryInterchangeCountItems", () => {
 
   it("does not invent import zeros when an export has no entry count yet", () => {
     expect(memoryInterchangeCountItems({ operation: "export", counts: null })).toEqual([]);
+  });
+});
+
+describe("TmImportAttemptDetail apply action", () => {
+  it("shows Import entries while the preview is ready", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail();
+
+    expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View affected entries" })).not.toBeInTheDocument();
+  });
+
+  it("queues the import apply when Import entries is clicked", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Import entries" }));
+
+    await waitFor(() => {
+      expect(queueImportMock).toHaveBeenCalledWith("acme", "memory-1", {
+        attemptId: "attempt-1",
+        mode: "apply",
+      });
+    });
+  });
+
+  it("hides Import entries once the import completes", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("completed"));
+    renderDetail();
+
+    await screen.findByText("View affected entries");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
   });
 });
 
