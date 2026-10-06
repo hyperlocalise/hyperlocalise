@@ -2,8 +2,10 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,20 +63,21 @@ type stagedOutput struct {
 }
 
 type executorState struct {
-	total                int
-	staged               map[string]stagedOutput
-	flushedTargets       map[string]struct{}
-	failedTargets        map[string]struct{}
-	idsByTarget          map[string][]string
-	pendingByTarget      map[string]int
-	sourceByTarget       map[string]string
-	sourceLocaleByTarget map[string]string
-	localeByTarget       map[string]string
-	pruneTargets         map[string]map[string]struct{}
-	contextPlan          contextMemoryPlan
-	contextSlots         map[string]*contextMemorySlot
-	report               executionReport
-	omitPerEntryBatches  bool
+	total                  int
+	staged                 map[string]stagedOutput
+	flushedTargets         map[string]struct{}
+	failedTargets          map[string]struct{}
+	idsByTarget            map[string][]string
+	pendingByTarget        map[string]int
+	sourceByTarget         map[string]string
+	sourceLocaleByTarget   map[string]string
+	localeByTarget         map[string]string
+	pruneTargets           map[string]map[string]struct{}
+	contextPlan            contextMemoryPlan
+	contextSlots           map[string]*contextMemorySlot
+	report                 executionReport
+	omitPerEntryBatches    bool
+	keepCompletedOnFailure bool
 
 	runCtx      context.Context
 	parityRetry *markdownParityRetryInput
@@ -173,7 +176,7 @@ func newExecutorState(tasks []Task, projectRoot string, initialStaged map[string
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, mtEngines *mtEngineFactory, emitter *eventEmitter, omitPerEntryBatches bool, parityRetry *markdownParityRetryInput) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, mtEngines *mtEngineFactory, emitter *eventEmitter, omitPerEntryBatches bool, parityRetry *markdownParityRetryInput, keepCompletedOnFailure bool) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
 	scheduledTasks := llmTasks
 	if contextPlan.Enabled {
 		scheduledTasks = interleaveTasksByContextKey(llmTasks)
@@ -189,6 +192,7 @@ func (s *Service) executePool(ctx context.Context, llmTasks []Task, mtTasks []Ta
 	}
 	state.runCtx = ctx
 	state.parityRetry = parityRetry
+	state.keepCompletedOnFailure = keepCompletedOnFailure
 
 	if contextPlan.Enabled {
 		if err := s.precomputeContextMemory(ctx, state, emitter, workers); err != nil {
@@ -389,7 +393,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				completionCh = nil
 				continue
 			}
-			if isTargetFailed(completion.targetPath, &state.pendingMu, state.failedTargets) {
+			if isTargetFailed(completion.targetPath, &state.pendingMu, state.failedTargets) && !state.keepCompletedOnFailure {
 				if err := s.flushIfTargetCompleted(completion.targetPath, completion.sourcePath, state); err != nil {
 					recordTaskFailure(&state.report, &state.reportMu, state.total, Task{TargetPath: completion.targetPath}, err, emitter)
 				}
@@ -444,6 +448,9 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 		case targetPath, ok := <-failureCh:
 			if !ok {
 				failureCh = nil
+				continue
+			}
+			if state.keepCompletedOnFailure {
 				continue
 			}
 			removedPersisted, changed := s.rollbackLockForTarget(lockState, targetPath, pendingPersisted, state)
@@ -506,6 +513,9 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	if !shouldFlush {
 		return nil
 	}
+	// Failed keys still decrement pending so the target can finish. The file
+	// write waits for finalize when any sibling failed, which avoids rewriting
+	// an empty catalog after a validation-only failure.
 	if isTargetFailed(targetPath, &state.pendingMu, state.failedTargets) {
 		return nil
 	}
@@ -894,4 +904,60 @@ func (s *Service) rollbackLockForTarget(lockState *lockfile.File, targetPath str
 		return 0, changed
 	}
 	return removedPersisted, true
+}
+
+func flushRollbackTargets(flushErr error) map[string]struct{} {
+	var targetErr *targetFlushError
+	if !errors.As(flushErr, &targetErr) {
+		return nil
+	}
+	targets := make(map[string]struct{}, len(targetErr.UnwrittenTargets)+1)
+	add := func(path string) {
+		if path = strings.TrimSpace(path); path != "" {
+			targets[path] = struct{}{}
+		}
+	}
+	add(targetErr.TargetPath)
+	for _, path := range targetErr.UnwrittenTargets {
+		add(path)
+	}
+	return targets
+}
+
+func (s *Service) rollbackLockAfterFailedFlush(lockPath string, lockState *lockfile.File, thisRunTasks []Task, flushErr error) (int, error) {
+	unwritten := flushRollbackTargets(flushErr)
+	if len(unwritten) == 0 {
+		return 0, nil
+	}
+
+	removed := 0
+	seen := map[string]struct{}{}
+	for _, task := range thisRunTasks {
+		if _, ok := unwritten[task.TargetPath]; !ok {
+			continue
+		}
+		for _, id := range taskIdentityCandidates(task, s.projectRoot) {
+			if _, already := seen[id]; already {
+				continue
+			}
+			seen[id] = struct{}{}
+			if _, ok := lockState.RunCompleted[id]; ok {
+				delete(lockState.RunCompleted, id)
+				removed++
+			}
+			delete(lockState.RunCheckpoint, id)
+		}
+	}
+	if removed == 0 {
+		return 0, nil
+	}
+	var targetErr *targetFlushError
+	failedTarget := ""
+	if errors.As(flushErr, &targetErr) {
+		failedTarget = targetErr.TargetPath
+	}
+	if err := s.saveLock(lockPath, *lockState); err != nil {
+		return 0, fmt.Errorf("persist lock rollback after failed flush of %q: %w", failedTarget, err)
+	}
+	return removed, nil
 }

@@ -29,14 +29,32 @@ describe("ContentEditorQueueToolbar", () => {
       <ContentEditorQueueToolbar
         queueFilter="all"
         onQueueFilterChange={onQueueFilterChange}
-        availableQueueFilters={["all", "hidden"]}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /^Hidden$/ }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
+  });
+
+  it("includes Not hidden in the Crowdin queue filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /^Not hidden$/ }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("not_hidden");
   });
 
   it("shows Crowdin extra filters and the sort menu", async () => {

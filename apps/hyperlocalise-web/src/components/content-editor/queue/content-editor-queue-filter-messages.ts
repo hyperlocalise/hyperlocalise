@@ -34,6 +34,7 @@ export const queueFilterMessageByValue: Record<ContentEditorQueueFilter, QueuePa
   has_issues: contentEditorQueuePanelMessages.filterHasIssues,
   skipped: contentEditorQueuePanelMessages.filterSkipped,
   hidden: contentEditorQueuePanelMessages.filterHidden,
+  not_hidden: contentEditorQueuePanelMessages.filterNotHidden,
 };
 
 export const queueSortMessageByValue: Record<ContentEditorQueueSort, QueuePanelMessage> = {

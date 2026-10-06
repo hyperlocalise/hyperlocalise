@@ -60,11 +60,13 @@ import {
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
+  nextFileTranslationPageDecision,
 } from "./file-translation-pagination";
 
 import {
   collectFileTranslationPageStep,
   fileTranslationReportSchema,
+  isFileTranslationCliHardFailure,
 } from "./file-translation-progress";
 
 function shellSingleQuote(value: string) {
@@ -458,7 +460,7 @@ async function runTranslationStep(
       [
         "-lc",
         appendHlRunReportOutput(
-          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --workers 4 --progress off${prefilledFlags}`,
+          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --keep-completed-on-failure --workers 4 --progress off${prefilledFlags}`,
           reportPath,
         ),
       ],
@@ -1180,7 +1182,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       }
 
       const deferredByLimit = translation.progress.deferredByLimit;
-      if (translation.exitCode !== 0 || translation.progress.failed > 0) {
+      if (
+        isFileTranslationCliHardFailure(
+          translation.progress,
+          translation.exitCode,
+          translation.output,
+        )
+      ) {
         const cliFailureKind = classifyCliFailureKind(translation.output);
         console.error("[file-translation-workflow] hl run failed", {
           jobId: claim.job.id,
@@ -1205,25 +1213,44 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           cliFailureKind,
           exitCode: translation.exitCode,
           deferredByLimit,
+          failed: translation.progress.failed,
           tokenUsage: translation.tokenUsage,
         };
       }
 
-      console.info("[file-translation-workflow] hl run succeeded", {
-        jobId: claim.job.id,
-        projectId: claim.job.projectId,
-        fileFormat: parsedInput.fileFormat,
-        targetLocales: locales,
-        attempt,
-        force,
-        maxTranslations,
-        deferredByLimit,
-        exitCode: translation.exitCode,
-      });
+      if (translation.progress.failed > 0) {
+        console.warn("[file-translation-workflow] hl run completed with partial failures", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          fileFormat: parsedInput.fileFormat,
+          targetLocales: locales,
+          attempt,
+          force,
+          maxTranslations,
+          deferredByLimit,
+          succeeded: translation.progress.succeeded,
+          failed: translation.progress.failed,
+          exitCode: translation.exitCode,
+          sandboxId,
+        });
+      } else {
+        console.info("[file-translation-workflow] hl run succeeded", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          fileFormat: parsedInput.fileFormat,
+          targetLocales: locales,
+          attempt,
+          force,
+          maxTranslations,
+          deferredByLimit,
+          exitCode: translation.exitCode,
+        });
+      }
       return {
         ok: true as const,
         deferredByLimit,
         succeeded: translation.progress.succeeded,
+        failed: translation.progress.failed,
         tokenUsage: translation.tokenUsage,
       };
     };
@@ -1316,15 +1343,21 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           prefilledByLocale[targetLocale] = { ...prefilledByLocale[targetLocale], ...accepted };
           acceptedCount += Object.keys(accepted).length;
         }
+        const pageDecision = nextFileTranslationPageDecision({
+          cliHardFailure: !result.ok,
+          invalidCount,
+          pendingCount: countPendingFileTranslations(sourceEntries, locales, confirmedByLocale),
+          acceptedCount,
+          deferredByLimit: result.deferredByLimit,
+          failedCount: result.failed,
+        });
+        if (pageDecision === "done") return true;
+        if (pageDecision === "continue") continue;
         if (!result.ok || invalidCount > 0) return false;
-        if (result.deferredByLimit === 0)
-          return countPendingFileTranslations(sourceEntries, locales, confirmedByLocale) === 0;
-        if (acceptedCount === 0) {
-          throw new FileTranslationWorkflowError(
-            "translation_pagination_failed",
-            "translation pagination made no progress",
-          );
-        }
+        throw new FileTranslationWorkflowError(
+          "translation_pagination_failed",
+          "translation pagination made no progress",
+        );
       }
       throw new FileTranslationWorkflowError(
         "translation_pagination_failed",

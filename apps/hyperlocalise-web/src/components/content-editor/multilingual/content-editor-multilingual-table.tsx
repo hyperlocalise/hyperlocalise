@@ -70,6 +70,12 @@ export interface ContentEditorMultilingualConfig {
     text: string,
   ) => Promise<void>;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+  /** Generates the localised image for one locale; used by the multilingual image gallery. */
+  onRegenerateImage?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    options?: { force?: boolean; signal?: AbortSignal },
+  ) => Promise<void>;
 }
 
 function GroupedTranslationCell(props: Parameters<typeof TranslationCell>[0]) {

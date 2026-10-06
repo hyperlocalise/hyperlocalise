@@ -39,6 +39,7 @@ export const contentEditorQueueFilterValues: ContentEditorQueueFilter[] = [
   "has_issues",
   "skipped",
   "hidden",
+  "not_hidden",
 ];
 
 export const contentEditorQueueSortValues: ContentEditorQueueSort[] = [
@@ -56,7 +57,7 @@ export function isQueueFilterSupportedForProvider(
   filter: ContentEditorQueueFilter,
   providerKind: string | null | undefined,
 ) {
-  if (filter === "hidden" || filter === "qa_issues") {
+  if (filter === "hidden" || filter === "not_hidden" || filter === "qa_issues") {
     return providerKind == null || providerKind === "native" || providerKind === "crowdin";
   }
 
@@ -200,6 +201,8 @@ export function segmentMatchesQueueFilterFromInput(
       return input.status === "skipped";
     case "hidden":
       return Boolean(input.isHidden);
+    case "not_hidden":
+      return !input.isHidden;
     case "qa_issues":
     case "machine_translated":
     case "with_comments":

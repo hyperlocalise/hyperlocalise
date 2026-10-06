@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { ContentEditorMultilingualTable } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
+import { ContentEditorMultilingualImageGallery } from "@/components/content-editor/multilingual/content-editor-multilingual-image-gallery";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage } from "react-intl";
@@ -21,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
+import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { ContentEditorFileViewPanel } from "@/components/content-editor/file-view/content-editor-file-view-panel";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/content-editor/issues/content-editor-linked-issue-translation-key";
@@ -37,6 +39,7 @@ import { isNativeContentEditorProviderKind } from "@/components/content-editor/s
 
 import {
   overlayCatDocumentFileViewSegment,
+  contentEditorMultilingualGallerySegments,
   resolveCatFileViewCapabilities,
 } from "./content-editor-file-view-capabilities";
 import { loadOriginalDocumentContext } from "./content-editor-original-document-context";
@@ -112,6 +115,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
+  generatingImageSegmentId,
   isMaxLengthSaving = false,
   queuePagination = null,
   hasMoreQueue = false,
@@ -203,22 +208,50 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const showTranslationViewSkeleton = isTranslationViewLoading || store.ui.translationViewLoading;
 
   if (viewMode === "multilingual" && multilingual) {
+    const isImageFile =
+      resolveCatFileViewCapabilities({
+        sourcePath: selectedSegment?.sourcePath ?? shell.fileContext.sourcePath,
+        contentKind: selectedSegment?.contentKind,
+      }).family === "image";
+    const gallerySegments = contentEditorMultilingualGallerySegments(
+      queueSegments,
+      selectedSegment,
+    );
+
     return (
       <div
         ref={workspaceRef}
         className={cn("flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}
       >
-        <ContentEditorMultilingualTable
-          key={`${multilingual.projectId}:${multilingual.sourcePath}`}
-          config={multilingual}
-          segments={queueSegments}
-          selectedSegmentId={shell.selectedSegmentId}
-          isLoading={isQueueListLoading || isQueueDataPending}
-          hasMore={hasMoreQueue}
-          isLoadingMore={isQueueFetchingPage}
-          onLoadMore={onLoadMoreQueue}
-          drafts={store.multilingualDrafts}
-        />
+        {isImageFile ? (
+          <ContentEditorMultilingualImageGallery
+            key={`${multilingual.projectId}:${selectedSegment?.id ?? multilingual.sourcePath}`}
+            config={multilingual}
+            segments={gallerySegments}
+            generations={store.imageGenerations}
+            isLoading={isQueueListLoading || isQueueDataPending}
+            onOpenTranslation={
+              multilingual.onOpenTranslation
+                ? (segment, locale) => {
+                    store.ui.setViewMode("file");
+                    multilingual.onOpenTranslation?.(segment, locale);
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <ContentEditorMultilingualTable
+            key={`${multilingual.projectId}:${multilingual.sourcePath}`}
+            config={multilingual}
+            segments={queueSegments}
+            selectedSegmentId={shell.selectedSegmentId}
+            isLoading={isQueueListLoading || isQueueDataPending}
+            hasMore={hasMoreQueue}
+            isLoadingMore={isQueueFetchingPage}
+            onLoadMore={onLoadMoreQueue}
+            drafts={store.multilingualDrafts}
+          />
+        )}
       </div>
     );
   }
@@ -359,6 +392,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const canApprove = shell.fileContext.canEditTranslations !== false;
   const canAddComment = shell.fileContext.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(editorSegment.id) ?? false;
+  const isSelectedImageGenerating = isContentEditorImageGenerating({
+    isPending: isImageGenerating,
+    pendingExternalStringId: generatingImageSegmentId,
+    targetLocale: editorSegment.targetLocale,
+    externalStringId: editorSegment.id,
+  });
   const segmentShareUrl = buildSegmentShareUrl?.(editorSegment) ?? null;
   const intelligenceSegmentIntelligence = intelligenceSegment
     ? resolveSegmentIntelligenceForDisplay(
@@ -446,6 +485,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isImageBusy={isImageBusy}
+          isImageGenerating={isImageGenerating}
+          generatingImageSegmentId={generatingImageSegmentId}
           canUseAiRecommendation={canUseAiRecommendation}
           focusedIntelligence={selectedSegmentIntelligence}
           aiRecommendationError={aiRecommendationError}
@@ -577,6 +618,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canApprove={canApprove && !fileViewSegment.isLocked}
           isApproving={isApproving}
           isImageBusy={isImageBusy}
+          isImageGenerating={isSelectedImageGenerating}
           isSegmentTargetLoading={isSegmentTargetLoading}
           primaryActionLabel={shell.primaryActionLabel}
           hasPreviousSegment={hasPreviousSegment}
@@ -721,6 +763,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isCommentsLoading={isCommentsLoading}
           isSegmentTargetLoading={isSegmentTargetLoading}
           isImageBusy={isImageBusy}
+          isImageGenerating={isSelectedImageGenerating}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}

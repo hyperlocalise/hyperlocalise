@@ -129,6 +129,7 @@ export function ContentEditorFileViewPanel({
   canApprove = true,
   isApproving = false,
   isImageBusy = false,
+  isImageGenerating = false,
   isSegmentTargetLoading = false,
   primaryActionLabel,
   hasPreviousSegment = false,
@@ -152,6 +153,7 @@ export function ContentEditorFileViewPanel({
   canApprove?: boolean;
   isApproving?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   isSegmentTargetLoading?: boolean;
   primaryActionLabel?: string;
   hasPreviousSegment?: boolean;
@@ -524,6 +526,7 @@ export function ContentEditorFileViewPanel({
           sourcePaneVisible={sourcePaneVisible}
           canEdit={canEdit}
           isBusy={isImageBusy}
+          isGenerating={isImageGenerating}
           isLoading={isSegmentTargetLoading}
           actions={hasTargetFileActions ? targetFileActions : null}
           onDirtyChange={setImageLayersDirty}

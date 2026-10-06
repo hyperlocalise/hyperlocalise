@@ -59,6 +59,7 @@ import {
 } from "./store/content-editor-workspace-store-utils";
 
 import { ContentEditorGroupVariantsRegistry } from "../groups/content-editor-group-variants-store";
+import { ContentEditorImageGenerationStore } from "../multilingual/content-editor-image-generation-store";
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 
 export type CreateCatWorkspaceOptions = {
@@ -230,6 +231,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   readonly multilingualDrafts = new MultilingualDrafts();
+  readonly imageGenerations = new ContentEditorImageGenerationStore();
   readonly groupVariants = new ContentEditorGroupVariantsRegistry();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
@@ -348,6 +350,7 @@ export class ContentEditorWorkspaceOrchestrator {
     for (const controller of this.controllers) {
       controller.dispose();
     }
+    this.imageGenerations.cancelAll();
   }
 
   get selectedSegmentId() {
@@ -828,6 +831,9 @@ export class ContentEditorWorkspaceOrchestrator {
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
+    // Abort rather than orphan in-flight image generation so returning to this
+    // file cannot start a second request while the first is still running.
+    this.imageGenerations.cancelAll();
     this.pendingWrites.clear();
     this.isBulkActionPending = false;
     this.isPostingComment = false;
@@ -1525,6 +1531,7 @@ export class ContentEditorWorkspaceOrchestrator {
   confirmUnsavedNavigation() {
     const proceed = this.unsavedNavigationPrompt?.proceed;
     this.multilingualDrafts.clear();
+    this.imageGenerations.cancelAll();
     this.unsavedNavigationPrompt = null;
     proceed?.();
   }

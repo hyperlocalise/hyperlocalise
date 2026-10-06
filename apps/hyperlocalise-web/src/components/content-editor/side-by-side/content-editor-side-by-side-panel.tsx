@@ -206,6 +206,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
+  generatingImageSegmentId,
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
@@ -274,6 +276,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
@@ -393,6 +397,8 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                 isAiSuggestionLoading={isAiSuggestionLoading}
                 isFormatChecksLoading={isFormatChecksLoading}
                 isImageBusy={isImageBusy}
+                isImageGenerating={isImageGenerating}
+                generatingImageSegmentId={generatingImageSegmentId}
                 canUseAiRecommendation={canUseAiRecommendation}
                 focusedIntelligence={focusedIntelligence}
                 aiRecommendationError={aiRecommendationError}

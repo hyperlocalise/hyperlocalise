@@ -139,6 +139,11 @@ export const contentEditorQueuePanelMessages = defineMessages({
     id: "FEprezMr/U",
     description: "CAT queue filter option for hidden source strings",
   },
+  filterNotHidden: {
+    defaultMessage: "Not hidden",
+    id: "lhCQmBN6w4",
+    description: "CAT queue filter option that excludes hidden source strings",
+  },
   filterUnsaved: {
     defaultMessage: "Unsaved translations",
     id: "HxWBdm4nhz",

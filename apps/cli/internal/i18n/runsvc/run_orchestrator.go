@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -221,7 +222,7 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 			attribute.Int("run.mt_task_count", len(mtTasks)),
 		)
 		var execReport executionReport
-		staged, flushedTargets, execReport, err = s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry)
+		staged, flushedTargets, execReport, err = s.executePool(execCtx, llmTasks, mtTasks, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, mtEngines, emitter, summaryReportMode, parityRetry, in.KeepCompletedOnFailure)
 		endRunSpan(execSpan, err, "execute_pool")
 		report.Succeeded = execReport.Succeeded
 		report.Failed = execReport.Failed
@@ -263,6 +264,19 @@ func (s *Service) run(ctx context.Context, in Input) (report Report, err error) 
 	endRunSpan(outSpan, err, "flush_output")
 	report.Warnings = append(report.Warnings, flushWarnings...)
 	if err != nil {
+		if in.KeepCompletedOnFailure {
+			thisRunTasks := make([]Task, 0, len(executable)+len(copyTasks))
+			thisRunTasks = append(thisRunTasks, executable...)
+			thisRunTasks = append(thisRunTasks, copyTasks...)
+			removed, rbErr := s.rollbackLockAfterFailedFlush(in.LockPath, state, thisRunTasks, err)
+			if rbErr != nil {
+				err = errors.Join(err, rbErr)
+			}
+			report.PersistedToLock -= removed
+			if report.PersistedToLock < 0 {
+				report.PersistedToLock = 0
+			}
+		}
 		emitter.emit(completedEvent(report))
 		return report, err
 	}

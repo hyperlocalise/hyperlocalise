@@ -50,6 +50,29 @@ export function calculateFileTranslationMaxPages(pendingTranslationCount: number
   );
 }
 
+export type FileTranslationPageDecision = "done" | "continue" | "abort";
+
+/** Decide whether to keep paging after one `hl run` and the collected delta. */
+export function nextFileTranslationPageDecision(input: {
+  cliHardFailure: boolean;
+  invalidCount: number;
+  pendingCount: number;
+  acceptedCount: number;
+  deferredByLimit: number;
+  failedCount: number;
+}): FileTranslationPageDecision {
+  if (input.cliHardFailure || input.invalidCount > 0) {
+    return "abort";
+  }
+  if (input.pendingCount === 0) {
+    return "done";
+  }
+  if (input.acceptedCount === 0 && input.deferredByLimit === 0 && input.failedCount === 0) {
+    return "abort";
+  }
+  return "continue";
+}
+
 /** Parse `deferred_by_limit=N` from `hl run` stdout. Missing marker means 0. */
 export function parseDeferredByLimit(output: string): number {
   const match = /\bdeferred_by_limit=(\d+)\b/.exec(output);

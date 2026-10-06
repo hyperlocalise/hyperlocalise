@@ -279,6 +279,7 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "reviewed",
   "has_issues",
   "hidden",
+  "not_hidden",
   "qa_issues",
   "machine_translated",
   "with_comments",
