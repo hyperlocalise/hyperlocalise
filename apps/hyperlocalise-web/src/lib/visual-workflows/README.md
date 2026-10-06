@@ -20,7 +20,7 @@ Connections settle selected or skipped. Joins wait for every incoming connection
 
 HTTP GET and explicitly configured provider idempotency headers permit up to three attempts with exponential backoff. Other external operations are not blindly retried after an uncertain outcome. `needs_attention` requires provider inspection and an explicit retry acknowledging duplication. A manual retry retains completed action results and old attempts, resets the deadline, and queues recovery. Cancellation is cooperative and aborts supported in-flight requests; it cannot undo an external effect already accepted by a provider. Pausing prevents new automatic runs.
 
-Limits are centralized in `runtime/limits.ts`: 200 nodes, 400 edges, 100 loop items, 1,000 steps, 30-second HTTP timeout, 120-second AI timeout, and 15-minute run deadline. HTTP responses are parsed completely within the shared public-fetch size limit before producing a truncated display preview.
+Limits are centralized in `runtime/limits.ts`: 200 nodes, 400 edges, 100 loop items, 1,000 steps, 30-second HTTP timeout, 10-minute AI timeout, and 2-hour run deadline. A durable slice runs at most one external action, so an AI node gets a whole workflow step; the execution lease (3 minutes) is renewed every minute while a slice runs and only lapses when its worker dies. HTTP responses are parsed completely within the shared public-fetch size limit before producing a truncated display preview.
 
 ## Credentials and inspection
 

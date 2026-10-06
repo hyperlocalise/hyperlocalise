@@ -17,7 +17,10 @@ import {
   getWorkspaceAutomationRunById,
   updateWorkspaceAutomationRun,
 } from "@/lib/agents/workspace-automations";
-import { isContentSyncAutomation } from "@/lib/agents/workspace-automation-types";
+import {
+  isContentSyncAutomation,
+  type WorkspaceAutomationRunStatus,
+} from "@/lib/agents/workspace-automation-types";
 
 import type { ContentSyncConfig } from "./content-sync-types";
 import { executeGithubContentSync, type ContentSyncSummary } from "./execute-github-content-sync";
@@ -31,7 +34,7 @@ export async function executeContentSyncRun(input: {
   Result<
     {
       runId: string;
-      status: string;
+      status: WorkspaceAutomationRunStatus;
       planTools: string[];
       stepResults: Record<string, unknown>;
     },

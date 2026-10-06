@@ -10,12 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { asSchema, type JSONSchema7 } from "ai";
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import { hyperlocaliseAgentMaxOutputTokens } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import {
-  extractGenerateResultTokenUsage,
-  withAgentRuntimeUsageMetering,
+  beginAgentRuntimeUsage,
+  completeAgentRuntimeUsage,
+  extractAiSdkTokenUsage,
 } from "@/lib/billing/agent-runtime-usage";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -25,17 +28,30 @@ import {
   updateWorkspaceAutomationRun,
 } from "@/lib/agents/workspace-automations";
 import {
+  claimWorkspaceAutomationToolAttempt,
+  settleWorkspaceAutomationToolAttempt,
+} from "@/lib/agents/workspace-automation-tool-attempts";
+import {
+  resolveWorkspaceAutomationModel,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRecord,
   type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunStatus,
 } from "@/lib/agents/workspace-automation-types";
 
-import { createWorkspaceOrchestratorAgent } from "./agent";
+import { buildWorkspaceOrchestratorTools } from "./build-workspace-orchestrator-tools";
+import { WORKSPACE_AUTOMATION_RUN_CANCELLED } from "./durable-tool-budget";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
-import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
+import {
+  createWorkspaceOrchestratorSession,
+  type WorkspaceOrchestratorRepository,
+  type WorkspaceOrchestratorSession,
+} from "./context";
 import {
   buildWorkspaceOrchestratorPlan,
   planHasActionableTool,
   type WorkspaceOrchestratorPlan,
+  type WorkspaceOrchestratorToolName,
 } from "./plan";
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
@@ -57,8 +73,88 @@ export type WorkspaceOrchestratorExecutionSuccess = {
   stepResults: Record<string, unknown>;
 };
 
+/** Run state shared between planned tools. Plain data so it can cross workflow step boundaries. */
+export type WorkspaceOrchestratorToolState = {
+  stepResults: WorkspaceOrchestratorSession["stepResults"];
+  terminalStatus: WorkspaceAutomationRunStatus | null;
+  terminalError: string | null;
+};
+
+export type WorkspaceOrchestratorToolSpec = {
+  name: WorkspaceOrchestratorToolName;
+  description: string;
+  inputJsonSchema: JSONSchema7;
+};
+
+export type WorkspaceOrchestratorPrepared =
+  | { kind: "completed"; result: WorkspaceOrchestratorExecutionSuccess }
+  | {
+      kind: "ready";
+      runId: string;
+      model: WorkspaceAutomationModel;
+      instructions: string;
+      userMessage: string;
+      maxOutputTokens: number;
+      planTools: WorkspaceOrchestratorToolName[];
+      toolSpecs: WorkspaceOrchestratorToolSpec[];
+    };
+
+export type WorkspaceOrchestratorToolOutcome =
+  | { ok: true; output: unknown; state: WorkspaceOrchestratorToolState }
+  | {
+      ok: false;
+      message: string;
+      state: WorkspaceOrchestratorToolState;
+      /** The run was cancelled; the agent loop should stop instead of moving to the next tool. */
+      cancelled?: true;
+    };
+
+/**
+ * Tools that are safe to run again when a workflow step is retried: read-only tools, and tools
+ * that deduplicate their own side effects (GitHub job claims, Contentful run reuse). Every other
+ * tool runs at most once per run.
+ */
+const RETRY_SAFE_TOOLS = new Set<WorkspaceOrchestratorToolName>([
+  "use_github_repository",
+  "use_gitlab_repository",
+  "run_github_workflows",
+  "run_contentful_translation",
+  "list_issues",
+  "use_semrush",
+  "use_ahrefs",
+  "use_web_search",
+  "recall_memory",
+]);
+
+type WorkspaceOrchestratorRunInput = {
+  workspaceAutomationRunId: string;
+  organizationId: string;
+};
+
+type WorkspaceOrchestratorContext = {
+  run: WorkspaceAutomationRunRecord;
+  automation: WorkspaceAutomationRecord;
+  session: WorkspaceOrchestratorSession;
+};
+
+export function createWorkspaceOrchestratorToolState(): WorkspaceOrchestratorToolState {
+  return { stepResults: {}, terminalStatus: null, terminalError: null };
+}
+
 function resolveTemplateSkillId(inputSnapshot: Record<string, unknown>) {
   return typeof inputSnapshot.templateSkillId === "string" ? inputSnapshot.templateSkillId : null;
+}
+
+function usageDimensions(automationId: string) {
+  return {
+    surface: "automation",
+    agent_surface: "workspace_orchestrator",
+    automation_id: automationId,
+  };
+}
+
+function usageOperationKey(runId: string) {
+  return `workspace-automation:${runId}:agent_runs`;
 }
 
 export function buildWorkspaceOrchestratorUserMessage(input: {
@@ -135,14 +231,14 @@ export function buildWorkspaceOrchestratorUserMessage(input: {
   return lines.join("\n");
 }
 
-function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
+function collectNotificationWarnings(stepResults: WorkspaceOrchestratorToolState["stepResults"]) {
   const warnings: Array<{
     channel: "slack" | "email" | "github_comment";
     code: string;
     message: string;
   }> = [];
 
-  const slackResult = session.stepResults.notify_slack;
+  const slackResult = stepResults.notify_slack;
   if (slackResult && slackResult.sent === false) {
     warnings.push({
       channel: "slack",
@@ -154,7 +250,7 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
     });
   }
 
-  const emailResult = session.stepResults.notify_email;
+  const emailResult = stepResults.notify_email;
   if (emailResult && emailResult.sent === false) {
     warnings.push({
       channel: "email",
@@ -166,7 +262,7 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
     });
   }
 
-  const githubCommentResult = session.stepResults.notify_github_comment;
+  const githubCommentResult = stepResults.notify_github_comment;
   if (
     githubCommentResult &&
     githubCommentResult.posted === false &&
@@ -188,26 +284,63 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
   return warnings;
 }
 
-function deriveTerminalStatus(session: {
+function deriveTerminalStatus(input: {
   terminalStatus: WorkspaceAutomationRunStatus | null;
   plan: WorkspaceOrchestratorPlan;
-  stepResults: Record<string, unknown>;
 }): WorkspaceAutomationRunStatus {
-  if (session.terminalStatus) {
-    return session.terminalStatus;
+  if (input.terminalStatus) {
+    return input.terminalStatus;
   }
 
-  if (!planHasActionableTool(session.plan)) {
+  if (!planHasActionableTool(input.plan)) {
     return "skipped";
   }
 
   return "succeeded";
 }
 
-export async function runWorkspaceOrchestrator(input: {
-  workspaceAutomationRunId: string;
-  organizationId: string;
-}): Promise<Result<WorkspaceOrchestratorExecutionSuccess, WorkspaceOrchestratorExecutionError>> {
+async function loadRepository(
+  automation: WorkspaceAutomationRecord,
+  organizationId: string,
+): Promise<WorkspaceOrchestratorRepository | null> {
+  if (
+    automation.repositoryTarget.kind !== "github" ||
+    !automation.repositoryTarget.githubInstallationRepositoryId
+  ) {
+    return null;
+  }
+
+  const [row] = await db
+    .select()
+    .from(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(
+          schema.githubInstallationRepositories.id,
+          automation.repositoryTarget.githubInstallationRepositoryId,
+        ),
+        eq(schema.githubInstallationRepositories.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  return row
+    ? {
+        id: row.id,
+        githubInstallationId: row.githubInstallationId,
+        githubRepositoryId: row.githubRepositoryId,
+      }
+    : null;
+}
+
+/**
+ * Load the run, automation, and a fresh session. Each workflow step reloads from the database so
+ * tools see the latest run output summary. Pass `planTools` after preparation so a mid-run edit to
+ * the automation cannot change which tools the run executes.
+ */
+async function loadWorkspaceOrchestratorContext(
+  input: WorkspaceOrchestratorRunInput & { planTools?: WorkspaceOrchestratorToolName[] },
+): Promise<Result<WorkspaceOrchestratorContext, WorkspaceOrchestratorExecutionError>> {
   const run = await getWorkspaceAutomationRunById({
     runId: input.workspaceAutomationRunId,
     organizationId: input.organizationId,
@@ -235,7 +368,9 @@ export async function runWorkspaceOrchestrator(input: {
   }
 
   const templateSkillId = resolveTemplateSkillId(run.inputSnapshot);
-  const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
+  const plan = input.planTools
+    ? { tools: input.planTools }
+    : buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
     // Read from the automation, as the plan and instructions are, so a run never mixes the
@@ -246,63 +381,45 @@ export async function runWorkspaceOrchestrator(input: {
     plan,
   });
 
-  let repository: {
-    id: string;
-    githubInstallationId: string;
-    githubRepositoryId: string;
-  } | null = null;
-
-  if (
-    automation.repositoryTarget.kind === "github" &&
-    automation.repositoryTarget.githubInstallationRepositoryId
-  ) {
-    const [row] = await db
-      .select()
-      .from(schema.githubInstallationRepositories)
-      .where(
-        and(
-          eq(
-            schema.githubInstallationRepositories.id,
-            automation.repositoryTarget.githubInstallationRepositoryId,
-          ),
-          eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
-        ),
-      )
-      .limit(1);
-
-    if (row) {
-      repository = {
-        id: row.id,
-        githubInstallationId: row.githubInstallationId,
-        githubRepositoryId: row.githubRepositoryId,
-      };
-    }
-  }
-
   const session = createWorkspaceOrchestratorSession({
     organizationId: input.organizationId,
     automation,
     run,
     plan,
-    repository,
+    repository: await loadRepository(automation, input.organizationId),
     composedInstructions,
   });
 
+  return ok({ run, automation, session });
+}
+
+/**
+ * Mark the run running, reserve agent usage, and describe the planned tools for the durable agent
+ * loop. Returns `completed` when the run finishes without needing the agent (no enabled tools).
+ */
+export async function prepareWorkspaceOrchestratorRun(
+  input: WorkspaceOrchestratorRunInput,
+): Promise<Result<WorkspaceOrchestratorPrepared, WorkspaceOrchestratorExecutionError>> {
+  const context = await loadWorkspaceOrchestratorContext(input);
+  if (!context.ok) {
+    return context;
+  }
+
+  const { run, automation, session } = context.value;
+  const plan = session.plan;
+
   if (!planHasActionableTool(plan)) {
-    const completedAt = new Date();
     await updateWorkspaceAutomationRun({
       runId: run.id,
       organizationId: input.organizationId,
       status: "skipped",
       outputSummary: { skipReason: "no_enabled_tools" },
-      completedAt,
+      completedAt: new Date(),
     });
 
     return ok({
-      runId: run.id,
-      status: "skipped",
-      planTools: plan.tools,
-      stepResults: {},
+      kind: "completed",
+      result: { runId: run.id, status: "skipped", planTools: plan.tools, stepResults: {} },
     });
   }
 
@@ -314,88 +431,309 @@ export async function runWorkspaceOrchestrator(input: {
   });
 
   try {
-    const agent = createWorkspaceOrchestratorAgent(session);
-    await withAgentRuntimeUsageMetering({
+    await beginAgentRuntimeUsage({
       organizationId: input.organizationId,
-      operationKey: `workspace-automation:${run.id}:agent_runs`,
+      operationKey: usageOperationKey(run.id),
       source: "workspace_orchestrator",
-      dimensions: {
-        surface: "automation",
-        agent_surface: "workspace_orchestrator",
-        automation_id: automation.id,
-      },
-      extractTokenUsage: extractGenerateResultTokenUsage,
-      run: () =>
-        agent.generate({
-          messages: [
-            {
-              role: "user",
-              content: buildWorkspaceOrchestratorUserMessage({
-                automationName: automation.name,
-                triggerSource: run.triggerSource,
-                inputSnapshot: run.inputSnapshot,
-              }),
-            },
-          ],
-        }),
+      dimensions: usageDimensions(automation.id),
     });
 
-    const terminalStatus = deriveTerminalStatus(session);
-    const notificationWarnings = collectNotificationWarnings(session);
-
-    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
-      session.run.outputSummary,
-      session.stepResults,
-      {
-        notificationWarnings,
-      },
-    );
-
-    await updateWorkspaceAutomationRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      status: terminalStatus,
-      outputSummary,
-      error: session.terminalError ? { message: session.terminalError } : null,
-      completedAt: new Date(),
-    });
-
-    logger.info(
-      {
-        workspaceAutomationRunId: run.id,
-        organizationId: input.organizationId,
-        planTools: plan.tools,
-        terminalStatus,
-        stepResults: session.stepResults,
-        ...(session.terminalError ? { terminalError: session.terminalError } : {}),
-      },
-      "workspace orchestrator finished",
+    const tools = buildWorkspaceOrchestratorTools(session);
+    const toolSpecs = await Promise.all(
+      plan.tools.map(async (name): Promise<WorkspaceOrchestratorToolSpec> => {
+        const description = tools[name]?.description;
+        return {
+          name,
+          description: typeof description === "string" ? description : "",
+          inputJsonSchema: await asSchema(tools[name]?.inputSchema).jsonSchema,
+        };
+      }),
     );
 
     return ok({
+      kind: "ready",
       runId: run.id,
-      status: terminalStatus,
+      model: resolveWorkspaceAutomationModel(automation.model),
+      instructions: session.composedInstructions,
+      userMessage: buildWorkspaceOrchestratorUserMessage({
+        automationName: automation.name,
+        triggerSource: run.triggerSource,
+        inputSnapshot: run.inputSnapshot,
+      }),
+      maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
       planTools: plan.tools,
-      stepResults: session.stepResults,
+      toolSpecs,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "workspace_orchestrator_failed";
+    return err(
+      await failWorkspaceOrchestratorRun({
+        ...input,
+        state: createWorkspaceOrchestratorToolState(),
+        message: error instanceof Error ? error.message : "workspace_orchestrator_failed",
+      }),
+    );
+  }
+}
+
+export function readWorkspaceOrchestratorToolState(
+  session: WorkspaceOrchestratorSession,
+): WorkspaceOrchestratorToolState {
+  return {
+    stepResults: session.stepResults,
+    terminalStatus: session.terminalStatus,
+    terminalError: session.terminalError,
+  };
+}
+
+/**
+ * Rebuild the session for one tool step and apply the run state carried between steps. Fails
+ * with `cancelled` once the run has been cancelled so no further tool starts.
+ */
+export async function loadWorkspaceOrchestratorToolSession(
+  input: WorkspaceOrchestratorRunInput & {
+    planTools: WorkspaceOrchestratorToolName[];
+    state: WorkspaceOrchestratorToolState;
+  },
+): Promise<
+  | { ok: true; session: WorkspaceOrchestratorSession }
+  | Extract<WorkspaceOrchestratorToolOutcome, { ok: false }>
+> {
+  const context = await loadWorkspaceOrchestratorContext(input);
+  if (!context.ok) {
+    return { ok: false, message: context.error.message, state: input.state };
+  }
+
+  if (context.value.run.status === "cancelled") {
+    return {
+      ok: false,
+      message: WORKSPACE_AUTOMATION_RUN_CANCELLED,
+      state: input.state,
+      cancelled: true,
+    };
+  }
+
+  const session = context.value.session;
+  session.stepResults = { ...input.state.stepResults };
+  session.terminalStatus = input.state.terminalStatus;
+  session.terminalError = input.state.terminalError;
+  return { ok: true, session };
+}
+
+/** Prefer the model's tool-call id so two calls in one step do not share a ledger row. */
+function workspaceOrchestratorToolCallId(
+  runId: string,
+  toolName: WorkspaceOrchestratorToolName,
+  modelToolCallId?: string,
+) {
+  return modelToolCallId?.trim() || `${runId}:${toolName}`;
+}
+
+/**
+ * Execute one planned tool against a session rebuilt from the database plus the shared run state.
+ * Tool failures are returned, not thrown, so the agent loop reports them to the model and moves
+ * on to the next planned tool (typically a notification) instead of retrying side effects.
+ */
+export async function executeWorkspaceOrchestratorTool(
+  input: WorkspaceOrchestratorRunInput & {
+    planTools: WorkspaceOrchestratorToolName[];
+    toolName: WorkspaceOrchestratorToolName;
+    toolInput: unknown;
+    toolCallId?: string;
+    state: WorkspaceOrchestratorToolState;
+  },
+): Promise<WorkspaceOrchestratorToolOutcome> {
+  const loaded = await loadWorkspaceOrchestratorToolSession(input);
+  if (!loaded.ok) {
+    return loaded;
+  }
+
+  const { session } = loaded;
+  const tool = buildWorkspaceOrchestratorTools(session)[input.toolName];
+  if (!tool?.execute) {
+    return {
+      ok: false,
+      message: `tool_not_planned: ${input.toolName}`,
+      state: readWorkspaceOrchestratorToolState(session),
+    };
+  }
+
+  const validation = await asSchema(tool.inputSchema).validate?.(input.toolInput);
+  if (validation && !validation.success) {
+    return {
+      ok: false,
+      message: validation.error.message,
+      state: readWorkspaceOrchestratorToolState(session),
+    };
+  }
+
+  const toolCallId = workspaceOrchestratorToolCallId(
+    input.workspaceAutomationRunId,
+    input.toolName,
+    input.toolCallId,
+  );
+  const guarded = !RETRY_SAFE_TOOLS.has(input.toolName);
+
+  if (guarded) {
+    const claim = await claimWorkspaceAutomationToolAttempt({
+      runId: input.workspaceAutomationRunId,
+      organizationId: input.organizationId,
+      toolCallId,
+      toolName: input.toolName,
+    });
+
+    if (claim.kind === "succeeded") {
+      return {
+        ok: true,
+        output: claim.output.result,
+        state: (claim.output.state as WorkspaceOrchestratorToolState) ?? input.state,
+      };
+    }
+    if (claim.kind === "failed") {
+      return {
+        ok: false,
+        message: claim.error,
+        state: (claim.output?.state as WorkspaceOrchestratorToolState) ?? input.state,
+      };
+    }
+    if (claim.kind === "in_doubt") {
+      const message = `${input.toolName}_outcome_unknown`;
+      session.stepResults[input.toolName] = {
+        outcomeUnknown: true,
+        message:
+          "A previous attempt was interrupted before recording its outcome, so it was not repeated.",
+      };
+      logger.warn(
+        { workspaceAutomationRunId: input.workspaceAutomationRunId, toolName: input.toolName },
+        "workspace orchestrator tool not repeated after an interrupted attempt",
+      );
+      return { ok: false, message, state: readWorkspaceOrchestratorToolState(session) };
+    }
+  }
+
+  try {
+    const output = await tool.execute(validation ? validation.value : input.toolInput, {
+      toolCallId,
+      messages: [],
+      context: {},
+    });
+    const state = readWorkspaceOrchestratorToolState(session);
+    if (guarded) {
+      await settleWorkspaceAutomationToolAttempt({
+        runId: input.workspaceAutomationRunId,
+        toolCallId,
+        status: "succeeded",
+        output: { result: output, state },
+      });
+    }
+    return { ok: true, output, state };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : `${input.toolName}_failed`;
+    const state = readWorkspaceOrchestratorToolState(session);
+    if (guarded) {
+      await settleWorkspaceAutomationToolAttempt({
+        runId: input.workspaceAutomationRunId,
+        toolCallId,
+        status: "failed",
+        output: { state },
+        error: message,
+      });
+    }
+    return { ok: false, message, state };
+  }
+}
+
+/** Record the terminal status and output summary, then bill the reserved agent run. */
+export async function completeWorkspaceOrchestratorRun(
+  input: WorkspaceOrchestratorRunInput & {
+    planTools: WorkspaceOrchestratorToolName[];
+    state: WorkspaceOrchestratorToolState;
+    usage: unknown;
+  },
+): Promise<Result<WorkspaceOrchestratorExecutionSuccess, WorkspaceOrchestratorExecutionError>> {
+  const context = await loadWorkspaceOrchestratorContext(input);
+  if (!context.ok) {
+    return context;
+  }
+
+  const { run, automation } = context.value;
+  // Cancellation is decided outside the run loop; never overwrite it with the tools' outcome.
+  const terminalStatus =
+    run.status === "cancelled"
+      ? "cancelled"
+      : deriveTerminalStatus({
+          terminalStatus: input.state.terminalStatus,
+          plan: { tools: input.planTools },
+        });
+
+  await completeAgentRuntimeUsage({
+    organizationId: input.organizationId,
+    operationKey: usageOperationKey(run.id),
+    dimensions: usageDimensions(automation.id),
+    tokenUsage: extractAiSdkTokenUsage(input.usage),
+  });
+
+  await updateWorkspaceAutomationRun({
+    runId: run.id,
+    organizationId: input.organizationId,
+    status: terminalStatus,
+    outputSummary: buildWorkspaceOrchestratorOutputSummary(
+      run.outputSummary,
+      input.state.stepResults,
+      { notificationWarnings: collectNotificationWarnings(input.state.stepResults) },
+    ),
+    error: input.state.terminalError ? { message: input.state.terminalError } : null,
+    completedAt: new Date(),
+  });
+
+  logger.info(
+    {
+      workspaceAutomationRunId: run.id,
+      organizationId: input.organizationId,
+      planTools: input.planTools,
+      terminalStatus,
+      stepResults: input.state.stepResults,
+      ...(input.state.terminalError ? { terminalError: input.state.terminalError } : {}),
+    },
+    "workspace orchestrator finished",
+  );
+
+  return ok({
+    runId: run.id,
+    status: terminalStatus,
+    planTools: input.planTools,
+    stepResults: input.state.stepResults,
+  });
+}
+
+/** Mark the run failed. The usage reservation is left unbilled. */
+export async function failWorkspaceOrchestratorRun(
+  input: WorkspaceOrchestratorRunInput & {
+    state: WorkspaceOrchestratorToolState;
+    message: string;
+  },
+): Promise<WorkspaceOrchestratorExecutionError> {
+  const run = await getWorkspaceAutomationRunById({
+    runId: input.workspaceAutomationRunId,
+    organizationId: input.organizationId,
+  });
+
+  if (run && run.status !== "cancelled") {
     await updateWorkspaceAutomationRun({
       runId: run.id,
       organizationId: input.organizationId,
       status: "failed",
-      error: { message },
+      error: { message: input.message },
       outputSummary: buildWorkspaceOrchestratorOutputSummary(
-        session.run.outputSummary,
-        session.stepResults,
+        run.outputSummary,
+        input.state.stepResults,
       ),
       completedAt: new Date(),
     });
-
-    return err({
-      code: "workspace_orchestrator_failed",
-      message,
-      runId: run.id,
-    });
   }
+
+  return {
+    code: "workspace_orchestrator_failed",
+    message: input.message,
+    runId: input.workspaceAutomationRunId,
+  };
 }

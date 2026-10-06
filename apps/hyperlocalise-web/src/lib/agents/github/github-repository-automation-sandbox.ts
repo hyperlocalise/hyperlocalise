@@ -28,6 +28,7 @@ export async function createGithubRepositoryAutomationSandbox(input: {
   repositoryFullName: string;
   revision: string;
   cloneDepth?: number;
+  timeoutMs?: number;
 }): Promise<string> {
   const octokit = await getInstallationOctokit(input.installationId);
   const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
@@ -41,7 +42,7 @@ export async function createGithubRepositoryAutomationSandbox(input: {
       username: "x-access-token",
       password: token,
     },
-    timeoutMs: sandboxTimeoutMs,
+    timeoutMs: input.timeoutMs ?? sandboxTimeoutMs,
   });
 
   return workspace.id;

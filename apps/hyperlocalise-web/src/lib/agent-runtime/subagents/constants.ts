@@ -46,22 +46,42 @@ export const WORKFLOW_AGENT_TIMEOUT = {
   stepMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
 } as const;
 
-/** Maximum tool steps for workspace automation orchestrator (workflows + notifications + summary). */
-export const WORKSPACE_ORCHESTRATOR_STEP_LIMIT = 6;
-
-export const WORKSPACE_ORCHESTRATOR_TIMEOUT = {
-  // Two nested specialist runs (each up to totalMs) plus one parent model step.
-  totalMs: 2 * WORKFLOW_AGENT_TOTAL_TIMEOUT_MS + WORKFLOW_AGENT_STEP_TIMEOUT_MS,
-  // One orchestrator step can be a nested agent. Match that agent's total
-  // budget or the parent aborts it first.
-  stepMs: WORKFLOW_AGENT_TOTAL_TIMEOUT_MS,
-} as const;
+/**
+ * Deadline budget per planned workspace automation tool. A planned tool can run a nested agent,
+ * so it gets that agent's full budget plus the orchestrator model call that produces its input.
+ */
+export const WORKSPACE_ORCHESTRATOR_TOOL_BUDGET_MS =
+  WORKFLOW_AGENT_TOTAL_TIMEOUT_MS + AGENT_STEP_TIMEOUT_MS;
 
 /** Poll interval while waiting for a GitHub repository automation job to finish. */
 export const WORKSPACE_GITHUB_JOB_POLL_INTERVAL_MS = 3_000;
 
 /** Maximum time to wait for a GitHub repository automation job inside an orchestrator tool. */
 export const WORKSPACE_GITHUB_JOB_POLL_MAX_MS = 20 * 60 * 1000;
+
+/**
+ * Durable workflow polling for GitHub repository automation jobs. Waiting happens in workflow
+ * `sleep()` between short status steps, so it uses no function time and can outlast a step.
+ */
+export const WORKSPACE_GITHUB_JOB_DURABLE_POLL_INTERVAL_MS = 15_000;
+export const WORKSPACE_GITHUB_JOB_DURABLE_POLL_MAX_MS = 60 * 60 * 1000;
+
+/**
+ * Durable repository agents (use_github_repository / use_gitlab_repository) run one workflow step
+ * per model call and per repository tool call, so the whole review can run far longer than one
+ * function invocation. The sandbox must outlive the agent deadline.
+ */
+export const REPOSITORY_AGENT_DURABLE_STEP_LIMIT = 60;
+export const REPOSITORY_AGENT_DURABLE_TIMEOUT_MS = 45 * 60 * 1000;
+export const REPOSITORY_AGENT_SANDBOX_TIMEOUT_MS =
+  REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 10 * 60 * 1000;
+
+/** Orchestrator deadline budget for planned tools that wait durably instead of inside one step. */
+export const WORKSPACE_ORCHESTRATOR_DURABLE_TOOL_BUDGET_MS = {
+  use_github_repository: REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 5 * AGENT_STEP_TIMEOUT_MS,
+  use_gitlab_repository: REPOSITORY_AGENT_DURABLE_TIMEOUT_MS + 5 * AGENT_STEP_TIMEOUT_MS,
+  run_github_workflows: WORKSPACE_GITHUB_JOB_DURABLE_POLL_MAX_MS + 5 * AGENT_STEP_TIMEOUT_MS,
+} as const;
 
 export const SUBAGENT_NO_QUESTIONS_RULES = [
   "You cannot ask follow-up questions — no one will respond in this loop.",

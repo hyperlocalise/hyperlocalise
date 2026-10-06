@@ -39,6 +39,7 @@ import {
 import { parseWaitResumeState, type WaitResumeState } from "./runtime/wait-schedule";
 import { parseMergeResumeState, type MergeResumeState } from "./runtime/merge-timeout";
 import { resolveDurableWaitMergeWake } from "./runtime/durable-resume-wake";
+import { WORKFLOW_LIMITS } from "./runtime/limits";
 
 export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
   executionLeaseBusy?: boolean;
@@ -119,7 +120,7 @@ async function claimVisualWorkflowRunForExecution(input: {
     .set({
       status: "running",
       leaseToken,
-      leaseExpiresAt: new Date(now.getTime() + 180000),
+      leaseExpiresAt: new Date(now.getTime() + WORKFLOW_LIMITS.leaseMs),
       startedAt: sql`coalesce(${schema.visualWorkflowRuns.startedAt}, ${now})`,
       updatedAt: now,
     })
@@ -1080,7 +1081,7 @@ export async function executeVisualWorkflowRun(input: {
     !waitResume &&
     !mergeResume &&
     run.startedAt &&
-    Date.now() - Date.parse(run.startedAt) > 900000
+    Date.now() - Date.parse(run.startedAt) > WORKFLOW_LIMITS.runTimeoutMs
   )
     return finishVisualWorkflowRun({
       leaseToken,
