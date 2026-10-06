@@ -21,7 +21,11 @@ func parseFirstQueryVal(rawQuery, key string) (string, bool) {
 			continue
 		}
 		k, v, _ := strings.Cut(pair, "=")
-		if k == key {
+		decodedKey, err := url.QueryUnescape(k)
+		if err != nil {
+			continue
+		}
+		if decodedKey == key {
 			if strings.IndexByte(v, '%') >= 0 || strings.IndexByte(v, '+') >= 0 {
 				if decoded, err := url.QueryUnescape(v); err == nil {
 					v = decoded

@@ -18,6 +18,19 @@ func TestParseWorkspaceFindingsQuery(t *testing.T) {
 	require.Equal(t, 10, limit)
 	require.Equal(t, 5, offset)
 
+	encodedNames := httptest.NewRequest("GET", "/qa-reports/findings?loc%61le=fr-FR&check%54ype=glossary_violation&sev%65rity=error&project%49d=proj_1", nil)
+	projectID, locale, checkType, severity, _, _, err = parseWorkspaceFindingsQuery(encodedNames)
+	require.NoError(t, err)
+	require.Equal(t, "proj_1", projectID)
+	require.Equal(t, "fr-FR", locale)
+	require.Equal(t, "glossary_violation", checkType)
+	require.Equal(t, "error", severity)
+
+	malformedKey := httptest.NewRequest("GET", "/qa-reports/findings?loc%ZZle=fr-FR&locale=de-DE", nil)
+	_, locale, _, _, _, _, err = parseWorkspaceFindingsQuery(malformedKey)
+	require.NoError(t, err)
+	require.Equal(t, "de-DE", locale)
+
 	firstValue := httptest.NewRequest("GET", "/qa-reports/findings?limit=10&limit=99&offset=0&offset=20", nil)
 	_, _, _, _, limit, offset, err = parseWorkspaceFindingsQuery(firstValue)
 	require.NoError(t, err)
