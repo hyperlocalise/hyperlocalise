@@ -93,22 +93,7 @@ function normalizeGfmTableDelimiter(cell: string) {
   return `${leftColon ? ":" : ""}---${rightColon ? ":" : ""}`;
 }
 
-function shouldStripTrailingTableDelimiter(
-  hasLeadingPipe: boolean,
-  hasTrailingPipe: boolean,
-  parts: string[],
-) {
-  if (!hasTrailingPipe || parts.at(-1) !== "") {
-    return false;
-  }
-  if (hasLeadingPipe) {
-    return true;
-  }
-  const bodyParts = parts.slice(0, -1);
-  return bodyParts.length >= 2 && bodyParts.every((part) => part !== "");
-}
-
-function normalizeGfmTableRow(line: string) {
+function parseGfmTableCells(line: string, columnCount?: number) {
   const trimmed = line.trim();
   const hasLeadingPipe = trimmed.startsWith("|");
   const hasTrailingPipe = trimmed.endsWith("|");
@@ -116,9 +101,25 @@ function normalizeGfmTableRow(line: string) {
   if (hasLeadingPipe && parts[0] === "") {
     parts = parts.slice(1);
   }
-  if (shouldStripTrailingTableDelimiter(hasLeadingPipe, hasTrailingPipe, parts)) {
-    parts = parts.slice(0, -1);
+  if (hasTrailingPipe && parts.at(-1) === "") {
+    const bodyParts = parts.slice(0, -1);
+    const shouldStripTrailingEmpty =
+      columnCount !== undefined
+        ? parts.length > columnCount
+        : hasLeadingPipe || (bodyParts.length >= 2 && bodyParts.every((part) => part !== ""));
+    if (shouldStripTrailingEmpty) {
+      parts = parts.slice(0, -1);
+    }
   }
+  return parts;
+}
+
+function countGfmTableColumns(headerLine: string) {
+  return parseGfmTableCells(headerLine).length;
+}
+
+function normalizeGfmTableRow(line: string, columnCount?: number) {
+  const parts = parseGfmTableCells(line, columnCount);
   if (parts.length === 0) {
     return line;
   }
@@ -155,8 +156,9 @@ export function normalizeGfmTablesInMarkdown(markdown: string) {
     }
     const nextLine = lines[index + 1];
     if (isGfmTableRowLine(line) && nextLine !== undefined && isGfmTableSeparatorLine(nextLine)) {
+      const columnCount = countGfmTableColumns(line);
       while (index < lines.length && isGfmTableRowLine(lines[index])) {
-        output.push(normalizeGfmTableRow(lines[index]));
+        output.push(normalizeGfmTableRow(lines[index], columnCount));
         index += 1;
       }
       continue;
