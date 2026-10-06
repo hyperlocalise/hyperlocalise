@@ -407,6 +407,25 @@ var crowdinDefaultGlossaryLocales = map[string]string{
 	"zh": "zh-CN",
 }
 
+func refreshGlossaryLocaleCoverage(ctx context.Context, tx dictionaryDB, glossaryID, sourceLocale string) error {
+	_, err := tx.Exec(ctx, `
+		update glossaries g
+		set locale_coverage = coalesce(
+			(select jsonb_agg(locale order by locale)
+			 from (
+			   select distinct locale
+			   from glossary_terms
+			   where glossary_id = $1
+			     and locale is not null
+			     and btrim(locale) <> ''
+			     and lower(locale) <> lower($2)
+			 ) locales),
+			'[]'::jsonb
+		)
+		where g.id = $1`, glossaryID, sourceLocale)
+	return err
+}
+
 func filterGlossaryImportConcepts(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	strict := payload.StrictLocale == nil || *payload.StrictLocale
 	sourceCanon, _ := canonicalGlossaryImportLocale(g.SourceLocale)
@@ -904,6 +923,9 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 	allDiagnostics := append(append([]glossaryImportDiagnostic{}, parseDiagnostics...), diagnostics...)
 	reportID, err := api.persistGlossaryImportRun(ctx, tx, actor, g, payload, mode, "completed", concepts, counts, allDiagnostics, nil)
 	if err != nil {
+		return nil, nil, nil, "", err
+	}
+	if err := refreshGlossaryLocaleCoverage(ctx, tx, g.ID, g.SourceLocale); err != nil {
 		return nil, nil, nil, "", err
 	}
 	if err := tx.Commit(ctx); err != nil {

@@ -245,6 +245,29 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 			}
 			continue
 		}
+		strict := importOptions.StrictLocale == nil || *importOptions.StrictLocale
+		if strict {
+			if sourceCanon, ok := canonicalGlossaryImportLocale(sourceLocale); ok {
+				sourceKey := localeKey(sourceCanon)
+				hasSource := false
+				for _, term := range terms {
+					if localeKey(term.Locale) == sourceKey {
+						hasSource = true
+						break
+					}
+				}
+				if !hasSource {
+					importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
+						Severity: "error",
+						Code:     "missing_source_locale",
+						Message:  "Concept has no term in the glossary source locale.",
+						Concept:  concept.ID,
+						Field:    "sourceLocale",
+					})
+					continue
+				}
+			}
+		}
 		concept.Terms = terms
 		filteredConcepts = append(filteredConcepts, concept)
 	}
