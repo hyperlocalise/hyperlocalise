@@ -205,6 +205,11 @@ export const contentEditorAdvancedFilterMessages = defineMessages({
     id: "AHDyYlTLB8",
     description: "Empty state when a Crowdin project has no labels to filter by",
   },
+  labelSelectionLimit: {
+    defaultMessage: "Select up to {count} labels.",
+    id: "95K5F/R+Zw",
+    description: "Shown when the Crowdin label filter has reached its selection limit",
+  },
 });
 
 export const contentEditorQueueFilterQualifierMessages = defineMessages({

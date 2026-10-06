@@ -23,7 +23,6 @@ import {
   croqlDateRangePredicate,
   croqlLabelPredicates,
   crowdinQaCroqlByQualifier,
-  toCrowdinCommentIssueType,
   type ContentEditorAdvancedQueueFilter,
   type CrowdinQaIssueQualifier,
 } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
@@ -115,8 +114,7 @@ function crowdinUnresolvedIssuePredicate(qualifier?: string) {
     return "count of comments where (has unresolved issue) > 0";
   }
 
-  const issueType = toCrowdinCommentIssueType(qualifier);
-  return `count of comments where (has unresolved issue and issueType = "${escapeCrowdinCroqlString(issueType)}") > 0`;
+  return `count of comments where (has unresolved issue and issueType = "${escapeCrowdinCroqlString(qualifier)}") > 0`;
 }
 
 function crowdinQueueFilterPredicates(

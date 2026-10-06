@@ -42,6 +42,8 @@ import {
   advancedQueueFilterSupportsPartialStatuses,
   advancedQueueFilterSupportsScreenshots,
   compactAdvancedQueueFilter,
+  contentEditorAdvancedQueueFilterLabelLimit,
+  nextAdvancedQueueFilterLabelIds,
   type ContentEditorAdvancedQueueFilter,
   type ContentEditorCatLabel,
 } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
@@ -140,6 +142,7 @@ function LabelMultiSelect({
 }) {
   const intl = useIntl();
   const selected = new Set(selectedIds);
+  const atLimit = selectedIds.length >= contentEditorAdvancedQueueFilterLabelLimit;
   const summary =
     selectedIds.length === 0
       ? placeholder
@@ -176,12 +179,11 @@ function LabelMultiSelect({
                 >
                   <Checkbox
                     checked={checked}
+                    disabled={!checked && atLimit}
                     onCheckedChange={(next) => {
-                      if (next) {
-                        onChange([...selectedIds, label.id]);
-                        return;
-                      }
-                      onChange(selectedIds.filter((id) => id !== label.id));
+                      onChange(
+                        nextAdvancedQueueFilterLabelIds(selectedIds, label.id, next === true),
+                      );
                     }}
                   />
                   <span className="truncate">{label.title}</span>
@@ -190,6 +192,14 @@ function LabelMultiSelect({
             })
           )}
         </div>
+        {atLimit ? (
+          <p className="px-2 pt-2 text-xs text-muted-foreground">
+            <FormattedMessage
+              {...messages.labelSelectionLimit}
+              values={{ count: contentEditorAdvancedQueueFilterLabelLimit }}
+            />
+          </p>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

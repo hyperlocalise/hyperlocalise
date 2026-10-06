@@ -50,6 +50,7 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
 import type {
@@ -141,6 +142,8 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilter = "all",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   sourcePathsFilter = null,
   layout = "default",
   className,
@@ -164,6 +167,8 @@ export function ProjectFileContentEditorWorkspace({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   sourcePathsFilter?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
@@ -282,6 +287,8 @@ export function ProjectFileContentEditorWorkspace({
     initialQueueFilter,
     initialQueueSort,
     initialSearch,
+    initialQueueFilterQualifier,
+    initialQueueAdvanced,
     pageLimit,
     goSvcClient,
     sourcePaths: sourcePathsFilter,

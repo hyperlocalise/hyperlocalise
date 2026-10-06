@@ -17,7 +17,9 @@ import {
   isReleaseContentEditorAllFilesEnabled,
 } from "@/lib/flags/release-flags";
 import {
+  parseCatWorkspaceQueueAdvancedParam,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueFilterQualifierParam,
   parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/content-editor/content-editor-workspace-query-params";
@@ -50,6 +52,8 @@ export default function ProjectFileContentEditorPage({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   return <ProjectFileContentEditorPageLoader params={params} searchParams={searchParams} />;
@@ -71,6 +75,8 @@ async function ProjectFileContentEditorPageLoader({
     queueFilter?: string;
     queueSort?: string;
     search?: string;
+    queueFilterQualifier?: string;
+    queueAdvanced?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
@@ -96,6 +102,10 @@ async function ProjectFileContentEditorPageLoader({
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
       initialQueueSort={parseCatWorkspaceQueueSortParam(rawSearchParams.queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
+      initialQueueFilterQualifier={parseCatWorkspaceQueueFilterQualifierParam(
+        rawSearchParams.queueFilterQualifier,
+      )}
+      initialQueueAdvanced={parseCatWorkspaceQueueAdvancedParam(rawSearchParams.queueAdvanced)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}

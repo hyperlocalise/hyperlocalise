@@ -17,6 +17,7 @@ import {
   croqlDateRangePredicate,
   croqlLabelPredicates,
   isAdvancedQueueFilterSupportedForProvider,
+  nextAdvancedQueueFilterLabelIds,
   parseAdvancedQueueFilter,
   parseQueueFilterQualifier,
   serializeAdvancedQueueFilter,
@@ -120,5 +121,14 @@ describe("croql helpers", () => {
       "count of labels where (id = 7) > 0",
       "count of labels where (id = 9) = 0",
     ]);
+  });
+
+  it("keeps label selections within the parser limit", () => {
+    const ids = Array.from({ length: 51 }, (_, index) => `label_${index}`);
+    expect(nextAdvancedQueueFilterLabelIds(ids.slice(0, 50), "label_50", true)).toEqual(
+      ids.slice(0, 50),
+    );
+    expect(compactAdvancedQueueFilter({ includeLabelIds: ids }).includeLabelIds).toHaveLength(50);
+    expect(parseAdvancedQueueFilter(JSON.stringify({ includeLabelIds: ids }))).toBeUndefined();
   });
 });

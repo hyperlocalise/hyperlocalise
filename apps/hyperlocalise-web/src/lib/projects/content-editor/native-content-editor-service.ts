@@ -32,6 +32,11 @@ import {
   buildCatFilePagination,
   type ProjectFileContentEditorPaginationInput,
 } from "@/lib/projects/content-editor/project-file-content-editor-pagination";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
+  wholeFileMatchesAdvancedQueueFilter,
+  type WholeFileQueueSubject,
+} from "@/lib/projects/content-editor/native-content-editor-whole-file-filter";
 import { getImageVariant, projectImageAssetPath } from "@/lib/projects/files/image-variant-service";
 import {
   IMAGE_URL_CONTENT_KIND,
@@ -81,8 +86,43 @@ export function isFileBackedCatSegmentId(
   return fileBackedCatSegmentIds(sourceFileId, sourcePath).includes(externalStringId);
 }
 
-function isUnfilteredCatKeyQuery(pagination: { search?: string; queueFilter?: string }) {
-  return !pagination.search && (!pagination.queueFilter || pagination.queueFilter === "all");
+function isUnfilteredCatKeyQuery(pagination: {
+  search?: string;
+  queueFilter?: string;
+  queueFilterQualifier?: string;
+  advancedFilter?: ContentEditorAdvancedQueueFilter;
+}) {
+  return (
+    !pagination.search &&
+    (!pagination.queueFilter || pagination.queueFilter === "all") &&
+    !pagination.queueFilterQualifier &&
+    !(pagination.advancedFilter && Object.keys(pagination.advancedFilter).length > 0)
+  );
+}
+
+function publicDocumentView(
+  loaded: NonNullable<ProjectFileContentEditorQueueFile["documentView"]> & {
+    hasTarget: boolean;
+    approvalStatus: string | null;
+  },
+): NonNullable<ProjectFileContentEditorQueueFile["documentView"]> {
+  return {
+    externalStringId: loaded.externalStringId,
+    sourceAssetUrl: loaded.sourceAssetUrl,
+    targetAssetUrl: loaded.targetAssetUrl,
+    imageVariantId: loaded.imageVariantId,
+  };
+}
+
+function retainWholeFileSegments(
+  file: ProjectFileContentEditorQueueFile,
+  subject: WholeFileQueueSubject,
+  advancedFilter: ContentEditorAdvancedQueueFilter | undefined,
+): ProjectFileContentEditorQueueFile {
+  if (wholeFileMatchesAdvancedQueueFilter(subject, advancedFilter)) {
+    return file;
+  }
+  return { ...file, segments: [] };
 }
 
 function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
@@ -204,10 +244,17 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return null;
     }
 
+    const wholeFileFilter = {
+      createdAt: sourceFile.createdAt,
+      updatedAt: sourceFile.updatedAt,
+      advancedFilter: input.pagination?.advancedFilter,
+    };
+
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
       return this.buildImageCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
+        ...wholeFileFilter,
       });
     }
 
@@ -215,6 +262,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return this.buildVideoCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
+        ...wholeFileFilter,
       });
     }
 
@@ -222,6 +270,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return this.buildOfficeCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
+        ...wholeFileFilter,
       });
     }
 
@@ -247,6 +296,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         return this.buildDocumentCatFileResponse({
           input,
           sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
         });
       }
 
@@ -259,10 +309,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
         truncated,
         pagination: undefined,
         documentView: isDocument
-          ? await this.loadDocumentView({
-              input,
-              sourceFileId: sourceFile.id,
-            })
+          ? publicDocumentView(
+              await this.loadDocumentView({
+                input,
+                sourceFileId: sourceFile.id,
+              }),
+            )
           : undefined,
       });
     }
@@ -304,6 +356,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       return this.buildDocumentCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
+        ...wholeFileFilter,
       });
     }
 
@@ -313,10 +366,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
       truncated: pagination.hasMore,
       pagination,
       documentView: isDocument
-        ? await this.loadDocumentView({
-            input,
-            sourceFileId: sourceFile.id,
-          })
+        ? publicDocumentView(
+            await this.loadDocumentView({
+              input,
+              sourceFileId: sourceFile.id,
+            }),
+          )
         : undefined,
     });
   }
@@ -331,6 +386,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -365,27 +423,37 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "image_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: imageFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "image_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "image_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async buildVideoCatFileResponse(input: {
@@ -398,6 +466,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -432,27 +503,37 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: videoFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "video_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: videoFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "video_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "video_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async buildOfficeCatFileResponse(input: {
@@ -465,6 +546,9 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
@@ -499,27 +583,40 @@ export class NativeContentEditorService extends ProjectServiceBase {
         })
       : null;
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: officeFileExternalStringId(input.sourceFileId, input.input.sourcePath),
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "office_file",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: officeFileExternalStringId(
+              input.sourceFileId,
+              input.input.sourcePath,
+            ),
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "office_file",
+            sourceAssetUrl,
+            targetAssetUrl,
+            imageVariantId: variant?.id ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "office_file",
+        hasTarget: Boolean(targetStoredFileId),
+        approvalStatus: variant?.status ?? null,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async loadDocumentView(input: {
@@ -531,7 +628,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
-  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
+  }): Promise<
+    NonNullable<ProjectFileContentEditorQueueFile["documentView"]> & {
+      hasTarget: boolean;
+      approvalStatus: string | null;
+    }
+  > {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
         organizationId: input.input.organizationId,
@@ -570,6 +672,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
       sourceAssetUrl,
       targetAssetUrl,
       imageVariantId: variant?.id ?? null,
+      hasTarget: Boolean(targetStoredFileId),
+      approvalStatus: variant?.status ?? null,
     };
   }
 
@@ -583,30 +687,43 @@ export class NativeContentEditorService extends ProjectServiceBase {
       organizationSlug: string;
     };
     sourceFileId: string;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
+    advancedFilter?: ContentEditorAdvancedQueueFilter;
   }): Promise<ProjectFileContentEditorQueueFile> {
     const documentView = await this.loadDocumentView(input);
 
-    return {
-      sourcePath: input.input.sourcePath,
-      filename: filenameFromSourcePath(input.input.sourcePath),
-      provider: null,
-      targetLocale: input.input.targetLocale,
-      canEditTranslations: input.input.canEditTranslations,
-      truncated: false,
-      segments: [
-        {
-          externalStringId: documentView.externalStringId,
-          key: input.input.sourcePath,
-          sourceText: input.input.sourcePath,
-          context: null,
-          type: null,
-          contentKind: "document",
-          sourceAssetUrl: documentView.sourceAssetUrl,
-          targetAssetUrl: documentView.targetAssetUrl,
-          imageVariantId: documentView.imageVariantId ?? null,
-        },
-      ],
-    };
+    return retainWholeFileSegments(
+      {
+        sourcePath: input.input.sourcePath,
+        filename: filenameFromSourcePath(input.input.sourcePath),
+        provider: null,
+        targetLocale: input.input.targetLocale,
+        canEditTranslations: input.input.canEditTranslations,
+        truncated: false,
+        segments: [
+          {
+            externalStringId: documentView.externalStringId,
+            key: input.input.sourcePath,
+            sourceText: input.input.sourcePath,
+            context: null,
+            type: null,
+            contentKind: "document",
+            sourceAssetUrl: documentView.sourceAssetUrl,
+            targetAssetUrl: documentView.targetAssetUrl,
+            imageVariantId: documentView.imageVariantId ?? null,
+          },
+        ],
+      },
+      {
+        contentKind: "document",
+        hasTarget: documentView.hasTarget,
+        approvalStatus: documentView.approvalStatus,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+      },
+      input.advancedFilter,
+    );
   }
 
   private async getAllFilesCatQueue(input: {

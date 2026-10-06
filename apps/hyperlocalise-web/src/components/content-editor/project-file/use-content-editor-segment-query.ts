@@ -22,6 +22,7 @@ import {
   installEditorCacheBudget,
 } from "./content-editor-cache-budget";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
@@ -106,6 +107,25 @@ function queueStateFromLocationSearch(search: string) {
   } as const;
 }
 
+function queueStateForNavigation(
+  input: {
+    initialQueueFilter?: ContentEditorQueueFilter;
+    initialQueueSort?: ContentEditorQueueSort;
+    initialSearch?: string;
+    initialQueueFilterQualifier?: string;
+    initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
+  },
+  locationSearch: string,
+) {
+  const initial = queueStateFromInitials(input);
+  const fromUrl = queueStateFromLocationSearch(locationSearch);
+  return {
+    ...initial,
+    queueFilterQualifier: fromUrl.queueFilterQualifier ?? initial.queueFilterQualifier,
+    queueAdvanced: fromUrl.queueAdvanced ?? initial.queueAdvanced,
+  };
+}
+
 export function useContentEditorSegmentQuery(input: {
   organizationSlug: string;
   projectId: string;
@@ -127,9 +147,10 @@ export function useContentEditorSegmentQuery(input: {
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const locationSearch = useSearchParams()?.toString() ?? "";
   installEditorCacheBudget(queryClient);
   const providerFallback = useRef(new Set<string>());
-  const restoredQueue = queueStateFromInitials(input);
+  const restoredQueue = queueStateForNavigation(input, locationSearch);
   const [search, setSearch] = useState(restoredQueue.search);
   const [queueFilter, setQueueFilter] = useState<ContentEditorQueueFilter>(
     restoredQueue.queueFilter,

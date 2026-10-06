@@ -340,6 +340,47 @@ describe("NativeContentEditorService.getCatFile", () => {
     });
   });
 
+  it("applies advanced string-type filters to image files", async () => {
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_1",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_1",
+      storedFileId: "stored_target_1",
+      status: "needs_review",
+    });
+    const pagination = {
+      offset: 0,
+      limit: 50,
+      queueFilter: "all" as const,
+      queueSort: "file_order" as const,
+      paginated: true,
+    };
+
+    const plain = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+      pagination: { ...pagination, advancedFilter: { stringType: "plain" } },
+    });
+    const asset = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "assets/hero.png",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+      pagination: { ...pagination, advancedFilter: { stringType: "asset" } },
+    });
+
+    expect(plain?.segments).toHaveLength(0);
+    expect(asset?.segments).toHaveLength(1);
+    expect(asset?.segments[0]?.contentKind).toBe("image_file");
+  });
+
   it("returns a synthetic video_file segment for mp4 sources", async () => {
     getLatestRepositorySourceFileVersion.mockResolvedValue({
       storedFileId: "stored_source_video",

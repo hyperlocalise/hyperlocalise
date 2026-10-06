@@ -170,7 +170,7 @@ describe("buildCrowdinFileQueueCroql", () => {
         queueFilter: "has_issues",
         queueFilterQualifier: "general_question",
       }),
-    ).toContain('issueType = "generalQuestion"');
+    ).toContain('issueType = "general_question"');
   });
 
   it("compiles Crowdin advanced filters into CroQL", () => {

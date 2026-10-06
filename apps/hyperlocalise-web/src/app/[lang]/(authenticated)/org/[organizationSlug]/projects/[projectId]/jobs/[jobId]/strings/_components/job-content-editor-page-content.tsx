@@ -56,6 +56,7 @@ import {
   type ContentEditorQueueFilter,
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import {
   jobContentEditorQueueFilterParam,
   jobCatSearchParam,
@@ -191,6 +192,8 @@ export function JobContentEditorPageContent({
   initialQueueFilter = "untranslated",
   initialQueueSort = "file_order",
   initialSearch = "",
+  initialQueueFilterQualifier,
+  initialQueueAdvanced,
   contentEditorAllFilesEnabled = false,
   adaptiveWorkspaceEnabled = false,
   canWriteDictionaries = false,
@@ -206,6 +209,8 @@ export function JobContentEditorPageContent({
   initialQueueFilter?: ContentEditorQueueFilter;
   initialQueueSort?: ContentEditorQueueSort;
   initialSearch?: string;
+  initialQueueFilterQualifier?: string;
+  initialQueueAdvanced?: ContentEditorAdvancedQueueFilter;
   contentEditorAllFilesEnabled?: boolean;
   adaptiveWorkspaceEnabled?: boolean;
   canWriteDictionaries?: boolean;
@@ -688,6 +693,8 @@ export function JobContentEditorPageContent({
           initialQueueFilter={initialQueueFilter}
           initialQueueSort={initialQueueSort}
           initialSearch={initialSearch}
+          initialQueueFilterQualifier={initialQueueFilterQualifier}
+          initialQueueAdvanced={initialQueueAdvanced}
           sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
           layout="fullscreen"
           className="min-h-0 flex-1"
@@ -861,6 +868,8 @@ export function JobContentEditorPageContent({
           initialQueueFilter={initialQueueFilter}
           initialQueueSort={initialQueueSort}
           initialSearch={initialSearch}
+          initialQueueFilterQualifier={initialQueueFilterQualifier}
+          initialQueueAdvanced={initialQueueAdvanced}
           layout="fullscreen"
           className="min-h-0 flex-1"
           pageNavigationGuardRef={pageNavigationGuardRef}
@@ -987,6 +996,8 @@ export function JobContentEditorPageContent({
         initialQueueFilter={initialQueueFilter}
         initialQueueSort={initialQueueSort}
         initialSearch={initialSearch}
+        initialQueueFilterQualifier={initialQueueFilterQualifier}
+        initialQueueAdvanced={initialQueueAdvanced}
         layout="fullscreen"
         className="min-h-0 flex-1"
         pageNavigationGuardRef={pageNavigationGuardRef}

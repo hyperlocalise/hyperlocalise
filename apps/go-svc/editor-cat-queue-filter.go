@@ -370,3 +370,94 @@ func editorCatQueueFilterSQL(filter string, orgN, projectN, localeN int) string 
 func editorCatQueueFilterBindsLocale(filter string) bool {
 	return editorCatQueueNeedsLocale(editorCatQueueQuery{queueFilter: filter})
 }
+
+type editorCatWholeFileSubject struct {
+	contentKind string
+	hasTarget   bool
+	status      string
+	createdAt   time.Time
+	updatedAt   time.Time
+}
+
+func editorCatWholeFileMatchesAdvanced(subject editorCatWholeFileSubject, filter *editorCatAdvancedFilter) bool {
+	if filter == nil {
+		return true
+	}
+	if !editorCatWholeFileStringTypeMatches(subject.contentKind, filter.StringType) {
+		return false
+	}
+	if !editorCatWholeFileTranslationMatches(subject.hasTarget, filter.TranslationStatus) {
+		return false
+	}
+	if !editorCatWholeFileApprovalMatches(subject.hasTarget, subject.status, filter.ApprovalStatus) {
+		return false
+	}
+	if filter.QaIssues == "with" || filter.QaIssueType != "" || filter.Comments == "with" {
+		return false
+	}
+	if filter.Visibility == "hidden" {
+		return false
+	}
+	if !editorCatWholeFileDateMatches(subject.createdAt, filter.AddedFrom, filter.AddedTo) {
+		return false
+	}
+	if !editorCatWholeFileDateMatches(subject.updatedAt, filter.UpdatedFrom, filter.UpdatedTo) {
+		return false
+	}
+	return true
+}
+
+func editorCatWholeFileStringTypeMatches(contentKind, stringType string) bool {
+	if stringType == "" {
+		return true
+	}
+	if stringType == "asset" {
+		return contentKind == string(editorCatKindImage) || contentKind == string(editorCatKindVideo)
+	}
+	return false
+}
+
+func editorCatWholeFileTranslationMatches(hasTarget bool, translationStatus string) bool {
+	switch translationStatus {
+	case "":
+		return true
+	case "untranslated":
+		return !hasTarget
+	default:
+		return hasTarget
+	}
+}
+
+func editorCatWholeFileApprovalMatches(hasTarget bool, status, approvalStatus string) bool {
+	switch approvalStatus {
+	case "":
+		return true
+	case "approved":
+		return status == "approved"
+	default:
+		return hasTarget && status != "approved"
+	}
+}
+
+func editorCatWholeFileDateMatches(at time.Time, from, to string) bool {
+	if from == "" && to == "" {
+		return true
+	}
+	if at.IsZero() {
+		return false
+	}
+	day := at.UTC()
+	if from != "" {
+		start, err := time.Parse(time.DateOnly, from)
+		if err != nil || day.Before(start) {
+			return false
+		}
+	}
+	if to != "" {
+		end, err := time.Parse(time.DateOnly, to)
+		if err != nil || !day.Before(end.AddDate(0, 0, 1)) {
+			return false
+		}
+	}
+	return true
+}

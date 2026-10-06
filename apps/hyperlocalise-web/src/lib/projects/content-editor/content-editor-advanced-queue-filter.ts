@@ -117,12 +117,35 @@ const isoDateSchema = z
   .refine(isIsoCalendarDate, "Date must be a real YYYY-MM-DD calendar date")
   .optional();
 
+export const contentEditorAdvancedQueueFilterLabelLimit = 50;
+
 const labelIdSchema = z
   .string()
   .trim()
   .min(1)
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/);
+
+function capLabelIds(ids: readonly string[]) {
+  return [...new Set(ids)].slice(0, contentEditorAdvancedQueueFilterLabelLimit);
+}
+
+export function nextAdvancedQueueFilterLabelIds(
+  selectedIds: readonly string[],
+  id: string,
+  selected: boolean,
+): string[] {
+  if (!selected) {
+    return selectedIds.filter((value) => value !== id);
+  }
+  if (
+    selectedIds.includes(id) ||
+    selectedIds.length >= contentEditorAdvancedQueueFilterLabelLimit
+  ) {
+    return [...selectedIds];
+  }
+  return [...selectedIds, id];
+}
 
 export const contentEditorAdvancedQueueFilterSchema = z
   .object({
@@ -131,9 +154,15 @@ export const contentEditorAdvancedQueueFilterSchema = z
     updatedFrom: isoDateSchema,
     updatedTo: isoDateSchema,
     includeLabelMode: z.enum(contentEditorLabelIncludeModes).optional(),
-    includeLabelIds: z.array(labelIdSchema).max(50).optional(),
+    includeLabelIds: z
+      .array(labelIdSchema)
+      .max(contentEditorAdvancedQueueFilterLabelLimit)
+      .optional(),
     excludeLabelMode: z.enum(contentEditorLabelExcludeModes).optional(),
-    excludeLabelIds: z.array(labelIdSchema).max(50).optional(),
+    excludeLabelIds: z
+      .array(labelIdSchema)
+      .max(contentEditorAdvancedQueueFilterLabelLimit)
+      .optional(),
     stringType: z.enum(contentEditorStringTypes).optional(),
     translationStatus: z.enum(contentEditorTranslationStatuses).optional(),
     approvalStatus: z.enum(contentEditorApprovalStatuses).optional(),
@@ -210,11 +239,11 @@ export function compactAdvancedQueueFilter(
   if (filter.updatedTo) compacted.updatedTo = filter.updatedTo;
   if (filter.includeLabelIds && filter.includeLabelIds.length > 0) {
     compacted.includeLabelMode = filter.includeLabelMode ?? "include_all";
-    compacted.includeLabelIds = [...new Set(filter.includeLabelIds)];
+    compacted.includeLabelIds = capLabelIds(filter.includeLabelIds);
   }
   if (filter.excludeLabelIds && filter.excludeLabelIds.length > 0) {
     compacted.excludeLabelMode = filter.excludeLabelMode ?? "exclude_all";
-    compacted.excludeLabelIds = [...new Set(filter.excludeLabelIds)];
+    compacted.excludeLabelIds = capLabelIds(filter.excludeLabelIds);
   }
   if (filter.stringType) compacted.stringType = filter.stringType;
   if (filter.translationStatus) compacted.translationStatus = filter.translationStatus;
@@ -297,10 +326,6 @@ export function unresolvedIssueQualifiersForProvider(providerKind: string | null
   }
 
   return nativeUnresolvedIssueQualifiers;
-}
-
-export function toCrowdinCommentIssueType(issueType: string) {
-  return issueType.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
 export function croqlDatetimeStart(date: string) {

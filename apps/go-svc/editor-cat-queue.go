@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -201,7 +202,10 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	} else {
 		queue, err = api.loadTextFileQueue(r, actor, project, query)
 		if err == nil && isEditorCatDocument(query.sourcePath) {
-			unfiltered := query.search == "" && (query.queueFilter == "" || query.queueFilter == "all")
+			unfiltered := query.search == "" &&
+				(query.queueFilter == "" || query.queueFilter == "all") &&
+				query.queueFilterQualifier == "" &&
+				query.advancedFilter == nil
 			empty := len(queue.Segments) == 0 && (queue.Pagination == nil || queue.Pagination.TotalCount == 0)
 			if unfiltered && empty {
 				queue, err = api.loadWholeFileQueue(r, actor, project, query)
@@ -300,7 +304,7 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 	if kind == editorCatKindVideo {
 		variantTable = "project_video_variants"
 	}
-	var sourceStored, targetStored, variantID *string
+	var sourceStored, targetStored, variantID, variantStatus *string
 	err = api.pool.QueryRow(r.Context(), `
         select v.stored_file_id
         from repository_source_file_versions v
@@ -311,9 +315,15 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		return editorCatQueueFile{}, err
 	}
 	_ = api.pool.QueryRow(r.Context(), `
-        select id, stored_file_id from `+variantTable+`
+        select id, stored_file_id, status from `+variantTable+`
         where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
-        limit 1`, actor.organizationID, project.ID, query.sourcePath, query.targetLocale).Scan(&variantID, &targetStored)
+        limit 1`, actor.organizationID, project.ID, query.sourcePath, query.targetLocale).Scan(&variantID, &targetStored, &variantStatus)
+	var createdAt, updatedAt time.Time
+	if err = api.pool.QueryRow(r.Context(), `
+        select created_at, updated_at from repository_source_files
+        where id=$1`, sourceFileID).Scan(&createdAt, &updatedAt); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	var sourceURL, targetURL *string
 	if sourceStored != nil && *sourceStored != "" {
 		url := editorCatAssetPath(actor.organizationSlug, project.ID, *sourceStored)
@@ -332,6 +342,20 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		TargetAssetURL:   targetURL,
 		ImageVariantID:   variantID,
 	}
+	segments := []editorCatSegment{}
+	status := ""
+	if variantStatus != nil {
+		status = *variantStatus
+	}
+	if editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{
+		contentKind: contentKind,
+		hasTarget:   targetStored != nil && *targetStored != "",
+		status:      status,
+		createdAt:   createdAt,
+		updatedAt:   updatedAt,
+	}, query.advancedFilter) {
+		segments = append(segments, segment)
+	}
 	return editorCatQueueFile{
 		SourcePath:          query.sourcePath,
 		Filename:            filenameFromSourcePath(query.sourcePath),
@@ -339,7 +363,7 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           false,
-		Segments:            []editorCatSegment{segment},
+		Segments:            segments,
 	}, nil
 }
 

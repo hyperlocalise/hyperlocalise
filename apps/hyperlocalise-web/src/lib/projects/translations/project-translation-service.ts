@@ -166,6 +166,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .select({
         id: schema.repositorySourceFiles.id,
         sourcePath: schema.repositorySourceFiles.sourcePath,
+        createdAt: schema.repositorySourceFiles.createdAt,
+        updatedAt: schema.repositorySourceFiles.updatedAt,
       })
       .from(schema.repositorySourceFiles)
       .where(

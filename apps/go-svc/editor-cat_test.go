@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -400,6 +401,46 @@ func TestEditorCatQueueWholeFile(t *testing.T) {
 	require.Equal(t, "hero.png", body.ContentEditorQueue.SourcePath)
 	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
 	require.Equal(t, "image_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+
+	plainRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"plain"}`)), "")
+	require.Equal(t, http.StatusOK, plainRec.Code, plainRec.Body.String())
+	var plainBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(plainRec.Body.Bytes(), &plainBody))
+	require.Empty(t, plainBody.ContentEditorQueue.Segments)
+
+	assetRec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=hero.png&targetLocale=fr&queueAdvanced="+url.QueryEscape(`{"stringType":"asset"}`)), "")
+	require.Equal(t, http.StatusOK, assetRec.Code, assetRec.Body.String())
+	var assetBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(assetRec.Body.Bytes(), &assetBody))
+	require.Len(t, assetBody.ContentEditorQueue.Segments, 1)
+}
+
+func TestEditorCatWholeFileMatchesAdvanced(t *testing.T) {
+	image := editorCatWholeFileSubject{
+		contentKind: "image_file",
+		hasTarget:   true,
+		status:      "needs_review",
+		createdAt:   time.Date(2026, 3, 2, 15, 0, 0, 0, time.UTC),
+		updatedAt:   time.Date(2026, 3, 4, 8, 0, 0, 0, time.UTC),
+	}
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, nil))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "plain"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{StringType: "asset"}))
+	office := image
+	office.contentKind = "office_file"
+	require.False(t, editorCatWholeFileMatchesAdvanced(office, &editorCatAdvancedFilter{StringType: "asset"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "hidden"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Visibility: "visible"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{TranslationStatus: "untranslated"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{ApprovalStatus: "not_approved"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{Comments: "with"}))
+	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-01", AddedTo: "2026-03-02"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-03"}))
+	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{contentKind: "image_file"}, &editorCatAdvancedFilter{AddedFrom: "2026-03-01"}))
 }
 
 func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {
