@@ -35,6 +35,17 @@ type ProjectKeysScopeInput = {
 
 const maxKeysPerImport = 5_000;
 const prefillKeysPageSize = maxKeysPerImport;
+/** Keep parameterized inserts and `inArray` lookups under Postgres's 65,535-bind limit. */
+export const PROJECT_TRANSLATION_WRITE_BATCH_SIZE = 500;
+
+function chunkItems<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const chunkSize = Math.max(size, 1);
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -248,15 +259,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
     },
     database: DatabaseClient = this.database,
   ) {
-    const BATCH_SIZE = 500;
-    if (input.entries.length > BATCH_SIZE) {
+    if (input.entries.length > PROJECT_TRANSLATION_WRITE_BATCH_SIZE) {
       let imported = 0;
       let updated = 0;
-      for (let offset = 0; offset < input.entries.length; offset += BATCH_SIZE) {
+      for (const entries of chunkItems(input.entries, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
         const result = await this.upsertKeysFromEntries(
           {
             ...input,
-            entries: input.entries.slice(offset, offset + BATCH_SIZE),
+            entries,
           },
           database,
         );
@@ -1124,20 +1134,33 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return;
     }
 
-    const keys = await this.database
-      .select({
-        id: schema.projectTranslationKeys.id,
-        key: schema.projectTranslationKeys.key,
-        isHidden: schema.projectTranslationKeys.isHidden,
-      })
-      .from(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
-          inArray(schema.projectTranslationKeys.key, Object.keys(input.targetEntries)),
-        ),
-      );
+    const targetKeys = Object.keys(input.targetEntries);
+    if (targetKeys.length === 0) {
+      return;
+    }
+
+    const keys: Array<{
+      id: string;
+      key: string;
+      isHidden: boolean | null;
+    }> = [];
+    for (const keyBatch of chunkItems(targetKeys, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+      const rows = await this.database
+        .select({
+          id: schema.projectTranslationKeys.id,
+          key: schema.projectTranslationKeys.key,
+          isHidden: schema.projectTranslationKeys.isHidden,
+        })
+        .from(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+            eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+            inArray(schema.projectTranslationKeys.key, keyBatch),
+          ),
+        );
+      keys.push(...rows);
+    }
 
     const translationValues = keys.flatMap((key) => {
       if (key.isHidden) {
@@ -1167,24 +1190,29 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return;
     }
 
-    await this.database
-      .insert(schema.projectTranslations)
-      .values(translationValues)
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
-          status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
-          provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
-          sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
-          reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
-          reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
-          updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
-        },
-      });
+    for (const translationBatch of chunkItems(
+      translationValues,
+      PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
+    )) {
+      await this.database
+        .insert(schema.projectTranslations)
+        .values(translationBatch)
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+            status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+            provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+            sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+            reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+            reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+            updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+          },
+        });
+    }
   }
 
   /**
@@ -1222,19 +1250,23 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched: 0, imported: 0, skipped: entryKeys.length };
     }
 
-    const keys = await this.database
-      .select({
-        id: schema.projectTranslationKeys.id,
-        key: schema.projectTranslationKeys.key,
-      })
-      .from(schema.projectTranslationKeys)
-      .where(
-        and(
-          eq(schema.projectTranslationKeys.projectId, input.projectId),
-          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
-          inArray(schema.projectTranslationKeys.key, entryKeys),
-        ),
-      );
+    const keys: Array<{ id: string; key: string }> = [];
+    for (const keyBatch of chunkItems(entryKeys, PROJECT_TRANSLATION_WRITE_BATCH_SIZE)) {
+      const rows = await this.database
+        .select({
+          id: schema.projectTranslationKeys.id,
+          key: schema.projectTranslationKeys.key,
+        })
+        .from(schema.projectTranslationKeys)
+        .where(
+          and(
+            eq(schema.projectTranslationKeys.projectId, input.projectId),
+            eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+            inArray(schema.projectTranslationKeys.key, keyBatch),
+          ),
+        );
+      keys.push(...rows);
+    }
 
     const reviewedAt = new Date();
     const reviewedByUserId = input.actorUserId ?? null;
@@ -1268,24 +1300,29 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return { matched, imported, skipped };
     }
 
-    await this.database
-      .insert(schema.projectTranslations)
-      .values(translationValues)
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: sql`excluded.text`,
-          status: sql`excluded.status`,
-          provenance: sql`excluded.provenance`,
-          sourceJobId: sql`NULL`,
-          reviewedAt: sql`excluded.reviewed_at`,
-          reviewedByUserId: sql`excluded.reviewed_by_user_id`,
-          updatedAt: sql`now()`,
-        },
-      });
+    for (const translationBatch of chunkItems(
+      translationValues,
+      PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
+    )) {
+      await this.database
+        .insert(schema.projectTranslations)
+        .values(translationBatch)
+        .onConflictDoUpdate({
+          target: [
+            schema.projectTranslations.translationKeyId,
+            schema.projectTranslations.targetLocale,
+          ],
+          set: {
+            text: sql`excluded.text`,
+            status: sql`excluded.status`,
+            provenance: sql`excluded.provenance`,
+            sourceJobId: sql`NULL`,
+            reviewedAt: sql`excluded.reviewed_at`,
+            reviewedByUserId: sql`excluded.reviewed_by_user_id`,
+            updatedAt: sql`now()`,
+          },
+        });
+    }
 
     this.log.info(
       {

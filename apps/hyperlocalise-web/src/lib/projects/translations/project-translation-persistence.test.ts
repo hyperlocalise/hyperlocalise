@@ -12,23 +12,25 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { insertMock, limitMock, onConflictDoUpdateMock, selectMock, whereMock } = vi.hoisted(() => {
-  const onConflictDoUpdateMock = vi.fn(() => undefined);
-  const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
-  const insertMock = vi.fn(() => ({ values: valuesMock }));
-  const limitMock = vi.fn(async (): Promise<unknown[]> => []);
-  const whereMock = vi.fn(() => ({ limit: limitMock }));
-  const fromMock = vi.fn(() => ({ where: whereMock }));
-  const selectMock = vi.fn(() => ({ from: fromMock }));
+const { insertMock, limitMock, onConflictDoUpdateMock, selectMock, valuesMock, whereMock } =
+  vi.hoisted(() => {
+    const onConflictDoUpdateMock = vi.fn(() => undefined);
+    const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
+    const insertMock = vi.fn(() => ({ values: valuesMock }));
+    const limitMock = vi.fn(async (): Promise<unknown[]> => []);
+    const whereMock = vi.fn(() => ({ limit: limitMock }));
+    const fromMock = vi.fn(() => ({ where: whereMock }));
+    const selectMock = vi.fn(() => ({ from: fromMock }));
 
-  return {
-    insertMock,
-    limitMock,
-    onConflictDoUpdateMock,
-    selectMock,
-    whereMock,
-  };
-});
+    return {
+      insertMock,
+      limitMock,
+      onConflictDoUpdateMock,
+      selectMock,
+      valuesMock,
+      whereMock,
+    };
+  });
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: unknown[]) => ["and", conditions]),
@@ -73,11 +75,13 @@ vi.mock("@/lib/database/client", () => ({
 import {
   persistFileJobTranslations,
   persistStringJobTranslations,
+  PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
 } from "./project-translation-service";
 
 describe("persistFileJobTranslations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    whereMock.mockImplementation(() => ({ limit: limitMock }));
     limitMock.mockResolvedValue([]);
   });
 
@@ -144,11 +148,54 @@ describe("persistFileJobTranslations", () => {
 
     expect(insertMock).not.toHaveBeenCalled();
   });
+
+  it("inserts large files in batches so the query stays under the Postgres bind limit", async () => {
+    const overflowCount = PROJECT_TRANSLATION_WRITE_BATCH_SIZE + 1;
+    const keys = Array.from({ length: overflowCount }, (_, index) => ({
+      id: `key_${index}`,
+      key: `k${index}`,
+      isHidden: false,
+    }));
+    const targetEntries = Object.fromEntries(keys.map((row) => [row.key, `t-${row.key}`]));
+
+    let keyLookupIndex = 0;
+    whereMock.mockImplementation(() => {
+      if (keyLookupIndex === 0) {
+        keyLookupIndex += 1;
+        return { limit: limitMock };
+      }
+      const start = (keyLookupIndex - 1) * PROJECT_TRANSLATION_WRITE_BATCH_SIZE;
+      keyLookupIndex += 1;
+      return Promise.resolve(
+        keys.slice(start, start + PROJECT_TRANSLATION_WRITE_BATCH_SIZE),
+      ) as unknown as { limit: typeof limitMock };
+    });
+    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+
+    await persistFileJobTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      jobId: "job_1",
+      sourcePath: "locales/en.json",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceEntries: targetEntries,
+      targetEntries,
+    });
+
+    expect(valuesMock).toHaveBeenCalledTimes(2);
+    const insertedBatches = valuesMock.mock.calls.map(
+      (call) => (call as unknown[])[0] as unknown[],
+    );
+    expect(insertedBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
+    expect(insertedBatches[1]).toHaveLength(1);
+  });
 });
 
 describe("persistStringJobTranslations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    whereMock.mockImplementation(() => ({ limit: limitMock }));
     limitMock.mockResolvedValue([]);
   });
 
