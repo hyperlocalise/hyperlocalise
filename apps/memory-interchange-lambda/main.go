@@ -152,7 +152,7 @@ func newRegistry(ctx context.Context) (*objectstore.Registry, error) {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	secretConfigs, err := secretstore.ConfigsFromEnv("DATABASE")
+	secretConfig, err := secretstore.ConfigFromEnv()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -160,13 +160,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	collection, err := secretstore.NewCollection(awssecretsmanager.NewFromConfig(awsConfig), secretConfigs)
+	loader, err := secretstore.NewLoader(awssecretsmanager.NewFromConfig(awsConfig), secretConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), databaseInitializationTimeout)
 	defer cancel()
-	database := &databaseConnection{provider: secretProvider{collection: collection, name: "DATABASE"}}
+	database := &databaseConnection{provider: loader}
 	if _, err := database.currentPool(ctx); err != nil {
 		log.Fatalf("configure memory interchange database: %v", err)
 	}
@@ -176,13 +176,4 @@ func main() {
 	}
 	defer database.pool.Close()
 	lambda.Start((&memoryInterchangeHandler{logger: logger, database: database, objects: objects}).Handle)
-}
-
-type secretProvider struct {
-	collection *secretstore.Collection
-	name       string
-}
-
-func (p secretProvider) Load(ctx context.Context) (string, error) {
-	return p.collection.Load(ctx, p.name)
 }

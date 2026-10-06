@@ -149,13 +149,23 @@ uploads a versioned S3 artifact, and updates the function named by SSM. Secret
 values stay in Secrets Manager; Lambda receives only ARN, JSON-key, and cache
 metadata through environment variables.
 
-The existing activity-log compatibility wrapper in infrastructure still passes
-the database secret metadata as `DATABASE_URL_SECRET_ARN`,
-`DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`. Keep using
-`secretsmanager.ConfigFromEnv` for that worker. New workers composed directly
-from the reusable infrastructure module use explicitly requested generic
-`<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` variables with
-`ConfigsFromEnv("NAME", ...)` and `Collection`.
+All Postgres-backed SQS Lambdas (activity-log, glossary-interchange,
+memory-interchange) use the same database secret metadata and Go bootstrap:
+
+- `DATABASE_URL_SECRET_ARN`, `DATABASE_SECRET_KEY`, and optionally
+  `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`
+- `secretsmanager.ConfigFromEnv()` plus `NewLoader` in `main`
+
+Infrastructure passes those variables either through the activity-log wrapper
+module or through `secret_references.database_url_secret` on
+`sqs-lambda-consumer`, with an explicit `DATABASE_SECRET_KEY = "DATABASE_URL"`
+in `environment_variables` (required because `ConfigFromEnv()` reads
+`DATABASE_SECRET_KEY`, not `DATABASE_URL_SECRET_KEY`).
+
+Workers that need additional Secrets Manager fields beyond Postgres should use
+generic `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` from infra
+`secret_references` with `ConfigsFromEnv("NAME", ...)` and `Collection`. See
+`.agents/skills/create-sqs-lambda-worker/references/worker-contract.md`.
 
 The translation-memory interchange worker uses the dedicated
 `MEMORY_INTERCHANGE_QUEUE_URL` producer variable and publishes versioned
