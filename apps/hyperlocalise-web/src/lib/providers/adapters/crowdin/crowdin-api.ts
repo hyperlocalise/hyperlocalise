@@ -105,6 +105,8 @@ function crowdinQueueFilterPredicates(
       return ["count of comments where (has unresolved issue) > 0"];
     case "hidden":
       return ["is hidden"];
+    case "not_hidden":
+      return ["not is hidden"];
     case "qa_issues":
       return [`count of languages summary where (${languageSummary} and has qa issues) > 0`];
     case "machine_translated":

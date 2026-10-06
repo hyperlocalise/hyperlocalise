@@ -25471,6 +25471,10 @@
     "defaultMessage": "Project assigned",
     "description": "Toast after a project is assigned to a glossary"
   },
+  "lhCQmBN6w4": {
+    "defaultMessage": "Not hidden",
+    "description": "CAT queue filter option that excludes hidden source strings"
+  },
   "lhVzeGwfih": {
     "defaultMessage": "It reminded us that localisation is ultimately about connecting people.",
     "description": "Third paragraph of the founders note on the company page"

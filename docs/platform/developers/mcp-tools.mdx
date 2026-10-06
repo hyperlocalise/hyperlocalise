@@ -55,7 +55,7 @@ Optional filters match the Content Editor queue:
 - `sourcePath` — one file. Use `*` or omit it to list every file in the project.
 - `targetLocale` — one locale. When omitted, the tool returns one row per project target locale.
 - `search` — case-insensitive match on key, source text, context, or target text.
-- `queueFilter` — `all`, `untranslated`, `needs_review`, `approved` (same as CAT `reviewed`), `has_issues`, plus the other Content Editor filters.
+- `queueFilter` — `all`, `untranslated`, `needs_review`, `approved` (same as CAT `reviewed`), `has_issues`, `hidden`, `not_hidden`, plus the other Content Editor filters.
 - `queueSort` — `file_order` (default) or `untranslated_first`.
 
 `update_translation` uses the same text constraints, segment locks, permissions, and native save/approve path as the Content Editor. It saves drafts by default; pass `approve: true` to save and approve as the authenticated MCP user. Placeholder or ICU failures return `invalid_translation` with structured `issues` and do not save. Provider-only live CAT writes return `provider_cat_unsupported` unless a native overlay is available.

@@ -538,7 +538,7 @@ const mcpListTranslationsInputSchema = z.object({
     .enum(mcpListTranslationsQueueFilters)
     .optional()
     .describe(
-      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, or other Content Editor filters.",
+      "CAT queue filter: all, untranslated, needs_review, approved (same as reviewed), has_issues, hidden, not_hidden, or other Content Editor filters.",
     ),
   queueSort: projectFileCatQueueSortSchema
     .optional()

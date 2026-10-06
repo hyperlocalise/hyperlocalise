@@ -26,5 +26,7 @@ describe("toCatQueueFilter", () => {
     expect(toCatQueueFilter("needs_review")).toBe("needs_review");
     expect(toCatQueueFilter("reviewed")).toBe("reviewed");
     expect(toCatQueueFilter("has_issues")).toBe("has_issues");
+    expect(toCatQueueFilter("hidden")).toBe("hidden");
+    expect(toCatQueueFilter("not_hidden")).toBe("not_hidden");
   });
 });

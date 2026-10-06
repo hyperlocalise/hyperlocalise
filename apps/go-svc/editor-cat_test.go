@@ -240,6 +240,11 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	require.Equal(t, 25, query.limit)
 	require.Equal(t, "untranslated", query.queueFilter)
 	require.Equal(t, []string{"a.json", "b.json"}, query.sourcePaths)
+	notHidden, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath": {"a.json"}, "targetLocale": {"fr"}, "queueFilter": {"not_hidden"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "not_hidden", notHidden.queueFilter)
 	_, err = parseEditorCatQueueQuery(map[string][]string{"sourcePath": {"a.json"}})
 	require.Error(t, err)
 	_, err = parseEditorCatQueueQuery(map[string][]string{
@@ -499,11 +504,30 @@ func TestEditorCatConcordance(t *testing.T) {
 func TestEditorCatSetHidden(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "a.json")
-	keyID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
-	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+keyID+`"],"isHidden":true}`)
+	hiddenID := mustEditorCatKey(t, scope, fileID, "hello", "Hello")
+	visibleID := mustEditorCatKey(t, scope, fileID, "world", "World")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/strings/hidden"), `{"sourcePath":"a.json","externalStringIds":["`+hiddenID+`"],"isHidden":true}`)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Contains(t, rec.Body.String(), `"updatedCount":1`)
 	require.Contains(t, rec.Body.String(), `"isHidden":true`)
+
+	hiddenQueue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=hidden"), "")
+	require.Equal(t, http.StatusOK, hiddenQueue.Code, hiddenQueue.Body.String())
+	var hiddenBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(hiddenQueue.Body.Bytes(), &hiddenBody))
+	require.Len(t, hiddenBody.ContentEditorQueue.Segments, 1)
+	require.Equal(t, hiddenID, hiddenBody.ContentEditorQueue.Segments[0].ExternalStringID)
+
+	visibleQueue := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=a.json&targetLocale=fr&queueFilter=not_hidden"), "")
+	require.Equal(t, http.StatusOK, visibleQueue.Code, visibleQueue.Body.String())
+	var visibleBody struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(visibleQueue.Body.Bytes(), &visibleBody))
+	require.Len(t, visibleBody.ContentEditorQueue.Segments, 1)
+	require.Equal(t, visibleID, visibleBody.ContentEditorQueue.Segments[0].ExternalStringID)
 }
 
 func TestEditorCatSetLocked(t *testing.T) {
@@ -671,11 +695,13 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, qaIssues, "order by r.completed_at desc nulls last, r.created_at desc")
 
 	require.Equal(t, " and k.is_hidden = true", editorCatQueueFilterSQL("hidden", orgN, projectN, localeN))
+	require.Equal(t, " and k.is_hidden = false", editorCatQueueFilterSQL("not_hidden", orgN, projectN, localeN))
 	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
+	require.False(t, editorCatQueueFilterBindsLocale("not_hidden"))
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {
