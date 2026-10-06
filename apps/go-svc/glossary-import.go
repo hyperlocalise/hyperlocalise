@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/language"
 )
 
 type glossaryImportPayload struct {
@@ -233,6 +234,7 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 	}
 	concepts, diagnostics := parseGlossaryImport(format, content)
 	concepts, diagnostics = applyGlossaryImportLocaleOptions(g, payload, concepts, diagnostics)
+	concepts, diagnostics = filterGlossaryImportConcepts(g, payload, concepts, diagnostics)
 	if mode == "preview" {
 		counts := glossaryImportCounts(concepts, diagnostics)
 		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "preview", concepts, counts, diagnostics, nil)
@@ -332,17 +334,22 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 					mappedByCrowdin = true
 				}
 			}
-			term.Locale = mapped
-			if mapped == "" {
+			canonical, valid := canonicalGlossaryImportLocale(mapped)
+			if !valid {
 				id := concept.ID
 				termID := term.ID
 				field := "locale"
+				message := "Term locale is not a valid BCP 47 language tag"
+				if strings.TrimSpace(mapped) == "" {
+					message = "Term locale is missing"
+				}
 				diagnostics = append(diagnostics, glossaryImportDiagnostic{
-					Severity: "error", Code: "invalid_locale", Message: "Term locale is missing",
+					Severity: "error", Code: "invalid_locale", Message: message,
 					ConceptID: &id, TermID: &termID, Field: &field,
 				})
 				continue
 			}
+			term.Locale = canonical
 			if mappedByCrowdin {
 				id := concept.ID
 				termID := term.ID
@@ -398,6 +405,87 @@ var crowdinDefaultGlossaryLocales = map[string]string{
 	"uk": "uk-UA",
 	"vi": "vi-VN",
 	"zh": "zh-CN",
+}
+
+func filterGlossaryImportConcepts(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	strict := payload.StrictLocale == nil || *payload.StrictLocale
+	sourceCanon, _ := canonicalGlossaryImportLocale(g.SourceLocale)
+	sourceKey := strings.ToLower(sourceCanon)
+	for i := range concepts {
+		concept := concepts[i]
+		if strict && sourceKey != "" {
+			hasSource := false
+			for _, term := range concept.Terms {
+				if strings.ToLower(strings.TrimSpace(term.Locale)) == sourceKey {
+					hasSource = true
+					break
+				}
+			}
+			if !hasSource {
+				id := concept.ID
+				field := "sourceLocale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "missing_source_locale", Message: "Concept has no term in the glossary source locale",
+					ConceptID: &id, Field: &field,
+				})
+			}
+		}
+	}
+	return filterGlossaryImportConceptsByDiagnostics(concepts, diagnostics)
+}
+
+func filterGlossaryImportConceptsByDiagnostics(concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	termErrorKeys := make(map[string]struct{})
+	conceptBlockingIDs := make(map[string]struct{})
+	for _, entry := range diagnostics {
+		if entry.Severity != "error" || entry.ConceptID == nil {
+			continue
+		}
+		if entry.TermID != nil {
+			termErrorKeys[*entry.ConceptID+"\x00"+*entry.TermID] = struct{}{}
+			continue
+		}
+		conceptBlockingIDs[*entry.ConceptID] = struct{}{}
+	}
+	out := make([]glossaryImportConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		if _, blocked := conceptBlockingIDs[concept.ID]; blocked {
+			continue
+		}
+		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			if _, blocked := termErrorKeys[concept.ID+"\x00"+term.ID]; blocked {
+				continue
+			}
+			terms = append(terms, term)
+		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				id := concept.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "concept_has_no_valid_terms", Message: "Concept has no valid terms and was not imported",
+					ConceptID: &id,
+				})
+			}
+			continue
+		}
+		concept.Terms = terms
+		out = append(out, concept)
+	}
+	return out, diagnostics
+}
+
+func canonicalGlossaryImportLocale(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
+		return "", false
+	}
+	normalized := strings.ReplaceAll(trimmed, "_", "-")
+	tag, err := language.Parse(normalized)
+	if err != nil {
+		return "", false
+	}
+	return tag.String(), true
 }
 
 func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {

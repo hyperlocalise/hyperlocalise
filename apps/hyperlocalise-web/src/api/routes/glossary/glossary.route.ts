@@ -378,7 +378,7 @@ function glossaryDownloadFilename(name: string, extension: string, scope: "compl
 export function createGlossaryRoutes(options: { fileStorageAdapter?: FileStorageAdapter } = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .route("/:glossaryId/concepts", createGlossaryConceptRoutes(options))
+    .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
       const {

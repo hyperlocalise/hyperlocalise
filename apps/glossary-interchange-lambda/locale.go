@@ -1,6 +1,10 @@
 package main
 
-import "strings"
+import (
+	"strings"
+
+	"golang.org/x/text/language"
+)
 
 // Crowdin uses bare language IDs for several glossary languages while native
 // glossaries store BCP-47 locales. These defaults are only used when the
@@ -98,6 +102,19 @@ func mappedImportLocale(rawLocale string, configuredLocales []string, explicitMa
 		return preferred, true
 	}
 	return rawLocale, false
+}
+
+func canonicalGlossaryImportLocale(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
+		return "", false
+	}
+	normalized := strings.ReplaceAll(trimmed, "_", "-")
+	tag, err := language.Parse(normalized)
+	if err != nil {
+		return "", false
+	}
+	return tag.String(), true
 }
 
 func containsConfiguredLocale(locale string, configuredLocales []string) bool {
