@@ -1566,7 +1566,7 @@ function SkillsSettings({
             <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="max-h-(--available-height) w-96 overflow-y-auto"
+            className="max-h-(--available-height) w-72 overflow-y-auto"
             align="start"
             sideOffset={2}
           >
@@ -1585,39 +1585,50 @@ function SkillsSettings({
                           ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
                           : [];
                       return (
-                        <DropdownMenuItem
-                          key={skill.id}
-                          disabled={availability !== "available" || missingIntegrations.length > 0}
-                          className="items-start"
-                          onClick={() => onAddSkill(skill.id)}
-                        >
-                          <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
-                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span>{skill.name}</span>
-                            {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
-                            {availability === "trigger_mismatch" ? (
-                              <span className="text-xs font-medium">
-                                <FormattedMessage
-                                  {...workspaceAutomationFormMessages.skillNotApplicableHint}
-                                />
+                        <Tooltip key={skill.id}>
+                          {/* The wrapper takes the hover: a disabled item ignores the pointer. */}
+                          <TooltipTrigger render={<div />}>
+                            <DropdownMenuItem
+                              disabled={
+                                availability !== "available" || missingIntegrations.length > 0
+                              }
+                              className="items-start"
+                              onClick={() => onAddSkill(skill.id)}
+                            >
+                              <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
+                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <span>{skill.name}</span>
+                                {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                                {availability === "trigger_mismatch" ? (
+                                  <span className="text-xs font-medium">
+                                    <FormattedMessage
+                                      {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                    />
+                                  </span>
+                                ) : missingIntegrations.length > 0 ? (
+                                  <span className="text-xs font-medium">
+                                    {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                                  </span>
+                                ) : null}
                               </span>
-                            ) : missingIntegrations.length > 0 ? (
-                              <span className="text-xs font-medium">
-                                {formatSkillConnectFirstHint(intl, missingIntegrations)}
-                              </span>
-                            ) : null}
-                            <span className="text-xs text-pretty text-muted-foreground">
-                              {skill.description}
-                            </span>
-                          </span>
-                          {availability === "attached" ? (
-                            <DropdownMenuHint>
-                              <FormattedMessage
-                                {...workspaceAutomationFormMessages.addedShortcut}
-                              />
-                            </DropdownMenuHint>
-                          ) : null}
-                        </DropdownMenuItem>
+                              {availability === "attached" ? (
+                                <DropdownMenuHint>
+                                  <FormattedMessage
+                                    {...workspaceAutomationFormMessages.addedShortcut}
+                                  />
+                                </DropdownMenuHint>
+                              ) : null}
+                            </DropdownMenuItem>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="right"
+                            sideOffset={8}
+                            className="flex max-w-64 flex-col items-start gap-1 py-2 text-pretty"
+                          >
+                            <span>{skill.description}</span>
+                            <span className="opacity-70">{skill.grants}</span>
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     },
                   )}
