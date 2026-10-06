@@ -28,6 +28,11 @@ package. Infrastructure must set:
 - `DATABASE_URL_SECRET_CACHE_TTL_SECONDS` optionally, to override the five-minute warm
   runtime cache.
 
+Glossary-interchange and memory-interchange use the same Lambda environment
+contract and `secretsmanager.ConfigFromEnv()` in the application repository.
+For scaffolding new workers, see
+`.agents/skills/create-sqs-lambda-worker/references/worker-contract.md`.
+
 ## Infrastructure repository
 
 The infrastructure repository provisions and operates:
