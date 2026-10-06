@@ -58,8 +58,13 @@ const PULL_REQUEST_KEYWORDS = ["pull request", "pr"] as const;
 /** Shared by everything that reads a repository, so naming a repository alone suggests nothing. */
 export const REPOSITORY_KEYWORDS = ["github", "repo", "repository"] as const;
 
-export const WORKSPACE_AUTOMATION_SKILL_CATEGORIES = ["review", "translate", "report"] as const;
-/** What the skill does for the run: look at things, produce translations, or send results out. */
+export const WORKSPACE_AUTOMATION_SKILL_CATEGORIES = [
+  "review",
+  "research",
+  "translate",
+  "report",
+] as const;
+/** What the skill does for the run: check your content, look outside it, translate, or send results out. */
 export type WorkspaceAutomationSkillCategory =
   (typeof WORKSPACE_AUTOMATION_SKILL_CATEGORIES)[number];
 
@@ -159,7 +164,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "research-web",
     name: "Research the web",
-    category: "review",
+    category: "research",
     description:
       "Search the live web for competitor, market and localisation changes, with sources.",
     grants: "Searches the public web. Changes nothing.",

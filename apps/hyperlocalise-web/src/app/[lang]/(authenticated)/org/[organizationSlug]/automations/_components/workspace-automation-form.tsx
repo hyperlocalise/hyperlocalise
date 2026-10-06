@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   PlusIcon,
   CaretDownIcon,
@@ -30,6 +30,10 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
   XIcon,
+  BinocularsIcon,
+  ListMagnifyingGlassIcon,
+  MegaphoneIcon,
+  TranslateIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -1476,8 +1480,16 @@ function formatSkillConnectFirstHint(
 
 const SKILL_CATEGORY_LABELS: Record<WorkspaceAutomationSkillCategory, MessageDescriptor> = {
   review: workspaceAutomationFormMessages.skillCategoryReview,
+  research: workspaceAutomationFormMessages.skillCategoryResearch,
   translate: workspaceAutomationFormMessages.skillCategoryTranslate,
   report: workspaceAutomationFormMessages.skillCategoryReport,
+};
+
+const SKILL_CATEGORY_ICONS: Record<WorkspaceAutomationSkillCategory, Icon> = {
+  review: ListMagnifyingGlassIcon,
+  research: BinocularsIcon,
+  translate: TranslateIcon,
+  report: MegaphoneIcon,
 };
 
 const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon>> = {
@@ -1565,75 +1577,79 @@ function SkillsSettings({
             <PlusIcon className="size-4" />
             <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="max-h-(--available-height) w-72 overflow-y-auto"
-            align="start"
-            sideOffset={2}
-          >
-            {WORKSPACE_AUTOMATION_SKILL_CATEGORIES.map((category, index) => (
-              <Fragment key={category}>
-                {index > 0 ? <DropdownMenuSeparator /> : null}
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>
-                    <FormattedMessage {...SKILL_CATEGORY_LABELS[category]} />
-                  </DropdownMenuLabel>
-                  {WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.category === category).map(
-                    (skill) => {
-                      const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
-                      const missingIntegrations =
-                        availability === "available"
-                          ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
-                          : [];
-                      return (
-                        <Tooltip key={skill.id}>
-                          {/* The wrapper takes the hover: a disabled item ignores the pointer. */}
-                          <TooltipTrigger render={<div />}>
-                            <DropdownMenuItem
-                              disabled={
-                                availability !== "available" || missingIntegrations.length > 0
-                              }
-                              className="items-start"
-                              onClick={() => onAddSkill(skill.id)}
-                            >
-                              <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
-                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <span>{skill.name}</span>
-                                {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
-                                {availability === "trigger_mismatch" ? (
-                                  <span className="text-xs font-medium">
+          <DropdownMenuContent className="w-56" align="start" sideOffset={2}>
+            {WORKSPACE_AUTOMATION_SKILL_CATEGORIES.map((category) => {
+              const CategoryIcon = SKILL_CATEGORY_ICONS[category];
+              return (
+                <DropdownMenuSub key={category}>
+                  <DropdownMenuSubTrigger className="gap-2.5">
+                    <CategoryIcon className="size-4" />
+                    <span className="flex-1">
+                      <FormattedMessage {...SKILL_CATEGORY_LABELS[category]} />
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-72">
+                    {WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.category === category).map(
+                      (skill) => {
+                        const availability = resolveWorkspaceAutomationSkillAvailability(
+                          form,
+                          skill,
+                        );
+                        const missingIntegrations =
+                          availability === "available"
+                            ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                            : [];
+                        return (
+                          <Tooltip key={skill.id}>
+                            {/* The wrapper takes the hover: a disabled item ignores the pointer. */}
+                            <TooltipTrigger render={<div />}>
+                              <DropdownMenuItem
+                                disabled={
+                                  availability !== "available" || missingIntegrations.length > 0
+                                }
+                                className="items-start"
+                                onClick={() => onAddSkill(skill.id)}
+                              >
+                                <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
+                                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  <span>{skill.name}</span>
+                                  {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                                  {availability === "trigger_mismatch" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                      />
+                                    </span>
+                                  ) : missingIntegrations.length > 0 ? (
+                                    <span className="text-xs font-medium">
+                                      {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {availability === "attached" ? (
+                                  <DropdownMenuHint>
                                     <FormattedMessage
-                                      {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                      {...workspaceAutomationFormMessages.addedShortcut}
                                     />
-                                  </span>
-                                ) : missingIntegrations.length > 0 ? (
-                                  <span className="text-xs font-medium">
-                                    {formatSkillConnectFirstHint(intl, missingIntegrations)}
-                                  </span>
+                                  </DropdownMenuHint>
                                 ) : null}
-                              </span>
-                              {availability === "attached" ? (
-                                <DropdownMenuHint>
-                                  <FormattedMessage
-                                    {...workspaceAutomationFormMessages.addedShortcut}
-                                  />
-                                </DropdownMenuHint>
-                              ) : null}
-                            </DropdownMenuItem>
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side="right"
-                            sideOffset={8}
-                            className="max-w-64 py-2 text-pretty"
-                          >
-                            {skill.description}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    },
-                  )}
-                </DropdownMenuGroup>
-              </Fragment>
-            ))}
+                              </DropdownMenuItem>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="right"
+                              sideOffset={8}
+                              className="max-w-64 py-2 text-pretty"
+                            >
+                              {skill.description}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      },
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </EditorPanel>

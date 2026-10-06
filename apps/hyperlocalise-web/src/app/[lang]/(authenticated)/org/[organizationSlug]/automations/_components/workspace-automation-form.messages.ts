@@ -1268,19 +1268,25 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Run history trigger source for web chat",
   },
   skillCategoryReview: {
-    defaultMessage: "Review and research",
-    id: "1vXDu6JJ4o",
-    description: "Skill menu section: skills that read code, content or the web and change nothing",
+    defaultMessage: "Review",
+    id: "bQPNqQ6BaC",
+    description: "Skill menu group: skills that check your own code and translations",
+  },
+  skillCategoryResearch: {
+    defaultMessage: "Research",
+    id: "tM2BieLM3f",
+    description:
+      "Skill menu group: skills that look things up outside your content, such as the web",
   },
   skillCategoryTranslate: {
     defaultMessage: "Translate",
-    id: "5tdyXDpR3J",
-    description: "Skill menu section: skills that produce translations",
+    id: "lV6tIpjosi",
+    description: "Skill menu group: skills that produce translations",
   },
   skillCategoryReport: {
     defaultMessage: "Report results",
-    id: "3hjwqE47jB",
-    description: "Skill menu section: skills that send the run's outcome somewhere",
+    id: "uY8w9jXbP0",
+    description: "Skill menu group: skills that send the run's outcome somewhere",
   },
   runSummaryYes: {
     defaultMessage: "Yes",
