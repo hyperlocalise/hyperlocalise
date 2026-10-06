@@ -604,6 +604,52 @@ describe("MCP list_translations", () => {
     expect(notHiddenRows.output.translations?.[0]?.isHidden).toBe(false);
   });
 
+  it("applies not_hidden without targetLocale even when the project has no locales", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    await db
+      .update(schema.projects)
+      .set({ targetLocales: [] })
+      .where(eq(schema.projects.id, stored.project.id));
+
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const { keys } = await seedFileKeys({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+      entries: [
+        { key: "done", text: "Done" },
+        { key: "hidden", text: "Internal" },
+      ],
+    });
+
+    const hidden = keys.find((row) => row.key === "hidden");
+    expect(hidden).toBeDefined();
+    await setProjectTranslationKeysHidden({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyIds: [hidden!.id],
+      isHidden: true,
+    });
+
+    const notHiddenRows = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        queueFilter: "not_hidden",
+      }),
+    );
+    expect(notHiddenRows.output.total).toBe(1);
+    expect(notHiddenRows.output.translations?.map((row) => row.key)).toEqual(["done"]);
+    expect(notHiddenRows.output.translations?.[0]?.isHidden).toBe(false);
+
+    const hiddenRows = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        queueFilter: "hidden",
+      }),
+    );
+    expect(hiddenRows.output.translations?.map((row) => row.key)).toEqual(["hidden"]);
+  });
+
   it("lets a read-only member list keys", async () => {
     const stored = await fixture.createStoredProjectFixture();
     const member = fixture.createWorkosIdentityForOrganization(

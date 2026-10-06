@@ -123,11 +123,23 @@ function translationKeysSearchCondition(input: {
 function translationKeysQueueFilterCondition(input: {
   organizationId: string;
   projectId: string;
-  targetLocale: string;
+  targetLocale?: string;
   queueFilter?: ProjectFileContentEditorQueueFilter;
 }) {
   const filter = input.queueFilter;
   if (!filter || filter === "all") {
+    return undefined;
+  }
+
+  // Hidden / not hidden are source-key flags, independent of the CAT locale.
+  switch (filter) {
+    case "hidden":
+      return eq(schema.projectTranslationKeys.isHidden, true);
+    case "not_hidden":
+      return eq(schema.projectTranslationKeys.isHidden, false);
+  }
+
+  if (!input.targetLocale) {
     return undefined;
   }
 
@@ -213,10 +225,6 @@ function translationKeysQueueFilterCondition(input: {
             limit 1
           )
       )`;
-    case "hidden":
-      return eq(schema.projectTranslationKeys.isHidden, true);
-    case "not_hidden":
-      return eq(schema.projectTranslationKeys.isHidden, false);
     default:
       return undefined;
   }
@@ -518,14 +526,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysFileConditions(input),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+          }),
         ),
       );
 
@@ -562,14 +568,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
         and(
           translationKeysFileConditions(input),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+          }),
         ),
       )
       .orderBy(
@@ -604,14 +608,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+          }),
         ),
       );
 
@@ -654,14 +656,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
           translationKeysProjectConditions(input),
           translationKeysSourcePathFilter(input.sourcePaths),
           translationKeysSearchCondition(input),
-          input.targetLocale
-            ? translationKeysQueueFilterCondition({
-                organizationId: input.organizationId,
-                projectId: input.projectId,
-                targetLocale: input.targetLocale,
-                queueFilter: input.queueFilter,
-              })
-            : undefined,
+          translationKeysQueueFilterCondition({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            targetLocale: input.targetLocale,
+            queueFilter: input.queueFilter,
+          }),
         ),
       )
       .orderBy(
