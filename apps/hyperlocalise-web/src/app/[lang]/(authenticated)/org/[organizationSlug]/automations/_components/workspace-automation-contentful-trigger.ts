@@ -17,14 +17,18 @@ export type ContentfulConnectionOption = {
   enabled: boolean;
 };
 
-export type ContentfulTriggerContentTypes = {
-  /** Content types whose publish starts a run. Empty with `any` false means none does. */
-  contentTypeIds: string[];
-  /** Every content type starts a run. */
-  any: boolean;
-  /** The automation's saved list no longer equals the connection's, so it can be brought in line. */
-  differsFromConnection: boolean;
-};
+export type ContentfulTriggerContentTypes =
+  /** The automation's connection is disabled or gone, so no publish reaches it. */
+  | { state: "connection_unavailable" }
+  | {
+      state: "ready";
+      /** Content types whose publish starts a run. Empty with `any` false means none does. */
+      contentTypeIds: string[];
+      /** Every content type starts a run. */
+      any: boolean;
+      /** Saved types the connection no longer sends. A saved subset of its types is not stale. */
+      staleContentTypeIds: string[];
+    };
 
 /**
  * A publish starts a run only when the connection's webhook sends it and the automation's saved
@@ -32,28 +36,42 @@ export type ContentfulTriggerContentTypes = {
  */
 export function resolveContentfulTriggerContentTypes(input: {
   savedContentTypeIds: readonly string[];
-  /** Undefined while connections load, or when the automation's connection is gone. */
-  connection: Pick<ContentfulConnectionOption, "contentTypeIds"> | undefined;
+  connectionId: string;
+  /** Empty while connections load, and then nothing is known about the automation's own. */
+  connections: readonly Pick<ContentfulConnectionOption, "id" | "contentTypeIds" | "enabled">[];
 }): ContentfulTriggerContentTypes {
   const saved = [...new Set(input.savedContentTypeIds)];
-  if (!input.connection) {
-    return { contentTypeIds: saved, any: saved.length === 0, differsFromConnection: false };
+  if (!input.connectionId || input.connections.length === 0) {
+    return {
+      state: "ready",
+      contentTypeIds: saved,
+      any: saved.length === 0,
+      staleContentTypeIds: [],
+    };
   }
 
-  const sent = [...new Set(input.connection.contentTypeIds)];
+  const connection = input.connections.find((entry) => entry.id === input.connectionId);
+  if (!connection?.enabled) {
+    return { state: "connection_unavailable" };
+  }
+
+  const sent = [...new Set(connection.contentTypeIds)];
   if (saved.length === 0) {
-    return { contentTypeIds: sent, any: sent.length === 0, differsFromConnection: false };
+    return {
+      state: "ready",
+      contentTypeIds: sent,
+      any: sent.length === 0,
+      staleContentTypeIds: [],
+    };
   }
-
-  const differsFromConnection =
-    saved.length !== sent.length || saved.some((contentTypeId) => !sent.includes(contentTypeId));
   if (sent.length === 0) {
-    return { contentTypeIds: saved, any: false, differsFromConnection };
+    return { state: "ready", contentTypeIds: saved, any: false, staleContentTypeIds: [] };
   }
 
   return {
+    state: "ready",
     contentTypeIds: saved.filter((contentTypeId) => sent.includes(contentTypeId)),
     any: false,
-    differsFromConnection,
+    staleContentTypeIds: saved.filter((contentTypeId) => !sent.includes(contentTypeId)),
   };
 }

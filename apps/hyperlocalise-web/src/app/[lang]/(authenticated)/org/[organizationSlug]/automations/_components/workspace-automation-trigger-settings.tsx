@@ -473,23 +473,22 @@ function ScheduledTriggerFields({ disabled, errors, form, onChange }: TriggerFie
 }
 
 function readContentfulTriggerContentTypes({ context, form }: TriggerFieldsProps) {
-  const connection = context.contentfulConnections.find(
-    (entry) => entry.id === form.contentfulConnectionId,
-  );
-  return {
-    connection,
-    ...resolveContentfulTriggerContentTypes({
-      savedContentTypeIds: form.contentfulContentTypeIds,
-      connection,
-    }),
-  };
+  return resolveContentfulTriggerContentTypes({
+    savedContentTypeIds: form.contentfulContentTypeIds,
+    connectionId: form.contentfulConnectionId,
+    connections: context.contentfulConnections,
+  });
 }
 
 /** Read-only: the content types whose publish reaches this automation. */
 function ContentfulTriggerFields(props: TriggerFieldsProps) {
-  const { any, contentTypeIds } = readContentfulTriggerContentTypes(props);
+  const resolved = readContentfulTriggerContentTypes(props);
 
-  if (any) {
+  if (resolved.state === "connection_unavailable") {
+    return null;
+  }
+
+  if (resolved.any) {
     return (
       <Prose>
         <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulAnyType} />
@@ -497,7 +496,7 @@ function ContentfulTriggerFields(props: TriggerFieldsProps) {
     );
   }
 
-  if (contentTypeIds.length === 0) {
+  if (resolved.contentTypeIds.length === 0) {
     return null;
   }
 
@@ -506,7 +505,7 @@ function ContentfulTriggerFields(props: TriggerFieldsProps) {
       <Prose>
         <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulOfType} />
       </Prose>
-      {contentTypeIds.map((contentTypeId) => (
+      {resolved.contentTypeIds.map((contentTypeId) => (
         <span
           key={contentTypeId}
           className="flex h-8 max-w-xs items-center truncate rounded-lg border border-border px-3 text-sm text-muted-foreground"
@@ -520,8 +519,8 @@ function ContentfulTriggerFields(props: TriggerFieldsProps) {
 
 function ContentfulTriggerDetails(props: TriggerFieldsProps) {
   const { context, disabled, form, onChange } = props;
-  const { any, connection, contentTypeIds, differsFromConnection } =
-    readContentfulTriggerContentTypes(props);
+  const intl = useIntl();
+  const resolved = readContentfulTriggerContentTypes(props);
 
   if (!context.contentfulConnected) {
     return (
@@ -535,20 +534,42 @@ function ContentfulTriggerDetails(props: TriggerFieldsProps) {
     );
   }
 
-  if (!connection || !differsFromConnection) {
+  if (resolved.state === "connection_unavailable") {
+    return (
+      <TriggerDetailRow>
+        <span className="text-xs text-destructive">
+          <FormattedMessage
+            {...workspaceAutomationTriggerMessages.contentfulConnectionUnavailable}
+          />
+        </span>
+      </TriggerDetailRow>
+    );
+  }
+
+  if (resolved.staleContentTypeIds.length === 0) {
     return null;
   }
 
-  const startsNothing = !any && contentTypeIds.length === 0;
+  // With no type left, nothing starts a run, so the only way forward is the connection's list.
+  // Otherwise dropping the stale types changes nothing about which publishes start a run.
+  const startsNothing = resolved.contentTypeIds.length === 0;
+  const connectionContentTypeIds =
+    context.contentfulConnections.find((entry) => entry.id === form.contentfulConnectionId)
+      ?.contentTypeIds ?? [];
 
   return (
     <TriggerDetailRow>
       <span className={cn("text-xs", startsNothing ? "text-destructive" : "text-muted-foreground")}>
-        <FormattedMessage
-          {...(startsNothing
-            ? workspaceAutomationTriggerMessages.contentfulNoStartingType
-            : workspaceAutomationTriggerMessages.contentfulTypesDiffer)}
-        />
+        {startsNothing ? (
+          <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulNoStartingType} />
+        ) : (
+          <FormattedMessage
+            {...workspaceAutomationTriggerMessages.contentfulStaleTypes}
+            values={{
+              types: intl.formatList(resolved.staleContentTypeIds, { type: "conjunction" }),
+            }}
+          />
+        )}
       </span>
       <Button
         type="button"
@@ -557,10 +578,19 @@ function ContentfulTriggerDetails(props: TriggerFieldsProps) {
         disabled={disabled}
         className="h-8 rounded-full px-3"
         onClick={() =>
-          onChange({ ...form, contentfulContentTypeIds: [...connection.contentTypeIds] })
+          onChange({
+            ...form,
+            contentfulContentTypeIds: startsNothing
+              ? [...connectionContentTypeIds]
+              : resolved.contentTypeIds,
+          })
         }
       >
-        <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulUseConnectionTypes} />
+        <FormattedMessage
+          {...(startsNothing
+            ? workspaceAutomationTriggerMessages.contentfulUseConnectionTypes
+            : workspaceAutomationTriggerMessages.contentfulRemoveStaleTypes)}
+        />
       </Button>
     </TriggerDetailRow>
   );

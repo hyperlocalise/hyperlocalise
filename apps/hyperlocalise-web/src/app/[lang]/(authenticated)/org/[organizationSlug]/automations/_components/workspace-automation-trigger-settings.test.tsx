@@ -77,7 +77,7 @@ describe("TriggerSettings Contentful content types", () => {
     vi.clearAllMocks();
   });
 
-  it("shows only the types the connection still sends and can adopt its list", async () => {
+  it("drops stale types without widening the filter", async () => {
     const user = userEvent.setup();
     render(
       <Harness
@@ -87,36 +87,54 @@ describe("TriggerSettings Contentful content types", () => {
     );
 
     expect(screen.getByText("article")).toBeInTheDocument();
-    expect(screen.queryByText("landingPage")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Use the connection's content types" }));
-
-    expect(screen.getByText("faq")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Use the connection's content types" }),
-    ).not.toBeInTheDocument();
+      screen.getByText("The Contentful connection no longer sends landingPage."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove from this automation" }));
+
+    expect(screen.getByText("article")).toBeInTheDocument();
+    expect(screen.queryByText("faq")).not.toBeInTheDocument();
+    expect(screen.queryByText(/no longer sends/)).not.toBeInTheDocument();
   });
 
-  it("warns when none of the saved types is sent any more", () => {
+  it("leaves a deliberate subset of the connection's types alone", () => {
+    render(
+      <Harness
+        connectionContentTypeIds={["article", "landingPage", "faq"]}
+        initialForm={contentfulForm(["article"])}
+      />,
+    );
+
+    expect(screen.getByText("article")).toBeInTheDocument();
+    expect(screen.queryByText(/no longer sends/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /content types|Remove/ })).not.toBeInTheDocument();
+  });
+
+  it("warns when none of the saved types is sent any more and offers the connection's list", async () => {
+    const user = userEvent.setup();
     render(
       <Harness connectionContentTypeIds={["faq"]} initialForm={contentfulForm(["landingPage"])} />,
     );
 
     expect(screen.getByText(/so no run will start/)).toBeInTheDocument();
     expect(screen.queryByText("landingPage")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Use the connection's content types" }));
+
+    expect(screen.getByText("faq")).toBeInTheDocument();
   });
 
-  it("stays quiet when the saved list matches the connection", () => {
+  it("warns when the automation's connection is gone while another exists", () => {
     render(
       <Harness
-        connectionContentTypeIds={["article", "landingPage"]}
-        initialForm={contentfulForm(["landingPage", "article"])}
+        connectionContentTypeIds={["article"]}
+        initialForm={{ ...contentfulForm(["article"]), contentfulConnectionId: "deleted" }}
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Use the connection's content types" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/disabled or no longer exists/)).toBeInTheDocument();
+    expect(screen.queryByText("article")).not.toBeInTheDocument();
   });
 });
 

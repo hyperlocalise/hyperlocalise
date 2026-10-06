@@ -14,72 +14,100 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { resolveContentfulTriggerContentTypes } from "./workspace-automation-contentful-trigger";
 
+const CONNECTION_ID = "contentful_conn_001";
+
+function resolve(saved: string[], sent: string[] | null, options: { enabled?: boolean } = {}) {
+  return resolveContentfulTriggerContentTypes({
+    savedContentTypeIds: saved,
+    connectionId: CONNECTION_ID,
+    connections:
+      sent === null
+        ? []
+        : [{ id: CONNECTION_ID, contentTypeIds: sent, enabled: options.enabled ?? true }],
+  });
+}
+
 describe("resolveContentfulTriggerContentTypes", () => {
-  it("shows the saved list while the connection is unknown", () => {
+  it("shows the saved list while connections are still loading", () => {
+    expect(resolve(["article"], null)).toEqual({
+      state: "ready",
+      contentTypeIds: ["article"],
+      any: false,
+      staleContentTypeIds: [],
+    });
+  });
+
+  it("shows the saved list when no connection is chosen yet", () => {
+    expect(
+      resolveContentfulTriggerContentTypes({
+        savedContentTypeIds: [],
+        connectionId: "",
+        connections: [{ id: CONNECTION_ID, contentTypeIds: ["article"], enabled: true }],
+      }),
+    ).toEqual({ state: "ready", contentTypeIds: [], any: true, staleContentTypeIds: [] });
+  });
+
+  it("reports a connection that is gone while others exist", () => {
     expect(
       resolveContentfulTriggerContentTypes({
         savedContentTypeIds: ["article"],
-        connection: undefined,
+        connectionId: "contentful_conn_deleted",
+        connections: [{ id: CONNECTION_ID, contentTypeIds: ["article"], enabled: true }],
       }),
-    ).toEqual({ contentTypeIds: ["article"], any: false, differsFromConnection: false });
+    ).toEqual({ state: "connection_unavailable" });
+  });
+
+  it("reports a disabled connection", () => {
+    expect(resolve(["article"], ["article"], { enabled: false })).toEqual({
+      state: "connection_unavailable",
+    });
   });
 
   it("follows the connection when the automation accepts every type", () => {
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: [],
-        connection: { contentTypeIds: ["article", "landingPage"] },
-      }),
-    ).toEqual({
+    expect(resolve([], ["article", "landingPage"])).toEqual({
+      state: "ready",
       contentTypeIds: ["article", "landingPage"],
       any: false,
-      differsFromConnection: false,
+      staleContentTypeIds: [],
     });
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: [],
-        connection: { contentTypeIds: [] },
-      }),
-    ).toEqual({ contentTypeIds: [], any: true, differsFromConnection: false });
+    expect(resolve([], [])).toEqual({
+      state: "ready",
+      contentTypeIds: [],
+      any: true,
+      staleContentTypeIds: [],
+    });
   });
 
-  it("drops saved types the connection no longer sends", () => {
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: ["article", "landingPage"],
-        connection: { contentTypeIds: ["article", "faq"] },
-      }),
-    ).toEqual({ contentTypeIds: ["article"], any: false, differsFromConnection: true });
+  it("treats a saved subset of the connection's types as a deliberate filter", () => {
+    expect(resolve(["article"], ["article", "landingPage", "faq"])).toEqual({
+      state: "ready",
+      contentTypeIds: ["article"],
+      any: false,
+      staleContentTypeIds: [],
+    });
+    expect(resolve(["article"], [])).toEqual({
+      state: "ready",
+      contentTypeIds: ["article"],
+      any: false,
+      staleContentTypeIds: [],
+    });
+  });
+
+  it("marks saved types the connection no longer sends as stale", () => {
+    expect(resolve(["article", "landingPage"], ["article", "faq"])).toEqual({
+      state: "ready",
+      contentTypeIds: ["article"],
+      any: false,
+      staleContentTypeIds: ["landingPage"],
+    });
   });
 
   it("reports no starting type when the lists do not overlap", () => {
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: ["landingPage"],
-        connection: { contentTypeIds: ["faq"] },
-      }),
-    ).toEqual({ contentTypeIds: [], any: false, differsFromConnection: true });
-  });
-
-  it("keeps the saved list when the connection sends every type", () => {
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: ["article"],
-        connection: { contentTypeIds: [] },
-      }),
-    ).toEqual({ contentTypeIds: ["article"], any: false, differsFromConnection: true });
-  });
-
-  it("treats the same types in another order as in step", () => {
-    expect(
-      resolveContentfulTriggerContentTypes({
-        savedContentTypeIds: ["landingPage", "article"],
-        connection: { contentTypeIds: ["article", "landingPage"] },
-      }),
-    ).toEqual({
-      contentTypeIds: ["landingPage", "article"],
+    expect(resolve(["landingPage"], ["faq"])).toEqual({
+      state: "ready",
+      contentTypeIds: [],
       any: false,
-      differsFromConnection: false,
+      staleContentTypeIds: ["landingPage"],
     });
   });
 });

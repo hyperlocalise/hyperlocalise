@@ -209,14 +209,27 @@ export const ContentfulTypesChangedOnConnection: Story = {
   play: async ({ canvas, userEvent }) => {
     // Only the type both lists share still starts a run.
     await expect(canvas.getByText("article")).toBeInTheDocument();
-    await expect(canvas.queryByText("landingPage")).not.toBeInTheDocument();
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Use the connection's content types" }),
-    );
-    await expect(canvas.getByText("faq")).toBeInTheDocument();
     await expect(
-      canvas.queryByRole("button", { name: "Use the connection's content types" }),
-    ).not.toBeInTheDocument();
+      canvas.getByText("The Contentful connection no longer sends landingPage."),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Remove from this automation" }));
+    await expect(canvas.queryByText(/no longer sends/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText("faq")).not.toBeInTheDocument();
+  },
+};
+
+export const ContentfulConnectionGone: Story = {
+  args: {
+    contentfulConnections: automationEditorContentfulConnectionsFixture,
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      triggerMode: "contentful",
+      contentfulConnectionId: "contentful_conn_deleted",
+      contentfulContentTypeIds: ["article"],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/disabled or no longer exists/)).toBeInTheDocument();
   },
 };
 
