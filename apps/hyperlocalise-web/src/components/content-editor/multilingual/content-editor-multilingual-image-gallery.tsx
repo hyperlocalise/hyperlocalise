@@ -23,6 +23,16 @@ import {
 import { useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -38,6 +48,7 @@ import { useContentEditorSegmentTarget } from "@/components/content-editor/proje
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
+import { isCatImageFileSegment } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
@@ -141,10 +152,11 @@ function LocaleImageCard({
   aspectRatio: number;
   sourceSize: { width: number; height: number } | null;
   generation: GenerationState | undefined;
-  onGenerate?: () => void;
+  onGenerate?: (options?: { force?: boolean }) => void;
   onOpenTranslation?: () => void;
 }) {
   const intl = useIntl();
+  const [confirmApproved, setConfirmApproved] = useState(false);
   const identity = config.identities?.get(segment.id);
   const query = useContentEditorSegmentTarget({
     organizationSlug: config.organizationSlug,
@@ -161,6 +173,7 @@ function LocaleImageCard({
     target?.targetAssetUrl ?? (target && HTTP_URL_PATTERN.test(target.text) ? target.text : null);
   const language = formatLocaleDisplayName(intl, locale);
   const isGenerating = generation?.status === "running";
+  const isApproved = Boolean(target?.isApproved);
 
   let body: ReactNode;
   if (isGenerating) {
@@ -205,60 +218,91 @@ function LocaleImageCard({
   }
 
   return (
-    <GalleryCard
-      locale={locale}
-      badge={
-        target?.isApproved && !isGenerating ? (
-          <Badge variant="outline" className="shrink-0 gap-1 text-xs font-normal">
-            <CheckIcon className="size-3 text-primary" aria-hidden />
-            {intl.formatMessage(multilingualMessages.approved)}
-          </Badge>
-        ) : null
-      }
-      footer={
-        onGenerate || onOpenTranslation ? (
-          <>
-            {onGenerate ? (
-              <Button
-                size="xs"
-                variant={targetSrc ? "outline" : "default"}
-                disabled={isGenerating || query.isPending}
-                aria-label={intl.formatMessage(
-                  targetSrc ? messages.regenerateAria : messages.generateAria,
-                  { language },
-                )}
-                onClick={onGenerate}
-              >
-                {targetSrc ? (
-                  <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
-                ) : (
-                  <SparkleIcon data-icon="inline-start" aria-hidden />
-                )}
-                {intl.formatMessage(targetSrc ? messages.regenerate : messages.generate)}
-              </Button>
-            ) : null}
-            {onOpenTranslation ? (
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-label={intl.formatMessage(messages.openAria, { language })}
-                onClick={onOpenTranslation}
-              >
-                <ArrowSquareOutIcon data-icon="inline-start" aria-hidden />
-                {intl.formatMessage(messages.open)}
-              </Button>
-            ) : null}
-          </>
-        ) : null
-      }
-    >
-      {body}
-      {generation?.status === "failed" ? (
-        <p role="alert" className="text-xs text-destructive">
-          {intl.formatMessage(messages.generationError)}
-        </p>
-      ) : null}
-    </GalleryCard>
+    <>
+      <GalleryCard
+        locale={locale}
+        badge={
+          isApproved && !isGenerating ? (
+            <Badge variant="outline" className="shrink-0 gap-1 text-xs font-normal">
+              <CheckIcon className="size-3 text-primary" aria-hidden />
+              {intl.formatMessage(multilingualMessages.approved)}
+            </Badge>
+          ) : null
+        }
+        footer={
+          onGenerate || onOpenTranslation ? (
+            <>
+              {onGenerate ? (
+                <Button
+                  size="xs"
+                  variant={targetSrc ? "outline" : "default"}
+                  disabled={isGenerating || query.isPending}
+                  aria-label={intl.formatMessage(
+                    targetSrc ? messages.regenerateAria : messages.generateAria,
+                    { language },
+                  )}
+                  onClick={() => {
+                    if (isApproved) {
+                      setConfirmApproved(true);
+                      return;
+                    }
+                    onGenerate();
+                  }}
+                >
+                  {targetSrc ? (
+                    <ArrowClockwiseIcon data-icon="inline-start" aria-hidden />
+                  ) : (
+                    <SparkleIcon data-icon="inline-start" aria-hidden />
+                  )}
+                  {intl.formatMessage(targetSrc ? messages.regenerate : messages.generate)}
+                </Button>
+              ) : null}
+              {onOpenTranslation ? (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  aria-label={intl.formatMessage(messages.openAria, { language })}
+                  onClick={onOpenTranslation}
+                >
+                  <ArrowSquareOutIcon data-icon="inline-start" aria-hidden />
+                  {intl.formatMessage(messages.open)}
+                </Button>
+              ) : null}
+            </>
+          ) : null
+        }
+      >
+        {body}
+        {generation?.status === "failed" ? (
+          <p role="alert" className="text-xs text-destructive">
+            {intl.formatMessage(messages.generationError)}
+          </p>
+        ) : null}
+      </GalleryCard>
+      <AlertDialog open={confirmApproved} onOpenChange={setConfirmApproved}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {intl.formatMessage(messages.regenerateApprovedTitle, { language })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(messages.regenerateApprovedDescription)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{intl.formatMessage(messages.cancel)}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmApproved(false);
+                onGenerate?.({ force: true });
+              }}
+            >
+              {intl.formatMessage(messages.regenerateApprovedConfirm)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -276,7 +320,11 @@ function SegmentImageGallery({
   locales: readonly string[];
   showKey: boolean;
   generations: ReadonlyMap<string, GenerationState>;
-  onGenerate?: (segment: ContentEditorSegment, locale: string) => void;
+  onGenerate?: (
+    segment: ContentEditorSegment,
+    locale: string,
+    options?: { force?: boolean },
+  ) => void;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
 }) {
   const intl = useIntl();
@@ -325,7 +373,9 @@ function SegmentImageGallery({
               sourceSize={sourceSize}
               generation={generations.get(generationKey(segment.id, locale))}
               onGenerate={
-                canGenerate && sourceSrc ? () => onGenerate?.(segment, locale) : undefined
+                canGenerate && sourceSrc
+                  ? (options) => onGenerate?.(segment, locale, options)
+                  : undefined
               }
               onOpenTranslation={
                 onOpenTranslation ? () => onOpenTranslation(segment, locale) : undefined
@@ -373,8 +423,18 @@ export function ContentEditorMultilingualImageGallery({
     [locales, hiddenLocales],
   );
   const { onRegenerateImage } = config;
+  const imageSegments = useMemo(
+    () =>
+      segments.filter((segment) =>
+        isCatImageFileSegment({
+          sourcePath: segment.sourcePath,
+          contentKind: segment.contentKind,
+        }),
+      ),
+    [segments],
+  );
   const generate = useCallback(
-    async (segment: ContentEditorSegment, locale: string) => {
+    async (segment: ContentEditorSegment, locale: string, options?: { force?: boolean }) => {
       if (!onRegenerateImage) return;
       const key = generationKey(segment.id, locale);
       setGenerations((previous) =>
@@ -382,7 +442,7 @@ export function ContentEditorMultilingualImageGallery({
       );
       let next: GenerationState | null = null;
       try {
-        await onRegenerateImage(segment, locale);
+        await onRegenerateImage(segment, locale, options);
       } catch {
         next = { status: "failed" };
       }
@@ -444,7 +504,7 @@ export function ContentEditorMultilingualImageGallery({
         aria-label={intl.formatMessage(messages.title)}
         aria-busy={isLoading}
       >
-        {segments.length === 0 ? (
+        {imageSegments.length === 0 ? (
           <p role="status" className="p-6 text-sm text-muted-foreground">
             {intl.formatMessage(
               isLoading ? multilingualMessages.loading : multilingualMessages.empty,
@@ -452,15 +512,19 @@ export function ContentEditorMultilingualImageGallery({
           </p>
         ) : (
           <div className="mx-auto flex max-w-[96rem] flex-col gap-8 p-4 sm:p-6">
-            {segments.map((segment) => (
+            {imageSegments.map((segment) => (
               <SegmentImageGallery
                 key={segment.id}
                 config={config}
                 segment={segment}
                 locales={visibleLocales}
-                showKey={segments.length > 1}
+                showKey={imageSegments.length > 1}
                 generations={generations}
-                onGenerate={onRegenerateImage ? (s, l) => void generate(s, l) : undefined}
+                onGenerate={
+                  onRegenerateImage
+                    ? (nextSegment, locale, options) => void generate(nextSegment, locale, options)
+                    : undefined
+                }
                 onOpenTranslation={onOpenTranslation}
               />
             ))}

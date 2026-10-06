@@ -80,4 +80,24 @@ export const multilingualImageGalleryMessages = defineMessages({
     id: "S3lxqQnnh1",
     description: "Status in the gallery footer while images are being generated",
   },
+  regenerateApprovedTitle: {
+    defaultMessage: "Replace the approved {language} image?",
+    id: "PAdtGHwgwl",
+    description: "Title of the confirmation dialog before regenerating an approved gallery image",
+  },
+  regenerateApprovedDescription: {
+    defaultMessage: "This language already has an approved image. Regenerating replaces it.",
+    id: "RI4oGEeV+s",
+    description: "Explanation that regenerating an approved gallery image overwrites it",
+  },
+  regenerateApprovedConfirm: {
+    defaultMessage: "Regenerate",
+    id: "ngsC5Z4K4f",
+    description: "Confirm button that overwrites an approved gallery image",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "Ha7VIKn6vj",
+    description: "Cancel the approved-image regenerate confirmation in the gallery",
+  },
 });

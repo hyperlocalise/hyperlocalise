@@ -1025,8 +1025,16 @@ export function ProjectFileContentEditorWorkspace({
       },
       ...(isNativeProject && aiFeaturesAllowed && contentEditorFile?.canEditTranslations
         ? {
-            onRegenerateImage: async (segment: ContentEditorSegment, locale: string) => {
-              await regenerateImage({ externalStringId: segment.id, targetLocale: locale });
+            onRegenerateImage: async (
+              segment: ContentEditorSegment,
+              locale: string,
+              options?: { force?: boolean },
+            ) => {
+              await regenerateImage({
+                externalStringId: segment.id,
+                targetLocale: locale,
+                force: options?.force,
+              });
             },
           }
         : {}),

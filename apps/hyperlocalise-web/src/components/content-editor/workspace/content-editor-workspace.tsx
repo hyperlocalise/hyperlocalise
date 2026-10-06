@@ -36,7 +36,10 @@ import type { ContentEditorWorkspaceViewProps } from "@/components/content-edito
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 import { isNativeContentEditorProviderKind } from "@/components/content-editor/shared/content-editor-native-project";
 
-import { resolveCatFileViewCapabilities } from "./content-editor-file-view-capabilities";
+import {
+  contentEditorMultilingualGallerySegments,
+  resolveCatFileViewCapabilities,
+} from "./content-editor-file-view-capabilities";
 import { loadOriginalDocumentContext } from "./content-editor-original-document-context";
 import { ContentEditorPanelErrorBoundary } from "./content-editor-panel-error-boundary";
 import { useContentEditorWorkspace } from "./content-editor-workspace-context";
@@ -207,6 +210,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
         sourcePath: selectedSegment?.sourcePath ?? shell.fileContext.sourcePath,
         contentKind: selectedSegment?.contentKind,
       }).family === "image";
+    const gallerySegments = contentEditorMultilingualGallerySegments(
+      queueSegments,
+      selectedSegment,
+    );
 
     return (
       <div
@@ -215,13 +222,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       >
         {isImageFile ? (
           <ContentEditorMultilingualImageGallery
-            key={`${multilingual.projectId}:${multilingual.sourcePath}`}
+            key={`${multilingual.projectId}:${selectedSegment?.id ?? multilingual.sourcePath}`}
             config={multilingual}
-            segments={queueSegments}
+            segments={gallerySegments}
             isLoading={isQueueListLoading || isQueueDataPending}
-            hasMore={hasMoreQueue}
-            isLoadingMore={isQueueFetchingPage}
-            onLoadMore={onLoadMoreQueue}
             onOpenTranslation={
               multilingual.onOpenTranslation
                 ? (segment, locale) => {

@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 // @vitest-environment happy-dom
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -51,11 +51,12 @@ function baseConfig(overrides: Partial<ContentEditorMultilingualConfig> = {}) {
 function show(
   config: ContentEditorMultilingualConfig,
   onOpenTranslation = vi.fn<(segment: ContentEditorSegment, locale: string) => void>(),
+  segments: ContentEditorSegment[] = [segment],
 ) {
   renderWithContentEditorProviders(
     <ContentEditorMultilingualImageGallery
       config={config}
-      segments={[segment]}
+      segments={segments}
       onOpenTranslation={onOpenTranslation}
     />,
   );
@@ -107,7 +108,7 @@ describe("multilingual image gallery", () => {
 
     await user.click(screen.getByRole("button", { name: "Localise image for German" }));
 
-    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "de");
+    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "de", undefined);
     expect(screen.getByRole("progressbar", { name: "Generating image" })).toBeInTheDocument();
     expect(screen.getByText("Localising 1 image…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Localise image for German" })).toBeDisabled();
@@ -122,11 +123,57 @@ describe("multilingual image gallery", () => {
     show(baseConfig({ onRegenerateImage }));
 
     await user.click(screen.getByRole("button", { name: "Regenerate image for French" }));
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "Regenerate" }),
+    );
 
+    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "fr", { force: true });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not localise this image. Try again.",
     );
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("asks before regenerating an approved image and skips when cancelled", async () => {
+    const onRegenerateImage = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    show(baseConfig({ onRegenerateImage }));
+
+    await user.click(screen.getByRole("button", { name: "Regenerate image for French" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Replace the approved French image?");
+    expect(onRegenerateImage).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onRegenerateImage).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("does not request targets for non-image segments in a mixed queue", () => {
+    const copy: ContentEditorSegment = {
+      ...contentEditorSegmentsFixture[0],
+      id: "headline",
+      key: "headline",
+      contentKind: "text",
+      sourcePath: "locales/en.json",
+    };
+    const video: ContentEditorSegment = {
+      ...contentEditorSegmentsFixture[0],
+      id: "promo",
+      key: "promo.mp4",
+      contentKind: "video_file",
+      sourcePath: "promo.mp4",
+    };
+    show(baseConfig(), undefined, [copy, segment, video]);
+
+    expect(targetQuery).toHaveBeenCalledTimes(2);
+    expect(targetQuery).toHaveBeenCalledWith(expect.objectContaining({ externalStringId: "hero" }));
+    expect(targetQuery).not.toHaveBeenCalledWith(
+      expect.objectContaining({ externalStringId: "headline" }),
+    );
+    expect(targetQuery).not.toHaveBeenCalledWith(
+      expect.objectContaining({ externalStringId: "promo" }),
+    );
+    expect(screen.queryByText("headline")).not.toBeInTheDocument();
   });
 
   it("hides generation without edit access and still opens a locale", async () => {

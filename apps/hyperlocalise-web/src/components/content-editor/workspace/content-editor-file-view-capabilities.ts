@@ -138,3 +138,30 @@ export function clampCatWorkspaceViewMode(
 export function isCatFileViewAvailable(capabilities: ContentEditorFileViewCapabilities) {
   return capabilities.availableViews.includes("file");
 }
+
+export function isCatImageFileSegment(input: {
+  sourcePath?: string | null;
+  contentKind?: ContentEditorContentKind | null;
+}) {
+  return resolveCatFileViewCapabilities(input).family === "image";
+}
+
+/** All Files queues mix file kinds; the gallery only shows the selected image file. */
+export function contentEditorMultilingualGallerySegments<
+  T extends {
+    id: string;
+    sourcePath?: string | null;
+    contentKind?: ContentEditorContentKind | null;
+  },
+>(queueSegments: readonly T[], selectedSegment: T | null | undefined): T[] {
+  if (!selectedSegment || !isCatImageFileSegment(selectedSegment)) {
+    return [];
+  }
+  const selectedPath = selectedSegment.sourcePath?.trim();
+  if (!selectedPath) {
+    return [selectedSegment];
+  }
+  return queueSegments.filter(
+    (segment) => segment.sourcePath === selectedPath && isCatImageFileSegment(segment),
+  );
+}
