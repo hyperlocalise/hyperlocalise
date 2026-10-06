@@ -100,16 +100,28 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if mode != "preview" && mode != "apply" && mode != "cancel" {
 		return nil, 0, invalidMemory()
 	}
+	var format, location, key, status, currentMode string
+	err := api.pool.QueryRow(ctx, `select format, source_object_location, source_object_key, status, mode from memory_import_attempts where id=$1 and organization_id=$2 and memory_id=$3 and created_by_user_id=$4 and operation='import'`, payload.AttemptID, actor.organizationID, m.ID, actor.userID).Scan(&format, &location, &key, &status, &currentMode)
+	if err != nil {
+		return nil, 0, err
+	}
+	if mode == "cancel" {
+		// Abandoned upload sessions (browser PUT or queueing failed) are failed
+		// explicitly without requiring object storage or the interchange queue.
+		cancelled, err := api.pool.Exec(ctx, `update memory_import_attempts set status='failed', failure_code='memory_import_cancelled', completed_at=now() where id=$1 and status='upload_pending'`, payload.AttemptID)
+		if err != nil {
+			return nil, 0, err
+		}
+		if cancelled.RowsAffected() == 0 {
+			return nil, 0, memoryFailure(409, "memory_import_not_cancellable", "The memory import cannot be cancelled")
+		}
+		return map[string]any{"attemptId": payload.AttemptID, "operation": "import", "mode": mode, "status": "failed"}, http.StatusOK, nil
+	}
 	if api.interchange == nil {
 		return nil, 0, memoryFailure(503, "memory_interchange_unavailable", "Memory interchange processing is unavailable")
 	}
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
-	}
-	var format, location, key, status, currentMode string
-	err := api.pool.QueryRow(ctx, `select format, source_object_location, source_object_key, status, mode from memory_import_attempts where id=$1 and organization_id=$2 and memory_id=$3 and created_by_user_id=$4 and operation='import'`, payload.AttemptID, actor.organizationID, m.ID, actor.userID).Scan(&format, &location, &key, &status, &currentMode)
-	if err != nil {
-		return nil, 0, err
 	}
 	var sourceByteSize *int32
 	if status == "upload_pending" {
@@ -131,18 +143,6 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	}
 	if mode == "apply" && status != "preview_completed" && status != "queued" {
 		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
-	}
-	if mode == "cancel" {
-		// Abandoned upload sessions (browser PUT or queueing failed) are
-		// failed explicitly so they stop showing as active in history.
-		cancelled, err := api.pool.Exec(ctx, `update memory_import_attempts set status='failed', failure_code='memory_import_cancelled', completed_at=now() where id=$1 and status='upload_pending'`, payload.AttemptID)
-		if err != nil {
-			return nil, 0, err
-		}
-		if cancelled.RowsAffected() == 0 {
-			return nil, 0, memoryFailure(409, "memory_import_not_cancellable", "The memory import cannot be cancelled")
-		}
-		return map[string]any{"attemptId": payload.AttemptID, "operation": "import", "mode": mode, "status": "failed"}, http.StatusOK, nil
 	}
 	options, _ := json.Marshal(map[string]any{"maxUnits": payload.MaxUnits, "mode": mode})
 	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status in ('upload_pending','preview_completed')`, payload.AttemptID, mode, options, sourceByteSize)

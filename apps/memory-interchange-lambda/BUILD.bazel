@@ -1,6 +1,12 @@
 go_binary(
     name = "memory-interchange",
-    srcs = ["contract.go", "main.go", "worker.go"],
+    srcs = [
+        "activity_log.go",
+        "contract.go",
+        "import_apply.go",
+        "main.go",
+        "worker.go",
+    ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/memory-interchange-lambda",
     visibility = ["//visibility:public"],
 )
