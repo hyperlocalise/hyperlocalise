@@ -81,10 +81,7 @@ export function isFileBackedCatSegmentId(
   return fileBackedCatSegmentIds(sourceFileId, sourcePath).includes(externalStringId);
 }
 
-function isUnfilteredCatKeyQuery(pagination: {
-  search?: string;
-  queueFilter?: string;
-}) {
+function isUnfilteredCatKeyQuery(pagination: { search?: string; queueFilter?: string }) {
   return !pagination.search && (!pagination.queueFilter || pagination.queueFilter === "all");
 }
 

@@ -209,8 +209,6 @@ export function overlayCatDocumentFileViewSegment<
     sourceAssetUrl: documentView.sourceAssetUrl ?? null,
     targetAssetUrl: documentView.targetAssetUrl ?? null,
     imageVariantId: documentView.imageVariantId ?? null,
-    ...(segment.targetText !== undefined
-      ? { targetText: documentView.targetAssetUrl ?? "" }
-      : {}),
+    ...(segment.targetText !== undefined ? { targetText: documentView.targetAssetUrl ?? "" } : {}),
   };
 }

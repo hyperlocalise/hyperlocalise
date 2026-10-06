@@ -28,9 +28,9 @@ describe("availablePersonasForFamily", () => {
   });
 
   it("offers translator, designer, and reviewer for native markdown with segment views", () => {
-    expect(
-      availablePersonasForFamily("document", ["comfortable", "side-by-side", "file"]),
-    ).toEqual(["translator", "designer", "reviewer"]);
+    expect(availablePersonasForFamily("document", ["comfortable", "side-by-side", "file"])).toEqual(
+      ["translator", "designer", "reviewer"],
+    );
   });
 
   it("stays designer-only for document files without segment views", () => {
