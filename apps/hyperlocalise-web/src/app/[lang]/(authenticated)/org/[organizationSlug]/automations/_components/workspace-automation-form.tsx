@@ -1623,10 +1623,9 @@ function SkillsSettings({
                           <TooltipContent
                             side="right"
                             sideOffset={8}
-                            className="flex max-w-64 flex-col items-start gap-1 py-2 text-pretty"
+                            className="max-w-64 py-2 text-pretty"
                           >
-                            <span>{skill.description}</span>
-                            <span className="opacity-70">{skill.grants}</span>
+                            {skill.description}
                           </TooltipContent>
                         </Tooltip>
                       );
