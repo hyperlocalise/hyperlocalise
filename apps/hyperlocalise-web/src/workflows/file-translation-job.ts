@@ -1293,22 +1293,16 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               sourceEntries: deltaSource,
               targetEntries: accepted,
             });
-            if (
-              !isDocumentTranslationFileFormat(
-                parsedInput.fileFormat as SupportedTranslationFileFormat,
-              )
-            ) {
-              await persistFileProjectTranslationsStep({
-                organizationId,
-                projectId: claim.job.projectId,
-                jobId: claim.job.id,
-                sourcePath: repositorySourcePath,
-                sourceLocale: parsedInput.sourceLocale,
-                targetLocale,
-                sourceEntries: deltaSource,
-                targetEntries: accepted,
-              });
-            }
+            await persistFileProjectTranslationsStep({
+              organizationId,
+              projectId: claim.job.projectId,
+              jobId: claim.job.id,
+              sourcePath: repositorySourcePath,
+              sourceLocale: parsedInput.sourceLocale,
+              targetLocale,
+              sourceEntries: deltaSource,
+              targetEntries: accepted,
+            });
           }
           if (reportsEnabled)
             await captureFileCompletionsStep({

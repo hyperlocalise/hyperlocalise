@@ -857,7 +857,8 @@ export class ContentEditorWorkspaceOrchestrator {
       filename,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
-      providerKind: null,
+      // Keep the current provider so Crowdin markdown does not flash into native document view.
+      providerKind: this.fileContext.providerKind,
       canEditTranslations: true,
       canAddComments: true,
     };
@@ -867,8 +868,12 @@ export class ContentEditorWorkspaceOrchestrator {
       ? resolveCatFileViewCapabilities({
           sourcePath: outgoingSegment.sourcePath,
           contentKind: outgoingSegment.contentKind,
+          providerKind: this.fileContext.providerKind,
         }).family
-      : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
+      : resolveCatFileViewCapabilities({
+          sourcePath: input.sourcePath,
+          providerKind: this.fileContext.providerKind,
+        }).family;
     this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
@@ -958,8 +963,12 @@ export class ContentEditorWorkspaceOrchestrator {
                 initialSegment?.sourcePath ??
                 (initialSegment as { filePath?: string } | undefined)?.filePath,
               contentKind: initialSegment?.contentKind,
+              providerKind: nextFileContext.providerKind,
             }).family
-          : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;
+          : resolveCatFileViewCapabilities({
+              sourcePath: nextFileContext.sourcePath,
+              providerKind: nextFileContext.providerKind,
+            }).family;
       this.ui.applyFileFamily(initialFamily);
       this.jobTitle = normalizedNext.jobTitle;
       this.breadcrumbs = normalizedNext.breadcrumbs;

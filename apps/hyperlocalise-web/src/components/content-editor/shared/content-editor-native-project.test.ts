@@ -58,10 +58,13 @@ describe("isContentEditorGroupingAvailable", () => {
     );
   });
 
-  it("keeps grouping off for native media, office, and document files", () => {
+  it("keeps grouping off for native media and office files", () => {
     expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
     expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
     expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(false);
-    expect(isContentEditorGroupingAvailable(nativeFile, "readme.md")).toBe(false);
+  });
+
+  it("enables grouping for native markdown files that also have segment view", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "readme.md")).toBe(true);
   });
 });

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   clampCatWorkspaceViewMode,
   isCatFileViewAvailable,
+  overlayCatDocumentFileViewSegment,
   resolveCatFileViewCapabilities,
 } from "./content-editor-file-view-capabilities";
 
@@ -112,7 +113,7 @@ describe("cat-file-view-capabilities", () => {
   });
 
   it("keeps whole-file families on file view even when multilingual is configured", () => {
-    for (const sourcePath of ["marketing/hero.png", "docs/brief.docx", "docs/intro.md"]) {
+    for (const sourcePath of ["marketing/hero.png", "docs/brief.docx"]) {
       expect(
         resolveCatFileViewCapabilities({ sourcePath, multilingualViewAvailable: true })
           .availableViews,
@@ -141,10 +142,10 @@ describe("cat-file-view-capabilities", () => {
     ).toBe("office");
   });
 
-  it("defaults markdown, mdx, and asciidoc to file view with the document editor", () => {
+  it("defaults native markdown, mdx, and asciidoc to document view and also offers segment views", () => {
     expect(resolveCatFileViewCapabilities({ sourcePath: "docs/intro.md" })).toEqual({
       family: "document",
-      availableViews: ["file"],
+      availableViews: ["comfortable", "side-by-side", "file"],
       defaultView: "file",
       viewerId: "markdown",
     });
@@ -153,7 +154,7 @@ describe("cat-file-view-capabilities", () => {
     );
     expect(resolveCatFileViewCapabilities({ sourcePath: "docs/guide.adoc" })).toEqual({
       family: "document",
-      availableViews: ["file"],
+      availableViews: ["comfortable", "side-by-side", "file"],
       defaultView: "file",
       viewerId: "markdown",
     });
@@ -163,6 +164,40 @@ describe("cat-file-view-capabilities", () => {
         contentKind: "document",
       }).family,
     ).toBe("document");
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "docs/intro.md",
+        multilingualViewAvailable: true,
+      }).availableViews,
+    ).toEqual(["comfortable", "side-by-side", "multilingual", "file"]);
+  });
+
+  it("keeps Crowdin markdown in string segment view", () => {
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "docs/intro.md",
+        providerKind: "crowdin",
+      }),
+    ).toEqual({
+      family: "text",
+      availableViews: ["comfortable", "side-by-side"],
+      defaultView: "side-by-side",
+      viewerId: null,
+    });
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "docs/page.mdx",
+        providerKind: "crowdin",
+        multilingualViewAvailable: true,
+      }).availableViews,
+    ).toEqual(["comfortable", "side-by-side", "multilingual"]);
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "guide.md",
+        contentKind: "document",
+        providerKind: "smartling",
+      }).family,
+    ).toBe("text");
   });
 
   it("clamps disallowed modes to the family default", () => {
@@ -179,5 +214,68 @@ describe("cat-file-view-capabilities", () => {
     const image = resolveCatFileViewCapabilities({ sourcePath: "a.webp" });
     expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("file");
     expect(clampCatWorkspaceViewMode("file", image)).toBe("file");
+
+    const nativeMarkdown = resolveCatFileViewCapabilities({ sourcePath: "docs/intro.md" });
+    expect(clampCatWorkspaceViewMode("comfortable", nativeMarkdown)).toBe("comfortable");
+    expect(clampCatWorkspaceViewMode("file", nativeMarkdown)).toBe("file");
+
+    const crowdinMarkdown = resolveCatFileViewCapabilities({
+      sourcePath: "docs/intro.md",
+      providerKind: "crowdin",
+    });
+    expect(clampCatWorkspaceViewMode("file", crowdinMarkdown)).toBe("side-by-side");
+    expect(clampCatWorkspaceViewMode("comfortable", crowdinMarkdown)).toBe("comfortable");
+  });
+
+  it("overlays native markdown file view onto the stored document, not the selected key", () => {
+    const overlay = overlayCatDocumentFileViewSegment(
+      {
+        id: "key-uuid",
+        key: "md.Heading[0]",
+        sourceText: "Intro",
+        targetText: "Intro FR",
+        sourcePath: "docs/intro.md",
+      },
+      {
+        sourcePath: "docs/intro.md",
+        documentView: {
+          externalStringId: "file_1",
+          sourceAssetUrl: "/source.md",
+          targetAssetUrl: "/target.md",
+          imageVariantId: "variant_md",
+        },
+      },
+    );
+
+    expect(overlay).toMatchObject({
+      id: "file_1",
+      key: "docs/intro.md",
+      sourceText: "docs/intro.md",
+      contentKind: "document",
+      sourceAssetUrl: "/source.md",
+      targetAssetUrl: "/target.md",
+      imageVariantId: "variant_md",
+      targetText: "/target.md",
+    });
+  });
+
+  it("keeps an already file-backed document segment unchanged", () => {
+    const segment = {
+      id: "file_1",
+      key: "docs/intro.md",
+      sourceText: "docs/intro.md",
+      contentKind: "document" as const,
+      sourceAssetUrl: "/source.md",
+    };
+
+    expect(
+      overlayCatDocumentFileViewSegment(segment, {
+        sourcePath: "docs/intro.md",
+        documentView: {
+          externalStringId: "ignored",
+          sourceAssetUrl: "/other.md",
+        },
+      }),
+    ).toEqual(segment);
   });
 });

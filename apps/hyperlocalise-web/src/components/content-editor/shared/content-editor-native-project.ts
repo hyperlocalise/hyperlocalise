@@ -36,5 +36,8 @@ export function isContentEditorGroupingAvailable(
     return false;
   }
 
-  return resolveCatFileViewCapabilities({ sourcePath }).family === "text";
+  return resolveCatFileViewCapabilities({
+    sourcePath,
+    providerKind: file?.provider?.kind,
+  }).availableViews.some((view) => view === "comfortable" || view === "side-by-side");
 }

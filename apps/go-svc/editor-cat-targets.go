@@ -94,7 +94,7 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 	ids, paths, kinds := make([]string, len(body.Segments)), make([]string, len(body.Segments)), make([]string, len(body.Segments))
 	result := make([]editorCatTargetRow, len(body.Segments))
 	for i, segment := range body.Segments {
-		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(editorCatSourceKind(segment.SourcePath))
+		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(editorCatTargetKind(segment.SourcePath, segment.ExternalStringID))
 		result[i] = editorCatTargetRow{editorCatTargetIdentity: segment, Targets: make(map[string]*editorCatTranslation)}
 	}
 	rows, err := api.pool.Query(r.Context(), `

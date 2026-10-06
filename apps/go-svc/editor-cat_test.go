@@ -281,6 +281,11 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.True(t, looksLikeEditorCatVideoURL("https://cdn.example.com/a.mp4"))
 	require.True(t, isEditorCatAllFiles("*"))
 	require.True(t, isEditorCatWholeFile("hero.png"))
+	require.True(t, isEditorCatBinaryWholeFile("hero.png"))
+	require.False(t, isEditorCatBinaryWholeFile("readme.md"))
+	require.True(t, isEditorCatDocument("readme.md"))
+	require.Equal(t, editorCatKindText, editorCatTargetKind("readme.md", testEditorCatKeyID))
+	require.Equal(t, editorCatKindDocument, editorCatTargetKind("readme.md", "binary:readme.md"))
 	require.Equal(t, testEditorCatSourceFileID, binaryEditorCatStringID(testEditorCatSourceFileID, "hero.png"))
 	require.Equal(t, "binary:hero.png", binaryEditorCatStringID("", "hero.png"))
 	require.Equal(t, "en.json", filenameFromSourcePath("locales/en.json"))
@@ -357,6 +362,51 @@ func TestEditorCatQueueWholeFile(t *testing.T) {
 	require.Equal(t, "hero.png", body.ContentEditorQueue.SourcePath)
 	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
 	require.Equal(t, "image_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+}
+
+func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "docs/intro.md", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "md.Heading[0]", body.ContentEditorQueue.Segments[0].Key)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+}
+
+func TestEditorCatQueueMarkdownWithoutKeysFallsBackToDocument(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "document", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
+func TestEditorCatMarkdownKeyTarget(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	mustEditorCatTranslation(t, scope, keyID, "fr", "Intro FR", "draft")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath=docs/intro.md&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Target *editorCatTranslation `json:"target"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "Intro FR", body.Target.Text)
 }
 
 func TestEditorCatSegmentTarget(t *testing.T) {

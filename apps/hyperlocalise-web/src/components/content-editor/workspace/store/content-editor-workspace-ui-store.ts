@@ -162,17 +162,18 @@ export class ContentEditorWorkspaceUiStore {
       this.setSideBySideViewport({ visibleSegmentIds: [], loadSegmentIds: [] });
     }
     if (this.adaptiveWorkspaceEnabled && this.#persistViewMode) {
-      const isDesignerFamily = Boolean(
+      const isFileOnlyDesignerFamily = Boolean(
         this.#currentFileFamily &&
-        DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never),
+          DESIGNER_PERSONA_FILE_FAMILIES.has(this.#currentFileFamily as never) &&
+          this.#currentFileFamily !== "document",
       );
       const targetPersona: ContentEditorWorkspacePersona | null =
         mode === "side-by-side"
-          ? isDesignerFamily
+          ? isFileOnlyDesignerFamily
             ? null
             : "reviewer"
           : mode === "comfortable"
-            ? isDesignerFamily
+            ? isFileOnlyDesignerFamily
               ? null
               : "translator"
             : mode === "file"

@@ -890,6 +890,18 @@ export const projectFileCatResponseSchema = z.object({
     projectTeamSlug: z.string().optional(),
     /** Stored source animation for Lottie files, used for the translated preview. */
     lottieSourceUrl: z.string().optional(),
+    /**
+     * Native markdown/MDX/AsciiDoc files can list string keys and still open file view.
+     * File view uses this overlay instead of the selected key.
+     */
+    documentView: z
+      .object({
+        externalStringId: z.string(),
+        sourceAssetUrl: z.string().nullable().optional(),
+        targetAssetUrl: z.string().nullable().optional(),
+        imageVariantId: z.string().nullable().optional(),
+      })
+      .optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

@@ -671,6 +671,38 @@ describe("ContentEditorWorkspaceUiStore", () => {
     }
   });
 
+  it("maps native markdown segment views to translator and reviewer personas", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: vi.fn((key: string) => store.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => store.set(key, value)),
+      },
+    });
+
+    try {
+      const ui = new ContentEditorWorkspaceUiStore();
+      ui.setAdaptiveWorkspaceEnabled(true);
+      ui.applyFileFamily("document");
+      expect(ui.resolvedPersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+
+      ui.setViewMode("comfortable");
+      expect(ui.workspacePersona).toBe("translator");
+      expect(ui.viewMode).toBe("comfortable");
+
+      ui.setViewMode("side-by-side");
+      expect(ui.workspacePersona).toBe("reviewer");
+      expect(ui.viewMode).toBe("side-by-side");
+
+      ui.setViewMode("file");
+      expect(ui.workspacePersona).toBe("designer");
+      expect(ui.viewMode).toBe("file");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("isolates saved persona preferences between distinct file families", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {

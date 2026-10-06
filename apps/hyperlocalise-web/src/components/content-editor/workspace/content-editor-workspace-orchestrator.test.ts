@@ -1534,4 +1534,29 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     // clearing the queue and the family would always fall back to "text".
     expect(store.ui.workspacePersona).toBe("designer");
   });
+
+  it("keeps the previous provider kind while a Crowdin markdown file is loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        fileContext: {
+          sourcePath: "locales/en.json",
+          filename: "en.json",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+      }),
+    );
+
+    store.prepareFileScopeChange({
+      sourcePath: "docs/intro.md",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+
+    expect(store.fileContext.providerKind).toBe("crowdin");
+    expect(store.fileContext.sourcePath).toBe("docs/intro.md");
+  });
 });

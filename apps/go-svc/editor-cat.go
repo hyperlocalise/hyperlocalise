@@ -392,8 +392,29 @@ func editorCatSourceKind(sourcePath string) editorCatFileKind {
 	}
 }
 
+func isEditorCatBinaryWholeFile(sourcePath string) bool {
+	kind := editorCatSourceKind(sourcePath)
+	return kind == editorCatKindImage || kind == editorCatKindVideo || kind == editorCatKindOffice
+}
+
+func isEditorCatDocument(sourcePath string) bool {
+	return editorCatSourceKind(sourcePath) == editorCatKindDocument
+}
+
 func isEditorCatWholeFile(sourcePath string) bool {
 	return editorCatSourceKind(sourcePath) != editorCatKindText
+}
+
+func looksLikeEditorCatFileBackedAlias(id, sourcePath string) bool {
+	return id == "binary:"+sourcePath || id == "image:"+sourcePath || id == "video:"+sourcePath
+}
+
+func editorCatTargetKind(sourcePath, id string) editorCatFileKind {
+	kind := editorCatSourceKind(sourcePath)
+	if kind == editorCatKindDocument && !looksLikeEditorCatFileBackedAlias(id, sourcePath) {
+		return editorCatKindText
+	}
+	return kind
 }
 
 func binaryEditorCatStringID(sourceFileID, sourcePath string) string {

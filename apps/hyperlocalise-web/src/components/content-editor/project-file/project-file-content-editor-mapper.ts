@@ -260,6 +260,7 @@ function fileContextFor(
     ...(contentEditorFile.lottieSourceUrl
       ? { lottieSourceUrl: contentEditorFile.lottieSourceUrl }
       : {}),
+    ...(contentEditorFile.documentView ? { documentView: contentEditorFile.documentView } : {}),
   };
 }
 

@@ -19,19 +19,28 @@ import { useOptionalCatWorkspace } from "./content-editor-workspace-context";
 import { ContentEditorWorkspacePersonaSwitcher } from "./content-editor-workspace-persona-switcher";
 import type { ContentEditorWorkspacePersona } from "./content-editor-workspace-persona";
 import { DESIGNER_PERSONA_FILE_FAMILIES } from "./content-editor-workspace-persona";
+import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
 /**
  * Derives the personas that make sense for the current file's content family.
  *
  * - Text files (string queues) → Translator, Reviewer
- * - Visual/office/document files → Designer only (no string queue)
+ * - Native markdown/document files with segment views → Translator, Designer, Reviewer
+ * - Visual/office files → Designer only (no string queue)
  *
  * Designer-only files suppress the switcher entirely (single persona →
  * ContentEditorWorkspacePersonaSwitcher returns null for length ≤ 1).
  */
 export function availablePersonasForFamily(
   family: string,
+  availableViews?: readonly ContentEditorWorkspaceViewMode[],
 ): readonly ContentEditorWorkspacePersona[] {
+  const hasSegmentViews = availableViews?.some(
+    (view) => view === "comfortable" || view === "side-by-side",
+  );
+  if (family === "document" && hasSegmentViews) {
+    return ["translator", "designer", "reviewer"];
+  }
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {
     return ["designer"];
   }
@@ -68,9 +77,13 @@ export const ContentEditorWorkspacePersonaSwitcherConnected = observer(
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: selectedSegment?.sourcePath ?? store?.fileContext.sourcePath,
       contentKind: selectedSegment?.contentKind,
+      providerKind: store?.fileContext.providerKind,
     });
 
-    const availablePersonas = availablePersonasForFamily(capabilities.family);
+    const availablePersonas = availablePersonasForFamily(
+      capabilities.family,
+      capabilities.availableViews,
+    );
 
     const resolvedValue = store?.ui.resolvedPersona ?? value ?? "translator";
     const resolvedOnChange = store

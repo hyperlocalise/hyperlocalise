@@ -28,6 +28,21 @@ func TestEditorCatTargetsRectangle(t *testing.T) {
 	require.Nil(t, body.Targets[0].Targets["de"])
 }
 
+func TestEditorCatTargetsMarkdownKeys(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")
+	keyID := mustEditorCatKey(t, scope, fileID, "md.Heading[0]", "Intro")
+	mustEditorCatTranslation(t, scope, keyID, "fr", "Intro FR", "approved")
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),
+		`{"segments":[{"externalStringId":"`+keyID+`","sourcePath":"docs/intro.md"}],"targetLocales":["fr"]}`)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		Targets []editorCatTargetRow `json:"targets"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "Intro FR", body.Targets[0].Targets["fr"].Text)
+}
+
 func TestEditorCatTargetsInaccessibleKey(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "member")
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/targets"),

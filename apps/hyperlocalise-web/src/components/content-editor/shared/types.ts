@@ -116,6 +116,12 @@ export interface ContentEditorFileContext {
   teamName?: string;
   projectTeamSlug?: string;
   lottieSourceUrl?: string;
+  documentView?: {
+    externalStringId: string;
+    sourceAssetUrl?: string | null;
+    targetAssetUrl?: string | null;
+    imageVariantId?: string | null;
+  };
 }
 
 export interface ContentEditorSegment {

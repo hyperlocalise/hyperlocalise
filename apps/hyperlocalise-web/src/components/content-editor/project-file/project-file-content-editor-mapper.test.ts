@@ -96,6 +96,31 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.fileContext.canAddComments).toBe(true);
   });
 
+  it("maps native markdown documentView into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        sourcePath: "docs/intro.md",
+        filename: "intro.md",
+        documentView: {
+          externalStringId: "file_1",
+          sourceAssetUrl: "/source.md",
+          targetAssetUrl: "/target.md",
+          imageVariantId: "variant_md",
+        },
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/source.md",
+      targetAssetUrl: "/target.md",
+      imageVariantId: "variant_md",
+    });
+  });
+
   it("maps the project team name into file context", () => {
     const state = projectFileCatToWorkspaceState(
       contentEditorFile({
