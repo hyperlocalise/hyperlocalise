@@ -11,7 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const memoryImportLookupBatchSize = 2000
+const (
+	memoryImportLookupBatchSize    = 2000
+	memoryImportApplyItemSavepoint = "memory_import_apply_item"
+)
 
 func loadExistingEntriesForImport(
 	ctx context.Context,
@@ -170,11 +173,17 @@ func applyPlannedMemoryImport(
 				skipped++
 				continue
 			}
+			if err := beginMemoryImportItemSavepoint(ctx, tx); err != nil {
+				return created, updated, variantCreated, skipped, err
+			}
 			candidate := item.Candidate
 			normalized := memoryinterchange.NormalizeSourceText(candidate.SourceText)
 			var version int
 			if err := tx.QueryRow(ctx, `select version from memory_entries where id=$1 and memory_id=$2`, item.ExistingID, memoryID).Scan(&version); err != nil {
 				if err == pgx.ErrNoRows {
+					if rollbackErr := rollbackMemoryImportItemSavepoint(ctx, tx); rollbackErr != nil {
+						return created, updated, variantCreated, skipped, rollbackErr
+					}
 					skipped++
 					continue
 				}
@@ -191,6 +200,9 @@ func applyPlannedMemoryImport(
 				candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey, nextVersion, version,
 			)
 			if updateErr != nil {
+				if rollbackErr := rollbackMemoryImportItemSavepoint(ctx, tx); rollbackErr != nil {
+					return created, updated, variantCreated, skipped, rollbackErr
+				}
 				if isUniqueViolation(updateErr) {
 					skipped++
 					continue
@@ -198,16 +210,40 @@ func applyPlannedMemoryImport(
 				return created, updated, variantCreated, skipped, updateErr
 			}
 			if tag.RowsAffected() == 0 {
+				if rollbackErr := rollbackMemoryImportItemSavepoint(ctx, tx); rollbackErr != nil {
+					return created, updated, variantCreated, skipped, rollbackErr
+				}
 				skipped++
 				continue
 			}
-			updated++
 			if err := recordMemoryImportEntryEvent(ctx, tx, item.ExistingID, memoryID, userID, nextVersion, "updated"); err != nil {
+				if rollbackErr := rollbackMemoryImportItemSavepoint(ctx, tx); rollbackErr != nil {
+					return created, updated, variantCreated, skipped, rollbackErr
+				}
 				return created, updated, variantCreated, skipped, err
 			}
+			if err := releaseMemoryImportItemSavepoint(ctx, tx); err != nil {
+				return created, updated, variantCreated, skipped, err
+			}
+			updated++
 		}
 	}
 	return created, updated, variantCreated, skipped, nil
+}
+
+func beginMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, "savepoint "+memoryImportApplyItemSavepoint)
+	return err
+}
+
+func rollbackMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, "rollback to savepoint "+memoryImportApplyItemSavepoint)
+	return err
+}
+
+func releaseMemoryImportItemSavepoint(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, "release savepoint "+memoryImportApplyItemSavepoint)
+	return err
 }
 
 func recordMemoryImportEntryEvent(ctx context.Context, tx pgx.Tx, entryID, memoryID string, userID *string, version int, eventType string) error {
