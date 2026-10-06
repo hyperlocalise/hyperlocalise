@@ -50,14 +50,10 @@ import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
 import { isCatImageFileSegment } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
-import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
-import {
-  ContentEditorImageGenerationStore,
-  type ContentEditorImageGenerationState,
-} from "./content-editor-image-generation-store";
+import type { ContentEditorImageGenerationStore } from "./content-editor-image-generation-store";
 import type { ContentEditorMultilingualConfig } from "./content-editor-multilingual-table";
 import { multilingualImageGalleryMessages as messages } from "./content-editor-multilingual-image-gallery.messages";
 import { multilingualMessages } from "./content-editor-multilingual.messages";
@@ -136,13 +132,13 @@ function GalleryCard({
   );
 }
 
-function LocaleImageCard({
+const LocaleImageCard = observer(function LocaleImageCard({
   config,
   segment,
   locale,
   aspectRatio,
   sourceSize,
-  generation,
+  generations,
   onGenerate,
   onOpenTranslation,
 }: {
@@ -151,11 +147,12 @@ function LocaleImageCard({
   locale: string;
   aspectRatio: number;
   sourceSize: { width: number; height: number } | null;
-  generation: ContentEditorImageGenerationState | undefined;
+  generations: ContentEditorImageGenerationStore;
   onGenerate?: (options?: { force?: boolean }) => void;
   onOpenTranslation?: () => void;
 }) {
   const intl = useIntl();
+  const generation = generations.get(segment.id, locale);
   const [confirmApproved, setConfirmApproved] = useState(false);
   const identity = config.identities?.get(segment.id);
   const query = useContentEditorSegmentTarget({
@@ -172,7 +169,7 @@ function LocaleImageCard({
   const targetSrc =
     target?.targetAssetUrl ?? (target && HTTP_URL_PATTERN.test(target.text) ? target.text : null);
   const language = formatLocaleDisplayName(intl, locale);
-  const isGenerating = generation?.status === "running";
+  const isGenerating = generation?.isRunning === true;
   const isApproved = Boolean(target?.isApproved);
 
   let body: ReactNode;
@@ -304,7 +301,7 @@ function LocaleImageCard({
       </AlertDialog>
     </>
   );
-}
+});
 
 const SegmentImageGallery = observer(function SegmentImageGallery({
   config,
@@ -371,7 +368,7 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
               locale={locale}
               aspectRatio={aspectRatio}
               sourceSize={sourceSize}
-              generation={generations.get(segment.id, locale)}
+              generations={generations}
               onGenerate={
                 canGenerate && sourceSrc
                   ? (options) => onGenerate?.(segment, locale, options)
@@ -397,7 +394,7 @@ export const ContentEditorMultilingualImageGallery = observer(
     isLoadingMore = false,
     onLoadMore,
     onOpenTranslation,
-    generations: generationsProp,
+    generations,
   }: {
     config: ContentEditorMultilingualConfig;
     segments: ContentEditorSegment[];
@@ -406,12 +403,9 @@ export const ContentEditorMultilingualImageGallery = observer(
     isLoadingMore?: boolean;
     onLoadMore?: () => void;
     onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
-    generations?: ContentEditorImageGenerationStore;
+    generations: ContentEditorImageGenerationStore;
   }) {
     const intl = useIntl();
-    const workspace = useOptionalCatWorkspace();
-    const [ownedGenerations] = useState(() => new ContentEditorImageGenerationStore());
-    const generations = generationsProp ?? workspace?.imageGenerations ?? ownedGenerations;
     const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
     const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
     const visibleLocales = useMemo(

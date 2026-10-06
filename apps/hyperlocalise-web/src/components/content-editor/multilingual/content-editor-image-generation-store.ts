@@ -12,128 +12,113 @@
  */
 import { makeAutoObservable, observable, runInAction } from "mobx";
 
-export type ContentEditorImageGenerationState =
-  | { status: "running"; startedAt: number }
-  | { status: "failed" };
+export type ContentEditorImageGenerationStatus = "running" | "failed";
 
-export type ContentEditorImageGenerationHandle = {
-  generation: number;
-  signal: AbortSignal;
-};
+export type ContentEditorImageGenerationWork = (signal: AbortSignal) => Promise<void>;
 
-export function contentEditorImageGenerationKey(segmentId: string, locale: string) {
+function contentEditorImageGenerationKey(segmentId: string, locale: string) {
   return JSON.stringify([segmentId, locale]);
 }
 
-function isAbortError(error: unknown) {
-  return (
-    (error instanceof DOMException && error.name === "AbortError") ||
-    (error instanceof Error && error.name === "AbortError")
-  );
+/**
+ * One generation attempt for a segment image in one target locale.
+ * Owns its abort controller so cancelling the attempt also cancels its request.
+ */
+export class ContentEditorImageGeneration {
+  status: ContentEditorImageGenerationStatus = "running";
+  readonly startedAt = Date.now();
+  readonly #abort = new AbortController();
+
+  constructor(
+    readonly segmentId: string,
+    readonly locale: string,
+  ) {
+    makeAutoObservable(
+      this,
+      { segmentId: false, locale: false, startedAt: false, signal: false },
+      { autoBind: true },
+    );
+  }
+
+  get signal() {
+    return this.#abort.signal;
+  }
+
+  get isRunning() {
+    return this.status === "running";
+  }
+
+  fail() {
+    this.status = "failed";
+  }
+
+  cancel() {
+    this.#abort.abort();
+  }
 }
 
 /**
  * Per-locale image generation progress for the multilingual gallery.
  * Lives on the workspace so switching File ↔ Multilingual does not drop in-flight work.
+ *
+ * Only the current attempt for a segment and locale may settle: once an attempt is
+ * cancelled or replaced, its late success or failure is ignored.
  */
 export class ContentEditorImageGenerationStore {
-  readonly states = observable.map<string, ContentEditorImageGenerationState>();
-  #nextGeneration = 0;
-  readonly #generations = new Map<string, number>();
-  readonly #aborts = new Map<string, AbortController>();
+  readonly #generations = observable.map<string, ContentEditorImageGeneration>({}, { deep: false });
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
   get(segmentId: string, locale: string) {
-    return this.states.get(contentEditorImageGenerationKey(segmentId, locale));
+    return this.#generations.get(contentEditorImageGenerationKey(segmentId, locale));
   }
 
   get runningCount() {
     let count = 0;
-    for (const state of this.states.values()) {
-      if (state.status === "running") {
+    for (const generation of this.#generations.values()) {
+      if (generation.isRunning) {
         count += 1;
       }
     }
     return count;
   }
 
-  start(segmentId: string, locale: string): ContentEditorImageGenerationHandle | null {
-    const current = this.get(segmentId, locale);
-    if (current?.status === "running") {
-      return null;
-    }
+  /** Starts `work` unless this segment and locale already has a running attempt. */
+  async run(segmentId: string, locale: string, work: ContentEditorImageGenerationWork) {
     const key = contentEditorImageGenerationKey(segmentId, locale);
-    this.#nextGeneration += 1;
-    const generation = this.#nextGeneration;
-    const abort = new AbortController();
+    if (this.#generations.get(key)?.isRunning) {
+      return;
+    }
+    const generation = new ContentEditorImageGeneration(segmentId, locale);
     this.#generations.set(key, generation);
-    this.#aborts.set(key, abort);
-    this.states.set(key, {
-      status: "running",
-      startedAt: Date.now(),
-    });
-    return { generation, signal: abort.signal };
-  }
 
-  succeed(segmentId: string, locale: string, generation: number) {
-    const key = contentEditorImageGenerationKey(segmentId, locale);
-    if (!this.#isCurrentGeneration(key, generation)) {
-      return;
-    }
-    this.#forget(key);
-    this.states.delete(key);
-  }
-
-  fail(segmentId: string, locale: string, generation: number) {
-    const key = contentEditorImageGenerationKey(segmentId, locale);
-    if (!this.#isCurrentGeneration(key, generation)) {
-      return;
-    }
-    this.#forget(key);
-    this.states.set(key, { status: "failed" });
-  }
-
-  /**
-   * Drops progress and aborts every in-flight generation so a later settle
-   * cannot mark a newer request finished or failed.
-   */
-  clear() {
-    for (const abort of this.#aborts.values()) {
-      abort.abort();
-    }
-    this.#aborts.clear();
-    this.#generations.clear();
-    this.states.clear();
-  }
-
-  async run(segmentId: string, locale: string, work: (signal: AbortSignal) => Promise<void>) {
-    const handle = this.start(segmentId, locale);
-    if (!handle) {
-      return;
-    }
+    let succeeded: boolean;
     try {
-      await work(handle.signal);
-      if (handle.signal.aborted) {
-        return;
-      }
-      runInAction(() => this.succeed(segmentId, locale, handle.generation));
-    } catch (error) {
-      if (handle.signal.aborted || isAbortError(error)) {
-        return;
-      }
-      runInAction(() => this.fail(segmentId, locale, handle.generation));
+      await work(generation.signal);
+      succeeded = true;
+    } catch {
+      succeeded = false;
     }
+
+    runInAction(() => {
+      if (this.#generations.get(key) !== generation) {
+        return;
+      }
+      if (succeeded) {
+        this.#generations.delete(key);
+      } else {
+        generation.fail();
+      }
+    });
   }
 
-  #isCurrentGeneration(key: string, generation: number) {
-    return this.#generations.get(key) === generation && this.states.get(key)?.status === "running";
-  }
-
-  #forget(key: string) {
-    this.#generations.delete(key);
-    this.#aborts.delete(key);
+  /** Aborts every in-flight attempt and drops all progress, including failures. */
+  cancelAll() {
+    for (const generation of this.#generations.values()) {
+      generation.cancel();
+    }
+    this.#generations.clear();
   }
 }

@@ -53,7 +53,7 @@ function show(
   config: ContentEditorMultilingualConfig,
   onOpenTranslation = vi.fn<(segment: ContentEditorSegment, locale: string) => void>(),
   segments: ContentEditorSegment[] = [segment],
-  generations?: ContentEditorImageGenerationStore,
+  generations = new ContentEditorImageGenerationStore(),
 ) {
   const view = renderWithContentEditorProviders(
     <ContentEditorMultilingualImageGallery
