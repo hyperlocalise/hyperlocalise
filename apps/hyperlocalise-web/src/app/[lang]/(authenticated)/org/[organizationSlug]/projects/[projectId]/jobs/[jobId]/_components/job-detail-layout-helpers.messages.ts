@@ -56,6 +56,21 @@ export const jobDetailLayoutHelpersMessages = defineMessages({
     id: "WPDWJsbAQo",
     description: "Job property row label for status",
   },
+  labelFailureReason: {
+    defaultMessage: "Failure reason",
+    id: "qufyTH4w5s",
+    description: "Job property row label for the stored translation failure reason",
+  },
+  labelFailedLocales: {
+    defaultMessage: "Unfinished locales",
+    id: "N43XdOSMJ5",
+    description: "Job property row label for locales that did not finish translating",
+  },
+  labelFollowUpJob: {
+    defaultMessage: "Retry job",
+    id: "b7mlRb+8CA",
+    description: "Job property row label for the automatic follow-up translation job",
+  },
   labelProgress: {
     defaultMessage: "Progress",
     id: "AdBFuupWOp",

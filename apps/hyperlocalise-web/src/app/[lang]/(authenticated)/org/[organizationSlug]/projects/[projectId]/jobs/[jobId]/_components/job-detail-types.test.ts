@@ -60,14 +60,19 @@ function createJob(overrides: Partial<JobDetailRecord> = {}): JobDetailRecord {
 }
 
 describe("canCancelJob / canMarkJobFailed", () => {
-  it("allows cancel and mark-failed for native waiting_for_review jobs", () => {
-    const job = createJob();
-    expect(canCancelJob(job)).toBe(true);
-    expect(canMarkJobFailed(job)).toBe(true);
+  it("allows cancel for human native jobs and mark-failed only for agent jobs", () => {
+    const humanJob = createJob({ assigneeType: "user", ownerUserId: "user_1" });
+    expect(canCancelJob(humanJob)).toBe(true);
+    expect(canMarkJobFailed(humanJob)).toBe(false);
+
+    const agentJob = createJob({ assigneeType: "agent", ownerUserId: null });
+    expect(canCancelJob(agentJob)).toBe(true);
+    expect(canMarkJobFailed(agentJob)).toBe(true);
   });
 
   it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", () => {
     const job = createJob({
+      assigneeType: "agent",
       externalProviderKind: "crowdin",
       externalJobId: "task_1",
     });

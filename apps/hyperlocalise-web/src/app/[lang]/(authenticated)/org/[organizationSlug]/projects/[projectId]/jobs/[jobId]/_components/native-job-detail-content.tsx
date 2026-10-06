@@ -42,8 +42,13 @@ import {
   buildJobContentEditorHref,
   canOpenJobContentEditor,
 } from "@/lib/projects/job-content-editor-routing";
+import {
+  readJobFailureDetails,
+  shouldShowJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
+import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
@@ -53,6 +58,7 @@ import {
 } from "./job-detail-layout-helpers";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
+import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDescriptionField } from "./native-job-description-field";
 import {
@@ -205,6 +211,14 @@ export function NativeJobDetailContent({
 
   const job = jobQuery.data;
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
+  const failureDetails = job ? readJobFailureDetails(job) : null;
+  const showFailureNotice = Boolean(
+    job && failureDetails && shouldShowJobFailureDetails(job, failureDetails),
+  );
+  const followUpHref =
+    job && failureDetails?.followUpJobId
+      ? buildJobDetailHref(organizationSlug, projectId, failureDetails.followUpJobId)
+      : null;
   const contentEditorHref = job
     ? buildJobContentEditorHref(organizationSlug, projectId, job)
     : null;
@@ -388,26 +402,35 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderExtraMain={
-          job && isProviderBackedJob(job)
+          showFailureNotice || (job && isProviderBackedJob(job)) || reportsEnabled
             ? () => (
-                <JobProviderDetailSection
-                  job={job}
-                  jobId={jobId}
-                  organizationSlug={organizationSlug}
-                  projectId={projectId}
-                  showProviderMetadata={false}
-                  showAgentActions={false}
-                />
+                <>
+                  {showFailureNotice && failureDetails ? (
+                    <JobFailureNotice
+                      details={failureDetails}
+                      followUpHref={followUpHref}
+                      variant={job?.status === "failed" ? "failed" : "partial"}
+                    />
+                  ) : null}
+                  {job && isProviderBackedJob(job) ? (
+                    <JobProviderDetailSection
+                      job={job}
+                      jobId={jobId}
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      showProviderMetadata={false}
+                      showAgentActions={false}
+                    />
+                  ) : reportsEnabled ? (
+                    <ReportsWorkspace
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      jobId={jobId}
+                    />
+                  ) : null}
+                </>
               )
-            : reportsEnabled
-              ? () => (
-                  <ReportsWorkspace
-                    organizationSlug={organizationSlug}
-                    projectId={projectId}
-                    jobId={jobId}
-                  />
-                )
-              : undefined
+            : undefined
         }
       />
 

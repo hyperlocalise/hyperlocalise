@@ -66,6 +66,8 @@ export async function failTranslationJobStep(input: {
   workflowRunId: string;
   code: string;
   message: string;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   "use step";
   const { failTranslationJob } = await import("@/lib/translation/jobs");
@@ -508,6 +510,8 @@ export async function completeFileTranslationJobStep(input: {
   workflowRunId: string;
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
   tokenUsage?: CliTokenUsage | null;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
@@ -520,6 +524,10 @@ export async function completeFileTranslationJobStep(input: {
         status: "succeeded",
         outcomePayload: {
           outputFiles: input.outputFiles,
+          ...(input.failedLocales && input.failedLocales.length > 0
+            ? { failedLocales: input.failedLocales }
+            : {}),
+          ...(input.followUpJobId ? { followUpJobId: input.followUpJobId } : {}),
         },
         lastError: null,
         completedAt: new Date(),

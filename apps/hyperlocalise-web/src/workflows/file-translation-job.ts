@@ -48,6 +48,11 @@ import {
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
+import { enqueueFileTranslationFollowUpStep } from "./steps/file-translation-follow-up";
+import {
+  remainingFileTranslationLocales,
+  uniqueFileTranslationLocales,
+} from "./file-translation-partial";
 import {
   FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
   calculateFileTranslationMaxPages,
@@ -843,6 +848,25 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
   }
 
   let sandboxId = "";
+  const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
+  let followUpJobId: string | null = null;
+  const enqueueFollowUpForLocales = async (locales: string[]) => {
+    if (followUpJobId || locales.length === 0) {
+      return;
+    }
+    const followUp = await enqueueFileTranslationFollowUpStep({
+      organizationId,
+      parentJobId: claim.job.id,
+      projectId: claim.job.projectId,
+      sourceFileId: parsedInput.sourceFileId,
+      fileFormat: parsedInput.fileFormat,
+      sourceLocale: parsedInput.sourceLocale,
+      targetLocales: locales,
+      metadata: parsedInput.metadata,
+      ignoreTranslationMemory: parsedInput.ignoreTranslationMemory,
+    });
+    followUpJobId = followUp?.jobId ?? null;
+  };
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
   try {
@@ -872,7 +896,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
     });
 
-    const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
     const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
     let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
@@ -1277,13 +1300,39 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       throw new Error("translation pagination exhausted");
     };
 
-    const batchSucceeded = await runPages(parsedInput.targetLocales, 1);
+    let batchSucceeded = false;
+    try {
+      batchSucceeded = await runPages(parsedInput.targetLocales, 1);
+    } catch (error) {
+      console.warn(
+        "[file-translation-workflow] batch translation interrupted; continuing per locale",
+        {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          targetLocales: parsedInput.targetLocales,
+          sandboxId,
+          error: error instanceof Error ? error.message : "unknown",
+        },
+      );
+    }
+
     const failedLocales: string[] = [];
     if (!batchSucceeded) {
       for (const targetLocale of parsedInput.targetLocales) {
-        // Even a readable output may contain pending source fallbacks. A retry
-        // uses only validated prefills, including work saved before recreation.
-        if (!(await runPages([targetLocale], 2))) failedLocales.push(targetLocale);
+        try {
+          // Even a readable output may contain pending source fallbacks. A retry
+          // uses only validated prefills, including work saved before recreation.
+          if (!(await runPages([targetLocale], 2))) failedLocales.push(targetLocale);
+        } catch (error) {
+          console.warn("[file-translation-workflow] locale translation interrupted", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            sandboxId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+          failedLocales.push(targetLocale);
+        }
       }
     }
 
@@ -1294,51 +1343,117 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         (locale) => !failedLocales.includes(locale),
       );
       if (successfulLocales.length > 0) {
-        const assembled = await runHlForLocales(successfulLocales, 2, { force: true });
-        cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
-        if (!assembled.ok || assembled.deferredByLimit !== 0)
-          throw new Error("translation output assembly failed");
+        let assembledOk = false;
+        try {
+          const assembled = await runHlForLocales(successfulLocales, 2, { force: true });
+          cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
+          assembledOk = assembled.ok && assembled.deferredByLimit === 0;
+        } catch (error) {
+          console.warn("[file-translation-workflow] translation output assembly interrupted", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocales: successfulLocales,
+            sandboxId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        }
+        if (!assembledOk) {
+          for (const targetLocale of successfulLocales) {
+            try {
+              const assembled = await runHlForLocales([targetLocale], 2, { force: true });
+              cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
+              if (!assembled.ok || assembled.deferredByLimit !== 0) {
+                failedLocales.push(targetLocale);
+              }
+            } catch (error) {
+              console.warn("[file-translation-workflow] locale output assembly interrupted", {
+                jobId: claim.job.id,
+                projectId: claim.job.projectId,
+                targetLocale,
+                sandboxId,
+                error: error instanceof Error ? error.message : "unknown",
+              });
+              failedLocales.push(targetLocale);
+            }
+          }
+        }
       }
     }
 
     for (const targetLocale of parsedInput.targetLocales) {
       if (failedLocales.includes(targetLocale)) continue;
-      const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-      const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
-      await logDiagnosticsStep(
-        claim.job.id,
-        sourceFile.filename,
-        targetLocale,
-        translatedContent,
-        outputFilename,
-      );
-      const storedOutput = await storeOutputFileStep({
-        organizationId,
-        projectId: claim.job.projectId,
-        jobId: claim.job.id,
-        filename: outputFilename,
-        contentType: sourceFile.contentType,
-        content: translatedContent,
-      });
-      if (
-        isDocumentTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat) &&
-        repositorySourcePath
-      ) {
-        await persistDocumentVariantBytesStep({
+      try {
+        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+        const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
+        await logDiagnosticsStep(
+          claim.job.id,
+          sourceFile.filename,
+          targetLocale,
+          translatedContent,
+          outputFilename,
+        );
+        const storedOutput = await storeOutputFileStep({
           organizationId,
           projectId: claim.job.projectId,
-          sourcePath: repositorySourcePath,
-          targetLocale,
-          content: translatedContent,
-          contentType: sourceFile.contentType,
+          jobId: claim.job.id,
           filename: outputFilename,
-          sourceJobId: claim.job.id,
+          contentType: sourceFile.contentType,
+          content: translatedContent,
         });
+        if (
+          isDocumentTranslationFileFormat(
+            parsedInput.fileFormat as SupportedTranslationFileFormat,
+          ) &&
+          repositorySourcePath
+        ) {
+          await persistDocumentVariantBytesStep({
+            organizationId,
+            projectId: claim.job.projectId,
+            sourcePath: repositorySourcePath,
+            targetLocale,
+            content: translatedContent,
+            contentType: sourceFile.contentType,
+            filename: outputFilename,
+            sourceJobId: claim.job.id,
+          });
+        }
+        outputFiles.push({
+          fileId: storedOutput.id,
+          locale: targetLocale,
+          filename: outputFilename,
+        });
+      } catch (error) {
+        console.warn("[file-translation-workflow] locale output store interrupted", {
+          jobId: claim.job.id,
+          projectId: claim.job.projectId,
+          targetLocale,
+          sandboxId,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+        failedLocales.push(targetLocale);
       }
-      outputFiles.push({ fileId: storedOutput.id, locale: targetLocale, filename: outputFilename });
     }
-    if (failedLocales.length > 0)
-      throw new Error(`translation failed for locales: ${failedLocales.join(",")}`);
+
+    const leftoverLocales = uniqueFileTranslationLocales(failedLocales);
+    await enqueueFollowUpForLocales(leftoverLocales);
+
+    if (outputFiles.length === 0) {
+      throw new Error(
+        leftoverLocales.length > 0
+          ? `translation failed for locales: ${leftoverLocales.join(",")}`
+          : "translation failed for locales",
+      );
+    }
+
+    if (leftoverLocales.length > 0) {
+      console.warn("[file-translation-workflow] completed with leftover locales", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        failedLocales: leftoverLocales,
+        followUpJobId,
+        completedLocaleCount: outputFiles.length,
+      });
+    }
 
     await completeFileTranslationJobStep({
       jobId: claim.job.id,
@@ -1346,10 +1461,43 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       workflowRunId: claim.job.workflowRunId,
       outputFiles,
       tokenUsage: cliTokenUsage,
+      failedLocales: leftoverLocales,
+      followUpJobId,
     });
 
     return outputFiles;
   } catch (error) {
+    if (outputFiles.length > 0) {
+      const leftoverLocales = remainingFileTranslationLocales({
+        targetLocales: parsedInput.targetLocales,
+        completedLocales: outputFiles.map((file) => file.locale),
+      });
+      await enqueueFollowUpForLocales(leftoverLocales);
+      console.warn("[file-translation-workflow] completing after interrupt with stored locales", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        failedLocales: leftoverLocales,
+        followUpJobId,
+        completedLocaleCount: outputFiles.length,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      await completeFileTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        outputFiles,
+        failedLocales: leftoverLocales,
+        followUpJobId,
+      });
+      return outputFiles;
+    }
+
+    const leftoverLocales = remainingFileTranslationLocales({
+      targetLocales: parsedInput.targetLocales,
+      completedLocales: outputFiles.map((file) => file.locale),
+    });
+    await enqueueFollowUpForLocales(leftoverLocales);
+
     const reason = userFacingFailureReason(error, {
       fileFormat: parsedInput.fileFormat,
       sourceExtension: fileExtension(sourceFile.filename),
@@ -1365,6 +1513,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       byteLength: sourceContent.byteLength,
       hasRepositorySourcePath: Boolean(repositorySourcePath),
       targetLocales: parsedInput.targetLocales,
+      failedLocales: leftoverLocales,
+      followUpJobId,
       sandboxId,
       error: reason,
     });
@@ -1374,6 +1524,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       workflowRunId: claim.job.workflowRunId,
       code: "file_translation_failed",
       message: reason,
+      failedLocales: leftoverLocales,
+      followUpJobId,
     });
     throw error;
   } finally {

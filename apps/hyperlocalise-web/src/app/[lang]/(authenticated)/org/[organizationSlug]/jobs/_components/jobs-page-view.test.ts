@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { getJobName, type ApiJob } from "./jobs-page-view";
+import { getJobName, taskDetailSummary, type ApiJob } from "./jobs-page-view";
 
 function createJob(overrides: Partial<ApiJob> = {}): ApiJob {
   return {
@@ -86,5 +86,45 @@ describe("getJobName", () => {
         }),
       ),
     ).toBe("home.json");
+  });
+});
+
+describe("taskDetailSummary", () => {
+  it("appends the stored failure reason for failed jobs", () => {
+    const summary = taskDetailSummary(
+      createJob({
+        assigneeType: "agent",
+        status: "failed",
+        lastError: "translating the json file failed. This is usually temporary — try again.",
+        inputPayload: {
+          sourceFileId: "file_abc",
+          targetLocales: ["ja-JP", "ko-KR"],
+        },
+        outcomePayload: {
+          failedLocales: ["ja-JP"],
+        },
+      }),
+    );
+
+    expect(summary).toContain(
+      "Translating the json file failed. This is usually temporary — try again.",
+    );
+    expect(summary).toContain("Unfinished: ja-JP");
+  });
+
+  it("does not append failure details for human-assigned jobs", () => {
+    const summary = taskDetailSummary(
+      createJob({
+        assigneeType: "user",
+        status: "failed",
+        lastError: "Marked failed by user",
+        inputPayload: {
+          sourceFileId: "file_abc",
+          targetLocales: ["ja-JP"],
+        },
+      }),
+    );
+
+    expect(summary).not.toContain("Marked failed by user");
   });
 });

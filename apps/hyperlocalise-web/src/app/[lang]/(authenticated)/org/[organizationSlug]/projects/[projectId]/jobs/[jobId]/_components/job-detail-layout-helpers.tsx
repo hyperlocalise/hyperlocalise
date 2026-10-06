@@ -17,6 +17,11 @@ import type { IntlShape } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
+import {
+  formatJobFailureReason,
+  isAgentAssignedJob,
+  readJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
@@ -329,6 +334,30 @@ export function jobDetailTaskLayoutFromRecord(
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input, intl);
+  if (isAgentAssignedJob(job)) {
+    const failure = readJobFailureDetails(job);
+    if (failure.reason) {
+      properties.splice(1, 0, {
+        id: "failure-reason",
+        label: intl.formatMessage(messages.labelFailureReason),
+        value: formatJobFailureReason(failure.reason),
+      });
+    }
+    if (failure.failedLocales.length > 0) {
+      properties.splice(failure.reason ? 2 : 1, 0, {
+        id: "failed-locales",
+        label: intl.formatMessage(messages.labelFailedLocales),
+        value: failure.failedLocales.join(", "),
+      });
+    }
+    if (failure.followUpJobId) {
+      secondaryProperties.push({
+        id: "follow-up-job",
+        label: intl.formatMessage(messages.labelFollowUpJob),
+        value: failure.followUpJobId,
+      });
+    }
+  }
 
   return {
     input,

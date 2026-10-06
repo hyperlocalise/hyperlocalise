@@ -21,6 +21,7 @@ import type { IntlShape } from "react-intl";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { buildJobContentEditorHref } from "@/lib/projects/job-content-editor-routing";
+import { readJobFailureDetails } from "@/lib/projects/jobs/job-failure-details";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
 import {
@@ -38,6 +39,7 @@ import {
 import { CrowdinJobAssigneesField } from "./job-detail-assignee-field";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
+import { JobFailureNotice } from "./job-failure-notice";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 import { NativeJobSourceFilesSection } from "./native-job-detail-helpers";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
@@ -59,8 +61,15 @@ const storyIntl = getIntlShape("en") as IntlShape;
 
 const nativeJob = createNativeJobDetail();
 const failedJob = createNativeJobDetail({
+  assigneeType: "agent",
+  ownerUserId: null,
   status: "failed",
   lastError: "Translation provider timed out after 120 seconds.",
+  outcomePayload: {
+    code: "file_translation_failed",
+    message: "Translation provider timed out after 120 seconds.",
+    failedLocales: ["ja-JP", "ko-KR"],
+  },
 });
 const syncedJob = createProviderBackedJobDetail();
 const syncedJobFields = toProviderBackedJobFields(syncedJob);
@@ -237,6 +246,9 @@ export const RunningFileTranslation: Story = {
 export const FailedJob: Story = {
   args: {
     ...taskViewArgsFromRecord(failedJob),
+    renderExtraMain: () => (
+      <JobFailureNotice details={readJobFailureDetails(failedJob)} variant="failed" />
+    ),
     renderFilesSection: () => (
       <NativeJobSourceFilesSection
         organizationSlug={organizationSlug}
@@ -247,6 +259,13 @@ export const FailedJob: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
+    await expect(canvas.getByText("Failure reason")).toBeInTheDocument();
+    await expect(
+      canvas.getAllByText("Translation provider timed out after 120 seconds.").length,
+    ).toBeGreaterThan(0);
+    await expect(canvas.getByText("Unfinished locales")).toBeInTheDocument();
+    await expect(canvas.getByText("ja-JP, ko-KR")).toBeInTheDocument();
+    await expect(canvas.getByText("This job failed")).toBeInTheDocument();
   },
 };
 
