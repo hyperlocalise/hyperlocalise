@@ -60,6 +60,8 @@ func TestSerializeTMXStripsInvalidControlCharacters(t *testing.T) {
 	tmx := string(SerializeTMX([]Row{row}))
 	requireValidXML(t, []byte(tmx))
 	require.NotContains(t, tmx, "\x1e")
+	require.NotContains(t, tmx, "HLMDPH_")
+	require.Contains(t, tmx, "Agents")
 }
 
 func TestSerializeTMXResultMetadata(t *testing.T) {

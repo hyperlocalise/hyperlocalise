@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"golang.org/x/text/language"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -143,16 +144,9 @@ func looksLikeBCP47Tag(value string) bool {
 	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
 		return false
 	}
-	for _, r := range trimmed {
-		if r == '-' {
-			continue
-		}
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			continue
-		}
-		return false
-	}
-	return true
+	normalized := strings.ReplaceAll(trimmed, "_", "-")
+	_, err := language.Parse(normalized)
+	return err == nil
 }
 
 func csvHasFourColumnDataRows(rows [][]string, start int) bool {

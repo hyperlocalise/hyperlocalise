@@ -47,6 +47,13 @@ func TestNormalizeSourceText(t *testing.T) {
 	}
 }
 
+func TestParseCSV_RejectsGenericSourceTargetHeader(t *testing.T) {
+	csv := "source,target\nHello,Bonjour\n"
+	if candidates := ParseCSV(csv); len(candidates) != 0 {
+		t.Fatalf("ParseCSV() len = %d, want 0 for non-locale header", len(candidates))
+	}
+}
+
 func TestParseCSV_CrowdinTwoColumnFixture(t *testing.T) {
 	candidates := ParseCSV(string(ReadTestdata(t, "crowdin-two-column.csv")))
 	if len(candidates) != 2 {
@@ -93,5 +100,8 @@ func TestSerializeTMX_ThenParse_RoundTripHLMDPH(t *testing.T) {
 	}
 	if strings.Contains(candidates[0].SourceText, "\x1e") {
 		t.Fatalf("expected control chars stripped from export, got %q", candidates[0].SourceText)
+	}
+	if strings.Contains(candidates[0].SourceText, "HLMDPH_") {
+		t.Fatalf("expected internal placeholder removed from export, got %q", candidates[0].SourceText)
 	}
 }

@@ -1,6 +1,11 @@
 package editor_export
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+var internalSegmentPlaceholderPattern = regexp.MustCompile("\x1eHL[A-Z]+PH_[A-Z0-9_]+_\\d+\x1f")
 
 func isInvalidXMLCharacter(r rune) bool {
 	if r == 0x9 || r == 0xA || r == 0xD {
@@ -27,8 +32,16 @@ func sanitizeInvalidXMLCharacters(value string) string {
 	return builder.String()
 }
 
+func stripInternalSegmentPlaceholders(value string) string {
+	if value == "" || !strings.Contains(value, "\x1eHL") {
+		return value
+	}
+	return internalSegmentPlaceholderPattern.ReplaceAllString(value, "")
+}
+
 func escapeXML(value string) string {
-	safe := sanitizeInvalidXMLCharacters(value)
+	safe := stripInternalSegmentPlaceholders(value)
+	safe = sanitizeInvalidXMLCharacters(safe)
 	replacer := strings.NewReplacer(
 		"&", "&amp;",
 		"<", "&lt;",
