@@ -93,6 +93,21 @@ function normalizeGfmTableDelimiter(cell: string) {
   return `${leftColon ? ":" : ""}---${rightColon ? ":" : ""}`;
 }
 
+function shouldStripTrailingTableDelimiter(
+  hasLeadingPipe: boolean,
+  hasTrailingPipe: boolean,
+  parts: string[],
+) {
+  if (!hasTrailingPipe || parts.at(-1) !== "") {
+    return false;
+  }
+  if (hasLeadingPipe) {
+    return true;
+  }
+  const bodyParts = parts.slice(0, -1);
+  return bodyParts.length >= 2 && bodyParts.every((part) => part !== "");
+}
+
 function normalizeGfmTableRow(line: string) {
   const trimmed = line.trim();
   const hasLeadingPipe = trimmed.startsWith("|");
@@ -101,7 +116,7 @@ function normalizeGfmTableRow(line: string) {
   if (hasLeadingPipe && parts[0] === "") {
     parts = parts.slice(1);
   }
-  if (hasLeadingPipe && hasTrailingPipe && parts.at(-1) === "") {
+  if (shouldStripTrailingTableDelimiter(hasLeadingPipe, hasTrailingPipe, parts)) {
     parts = parts.slice(0, -1);
   }
   if (parts.length === 0) {

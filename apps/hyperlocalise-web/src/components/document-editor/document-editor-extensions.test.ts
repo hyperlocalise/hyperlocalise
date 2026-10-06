@@ -188,6 +188,21 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(normalizeGfmTablesInMarkdown(separator)).toBe("| :--- | ---: | :---: |");
   });
 
+  it("does not treat an optional closing pipe as an extra table cell", () => {
+    const table = `## T
+
+Col1 | Col2
+--- | ---
+a | b |`;
+    const serialized = `## T
+
+| Col1 | Col2 |
+| --- | --- |
+| a | b |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", table, serialized)).toBe(false);
+  });
+
   it("does not drop a trailing empty table cell without outer pipes", () => {
     const table = `## T
 
