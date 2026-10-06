@@ -188,6 +188,28 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(normalizeGfmTablesInMarkdown(separator)).toBe("| :--- | ---: | :---: |");
   });
 
+  it("does not drop a trailing empty table cell without outer pipes", () => {
+    const table = `## T
+
+Col1 | Col2
+--- | ---
+x | `;
+    const serialized = `## T
+
+| Col1 | Col2 |
+| --- | --- |
+| x | |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", table, serialized)).toBe(false);
+  });
+
+  it("does not normalize table-like lines inside fenced code blocks", () => {
+    const original = "```\n| a      | b |\n| --- | --- |\n```";
+    const changed = "```\n| a      | c |\n| --- | --- |\n```";
+
+    expect(isLossyDocumentRoundTrip("markdown", original, changed)).toBe(true);
+  });
+
   it("treats dropped GFM table alignment as a lossy round trip", () => {
     const aligned = `## T
 

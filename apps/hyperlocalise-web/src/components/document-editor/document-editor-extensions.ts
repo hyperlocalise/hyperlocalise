@@ -94,14 +94,14 @@ function normalizeGfmTableDelimiter(cell: string) {
 }
 
 function normalizeGfmTableRow(line: string) {
-  let parts = line
-    .trim()
-    .split("|")
-    .map((cell) => cell.trim());
-  if (parts[0] === "") {
+  const trimmed = line.trim();
+  const hasLeadingPipe = trimmed.startsWith("|");
+  const hasTrailingPipe = trimmed.endsWith("|");
+  let parts = trimmed.split("|").map((cell) => cell.trim());
+  if (hasLeadingPipe && parts[0] === "") {
     parts = parts.slice(1);
   }
-  if (parts.at(-1) === "") {
+  if (hasLeadingPipe && hasTrailingPipe && parts.at(-1) === "") {
     parts = parts.slice(0, -1);
   }
   if (parts.length === 0) {
@@ -117,9 +117,27 @@ function normalizeGfmTableRow(line: string) {
 export function normalizeGfmTablesInMarkdown(markdown: string) {
   const lines = markdown.split("\n");
   const output: string[] = [];
+  let fence: string | null = null;
   let index = 0;
   while (index < lines.length) {
     const line = lines[index];
+    const fenceMatch = FENCE_PATTERN.exec(line);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (fence === null) {
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length) {
+        fence = null;
+      }
+      output.push(line);
+      index += 1;
+      continue;
+    }
+    if (fence !== null) {
+      output.push(line);
+      index += 1;
+      continue;
+    }
     const nextLine = lines[index + 1];
     if (isGfmTableRowLine(line) && nextLine !== undefined && isGfmTableSeparatorLine(nextLine)) {
       while (index < lines.length && isGfmTableRowLine(lines[index])) {
