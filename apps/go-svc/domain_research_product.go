@@ -148,9 +148,6 @@ func (h *handler) expandDomainKeywords(r *http.Request, actor workspaceActor) (a
 	} else if hit {
 		return cached, http.StatusOK, nil
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA); err != nil {
-		return nil, 0, err
-	}
 	ideas, err := h.keywordIdeas(r.Context(), seed, market)
 	if err != nil {
 		return nil, 0, err
@@ -309,9 +306,6 @@ func (h *handler) inspectDomainSerp(r *http.Request, actor workspaceActor) (any,
 	} else if snapshotErr != nil && !isNoRows(snapshotErr) {
 		return nil, 0, snapshotErr
 	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "serp-inspection", 1, DOMAIN_RESEARCH_SERP_QUOTA); err != nil {
-		return nil, 0, err
-	}
 	results, err := h.liveOrganicSerp(r.Context(), keyword, market, domain.DomainKey, device)
 	if err != nil {
 		return nil, 0, err
@@ -367,9 +361,6 @@ func (h *handler) trackDomainKeywords(r *http.Request, actor workspaceActor) (an
 	}
 	if len(rows) > maxRankCheckBatchSize {
 		rows = rows[:maxRankCheckBatchSize]
-	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
-		return nil, 0, err
 	}
 	keywords := make([]researchRankCheckKeyword, len(rows))
 	for i, row := range rows {
@@ -464,9 +455,6 @@ func (h *handler) refreshDomainRanks(r *http.Request, actor workspaceActor) (any
 	}
 	if len(rows) == 0 {
 		return map[string]any{"ranks": []any{}}, http.StatusOK, nil
-	}
-	if err := h.consumeDomainResearchQuota(r.Context(), actor.organizationID, "rank-check", len(rows), DOMAIN_RESEARCH_RANK_QUOTA); err != nil {
-		return nil, 0, err
 	}
 	groups := map[string][]trackedKeyword{}
 	for _, row := range rows {
