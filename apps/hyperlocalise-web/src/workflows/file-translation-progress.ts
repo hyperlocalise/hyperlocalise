@@ -18,6 +18,20 @@ export const fileTranslationReportSchema = z.object({
   failed: z.number().int().nonnegative(),
 });
 
+export type FileTranslationReport = z.infer<typeof fileTranslationReportSchema>;
+
+/** A mixed CLI report is progress, not a hard failure. Only fail the step when
+ * nothing succeeded — otherwise the next page can resume from the lockfile. */
+export function isFileTranslationCliHardFailure(
+  progress: Pick<FileTranslationReport, "succeeded" | "failed">,
+  exitCode: number,
+): boolean {
+  if (progress.succeeded > 0) {
+    return false;
+  }
+  return exitCode !== 0 || progress.failed > 0;
+}
+
 const completionSchema = z.object({ s: z.string(), t: z.string() });
 const lockSchema = z.object({
   run_completed: z.record(z.string(), z.record(z.string(), completionSchema)).optional(),

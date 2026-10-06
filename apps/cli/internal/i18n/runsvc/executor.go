@@ -389,12 +389,9 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				completionCh = nil
 				continue
 			}
-			if isTargetFailed(completion.targetPath, &state.pendingMu, state.failedTargets) {
-				if err := s.flushIfTargetCompleted(completion.targetPath, completion.sourcePath, state); err != nil {
-					recordTaskFailure(&state.report, &state.reportMu, state.total, Task{TargetPath: completion.targetPath}, err, emitter)
-				}
-				continue
-			}
+			// Persist sibling successes even when another key in the same target
+			// failed. Rolling those lock entries back forced the next page to
+			// retranslate completed work.
 			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{
 				SourceHash: completion.sourceHash,
 				TaskHash:   completion.taskHash,
@@ -441,21 +438,13 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				}
 				continue
 			}
-		case targetPath, ok := <-failureCh:
+		case _, ok := <-failureCh:
 			if !ok {
 				failureCh = nil
 				continue
 			}
-			removedPersisted, changed := s.rollbackLockForTarget(lockState, targetPath, pendingPersisted, state)
-			if !changed {
-				continue
-			}
-			dirty = true
-			if err := flushPending(fmt.Sprintf("persist lock rollback for %q", targetPath), removedPersisted); err != nil {
-				reportFatal(err)
-				cancel()
-				return
-			}
+			// A single key failure must not un-lock successful siblings. Only
+			// a failed target-file flush rolls lock entries back.
 		}
 	}
 }
@@ -506,6 +495,10 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	if !shouldFlush {
 		return nil
 	}
+	// Failed keys still decrement pending so the target can finish. The file
+	// write waits for finalize when any sibling failed, which avoids rewriting
+	// an empty catalog after a validation-only failure. Successful siblings
+	// stay staged and are flushed at the end of the run.
 	if isTargetFailed(targetPath, &state.pendingMu, state.failedTargets) {
 		return nil
 	}
