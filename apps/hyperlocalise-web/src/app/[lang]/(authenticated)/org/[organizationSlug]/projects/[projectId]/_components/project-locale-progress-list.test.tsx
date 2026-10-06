@@ -17,7 +17,20 @@ import type { ComponentProps } from "react";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it } from "vite-plus/test";
 
+import type { ProjectLocaleProgressRow } from "@/api/routes/project/project.schema";
+
 import { ProjectLocaleProgressList } from "./project-locale-progress-list";
+
+function localeRow(locale: string): ProjectLocaleProgressRow {
+  return {
+    locale,
+    translationProgress: 10,
+    approvalProgress: 0,
+    words: { total: 10, translated: 1, approved: 0 },
+    phrases: { total: 4, translated: 1, approved: 0 },
+    lastActivityAt: null,
+  };
+}
 
 function renderList(props: ComponentProps<typeof ProjectLocaleProgressList>) {
   return render(
@@ -38,5 +51,16 @@ describe("ProjectLocaleProgressList", () => {
 
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(3);
+  });
+
+  it("shows a country flag when the locale has one and the language code otherwise", () => {
+    renderList({
+      locales: [localeRow("fr-FR"), localeRow("es-419")],
+      settingsHref: "/org/acme/projects/p1/settings",
+    });
+
+    expect(screen.getByText("🇫🇷")).toBeInTheDocument();
+    expect(screen.getByText("ES")).toBeInTheDocument();
+    expect(screen.queryByText("FR")).not.toBeInTheDocument();
   });
 });
