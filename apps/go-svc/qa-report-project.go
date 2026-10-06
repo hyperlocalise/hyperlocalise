@@ -257,34 +257,34 @@ func (api *qaReportAPI) patchProjectQaSettings(ctx context.Context, actor qaRepo
 
 func parseProjectFindingsQuery(r *http.Request) (locale, checkType, severity string, limit, offset int, err error) {
 	limit, offset = 50, 0
-	q := r.URL.Query()
-	if raw := strings.TrimSpace(q.Get("locale")); raw != "" {
-		if len(raw) > 32 {
+	raw := r.URL.RawQuery
+	if val, ok := parseFirstQueryVal(raw, "locale"); ok && val != "" {
+		if len(val) > 32 {
 			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
 		}
-		locale = raw
+		locale = val
 	}
-	if raw := strings.TrimSpace(q.Get("checkType")); raw != "" {
-		if _, ok := translationQaCheckTypes[raw]; !ok {
+	if val, ok := parseFirstQueryVal(raw, "checkType"); ok && val != "" {
+		if _, ok := translationQaCheckTypes[val]; !ok {
 			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
 		}
-		checkType = raw
+		checkType = val
 	}
-	if raw := strings.TrimSpace(q.Get("severity")); raw != "" {
-		if _, ok := translationQaSeverities[raw]; !ok {
+	if val, ok := parseFirstQueryVal(raw, "severity"); ok && val != "" {
+		if _, ok := translationQaSeverities[val]; !ok {
 			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
 		}
-		severity = raw
+		severity = val
 	}
-	if raw, ok := q["limit"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
+	if val, ok := parseFirstQueryVal(raw, "limit"); ok && val != "" {
+		n, parseErr := strconv.Atoi(val)
 		if parseErr != nil || n < 1 || n > 100 {
 			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
 		}
 		limit = n
 	}
-	if raw, ok := q["offset"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
+	if val, ok := parseFirstQueryVal(raw, "offset"); ok && val != "" {
+		n, parseErr := strconv.Atoi(val)
 		if parseErr != nil || n < 0 {
 			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
 		}

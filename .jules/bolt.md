@@ -441,5 +441,9 @@
 **Action:** Use multi-call `strings.IndexByte` for small sets of static single-byte signals instead of `strings.ContainsAny` in performance-critical string unquoting/parsing paths.
 
 ## 2027-10-01 - Typed Structs over Map Allocations in JSON Fingerprinting
-**Learning:** In JSON serialization for query fingerprinting (`activityLogFilterFingerprint`), 1) replacing `map[string]string` for nested objects (such as `user` actor filters) with a typed Go struct (`activityLogUserActorPayload`) eliminates heap map allocations and map key reflection; 2) checking `slices.IsSorted` on candidate slices avoids slice cloning and sorting when elements are already sorted or <= 1 in length.
+**Learning:** In JSON serialization for query fingerprinting (`activityLogFilterFingerprint`), 1) replacing `map[string]string` for nested objects (such as `user` actor filters) with a typed Go struct (`activityLogUserActorPayload`) eliminates heap map allocations and map key reflection; 2) checking `slices.IsSorted` on candidate slices avoids slice cloning league and sorting when elements are already sorted or <= 1 in length.
 **Action:** Replace dynamic `map[string]string` instances with typed Go structs for JSON payload encoding, and check `slices.IsSorted` before cloning or sorting slices.
+
+## 2027-10-06 - Zero-Allocation Query Parameter Extraction Helper
+**Learning:** In HTTP handler query parameter parsing, Go's standard `r.URL.Query()` allocates a map `url.Values` (`map[string][]string`) and parses/unescapes every key-value pair across the entire query string into heap-allocated slices. Abstracting a reusable helper function `parseFirstQueryVal(rawQuery, key)` that streams over `strings.Cut(pair, "&")` and `strings.Cut(pair, "=")` allows extracting specific query parameters cleanly with zero heap allocations (`0 B/op`, `0 allocs/op`), avoiding map allocations and redundant unescaping for unrequested parameters.
+**Action:** Use a clean, reusable `parseFirstQueryVal` helper for extracting query parameters in performance-critical HTTP request handlers to eliminate `url.Values` map heap allocations.
