@@ -125,6 +125,22 @@ function sequenceNode(): VisualWorkflowRfNode {
   };
 }
 
+function terminalNode(
+  type: "flow.stop" | "flow.return" | "flow.fail",
+  config: Extract<
+    VisualWorkflowRfNode["data"]["config"],
+    { kind: "flow.stop" | "flow.return" | "flow.fail" }
+  >,
+): VisualWorkflowRfNode {
+  return {
+    id: "terminal",
+    type,
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions(type),
+    data: { catalogType: type, config, runStatus: "idle" },
+  };
+}
+
 describe("VisualWorkflowConfigPanel", () => {
   it("lets operators change the trigger type and delete the step", async () => {
     const user = userEvent.setup();
@@ -483,6 +499,81 @@ describe("VisualWorkflowConfigPanel", () => {
           label: "Slack",
         },
       ],
+    });
+  });
+
+  it("configures a Stop reason", async () => {
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={terminalNode("flow.stop", { kind: "flow.stop", outcome: "completed" })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Reason (optional)" }), {
+      target: { value: "Done early" },
+    });
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
+      kind: "flow.stop",
+      outcome: "completed",
+      reason: "Done early",
+    });
+  });
+
+  it("renames a Return output without changing its stable ID", async () => {
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={terminalNode("flow.return", {
+          kind: "flow.return",
+          outputs: [{ id: "result-id", name: "result", type: "string" }],
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Returned output 1" }), {
+      target: { value: "orderId" },
+    });
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "flow.return",
+      outputs: [{ id: "result-id", name: "orderId", type: "string" }],
+    });
+  });
+
+  it("configures a controlled Fail code and message", () => {
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={terminalNode("flow.fail", {
+          kind: "flow.fail",
+          errorCode: "WORKFLOW_FAILED",
+          message: "Workflow failed",
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Error code" }), {
+      target: { value: "ORDER_REJECTED" },
+    });
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "flow.fail",
+      errorCode: "ORDER_REJECTED",
+      message: "Workflow failed",
     });
   });
 });

@@ -206,4 +206,12 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(getAllowedExecutionSourceHandles(sequence)).toEqual([]);
     expect(getPrimaryExecutionSourceHandle(sequence)).toBeNull();
   });
+
+  it.each(["flow.stop", "flow.return", "flow.fail"] as const)(
+    "does not expose execution outputs for %s",
+    (type) => {
+      expect(getAllowedExecutionSourceHandles(canonical(type))).toEqual([]);
+      expect(getPrimaryExecutionSourceHandle(canonical(type))).toBeNull();
+    },
+  );
 });

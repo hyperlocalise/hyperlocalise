@@ -19,5 +19,5 @@ export type VisualWorkflowNodeExecutionResult =
     }
   | {
       ok: false;
-      error: { message: string; code?: string };
+      error: { message: string; code?: string; terminal?: boolean };
     };

@@ -42,8 +42,10 @@ import { parseWaitResumeState } from "./wait-schedule";
 import { parseMergeResumeState } from "./merge-timeout";
 import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
 import { createSerialAsyncQueue } from "./serial-async-queue";
+import { shouldReuseDurableExecution } from "./durable-execution-reuse";
 
 const logger = createLogger("visual-workflow-node");
+
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
   leaseToken: string;
@@ -82,7 +84,10 @@ export async function executeDurableWorkflowSlice(input: {
         (record) =>
           record.encryptedOutput &&
           !waitConditionProbeNodeIds.has(record.nodeId) &&
-          ["succeeded", "handled_error"].includes(record.status) &&
+          shouldReuseDurableExecution(
+            record.status,
+            decryptWorkflowPayload(record.encryptedOutput),
+          ) &&
           shouldReuseCompletedNodeRun({
             nodeId: record.nodeId,
             retryRegionAttempt: record.iteration,

@@ -612,6 +612,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.hideAddAction ||
+      ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType) ||
       (data.config.kind === "logic.sequence" && sequenceOutputs.length === 0) ? null : (
         <VisualWorkflowQuickAddButton
           className={cn(
@@ -663,6 +664,12 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeRetry;
     case "flow.wait":
       return messages.nodeWait;
+    case "flow.stop":
+      return messages.nodeStop;
+    case "flow.return":
+      return messages.nodeReturn;
+    case "flow.fail":
+      return messages.nodeFail;
     case "logic.merge":
       return messages.nodeMerge;
     case "logic.sequence":

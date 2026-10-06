@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import {
   createMergeInputId,
+  createReturnOutputId,
   createSequenceOutputId,
   isTriggerType,
 } from "@/lib/visual-workflows/catalog/node-catalog";
@@ -681,6 +682,141 @@ export function VisualWorkflowConfigPanel({
               <FormattedMessage {...messages.addSequenceOutput} />
             </Button>
           </div>
+        ) : null}
+        {config.kind === "flow.stop" ? (
+          <>
+            <SelectField
+              id="vw-stop-outcome"
+              label={intl.formatMessage(messages.stopOutcome)}
+              value={config.outcome}
+              items={[
+                { value: "completed", label: intl.formatMessage(messages.stopCompleted) },
+                { value: "cancelled", label: intl.formatMessage(messages.stopCancelled) },
+              ]}
+              onValueChange={(value) => {
+                if (value === "completed" || value === "cancelled") {
+                  onChangeConfig({ ...config, outcome: value });
+                }
+              }}
+            />
+            <TextAreaField
+              id="vw-stop-reason"
+              label={intl.formatMessage(messages.stopReason)}
+              value={config.reason ?? ""}
+              onChange={(reason) => onChangeConfig({ ...config, reason: reason || undefined })}
+            />
+          </>
+        ) : null}
+        {config.kind === "flow.return" ? (
+          <div className="grid gap-2">
+            <Label>
+              <FormattedMessage {...messages.returnOutputs} />
+            </Label>
+            {config.outputs.length === 0 ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.returnOutputsEmpty} />
+              </TypographyP>
+            ) : null}
+            {config.outputs.map((output, index) => (
+              <div key={output.id} className="grid grid-cols-[1fr_7rem_auto] items-center gap-2">
+                <Input
+                  aria-label={intl.formatMessage(messages.returnOutputName, { index: index + 1 })}
+                  value={output.name}
+                  onChange={(event) =>
+                    onChangeConfig({
+                      ...config,
+                      outputs: config.outputs.map((entry, outputIndex) =>
+                        outputIndex === index ? { ...entry, name: event.target.value } : entry,
+                      ),
+                    })
+                  }
+                />
+                <Select
+                  value={output.type}
+                  onValueChange={(type) => {
+                    if (
+                      !type ||
+                      !["string", "number", "boolean", "object", "array", "unknown"].includes(type)
+                    )
+                      return;
+                    onChangeConfig({
+                      ...config,
+                      outputs: config.outputs.map((entry, outputIndex) =>
+                        outputIndex === index
+                          ? { ...entry, type: type as typeof output.type }
+                          : entry,
+                      ),
+                    });
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label={intl.formatMessage(messages.returnOutputType, { index: index + 1 })}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["string", "number", "boolean", "object", "array", "unknown"].map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={intl.formatMessage(messages.removeReturnOutput, { index: index + 1 })}
+                  onClick={() =>
+                    onChangeConfig({
+                      ...config,
+                      outputs: config.outputs.filter((_, outputIndex) => outputIndex !== index),
+                    })
+                  }
+                >
+                  <TrashIcon className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.outputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  outputs: [
+                    ...config.outputs,
+                    {
+                      id: createReturnOutputId(),
+                      name: `output${config.outputs.length + 1}`,
+                      type: "unknown",
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addReturnOutput} />
+            </Button>
+          </div>
+        ) : null}
+        {config.kind === "flow.fail" ? (
+          <>
+            <TextField
+              id="vw-fail-code"
+              label={intl.formatMessage(messages.failErrorCode)}
+              value={config.errorCode}
+              onChange={(errorCode) => onChangeConfig({ ...config, errorCode })}
+            />
+            <TextAreaField
+              id="vw-fail-message"
+              label={intl.formatMessage(messages.failMessage)}
+              value={config.message}
+              onChange={(message) => onChangeConfig({ ...config, message })}
+            />
+          </>
         ) : null}
         {config.kind === "logic.set" ? (
           <KeyValueEditor

@@ -22,7 +22,7 @@ import { getAllowedExecutionSourceHandles } from "./execution-handles";
 import { retryBodyRequiresDuplicateAcknowledgement } from "./retry-idempotency";
 import { RETRY_MAX_ATTEMPTS_CAP } from "../schema/retry-policy";
 import {
-  NODE_CONTRACTS,
+  getWorkflowInputFields,
   matchesWorkflowType,
   getWorkflowOutputFields,
 } from "../catalog/node-contracts";
@@ -233,7 +233,8 @@ export function compileWorkflowIssues(
     };
     for (const [name, value] of Object.entries(config))
       if (!node.inputs?.[name]) checkTemplates(value);
-    for (const field of NODE_CONTRACTS[node.type].inputs)
+    const inputFields = getWorkflowInputFields(node);
+    for (const field of inputFields)
       if (
         field.required &&
         !node.inputs?.[field.name] &&
@@ -248,7 +249,7 @@ export function compileWorkflowIssues(
       )
         add("invalid_node_config", node.id);
     for (const [name, binding] of Object.entries(node.inputs ?? {})) {
-      const field = NODE_CONTRACTS[node.type].inputs.find((field) => field.name === name);
+      const field = inputFields.find((field) => field.name === name);
       let invalid =
         !field &&
         node.type !== "logic.set" &&

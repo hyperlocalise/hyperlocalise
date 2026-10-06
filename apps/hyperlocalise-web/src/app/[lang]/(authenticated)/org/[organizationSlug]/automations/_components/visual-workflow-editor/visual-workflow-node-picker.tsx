@@ -169,6 +169,12 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeRetry;
     case "flow.wait":
       return messages.nodeWait;
+    case "flow.stop":
+      return messages.nodeStop;
+    case "flow.return":
+      return messages.nodeReturn;
+    case "flow.fail":
+      return messages.nodeFail;
     case "logic.merge":
       return messages.nodeMerge;
     case "logic.sequence":
@@ -208,6 +214,12 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeRetryHint;
     case "flow.wait":
       return messages.nodeWaitHint;
+    case "flow.stop":
+      return messages.nodeStopHint;
+    case "flow.return":
+      return messages.nodeReturnHint;
+    case "flow.fail":
+      return messages.nodeFailHint;
     case "logic.merge":
       return messages.nodeMergeHint;
     case "logic.sequence":

@@ -136,6 +136,38 @@ export function executeLogicVisualWorkflowNode(input: {
           dispatchedOutputIds: node.config.outputs.map((output) => output.id),
         },
       };
+    case "flow.stop":
+      return node.config.outcome === "cancelled"
+        ? {
+            ok: false,
+            error: {
+              code: "cancelled",
+              message: node.config.reason ?? "Workflow cancelled by a Stop node.",
+            },
+          }
+        : {
+            ok: true,
+            output: {
+              outcome: "completed",
+              ...(node.config.reason ? { reason: node.config.reason } : {}),
+            },
+          };
+    case "flow.return": {
+      const resolvedConfig = node.config as unknown as Record<string, unknown>;
+      const returnedOutputs = Object.fromEntries(
+        node.config.outputs.map((output) => [output.name, resolvedConfig[`value.${output.id}`]]),
+      );
+      return { ok: true, output: { returnedOutputs } };
+    }
+    case "flow.fail":
+      return {
+        ok: false,
+        error: {
+          code: node.config.errorCode,
+          message: node.config.message,
+          terminal: true,
+        },
+      };
     default:
       return {
         ok: false,
