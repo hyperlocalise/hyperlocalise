@@ -206,6 +206,46 @@ func TestJoinLeavesMissingTranslationsEmpty(t *testing.T) {
 	}
 }
 
+func TestJoinSpanValuesJoinsFullyTranslatedKeys(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{
+		"intro#srx.0": "Bonjour.",
+		"intro#srx.1": "Monde.",
+		"title":       "Accueil",
+	}, sourceSpans)
+
+	if len(got) != 2 || got["intro"] != "Bonjour. Monde." || got["title"] != "Accueil" {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
+func TestJoinSpanValuesDropsPartlyTranslatedKeys(t *testing.T) {
+	t.Parallel()
+	sourceSpans := map[string]string{
+		"intro#srx.0": "Hello.",
+		"intro#srx.1": " World.",
+	}
+	got := JoinSpanValues(map[string]string{"intro#srx.0": "Bonjour."}, sourceSpans)
+
+	if len(got) != 0 {
+		t.Fatalf("joined = %#v, want no value for a key with an untranslated span", got)
+	}
+}
+
+func TestJoinSpanValuesLeavesValuesAloneWithoutSourceSpans(t *testing.T) {
+	t.Parallel()
+	values := map[string]string{"note#srx.0": "Bonjour."}
+	got := JoinSpanValues(values, nil)
+
+	if len(got) != 1 || got["note#srx.0"] != "Bonjour." {
+		t.Fatalf("joined = %#v", got)
+	}
+}
+
 func TestSpanKeyRoundTrip(t *testing.T) {
 	t.Parallel()
 	key := SpanKey("home.title", 2)
