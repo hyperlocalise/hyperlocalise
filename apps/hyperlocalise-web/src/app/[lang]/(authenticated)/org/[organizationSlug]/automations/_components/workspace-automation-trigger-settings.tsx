@@ -467,6 +467,33 @@ function ScheduledTriggerFields({ disabled, errors, form, onChange }: TriggerFie
   );
 }
 
+/** Read-only: the content types come from the Contentful connection chosen in the tool row. */
+function ContentfulTriggerFields({ form }: TriggerFieldsProps) {
+  if (form.contentfulContentTypeIds.length === 0) {
+    return (
+      <Prose>
+        <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulAnyType} />
+      </Prose>
+    );
+  }
+
+  return (
+    <>
+      <Prose>
+        <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulOfType} />
+      </Prose>
+      {form.contentfulContentTypeIds.map((contentTypeId) => (
+        <span
+          key={contentTypeId}
+          className="flex h-8 max-w-xs items-center truncate rounded-lg border border-border px-3 text-sm text-muted-foreground"
+        >
+          {contentTypeId}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function ContentfulTriggerDetails({ context }: TriggerFieldsProps) {
   if (context.contentfulConnected) {
     return null;
@@ -625,6 +652,7 @@ const TRIGGER_OPTIONS: TriggerOption[] = [
     matches: (form) => form.triggerMode === "contentful",
     select: (form) => ({ ...form, triggerMode: "contentful", contentfulEnabled: true }),
     isUnavailable: (context) => !context.contentfulConnected,
+    Fields: ContentfulTriggerFields,
     Details: ContentfulTriggerDetails,
   },
   {

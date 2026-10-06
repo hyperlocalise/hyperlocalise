@@ -46,18 +46,18 @@ export const workspaceAutomationTriggerMessages = defineMessages({
     description: "Trigger option: runs start on a GitHub push or a pull request",
   },
   contentful: {
-    defaultMessage: "A Contentful entry is created or updated",
-    id: "WHZ7uZQ7Ht",
-    description: "Trigger option: runs start when Contentful sends an entry webhook",
+    defaultMessage: "A Contentful entry is published",
+    id: "POwFafn88U",
+    description: "Trigger option: runs start when Contentful sends an entry publish webhook",
   },
   sourceUpload: {
-    defaultMessage: "On source file upload",
-    id: "fldzYJPyCu",
+    defaultMessage: "A source file is uploaded",
+    id: "BN2svhpj+I",
     description: "Trigger option: runs start when a source file is uploaded to the project",
   },
   webChat: {
-    defaultMessage: "A message arrives in the web chat",
-    id: "lavOYQJ/JO",
+    defaultMessage: "A web chat message arrives",
+    id: "GwpF6lZmgi",
     description: "Trigger option: the public web chat starts runs",
   },
   toBranch: {
@@ -119,5 +119,15 @@ export const workspaceAutomationTriggerMessages = defineMessages({
     defaultMessage: "Chat URL",
     id: "g5OYzJZ1DT",
     description: "Prose before the public web chat URL field",
+  },
+  contentfulOfType: {
+    defaultMessage: "of type",
+    id: "rQ7m4xP0Uf",
+    description: "Prose between the Contentful trigger name and the content types that start a run",
+  },
+  contentfulAnyType: {
+    defaultMessage: "of any content type",
+    id: "AQFTimLagD",
+    description: "Prose after the Contentful trigger name when every content type starts a run",
   },
 });

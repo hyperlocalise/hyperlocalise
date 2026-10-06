@@ -174,7 +174,27 @@ export const GithubDisconnected: Story = {
 };
 
 export const Contentful: Story = {
+  args: {
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      triggerMode: "contentful",
+      contentfulContentTypeIds: ["article", "landingPage"],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByRole("button", { name: "A Contentful entry is published" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("of type")).toBeInTheDocument();
+    await expect(canvas.getByText("landingPage")).toBeInTheDocument();
+  },
+};
+
+export const ContentfulAnyContentType: Story = {
   args: { form: { ...createEmptyAutomationFormFixture(), triggerMode: "contentful" } },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("of any content type")).toBeInTheDocument();
+  },
 };
 
 export const ContentfulDisconnected: Story = {
