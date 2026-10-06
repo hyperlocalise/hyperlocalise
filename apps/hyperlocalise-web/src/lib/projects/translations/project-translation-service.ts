@@ -215,6 +215,8 @@ function translationKeysQueueFilterCondition(input: {
       )`;
     case "hidden":
       return eq(schema.projectTranslationKeys.isHidden, true);
+    case "not_hidden":
+      return eq(schema.projectTranslationKeys.isHidden, false);
     default:
       return undefined;
   }

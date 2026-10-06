@@ -592,6 +592,16 @@ describe("MCP list_translations", () => {
     );
     expect(hiddenRows.output.translations?.map((row) => row.key)).toEqual(["hidden"]);
     expect(hiddenRows.output.translations?.[0]?.isHidden).toBe(true);
+
+    const notHiddenRows = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        queueFilter: "not_hidden",
+      }),
+    );
+    expect(notHiddenRows.output.translations?.map((row) => row.key)).toEqual(["done"]);
+    expect(notHiddenRows.output.translations?.[0]?.isHidden).toBe(false);
   });
 
   it("lets a read-only member list keys", async () => {

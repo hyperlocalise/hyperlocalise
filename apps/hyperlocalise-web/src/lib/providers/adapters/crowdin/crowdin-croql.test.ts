@@ -99,6 +99,29 @@ describe("buildCrowdinFileQueueCroql", () => {
     ).toBe("id of file = 101 and is hidden");
   });
 
+  it("excludes hidden strings with not is hidden", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "not_hidden",
+      }),
+    ).toBe("id of file = 101 and not is hidden");
+  });
+
+  it("composes not hidden with an untranslated-first status band", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "not_hidden",
+        statusBand: "untranslated",
+      }),
+    ).toBe(
+      'id of file = 101 and not is hidden and count of languages summary where (language = @language:"fr" and is translated) = 0',
+    );
+  });
+
   it("filters QA issues for the target language", () => {
     expect(
       buildCrowdinFileQueueCroql({

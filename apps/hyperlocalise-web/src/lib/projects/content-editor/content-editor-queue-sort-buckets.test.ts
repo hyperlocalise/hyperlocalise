@@ -33,6 +33,7 @@ describe("crowdinQueueFilterUsesStatusBuckets", () => {
     expect(crowdinQueueFilterUsesStatusBuckets("machine_translated")).toBe(true);
     expect(crowdinQueueFilterUsesStatusBuckets("with_comments")).toBe(true);
     expect(crowdinQueueFilterUsesStatusBuckets("hidden")).toBe(true);
+    expect(crowdinQueueFilterUsesStatusBuckets("not_hidden")).toBe(true);
   });
 });
 
