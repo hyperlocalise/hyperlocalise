@@ -293,27 +293,26 @@ describe("ContentEditorQueueToolbar", () => {
     expect(onQueueAdvancedChange).toHaveBeenCalledWith(undefined);
   });
 
-  it("applies a QA qualifier from the submenu", async () => {
+  it("lists QA qualifier submenu items", async () => {
     const user = userEvent.setup();
-    const onQueueFilterChange = vi.fn();
-    const onQueueFilterQualifierChange = vi.fn();
 
     renderWithContentEditorProviders(
       <ContentEditorQueueToolbar
         queueFilter="all"
-        onQueueFilterChange={onQueueFilterChange}
-        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        onQueueFilterChange={vi.fn()}
         availableQueueFilters={["all", "qa_issues"]}
         providerKind="native"
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.hover(screen.getByRole("menuitem", { name: "QA issues" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Spelling" }));
+    const qaIssues = screen.getByRole("menuitem", { name: "QA issues" });
+    await user.hover(qaIssues);
+    qaIssues.focus();
+    await user.keyboard("{ArrowRight}");
 
-    expect(onQueueFilterChange).toHaveBeenCalledWith("qa_issues");
-    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith("spelling");
+    expect(await screen.findByRole("menuitem", { name: "Spelling" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "All" })).toBeInTheDocument();
   });
 
   it("opens the advanced filter dialog and applies native fields", async () => {

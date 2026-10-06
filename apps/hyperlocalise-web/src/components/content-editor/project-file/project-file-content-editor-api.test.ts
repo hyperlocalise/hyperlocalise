@@ -338,6 +338,8 @@ describe("projectFileCatQueryKey", () => {
       "hero",
       "needs_review",
       "file_order",
+      null,
+      null,
       50,
       50,
       null,
