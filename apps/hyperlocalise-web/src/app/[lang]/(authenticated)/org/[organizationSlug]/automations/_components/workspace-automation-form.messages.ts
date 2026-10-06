@@ -45,16 +45,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "/2DsRIRpZu",
     description: "Header summary for a GitHub trigger that runs on push and pull request",
   },
-  githubEventPush: {
-    defaultMessage: "Push",
-    id: "k2PKKnD3GN",
-    description: "Toggle label for GitHub push trigger events",
-  },
-  githubEventPullRequest: {
-    defaultMessage: "Pull request opened",
-    id: "2C7ykfN2tG",
-    description: "Toggle label for GitHub pull request opened trigger events",
-  },
   repositoryRequired: {
     defaultMessage: "repository required",
     id: "+UD+5d3g3H",
@@ -180,36 +170,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "uqGZNAVfVF",
     description: "Button to add a branch pattern",
   },
-  addTrigger: {
-    defaultMessage: "Add Trigger",
-    id: "DPE4D8nJkF",
-    description: "Button to open the add-trigger menu",
-  },
-  supportedTriggers: {
-    defaultMessage: "Supported triggers",
-    id: "peYw3ULGLY",
-    description: "Dropdown section label for available automation triggers",
-  },
-  manualRun: {
-    defaultMessage: "Manual run",
-    id: "Ya1gnhy/x1",
-    description: "Menu item to select a manual trigger",
-  },
-  scheduled: {
-    defaultMessage: "Scheduled",
-    id: "bCXvSTPFsb",
-    description: "Menu item to select a scheduled trigger",
-  },
-  githubPush: {
-    defaultMessage: "GitHub push",
-    id: "6YRqpDlcKq",
-    description: "Label for the GitHub push trigger",
-  },
-  sourceUpload: {
-    defaultMessage: "Source upload",
-    id: "91uWukrQcJ",
-    description: "Label for the source upload trigger",
-  },
   addedShortcut: {
     defaultMessage: "Added",
     id: "UQM29Qy4Ux",
@@ -230,60 +190,15 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "3kjfANjxLP",
     description: "Section heading for automation trigger settings",
   },
-  every: {
-    defaultMessage: "Every",
-    id: "tr/WtfszIz",
-    description: "Prefix label before the schedule cadence select",
-  },
-  cadenceHour: {
-    defaultMessage: "Hour",
-    id: "gXZ1TC7mZA",
-    description: "Hourly schedule cadence option",
-  },
-  cadenceDay: {
-    defaultMessage: "Day",
-    id: "+ixHu5wBKG",
-    description: "Daily schedule cadence option",
-  },
-  cadenceWeek: {
-    defaultMessage: "Week",
-    id: "4Iy9AzpaNC",
-    description: "Weekly schedule cadence option",
-  },
-  at: {
-    defaultMessage: "at",
-    id: "yC7UjRaWKX",
-    description: "Preposition between cadence and time in the schedule row",
-  },
   scheduleTimezoneAriaLabel: {
     defaultMessage: "Schedule timezone",
     id: "VFS/q4p0GR",
     description: "Accessible label for the schedule timezone input",
   },
-  manualOnlyTitle: {
-    defaultMessage: "Manual only",
-    id: "YPT/4ux3Z/",
-    description: "Title when the automation only supports manual runs",
-  },
-  manualOnlyDescription: {
-    defaultMessage: "Runs only start when a teammate queues one from this automation.",
-    id: "yc2ziR1Owc",
-    description: "Description for the manual-only trigger",
-  },
-  contentfulWebhookConnectedDescription: {
-    defaultMessage: "Runs when Contentful sends a matching entry create or update webhook.",
-    id: "GdV4Jl3WMg",
-    description: "Description for Contentful webhook trigger when Contentful is connected",
-  },
   contentfulWebhookDisconnectedDescription: {
     defaultMessage: "Connect Contentful in Integrations before this trigger can run.",
     id: "PsCe6RXT6P",
     description: "Description for Contentful webhook trigger when Contentful is not connected",
-  },
-  sourceUploadDescription: {
-    defaultMessage: "Runs when a source file is uploaded to the project selected above.",
-    id: "1QEv3c/AxW",
-    description: "Description for the source upload trigger",
   },
   addTool: {
     defaultMessage: "Add Tool",
@@ -1231,21 +1146,10 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "rkQ7AmKMrt",
     description: "Placeholder for the automation instructions textarea",
   },
-  webChat: {
-    defaultMessage: "Web chat",
-    id: "+lT5g7sqtS",
-    description: "Menu item and label for the public web chat trigger",
-  },
   webChatSummary: {
     defaultMessage: "Web chat",
     id: "mg4r+1o1Aq",
     description: "Header summary for a web chat trigger",
-  },
-  webChatDescription: {
-    defaultMessage:
-      "Anyone with the link can chat with this agent. Traffic is protected with BotID. Visitors can attach images.",
-    id: "cUhuuxlusZ",
-    description: "Description of the public web chat trigger",
   },
   webChatUrlPending: {
     defaultMessage: "Save this automation to get a public chat URL.",

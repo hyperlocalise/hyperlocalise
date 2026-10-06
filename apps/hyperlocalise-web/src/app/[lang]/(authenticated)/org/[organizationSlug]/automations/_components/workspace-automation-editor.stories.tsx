@@ -131,8 +131,8 @@ export const ProjectSelectorForScheduledTrigger: Story = {
     await expect(
       await canvas.findByRole("button", { name: /Select project/i }),
     ).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Add Trigger" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: /^Scheduled/ }));
+    await userEvent.click(canvas.getByRole("button", { name: "Manually triggered" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "On a schedule" }));
     await expect(canvas.getByRole("button", { name: /Select project/i })).toBeInTheDocument();
   },
 };
