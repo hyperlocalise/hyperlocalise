@@ -830,6 +830,8 @@ export class ContentEditorWorkspaceOrchestrator {
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
+    // clear() also aborts in-flight image generation so returning to this
+    // file cannot start a second request while the first is still running.
     this.imageGenerations.clear();
     this.pendingWrites.clear();
     this.isBulkActionPending = false;

@@ -16,8 +16,20 @@ export type ContentEditorImageGenerationState =
   | { status: "running"; startedAt: number }
   | { status: "failed" };
 
+export type ContentEditorImageGenerationHandle = {
+  generation: number;
+  signal: AbortSignal;
+};
+
 export function contentEditorImageGenerationKey(segmentId: string, locale: string) {
   return JSON.stringify([segmentId, locale]);
+}
+
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.name === "AbortError")
+  );
 }
 
 /**
@@ -26,6 +38,9 @@ export function contentEditorImageGenerationKey(segmentId: string, locale: strin
  */
 export class ContentEditorImageGenerationStore {
   readonly states = observable.map<string, ContentEditorImageGenerationState>();
+  #nextGeneration = 0;
+  readonly #generations = new Map<string, number>();
+  readonly #aborts = new Map<string, AbortController>();
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -45,45 +60,80 @@ export class ContentEditorImageGenerationStore {
     return count;
   }
 
-  start(segmentId: string, locale: string) {
+  start(segmentId: string, locale: string): ContentEditorImageGenerationHandle | null {
     const current = this.get(segmentId, locale);
     if (current?.status === "running") {
-      return false;
+      return null;
     }
-    this.states.set(contentEditorImageGenerationKey(segmentId, locale), {
+    const key = contentEditorImageGenerationKey(segmentId, locale);
+    this.#nextGeneration += 1;
+    const generation = this.#nextGeneration;
+    const abort = new AbortController();
+    this.#generations.set(key, generation);
+    this.#aborts.set(key, abort);
+    this.states.set(key, {
       status: "running",
       startedAt: Date.now(),
     });
-    return true;
+    return { generation, signal: abort.signal };
   }
 
-  succeed(segmentId: string, locale: string) {
+  succeed(segmentId: string, locale: string, generation: number) {
     const key = contentEditorImageGenerationKey(segmentId, locale);
-    if (this.states.get(key)?.status === "running") {
-      this.states.delete(key);
+    if (!this.#isCurrentGeneration(key, generation)) {
+      return;
     }
+    this.#forget(key);
+    this.states.delete(key);
   }
 
-  fail(segmentId: string, locale: string) {
+  fail(segmentId: string, locale: string, generation: number) {
     const key = contentEditorImageGenerationKey(segmentId, locale);
-    if (this.states.get(key)?.status === "running") {
-      this.states.set(key, { status: "failed" });
+    if (!this.#isCurrentGeneration(key, generation)) {
+      return;
     }
+    this.#forget(key);
+    this.states.set(key, { status: "failed" });
   }
 
+  /**
+   * Drops progress and aborts every in-flight generation so a later settle
+   * cannot mark a newer request finished or failed.
+   */
   clear() {
+    for (const abort of this.#aborts.values()) {
+      abort.abort();
+    }
+    this.#aborts.clear();
+    this.#generations.clear();
     this.states.clear();
   }
 
-  async run(segmentId: string, locale: string, work: () => Promise<void>) {
-    if (!this.start(segmentId, locale)) {
+  async run(segmentId: string, locale: string, work: (signal: AbortSignal) => Promise<void>) {
+    const handle = this.start(segmentId, locale);
+    if (!handle) {
       return;
     }
     try {
-      await work();
-      runInAction(() => this.succeed(segmentId, locale));
-    } catch {
-      runInAction(() => this.fail(segmentId, locale));
+      await work(handle.signal);
+      if (handle.signal.aborted) {
+        return;
+      }
+      runInAction(() => this.succeed(segmentId, locale, handle.generation));
+    } catch (error) {
+      if (handle.signal.aborted || isAbortError(error)) {
+        return;
+      }
+      runInAction(() => this.fail(segmentId, locale, handle.generation));
     }
+  }
+
+  #isCurrentGeneration(key: string, generation: number) {
+    return this.#generations.get(key) === generation && this.states.get(key)?.status === "running";
+  }
+
+  #forget(key: string) {
+    this.#generations.delete(key);
+    this.#aborts.delete(key);
   }
 }

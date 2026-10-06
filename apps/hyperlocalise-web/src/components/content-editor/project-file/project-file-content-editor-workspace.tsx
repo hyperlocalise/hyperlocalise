@@ -1029,12 +1029,13 @@ export function ProjectFileContentEditorWorkspace({
             onRegenerateImage: async (
               segment: ContentEditorSegment,
               locale: string,
-              options?: { force?: boolean },
+              options?: { force?: boolean; signal?: AbortSignal },
             ) => {
               await regenerateImage({
                 externalStringId: segment.id,
                 targetLocale: locale,
                 force: options?.force,
+                signal: options?.signal,
               });
             },
           }

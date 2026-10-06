@@ -1387,8 +1387,9 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     });
 
     expect(store.queueSegments.length).toBeGreaterThan(0);
-    store.imageGenerations.start("seg-02", "vi");
+    const generation = store.imageGenerations.start("seg-02", "vi");
     expect(store.imageGenerations.runningCount).toBe(1);
+    expect(generation?.signal.aborted).toBe(false);
 
     store.prepareFileScopeChange({
       sourcePath: "locales/messages.po",
@@ -1398,6 +1399,7 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
 
     expect(store.queueSegments).toEqual([]);
     expect(store.selectedSegmentId).toBe("");
+    expect(generation?.signal.aborted).toBe(true);
     expect(store.imageGenerations.runningCount).toBe(0);
     expect(store.ui.translationViewLoading).toBe(true);
     expect(store.isFileScopeCurrent(0)).toBe(false);

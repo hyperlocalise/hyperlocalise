@@ -111,7 +111,9 @@ describe("multilingual image gallery", () => {
 
     await user.click(screen.getByRole("button", { name: "Localise image for German" }));
 
-    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "de", undefined);
+    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "de", {
+      signal: expect.any(AbortSignal),
+    });
     expect(screen.getByRole("progressbar", { name: "Generating image" })).toBeInTheDocument();
     expect(screen.getByText("Localising 1 image…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Localise image for German" })).toBeDisabled();
@@ -156,7 +158,10 @@ describe("multilingual image gallery", () => {
       within(screen.getByRole("alertdialog")).getByRole("button", { name: "Regenerate" }),
     );
 
-    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "fr", { force: true });
+    expect(onRegenerateImage).toHaveBeenCalledWith(segment, "fr", {
+      force: true,
+      signal: expect.any(AbortSignal),
+    });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not localise this image. Try again.",
     );

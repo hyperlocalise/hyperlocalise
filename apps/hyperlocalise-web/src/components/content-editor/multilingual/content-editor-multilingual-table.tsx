@@ -74,7 +74,7 @@ export interface ContentEditorMultilingualConfig {
   onRegenerateImage?: (
     segment: ContentEditorSegment,
     locale: string,
-    options?: { force?: boolean },
+    options?: { force?: boolean; signal?: AbortSignal },
   ) => Promise<void>;
 }
 

@@ -432,8 +432,8 @@ export const ContentEditorMultilingualImageGallery = observer(
     const generate = useCallback(
       async (segment: ContentEditorSegment, locale: string, options?: { force?: boolean }) => {
         if (!onRegenerateImage) return;
-        await generations.run(segment.id, locale, () =>
-          onRegenerateImage(segment, locale, options),
+        await generations.run(segment.id, locale, (signal) =>
+          onRegenerateImage(segment, locale, { ...options, signal }),
         );
       },
       [generations, onRegenerateImage],

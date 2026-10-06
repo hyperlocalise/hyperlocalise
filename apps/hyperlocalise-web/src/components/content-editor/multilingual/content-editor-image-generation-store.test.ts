@@ -31,6 +31,7 @@ describe("ContentEditorImageGenerationStore", () => {
       startedAt: expect.any(Number),
     });
     expect(store.runningCount).toBe(1);
+    expect(work).toHaveBeenCalledWith(expect.any(AbortSignal));
 
     finish();
     await running;
@@ -79,6 +80,90 @@ describe("ContentEditorImageGenerationStore", () => {
 
     fail(new Error("unavailable"));
     await running;
+    expect(store.get("hero", "de")).toBeUndefined();
+  });
+
+  it("aborts the in-flight request when the store is cleared", async () => {
+    const store = new ContentEditorImageGenerationStore();
+    let signal!: AbortSignal;
+    const running = store.run("hero", "de", (nextSignal) => {
+      signal = nextSignal;
+      return new Promise<void>((_, reject) => {
+        nextSignal.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    store.clear();
+    expect(signal.aborted).toBe(true);
+    await running;
+    expect(store.get("hero", "de")).toBeUndefined();
+  });
+
+  it("does not mark a newer run failed when a cleared request rejects", async () => {
+    const store = new ContentEditorImageGenerationStore();
+    let failFirst!: (error: Error) => void;
+    const first = store.run(
+      "hero",
+      "de",
+      () =>
+        new Promise<void>((_, reject) => {
+          failFirst = reject;
+        }),
+    );
+    store.clear();
+
+    let finishSecond!: () => void;
+    const second = store.run(
+      "hero",
+      "de",
+      () =>
+        new Promise<void>((resolve) => {
+          finishSecond = resolve;
+        }),
+    );
+    expect(store.get("hero", "de")?.status).toBe("running");
+
+    failFirst(new Error("unavailable"));
+    await first;
+    expect(store.get("hero", "de")?.status).toBe("running");
+
+    finishSecond();
+    await second;
+    expect(store.get("hero", "de")).toBeUndefined();
+  });
+
+  it("does not clear a newer run when an older request succeeds", async () => {
+    const store = new ContentEditorImageGenerationStore();
+    let finishFirst!: () => void;
+    const first = store.run(
+      "hero",
+      "de",
+      () =>
+        new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    store.clear();
+
+    let finishSecond!: () => void;
+    const second = store.run(
+      "hero",
+      "de",
+      () =>
+        new Promise<void>((resolve) => {
+          finishSecond = resolve;
+        }),
+    );
+    expect(store.get("hero", "de")?.status).toBe("running");
+
+    finishFirst();
+    await first;
+    expect(store.get("hero", "de")?.status).toBe("running");
+
+    finishSecond();
+    await second;
     expect(store.get("hero", "de")).toBeUndefined();
   });
 });

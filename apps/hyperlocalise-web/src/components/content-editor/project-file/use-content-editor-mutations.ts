@@ -618,6 +618,7 @@ export function useContentEditorMutations(input: {
       force?: boolean;
       /** Defaults to the workspace locale; the multilingual gallery generates per locale. */
       targetLocale?: string;
+      signal?: AbortSignal;
     }) => {
       const { sourcePath } = resolveCatMutationFileIdentity(
         input,
@@ -626,19 +627,22 @@ export function useContentEditorMutations(input: {
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
-      ].files.detail.cat.images.regenerate.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      ].files.detail.cat.images.regenerate.$post(
+        {
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            instructions: mutationInput.instructions,
+            force: mutationInput.force,
+          },
         },
-        json: {
-          sourcePath,
-          targetLocale: mutationInput.targetLocale ?? input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          instructions: mutationInput.instructions,
-          force: mutationInput.force,
-        },
-      });
+        { init: { signal: mutationInput.signal } },
+      );
 
       if (response.status !== 200) {
         throw new Error(
