@@ -58,10 +58,16 @@ const PULL_REQUEST_KEYWORDS = ["pull request", "pr"] as const;
 /** Shared by everything that reads a repository, so naming a repository alone suggests nothing. */
 export const REPOSITORY_KEYWORDS = ["github", "repo", "repository"] as const;
 
+export const WORKSPACE_AUTOMATION_SKILL_CATEGORIES = ["review", "translate", "report"] as const;
+/** What the skill does for the run: look at things, produce translations, or send results out. */
+export type WorkspaceAutomationSkillCategory =
+  (typeof WORKSPACE_AUTOMATION_SKILL_CATEGORIES)[number];
+
 export type WorkspaceAutomationSkill = {
   /** Also the file name of the procedure under the workspace agent's skills folder. */
   id: string;
   name: string;
+  category: WorkspaceAutomationSkillCategory;
   description: string;
   /** Plain statement of what attaching the skill lets the automation touch. */
   grants: string;
@@ -87,6 +93,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "review-translation-changes",
     name: "Review translation changes",
+    category: "review",
     description:
       "Review recent repository changes key by key for localisation and translation risk.",
     grants: "Reads the connected GitHub repository. Changes nothing.",
@@ -110,6 +117,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "summarize-localisation-changes",
     name: "Summarise localisation changes",
+    category: "review",
     description: "Write a short digest of localisation-related changes in the repository.",
     grants: "Reads the connected GitHub repository. Changes nothing.",
     tools: ["use_github_repository"],
@@ -132,6 +140,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "check-crowdin-concordance",
     name: "Check against Crowdin",
+    category: "review",
     description:
       "Check strings under review against the Crowdin glossary, translation memory and style guide.",
     grants: "Reads your Crowdin project. Changes nothing.",
@@ -150,6 +159,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "research-web",
     name: "Research the web",
+    category: "review",
     description:
       "Search the live web for competitor, market and localisation changes, with sources.",
     grants: "Searches the public web. Changes nothing.",
@@ -169,6 +179,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "translate-uploaded-source",
     name: "Translate uploaded source files",
+    category: "translate",
     description:
       "Create a translation job for each uploaded source file and translate it with the Hyperlocalise agent.",
     grants: "Creates translation jobs in the project and assigns them to the Hyperlocalise agent.",
@@ -188,6 +199,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
+    category: "translate",
     description: "Translate Contentful entries, run QA and write localized drafts for review.",
     grants: "Reads Contentful entries and writes localized drafts. Never publishes.",
     tools: ["run_contentful_translation"],
@@ -208,6 +220,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "file-issues-for-findings",
     name: "File issues for findings",
+    category: "report",
     description:
       "Check the project's open Queries issues, then file one issue for each new finding.",
     grants: "Reads and creates Queries issues in the project, up to 20 in a run.",
@@ -226,6 +239,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "post-to-slack",
     name: "Post results to Slack",
+    category: "report",
     description: "Post the outcome of each run to a Slack channel.",
     grants: "Posts messages to the Slack channel you choose.",
     tools: ["notify_slack"],
@@ -240,6 +254,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "email-results",
     name: "Email results",
+    category: "report",
     description: "Email the outcome of each run to the people you list.",
     grants: "Sends email from your connected sender to the recipients you list.",
     tools: ["notify_email"],
@@ -255,6 +270,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
   {
     id: "comment-on-pull-request",
     name: "Comment on the pull request",
+    category: "report",
     description: "Post findings as one pull request comment and keep it up to date.",
     grants: "Posts one comment on the pull request and updates it in place.",
     tools: ["notify_github_comment"],

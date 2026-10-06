@@ -166,6 +166,7 @@ export const GithubDisconnected: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Manually triggered" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "GitHub" }));
     const item = await body.findByRole("menuitem", { name: /A push is made/ });
     await expect(item).toHaveAttribute("aria-disabled", "true");
     await expect(item).toHaveTextContent("Connect first");
@@ -236,6 +237,7 @@ export const SwitchingPushToPullRequestKeepsFields: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "A push is made" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "GitHub" }));
     await userEvent.click(await body.findByRole("menuitem", { name: "A pull request is made" }));
 
     await expect(

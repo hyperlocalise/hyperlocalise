@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   PlusIcon,
   CaretDownIcon,
@@ -30,6 +30,7 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
   XIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
@@ -44,6 +45,7 @@ import {
   siMeta,
   siSemrush,
   siCrowdin,
+  siContentful,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -128,6 +130,10 @@ import {
   WORKSPACE_AUTOMATION_SKILLS,
   type WorkspaceAutomationSkillConnections,
   type WorkspaceAutomationSkillIntegration,
+  WORKSPACE_AUTOMATION_SKILL_CATEGORIES,
+  type WorkspaceAutomationSkill,
+  type WorkspaceAutomationSkillCategory,
+  type WorkspaceAutomationSkillTool,
 } from "@/lib/agents/workspace-automation-skills";
 import {
   addSuggestedToolToWorkspaceAutomationForm,
@@ -1468,6 +1474,39 @@ function formatSkillConnectFirstHint(
   });
 }
 
+const SKILL_CATEGORY_LABELS: Record<WorkspaceAutomationSkillCategory, MessageDescriptor> = {
+  review: workspaceAutomationFormMessages.skillCategoryReview,
+  translate: workspaceAutomationFormMessages.skillCategoryTranslate,
+  report: workspaceAutomationFormMessages.skillCategoryReport,
+};
+
+const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon>> = {
+  use_github_repository: siGithub,
+  notify_github_comment: siGithub,
+  use_crowdin: siCrowdin,
+  run_contentful_translation: siContentful,
+};
+
+const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
+  use_web_search: GlobeIcon,
+  create_native_tms_job: UploadSimpleIcon,
+  list_issues: CheckSquareIcon,
+  notify_slack: SlackLogoIcon,
+  notify_email: EnvelopeIcon,
+};
+
+/** The integration or surface the skill touches, the same icon its tool row uses. */
+function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
+  const tool = skill.tools[0];
+  const brand = tool ? SKILL_BRAND_ICONS[tool] : undefined;
+  if (brand) {
+    return <SimpleBrandIcon icon={brand} colored={false} className={cn("size-4", className)} />;
+  }
+
+  const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
+  return <ToolIcon className={cn("size-4", className)} />;
+}
+
 function SkillsSettings({
   connections,
   disabled,
@@ -1497,7 +1536,7 @@ function SkillsSettings({
         {attachedSkills.map((skill) => (
           <EditorRow
             key={skill.id}
-            icon={<SparkleIcon className="size-4" />}
+            icon={<SkillIcon skill={skill} />}
             title={skill.name}
             description={`${skill.description} ${skill.grants}`}
             action={
@@ -1531,46 +1570,60 @@ function SkillsSettings({
             align="start"
             sideOffset={2}
           >
-            {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
-              const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
-              const missingIntegrations =
-                availability === "available"
-                  ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
-                  : [];
-              return (
-                <DropdownMenuItem
-                  key={skill.id}
-                  disabled={availability !== "available" || missingIntegrations.length > 0}
-                  className="items-start"
-                  onClick={() => onAddSkill(skill.id)}
-                >
-                  <SparkleIcon className="mt-0.5 size-4 shrink-0" />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span>{skill.name}</span>
-                    {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
-                    {availability === "trigger_mismatch" ? (
-                      <span className="text-xs font-medium">
-                        <FormattedMessage
-                          {...workspaceAutomationFormMessages.skillNotApplicableHint}
-                        />
-                      </span>
-                    ) : missingIntegrations.length > 0 ? (
-                      <span className="text-xs font-medium">
-                        {formatSkillConnectFirstHint(intl, missingIntegrations)}
-                      </span>
-                    ) : null}
-                    <span className="text-xs text-pretty text-muted-foreground">
-                      {skill.description}
-                    </span>
-                  </span>
-                  {availability === "attached" ? (
-                    <DropdownMenuHint>
-                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuHint>
-                  ) : null}
-                </DropdownMenuItem>
-              );
-            })}
+            {WORKSPACE_AUTOMATION_SKILL_CATEGORIES.map((category, index) => (
+              <Fragment key={category}>
+                {index > 0 ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <FormattedMessage {...SKILL_CATEGORY_LABELS[category]} />
+                  </DropdownMenuLabel>
+                  {WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.category === category).map(
+                    (skill) => {
+                      const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
+                      const missingIntegrations =
+                        availability === "available"
+                          ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                          : [];
+                      return (
+                        <DropdownMenuItem
+                          key={skill.id}
+                          disabled={availability !== "available" || missingIntegrations.length > 0}
+                          className="items-start"
+                          onClick={() => onAddSkill(skill.id)}
+                        >
+                          <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
+                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span>{skill.name}</span>
+                            {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                            {availability === "trigger_mismatch" ? (
+                              <span className="text-xs font-medium">
+                                <FormattedMessage
+                                  {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                />
+                              </span>
+                            ) : missingIntegrations.length > 0 ? (
+                              <span className="text-xs font-medium">
+                                {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                              </span>
+                            ) : null}
+                            <span className="text-xs text-pretty text-muted-foreground">
+                              {skill.description}
+                            </span>
+                          </span>
+                          {availability === "attached" ? (
+                            <DropdownMenuHint>
+                              <FormattedMessage
+                                {...workspaceAutomationFormMessages.addedShortcut}
+                              />
+                            </DropdownMenuHint>
+                          ) : null}
+                        </DropdownMenuItem>
+                      );
+                    },
+                  )}
+                </DropdownMenuGroup>
+              </Fragment>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </EditorPanel>
@@ -1637,7 +1690,7 @@ function SuggestionChip({
         onClick={() => onAdd(suggestion)}
       >
         {suggestion.kind === "skill" ? (
-          <SparkleIcon className="size-3.5" />
+          <SkillIcon skill={suggestion.skill} className="size-3.5" />
         ) : (
           <PlusIcon className="size-3.5" />
         )}

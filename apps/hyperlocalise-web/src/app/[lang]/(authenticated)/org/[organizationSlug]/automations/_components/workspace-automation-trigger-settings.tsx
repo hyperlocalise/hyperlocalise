@@ -22,6 +22,7 @@ import {
   ClockIcon,
   GitBranchIcon,
   GitCommitIcon,
+  GithubLogoIcon,
   GitPullRequestIcon,
   HandTapIcon,
   UploadSimpleIcon,
@@ -40,6 +41,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -686,6 +690,14 @@ function TriggerMenuItem({
   );
 }
 
+/** Options that share a `group` sit together in one submenu. */
+const TRIGGER_GROUPS: Record<
+  NonNullable<TriggerOption["group"]>,
+  { icon: Icon; label: MessageDescriptor }
+> = {
+  github: { icon: GithubLogoIcon, label: workspaceAutomationTriggerMessages.githubGroup },
+};
+
 function TriggerMenu({
   context,
   disabled,
@@ -699,9 +711,6 @@ function TriggerMenu({
   onChange: (next: WorkspaceAutomationFormState) => void;
   selected: TriggerOption;
 }) {
-  const ungrouped = TRIGGER_OPTIONS.filter((option) => option.group === undefined);
-  const github = TRIGGER_OPTIONS.filter((option) => option.group === "github");
-
   function renderItem(option: TriggerOption) {
     return (
       <TriggerMenuItem
@@ -717,6 +726,31 @@ function TriggerMenu({
           onChange(option.select(form, context));
         }}
       />
+    );
+  }
+
+  const entries: ReactNode[] = [];
+  const renderedGroups = new Set<string>();
+  for (const option of TRIGGER_OPTIONS) {
+    if (option.group === undefined) {
+      entries.push(renderItem(option));
+      continue;
+    }
+    if (renderedGroups.has(option.group)) {
+      continue;
+    }
+    renderedGroups.add(option.group);
+    const group = TRIGGER_GROUPS[option.group];
+    const options = TRIGGER_OPTIONS.filter((candidate) => candidate.group === option.group);
+    entries.push(
+      <DropdownMenuSub key={option.group}>
+        <DropdownMenuSubTrigger>
+          <group.icon className="size-4" />
+          <FormattedMessage {...group.label} />
+          {options.includes(selected) ? <CheckIcon className="ms-auto size-4" /> : null}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-80">{options.map(renderItem)}</DropdownMenuSubContent>
+      </DropdownMenuSub>,
     );
   }
 
@@ -738,17 +772,8 @@ function TriggerMenu({
         </span>
         <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80" align="start" sideOffset={4}>
-        <DropdownMenuGroup>{ungrouped.slice(0, 2).map(renderItem)}</DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>
-            <FormattedMessage {...workspaceAutomationTriggerMessages.githubGroup} />
-          </DropdownMenuLabel>
-          {github.map(renderItem)}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>{ungrouped.slice(2).map(renderItem)}</DropdownMenuGroup>
+      <DropdownMenuContent className="w-72" align="start" sideOffset={4}>
+        {entries}
       </DropdownMenuContent>
     </DropdownMenu>
   );
