@@ -17,13 +17,12 @@ import (
 )
 
 type memoryResearchCache struct {
-	mu     sync.Mutex
-	items  map[string]string
-	counts map[string]int64
+	mu    sync.Mutex
+	items map[string]string
 }
 
 func newMemoryResearchCache() *memoryResearchCache {
-	return &memoryResearchCache{items: map[string]string{}, counts: map[string]int64{}}
+	return &memoryResearchCache{items: map[string]string{}}
 }
 
 func (c *memoryResearchCache) Get(_ context.Context, key string) (string, error) {
@@ -43,21 +42,14 @@ func (c *memoryResearchCache) Set(_ context.Context, key, value string, _ time.D
 	return nil
 }
 
-func (c *memoryResearchCache) IncrByWithTTL(_ context.Context, key string, units int, _ time.Duration) (int64, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.counts[key] += int64(units)
-	return c.counts[key], nil
-}
-
 func TestDomainResearchCacheKeyNormalizesParts(t *testing.T) {
 	require.Equal(t,
-		domainResearchCacheKey("quota", "ORG", "Keyword"),
-		domainResearchCacheKey("quota", " org ", "keyword"),
+		domainResearchCacheKey("keyword-ideas", "ORG", "Keyword"),
+		domainResearchCacheKey("keyword-ideas", " org ", "keyword"),
 	)
 	require.NotEqual(t,
-		domainResearchCacheKey("quota", "org", "keyword"),
-		domainResearchCacheKey("quota", "org", "serp"),
+		domainResearchCacheKey("keyword-ideas", "org", "keyword"),
+		domainResearchCacheKey("keyword-ideas", "org", "serp"),
 	)
 }
 
@@ -82,22 +74,6 @@ func TestCachedJSONTreatsCorruptPayloadAsMiss(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hit)
 	require.Equal(t, "seo", target["keyword"])
-}
-
-func TestConsumeDomainResearchQuota(t *testing.T) {
-	h := newHandler()
-	err := h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, DOMAIN_RESEARCH_KEYWORD_QUOTA)
-	var failure *workspaceError
-	require.ErrorAs(t, err, &failure)
-	require.Equal(t, http.StatusServiceUnavailable, failure.status)
-	require.Equal(t, "research_quota_unavailable", failure.code)
-
-	h.researchCache = newMemoryResearchCache()
-	require.NoError(t, h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 2, 2))
-	err = h.consumeDomainResearchQuota(context.Background(), "org", "keyword-expansion", 1, 2)
-	require.ErrorAs(t, err, &failure)
-	require.Equal(t, http.StatusTooManyRequests, failure.status)
-	require.Equal(t, "research_quota_exceeded", failure.code)
 }
 
 func verifiedLinkedDomainRow(id, org string) []any {
