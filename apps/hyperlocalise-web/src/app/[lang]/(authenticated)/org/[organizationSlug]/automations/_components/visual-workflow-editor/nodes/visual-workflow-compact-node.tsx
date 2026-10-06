@@ -233,7 +233,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             }}
           />
         ))
-      ) : isTerminal ? null : (
+      ) : (
         <Handle
           id="input"
           className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
@@ -373,7 +373,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             }}
           />
         ))
-      ) : (
+      ) : isTerminal ? null : (
         <>
           <Handle
             id="success"

@@ -79,26 +79,28 @@ export async function executeDurableWorkflowSlice(input: {
       ? collectRetryBodyNodeIdsForRetryNode(input.definition, retryBackoff.retryNodeId)
       : new Set<string>();
   const completed = new Map(
-    records
-      .filter(
-        (record) =>
-          record.encryptedOutput &&
-          !waitConditionProbeNodeIds.has(record.nodeId) &&
-          shouldReuseDurableExecution(
-            record.status,
-            decryptWorkflowPayload(record.encryptedOutput),
-          ) &&
-          shouldReuseCompletedNodeRun({
-            nodeId: record.nodeId,
-            retryRegionAttempt: record.iteration,
-            resumedRetryBodyNodeIds,
-            resumeAttempt,
-          }),
-      )
-      .map((record) => [
-        key(record.nodeId, record.iteration),
-        decryptWorkflowPayload(record.encryptedOutput!) as VisualWorkflowNodeExecutionResult,
-      ]),
+    records.flatMap((record) => {
+      if (
+        !record.encryptedOutput ||
+        waitConditionProbeNodeIds.has(record.nodeId) ||
+        !["succeeded", "handled_error", "failed"].includes(record.status) ||
+        !shouldReuseCompletedNodeRun({
+          nodeId: record.nodeId,
+          retryRegionAttempt: record.iteration,
+          resumedRetryBodyNodeIds,
+          resumeAttempt,
+        })
+      ) {
+        return [];
+      }
+
+      const execution = decryptWorkflowPayload(
+        record.encryptedOutput,
+      ) as VisualWorkflowNodeExecutionResult;
+      if (!shouldReuseDurableExecution(record.status, execution)) return [];
+
+      return [[key(record.nodeId, record.iteration), execution] as const];
+    }),
   );
   const pending = new Map<string, VisualWorkflowNodeExecutionResult>();
   const inputs = new Map<string, Record<string, unknown>>();
