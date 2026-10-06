@@ -24,6 +24,7 @@ import type {
   ContentEditorWorkspaceShell,
 } from "./types";
 import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
+import type { ContentEditorReviewerBulkActions } from "@/components/content-editor/reviewer/content-editor-reviewer-bulk-bar";
 
 export interface ContentEditorAiRecommendationResult {
   aiSuggestion: string;
@@ -189,6 +190,7 @@ export interface ContentEditorWorkspaceViewProps {
   projectId?: string;
   nativeIssuesEnabled?: boolean;
   onReloadConcordance?: (segmentId: string) => void;
+  bulkActions?: ContentEditorReviewerBulkActions;
 }
 
 export const noopCatDependencies: ContentEditorWorkspaceDependencies = {

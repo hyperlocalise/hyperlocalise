@@ -14,7 +14,7 @@
  */
 import type { ContentEditorMultilingualConfig } from "@/components/content-editor/multilingual/content-editor-multilingual-table";
 import { observer } from "mobx-react-lite";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileContentEditorQueueFile } from "@/api/routes/project/project.schema";
@@ -221,6 +221,65 @@ const ContentEditorWorkspaceContainerObserver = observer(
     const isQueueBulkBlocked =
       Boolean(resolvedQueueDataPending) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
 
+    const bulkActions = useMemo(
+      () => ({
+        isBlocked: isQueueBulkBlocked,
+        onSelectAllVisible: () => {
+          if (isQueueBulkBlocked) {
+            return;
+          }
+          store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
+        },
+        onApprove: () => {
+          if (isQueueBulkBlocked) {
+            return;
+          }
+          void controller.handleBulkApprove();
+        },
+        onSkip: () => {
+          if (isQueueBulkBlocked) {
+            return;
+          }
+          void controller.handleBulkSkip();
+        },
+        onHide: review?.onBulkHide
+          ? () => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkHide();
+            }
+          : undefined,
+        onUnhide: review?.onBulkUnhide
+          ? () => {
+              if (isQueueBulkBlocked) {
+                return;
+              }
+              void controller.handleBulkUnhide();
+            }
+          : undefined,
+        onLock:
+          review?.onBulkLock || review?.onSetLocked
+            ? () => {
+                if (isQueueBulkBlocked) {
+                  return;
+                }
+                void controller.handleBulkLock();
+              }
+            : undefined,
+        onUnlock:
+          review?.onBulkUnlock || review?.onSetLocked
+            ? () => {
+                if (isQueueBulkBlocked) {
+                  return;
+                }
+                void controller.handleBulkUnlock();
+              }
+            : undefined,
+      }),
+      [controller, isQueueBulkBlocked, review, store],
+    );
+
     return (
       <>
         <ContentEditorChatDockPageContextBridge projectId={lazySegment?.projectId} />
@@ -250,66 +309,13 @@ const ContentEditorWorkspaceContainerObserver = observer(
           isSearching={isQueueSearchPending}
           isQueueLoading={isQueueBulkBlocked}
           visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
-          onSelectAllVisible={() => {
-            // Placeholder or not-yet-ingested pages still expose the previous
-            // filter's segment ids.
-            if (isQueueBulkBlocked) {
-              return;
-            }
-            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
-          }}
-          onBulkApprove={() => {
-            if (isQueueBulkBlocked) {
-              return;
-            }
-            void controller.handleBulkApprove();
-          }}
-          onBulkSkip={() => {
-            if (isQueueBulkBlocked) {
-              return;
-            }
-            void controller.handleBulkSkip();
-          }}
-          onBulkHide={
-            review?.onBulkHide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkHide();
-                }
-              : undefined
-          }
-          onBulkUnhide={
-            review?.onBulkUnhide
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnhide();
-                }
-              : undefined
-          }
-          onBulkLock={
-            review?.onBulkLock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkLock();
-                }
-              : undefined
-          }
-          onBulkUnlock={
-            review?.onBulkUnlock || review?.onSetLocked
-              ? () => {
-                  if (isQueueBulkBlocked) {
-                    return;
-                  }
-                  void controller.handleBulkUnlock();
-                }
-              : undefined
-          }
+          onSelectAllVisible={bulkActions.onSelectAllVisible}
+          onBulkApprove={bulkActions.onApprove}
+          onBulkSkip={bulkActions.onSkip}
+          onBulkHide={bulkActions.onHide}
+          onBulkUnhide={bulkActions.onUnhide}
+          onBulkLock={bulkActions.onLock}
+          onBulkUnlock={bulkActions.onUnlock}
           onDownloadFilteredView={onDownloadFilteredView}
           isDownloadingFilteredView={isDownloadingFilteredView}
           adaptiveWorkspaceEnabled={adaptiveWorkspaceEnabled}
@@ -378,6 +384,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             onReloadConcordance={(segmentId) => {
               void controller.handleReloadConcordance(segmentId);
             }}
+            bulkActions={bulkActions}
           />
         </ContentEditorPanelErrorBoundary>
 

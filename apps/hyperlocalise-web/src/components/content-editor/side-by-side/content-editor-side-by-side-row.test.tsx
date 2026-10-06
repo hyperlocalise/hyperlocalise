@@ -603,4 +603,67 @@ describe("ContentEditorSideBySideRow", () => {
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeDisabled();
   });
+
+  it("renders a checkbox and invokes onToggleChecked in selection mode", async () => {
+    const user = userEvent.setup();
+    const onToggleChecked = vi.fn();
+    renderRow({
+      showSelection: true,
+      isChecked: false,
+      onToggleChecked,
+    });
+
+    const checkbox = screen.getByRole("checkbox");
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(checkbox);
+    expect(onToggleChecked).toHaveBeenCalledWith(true);
+  });
+
+  it("renders inline quick approve and skip actions when reviewerLayout is active and row is hovered", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn();
+    const onSkip = vi.fn();
+    renderRow({
+      isFocused: false,
+      isHovered: true,
+      reviewerLayout: true,
+      onApprove,
+      onSkip,
+    });
+
+    const quickActions = screen.getByTestId("reviewer-quick-actions");
+    expect(quickActions).toBeInTheDocument();
+
+    const approveButton = screen.getByRole("button", { name: /Approve string/i });
+    await user.click(approveButton);
+    expect(onApprove).toHaveBeenCalledTimes(1);
+
+    const skipButton = screen.getByRole("button", { name: /Skip string/i });
+    await user.click(skipButton);
+    expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
+  it("displays the QA issue badge when reviewerLayout is active and hasIssue is true", () => {
+    renderRow({
+      reviewerLayout: true,
+      hasIssue: true,
+    });
+
+    expect(screen.getByTestId("reviewer-issue-badge")).toBeInTheDocument();
+  });
+
+  it("includes skip button in the review actions bar when reviewerLayout is active and row is focused", async () => {
+    const user = userEvent.setup();
+    const onSkip = vi.fn();
+    renderRow({
+      isFocused: true,
+      reviewerLayout: true,
+      onSkip,
+    });
+
+    const skipButton = screen.getByRole("button", { name: "Skip" });
+    await user.click(skipButton);
+    expect(onSkip).toHaveBeenCalledTimes(1);
+  });
 });

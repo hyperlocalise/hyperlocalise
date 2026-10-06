@@ -13,9 +13,11 @@
  * Version 2.0 or later.
  */
 import {
+  ArrowTurnForwardIcon,
   Copy01Icon,
   EraserIcon,
   Image01Icon,
+  Tick02Icon,
   TranslateIcon,
   Video01Icon,
 } from "@hugeicons/core-free-icons";
@@ -25,6 +27,7 @@ import { useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -61,8 +64,10 @@ import { ContentEditorSegmentTags } from "@/components/content-editor/segment/co
 import { ContentEditorShareSegmentButton } from "@/components/content-editor/segment/content-editor-share-segment-button";
 import {
   contentEditorEditorPanelMessages,
+  contentEditorQueuePanelMessages,
   contentEditorSideBySidePanelMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { contentEditorReviewerMessages } from "@/components/content-editor/reviewer/content-editor-reviewer.messages";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
@@ -116,6 +121,12 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  reviewerLayout = false,
+  showSelection = false,
+  isChecked = false,
+  onToggleChecked,
+  onSkip,
+  hasIssue = false,
 }: {
   segment: ContentEditorSegment;
   isFocused: boolean;
@@ -147,6 +158,15 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
+  /** Reviewer workspace: amber accent, inline quick actions, issue marker. */
+  reviewerLayout?: boolean;
+  /** Renders a leading checkbox column for bulk selection. */
+  showSelection?: boolean;
+  isChecked?: boolean;
+  onToggleChecked?: (checked: boolean) => void;
+  onSkip?: () => void;
+  /** Open linked issue or failed QA check — flagged in the Reviewer layout. */
+  hasIssue?: boolean;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -210,6 +230,18 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const showFormatCheckIcon =
     !isAssetSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
   const showActionBar = showReviewActions || showIssueSheetAction;
+  const canQuickSkip =
+    reviewerLayout &&
+    Boolean(onSkip) &&
+    canEdit &&
+    !segment.isLocked &&
+    !isActionBlocked &&
+    segment.status !== "skipped";
+  const canQuickApprove =
+    reviewerLayout && canTriggerApprove && (segment.status !== "reviewed" || isDirty);
+  // Focused rows already show the full action bar; quick actions cover the rest.
+  const showQuickActions = !isFocused && isActive && (canQuickApprove || canQuickSkip);
+  const hasSelectionColumn = showSelection && Boolean(onToggleChecked);
   const copySourceLabel = intl.formatMessage(contentEditorEditorPanelMessages.copySource);
   const clearTargetLabel = intl.formatMessage(contentEditorEditorPanelMessages.clearTarget);
   const segmentTags = segment.tags ?? [];
@@ -223,6 +255,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
       {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
         <SegmentStatusBadge status={segment.status} />
       )}
+      {reviewerLayout && hasIssue ? (
+        <Badge variant="destructive" data-testid="reviewer-issue-badge">
+          <FormattedMessage {...contentEditorReviewerMessages.issueBadge} />
+        </Badge>
+      ) : null}
       {segment.isHidden ? <ContentEditorHiddenStringBadge /> : null}
       {segment.isLocked ? <ContentEditorLockedStringBadge /> : null}
       {segmentTags.length > 0 ? <ContentEditorSegmentTags tags={segmentTags} /> : null}
@@ -324,6 +361,19 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           ) : null}
         </>
       ) : null}
+      {showReviewActions && reviewerLayout && onSkip ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 px-2.5"
+          onClick={onSkip}
+          disabled={!canQuickSkip}
+        >
+          <HugeiconsIcon icon={ArrowTurnForwardIcon} className="size-3.5" aria-hidden />
+          <FormattedMessage {...contentEditorReviewerMessages.skipSelected} />
+        </Button>
+      ) : null}
       {showIssueSheetAction ? (
         <Button
           type="button"
@@ -339,17 +389,80 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
     </div>
   ) : null;
 
+  const quickActions = showQuickActions ? (
+    // Stop focus bubbling so pressing a quick action does not focus (and
+    // re-render) the row before the click lands.
+    <div
+      className="flex shrink-0 items-center gap-0.5"
+      data-testid="reviewer-quick-actions"
+      onFocus={(event) => event.stopPropagation()}
+    >
+      {canQuickApprove ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="text-grove-600 hover:bg-grove-500/10 hover:text-grove-700"
+          onClick={onApprove}
+          aria-label={intl.formatMessage(contentEditorReviewerMessages.quickApproveAria, {
+            key: segment.key,
+          })}
+          title={resolvedPrimaryActionLabel}
+        >
+          <HugeiconsIcon icon={Tick02Icon} aria-hidden />
+        </Button>
+      ) : null}
+      {canQuickSkip ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          onClick={onSkip}
+          aria-label={intl.formatMessage(contentEditorReviewerMessages.quickSkipAria, {
+            key: segment.key,
+          })}
+          title={intl.formatMessage(contentEditorReviewerMessages.skipSelected)}
+        >
+          <HugeiconsIcon icon={ArrowTurnForwardIcon} aria-hidden />
+        </Button>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-0 border-b border-border transition-colors",
-        isActive && "bg-grove-500/5",
-        isFocused && "ring-1 ring-inset ring-grove-400/30",
+        "grid gap-0 border-b border-border transition-colors",
+        hasSelectionColumn ? "grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-2",
+        reviewerLayout && "border-l-2",
+        reviewerLayout && (hasIssue ? "border-l-destructive" : "border-l-transparent"),
+        isActive && (reviewerLayout ? "bg-amber-500/5" : "bg-grove-500/5"),
+        isFocused &&
+          (reviewerLayout
+            ? "ring-1 ring-inset ring-amber-500/40"
+            : "ring-1 ring-inset ring-grove-400/30"),
       )}
+      data-reviewer-issue={reviewerLayout && hasIssue ? "true" : undefined}
       onMouseEnter={() => setIsPointerHovered(true)}
       onMouseLeave={() => setIsPointerHovered(false)}
       onFocus={onFocus}
     >
+      {hasSelectionColumn ? (
+        <div
+          className="flex justify-center border-r border-border pt-3.5"
+          onFocus={(event) => event.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            className="size-4 cursor-pointer rounded border-input accent-foreground"
+            checked={isChecked}
+            aria-label={intl.formatMessage(contentEditorQueuePanelMessages.selectSegmentAria, {
+              key: segment.key,
+            })}
+            onChange={(event) => onToggleChecked?.(event.currentTarget.checked)}
+          />
+        </div>
+      ) : null}
       <div className={cn("min-w-0 border-r border-border px-4", "py-3")}>
         {isFocused && showVideoSource ? (
           <div className="space-y-2.5">
@@ -625,6 +738,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
               </button>
             )}
           </div>
+          {quickActions}
           {showFormatCheckIcon ? (
             <ContentEditorSideBySideFormatCheckIcon
               formatChecks={formatChecks}

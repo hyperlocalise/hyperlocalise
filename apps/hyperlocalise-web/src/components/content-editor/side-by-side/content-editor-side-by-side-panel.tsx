@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { observer } from "mobx-react-lite";
-import { useCallback, useMemo } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import { cn } from "@/lib/primitives/cn";
 import { ContentEditorQueueSkeletonList } from "@/components/content-editor/queue/content-editor-queue-skeleton-list";
 import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 import type { ContentEditorQueuePagination } from "@/components/content-editor/queue/content-editor-queue-panel";
+import { ContentEditorReviewerStatusBar } from "@/components/content-editor/reviewer/content-editor-reviewer-status-bar";
+import { summarizeReviewerSegmentStatuses } from "@/components/content-editor/reviewer/content-editor-reviewer-status-summary";
 import {
   contentEditorQueuePanelMessages,
   contentEditorSideBySidePanelMessages,
@@ -133,6 +135,12 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   organizationSlug,
   projectId,
   onGlossaryTermAdded,
+  reviewerLayout = false,
+  showSelection = false,
+  checkedSegmentIds,
+  onToggleSegmentChecked,
+  onSkip,
+  bulkBar,
 }: {
   segments: ContentEditorSegment[];
   focusedSegmentId: string;
@@ -200,6 +208,14 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   organizationSlug?: string;
   projectId?: string;
   onGlossaryTermAdded?: () => void;
+  /** Reviewer workspace: amber accent, quick actions, status tally. */
+  reviewerLayout?: boolean;
+  showSelection?: boolean;
+  checkedSegmentIds?: ReadonlySet<string>;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onSkip?: (segmentId: string) => void;
+  /** Rendered above the column headings (Reviewer persistent bulk bar). */
+  bulkBar?: ReactNode;
 }) {
   const store = useContentEditorWorkspace();
   const intelligenceSegmentId = store.intelligenceSegmentId;
@@ -227,15 +243,32 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
       ? (segments[focusedIndex]?.index ?? focusedIndex + 1)
       : (pagination?.offset ?? 0) + 1;
   const totalSegments = hasMoreQueue ? null : (pagination?.totalCount ?? segments.length);
+  const hasSelectionColumn = showSelection && Boolean(onToggleSegmentChecked);
+  const reviewerSummary = useMemo(
+    () => (reviewerLayout ? summarizeReviewerSegmentStatuses(segments, segmentFormatChecks) : null),
+    [reviewerLayout, segmentFormatChecks, segments],
+  );
 
   return (
     <ContentEditorSideBySideResizableLayout
       className={cn("bg-background", className)}
       editor={
-        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <div
+          className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+          data-reviewer-layout={reviewerLayout ? "true" : undefined}
+        >
+          {bulkBar}
           <div className="shrink-0 border-b border-border px-4 py-3">
-            <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <p className="border-r border-border pr-4">
+            <div
+              className={cn(
+                "grid gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                hasSelectionColumn
+                  ? "grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] -ml-4"
+                  : "grid-cols-2",
+              )}
+            >
+              {hasSelectionColumn ? <span aria-hidden /> : null}
+              <p className={cn("border-r border-border pr-4", hasSelectionColumn && "pl-4")}>
                 <FormattedMessage {...contentEditorSideBySidePanelMessages.sourceColumn} />
               </p>
               <p className="pl-4">
@@ -288,20 +321,29 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
                 hasMore={hasMoreQueue}
                 isLoadingMore={isFetchingPage}
                 onNearEnd={onLoadMoreQueue}
+                reviewerLayout={reviewerLayout}
+                showSelection={showSelection}
+                checkedSegmentIds={checkedSegmentIds}
+                onToggleSegmentChecked={onToggleSegmentChecked}
+                onSkip={onSkip}
               />
             )}
 
-            <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
-              <p>
-                <FormattedMessage
-                  {...contentEditorQueuePanelMessages.paginationSummary}
-                  values={{
-                    count: loadedCount,
-                    more: hasMoreQueue ? "+" : "",
-                  }}
-                />
-              </p>
-              <p className="font-mono tabular-nums">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+              {reviewerSummary ? (
+                <ContentEditorReviewerStatusBar summary={reviewerSummary} hasMore={hasMoreQueue} />
+              ) : (
+                <p>
+                  <FormattedMessage
+                    {...contentEditorQueuePanelMessages.paginationSummary}
+                    values={{
+                      count: loadedCount,
+                      more: hasMoreQueue ? "+" : "",
+                    }}
+                  />
+                </p>
+              )}
+              <p className="shrink-0 font-mono tabular-nums">
                 <FormattedMessage
                   {...contentEditorSideBySidePanelMessages.segmentPosition}
                   values={{

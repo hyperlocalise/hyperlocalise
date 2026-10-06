@@ -24,6 +24,8 @@ import type {
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
 
+import { segmentHasReviewerIssue } from "@/components/content-editor/reviewer/content-editor-reviewer-status-summary";
+
 import { ContentEditorSideBySideRow } from "./content-editor-side-by-side-row";
 import { partitionSideBySideVirtualItems } from "./content-editor-side-by-side-visible-range";
 
@@ -66,6 +68,11 @@ export function ContentEditorSideBySideVirtualList({
   isLoadingMore = false,
   onNearEnd,
   className,
+  reviewerLayout = false,
+  showSelection = false,
+  checkedSegmentIds,
+  onToggleSegmentChecked,
+  onSkip,
 }: {
   segments: ContentEditorSegment[];
   focusedSegmentId: string;
@@ -103,6 +110,11 @@ export function ContentEditorSideBySideVirtualList({
   isLoadingMore?: boolean;
   onNearEnd?: () => void;
   className?: string;
+  reviewerLayout?: boolean;
+  showSelection?: boolean;
+  checkedSegmentIds?: ReadonlySet<string>;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onSkip?: (segmentId: string) => void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const loadRequestedForLengthRef = useRef<string | null>(null);
@@ -272,6 +284,19 @@ export function ContentEditorSideBySideVirtualList({
                 }
                 onUploadImage={
                   onUploadImage ? (file) => onUploadImage(segment.id, file) : undefined
+                }
+                reviewerLayout={reviewerLayout}
+                showSelection={showSelection}
+                isChecked={checkedSegmentIds?.has(segment.id) ?? false}
+                onToggleChecked={
+                  onToggleSegmentChecked
+                    ? (checked) => onToggleSegmentChecked(segment.id, checked)
+                    : undefined
+                }
+                onSkip={onSkip ? () => onSkip(segment.id) : undefined}
+                hasIssue={
+                  reviewerLayout &&
+                  segmentHasReviewerIssue(segment, segmentFormatChecks?.[segment.id])
                 }
               />
             </div>

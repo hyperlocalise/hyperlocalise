@@ -31,6 +31,7 @@ import {
   ContentEditorSideBySidePanel,
   ContentEditorSideBySidePanelSkeleton,
 } from "@/components/content-editor/side-by-side/content-editor-side-by-side-panel";
+import { ContentEditorReviewerBulkBar } from "@/components/content-editor/reviewer/content-editor-reviewer-bulk-bar";
 import type { ContentEditorWorkspaceViewProps } from "@/components/content-editor/shared/dependencies";
 import { contentEditorWorkspaceMessages } from "@/components/content-editor/shared/content-editor.messages";
 
@@ -121,6 +122,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   projectId,
   nativeIssuesEnabled = false,
   onReloadConcordance,
+  bulkActions,
 }: ContentEditorWorkspaceViewProps) {
   const store = useContentEditorWorkspace();
   const viewMode = store.ui.viewMode;
@@ -410,6 +412,22 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       return null;
     }
 
+    const bulkBar =
+      store.ui.isReviewerLayoutActive && bulkActions ? (
+        <ContentEditorReviewerBulkBar
+          visibleSegmentIds={queueSegments.map((segment) => segment.id)}
+          checkedSegmentIds={checkedSegmentIds ?? store.checkedSegmentIds}
+          actions={bulkActions}
+          isPending={store.isBulkActionPending}
+          progress={
+            store.isBulkActionPending && store.bulkTotalCount > 0
+              ? `${store.bulkCompletedCount}/${store.bulkTotalCount}`
+              : undefined
+          }
+          onClearChecked={() => store.clearChecked()}
+        />
+      ) : undefined;
+
     return (
       <ContentEditorPanelErrorBoundary
         scope="editor"
@@ -541,6 +559,15 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onGlossaryTermAdded={
             intelligenceSegment ? () => onReloadConcordance?.(intelligenceSegment.id) : undefined
           }
+          reviewerLayout={store.ui.isReviewerLayoutActive}
+          showSelection={store.selectionMode}
+          checkedSegmentIds={checkedSegmentIds ?? store.checkedSegmentIds}
+          onToggleSegmentChecked={
+            onToggleSegmentChecked ??
+            ((segmentId, checked) => store.toggleSegmentChecked(segmentId, checked))
+          }
+          onSkip={(segmentId) => review.onSkip(segmentId)}
+          bulkBar={bulkBar}
         />
       </ContentEditorPanelErrorBoundary>
     );

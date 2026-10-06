@@ -345,7 +345,9 @@ export function ContentEditorQueueToolbar({
           </label>
         ) : null}
 
-        {selectionMode && hasBulkActions ? (
+        {selectionMode &&
+        hasBulkActions &&
+        !(adaptiveWorkspaceEnabled && resolvedPersona === "reviewer") ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={

@@ -95,6 +95,17 @@ export class ContentEditorWorkspaceUiStore {
     return this.resolvedPersona === "translator";
   }
 
+  /**
+   * True when the Reviewer layout extras (persistent bulk bar, row checkboxes,
+   * quick actions, status tally) should render: adaptive mode is on, the
+   * Reviewer persona is active, and the list-based Side-by-side view is shown.
+   */
+  get isReviewerLayoutActive(): boolean {
+    return (
+      this.adaptiveWorkspaceEnabled && this.isReviewerPersona && this.viewMode === "side-by-side"
+    );
+  }
+
   setAdaptiveWorkspaceEnabled(enabled: boolean) {
     if (this.adaptiveWorkspaceEnabled === enabled) {
       return;
