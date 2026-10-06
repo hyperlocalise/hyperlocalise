@@ -10,11 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { generateText } from "ai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { createOpenAIMock, createAnthropicMock } = vi.hoisted(() => ({
   createOpenAIMock: vi.fn((options: { apiKey: string; baseURL?: string }) => {
-    return (modelId: string) => ({ kind: "openai", modelId, options });
+    return Object.assign((modelId: string) => ({ kind: "openai", modelId, options }), {
+      chat: (modelId: string) => ({ kind: "openai.chat", modelId, options }),
+    });
   }),
   createAnthropicMock: vi.fn((options: { apiKey: string }) => {
     return (modelId: string) => ({ kind: "anthropic", modelId, options });
@@ -102,13 +105,64 @@ describe("resolveProviderLanguageModel", () => {
         model: "gemini-3.5-flash",
       }),
     ).toEqual({
-      kind: "openai",
+      kind: "openai.chat",
       modelId: "gemini-3.5-flash",
       options: {
         apiKey: "gem-key",
         baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
       },
     });
+  });
+});
+
+describe("resolveProviderLanguageModel requests", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof import("@ai-sdk/openai")>("@ai-sdk/openai");
+    createOpenAIMock.mockImplementationOnce(
+      actual.createOpenAI as unknown as typeof createOpenAIMock,
+    );
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async () =>
+      Response.json({
+        id: "chatcmpl-1",
+        object: "chat.completion",
+        created: 0,
+        model: "test-model",
+        choices: [
+          {
+            index: 0,
+            message: { role: "assistant", content: "ok" },
+            finish_reason: "stop",
+          },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"],
+    ["groq", "https://api.groq.com/openai/v1/chat/completions"],
+    ["mistral", "https://api.mistral.ai/v1/chat/completions"],
+  ] as const)("sends %s requests to Chat Completions", async (provider, url) => {
+    const model = resolveProviderLanguageModel({
+      provider,
+      apiKey: "test-key",
+      model: "test-model",
+    });
+
+    const result = await generateText({ model, prompt: "hi", maxRetries: 0 });
+
+    expect(result.text).toBe("ok");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(url);
   });
 });
 
