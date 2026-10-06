@@ -11,19 +11,17 @@ import (
 	gosvcvalkey "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/valkey"
 )
 
+// domainResearchCache stores keyword-idea response caches. Usage entitlement for
+// research mutations is enforced by workspace-domains on each route; there is no
+// per-organization daily quota in this layer.
 type domainResearchCache interface {
 	Get(context.Context, string) (string, error)
 	Set(context.Context, string, string, time.Duration) error
-	IncrByWithTTL(context.Context, string, int, time.Duration) (int64, error)
 }
 
 const (
 	DOMAIN_RESEARCH_KEYWORD_CACHE_TTL = 7 * 24 * time.Hour
 	DOMAIN_RESEARCH_SERP_CACHE_TTL    = 24 * time.Hour
-	DOMAIN_RESEARCH_QUOTA_TIMEOUT     = 500 * time.Millisecond
-	DOMAIN_RESEARCH_KEYWORD_QUOTA     = 100
-	DOMAIN_RESEARCH_SERP_QUOTA        = 500
-	DOMAIN_RESEARCH_RANK_QUOTA        = 1000
 )
 
 func domainResearchCacheKey(prefix string, parts ...string) string {
@@ -33,27 +31,6 @@ func domainResearchCacheKey(prefix string, parts ...string) string {
 		h.Write([]byte{0})
 	}
 	return "domain-research:" + prefix + ":" + hex.EncodeToString(h.Sum(nil))
-}
-
-func (h *handler) consumeDomainResearchQuota(ctx context.Context, organizationID, operation string, units, limit int) error {
-	if units <= 0 {
-		return nil
-	}
-	if h.researchCache == nil {
-		return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
-	}
-	quotaCtx, cancel := context.WithTimeout(ctx, DOMAIN_RESEARCH_QUOTA_TIMEOUT)
-	defer cancel()
-	key := domainResearchCacheKey("quota", organizationID, operation, time.Now().UTC().Format("2006-01-02"))
-	ttl := time.Until(time.Now().UTC().Truncate(24 * time.Hour).Add(24 * time.Hour))
-	count, err := h.researchCache.IncrByWithTTL(quotaCtx, key, units, ttl)
-	if err != nil {
-		return workspaceFailure(503, "research_quota_unavailable", "Usage controls are temporarily unavailable.")
-	}
-	if count > int64(limit) {
-		return workspaceFailure(429, "research_quota_exceeded", "This organization has reached its daily domain research limit.")
-	}
-	return nil
 }
 
 func cachedJSON[T any](ctx context.Context, cache domainResearchCache, key string, target *T) (bool, error) {
