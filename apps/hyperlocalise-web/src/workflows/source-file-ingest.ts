@@ -90,17 +90,15 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     }
 
     const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
-    if (
-      inferredFormat &&
-      (isBinaryTranslationFileFormat(inferredFormat) ||
-        isDocumentTranslationFileFormat(inferredFormat))
-    ) {
+    const isBinary = Boolean(inferredFormat && isBinaryTranslationFileFormat(inferredFormat));
+    const isDocument = Boolean(inferredFormat && isDocumentTranslationFileFormat(inferredFormat));
+    if (isBinary || isDocument) {
       const targetLocales = await getProjectTargetLocalesStep({
         organizationId: event.organizationId,
         projectId: event.projectId,
       });
 
-      if (isVideoTranslationFileFormat(inferredFormat)) {
+      if (inferredFormat && isVideoTranslationFileFormat(inferredFormat)) {
         const stored = await getStoredFileContentStep(event.storedFileId, event.organizationId);
         const { assertMp4DurationSupported } = await import("@/lib/translation/mp4-duration");
         const duration = assertMp4DurationSupported(stored);
@@ -116,8 +114,9 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
           targetLocales,
         });
       } else if (
-        isImageTranslationFileFormat(inferredFormat) ||
-        isDocumentTranslationFileFormat(inferredFormat)
+        inferredFormat &&
+        (isImageTranslationFileFormat(inferredFormat) ||
+          isDocumentTranslationFileFormat(inferredFormat))
       ) {
         await ensureImageVariantsForSourceFileStep({
           organizationId: event.organizationId,
@@ -128,30 +127,32 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         });
       }
 
-      await markSourceFileIngestStateStep({
-        sourceFileVersionId: event.sourceFileVersionId,
-        organizationId: event.organizationId,
-        ingestState: "ingested",
-        ingestWorkflowRunId: workflowRunId,
-        ingestedAt: new Date(),
-        fromIngestingWorkflowRunId: workflowRunId,
-      });
+      if (isBinary) {
+        await markSourceFileIngestStateStep({
+          sourceFileVersionId: event.sourceFileVersionId,
+          organizationId: event.organizationId,
+          ingestState: "ingested",
+          ingestWorkflowRunId: workflowRunId,
+          ingestedAt: new Date(),
+          fromIngestingWorkflowRunId: workflowRunId,
+        });
 
-      ingestCompleted = true;
-      await dispatchSourceUploadAutomationsStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        sourceFileId: event.storedFileId,
-        sourceFileVersionId: event.sourceFileVersionId,
-        sourcePath: event.sourcePath,
-        sourceHash: claim.sourceHash,
-        targetAutomationId: event.targetAutomationId,
-      });
+        ingestCompleted = true;
+        await dispatchSourceUploadAutomationsStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          sourceFileId: event.storedFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          sourcePath: event.sourcePath,
+          sourceHash: claim.sourceHash,
+          targetAutomationId: event.targetAutomationId,
+        });
 
-      return {
-        status: "ingested" as const,
-        importedKeyCount: 0,
-      };
+        return {
+          status: "ingested" as const,
+          importedKeyCount: 0,
+        };
+      }
     }
 
     const content = await getStoredFileContentStep(event.storedFileId, event.organizationId);

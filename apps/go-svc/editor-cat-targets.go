@@ -93,8 +93,13 @@ func (api *editorCatAPI) getSegmentTargets(r *http.Request, actor editorCatActor
 func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActor, project editorCatProject, body editorCatTargetsBody) ([]editorCatTargetRow, error) {
 	ids, paths, kinds := make([]string, len(body.Segments)), make([]string, len(body.Segments)), make([]string, len(body.Segments))
 	result := make([]editorCatTargetRow, len(body.Segments))
+	sourceFileIDs := map[string]string{}
 	for i, segment := range body.Segments {
-		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(editorCatSourceKind(segment.SourcePath))
+		kind, err := api.resolvedEditorCatTargetKind(r, actor, project, segment.SourcePath, segment.ExternalStringID, sourceFileIDs)
+		if err != nil {
+			return nil, err
+		}
+		ids[i], paths[i], kinds[i] = segment.ExternalStringID, segment.SourcePath, string(kind)
 		result[i] = editorCatTargetRow{editorCatTargetIdentity: segment, Targets: make(map[string]*editorCatTranslation)}
 	}
 	rows, err := api.pool.Query(r.Context(), `
@@ -176,4 +181,30 @@ func (api *editorCatAPI) loadSegmentTargets(r *http.Request, actor editorCatActo
 		}
 	}
 	return result, nil
+}
+
+// Documents without ingested keys queue on the source-file UUID. Resolve that
+// UUID against the file table so batch targets match getSegmentTarget.
+func (api *editorCatAPI) resolvedEditorCatTargetKind(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath, id string, sourceFileIDs map[string]string) (editorCatFileKind, error) {
+	kind := editorCatTargetKind(sourcePath, id)
+	if kind != editorCatKindText || !isEditorCatDocument(sourcePath) {
+		return kind, nil
+	}
+	sourceFileID, cached := sourceFileIDs[sourcePath]
+	if !cached {
+		lookedUp, err := api.sourceFileID(r, actor, project, sourcePath)
+		if err != nil {
+			if catErr, ok := err.(*editorCatError); ok && catErr.code == "source_file_not_found" {
+				sourceFileIDs[sourcePath] = ""
+				return kind, nil
+			}
+			return kind, err
+		}
+		sourceFileIDs[sourcePath] = lookedUp
+		sourceFileID = lookedUp
+	}
+	if sourceFileID != "" && id == sourceFileID {
+		return editorCatKindDocument, nil
+	}
+	return kind, nil
 }

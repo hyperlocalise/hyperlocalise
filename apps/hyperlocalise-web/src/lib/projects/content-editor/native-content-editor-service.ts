@@ -73,6 +73,18 @@ export function fileBackedCatSegmentIds(
   return [...ids];
 }
 
+export function isFileBackedCatSegmentId(
+  externalStringId: string,
+  sourceFileId: string | null | undefined,
+  sourcePath: string,
+) {
+  return fileBackedCatSegmentIds(sourceFileId, sourcePath).includes(externalStringId);
+}
+
+function isUnfilteredCatKeyQuery(pagination: { search?: string; queueFilter?: string }) {
+  return !pagination.search && (!pagination.queueFilter || pagination.queueFilter === "all");
+}
+
 function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
   return sourceFileId || `binary:${sourcePath}`;
 }
@@ -213,13 +225,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       });
     }
 
-    if (inferSupportedDocumentTranslationFileFormat(input.sourcePath)) {
-      return this.buildDocumentCatFileResponse({
-        input,
-        sourceFileId: sourceFile.id,
-      });
-    }
-
+    const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -237,6 +243,13 @@ export class NativeContentEditorService extends ProjectServiceBase {
         limit: legacyNativeContentEditorSegmentLimit + 1,
       });
 
+      if (isDocument && keys.length === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
+        return this.buildDocumentCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+        });
+      }
+
       const truncated = keys.length > legacyNativeContentEditorSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeContentEditorSegmentLimit) : keys;
 
@@ -245,6 +258,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
         visibleKeys,
         truncated,
         pagination: undefined,
+        documentView: isDocument
+          ? await this.loadDocumentView({
+              input,
+              sourceFileId: sourceFile.id,
+            })
+          : undefined,
       });
     }
 
@@ -277,11 +296,24 @@ export class NativeContentEditorService extends ProjectServiceBase {
       totalCount,
     });
 
+    if (isDocument && totalCount === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
+      return this.buildDocumentCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
+    }
+
     return this.buildCatFileResponse({
       input,
       visibleKeys: keys,
       truncated: pagination.hasMore,
       pagination,
+      documentView: isDocument
+        ? await this.loadDocumentView({
+            input,
+            sourceFileId: sourceFile.id,
+          })
+        : undefined,
     });
   }
 
@@ -486,17 +518,16 @@ export class NativeContentEditorService extends ProjectServiceBase {
     };
   }
 
-  private async buildDocumentCatFileResponse(input: {
+  private async loadDocumentView(input: {
     input: {
       organizationId: string;
       projectId: string;
       sourcePath: string;
       targetLocale: string;
-      canEditTranslations: boolean;
       organizationSlug: string;
     };
     sourceFileId: string;
-  }): Promise<ProjectFileContentEditorQueueFile> {
+  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
     const [latestVersion, variant] = await Promise.all([
       getLatestRepositorySourceFileVersion({
         organizationId: input.input.organizationId,
@@ -531,6 +562,27 @@ export class NativeContentEditorService extends ProjectServiceBase {
       : null;
 
     return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl,
+      targetAssetUrl,
+      imageVariantId: variant?.id ?? null,
+    };
+  }
+
+  private async buildDocumentCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileContentEditorQueueFile> {
+    const documentView = await this.loadDocumentView(input);
+
+    return {
       sourcePath: input.input.sourcePath,
       filename: filenameFromSourcePath(input.input.sourcePath),
       provider: null,
@@ -539,18 +591,15 @@ export class NativeContentEditorService extends ProjectServiceBase {
       truncated: false,
       segments: [
         {
-          externalStringId: documentFileExternalStringId(
-            input.sourceFileId,
-            input.input.sourcePath,
-          ),
+          externalStringId: documentView.externalStringId,
           key: input.input.sourcePath,
           sourceText: input.input.sourcePath,
           context: null,
           type: null,
           contentKind: "document",
-          sourceAssetUrl,
-          targetAssetUrl,
-          imageVariantId: variant?.id ?? null,
+          sourceAssetUrl: documentView.sourceAssetUrl,
+          targetAssetUrl: documentView.targetAssetUrl,
+          imageVariantId: documentView.imageVariantId ?? null,
         },
       ],
     };
@@ -640,6 +689,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+    documentView?: ProjectFileContentEditorQueueFile["documentView"];
   }): Promise<ProjectFileContentEditorQueueFile> {
     const lottieSourceUrl = await this.resolveLottieSourceUrl({
       ...input.input,
@@ -655,6 +705,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
       truncated: input.truncated,
       pagination: input.pagination,
       ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
+      ...(input.documentView ? { documentView: input.documentView } : {}),
       segments: input.visibleKeys.map((key) => mapTextSegment(key)),
     };
   }
@@ -1011,65 +1062,72 @@ export class NativeContentEditorService extends ProjectServiceBase {
         return "not_found";
       }
 
-      const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
-      const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
-      const contentKind = isVideo
-        ? ("video_file" as const)
-        : isOffice
-          ? ("office_file" as const)
-          : isDocument
-            ? ("document" as const)
-            : ("image_file" as const);
-      const expectedIds = new Set(fileBackedCatSegmentIds(sourceFile.id, input.sourcePath));
-      if (!expectedIds.has(input.externalStringId)) {
-        return "not_found";
-      }
+      const fileBacked = isFileBackedCatSegmentId(
+        input.externalStringId,
+        sourceFile.id,
+        input.sourcePath,
+      );
+      if (fileBacked || !isDocument) {
+        if (!fileBacked) {
+          return "not_found";
+        }
 
-      const variant = isVideo
-        ? await getVideoVariant({
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            targetLocale: input.targetLocale,
-            db: this.database,
-          })
-        : await getImageVariant({
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            targetLocale: input.targetLocale,
-            db: this.database,
-          });
+        const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
+        const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+        const contentKind = isVideo
+          ? ("video_file" as const)
+          : isOffice
+            ? ("office_file" as const)
+            : isDocument
+              ? ("document" as const)
+              : ("image_file" as const);
 
-      const targetAssetUrl = variant?.storedFileId
-        ? (isVideo ? projectVideoAssetPath : projectImageAssetPath)({
-            organizationSlug: input.organizationSlug,
-            projectId: input.projectId,
-            fileId: variant.storedFileId,
-          })
-        : null;
+        const variant = isVideo
+          ? await getVideoVariant({
+              organizationId: input.organizationId,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+              db: this.database,
+            })
+          : await getImageVariant({
+              organizationId: input.organizationId,
+              projectId: input.projectId,
+              sourcePath: input.sourcePath,
+              targetLocale: input.targetLocale,
+              db: this.database,
+            });
 
-      if (!variant) {
-        return {
-          text: "",
-          externalTranslationId: null,
-          isApproved: false,
+        const targetAssetUrl = variant?.storedFileId
+          ? (isVideo ? projectVideoAssetPath : projectImageAssetPath)({
+              organizationSlug: input.organizationSlug,
+              projectId: input.projectId,
+              fileId: variant.storedFileId,
+            })
+          : null;
+
+        if (!variant) {
+          return {
+            text: "",
+            externalTranslationId: null,
+            isApproved: false,
+            contentKind,
+            targetAssetUrl: null,
+            imageVariantId: null,
+            status: "draft",
+          };
+        }
+
+        return toCatTranslation({
+          id: variant.id,
+          text: targetAssetUrl ?? "",
+          status: variant.status,
           contentKind,
-          targetAssetUrl: null,
-          imageVariantId: null,
-          status: "draft",
-        };
+          targetAssetUrl,
+          imageVariantId: variant.id,
+        });
       }
-
-      return toCatTranslation({
-        id: variant.id,
-        text: targetAssetUrl ?? "",
-        status: variant.status,
-        contentKind,
-        targetAssetUrl,
-        imageVariantId: variant.id,
-      });
     }
 
     const key = await this.findTranslationKeyForSegment({
@@ -1156,7 +1214,22 @@ export class NativeContentEditorService extends ProjectServiceBase {
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
       inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
-      return [];
+      const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+      if (!isDocument) {
+        return [];
+      }
+
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+      if (
+        sourceFile &&
+        isFileBackedCatSegmentId(input.externalStringId, sourceFile.id, input.sourcePath)
+      ) {
+        return [];
+      }
     }
 
     const key = await this.findTranslationKeyForSegment({

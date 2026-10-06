@@ -70,8 +70,16 @@ type editorCatQueueFile struct {
 	CanContributeTeamGlossary bool                       `json:"canContributeTeamGlossary,omitempty"`
 	TeamName                  *string                    `json:"teamName,omitempty"`
 	ProjectTeamSlug           *string                    `json:"projectTeamSlug,omitempty"`
+	DocumentView              *editorCatDocumentView     `json:"documentView,omitempty"`
 	Segments                  []editorCatSegment         `json:"segments"`
 	Pagination                *editorCatPagination       `json:"pagination,omitempty"`
+}
+
+type editorCatDocumentView struct {
+	ExternalStringID string  `json:"externalStringId"`
+	SourceAssetURL   *string `json:"sourceAssetUrl,omitempty"`
+	TargetAssetURL   *string `json:"targetAssetUrl,omitempty"`
+	ImageVariantID   *string `json:"imageVariantId,omitempty"`
 }
 
 type editorCatQueueQuery struct {
@@ -178,10 +186,23 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	var queue editorCatQueueFile
 	if isEditorCatAllFiles(query.sourcePath) {
 		queue, err = api.loadAllFilesQueue(r, actor, project, query)
-	} else if isEditorCatWholeFile(query.sourcePath) {
+	} else if isEditorCatBinaryWholeFile(query.sourcePath) {
 		queue, err = api.loadWholeFileQueue(r, actor, project, query)
 	} else {
 		queue, err = api.loadTextFileQueue(r, actor, project, query)
+		if err == nil && isEditorCatDocument(query.sourcePath) {
+			unfiltered := query.search == "" && (query.queueFilter == "" || query.queueFilter == "all")
+			empty := len(queue.Segments) == 0 && (queue.Pagination == nil || queue.Pagination.TotalCount == 0)
+			if unfiltered && empty {
+				queue, err = api.loadWholeFileQueue(r, actor, project, query)
+			} else {
+				view, viewErr := api.loadDocumentView(r, actor, project, query)
+				if viewErr != nil {
+					return editorCatQueueFile{}, viewErr
+				}
+				queue.DocumentView = view
+			}
+		}
 	}
 	if err != nil {
 		return editorCatQueueFile{}, err
@@ -197,8 +218,11 @@ func editorCatQueueKind(sourcePath string) string {
 	if isEditorCatAllFiles(sourcePath) {
 		return "all_files"
 	}
-	if isEditorCatWholeFile(sourcePath) {
+	if isEditorCatBinaryWholeFile(sourcePath) {
 		return "whole_file"
+	}
+	if isEditorCatDocument(sourcePath) {
+		return "document"
 	}
 	return "text"
 }
@@ -306,6 +330,42 @@ func (api *editorCatAPI) loadWholeFileQueue(r *http.Request, actor editorCatActo
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           false,
 		Segments:            []editorCatSegment{segment},
+	}, nil
+}
+
+func (api *editorCatAPI) loadDocumentView(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery) (*editorCatDocumentView, error) {
+	sourceFileID, err := api.sourceFileID(r, actor, project, query.sourcePath)
+	if err != nil {
+		return nil, err
+	}
+	var sourceStored, targetStored, variantID *string
+	err = api.pool.QueryRow(r.Context(), `
+        select v.stored_file_id
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc
+        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	_ = api.pool.QueryRow(r.Context(), `
+        select id, stored_file_id from project_image_variants
+        where organization_id=$1 and project_id=$2 and source_path=$3 and target_locale=$4
+        limit 1`, actor.organizationID, project.ID, query.sourcePath, query.targetLocale).Scan(&variantID, &targetStored)
+	var sourceURL, targetURL *string
+	if sourceStored != nil && *sourceStored != "" {
+		url := editorCatAssetPath(actor.organizationSlug, project.ID, *sourceStored)
+		sourceURL = &url
+	}
+	if targetStored != nil && *targetStored != "" {
+		url := editorCatAssetPath(actor.organizationSlug, project.ID, *targetStored)
+		targetURL = &url
+	}
+	return &editorCatDocumentView{
+		ExternalStringID: binaryEditorCatStringID(sourceFileID, query.sourcePath),
+		SourceAssetURL:   sourceURL,
+		TargetAssetURL:   targetURL,
+		ImageVariantID:   variantID,
 	}, nil
 }
 

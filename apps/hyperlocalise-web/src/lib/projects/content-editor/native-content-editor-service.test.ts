@@ -17,6 +17,7 @@ import type { ProjectTranslationService } from "@/lib/projects/translations/proj
 import { NativeContentEditorCommentService } from "./native-content-editor-comment-service";
 import {
   fileBackedCatSegmentIds,
+  isFileBackedCatSegmentId,
   NativeContentEditorService,
 } from "./native-content-editor-service";
 
@@ -57,6 +58,12 @@ describe("fileBackedCatSegmentIds", () => {
       "image:assets/hero.png",
       "video:assets/hero.png",
     ]);
+  });
+
+  it("recognizes file-backed CAT ids", () => {
+    expect(isFileBackedCatSegmentId("file_1", "file_1", "docs/intro.md")).toBe(true);
+    expect(isFileBackedCatSegmentId("binary:docs/intro.md", "file_1", "docs/intro.md")).toBe(true);
+    expect(isFileBackedCatSegmentId("key-uuid", "file_1", "docs/intro.md")).toBe(false);
   });
 });
 
@@ -398,7 +405,18 @@ describe("NativeContentEditorService.getCatFile", () => {
     });
   });
 
-  it("returns a synthetic document segment for markdown sources", async () => {
+  it("returns ingested markdown keys plus a document view overlay", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_md",
+        key: "md.Heading[0]",
+        sourceText: "Intro",
+        context: null,
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
     getLatestRepositorySourceFileVersion.mockResolvedValue({
       storedFileId: "stored_source_md",
     });
@@ -417,7 +435,42 @@ describe("NativeContentEditorService.getCatFile", () => {
       organizationSlug: "acme",
     });
 
-    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(listKeysForFile).toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_md",
+      key: "md.Heading[0]",
+      sourceText: "Intro",
+    });
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_md",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_md",
+      imageVariantId: "variant_md",
+    });
+  });
+
+  it("returns a synthetic document segment when markdown has no ingested keys", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_md",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_md",
+      storedFileId: "stored_target_md",
+      status: "needs_review",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/intro.md",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalled();
     expect(result?.segments).toHaveLength(1);
     expect(result?.segments[0]).toMatchObject({
       externalStringId: "file_1",
@@ -428,6 +481,7 @@ describe("NativeContentEditorService.getCatFile", () => {
       targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_md",
       imageVariantId: "variant_md",
     });
+    expect(result?.documentView).toBeUndefined();
   });
 
   it("marks image URL keys with contentKind and looksLikeImageUrl", async () => {
