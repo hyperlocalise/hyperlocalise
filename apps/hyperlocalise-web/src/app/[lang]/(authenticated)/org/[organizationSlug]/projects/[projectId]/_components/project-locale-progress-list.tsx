@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
+import { getLocaleFlagEmoji } from "@/lib/i18n/locales";
 import { localeBadgeCode } from "@/lib/projects/locale-progress/project-locale-progress";
 import { cn } from "@/lib/primitives/cn";
 
@@ -57,8 +58,20 @@ export type ProjectLocaleProgressListProps = {
 };
 
 function LocaleBadge({ locale }: { locale: string }) {
+  const flag = getLocaleFlagEmoji(locale);
+  if (flag) {
+    return (
+      <span
+        aria-hidden
+        className="inline-flex h-6 w-7 shrink-0 items-center justify-center text-base leading-none"
+      >
+        {flag}
+      </span>
+    );
+  }
+
   return (
-    <span className="inline-flex h-6 min-w-7 items-center justify-center rounded-md bg-muted px-1.5 font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+    <span className="inline-flex h-6 min-w-7 shrink-0 items-center justify-center rounded-md bg-muted px-1.5 font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
       {localeBadgeCode(locale)}
     </span>
   );
