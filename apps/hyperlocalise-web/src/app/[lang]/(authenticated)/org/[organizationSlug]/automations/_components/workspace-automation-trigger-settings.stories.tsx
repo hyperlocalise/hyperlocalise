@@ -237,11 +237,14 @@ export const SwitchingPushToPullRequestKeepsFields: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "A push is made" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: "GitHub" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: "A pull request is made" }));
+    // Simulated pointer moves close a hover submenu, so walk into it with the keyboard.
+    await userEvent.hover(await body.findByRole("menuitem", { name: "GitHub" }));
+    await userEvent.keyboard("{ArrowRight}");
+    await body.findByRole("menuitem", { name: "A pull request is made" });
+    await userEvent.keyboard("{ArrowDown}{Enter}");
 
     await expect(
-      canvas.getByRole("button", { name: "A pull request is made" }),
+      await canvas.findByRole("button", { name: "A pull request is made" }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Branch patterns" })).toHaveTextContent(
       "main, release/*",

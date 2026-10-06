@@ -288,8 +288,14 @@ export const DisconnectedSkillIsGreyedOut: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
-    const slack = await body.findByRole("menuitem", { name: /^Post results to Slack/ });
-    await waitFor(() => expect(slack).toHaveAttribute("aria-disabled", "true"));
+    // Query again on each try: the item re-renders once the Slack connection has loaded.
+    await waitFor(() =>
+      expect(body.getByRole("menuitem", { name: /^Post results to Slack/ })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      ),
+    );
+    const slack = body.getByRole("menuitem", { name: /^Post results to Slack/ });
     await expect(within(slack).getByText("Connect Slack first")).toBeInTheDocument();
     await expect(body.getByRole("menuitem", { name: /^Research the web/ })).not.toHaveAttribute(
       "aria-disabled",
