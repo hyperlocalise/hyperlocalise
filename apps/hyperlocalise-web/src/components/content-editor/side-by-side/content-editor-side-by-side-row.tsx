@@ -126,6 +126,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
   canUseAiRecommendation = false,
   intelligence = null,
   aiRecommendationError,
@@ -157,6 +158,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canUseAiRecommendation?: boolean;
   intelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
@@ -517,6 +519,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     segment={segment}
                     canEdit={canEditTarget}
                     isBusy={isImageBusy}
+                    isGenerating={isImageGenerating}
                     isLoading={isTargetLoading}
                     onUpload={onUploadImage}
                     onRegenerate={onRegenerateImage}

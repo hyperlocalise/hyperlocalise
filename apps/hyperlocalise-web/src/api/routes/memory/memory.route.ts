@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
-
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 
 import {
@@ -31,18 +29,10 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import type { Memory } from "@/lib/database/types";
 import { enqueueActivityLogEvent } from "@/lib/activity-log/activity-log-writer";
-import {
-  applyMemoryImport,
-  parseMemoryImportContent,
-  type AppliedMemoryImport,
-} from "@/lib/memory/import-memory-entries";
 import { exportMemoryEntriesCsv, exportMemoryEntriesTmx } from "@/lib/memory/export-memory-entries";
 import {
-  createMemoryImportAttempt,
-  finalizeMemoryImportAttempt,
   getMemoryImportAttempt,
   listMemoryImportAttempts,
-  statusFromMemoryImportReport,
 } from "@/lib/memory/memory-import-attempts";
 import { toMemoryRecord, toVirtualMemoryRecord } from "@/lib/memory/memory-records";
 import {
@@ -53,7 +43,6 @@ import {
   type MemoryCapabilityAction,
 } from "@/lib/memory/memory-capabilities";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import type { MemoryImportReport } from "@/lib/memory/tmx/tmx-types";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
 
@@ -63,7 +52,6 @@ import {
   createMemoryEntryBodySchema,
   createMemoryBodySchema,
   exportMemoryEntriesQuerySchema,
-  importMemoryEntriesBodySchema,
   listMemoryImportAttemptsQuerySchema,
   promoteMemoryFromProjectBodySchema,
   listMemoryEntriesQuerySchema,
@@ -333,16 +321,6 @@ function toMemoryImportAttemptRecord(
   };
 }
 
-function tmxFatalResponse(
-  c: Parameters<typeof badRequestResponse>[0],
-  error: { code: string; message: string; unitCount?: number; maxUnits?: number },
-) {
-  return badRequestResponse(c, error.code, error.message, {
-    ...(error.unitCount !== undefined ? { unitCount: error.unitCount } : {}),
-    ...(error.maxUnits !== undefined ? { maxUnits: error.maxUnits } : {}),
-  });
-}
-
 async function createMemoryEntry(
   memory: Memory,
   payload: CreateMemoryEntryBody,
@@ -514,16 +492,6 @@ const validateCreateMemoryEntryBody = validator("json", (value, c) => {
 
 const validateUpdateMemoryEntryBody = validator("json", (value, c) => {
   const parsed = updateMemoryEntryBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidMemoryPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateImportMemoryEntriesBody = validator("json", (value, c) => {
-  const parsed = importMemoryEntriesBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidMemoryPayloadResponse(c);
@@ -886,157 +854,6 @@ export function createMemoryRoutes() {
 
       return c.json({ memoryEntry: toMemoryEntryRecord(entry) }, 201);
     })
-    .post(
-      "/:memoryId/entries/import",
-      validateMemoryParams,
-      validateImportMemoryEntriesBody,
-      async (c) => {
-        const params = c.req.valid("param");
-        const payload = c.req.valid("json");
-        const access = await requireMemoryCapability(c, params.memoryId, "import");
-        if ("response" in access) return access.response;
-        const memory = access.value.resource.persistedMemory;
-        if (!memory) return memoryCapabilityDeniedResponse(c, "import", "unsupported");
-
-        const dryRun = payload.dryRun === true;
-        const importBatchId = dryRun ? undefined : randomUUID();
-
-        const parsed = parseMemoryImportContent({
-          format: payload.format,
-          content: payload.content,
-          maxUnits: payload.maxUnits,
-        });
-        if (isErr(parsed)) {
-          if (importBatchId) {
-            const failedReport: MemoryImportReport = {
-              totalRead: parsed.error.unitCount ?? 0,
-              created: 0,
-              updated: 0,
-              variantCreated: 0,
-              skipped: 0,
-              warned: 0,
-              failed: 1,
-              issues: [
-                {
-                  severity: "error",
-                  code: parsed.error.code,
-                  message: parsed.error.message,
-                },
-              ],
-              truncatedIssues: false,
-            };
-            await db.transaction(async (tx) => {
-              await createMemoryImportAttempt({
-                id: importBatchId,
-                organizationId: c.var.auth.organization.localOrganizationId,
-                memoryId: memory.id,
-                createdByUserId: c.var.auth.user.localUserId,
-                format: payload.format,
-                content: payload.content,
-                sourceFilename: payload.sourceFilename,
-                sourceByteSize: payload.sourceByteSize,
-                maxUnits: payload.maxUnits,
-                client: tx,
-              });
-              await finalizeMemoryImportAttempt({
-                attemptId: importBatchId,
-                status: "failed",
-                report: failedReport,
-                failureCode: parsed.error.code,
-                client: tx,
-              });
-            });
-          }
-          return tmxFatalResponse(c, parsed.error);
-        }
-
-        let applied: AppliedMemoryImport;
-        if (dryRun) {
-          applied = await applyMemoryImport({
-            memory,
-            parsed: parsed.value,
-            dryRun: true,
-            createdByUserId: c.var.auth.user.localUserId,
-          });
-        } else {
-          const attemptInput = {
-            id: importBatchId!,
-            organizationId: c.var.auth.organization.localOrganizationId,
-            memoryId: memory.id,
-            createdByUserId: c.var.auth.user.localUserId,
-            format: payload.format,
-            content: payload.content,
-            sourceFilename: payload.sourceFilename,
-            sourceByteSize: payload.sourceByteSize,
-            maxUnits: payload.maxUnits,
-          };
-
-          try {
-            applied = await db.transaction(async (tx) => {
-              await createMemoryImportAttempt({ ...attemptInput, client: tx });
-              const result = await applyMemoryImport({
-                memory,
-                parsed: parsed.value,
-                createdByUserId: c.var.auth.user.localUserId,
-                importBatchId,
-                client: tx,
-              });
-              await finalizeMemoryImportAttempt({
-                attemptId: importBatchId!,
-                status: statusFromMemoryImportReport(result.report),
-                report: result.report,
-                client: tx,
-              });
-              return result;
-            });
-          } catch (error) {
-            await db
-              .transaction(async (tx) => {
-                await createMemoryImportAttempt({ ...attemptInput, client: tx });
-                await finalizeMemoryImportAttempt({
-                  attemptId: importBatchId!,
-                  status: "failed",
-                  failureCode: "unexpected_import_failure",
-                  client: tx,
-                });
-              })
-              .catch(() => undefined);
-            throw error;
-          }
-        }
-
-        if (!dryRun) {
-          await enqueueActivityLogEvent({
-            actorCredentialId: null,
-            actorKind: "user",
-            actorUserId: c.var.auth.user.localUserId,
-            eventType: "translation_memory_imported",
-            organizationId: c.var.auth.organization.localOrganizationId,
-            payload: {
-              batchId: applied.importBatchId ?? undefined,
-              itemCount: applied.report.created + applied.report.variantCreated,
-              resourceId: memory.id,
-            },
-            targetId: memory.id,
-            targetKind: "translation_memory",
-          });
-        }
-
-        return c.json(
-          {
-            memoryEntries: applied.createdEntries.map(toMemoryEntryRecord),
-            imported: applied.report.created + applied.report.variantCreated,
-            skipped: applied.report.skipped,
-            importBatchId: applied.importBatchId,
-            importAttemptId: applied.importBatchId,
-            dryRun,
-            preview: applied.preview,
-            report: applied.report,
-          },
-          dryRun ? 200 : 201,
-        );
-      },
-    )
     .post(
       "/:memoryId/entries/promote-from-project",
       validateMemoryParams,

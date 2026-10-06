@@ -47,7 +47,7 @@ func (api *editorCatAPI) getSegmentTarget(r *http.Request, actor editorCatActor,
 		return nil, 0, err
 	}
 	externalStringID := trimEditorCat(r.PathValue("externalStringId"))
-	if isEditorCatWholeFile(sourcePath) && !isEditorCatAllFiles(sourcePath) {
+	if api.usesEditorCatWholeFileTarget(r, actor, project, sourcePath, externalStringID) {
 		target, err := api.wholeFileTarget(r, actor, project, sourcePath, targetLocale)
 		if err != nil {
 			return nil, 0, err
@@ -59,6 +59,23 @@ func (api *editorCatAPI) getSegmentTarget(r *http.Request, actor editorCatActor,
 		return nil, 0, err
 	}
 	return map[string]any{"target": translation}, 200, nil
+}
+
+func (api *editorCatAPI) usesEditorCatWholeFileTarget(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath, externalStringID string) bool {
+	if isEditorCatAllFiles(sourcePath) {
+		return false
+	}
+	if isEditorCatBinaryWholeFile(sourcePath) {
+		return true
+	}
+	if !isEditorCatDocument(sourcePath) {
+		return false
+	}
+	if looksLikeEditorCatFileBackedAlias(externalStringID, sourcePath) {
+		return true
+	}
+	sourceFileID, err := api.sourceFileID(r, actor, project, sourcePath)
+	return err == nil && externalStringID == sourceFileID
 }
 
 func (api *editorCatAPI) wholeFileTarget(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath, targetLocale string) (*editorCatTranslation, error) {

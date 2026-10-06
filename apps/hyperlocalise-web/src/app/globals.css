@@ -987,11 +987,16 @@ html,
   max-width: 100%;
   border-radius: 0.75rem;
 }
+.document-editor-content .tableWrapper {
+  overflow-x: auto;
+  margin: 1rem 0;
+  -webkit-overflow-scrolling: touch;
+}
 .document-editor-content table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9375rem;
-  margin: 1rem 0;
+  margin: 0;
 }
 .document-editor-content th,
 .document-editor-content td {

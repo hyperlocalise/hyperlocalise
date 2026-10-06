@@ -34,21 +34,22 @@ worker, or a new Lambda artifact under `apps/`.
      the worker contract;
    - propagates context and bounds external calls with timeouts;
    - logs IDs, counts, phases, and durations without payload secrets.
-4. Add shared-secret metadata configuration. The infrastructure supplies only:
+4. Wire Secrets Manager metadata (values stay in AWS; Lambda gets ARN, JSON key,
+   and cache TTL only). Never mutate `os.Environ` with loaded secret values.
 
-   - `<NAME>_ARN`
-   - `<NAME>_KEY`
-   - `<NAME>_CACHE_TTL_SECONDS`
+   **Postgres / shared database (default for new queue workers):** match
+   activity-log, glossary-interchange, and memory-interchange. Use
+   `secretsmanager.ConfigFromEnv()` and `NewLoader`. Infrastructure should use
+   `secret_references.database_url_secret` plus explicit
+   `DATABASE_SECRET_KEY = "DATABASE_URL"` in `environment_variables`. See
+   [references/worker-contract.md](references/worker-contract.md#postgres--shared-runtime-database-default).
 
-   Call `secretsmanager.ConfigsFromEnv("NAME", ...)`, create a
-   `secretsmanager.Collection`, and map named values into a typed runtime
-   config. Never mutate `os.Environ` with loaded values.
-
-   The existing activity-log Lambda is a compatibility exception: the merged
-   infrastructure wrapper still supplies `DATABASE_URL_SECRET_ARN`,
-   `DATABASE_SECRET_KEY`, and `DATABASE_URL_SECRET_CACHE_TTL_SECONDS`, so that
-   worker continues to use `secretsmanager.ConfigFromEnv` until infrastructure
-   changes its wrapper contract.
+   **Extra secrets beyond Postgres:** infrastructure supplies
+   `<NAME>_ARN`, `<NAME>_KEY`, and `<NAME>_CACHE_TTL_SECONDS` per
+   `secret_references` entry. Use `ConfigsFromEnv("NAME", ...)` and
+   `Collection`. Do not use `ConfigsFromEnv("DATABASE")` for Postgres unless
+   infra uses the map key `database` (emits `DATABASE_ARN`), not
+   `database_url_secret`.
 5. Add table-driven tests for valid messages, malformed messages, partial
    failures, context cancellation, secret loading, cache behavior, and safe
    logging. Use fakes for AWS and external dependencies.

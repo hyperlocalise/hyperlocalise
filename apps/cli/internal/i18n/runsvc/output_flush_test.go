@@ -137,6 +137,50 @@ func TestFlushOutputsSortedUniqueTargets(t *testing.T) {
 	}
 }
 
+func TestFlushOutputsReportsUnwrittenTargetsOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	paths := []string{
+		filepath.Join(dir, "a.json"),
+		filepath.Join(dir, "b.json"),
+		filepath.Join(dir, "c.json"),
+	}
+	for _, path := range paths {
+		if err := os.WriteFile(path, []byte(`{"k":"v"}`), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == paths[1] {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	staged := map[string]stagedOutput{
+		paths[0]: {entries: map[string]string{"k": "va"}, targetLocale: "fr"},
+		paths[1]: {entries: map[string]string{"k": "vb"}, targetLocale: "fr"},
+		paths[2]: {entries: map[string]string{"k": "vc"}, targetLocale: "fr"},
+	}
+	_, err := svc.flushOutputs(context.Background(), nil, staged, nil, nil)
+	if err == nil {
+		t.Fatal("expected flush failure")
+	}
+	var targetErr *targetFlushError
+	if !errors.As(err, &targetErr) {
+		t.Fatalf("expected targetFlushError, got %T %v", err, err)
+	}
+	if targetErr.TargetPath != paths[1] {
+		t.Fatalf("failed target = %q, want %q", targetErr.TargetPath, paths[1])
+	}
+	wantUnwritten := []string{paths[1], paths[2]}
+	if !reflect.DeepEqual(targetErr.UnwrittenTargets, wantUnwritten) {
+		t.Fatalf("unwritten targets mismatch\nwant: %#v\n got: %#v", wantUnwritten, targetErr.UnwrittenTargets)
+	}
+}
+
 func TestLoadExistingTargetWithWarnings(t *testing.T) {
 	svc := newTestService()
 

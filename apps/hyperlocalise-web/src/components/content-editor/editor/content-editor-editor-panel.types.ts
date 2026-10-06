@@ -32,6 +32,7 @@ export type ContentEditorEditorPanelProps = {
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;

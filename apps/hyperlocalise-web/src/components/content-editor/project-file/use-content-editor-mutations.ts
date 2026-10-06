@@ -587,7 +587,10 @@ export function useContentEditorMutations(input: {
     },
   });
 
-  async function invalidateAfterImageChange(externalStringId: string) {
+  async function invalidateAfterImageChange(
+    externalStringId: string,
+    targetLocale = input.targetLocale,
+  ) {
     const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
       input,
       externalStringId,
@@ -602,7 +605,7 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale,
         externalStringId,
       }),
     ]);
@@ -613,6 +616,9 @@ export function useContentEditorMutations(input: {
       externalStringId: string;
       instructions?: string;
       force?: boolean;
+      /** Defaults to the workspace locale; the multilingual gallery generates per locale. */
+      targetLocale?: string;
+      signal?: AbortSignal;
     }) => {
       const { sourcePath } = resolveCatMutationFileIdentity(
         input,
@@ -621,19 +627,22 @@ export function useContentEditorMutations(input: {
       );
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
-      ].files.detail.cat.images.regenerate.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
+      ].files.detail.cat.images.regenerate.$post(
+        {
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath,
+            targetLocale: mutationInput.targetLocale ?? input.targetLocale,
+            externalStringId: mutationInput.externalStringId,
+            instructions: mutationInput.instructions,
+            force: mutationInput.force,
+          },
         },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          instructions: mutationInput.instructions,
-          force: mutationInput.force,
-        },
-      });
+        { init: { signal: mutationInput.signal } },
+      );
 
       if (response.status !== 200) {
         throw new Error(
@@ -647,7 +656,7 @@ export function useContentEditorMutations(input: {
       return response.json();
     },
     onSuccess: async (_data, variables) => {
-      await invalidateAfterImageChange(variables.externalStringId);
+      await invalidateAfterImageChange(variables.externalStringId, variables.targetLocale);
     },
   });
 
@@ -980,6 +989,14 @@ export function useContentEditorMutations(input: {
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    generatingImageSegmentId: regenerateImageMutation.isPending
+      ? regenerateImageMutation.variables?.externalStringId
+      : undefined,
+    isImageGenerating:
+      regenerateImageMutation.isPending &&
+      Boolean(regenerateImageMutation.variables?.externalStringId) &&
+      (regenerateImageMutation.variables?.targetLocale ?? input.targetLocale) ===
+        input.targetLocale,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||

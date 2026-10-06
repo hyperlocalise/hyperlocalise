@@ -33,6 +33,9 @@ export type VisualCatalogType =
   | "logic.for_each"
   | "logic.retry"
   | "flow.wait"
+  | "flow.stop"
+  | "flow.return"
+  | "flow.fail"
   | "logic.merge"
   | "logic.sequence";
 
@@ -173,6 +176,20 @@ export type VisualNodeConfig =
       timeoutMs?: number;
     }
   | {
+      kind: "flow.stop";
+      outcome: "completed" | "cancelled";
+      reason?: string;
+    }
+  | {
+      kind: "flow.return";
+      outputs: VisualReturnOutput[];
+    }
+  | {
+      kind: "flow.fail";
+      errorCode: string;
+      message: string;
+    }
+  | {
       kind: "logic.merge";
       mode: VisualMergeMode;
       inputs: VisualMergeInput[];
@@ -290,4 +307,10 @@ export type VisualMergeInput = {
 export type VisualSequenceOutput = {
   id: string;
   label: string;
+};
+
+export type VisualReturnOutput = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
 };

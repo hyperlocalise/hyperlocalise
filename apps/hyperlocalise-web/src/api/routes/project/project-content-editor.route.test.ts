@@ -2292,6 +2292,26 @@ describe("project file CAT routes", () => {
     expect(
       remainingBody.contentEditorQueue.segments.map((segment) => segment.externalStringId),
     ).toEqual([farewell!.id]);
+
+    const notHiddenQueue = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR", queueFilter: "not_hidden" },
+      },
+      { headers },
+    );
+    const notHiddenBody = (await notHiddenQueue.json()) as ProjectFileContentEditorQueueResponse;
+    expect(
+      notHiddenBody.contentEditorQueue.segments.map((segment) => segment.externalStringId),
+    ).toEqual([greeting!.id]);
+    expect(notHiddenBody.contentEditorQueue.segments.every((segment) => !segment.isHidden)).toBe(
+      true,
+    );
   });
 
   it("hides Crowdin CAT strings for users with write-back permission", async () => {

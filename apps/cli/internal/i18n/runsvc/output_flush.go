@@ -35,6 +35,26 @@ func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Contex
 	return s.flushOutputForTarget(targetPath, output, keep)
 }
 
+type targetFlushError struct {
+	TargetPath       string
+	UnwrittenTargets []string
+	Err              error
+}
+
+func (e *targetFlushError) Error() string {
+	if e == nil || e.Err == nil {
+		return "flush outputs: unknown target"
+	}
+	return e.Err.Error()
+}
+
+func (e *targetFlushError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryInput, staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
 	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
 	for path := range staged {
@@ -50,14 +70,18 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 		ctx = context.Background()
 	}
 	var warnings []string
-	for _, targetPath := range targetPaths {
+	for i, targetPath := range targetPaths {
 		output, ok := staged[targetPath]
 		if !ok {
 			output = pruneMetadata[targetPath]
 		}
 		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
 		if err != nil {
-			return nil, err
+			return nil, &targetFlushError{
+				TargetPath:       targetPath,
+				UnwrittenTargets: slices.Clone(targetPaths[i:]),
+				Err:              err,
+			}
 		}
 		warnings = append(warnings, targetWarnings...)
 	}

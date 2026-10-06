@@ -66,6 +66,36 @@ function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefin
   };
 }
 
+function terminalWorkflowDefinition(
+  terminal: VisualWorkflowDefinition["nodes"][number],
+): VisualWorkflowDefinition {
+  return {
+    schemaVersion: 2,
+    name: "Terminal run",
+    nodes: [
+      {
+        id: "trigger",
+        type: "trigger.scheduled",
+        config: {
+          kind: "trigger.scheduled",
+          schedule: { cadence: "daily", hourUtc: 9, timezone: "UTC" },
+        },
+      },
+      terminal,
+    ],
+    edges: [
+      {
+        id: "trigger-terminal",
+        source: "trigger",
+        target: terminal.id,
+        sourceHandle: null,
+        targetHandle: null,
+      },
+    ],
+    editor: { positions: {} },
+  };
+}
+
 function waitWorkflowDefinition(): VisualWorkflowDefinition {
   return {
     schemaVersion: 2,
@@ -383,6 +413,77 @@ describe("visual workflow runs", () => {
     });
     expect(again?.id).toBe(run.id);
     expect(again?.status).toBe("succeeded");
+  });
+
+  it("persists declared Return outputs in the run summary", async () => {
+    const definition = terminalWorkflowDefinition({
+      id: "return",
+      type: "flow.return",
+      config: {
+        kind: "flow.return",
+        outputs: [{ id: "order-id", name: "orderId", type: "string" }],
+      },
+      inputs: { "value.order-id": { kind: "literal", value: "order-123" } },
+    });
+    const { organizationId, workflow } = await seedWorkflow({ definition });
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "return-summary",
+    });
+
+    const executed = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(executed).toMatchObject({
+      status: "succeeded",
+      outputSummary: {
+        terminal: { kind: "returned", nodeId: "return", outputs: { orderId: "order-123" } },
+        returnedOutputs: { orderId: "order-123" },
+      },
+    });
+  });
+
+  it("persists controlled terminal failure details in the run summary", async () => {
+    const definition = terminalWorkflowDefinition({
+      id: "fail",
+      type: "flow.fail",
+      config: {
+        kind: "flow.fail",
+        errorCode: "ORDER_REJECTED",
+        message: "The order cannot be processed",
+      },
+    });
+    const { organizationId, workflow } = await seedWorkflow({ definition });
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "fail-summary",
+    });
+
+    const executed = await executeVisualWorkflowRun({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+
+    expect(executed).toMatchObject({
+      status: "failed",
+      error: { code: "ORDER_REJECTED", message: "The order cannot be processed" },
+      outputSummary: {
+        terminal: {
+          kind: "failed",
+          nodeId: "fail",
+          errorCode: "ORDER_REJECTED",
+          message: "The order cannot be processed",
+        },
+      },
+    });
   });
 
   it("fails when the definition snapshot is missing after a version change", async () => {

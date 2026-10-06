@@ -115,6 +115,7 @@ type Candidate struct {
 	ExternalKey  *string
 	UnitIndex    int
 	Tuid         *string
+	IsVariant    bool
 }
 
 type Issue struct {

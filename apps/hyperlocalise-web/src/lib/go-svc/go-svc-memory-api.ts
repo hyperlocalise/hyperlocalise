@@ -16,6 +16,9 @@ import type {
   GoSvcRequestOptions,
   MemoryEntry,
   MemoryExportJob,
+  MemoryImportCancelResponse,
+  MemoryImportQueueResponse,
+  MemoryImportUploadSession,
   MemoryInterchangeAttempt,
   MemoryInterchangeAttemptResponse,
   MemoryInterchangeDownloadUrl,
@@ -203,6 +206,42 @@ export class GoSvcMemoryEntriesApi {
     return this.request.json<GoSvcRecord>(
       orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import"),
       { method: "POST", body, ...options },
+    );
+  }
+
+  createImportUpload(
+    organizationSlug: string,
+    memoryId: string,
+    body: { format: "csv" | "tmx"; sourceFilename?: string; contentType?: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryImportUploadSession>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import", "uploads"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  queueImport(
+    organizationSlug: string,
+    memoryId: string,
+    body: { attemptId: string; mode: "preview" | "apply"; maxUnits?: number },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryImportQueueResponse>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  cancelImport(
+    organizationSlug: string,
+    memoryId: string,
+    body: { attemptId: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryImportCancelResponse>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import"),
+      { method: "POST", body: { ...body, mode: "cancel" }, ...options },
     );
   }
 

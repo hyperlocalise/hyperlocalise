@@ -59,6 +59,7 @@ import {
 } from "./store/content-editor-workspace-store-utils";
 
 import { ContentEditorGroupVariantsRegistry } from "../groups/content-editor-group-variants-store";
+import { ContentEditorImageGenerationStore } from "../multilingual/content-editor-image-generation-store";
 import { MultilingualDrafts } from "../multilingual/content-editor-multilingual-drafts";
 
 export type CreateCatWorkspaceOptions = {
@@ -230,6 +231,7 @@ export class ContentEditorWorkspaceOrchestrator {
   }
 
   readonly multilingualDrafts = new MultilingualDrafts();
+  readonly imageGenerations = new ContentEditorImageGenerationStore();
   readonly groupVariants = new ContentEditorGroupVariantsRegistry();
   readonly queue = new ContentEditorQueueStore();
   readonly segments = new ContentEditorSegmentStore();
@@ -348,6 +350,7 @@ export class ContentEditorWorkspaceOrchestrator {
     for (const controller of this.controllers) {
       controller.dispose();
     }
+    this.imageGenerations.cancelAll();
   }
 
   get selectedSegmentId() {
@@ -828,6 +831,9 @@ export class ContentEditorWorkspaceOrchestrator {
     this.fileScopeGeneration += 1;
     this.reviewSequence += 1;
     this.validationSequence += 1;
+    // Abort rather than orphan in-flight image generation so returning to this
+    // file cannot start a second request while the first is still running.
+    this.imageGenerations.cancelAll();
     this.pendingWrites.clear();
     this.isBulkActionPending = false;
     this.isPostingComment = false;
@@ -857,7 +863,8 @@ export class ContentEditorWorkspaceOrchestrator {
       filename,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
-      providerKind: null,
+      // Keep the current provider so Crowdin markdown does not flash into native document view.
+      providerKind: this.fileContext.providerKind,
       canEditTranslations: true,
       canAddComments: true,
     };
@@ -867,8 +874,12 @@ export class ContentEditorWorkspaceOrchestrator {
       ? resolveCatFileViewCapabilities({
           sourcePath: outgoingSegment.sourcePath,
           contentKind: outgoingSegment.contentKind,
+          providerKind: this.fileContext.providerKind,
         }).family
-      : resolveCatFileViewCapabilities({ sourcePath: input.sourcePath }).family;
+      : resolveCatFileViewCapabilities({
+          sourcePath: input.sourcePath,
+          providerKind: this.fileContext.providerKind,
+        }).family;
     this.ui.applyFileFamily(initialFamily);
     this.page.beginFileScopeChange(input.sourcePath, input.targetLocale);
     this.ui.setTranslationViewLoading(true);
@@ -958,8 +969,12 @@ export class ContentEditorWorkspaceOrchestrator {
                 initialSegment?.sourcePath ??
                 (initialSegment as { filePath?: string } | undefined)?.filePath,
               contentKind: initialSegment?.contentKind,
+              providerKind: nextFileContext.providerKind,
             }).family
-          : resolveCatFileViewCapabilities({ sourcePath: nextFileContext.sourcePath }).family;
+          : resolveCatFileViewCapabilities({
+              sourcePath: nextFileContext.sourcePath,
+              providerKind: nextFileContext.providerKind,
+            }).family;
       this.ui.applyFileFamily(initialFamily);
       this.jobTitle = normalizedNext.jobTitle;
       this.breadcrumbs = normalizedNext.breadcrumbs;
@@ -1516,6 +1531,7 @@ export class ContentEditorWorkspaceOrchestrator {
   confirmUnsavedNavigation() {
     const proceed = this.unsavedNavigationPrompt?.proceed;
     this.multilingualDrafts.clear();
+    this.imageGenerations.cancelAll();
     this.unsavedNavigationPrompt = null;
     proceed?.();
   }

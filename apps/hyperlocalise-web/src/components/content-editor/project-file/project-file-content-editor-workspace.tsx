@@ -71,6 +71,7 @@ import { useContentEditorGroupingMode } from "../groups/use-content-editor-group
 import { isGroupTranslationDivergent } from "../groups/use-content-editor-group-variants";
 import { groupMessages } from "../groups/content-editor-groups.messages";
 import { ContentEditorWorkspaceContainer } from "@/components/content-editor/workspace/content-editor-workspace-container";
+import { isCatDocumentFileViewSegmentId } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
 import {
   attemptCatPageNavigation,
   type ContentEditorPageNavigationGuard,
@@ -385,6 +386,8 @@ export function ProjectFileContentEditorWorkspace({
     setMaxLength,
     isSavingMaxLength,
     isImageBusy,
+    isImageGenerating,
+    generatingImageSegmentId,
   } = useContentEditorMutations({
     organizationSlug,
     projectId,
@@ -580,10 +583,8 @@ export function ProjectFileContentEditorWorkspace({
         (entry) => entry.externalStringId === segmentId,
       );
       if (
-        segment?.contentKind === "image_file" ||
-        segment?.contentKind === "video_file" ||
-        segment?.contentKind === "office_file" ||
-        segment?.contentKind === "document"
+        isFileBackedCatSegment(segment?.contentKind) ||
+        isCatDocumentFileViewSegmentId(segmentId, contentEditorFile.documentView)
       ) {
         const statusFallback = intl.formatMessage(
           segment?.contentKind === "video_file"
@@ -635,6 +636,7 @@ export function ProjectFileContentEditorWorkspace({
     },
     [
       contentEditorFile?.canEditTranslations,
+      contentEditorFile?.documentView,
       contentEditorFile?.segments,
       intl,
       isNativeProject,
@@ -1022,6 +1024,22 @@ export function ProjectFileContentEditorWorkspace({
           coalesceQueueRefresh: true,
         });
       },
+      ...(isNativeProject && aiFeaturesAllowed && contentEditorFile?.canEditTranslations
+        ? {
+            onRegenerateImage: async (
+              segment: ContentEditorSegment,
+              locale: string,
+              options?: { force?: boolean; signal?: AbortSignal },
+            ) => {
+              await regenerateImage({
+                externalStringId: segment.id,
+                targetLocale: locale,
+                force: options?.force,
+                signal: options?.signal,
+              });
+            },
+          }
+        : {}),
       onOpenTranslation: (segment: ContentEditorSegment, locale: string) => {
         setOpenedSegmentKey(segment.key);
         setSearch(segment.key);
@@ -1036,6 +1054,8 @@ export function ProjectFileContentEditorWorkspace({
     [
       intl,
       saveTranslation,
+      regenerateImage,
+      aiFeaturesAllowed,
       assertQaSaveAllowed,
       assertSingleTargetSaveAllowed,
       isNativeProject,
@@ -1346,6 +1366,8 @@ export function ProjectFileContentEditorWorkspace({
                   isQueueDataPending={isQueueDataPending}
                   isTranslationViewLoading={isTranslationViewLoading}
                   isImageBusy={isImageBusy}
+                  isImageGenerating={isImageGenerating}
+                  generatingImageSegmentId={generatingImageSegmentId}
                   isMaxLengthSaving={isSavingMaxLength}
                   queuePagination={pagination}
                   onLoadMoreQueue={loadNextPage}

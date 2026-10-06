@@ -146,6 +146,9 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
       resumedAt: "2026-01-01T00:01:00.000Z",
     },
   },
+  "flow.stop": { inputs: [], outputs: [], mock: {} },
+  "flow.return": { inputs: [], outputs: [], mock: {} },
+  "flow.fail": { inputs: [], outputs: [], mock: {} },
   "logic.merge": {
     inputs: [],
     outputs: [
@@ -199,4 +202,16 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
   }
   for (const field of node.outputFields ?? []) fields.set(field.path, field);
   return [...fields.values()];
+}
+
+export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): WorkflowInputField[] {
+  if (node.config.kind === "flow.return") {
+    return node.config.outputs.map((returnOutput) => ({
+      name: `value.${returnOutput.id}`,
+      type: returnOutput.type,
+      required: true,
+    }));
+  }
+
+  return NODE_CONTRACTS[node.type].inputs;
 }

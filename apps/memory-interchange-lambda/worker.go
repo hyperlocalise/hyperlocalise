@@ -20,6 +20,10 @@ import (
 
 const MAX_MEMORY_INTERCHANGE_BYTES int64 = 100 * 1024 * 1024
 
+// memoryImportPreviewSampleLimit bounds the representative translations stored
+// with a preview so the report page can show them before the import is applied.
+const memoryImportPreviewSampleLimit = 5
+
 type permanentMemoryInterchangeError struct {
 	cause error
 }
@@ -35,6 +39,24 @@ func permanentMemoryInterchangeFailure(err error) error {
 func isPermanentMemoryInterchangeFailure(err error) bool {
 	var permanent permanentMemoryInterchangeError
 	return errors.As(err, &permanent)
+}
+
+// memoryImportPreviewSamples captures the first parsed units so reviewers can
+// inspect representative translations before applying the import.
+func memoryImportPreviewSamples(candidates []memoryinterchange.Candidate, limit int) []map[string]any {
+	samples := make([]map[string]any, 0, limit)
+	for _, candidate := range candidates {
+		if len(samples) >= limit {
+			break
+		}
+		samples = append(samples, map[string]any{
+			"sourceLocale": candidate.SourceLocale,
+			"targetLocale": candidate.TargetLocale,
+			"sourceText":   candidate.SourceText,
+			"targetText":   candidate.TargetText,
+		})
+	}
+	return samples
 }
 
 func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message memoryInterchangeMessage) error {
@@ -110,12 +132,13 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		candidates = candidates[:maxUnits]
 		issues = append(issues, memoryinterchange.Issue{Severity: "warning", Code: "truncated_units", Message: "Import truncated to maxUnits"})
 	}
-	counts := map[string]any{"totalRead": len(candidates), "created": 0, "updated": 0, "variantCreated": 0, "skipped": 0, "warned": 0, "failed": 0}
+	warned := 0
+	failed := 0
 	for _, issue := range issues {
 		if issue.Severity == "warning" {
-			counts["warned"] = counts["warned"].(int) + 1
+			warned++
 		} else {
-			counts["failed"] = counts["failed"].(int) + 1
+			failed++
 		}
 	}
 	if err := persistMemoryDiagnostics(ctx, pool, attemptID, issues); err != nil {
@@ -123,47 +146,65 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	}
 	hash := sha256.Sum256(data)
 	hashHex := hex.EncodeToString(hash[:])
-	countsJSON, _ := json.Marshal(counts)
 	headerValue := any(nil)
 	if header != nil {
 		headerValue = *header
 	}
-	if mode == "preview" {
-		_, err = pool.Exec(ctx, `update memory_import_attempts set status='preview_completed', processing_started_at=null, source_sha256=$2, counts=$3::jsonb, header_srclang=$4, completed_at=now() where id=$1`, attemptID, hashHex, countsJSON, headerValue)
-		return err
-	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	var created, updated int
+
 	var userID *string
-	var memoryID, memoryStatus string
-	if err := tx.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus); err != nil {
+	var memoryID, memoryStatus, organizationID string
+	if err := pool.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status, a.organization_id::text from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus, &organizationID); err != nil {
 		return err
 	}
 	if memoryStatus == "archived" {
 		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
 	}
-	for _, candidate := range candidates {
-		var id string
-		var inserted bool
-		err := tx.QueryRow(ctx, `insert into memory_entries (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) on conflict (memory_id, source_locale, target_locale, normalized_source_text) do update set target_text=excluded.target_text, match_score=excluded.match_score, provenance='import', modified_by_user_id=excluded.created_by_user_id, import_batch_id=excluded.import_batch_id, external_key=coalesce(excluded.external_key,memory_entries.external_key), version=memory_entries.version+1, updated_at=now() returning id, (xmax = 0)`, memoryID, candidate.SourceLocale, candidate.TargetLocale, candidate.SourceText, memoryinterchange.NormalizeSourceText(candidate.SourceText), candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey).Scan(&id, &inserted)
-		if err != nil {
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	existingByExternalKey, existingBySourceKey, err := loadExistingEntriesForImport(ctx, tx, memoryID, candidates)
+	if err != nil {
+		return err
+	}
+	planned := memoryinterchange.PlanImportActions(candidates, existingByExternalKey, existingBySourceKey)
+	created, updated, variantCreated, skipped := memoryinterchange.CountPlannedImportActions(planned)
+
+	counts := map[string]any{
+		"totalRead": len(candidates), "created": created, "updated": updated,
+		"variantCreated": variantCreated, "skipped": skipped, "warned": warned, "failed": failed,
+		"samples": memoryImportPreviewSamples(candidates, memoryImportPreviewSampleLimit),
+	}
+	countsJSON, _ := json.Marshal(counts)
+
+	if mode == "preview" {
+		if _, err = tx.Exec(ctx, `update memory_import_attempts set status='preview_completed', processing_started_at=null, source_sha256=$2, counts=$3::jsonb, header_srclang=$4, completed_at=now() where id=$1`, attemptID, hashHex, countsJSON, headerValue); err != nil {
 			return err
 		}
-		if inserted {
-			created++
-		} else {
-			updated++
-		}
+		return tx.Commit(ctx)
+	}
+
+	created, updated, variantCreated, skipped, err = applyPlannedMemoryImport(ctx, tx, memoryID, attemptID, userID, planned)
+	if err != nil {
+		return err
 	}
 	counts["created"] = created
 	counts["updated"] = updated
+	counts["variantCreated"] = variantCreated
+	counts["skipped"] = skipped
 	countsJSON, _ = json.Marshal(counts)
+	actorUserID := ""
+	if userID != nil {
+		actorUserID = *userID
+	}
+	if err := insertTranslationMemoryImportedActivity(ctx, tx, organizationID, actorUserID, memoryID, attemptID, created+variantCreated); err != nil {
+		return err
+	}
 	status := "completed"
-	if counts["failed"].(int) > 0 {
+	if failed > 0 {
 		status = "partially_successful"
 	}
 	if _, err = tx.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1 and status='running'`, attemptID, status, hashHex, countsJSON, headerValue); err != nil {

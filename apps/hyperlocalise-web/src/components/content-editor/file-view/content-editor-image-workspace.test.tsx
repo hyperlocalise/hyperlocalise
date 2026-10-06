@@ -134,6 +134,61 @@ describe("image workspace", () => {
     expect(steps).toEqual(["save", "generate"]);
     expect(savedBody?.regions[0].translations.fr.text).toBe("Plus près");
   });
+  it("shows the generation card while localising and offers a retry when it fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url, options) =>
+        Response.json({
+          textLayers:
+            options?.method === "PATCH"
+              ? {
+                  ...JSON.parse(options.body),
+                  revision: "00000000-0000-4000-8000-000000000002",
+                }
+              : initialLayers,
+        }),
+      ),
+    );
+    let fail!: (error: Error) => void;
+    const onRegenerate = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    show({ onRegenerate });
+    await user.type(await screen.findByLabelText("Exact replacement (fr)"), "Plus près");
+    await user.click(screen.getByRole("button", { name: "Save & regenerate" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Save & regenerate" }),
+    );
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Generating image" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fail(new Error("unavailable"));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(onRegenerate).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+  });
+  it("shows the generation card for a generation started elsewhere", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ textLayers: null })),
+    );
+    show({ isGenerating: true });
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Generating image" }),
+    ).toBeInTheDocument();
+  });
   it("does not generate after a failed save and retains edits", async () => {
     vi.stubGlobal(
       "fetch",

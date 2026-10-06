@@ -1,6 +1,9 @@
 go_library(
     name = "memoryinterchange",
-    srcs = ["interchange.go"],
+    srcs = [
+        "import_plan.go",
+        "interchange.go",
+    ],
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange",
     visibility = ["//visibility:public"],
     deps = [

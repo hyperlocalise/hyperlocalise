@@ -68,6 +68,7 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
   const capabilities = resolveCatFileViewCapabilities({
     sourcePath: selectedSegment?.sourcePath ?? store?.fileContext.sourcePath,
     contentKind: selectedSegment?.contentKind,
+    providerKind: store?.fileContext.providerKind,
     multilingualViewAvailable: store?.ui.multilingualViewAvailable,
   });
   const sections: ViewMenuSection[] = [];
@@ -99,7 +100,7 @@ export const ContentEditorViewMenu = observer(function ContentEditorViewMenu({
     });
   }
 
-  const personas = availablePersonasForFamily(capabilities.family);
+  const personas = availablePersonasForFamily(capabilities.family, capabilities.availableViews);
   if (store && showPersona && personas.length > 1) {
     sections.push({
       id: "persona",

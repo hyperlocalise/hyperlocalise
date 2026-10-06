@@ -1367,6 +1367,20 @@ describe("ContentEditorWorkspaceOrchestrator queue snapshot ingest", () => {
 });
 
 describe("ContentEditorWorkspaceOrchestrator file scope", () => {
+  it("aborts in-flight image generation when the workspace is disposed", () => {
+    const store = createCatWorkspace(createContentEditorWorkspaceState());
+    let generationSignal!: AbortSignal;
+    void store.imageGenerations.run("seg-02", "vi", (signal) => {
+      generationSignal = signal;
+      return new Promise<void>(() => {});
+    });
+
+    store.dispose();
+
+    expect(generationSignal.aborted).toBe(true);
+    expect(store.imageGenerations.runningCount).toBe(0);
+  });
+
   it("clears queue data and marks the translation view loading without dropping page chrome", () => {
     const store = createCatWorkspace(
       createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" }),
@@ -1387,6 +1401,13 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     });
 
     expect(store.queueSegments.length).toBeGreaterThan(0);
+    let generationSignal!: AbortSignal;
+    void store.imageGenerations.run("seg-02", "vi", (signal) => {
+      generationSignal = signal;
+      return new Promise<void>(() => {});
+    });
+    expect(store.imageGenerations.runningCount).toBe(1);
+    expect(generationSignal.aborted).toBe(false);
 
     store.prepareFileScopeChange({
       sourcePath: "locales/messages.po",
@@ -1396,6 +1417,8 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
 
     expect(store.queueSegments).toEqual([]);
     expect(store.selectedSegmentId).toBe("");
+    expect(generationSignal.aborted).toBe(true);
+    expect(store.imageGenerations.runningCount).toBe(0);
     expect(store.ui.translationViewLoading).toBe(true);
     expect(store.isFileScopeCurrent(0)).toBe(false);
     expect(store.isFileScopeCurrent(store.fileScopeGeneration)).toBe(true);
@@ -1533,5 +1556,30 @@ describe("ContentEditorWorkspaceOrchestrator file scope", () => {
     // text.  Without the fix selectedSegmentView would be undefined after
     // clearing the queue and the family would always fall back to "text".
     expect(store.ui.workspacePersona).toBe("designer");
+  });
+
+  it("keeps the previous provider kind while a Crowdin markdown file is loading", () => {
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        fileContext: {
+          sourcePath: "locales/en.json",
+          filename: "en.json",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+      }),
+    );
+
+    store.prepareFileScopeChange({
+      sourcePath: "docs/intro.md",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+    });
+
+    expect(store.fileContext.providerKind).toBe("crowdin");
+    expect(store.fileContext.sourcePath).toBe("docs/intro.md");
   });
 });

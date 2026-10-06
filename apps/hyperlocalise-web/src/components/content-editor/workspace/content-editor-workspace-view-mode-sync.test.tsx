@@ -97,4 +97,90 @@ describe("ContentEditorWorkspaceViewModeSync", () => {
     expect(store.ui.viewMode).toBe("comfortable");
     expect(localStorage.getItem("content-editor-workspace-persona:v1:text")).toBe("translator");
   });
+
+  it("keeps Crowdin markdown in segment view instead of native document file view", () => {
+    localStorage.clear();
+
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-md-1",
+        fileContext: {
+          sourcePath: "docs/intro.md",
+          filename: "intro.md",
+          sourceLocale: "en-US",
+          targetLocale: "fr",
+          providerKind: "crowdin",
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: "seg-md-1",
+            index: 1,
+            key: "md.Heading[0]",
+            sourceText: "Intro",
+            targetText: "Intro FR",
+            status: "reviewed",
+            sourcePath: "docs/intro.md",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+          },
+        ],
+      }),
+    );
+    store.ui.setAdaptiveWorkspaceEnabled(true);
+    store.ui.setViewMode("comfortable");
+
+    render(
+      <ContentEditorWorkspaceContext.Provider value={store}>
+        <ContentEditorWorkspaceViewModeSync onPageLimitChange={vi.fn()} />
+      </ContentEditorWorkspaceContext.Provider>,
+    );
+
+    expect(store.ui.viewMode).toBe("comfortable");
+    expect(store.ui.workspacePersona).not.toBe("designer");
+  });
+
+  it("keeps comfortable view on native markdown when that mode is already allowed", () => {
+    localStorage.clear();
+
+    const store = createCatWorkspace(
+      createContentEditorWorkspaceState({
+        selectedSegmentId: "seg-md-1",
+        fileContext: {
+          sourcePath: "docs/intro.md",
+          filename: "intro.md",
+          sourceLocale: "en-US",
+          targetLocale: "fr",
+          providerKind: null,
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+        segments: [
+          {
+            id: "seg-md-1",
+            index: 1,
+            key: "md.Heading[0]",
+            sourceText: "Intro",
+            targetText: "Intro FR",
+            status: "reviewed",
+            sourcePath: "docs/intro.md",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+          },
+        ],
+      }),
+    );
+    store.ui.setAdaptiveWorkspaceEnabled(true);
+    store.ui.applyFileFamily("document");
+    store.ui.setViewMode("comfortable");
+
+    render(
+      <ContentEditorWorkspaceContext.Provider value={store}>
+        <ContentEditorWorkspaceViewModeSync onPageLimitChange={vi.fn()} />
+      </ContentEditorWorkspaceContext.Provider>,
+    );
+
+    expect(store.ui.viewMode).toBe("comfortable");
+  });
 });

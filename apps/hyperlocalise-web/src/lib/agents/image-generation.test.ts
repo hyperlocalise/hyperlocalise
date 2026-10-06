@@ -81,6 +81,22 @@ describe("image generation", () => {
     });
   });
 
+  it("forwards the abort signal to the image model", async () => {
+    const abort = new AbortController();
+
+    await regenerateImageFromAttachment(
+      Buffer.from("source"),
+      "image/png",
+      "Localize this screenshot",
+      undefined,
+      { signal: abort.signal },
+    );
+
+    expect(generateImageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: abort.signal }),
+    );
+  });
+
   it("tracks a synthetic image unit after generation when the provider reports no tokens", async () => {
     await regenerateImageFromAttachment(
       Buffer.from("source"),

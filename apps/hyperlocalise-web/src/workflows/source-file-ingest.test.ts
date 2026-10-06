@@ -101,3 +101,40 @@ describe("sourceFileIngestWorkflow reconciliation", () => {
     expect(mocks.markSourceFileIngestStateStep).not.toHaveBeenCalled();
   });
 });
+
+describe("sourceFileIngestWorkflow documents", () => {
+  it("extracts markdown keys and still ensures image variants", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.parseHlEntriesStep.mockResolvedValue([
+      { key: "md.Heading[0]", text: "Intro", context: null, type: "string" },
+    ]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "docs/intro.md" }),
+    ).resolves.toEqual({
+      status: "ingested",
+      importedKeyCount: 1,
+    });
+    expect(mocks.ensureImageVariantsForSourceFileStep).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "docs/intro.md" }),
+    );
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalled();
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entries: [{ key: "md.Heading[0]", text: "Intro", context: null, type: "string" }],
+      }),
+    );
+    expect(mocks.ensureVideoVariantsForSourceFileStep).not.toHaveBeenCalled();
+  });
+
+  it("does not extract keys for binary image files", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    await expect(sourceFileIngestWorkflow({ ...event, sourcePath: "hero.png" })).resolves.toEqual({
+      status: "ingested",
+      importedKeyCount: 0,
+    });
+    expect(mocks.ensureImageVariantsForSourceFileStep).toHaveBeenCalled();
+    expect(mocks.extractSourceIngestEntriesStep).not.toHaveBeenCalled();
+    expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
+  });
+});

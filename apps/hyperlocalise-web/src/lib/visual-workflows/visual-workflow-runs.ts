@@ -172,7 +172,7 @@ async function finishVisualWorkflowRun(input: {
   runId: string;
   leaseToken?: string;
   organizationId: string;
-  status: Extract<VisualWorkflowRunStatus, "succeeded" | "failed">;
+  status: Extract<VisualWorkflowRunStatus, "succeeded" | "failed" | "cancelled">;
   error?: Record<string, unknown> | null;
   outputSummaryPatch?: Record<string, unknown>;
   dbClient?: DatabaseClient;
@@ -1328,14 +1328,30 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
   if (!result.ok && ["needs_attention", "cancelled"].includes(String(result.error.code)))
-    return updateVisualWorkflowRun({
-      leaseToken,
-      runId: run.id,
-      organizationId: input.organizationId,
-      status: result.error.code as "needs_attention" | "cancelled",
-      error: result.error,
-      completedAt: new Date(),
-    });
+    return result.error.code === "cancelled" && result.error.terminal === true
+      ? finishVisualWorkflowRun({
+          leaseToken,
+          runId: run.id,
+          organizationId: input.organizationId,
+          status: "cancelled",
+          error: result.error,
+          outputSummaryPatch: {
+            nodeResults: result.nodeResults,
+            terminal: {
+              kind: "cancelled",
+              nodeId: result.failedNodeId,
+              reason: result.error.message,
+            },
+          },
+        })
+      : updateVisualWorkflowRun({
+          leaseToken,
+          runId: run.id,
+          organizationId: input.organizationId,
+          status: result.error.code as "needs_attention" | "cancelled",
+          error: result.error,
+          completedAt: new Date(),
+        });
 
   if (!result.ok) {
     return finishVisualWorkflowRun({
@@ -1349,6 +1365,16 @@ export async function executeVisualWorkflowRun(input: {
       },
       outputSummaryPatch: {
         nodeResults: result.nodeResults,
+        ...(result.error.terminal === true
+          ? {
+              terminal: {
+                kind: "failed",
+                nodeId: result.failedNodeId,
+                errorCode: result.error.code,
+                message: result.error.message,
+              },
+            }
+          : {}),
       },
     });
   }
@@ -1383,6 +1409,8 @@ export async function executeVisualWorkflowRun(input: {
     status: "succeeded",
     outputSummaryPatch: {
       nodeResults: result.nodeResults,
+      ...(result.terminal ? { terminal: result.terminal } : {}),
+      ...(result.terminal?.kind === "returned" ? { returnedOutputs: result.terminal.outputs } : {}),
     },
   });
 }

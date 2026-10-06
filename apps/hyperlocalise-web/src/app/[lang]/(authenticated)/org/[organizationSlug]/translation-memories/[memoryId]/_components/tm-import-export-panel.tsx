@@ -20,7 +20,6 @@ import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import type { MemoryImportResponse } from "@/api/routes/memory/memory.schema";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,40 +29,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { TypographyP } from "@/components/ui/typography";
-import { readApiError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
-  readMemoryImportFile,
+  normalizeMemoryImportUploadBytes,
 } from "@/lib/memory/decode-import-file";
-import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { tmImportAttemptsQueryKey } from "./tm-import-history";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { tmImportExportPanelMessages as messages } from "./tm-import-export-panel.messages";
 
-type PendingImport = {
-  format: "csv" | "tmx";
-  content: string;
-  sourceFilename: string;
-  sourceByteSize: number;
-};
-
-function reportCounts(report: MemoryImportResponse["report"]) {
-  return [
-    { key: "totalRead", count: report.totalRead, message: messages.reportTotalRead },
-    { key: "created", count: report.created, message: messages.reportCreated },
-    { key: "updated", count: report.updated, message: messages.reportUpdated },
-    { key: "variantCreated", count: report.variantCreated, message: messages.reportVariants },
-    { key: "skipped", count: report.skipped, message: messages.reportSkipped },
-    { key: "warned", count: report.warned, message: messages.reportWarned },
-    { key: "failed", count: report.failed, message: messages.reportFailed },
-  ] as const;
-}
+// Matches MEMORY_INTERCHANGE_MAX_BYTES in go-svc. Larger files are rejected
+// before the upload so the user gets a fast, localizable error.
+const MEMORY_IMPORT_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;
 
 export function TmImportExportPanel({
   organizationSlug,
@@ -85,90 +65,95 @@ export function TmImportExportPanel({
   const router = useRouter();
   const { client: goSvcClient } = useGoSvcClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
-  const [preview, setPreview] = useState<MemoryImportResponse | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "tmx">("tmx");
   const [exportSourceLocale, setExportSourceLocale] = useState(localeCoverage[0] ?? "en-US");
   const [exportTargetLocale, setExportTargetLocale] = useState(localeCoverage[1] ?? "fr-FR");
 
-  const previewImport = useMutation({
+  // Lambda-backed import, same as the export flow: upload the file to object
+  // storage, queue a preview, then navigate to the report page. The report
+  // polls the attempt until the preview is ready, and the user confirms the
+  // import from there. Nothing heavy runs inside this request.
+  const startImportPreview = useMutation({
     mutationFn: async (file: File) => {
-      const decoded = await readMemoryImportFile(file);
-      if (!decoded.ok) {
-        throw new Error(
-          intl.formatMessage(messages.importFileTooLarge, {
-            maxMegabytes: Math.floor(TMX_MAX_IMPORT_CONTENT_CHARS / 1_000_000),
-          }),
-        );
-      }
-      const content = decoded.content;
       const format = memoryImportFormatFromFilename(file.name);
       if (!format) {
         throw new Error(intl.formatMessage(messages.unsupportedImportFormat));
       }
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries["import"].$post({
-        param: { organizationSlug, memoryId },
-        json: {
+      if (file.size <= 0 || file.size > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES) {
+        throw new Error(intl.formatMessage(messages.importFileTooLarge, { maxMegabytes: 100 }));
+      }
+      // The Lambda parses stored bytes as UTF-8, so normalize encodings
+      // (e.g. UTF-16 CSV/TMX) before upload. Re-encoded CJK text can grow,
+      // so re-check the limit against the bytes actually uploaded.
+      const uploadBytes = normalizeMemoryImportUploadBytes(
+        new Uint8Array(await file.arrayBuffer()),
+      );
+      if (
+        uploadBytes.byteLength <= 0 ||
+        uploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+      ) {
+        throw new Error(intl.formatMessage(messages.importFileTooLarge, { maxMegabytes: 100 }));
+      }
+      let upload;
+      try {
+        upload = await goSvcClient.memory.entries.createImportUpload(organizationSlug, memoryId, {
           format,
-          content,
-          dryRun: true,
           sourceFilename: file.name,
-          sourceByteSize: file.size,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
+          contentType: file.type || "application/octet-stream",
+        });
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.importFailed)), {
+          cause: error,
+        });
       }
-      return {
-        format,
-        content,
-        sourceFilename: file.name,
-        sourceByteSize: file.size,
-        body: (await response.json()) as MemoryImportResponse,
+      const headers = new Headers();
+      for (const [name, values] of Object.entries(upload.upload.headers)) {
+        headers.set(name, values.join(","));
+      }
+      // Fail the upload session if the PUT or the queue request fails, so a
+      // stale upload_pending attempt does not linger in import history.
+      const cancelUploadSession = () => {
+        void goSvcClient.memory.entries
+          .cancelImport(organizationSlug, memoryId, { attemptId: upload.attemptId })
+          .catch(() => undefined);
       };
-    },
-    onSuccess: ({ format, content, sourceFilename, sourceByteSize, body }) => {
-      setPendingImport({ format, content, sourceFilename, sourceByteSize });
-      setPreview(body);
-      setImportOpen(false);
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const confirmImport = useMutation({
-    mutationFn: async (pending: PendingImport) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries["import"].$post({
-        param: { organizationSlug, memoryId },
-        json: {
-          format: pending.format,
-          content: pending.content,
-          dryRun: false,
-          sourceFilename: pending.sourceFilename,
-          sourceByteSize: pending.sourceByteSize,
-        },
+      const uploaded = await fetch(upload.upload.url, {
+        method: upload.upload.method,
+        headers,
+        // BodyInit takes ArrayBuffer but not Uint8Array under this TS DOM lib.
+        body: uploadBytes.slice().buffer,
+      }).catch((error: unknown) => {
+        cancelUploadSession();
+        throw error;
       });
-      if (!response.ok) {
-        throw new Error(await readApiError(response, intl.formatMessage(messages.importFailed)));
+      if (!uploaded.ok) {
+        cancelUploadSession();
+        throw new Error(intl.formatMessage(messages.uploadFailed));
       }
-      return (await response.json()) as MemoryImportResponse;
+      try {
+        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId: upload.attemptId,
+          mode: "preview",
+        });
+      } catch (error) {
+        cancelUploadSession();
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.importFailed)), {
+          cause: error,
+        });
+      }
     },
-    onSuccess: (body) => {
-      setPreview(null);
-      setPendingImport(null);
+    onSuccess: (queued) => {
+      setImportOpen(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      void queryClient.invalidateQueries({
+        queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
+      });
       void onImported();
-      if (body.importAttemptId) {
-        router.push(
-          `/org/${organizationSlug}/translation-memories/${memoryId}/imports/${body.importAttemptId}`,
-        );
-      } else {
-        toast.error(intl.formatMessage(messages.importFailed));
-      }
+      router.push(
+        `/org/${organizationSlug}/translation-memories/${memoryId}/imports/${queued.attemptId}`,
+      );
     },
     onError: (error) => toast.error(error.message),
   });
@@ -214,7 +199,7 @@ export function TmImportExportPanel({
           type="button"
           variant="outline"
           size="sm"
-          disabled={previewImport.isPending}
+          disabled={startImportPreview.isPending}
           onClick={() => setImportOpen(true)}
         >
           <FormattedMessage {...messages.import} />
@@ -224,7 +209,7 @@ export function TmImportExportPanel({
       <Dialog
         open={canEdit && importOpen}
         onOpenChange={(open) => {
-          if (previewImport.isPending) return;
+          if (startImportPreview.isPending) return;
           setImportOpen(open);
           if (!open && fileInputRef.current) fileInputRef.current.value = "";
         }}
@@ -248,22 +233,26 @@ export function TmImportExportPanel({
               aria-label={intl.formatMessage(messages.importLabel)}
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) previewImport.mutate(file);
+                if (file && !startImportPreview.isPending) startImportPreview.mutate(file);
                 event.currentTarget.value = "";
               }}
             />
             <label
               htmlFor="translation-memory-file-import"
               className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8 text-center transition-colors hover:bg-muted/40 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-              aria-busy={previewImport.isPending}
+              aria-busy={startImportPreview.isPending}
             >
-              {previewImport.isPending ? (
+              {startImportPreview.isPending ? (
                 <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               ) : (
                 <UploadSimpleIcon className="size-5" />
               )}
               <span className="text-sm font-medium text-foreground">
-                <FormattedMessage {...messages.selectImportFile} />
+                {startImportPreview.isPending ? (
+                  <FormattedMessage {...messages.preparingPreview} />
+                ) : (
+                  <FormattedMessage {...messages.selectImportFile} />
+                )}
               </span>
               <span className="text-xs text-muted-foreground">
                 <FormattedMessage {...messages.importFormats} />
@@ -277,47 +266,6 @@ export function TmImportExportPanel({
           <FormattedMessage {...messages.exportTmx} />
         </Button>
       ) : null}
-
-      <Dialog
-        open={preview !== null}
-        onOpenChange={(open) => {
-          if (!open && !confirmImport.isPending) {
-            setPreview(null);
-            setPendingImport(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...messages.previewTitle} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage {...messages.previewDescription} />
-            </DialogDescription>
-          </DialogHeader>
-          {preview ? <ImportReportBody report={preview} /> : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setPreview(null);
-                setPendingImport(null);
-              }}
-            >
-              <FormattedMessage {...messages.cancelPreview} />
-            </Button>
-            <Button
-              type="button"
-              disabled={!pendingImport || confirmImport.isPending}
-              onClick={() => pendingImport && confirmImport.mutate(pendingImport)}
-            >
-              <FormattedMessage {...messages.confirmImport} />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -401,62 +349,6 @@ export function TmImportExportPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function ImportReportBody({ report }: { report: MemoryImportResponse }) {
-  return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap gap-2">
-        {reportCounts(report.report).map((item) => (
-          <TypographyP
-            key={item.key}
-            className="rounded-md border border-border px-2 py-1"
-            size="xsmall"
-          >
-            <FormattedMessage {...item.message} values={{ count: item.count }} />
-          </TypographyP>
-        ))}
-      </div>
-      {report.preview.length > 0 ? (
-        <div className="grid gap-2">
-          <TypographyP size="small" weight="medium">
-            <FormattedMessage {...messages.previewEntriesTitle} />
-          </TypographyP>
-          <div className="max-h-48 overflow-auto rounded-md border border-border">
-            {report.preview.map((entry, index) => (
-              <div
-                key={`${entry.externalKey ?? entry.sourceText}-${index}`}
-                className="border-b border-border px-3 py-2 last:border-b-0"
-              >
-                <TypographyP size="xsmall" tone="subtle">
-                  {entry.sourceLocale} → {entry.targetLocale} · {entry.action}
-                </TypographyP>
-                <TypographyP size="small">{entry.sourceText}</TypographyP>
-                <TypographyP size="small" tone="subtle">
-                  {entry.targetText}
-                </TypographyP>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {report.report.issues.length > 0 ? (
-        <div className="grid gap-2">
-          <TypographyP size="small" weight="medium">
-            <FormattedMessage {...messages.issuesTitle} />
-          </TypographyP>
-          <ul className="max-h-40 overflow-auto rounded-md border border-border px-3 py-2 text-xs">
-            {report.report.issues.map((issue, index) => (
-              <li key={`${issue.code}-${issue.unitIndex ?? index}`} className="py-1">
-                {issue.unitIndex !== undefined ? `#${issue.unitIndex} · ` : null}
-                {issue.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </div>
   );
 }

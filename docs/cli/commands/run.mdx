@@ -18,7 +18,7 @@ Review the planned files and locales before generation, then review the target d
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--srx <default|html|markdown|path>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--keep-completed-on-failure] [--workers <count>] [--output <report.json>] [--srx <default|html|markdown|path>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Behavior
@@ -208,6 +208,7 @@ For generic XML (`.xml`, `.resx`, `.resw`), `run` translates text-only leaf elem
 - `--locale`: run only tasks for the given target locale (repeatable); `--target-locale` is an alias
 - `--dry-run`: print plan only, do not translate or write files
 - `--force`: rerun all planned tasks and ignore lockfile skip state
+- `--keep-completed-on-failure`: keep lockfile entries for successful keys when other keys in the same target fail; still rolls back if the target file cannot be written
 - `--prune`: remove target keys that no longer exist in source files
 - `--prune-max-deletions`: maximum stale keys deleted in one run before requiring an explicit override (default `100`)
 - `--prune-force`: bypass the prune deletion safety limit
@@ -287,6 +288,14 @@ Use `--force` to ignore lockfile skip state and execute every planned task again
 
 ```bash
 hyperlocalise run --group tests --force
+```
+
+## Keep successful keys after a partial failure
+
+By default, a failed key rolls back every lockfile entry for that target, so the next `hl run` retranslates successes too. Pass `--keep-completed-on-failure` to leave successful keys in `.hyperlocalise.lock.json` and retry only leftover keys. A failed target-file write still rolls back this run's entries for every target that was not written.
+
+```bash
+hyperlocalise run --keep-completed-on-failure
 ```
 
 ## Output fields

@@ -25,10 +25,9 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   memoryImportFormatFromFilename,
-  readMemoryImportFile,
+  normalizeMemoryImportUploadBytes,
   suggestedMemoryNameFromFilename,
 } from "@/lib/memory/decode-import-file";
-import { TMX_MAX_IMPORT_CONTENT_CHARS } from "@/lib/memory/tmx/tmx-constants";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
@@ -64,6 +63,10 @@ class CreateMemoryImportError extends Error {
     this.memoryId = memoryId;
   }
 }
+
+// Matches MEMORY_INTERCHANGE_MAX_BYTES in go-svc. Larger files are rejected
+// before the upload so the user gets a fast, localizable error.
+const MEMORY_IMPORT_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;
 
 const workspaceMemoriesQueryKey = (
   organizationSlug: string,
@@ -299,35 +302,22 @@ export function TranslationMemoriesPageContent({
       const name =
         values.name.trim() ||
         (values.importFile ? suggestedMemoryNameFromFilename(values.importFile.name) : "");
-      let pendingImport:
-        | {
-            format: "csv" | "tmx";
-            content: string;
-            sourceFilename: string;
-            sourceByteSize: number;
-          }
-        | undefined;
       if (values.importFile) {
-        const format = memoryImportFormatFromFilename(values.importFile.name);
-        if (!format) {
+        if (!memoryImportFormatFromFilename(values.importFile.name)) {
           throw new Error(
             intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
           );
         }
-        const decoded = await readMemoryImportFile(values.importFile);
-        if (!decoded.ok) {
+        if (
+          values.importFile.size <= 0 ||
+          values.importFile.size > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+        ) {
           throw new Error(
             intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
-              maxMegabytes: Math.floor(TMX_MAX_IMPORT_CONTENT_CHARS / 1_000_000),
+              maxMegabytes: 100,
             }),
           );
         }
-        pendingImport = {
-          format,
-          content: decoded.content,
-          sourceFilename: values.importFile.name,
-          sourceByteSize: values.importFile.size,
-        };
       }
 
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$post({
@@ -349,35 +339,118 @@ export function TranslationMemoriesPageContent({
 
       const body = await response.json();
       const memoryId = body.memory.id as string;
-      if (!pendingImport) {
+      if (!values.importFile) {
         return { memoryId, importAttemptId: null as string | null };
       }
 
-      const importResponse = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries["import"].$post({
-        param: { organizationSlug, memoryId },
-        json: {
-          format: pendingImport.format,
-          content: pendingImport.content,
-          dryRun: false,
-          sourceFilename: pendingImport.sourceFilename,
-          sourceByteSize: pendingImport.sourceByteSize,
-        },
-      });
-
-      if (!importResponse.ok) {
+      // Lambda-backed import, same as the translation memory import flow:
+      // upload the file to object storage, queue a preview, then navigate to
+      // the report page. The report polls the attempt and the user confirms
+      // the import from there. Nothing heavy runs inside this request.
+      const file = values.importFile;
+      const format = memoryImportFormatFromFilename(file.name);
+      if (!format) {
         throw new CreateMemoryImportError(
           memoryId,
-          await readApiError(
-            importResponse,
+          intl.formatMessage(translationMemoriesPageContentMessages.importFileInvalid),
+        );
+      }
+      // Lambda-backed import: normalize to UTF-8 before upload (see the
+      // translation memory import flow). Re-encoded text can grow, so
+      // re-check the limit against the bytes actually uploaded.
+      let importUploadBytes: Uint8Array;
+      try {
+        importUploadBytes = normalizeMemoryImportUploadBytes(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+      } catch (error) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
             intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
           ),
         );
       }
-
-      const imported = (await importResponse.json()) as { importAttemptId?: string };
-      return { memoryId, importAttemptId: imported.importAttemptId ?? null };
+      if (
+        importUploadBytes.byteLength <= 0 ||
+        importUploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+      ) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importFileTooLarge, {
+            maxMegabytes: 100,
+          }),
+        );
+      }
+      let upload;
+      try {
+        upload = await goSvcClient.memory.entries.createImportUpload(organizationSlug, memoryId, {
+          format,
+          sourceFilename: file.name,
+          contentType: file.type || "application/octet-stream",
+        });
+      } catch (error) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
+      const headers = new Headers();
+      for (const [headerName, headerValues] of Object.entries(upload.upload.headers)) {
+        headers.set(headerName, headerValues.join(","));
+      }
+      // Fail the upload session if the PUT or the queue request fails, so a
+      // stale upload_pending attempt does not linger in import history.
+      const cancelUploadSession = () => {
+        void goSvcClient.memory.entries
+          .cancelImport(organizationSlug, memoryId, { attemptId: upload.attemptId })
+          .catch(() => undefined);
+      };
+      let uploaded;
+      try {
+        uploaded = await fetch(upload.upload.url, {
+          method: upload.upload.method,
+          headers,
+          // BodyInit takes ArrayBuffer but not Uint8Array under this TS DOM lib.
+          body: importUploadBytes.slice().buffer,
+        });
+      } catch (error) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
+      if (!uploaded.ok) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+        );
+      }
+      try {
+        const queued = await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId: upload.attemptId,
+          mode: "preview",
+        });
+        return { memoryId, importAttemptId: queued.attemptId };
+      } catch (error) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
     },
     onSuccess: async ({ memoryId, importAttemptId }) => {
       await queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] });

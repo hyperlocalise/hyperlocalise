@@ -18,6 +18,27 @@ export const fileTranslationReportSchema = z.object({
   failed: z.number().int().nonnegative(),
 });
 
+export type FileTranslationReport = z.infer<typeof fileTranslationReportSchema>;
+
+const CLI_TASK_FAILURE_MARKER = /run completed with failures:\s*\d+/;
+
+/** Task-level `hl run` failures are progress when some keys succeeded.
+ * Other nonzero exits (output write, lock save) stay fatal even if the
+ * report already counted successes. */
+export function isFileTranslationCliHardFailure(
+  progress: Pick<FileTranslationReport, "succeeded" | "failed">,
+  exitCode: number,
+  output = "",
+): boolean {
+  if (exitCode !== 0 && !CLI_TASK_FAILURE_MARKER.test(output)) {
+    return true;
+  }
+  if (progress.succeeded > 0) {
+    return false;
+  }
+  return exitCode !== 0 || progress.failed > 0;
+}
+
 const completionSchema = z.object({ s: z.string(), t: z.string() });
 const lockSchema = z.object({
   run_completed: z.record(z.string(), z.record(z.string(), completionSchema)).optional(),

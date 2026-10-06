@@ -133,6 +133,24 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: ClockIcon,
   },
   {
+    type: "flow.stop",
+    category: "flow",
+    enabled: true,
+    icon: CheckSquareIcon,
+  },
+  {
+    type: "flow.return",
+    category: "flow",
+    enabled: true,
+    icon: PathIcon,
+  },
+  {
+    type: "flow.fail",
+    category: "flow",
+    enabled: true,
+    icon: LightningIcon,
+  },
+  {
     type: "logic.merge",
     category: "logic",
     enabled: true,
@@ -242,6 +260,16 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
         mode: "duration",
         durationMs: 60_000,
       };
+    case "flow.stop":
+      return { kind: "flow.stop", outcome: "completed" };
+    case "flow.return":
+      return { kind: "flow.return", outputs: [] };
+    case "flow.fail":
+      return {
+        kind: "flow.fail",
+        errorCode: "WORKFLOW_FAILED",
+        message: "Workflow failed",
+      };
     case "logic.merge":
       return {
         kind: "logic.merge",
@@ -288,6 +316,9 @@ export function getVisualNodeDimensions(
   }
   if (type === "flow.wait") {
     return { width: 280, height: 140 };
+  }
+  if (["flow.stop", "flow.return", "flow.fail"].includes(type)) {
+    return { width: 280, height: 120 };
   }
   if (type === "logic.merge") {
     return { width: 280, height: 140 };
@@ -353,6 +384,12 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       }
 
       return "Wait until condition";
+    case "flow.stop":
+      return config.outcome === "completed" ? "Complete workflow" : "Cancel workflow";
+    case "flow.return":
+      return config.outputs.length === 1 ? "1 returned output" : `${config.outputs.length} outputs`;
+    case "flow.fail":
+      return config.errorCode;
     case "logic.merge":
       return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     case "logic.sequence":
@@ -367,5 +404,9 @@ export function createMergeInputId(): string {
 }
 
 export function createSequenceOutputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createReturnOutputId(): string {
   return crypto.randomUUID();
 }

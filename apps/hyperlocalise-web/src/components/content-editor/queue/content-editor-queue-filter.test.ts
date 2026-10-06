@@ -128,9 +128,19 @@ describe("segmentMatchesQueueFilter", () => {
     expect(filterCatQueueSegments(segments, "hidden").map((segment) => segment.id)).toEqual(["a"]);
   });
 
+  it("excludes hidden segments from not hidden", () => {
+    const segments = [createSegment({ id: "a", isHidden: true }), createSegment({ id: "b" })];
+
+    expect(filterCatQueueSegments(segments, "not_hidden").map((segment) => segment.id)).toEqual([
+      "b",
+    ]);
+  });
+
   it("matches hidden source strings", () => {
     expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "hidden")).toBe(true);
     expect(segmentMatchesQueueFilter(createSegment(), "hidden")).toBe(false);
+    expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "not_hidden")).toBe(false);
+    expect(segmentMatchesQueueFilter(createSegment(), "not_hidden")).toBe(true);
   });
 
   it("matches unsaved drafts from isDirty", () => {
@@ -144,12 +154,17 @@ describe("segmentMatchesQueueFilter", () => {
 });
 
 describe("resolveAvailableCatQueueFilters", () => {
-  it("includes hidden for native and Crowdin projects", () => {
+  it("includes hidden and not hidden for native and Crowdin projects", () => {
     expect(resolveAvailableCatQueueFilters(null)).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("crowdin")).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("crowdin")).toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("lokalise")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("lokalise")).not.toContain("not_hidden");
     expect(resolveAvailableCatQueueFilters("smartling")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("smartling")).not.toContain("not_hidden");
   });
 
   it("includes has issues for Crowdin projects", () => {
