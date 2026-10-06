@@ -36,11 +36,20 @@ export const DomainResearchShellUrlSync = observer(function DomainResearchShellU
   }, [requestedLocaleId, search, store]);
 
   useEffect(() => {
-    if (!store.localeId || store.requestedLocaleId === store.localeId) {
+    if (store.loadStatus !== "success" || !store.domain) {
       return;
     }
-    router.replace(store.hrefForLocale(store.localeId), { scroll: false });
-  }, [router, store, store.localeId, store.requestedLocaleId]);
+    if (store.localeId) {
+      if (store.requestedLocaleId === store.localeId) {
+        return;
+      }
+      router.replace(store.hrefForLocale(store.localeId), { scroll: false });
+      return;
+    }
+    if (store.requestedLocaleId) {
+      router.replace(store.hrefWithoutLocale(), { scroll: false });
+    }
+  }, [router, store, store.domain, store.localeId, store.loadStatus, store.requestedLocaleId]);
 
   return null;
 });

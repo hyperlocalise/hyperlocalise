@@ -12,6 +12,8 @@
  */
 
 // @vitest-environment happy-dom
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -51,6 +53,17 @@ vi.mock("./use-live-domain-research", () => ({
   }),
 }));
 
+function renderShell(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <IntlProvider locale="en">{ui}</IntlProvider>
+    </QueryClientProvider>,
+  );
+}
+
 describe("domain research locale URL", () => {
   beforeEach(() => {
     mocks.replace.mockReset();
@@ -66,16 +79,14 @@ describe("domain research locale URL", () => {
       ...mocks.catalog!,
       domain: { ...domain, locales: domain.locales.slice(1) },
     };
-    render(
-      <IntlProvider locale="en">
-        <DomainResearchShell
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-          surface="overview"
-        >
-          research
-        </DomainResearchShell>
-      </IntlProvider>,
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="overview"
+      >
+        research
+      </DomainResearchShell>,
     );
     expect(mocks.replace).toHaveBeenCalledWith(
       "/org/acme/domains/hyperlocalise-com?locale=germany-de",
@@ -84,32 +95,28 @@ describe("domain research locale URL", () => {
   });
 
   it("keeps a supported locale in the URL", () => {
-    render(
-      <IntlProvider locale="en">
-        <DomainResearchShell
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-          surface="overview"
-        >
-          research
-        </DomainResearchShell>
-      </IntlProvider>,
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="overview"
+      >
+        research
+      </DomainResearchShell>,
     );
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
   it("does not fall back to prototype catalogs when research is missing", () => {
     mocks.catalog = null;
-    render(
-      <IntlProvider locale="en">
-        <DomainResearchShell
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-          surface="overview"
-        >
-          research
-        </DomainResearchShell>
-      </IntlProvider>,
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="overview"
+      >
+        research
+      </DomainResearchShell>,
     );
     expect(screen.queryByText("hyperlocalise.com")).not.toBeInTheDocument();
     expect(screen.getByText("Domain not found")).toBeInTheDocument();
@@ -117,16 +124,14 @@ describe("domain research locale URL", () => {
 
   it("renders Search Console when the locale has no keyword catalog", () => {
     mocks.search = "locale=germany-de";
-    render(
-      <IntlProvider locale="en">
-        <DomainResearchShell
-          organizationSlug="acme"
-          linkedDomainId="hyperlocalise-com"
-          surface="search-console"
-        >
-          search console body
-        </DomainResearchShell>
-      </IntlProvider>,
+    renderShell(
+      <DomainResearchShell
+        organizationSlug="acme"
+        linkedDomainId="hyperlocalise-com"
+        surface="search-console"
+      >
+        search console body
+      </DomainResearchShell>,
     );
     expect(screen.getByText("search console body")).toBeInTheDocument();
     expect(screen.queryByText("No research for this locale yet")).not.toBeInTheDocument();

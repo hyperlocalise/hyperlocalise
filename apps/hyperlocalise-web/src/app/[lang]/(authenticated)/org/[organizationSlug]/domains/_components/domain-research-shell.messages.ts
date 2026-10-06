@@ -25,6 +25,16 @@ export const domainResearchShellMessages = defineMessages({
     id: "D6IBUTnPaw",
     description: "Manage domain locales from research",
   },
+  noLocalesTitle: {
+    defaultMessage: "No research locales yet",
+    id: "tkQdxeGO1o",
+    description: "Title when a verified domain has no saved research locales",
+  },
+  noLocalesDescription: {
+    defaultMessage: "This domain has no research locales.",
+    id: "eQHvXLzoHf",
+    description: "Explanation when a verified domain has no saved research locales",
+  },
   localeScope: {
     defaultMessage: "Applies to every research view.",
     id: "3bYYLdUKAu",

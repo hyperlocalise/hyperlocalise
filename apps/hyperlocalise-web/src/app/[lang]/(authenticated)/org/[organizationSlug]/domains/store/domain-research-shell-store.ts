@@ -14,6 +14,7 @@ import { makeAutoObservable } from "mobx";
 
 import {
   filterCatalogForLocale,
+  researchLocalesForMarketIds,
   resolveDomainLocale,
   type DomainResearchCatalog,
   type DomainResearchNavId,
@@ -50,11 +51,22 @@ export class DomainResearchShellStore {
   }
 
   get domain() {
-    return this.catalog?.domain ?? null;
+    const catalogDomain = this.catalog?.domain ?? null;
+    if (!catalogDomain || !this.linkedDomain) {
+      return catalogDomain;
+    }
+    return {
+      ...catalogDomain,
+      locales: researchLocalesForMarketIds(this.linkedDomain.marketIds),
+      status:
+        this.linkedDomain.status === "verified"
+          ? ("verified" as const)
+          : ("pending_verification" as const),
+    };
   }
 
   get locale() {
-    if (!this.domain) {
+    if (!this.domain || this.domain.locales.length === 0) {
       return null;
     }
     return resolveDomainLocale(this.domain, this.requestedLocaleId);
@@ -133,5 +145,13 @@ export class DomainResearchShellStore {
       return null;
     }
     return this.hrefForLocale(localeId);
+  }
+
+  hrefWithoutLocale() {
+    const params = new URLSearchParams(this.search);
+    params.delete("locale");
+    const query = params.toString();
+    const path = buildDomainPath(this.organizationSlug, this.linkedDomainId, this.surface);
+    return query ? `${path}?${query}` : path;
   }
 }

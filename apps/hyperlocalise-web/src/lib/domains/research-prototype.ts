@@ -1121,6 +1121,12 @@ export function isLiveDomainResearchId(linkedDomainId: string): boolean {
   );
 }
 
+export function researchLocalesForMarketIds(marketIds: readonly string[]) {
+  return marketIds
+    .map((marketId) => getResearchMarket(marketId))
+    .filter((market): market is DomainResearchMarket => Boolean(market));
+}
+
 export function linkedDomainToResearchDomain(input: {
   id: string;
   domainKey: string;
@@ -1131,21 +1137,19 @@ export function linkedDomainToResearchDomain(input: {
   auditScore: number | null;
   marketIds?: string[];
 }): DomainResearchDomain {
-  const locales = (input.marketIds ?? [])
-    .map((marketId) => getResearchMarket(marketId))
-    .filter((market): market is DomainResearchMarket => Boolean(market));
+  const locales =
+    input.marketIds === undefined
+      ? DEFAULT_DOMAIN_RESEARCH_MARKET_IDS.map((marketId) => getResearchMarket(marketId)!).filter(
+          (market): market is DomainResearchMarket => Boolean(market),
+        )
+      : researchLocalesForMarketIds(input.marketIds);
   return {
     id: input.id,
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
     localisationAuditId: input.localisationAuditId,
-    locales:
-      locales.length > 0
-        ? locales
-        : DEFAULT_DOMAIN_RESEARCH_MARKET_IDS.map((marketId) => getResearchMarket(marketId)!).filter(
-            (market): market is DomainResearchMarket => Boolean(market),
-          ),
+    locales,
     status: input.status === "verified" ? "verified" : "pending_verification",
     keywordCount: 0,
     keywordCountLabel: "—",

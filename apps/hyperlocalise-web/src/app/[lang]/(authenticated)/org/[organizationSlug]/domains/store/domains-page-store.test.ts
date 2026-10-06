@@ -14,8 +14,39 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { getResearchPrototypeDomain } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 import { DomainsPageStore } from "./domains-page-store";
+
+const linkedDomainFixture = (): LinkedDomainPublic => ({
+  id: "ld_test",
+  organizationId: "org_test",
+  domainKey: "acme.com",
+  domainSlug: "acme-com",
+  sourceUrl: "https://acme.com",
+  marketIds: ["france-fr"],
+  status: "verified",
+  preferredMethod: null,
+  verifiedMethod: "dns_txt",
+  verifiedAt: "2026-01-01T00:00:00.000Z",
+  localisationAuditId: null,
+  projectId: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  challenges: {
+    token: "hyperlocalise-site-verification=test",
+    dnsTxt: { host: "_hyperlocalise-verify", value: "hyperlocalise-site-verification=test" },
+    htmlFile: {
+      path: "/.well-known/hyperlocalise-verification.txt",
+      url: "https://acme.com/.well-known/hyperlocalise-verification.txt",
+      body: "hyperlocalise-site-verification=test",
+    },
+    metaTag: {
+      html: '<meta name="hyperlocalise-site-verification" content="hyperlocalise-site-verification=test" />',
+    },
+  },
+  auditScore: null,
+});
 
 describe("DomainsPageStore", () => {
   it("tracks empty and populated list states", () => {
@@ -32,15 +63,15 @@ describe("DomainsPageStore", () => {
 
   it("opens the add-domain dialog for new domains and edit mode for locales", () => {
     const store = new DomainsPageStore("acme");
-    const domain = getResearchPrototypeDomain("hyperlocalise-com")!;
+    const linkedDomain = linkedDomainFixture();
 
     store.openAddDomainDialog();
     expect(store.addDomainDialogOpen).toBe(true);
-    expect(store.dialogDomain).toBeUndefined();
+    expect(store.editLinkedDomain).toBeNull();
 
     store.setAddDomainDialogOpen(false);
-    store.openEditLocales(domain);
+    store.openEditLocales(linkedDomain);
     expect(store.addDomainDialogOpen).toBe(true);
-    expect(store.dialogDomain).toEqual(domain);
+    expect(store.editLinkedDomain).toEqual(linkedDomain);
   });
 });
