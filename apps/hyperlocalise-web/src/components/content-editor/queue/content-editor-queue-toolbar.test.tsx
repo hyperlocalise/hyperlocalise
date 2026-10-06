@@ -21,7 +21,7 @@ import { renderWithContentEditorProviders } from "@/components/content-editor/sh
 import { ContentEditorQueueToolbar } from "./content-editor-queue-toolbar";
 
 describe("ContentEditorQueueToolbar", () => {
-  it("includes Hidden and Not hidden in the Crowdin queue filter menu", async () => {
+  it("includes Hidden in the Crowdin queue filter menu", async () => {
     const user = userEvent.setup();
     const onQueueFilterChange = vi.fn();
 
@@ -34,12 +34,25 @@ describe("ContentEditorQueueToolbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /^Hidden$/ }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
+  });
+
+  it("includes Not hidden in the Crowdin queue filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={["all", "hidden", "not_hidden"]}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "Not hidden" }));
+    await user.click(screen.getByRole("menuitemradio", { name: /^Not hidden$/ }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("not_hidden");
   });
