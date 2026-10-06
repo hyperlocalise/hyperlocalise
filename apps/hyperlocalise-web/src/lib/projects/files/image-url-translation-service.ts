@@ -38,7 +38,8 @@ export type ImageUrlContentKindError =
     }
   | { code: "ai_credit_unavailable"; message: string }
   | { code: "localization_failed"; message: string }
-  | { code: "approved_locked" };
+  | { code: "approved_locked" }
+  | { code: "aborted" };
 
 export function isImageUrlContentKind(metadata: Record<string, unknown> | null | undefined) {
   return metadata?.contentKind === IMAGE_URL_CONTENT_KIND;
@@ -96,6 +97,7 @@ export async function localizeImageUrlTranslation(input: {
   instructions?: string | null;
   actorUserId?: string | null;
   force?: boolean;
+  signal?: AbortSignal;
 }): Promise<
   Result<
     {
@@ -137,8 +139,11 @@ export async function localizeImageUrlTranslation(input: {
     return err({ code: "approved_locked" });
   }
 
-  const fetched = await fetchImageBytesFromUrl(key.sourceText);
+  const fetched = await fetchImageBytesFromUrl(key.sourceText, { signal: input.signal });
   if (!fetched.ok) {
+    if (fetched.error.code === "aborted") {
+      return err({ code: "aborted" });
+    }
     if (fetched.error.code === "fetch_failed") {
       return err({ code: "fetch_failed", message: fetched.error.message });
     }
@@ -181,9 +186,13 @@ export async function localizeImageUrlTranslation(input: {
           target_locale: input.targetLocale,
         },
       },
+      { signal: input.signal },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
+    if (input.signal?.aborted) {
+      return err({ code: "aborted" });
+    }
     if (error instanceof ManagedAiCreditAccessError) {
       return err({ code: "ai_credit_unavailable", message: error.message });
     }
@@ -191,6 +200,11 @@ export async function localizeImageUrlTranslation(input: {
       code: "localization_failed",
       message: error instanceof Error ? error.message : "image localization failed",
     });
+  }
+
+  // The caller may have moved on (or started a newer generation) while the model ran.
+  if (input.signal?.aborted) {
+    return err({ code: "aborted" });
   }
 
   const stored = await createStoredFile({
