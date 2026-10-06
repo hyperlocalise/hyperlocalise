@@ -52,15 +52,13 @@ function ImportStatusBadge({ status }: { status: MemoryInterchangeAttemptStatus 
       ? messages.uploadPending
       : status === "queued"
         ? messages.queued
-        : status === "preview_completed"
-          ? messages.previewCompleted
-          : status === "running"
-            ? messages.running
-            : status === "completed"
-              ? messages.completed
-              : status === "partially_successful"
-                ? messages.partiallySuccessful
-                : messages.failed;
+        : status === "running"
+          ? messages.running
+          : status === "completed"
+            ? messages.completed
+            : status === "partially_successful"
+              ? messages.partiallySuccessful
+              : messages.failed;
   const variant =
     status === "completed"
       ? "success"

@@ -531,7 +531,7 @@ describe("GoSvcClient", () => {
     );
   });
 
-  it("creates memory import uploads and queues preview then apply", async () => {
+  it("creates memory import uploads and queues apply", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -550,7 +550,6 @@ describe("GoSvcClient", () => {
           { status: 201 },
         ),
       )
-      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "queued" }))
       .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "queued" }));
     const client = clientWith(fetchMock);
 

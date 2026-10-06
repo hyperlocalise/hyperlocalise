@@ -90,16 +90,6 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "pZzJNiijOV",
     description: "View entries affected by this import",
   },
-  applyImport: {
-    defaultMessage: "Import entries",
-    id: "bbPM7ljfMK",
-    description: "Button to apply a reviewed translation memory import preview",
-  },
-  applyFailed: {
-    defaultMessage: "Unable to start the import",
-    id: "XHz6+tKfQH",
-    description: "Error when queueing a translation memory import apply fails",
-  },
   overview: {
     defaultMessage: "Overview",
     id: "bsU0qqr6A2",
@@ -115,10 +105,10 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "uERqNSE1ZH",
     description: "Import report diagnostics heading",
   },
-  previewSamples: {
+  sampleEntries: {
     defaultMessage: "Sample entries",
-    id: "VhG3kXTZHB",
-    description: "Heading for representative translations in an import preview",
+    id: "Khosn9vbdG",
+    description: "Heading for representative translations on a completed import report",
   },
   translationMemory: {
     defaultMessage: "Translation memory",
@@ -209,11 +199,6 @@ export const tmImportAttemptDetailMessages = defineMessages({
     defaultMessage: "Queued",
     id: "/9rdVrlT2+",
     description: "Queued translation memory import status",
-  },
-  previewCompleted: {
-    defaultMessage: "Preview ready",
-    id: "jEIFTvG4wS",
-    description: "Completed translation memory import preview status",
   },
   running: {
     defaultMessage: "Running",

@@ -344,9 +344,8 @@ export function TranslationMemoriesPageContent({
       }
 
       // Lambda-backed import, same as the translation memory import flow:
-      // upload the file to object storage, queue a preview, then navigate to
-      // the report page. The report polls the attempt and the user confirms
-      // the import from there. Nothing heavy runs inside this request.
+      // upload the file to object storage, queue apply, then navigate to the
+      // report page while the import runs in the background.
       const file = values.importFile;
       const format = memoryImportFormatFromFilename(file.name);
       if (!format) {

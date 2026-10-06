@@ -22,7 +22,6 @@ type memoryImportPayload struct {
 	Format         string  `json:"format"`
 	Content        string  `json:"content"`
 	AttemptID      string  `json:"attemptId"`
-	DryRun         *bool   `json:"dryRun"`
 	Mode           string  `json:"mode"`
 	MaxUnits       *int    `json:"maxUnits"`
 	SourceFilename *string `json:"sourceFilename"`
@@ -143,7 +142,7 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	var payload memoryImportPayload
-	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "dryRun", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
+	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
 		return nil, 0, err
 	}
 	if strings.TrimSpace(payload.AttemptID) != "" {
@@ -153,7 +152,6 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 	if format != "csv" && format != "tmx" {
 		return nil, 0, invalidMemory()
 	}
-	dryRun := payload.DryRun != nil && *payload.DryRun
 	candidates, issues, headerSrclang := parseMemoryImport(format, payload.Content)
 	maxUnits := 10000
 	if payload.MaxUnits != nil && *payload.MaxUnits > 0 {
@@ -163,7 +161,6 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 		candidates = candidates[:maxUnits]
 		issues = append(issues, memoryImportIssue{Severity: "warning", Code: "truncated_units", Message: "Import truncated to maxUnits"})
 	}
-	preview := []map[string]any{}
 	created := 0
 	updated := 0
 	skipped := 0
@@ -178,20 +175,14 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 	}
 	ctx := r.Context()
 	batchID := uuid.NewString()
+	begun, beginErr := api.pool.Begin(ctx)
+	if beginErr != nil {
+		return nil, 0, beginErr
+	}
+	tx := begun
+	defer func() { _ = tx.Rollback(ctx) }()
+	db := dictionaryDB(tx)
 	var createdEntries []memoryEntryRecord
-	var tx pgx.Tx
-	if !dryRun {
-		begun, beginErr := api.pool.Begin(ctx)
-		if beginErr != nil {
-			return nil, 0, beginErr
-		}
-		tx = begun
-		defer func() { _ = tx.Rollback(ctx) }()
-	}
-	db := dictionaryDB(api.pool)
-	if tx != nil {
-		db = tx
-	}
 	for _, candidate := range candidates {
 		normalized := normalizeMemorySourceText(candidate.SourceText)
 		var existingID string
@@ -201,19 +192,6 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 			action = "update"
 		} else if !errorsIsNoRows(err) {
 			return nil, 0, err
-		}
-		preview = append(preview, map[string]any{
-			"sourceLocale": candidate.SourceLocale, "targetLocale": candidate.TargetLocale,
-			"sourceText": candidate.SourceText, "targetText": candidate.TargetText,
-			"externalKey": candidate.ExternalKey, "tuid": candidate.Tuid, "action": action,
-		})
-		if dryRun {
-			if action == "create" {
-				created++
-			} else {
-				updated++
-			}
-			continue
 		}
 		if action == "create" {
 			entry, insertErr := scanMemoryEntry(db.QueryRow(ctx, `insert into memory_entries as e (memory_id, source_locale, target_locale, source_text, normalized_source_text, target_text, match_score, provenance, created_by_user_id, import_batch_id, external_key) values ($1,$2,$3,$4,$5,$6,$7,'import',$8,$9,$10) returning `+memoryEntryColumns,
@@ -237,31 +215,18 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 		"skipped": skipped, "warned": warned, "failed": failed, "issues": issues,
 		"headerSrclang": headerSrclang, "truncatedIssues": false,
 	}
-	var importAttemptID any
-	var importBatchID any
-	if !dryRun {
-		importBatchID = batchID
-		attemptID, persistErr := api.persistMemoryImportAttempt(ctx, db, actor, m, payload, format, report, issues, headerSrclang)
-		if persistErr != nil {
-			return nil, 0, persistErr
-		}
-		if err := tx.Commit(ctx); err != nil {
-			return nil, 0, err
-		}
-		importAttemptID = attemptID
+	attemptID, persistErr := api.persistMemoryImportAttempt(ctx, db, actor, m, payload, format, report, issues, headerSrclang)
+	if persistErr != nil {
+		return nil, 0, persistErr
 	}
-	status := 201
-	if dryRun {
-		status = 200
-		createdEntries = []memoryEntryRecord{}
-		importBatchID = nil
-		importAttemptID = nil
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
 	}
 	return map[string]any{
 		"memoryEntries": createdEntries, "imported": created, "skipped": skipped,
-		"importBatchId": importBatchID, "importAttemptId": importAttemptID,
-		"dryRun": dryRun, "preview": preview, "report": report,
-	}, status, nil
+		"importBatchId": batchID, "importAttemptId": attemptID,
+		"report": report,
+	}, 201, nil
 }
 
 func parseMemoryImport(format, content string) ([]memoryImportCandidate, []memoryImportIssue, *string) {
@@ -288,7 +253,7 @@ func parseMemoryImport(format, content string) ([]memoryImportCandidate, []memor
 }
 
 func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, db dictionaryDB, actor memoryActor, m memoryRecord, payload memoryImportPayload, format string, report map[string]any, issues []memoryImportIssue, headerSrclang *string) (string, error) {
-	options, _ := json.Marshal(map[string]any{"dryRun": false})
+	options, _ := json.Marshal(map[string]any{})
 	counts, _ := json.Marshal(report)
 	sum := sha256.Sum256([]byte(payload.Content))
 	sha := hex.EncodeToString(sum[:])

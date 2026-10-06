@@ -73,7 +73,7 @@ export function TmImportExportPanel({
 
   // Lambda-backed import: upload the file to object storage, queue apply, then
   // navigate to the report page. The report polls until the import finishes.
-  const startImportPreview = useMutation({
+  const startImport = useMutation({
     mutationFn: async (file: File) => {
       const format = memoryImportFormatFromFilename(file.name);
       if (!format) {
@@ -197,7 +197,7 @@ export function TmImportExportPanel({
           type="button"
           variant="outline"
           size="sm"
-          disabled={startImportPreview.isPending}
+          disabled={startImport.isPending}
           onClick={() => setImportOpen(true)}
         >
           <FormattedMessage {...messages.import} />
@@ -207,7 +207,7 @@ export function TmImportExportPanel({
       <Dialog
         open={canEdit && importOpen}
         onOpenChange={(open) => {
-          if (startImportPreview.isPending) return;
+          if (startImport.isPending) return;
           setImportOpen(open);
           if (!open && fileInputRef.current) fileInputRef.current.value = "";
         }}
@@ -231,23 +231,23 @@ export function TmImportExportPanel({
               aria-label={intl.formatMessage(messages.importLabel)}
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file && !startImportPreview.isPending) startImportPreview.mutate(file);
+                if (file && !startImport.isPending) startImport.mutate(file);
                 event.currentTarget.value = "";
               }}
             />
             <label
               htmlFor="translation-memory-file-import"
               className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8 text-center transition-colors hover:bg-muted/40 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-              aria-busy={startImportPreview.isPending}
+              aria-busy={startImport.isPending}
             >
-              {startImportPreview.isPending ? (
+              {startImport.isPending ? (
                 <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               ) : (
                 <UploadSimpleIcon className="size-5" />
               )}
               <span className="text-sm font-medium text-foreground">
-                {startImportPreview.isPending ? (
-                  <FormattedMessage {...messages.preparingPreview} />
+                {startImport.isPending ? (
+                  <FormattedMessage {...messages.preparingImport} />
                 ) : (
                   <FormattedMessage {...messages.selectImportFile} />
                 )}

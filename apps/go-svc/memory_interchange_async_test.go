@@ -135,7 +135,7 @@ func TestCreateMemoryExportAllowsMember(t *testing.T) {
 	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
 }
 
-func TestFinalizeMemoryImportApplyRequiresPreview(t *testing.T) {
+func TestFinalizeMemoryImportApplyRejectsCompletedAttempt(t *testing.T) {
 	api, scope := memoryTestAPI(t, "admin")
 	api.interchange = &recordingMemoryInterchangePublisher{}
 	api.objects = memoryObjectRegistry(t)
@@ -145,7 +145,7 @@ func TestFinalizeMemoryImportApplyRequiresPreview(t *testing.T) {
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
 			source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','completed','preview','tmx','r2-primary','memory-interchange/done.tmx')`,
+		) values ($1,$2,$3,$4,'import','completed','apply','tmx','r2-primary','memory-interchange/done.tmx')`,
 		attemptID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 
@@ -167,7 +167,7 @@ func TestFinalizeMemoryImportRejectsMissingAndEmptyUploads(t *testing.T) {
 	_, err := scope.Pool.Exec(t.Context(), `
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','upload_pending','preview','tmx','r2-primary','memory-interchange/missing.tmx')`,
+		) values ($1,$2,$3,$4,'import','upload_pending','apply','tmx','r2-primary','memory-interchange/missing.tmx')`,
 		missingID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 	missing := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), `{"attemptId":"`+missingID+`","mode":"apply"}`)
@@ -179,7 +179,7 @@ func TestFinalizeMemoryImportRejectsMissingAndEmptyUploads(t *testing.T) {
 	_, err = scope.Pool.Exec(t.Context(), `
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','upload_pending','preview','tmx','r2-primary',$5)`,
+		) values ($1,$2,$3,$4,'import','upload_pending','apply','tmx','r2-primary',$5)`,
 		emptyID, scope.OrganizationID, id, scope.UserID, emptyKey)
 	require.NoError(t, err)
 	_, _, err = registry.Put(t.Context(), objectstore.PutInput{
@@ -262,7 +262,7 @@ func TestFinalizeMemoryImportCancelsUploadPending(t *testing.T) {
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
 			source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','upload_pending','preview','tmx','r2-primary','memory-interchange/abandoned.tmx')`,
+		) values ($1,$2,$3,$4,'import','upload_pending','apply','tmx','r2-primary','memory-interchange/abandoned.tmx')`,
 		attemptID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 
@@ -288,7 +288,7 @@ func TestFinalizeMemoryImportCancelRejectsActiveAttempt(t *testing.T) {
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
 			source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','completed','preview','tmx','r2-primary','memory-interchange/done.tmx')`,
+		) values ($1,$2,$3,$4,'import','completed','apply','tmx','r2-primary','memory-interchange/done.tmx')`,
 		attemptID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 
@@ -306,7 +306,7 @@ func TestMemoryInterchangeDownloadGuards(t *testing.T) {
 	_, err := scope.Pool.Exec(t.Context(), `
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format
-		) values ($1,$2,$3,$4,'import','completed','preview','tmx')`,
+		) values ($1,$2,$3,$4,'import','completed','apply','tmx')`,
 		importID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 	importRec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/import-attempts/"+importID+"/download"), "")

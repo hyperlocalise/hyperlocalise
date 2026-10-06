@@ -20,7 +20,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   memoryInterchangeCountItems,
-  memoryInterchangePreviewSamples,
+  memoryInterchangeReportSamples,
   TmImportAttemptDetail,
   TmImportDiagnosticList,
   TmInterchangeFailureDetails,
@@ -79,7 +79,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-function previewAttemptResponse(status: string, createdByUserId: string | null = "user-1") {
+function importAttemptResponse(status: string, createdByUserId: string | null = "user-1") {
   return {
     memoryImportAttempt: {
       id: "attempt-1",
@@ -193,9 +193,9 @@ describe("memoryInterchangeCountItems", () => {
   });
 });
 
-describe("memoryInterchangePreviewSamples", () => {
+describe("memoryInterchangeReportSamples", () => {
   it("returns well-formed samples and skips malformed entries", () => {
-    const samples = memoryInterchangePreviewSamples({
+    const samples = memoryInterchangeReportSamples({
       counts: {
         samples: [
           { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
@@ -213,7 +213,7 @@ describe("memoryInterchangePreviewSamples", () => {
 
   it("caps samples at five entries", () => {
     const makeSample = (index: number) => ({ sourceText: `s${index}`, targetText: `t${index}` });
-    const samples = memoryInterchangePreviewSamples({
+    const samples = memoryInterchangeReportSamples({
       counts: { samples: Array.from({ length: 8 }, (_, index) => makeSample(index)) },
     });
     expect(samples).toHaveLength(5);
@@ -226,14 +226,14 @@ describe("memoryInterchangePreviewSamples", () => {
   });
 
   it("returns an empty list when counts carry no samples", () => {
-    expect(memoryInterchangePreviewSamples({ counts: null })).toEqual([]);
-    expect(memoryInterchangePreviewSamples({ counts: {} })).toEqual([]);
+    expect(memoryInterchangeReportSamples({ counts: null })).toEqual([]);
+    expect(memoryInterchangeReportSamples({ counts: {} })).toEqual([]);
   });
 });
 
 describe("TmImportAttemptDetail import actions", () => {
   it("does not offer Import entries after upload (apply runs automatically)", async () => {
-    getAttemptMock.mockResolvedValue(previewAttemptResponse("running"));
+    getAttemptMock.mockResolvedValue(importAttemptResponse("running"));
     renderDetail();
 
     await screen.findByText("memory.tmx");
@@ -243,7 +243,7 @@ describe("TmImportAttemptDetail import actions", () => {
   });
 
   it("shows View affected entries when the import completes", async () => {
-    getAttemptMock.mockResolvedValue(previewAttemptResponse("completed"));
+    getAttemptMock.mockResolvedValue(importAttemptResponse("completed"));
     renderDetail();
 
     expect(await screen.findByRole("link", { name: "View affected entries" })).toBeInTheDocument();
@@ -251,9 +251,9 @@ describe("TmImportAttemptDetail import actions", () => {
   });
 });
 
-describe("TmImportAttemptDetail preview samples", () => {
+describe("TmImportAttemptDetail report samples", () => {
   it("shows sample rows after the import completes", async () => {
-    const response = previewAttemptResponse("completed");
+    const response = importAttemptResponse("completed");
     (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
       { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
       {
@@ -272,7 +272,7 @@ describe("TmImportAttemptDetail preview samples", () => {
   });
 
   it("omits sample rows when the report has no samples", async () => {
-    getAttemptMock.mockResolvedValue(previewAttemptResponse("completed"));
+    getAttemptMock.mockResolvedValue(importAttemptResponse("completed"));
     renderDetail();
 
     await screen.findByText("View affected entries");

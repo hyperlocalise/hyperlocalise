@@ -21,7 +21,7 @@ You can upload a **TMX** or **CSV** file when you create a workspace memory, or 
 
 1. Open **Translation Memories**.
 2. Choose **Import TMX or CSV** (or **Create memory** and attach a file), or open a memory and choose **Import**.
-3. Review the import preview when you import into an existing memory, then confirm. Large files are bounded by documented size and unit limits; oversize imports fail with an explicit error.
+3. The import runs in the background and opens a report with results and diagnostics. Large files are bounded by documented size and unit limits; oversize imports fail with an explicit error.
 
 ## Export in Cloud
 
@@ -37,13 +37,13 @@ Export:
 GET /api/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/export?format=tmx|csv&sourceLocale={optional}&targetLocale={optional}
 ```
 
-Import (preview with `dryRun: true`):
+Import (inline body):
 
 ```http
 POST /api/orgs/{organizationSlug}/translation-memories/{memoryId}/entries/import
 ```
 
-Body includes `format` (`csv` or `tmx`), `content`, and optional `dryRun: true` for preview.
+Body includes `format` (`csv` or `tmx`) and `content`. File uploads use a separate upload + finalize flow with `attemptId` and `mode: apply`.
 
 ## External TMS memories
 

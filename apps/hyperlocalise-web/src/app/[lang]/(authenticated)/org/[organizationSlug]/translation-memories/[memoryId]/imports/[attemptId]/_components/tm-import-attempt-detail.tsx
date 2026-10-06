@@ -69,19 +69,19 @@ export function memoryInterchangeCountItems(attempt: {
   }));
 }
 
-export type MemoryInterchangePreviewSample = {
+export type MemoryInterchangeReportSample = {
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
   targetText: string;
 };
 
-export function memoryInterchangePreviewSamples(attempt: {
+export function memoryInterchangeReportSamples(attempt: {
   counts: Record<string, unknown> | null;
-}): MemoryInterchangePreviewSample[] {
+}): MemoryInterchangeReportSample[] {
   const raw = attempt.counts?.samples;
   if (!Array.isArray(raw)) return [];
-  const samples: MemoryInterchangePreviewSample[] = [];
+  const samples: MemoryInterchangeReportSample[] = [];
   for (const item of raw.slice(0, 5)) {
     if (typeof item !== "object" || item === null) continue;
     const record = item as Record<string, unknown>;
@@ -146,15 +146,13 @@ function StatusBadge({ status }: { status: MemoryInterchangeAttemptStatus }) {
       ? messages.uploadPending
       : status === "queued"
         ? messages.queued
-        : status === "preview_completed"
-          ? messages.previewCompleted
-          : status === "running"
-            ? messages.running
-            : status === "completed"
-              ? messages.completed
-              : status === "partially_successful"
-                ? messages.partiallySuccessful
-                : messages.failed;
+        : status === "running"
+          ? messages.running
+          : status === "completed"
+            ? messages.completed
+            : status === "partially_successful"
+              ? messages.partiallySuccessful
+              : messages.failed;
   const variant =
     status === "completed"
       ? "success"
@@ -325,12 +323,10 @@ export function TmImportAttemptDetail({
     }
   };
   const countItems = memoryInterchangeCountItems(attempt);
-  const previewSamples = memoryInterchangePreviewSamples(attempt);
-  const showPreviewSamples =
-    (attempt.status === "completed" ||
-      attempt.status === "partially_successful" ||
-      attempt.status === "preview_completed") &&
-    previewSamples.length > 0;
+  const reportSamples = memoryInterchangeReportSamples(attempt);
+  const showReportSamples =
+    (attempt.status === "completed" || attempt.status === "partially_successful") &&
+    reportSamples.length > 0;
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
     intl.formatMessage(messages.unknown);
@@ -482,16 +478,16 @@ export function TmImportAttemptDetail({
         </CardContent>
       </Card>
 
-      {showPreviewSamples ? (
+      {showReportSamples ? (
         <Card>
           <CardHeader>
             <CardTitle>
-              <FormattedMessage {...messages.previewSamples} />
+              <FormattedMessage {...messages.sampleEntries} />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-border rounded-xl border border-border">
-              {previewSamples.map((sample, index) => (
+              {reportSamples.map((sample, index) => (
                 <li
                   key={`${sample.sourceLocale}-${sample.targetLocale}-${index}`}
                   className="space-y-1 p-3"

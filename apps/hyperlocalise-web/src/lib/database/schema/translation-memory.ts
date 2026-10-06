@@ -452,7 +452,6 @@ export type MemoryImportAttemptStatus =
   | "upload_pending"
   | "queued"
   | "running"
-  | "preview_completed"
   | "completed"
   | "partially_successful"
   | "failed";
@@ -492,7 +491,7 @@ export const memoryImportAttempts = pgTable(
     }),
     operation: text("operation").$type<"import" | "export">().notNull().default("import"),
     status: text("status").$type<MemoryImportAttemptStatus>().notNull().default("running"),
-    mode: text("mode").$type<"preview" | "apply" | "export">().notNull().default("apply"),
+    mode: text("mode").$type<"apply" | "export">().notNull().default("apply"),
     format: text("format").$type<"csv" | "tmx">().notNull(),
     options: jsonb("options")
       .$type<Record<string, unknown>>()

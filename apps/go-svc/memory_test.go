@@ -134,14 +134,12 @@ func TestMemoryCreateListEntryConflict(t *testing.T) {
 		require.Equal(t, 403, rec.Code, rec.Body.String())
 		require.Contains(t, rec.Body.String(), "memory_action_archived")
 	})
-	t.Run("import dry run", func(t *testing.T) {
+	t.Run("import rejects dry run", func(t *testing.T) {
 		api, scope := memoryTestAPI(t, "admin")
 		id := scope.MustMemory(t, "", "Product TM")
 		body := `{"format":"csv","content":"source_locale,target_locale,source_text,target_text\nen-US,fr-FR,Hello,Bonjour","dryRun":true}`
 		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
-		require.Equal(t, 200, rec.Code, rec.Body.String())
-		require.Contains(t, rec.Body.String(), `"dryRun":true`)
-		require.Contains(t, rec.Body.String(), `"preview"`)
+		require.Equal(t, 400, rec.Code, rec.Body.String())
 	})
 	t.Run("export tmx content type", func(t *testing.T) {
 		api, scope := memoryTestAPI(t, "admin")
