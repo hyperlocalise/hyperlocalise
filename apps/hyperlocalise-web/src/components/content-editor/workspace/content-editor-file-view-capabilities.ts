@@ -40,6 +40,10 @@ const MULTILINGUAL_SEGMENT_VIEWS = [
   "multilingual",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const MULTILINGUAL_IMAGE_VIEWS = [
+  ...FILE_ONLY_VIEWS,
+  "multilingual",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -76,7 +80,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (contentKind === "image_file" || inferSupportedImageTranslationFileFormat(sourcePath)) {
     return {
       family: "image",
-      availableViews: FILE_ONLY_VIEWS,
+      availableViews: input.multilingualViewAvailable ? MULTILINGUAL_IMAGE_VIEWS : FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "image",
     };

@@ -179,6 +179,8 @@ export interface ContentEditorWorkspaceViewProps {
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
+  /** Narrower than isImageBusy: only true while a target image is being generated. */
+  isImageGenerating?: boolean;
   isMaxLengthSaving?: boolean;
   queueFilter?: ContentEditorQueueFilter;
   checkedSegmentIds?: ReadonlySet<string>;

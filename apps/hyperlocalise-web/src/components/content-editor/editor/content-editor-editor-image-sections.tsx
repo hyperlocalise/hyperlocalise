@@ -21,6 +21,8 @@ import {
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { ImageGenerationLoadingCard } from "@/components/ui/image-generation-loading-card";
+import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
 import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment/content-editor-segment-key-meta";
 import { contentEditorEditorPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
@@ -126,6 +128,7 @@ export function ContentEditorEditorImageTargetSection({
   segment,
   canEdit,
   isBusy,
+  isGenerating,
   isLoading,
   onUpload,
   onRegenerate,
@@ -133,6 +136,7 @@ export function ContentEditorEditorImageTargetSection({
   segment: ContentEditorSegment;
   canEdit: boolean;
   isBusy?: boolean;
+  isGenerating?: boolean;
   isLoading?: boolean;
   onUpload?: (file: File) => void;
   onRegenerate?: () => void;
@@ -143,6 +147,11 @@ export function ContentEditorEditorImageTargetSection({
     (segment.contentKind === "image_url" && /^https?:\/\//i.test(segment.targetText)
       ? segment.targetText
       : null);
+  const sourceSize = useImageNaturalSize(
+    isGenerating
+      ? (segment.sourceAssetUrl ?? (isImageMode(segment) ? segment.sourceText : null))
+      : null,
+  );
 
   return (
     <section className="space-y-3">
@@ -153,7 +162,13 @@ export function ContentEditorEditorImageTargetSection({
         />
       </h3>
 
-      {isLoading ? (
+      {isGenerating ? (
+        <ImageGenerationLoadingCard
+          width={sourceSize?.width}
+          height={sourceSize?.height}
+          maxHeight="20rem"
+        />
+      ) : isLoading ? (
         <div className="flex min-h-40 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
           <CircleNotchIcon className="size-5 animate-spin" aria-hidden />
         </div>

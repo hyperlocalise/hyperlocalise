@@ -587,7 +587,10 @@ export function useContentEditorMutations(input: {
     },
   });
 
-  async function invalidateAfterImageChange(externalStringId: string) {
+  async function invalidateAfterImageChange(
+    externalStringId: string,
+    targetLocale = input.targetLocale,
+  ) {
     const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
       input,
       externalStringId,
@@ -602,7 +605,7 @@ export function useContentEditorMutations(input: {
         sourcePath,
         externalResourceId,
         resourceType,
-        targetLocale: input.targetLocale,
+        targetLocale,
         externalStringId,
       }),
     ]);
@@ -613,6 +616,8 @@ export function useContentEditorMutations(input: {
       externalStringId: string;
       instructions?: string;
       force?: boolean;
+      /** Defaults to the workspace locale; the multilingual gallery generates per locale. */
+      targetLocale?: string;
     }) => {
       const { sourcePath } = resolveCatMutationFileIdentity(
         input,
@@ -628,7 +633,7 @@ export function useContentEditorMutations(input: {
         },
         json: {
           sourcePath,
-          targetLocale: input.targetLocale,
+          targetLocale: mutationInput.targetLocale ?? input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           instructions: mutationInput.instructions,
           force: mutationInput.force,
@@ -647,7 +652,7 @@ export function useContentEditorMutations(input: {
       return response.json();
     },
     onSuccess: async (_data, variables) => {
-      await invalidateAfterImageChange(variables.externalStringId);
+      await invalidateAfterImageChange(variables.externalStringId, variables.targetLocale);
     },
   });
 
@@ -980,6 +985,10 @@ export function useContentEditorMutations(input: {
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    isImageGenerating:
+      regenerateImageMutation.isPending &&
+      (regenerateImageMutation.variables?.targetLocale ?? input.targetLocale) ===
+        input.targetLocale,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||

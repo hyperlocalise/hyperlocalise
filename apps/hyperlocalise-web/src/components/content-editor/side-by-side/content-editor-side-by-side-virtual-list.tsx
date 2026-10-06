@@ -42,6 +42,7 @@ export function ContentEditorSideBySideVirtualList({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
@@ -79,6 +80,7 @@ export function ContentEditorSideBySideVirtualList({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
+  isImageGenerating?: boolean;
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
@@ -231,6 +233,7 @@ export function ContentEditorSideBySideVirtualList({
                   (isFormatChecksLoading && segment.id === focusedSegmentId)
                 }
                 isImageBusy={isImageBusy && segment.id === focusedSegmentId}
+                isImageGenerating={isImageGenerating && segment.id === focusedSegmentId}
                 canUseAiRecommendation={canUseAiRecommendation}
                 intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
                 aiRecommendationError={
