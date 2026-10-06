@@ -90,7 +90,10 @@ export function TmImportExportPanel({
       const uploadBytes = normalizeMemoryImportUploadBytes(
         new Uint8Array(await file.arrayBuffer()),
       );
-      if (uploadBytes.byteLength <= 0 || uploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES) {
+      if (
+        uploadBytes.byteLength <= 0 ||
+        uploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
+      ) {
         throw new Error(intl.formatMessage(messages.importFileTooLarge, { maxMegabytes: 100 }));
       }
       let upload;

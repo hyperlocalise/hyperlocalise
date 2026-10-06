@@ -13,10 +13,6 @@
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
-import {
-  TMX_DEFAULT_MAX_UNITS,
-  TMX_MAX_IMPORT_CONTENT_CHARS,
-} from "@/lib/memory/tmx/tmx-constants";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   MEMORY_CAPABILITY_ACTIONS,
@@ -144,20 +140,6 @@ export const promoteMemoryFromProjectBodySchema = z.object({
   sourceLocale: z.string().trim().min(1).max(50),
   targetLocale: z.string().trim().max(50).optional(),
   sourcePath: z.string().trim().min(1).max(2048).optional(),
-});
-
-export const importMemoryEntriesBodySchema = z.object({
-  format: z.enum(["csv", "tmx"]),
-  content: z.string().min(1).max(TMX_MAX_IMPORT_CONTENT_CHARS),
-  dryRun: z.boolean().optional(),
-  maxUnits: z.number().int().min(1).max(TMX_DEFAULT_MAX_UNITS).optional(),
-  sourceFilename: z.string().trim().min(1).max(255).optional(),
-  sourceByteSize: z
-    .number()
-    .int()
-    .min(0)
-    .max(TMX_MAX_IMPORT_CONTENT_CHARS * 4)
-    .optional(),
 });
 
 export const listMemoryImportAttemptsQuerySchema = z.object({
@@ -346,27 +328,6 @@ export const memoryImportReportSchema = z.object({
   truncatedIssues: z.boolean(),
 });
 
-export const memoryImportPreviewEntrySchema = z.object({
-  sourceLocale: z.string(),
-  targetLocale: z.string(),
-  sourceText: z.string(),
-  targetText: z.string(),
-  externalKey: z.string().nullable(),
-  tuid: z.string().optional(),
-  action: z.enum(["create", "update", "variant", "skip"]),
-});
-
-export const memoryImportResponseSchema = z.object({
-  memoryEntries: z.array(memoryEntryRecordSchema),
-  imported: z.number().int().nonnegative(),
-  skipped: z.number().int().nonnegative(),
-  importBatchId: z.string().uuid().nullable(),
-  importAttemptId: z.string().uuid().nullable(),
-  dryRun: z.boolean(),
-  preview: z.array(memoryImportPreviewEntrySchema),
-  report: memoryImportReportSchema,
-});
-
 export const memoryImportAttemptStatusSchema = z.enum([
   "upload_pending",
   "queued",
@@ -443,11 +404,9 @@ export type UpdateMemoryBody = z.infer<typeof updateMemoryBodySchema>;
 export type CreateMemoryEntryBody = z.infer<typeof createMemoryEntryBodySchema>;
 export type UpdateMemoryEntryBody = z.infer<typeof updateMemoryEntryBodySchema>;
 export type PromoteMemoryFromProjectBody = z.infer<typeof promoteMemoryFromProjectBodySchema>;
-export type ImportMemoryEntriesBody = z.infer<typeof importMemoryEntriesBodySchema>;
 export type ListMemoryImportAttemptsQuery = z.infer<typeof listMemoryImportAttemptsQuerySchema>;
 export type ExportMemoryEntriesQuery = z.infer<typeof exportMemoryEntriesQuerySchema>;
 export type MemoryImportReport = z.infer<typeof memoryImportReportSchema>;
-export type MemoryImportResponse = z.infer<typeof memoryImportResponseSchema>;
 export type MemoryImportAttemptRecord = z.infer<typeof memoryImportAttemptRecordSchema>;
 export type MemoryImportAttemptsResponse = z.infer<typeof memoryImportAttemptsResponseSchema>;
 export type MemoryImportAttemptResponse = z.infer<typeof memoryImportAttemptResponseSchema>;

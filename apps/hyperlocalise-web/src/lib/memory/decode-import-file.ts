@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { TMX_MAX_IMPORT_CONTENT_CHARS } from "./tmx/tmx-constants";
-
 function looksLikeUtf16Le(bytes: Uint8Array) {
   return (
     bytes.length >= 10 &&
@@ -65,23 +63,12 @@ export function suggestedMemoryNameFromFilename(filename: string): string {
   return withoutExtension.slice(0, 200);
 }
 
-export async function readMemoryImportFile(file: File) {
-  if (file.size > TMX_MAX_IMPORT_CONTENT_CHARS) {
-    return { ok: false as const, code: "oversized" as const };
-  }
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.byteLength > TMX_MAX_IMPORT_CONTENT_CHARS) {
-    return { ok: false as const, code: "oversized" as const };
-  }
-  return { ok: true as const, content: decodeMemoryImportBytes(bytes) };
-}
-
 /**
  * Normalizes raw import file bytes to UTF-8 for the async upload path. The
  * memory-interchange Lambda parses stored bytes as UTF-8, so UTF-16 CSV/TMX
  * files (BOM or heuristic detection, same as `decodeMemoryImportBytes`) are
- * re-encoded here — restoring the behavior the old inline flow got from
- * `readMemoryImportFile`. A leading BOM is stripped so CSV headers and the
+ * re-encoded here, preserving the decoding the old inline import flow applied
+ * before sending file text. A leading BOM is stripped so CSV headers and the
  * TMX prolog parse cleanly.
  */
 export function normalizeMemoryImportUploadBytes(bytes: Uint8Array) {
