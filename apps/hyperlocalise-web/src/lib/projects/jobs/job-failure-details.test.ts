@@ -58,6 +58,28 @@ describe("readJobFailureDetails", () => {
       code: null,
     });
   });
+
+  it("reads a leftover-locale reason from the outcome when lastError was cleared", () => {
+    expect(
+      readJobFailureDetails({
+        lastError: null,
+        outcomePayload: {
+          outputFiles: [{ locale: "de-DE" }],
+          failedLocales: ["ja-JP"],
+          followUpJobId: "job_retry",
+          message:
+            "the translation environment disconnected mid-run. This is usually temporary — try again.",
+          code: "sandbox_timeout",
+        },
+      }),
+    ).toEqual({
+      reason:
+        "the translation environment disconnected mid-run. This is usually temporary — try again.",
+      failedLocales: ["ja-JP"],
+      followUpJobId: "job_retry",
+      code: "sandbox_timeout",
+    });
+  });
 });
 
 describe("job failure display helpers", () => {

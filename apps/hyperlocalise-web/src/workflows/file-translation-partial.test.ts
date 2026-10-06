@@ -20,6 +20,8 @@ import {
   shouldEnqueueFileTranslationFollowUp,
   uniqueFileTranslationLocales,
   isReusableFileTranslationFollowUpStatus,
+  FileTranslationWorkflowError,
+  fileTranslationWorkflowErrorKind,
 } from "./file-translation-partial";
 
 describe("file translation partial completion", () => {
@@ -80,6 +82,18 @@ describe("file translation partial completion", () => {
     expect(isReusableFileTranslationFollowUpStatus("succeeded")).toBe(true);
     expect(isReusableFileTranslationFollowUpStatus("failed")).toBe(false);
     expect(isReusableFileTranslationFollowUpStatus("cancelled")).toBe(false);
+  });
+
+  it("classifies interruptions from a stable error code, not the message", () => {
+    const storeFailed = new FileTranslationWorkflowError(
+      "output_store_failed",
+      "failed to create stored file record for customer-file.json",
+    );
+    expect(fileTranslationWorkflowErrorKind(storeFailed)).toBe("output_store_failed");
+    expect(fileTranslationWorkflowErrorKind({ code: "sandbox_timeout" })).toBe("sandbox_timeout");
+    expect(
+      fileTranslationWorkflowErrorKind(new Error("failed to create stored file record for x.json")),
+    ).toBe("unknown");
   });
 
   it("records the parent job on the follow-up metadata", () => {

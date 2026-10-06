@@ -65,3 +65,46 @@ export const REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES = [
 export function isReusableFileTranslationFollowUpStatus(status: string): boolean {
   return (REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES as readonly string[]).includes(status);
 }
+
+export const FILE_TRANSLATION_WORKFLOW_ERROR_CODES = [
+  "output_store_failed",
+  "document_variant_failed",
+  "translation_pagination_failed",
+  "locale_translation_failed",
+  "output_assembly_failed",
+  "leftover_locales",
+] as const;
+
+export type FileTranslationWorkflowErrorCode =
+  (typeof FILE_TRANSLATION_WORKFLOW_ERROR_CODES)[number];
+
+export class FileTranslationWorkflowError extends Error {
+  readonly code: FileTranslationWorkflowErrorCode;
+
+  constructor(code: FileTranslationWorkflowErrorCode, message: string) {
+    super(message);
+    this.name = "FileTranslationWorkflowError";
+    this.code = code;
+  }
+}
+
+export function isFileTranslationWorkflowError(
+  error: unknown,
+): error is FileTranslationWorkflowError {
+  return error instanceof FileTranslationWorkflowError;
+}
+
+export function fileTranslationWorkflowErrorKind(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "unknown";
+  }
+  const code = "code" in error ? error.code : undefined;
+  if (typeof code === "string" && code.length > 0) {
+    return code;
+  }
+  const name = "name" in error ? error.name : undefined;
+  if (name === "SandboxCommandTimeoutError") {
+    return "sandbox_timeout";
+  }
+  return "unknown";
+}

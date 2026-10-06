@@ -50,6 +50,8 @@ import {
 } from "./steps/translation-job";
 import { enqueueFileTranslationFollowUpStep } from "./steps/file-translation-follow-up";
 import {
+  FileTranslationWorkflowError,
+  fileTranslationWorkflowErrorKind,
   remainingFileTranslationLocales,
   uniqueFileTranslationLocales,
 } from "./file-translation-partial";
@@ -256,32 +258,25 @@ function rematerializeSandboxTimeoutError(error: unknown): Error {
   return rematerialized;
 }
 
-function fileTranslationWorkflowErrorKind(error: unknown): string {
-  if (isSandboxTimeoutError(error)) {
-    return "sandbox_timeout";
+function leftoverFileTranslationDetails(
+  error: unknown,
+  detection?: {
+    fileFormat?: string | null;
+    sourceExtension?: string | null;
+    sandboxInputExtension?: string | null;
+  },
+): { message: string; code: string } {
+  if (error) {
+    return {
+      message: userFacingFailureReason(error, detection),
+      code: fileTranslationWorkflowErrorKind(error),
+    };
   }
-  if (!(error instanceof Error)) {
-    return "unknown";
-  }
-  if (isSandboxDisconnectMessage(error.message)) {
-    return "sandbox_disconnect";
-  }
-  if (error.message.startsWith("failed to create stored file record")) {
-    return "output_store_failed";
-  }
-  if (error.message.startsWith("failed to persist document variant")) {
-    return "document_variant_failed";
-  }
-  if (error.message.includes("translation pagination")) {
-    return "translation_pagination_failed";
-  }
-  if (error.message.startsWith("translation failed for locales")) {
-    return "locale_translation_failed";
-  }
-  if (error.message.includes("translation output assembly failed")) {
-    return "output_assembly_failed";
-  }
-  return error.name !== "Error" ? error.name : "unknown";
+  return {
+    message:
+      "the translation could not finish every locale. This is usually temporary — a retry was started.",
+    code: "leftover_locales",
+  };
 }
 
 function userFacingFailureReason(
@@ -1330,15 +1325,25 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         if (!result.ok || invalidCount > 0) return false;
         if (result.deferredByLimit === 0)
           return countPendingFileTranslations(sourceEntries, locales, confirmedByLocale) === 0;
-        if (acceptedCount === 0) throw new Error("translation pagination made no progress");
+        if (acceptedCount === 0) {
+          throw new FileTranslationWorkflowError(
+            "translation_pagination_failed",
+            "translation pagination made no progress",
+          );
+        }
       }
-      throw new Error("translation pagination exhausted");
+      throw new FileTranslationWorkflowError(
+        "translation_pagination_failed",
+        "translation pagination exhausted",
+      );
     };
 
+    let leftoverFailure: unknown = null;
     let batchSucceeded = false;
     try {
       batchSucceeded = await runPages(parsedInput.targetLocales, 1);
     } catch (error) {
+      leftoverFailure = error;
       console.warn(
         "[file-translation-workflow] batch translation interrupted; continuing per locale",
         {
@@ -1357,8 +1362,15 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         try {
           // Even a readable output may contain pending source fallbacks. A retry
           // uses only validated prefills, including work saved before recreation.
-          if (!(await runPages([targetLocale], 2))) failedLocales.push(targetLocale);
+          if (!(await runPages([targetLocale], 2))) {
+            leftoverFailure ??= new FileTranslationWorkflowError(
+              "locale_translation_failed",
+              "translation failed for locales",
+            );
+            failedLocales.push(targetLocale);
+          }
         } catch (error) {
+          leftoverFailure = error;
           console.warn("[file-translation-workflow] locale translation interrupted", {
             jobId: claim.job.id,
             projectId: claim.job.projectId,
@@ -1384,6 +1396,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
           assembledOk = assembled.ok && assembled.deferredByLimit === 0;
         } catch (error) {
+          leftoverFailure = error;
           console.warn("[file-translation-workflow] translation output assembly interrupted", {
             jobId: claim.job.id,
             projectId: claim.job.projectId,
@@ -1393,14 +1406,23 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           });
         }
         if (!assembledOk) {
+          leftoverFailure ??= new FileTranslationWorkflowError(
+            "output_assembly_failed",
+            "translation output assembly failed",
+          );
           for (const targetLocale of successfulLocales) {
             try {
               const assembled = await runHlForLocales([targetLocale], 2, { force: true });
               cliTokenUsage = addCliTokenUsage(cliTokenUsage, assembled.tokenUsage);
               if (!assembled.ok || assembled.deferredByLimit !== 0) {
+                leftoverFailure ??= new FileTranslationWorkflowError(
+                  "output_assembly_failed",
+                  "translation output assembly failed",
+                );
                 failedLocales.push(targetLocale);
               }
             } catch (error) {
+              leftoverFailure = error;
               console.warn("[file-translation-workflow] locale output assembly interrupted", {
                 jobId: claim.job.id,
                 projectId: claim.job.projectId,
@@ -1458,6 +1480,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           filename: outputFilename,
         });
       } catch (error) {
+        leftoverFailure = error;
         console.warn("[file-translation-workflow] locale output store interrupted", {
           jobId: claim.job.id,
           projectId: claim.job.projectId,
@@ -1471,22 +1494,37 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     const leftoverLocales = uniqueFileTranslationLocales(failedLocales);
     await enqueueFollowUpForLocales(leftoverLocales);
+    const leftoverDetection = {
+      fileFormat: parsedInput.fileFormat,
+      sourceExtension: fileExtension(sourceFile.filename),
+      sandboxInputExtension: fileExtension(inputFilename),
+    };
 
     if (outputFiles.length === 0) {
-      throw new Error(
-        leftoverLocales.length > 0
-          ? `translation failed for locales: ${leftoverLocales.join(",")}`
-          : "translation failed for locales",
+      throw (
+        leftoverFailure ??
+        new FileTranslationWorkflowError(
+          "locale_translation_failed",
+          leftoverLocales.length > 0
+            ? `translation failed for locales: ${leftoverLocales.join(",")}`
+            : "translation failed for locales",
+        )
       );
     }
 
-    if (leftoverLocales.length > 0) {
+    const leftoverDetails =
+      leftoverLocales.length > 0
+        ? leftoverFileTranslationDetails(leftoverFailure, leftoverDetection)
+        : null;
+
+    if (leftoverDetails) {
       console.warn("[file-translation-workflow] completed with leftover locales", {
         jobId: claim.job.id,
         projectId: claim.job.projectId,
         failedLocales: leftoverLocales,
         followUpJobId,
         completedLocaleCount: outputFiles.length,
+        errorKind: leftoverDetails.code,
       });
     }
 
@@ -1498,6 +1536,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       tokenUsage: cliTokenUsage,
       failedLocales: leftoverLocales,
       followUpJobId,
+      ...leftoverDetails,
     });
 
     return outputFiles;
@@ -1524,6 +1563,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         tokenUsage: cliTokenUsage,
         failedLocales: leftoverLocales,
         followUpJobId,
+        ...leftoverFileTranslationDetails(error, {
+          fileFormat: parsedInput.fileFormat,
+          sourceExtension: fileExtension(sourceFile.filename),
+          sandboxInputExtension: fileExtension(inputFilename),
+        }),
       });
       return outputFiles;
     }
