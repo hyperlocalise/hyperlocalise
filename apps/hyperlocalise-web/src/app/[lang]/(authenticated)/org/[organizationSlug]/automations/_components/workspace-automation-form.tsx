@@ -4166,24 +4166,18 @@ export function WorkspaceAutomationEditor({
               />
             }
           >
-            <div className="relative rounded-xl">
-              <Textarea
-                id="automation-instructions"
-                value={form.instructions}
-                disabled={disabled}
-                className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
-                placeholder={intl.formatMessage(
-                  form.skillIds.length > 0
-                    ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
-                    : workspaceAutomationFormMessages.instructionsPlaceholder,
-                )}
-                onChange={(event) => onChange({ ...form, instructions: event.target.value })}
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-px bottom-px z-10 h-11 rounded-b-[calc(0.75rem-1px)] bg-linear-to-t from-gray-alpha-200 via-gray-alpha-100 to-transparent backdrop-blur-sm"
-              />
-            </div>
+            <Textarea
+              id="automation-instructions"
+              value={form.instructions}
+              disabled={disabled}
+              className="min-h-80 resize-y rounded-xl border-border bg-muted font-sans text-sm leading-6"
+              placeholder={intl.formatMessage(
+                form.skillIds.length > 0
+                  ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
+                  : workspaceAutomationFormMessages.instructionsPlaceholder,
+              )}
+              onChange={(event) => onChange({ ...form, instructions: event.target.value })}
+            />
             <FieldError message={errors.instructions} />
           </EditorSection>
 
