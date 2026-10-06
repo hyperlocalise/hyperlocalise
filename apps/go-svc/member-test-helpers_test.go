@@ -202,8 +202,8 @@ func mustInvitedMember(t *testing.T, scope *testenv.Scope, email, role string) (
 		scope.OrganizationID, userID, role)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from organization_memberships where user_id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, userID)
 	})
 	return userID, workosUserID
 }
@@ -223,8 +223,8 @@ func mustActiveMember(t *testing.T, scope *testenv.Scope, email, role string) (u
 		scope.OrganizationID, userID, membershipID, role)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from organization_memberships where user_id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, userID)
 	})
 	return userID, workosUserID, membershipID
 }

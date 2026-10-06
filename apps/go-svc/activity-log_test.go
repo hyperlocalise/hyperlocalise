@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -349,7 +350,7 @@ func TestActivityLogUserActorFilter(t *testing.T) {
 		otherUserID, "user_"+otherUserID, otherUserID+"@example.com")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, otherUserID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, otherUserID)
 	})
 	mustActivityEvent(t, scope, "user", "project_deleted", "project", scope.ProjectID, []byte(`{"name":"Other App"}`), testActivityTime.Add(time.Minute), &otherUserID)
 
@@ -439,7 +440,7 @@ func TestActivityLogMembershipPayloadFallback(t *testing.T) {
 		memberUserID, "user_"+memberUserID, memberUserID+"@example.com")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, memberUserID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, memberUserID)
 	})
 	payload := []byte(`{"memberUserId":"` + memberUserID + `"}`)
 	mustActivityEvent(t, scope, "system", "member_removed", "membership", testActivityTargetID, payload, testActivityTime, nil)
