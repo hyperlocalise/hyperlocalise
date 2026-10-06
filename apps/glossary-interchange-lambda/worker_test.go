@@ -64,6 +64,15 @@ func TestDecodeXLSXReportsOrphanTerms(t *testing.T) {
 	require.Equal(t, []string{`Terms sheet row 3 references unknown conceptId "missing-concept"`}, diagnostics)
 }
 
+func TestInterchangeImportHasErrors(t *testing.T) {
+	require.False(t, interchangeImportHasErrors([]interchangeImportDiagnostic{
+		{Severity: "warning", Code: "locale_mapped", Message: "mapped"},
+	}))
+	require.True(t, interchangeImportHasErrors([]interchangeImportDiagnostic{
+		{Severity: "error", Code: "invalid_locale", Message: "bad locale"},
+	}))
+}
+
 func TestGlossaryTermBelongsToOtherConcept(t *testing.T) {
 	require.True(t, glossaryTermBelongsToOtherConcept("concept-a", "concept-b"))
 	require.False(t, glossaryTermBelongsToOtherConcept("concept-a", "concept-a"))

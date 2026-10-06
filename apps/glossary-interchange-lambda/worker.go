@@ -275,6 +275,14 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 	if err := persistImportDiagnostics(ctx, pool, runID, importDiagnostics); err != nil {
 		return err
 	}
+	if mode == "replace" && interchangeImportHasErrors(importDiagnostics) {
+		countsJSON, _ := json.Marshal(map[string]int{
+			"concepts": len(concepts),
+			"terms":    countTerms(concepts),
+		})
+		_, err = pool.Exec(ctx, `update glossary_import_runs set status='failed', processing_started_at=null, error_code='replace_requires_valid_input', error_message=$2, counts=$3::jsonb, completed_at=now() where id=$1`, runID, "Replace was not applied because the source contains validation errors.", countsJSON)
+		return err
+	}
 	if mode == "preview" {
 		_, err = pool.Exec(ctx, `update glossary_import_runs set status='completed', processing_started_at=null, counts=$2::jsonb, completed_at=now() where id=$1`, runID, json.RawMessage(fmt.Sprintf(`{"concepts":%d,"terms":%d}`, len(concepts), countTerms(concepts))))
 		return err
@@ -345,6 +353,15 @@ func countTerms(concepts []interchangeConcept) int {
 		total += len(concept.Terms)
 	}
 	return total
+}
+
+func interchangeImportHasErrors(diagnostics []interchangeImportDiagnostic) bool {
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Severity == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func persistImportDiagnostics(ctx context.Context, pool *pgxpool.Pool, runID string, diagnostics []interchangeImportDiagnostic) error {
