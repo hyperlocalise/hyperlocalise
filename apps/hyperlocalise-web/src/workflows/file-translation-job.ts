@@ -25,7 +25,7 @@ import {
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
-import { addCliTokenUsage } from "@/lib/translation/cli-token-usage";
+import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   captureFileAnalysisStep,
@@ -254,6 +254,34 @@ function rematerializeSandboxTimeoutError(error: unknown): Error {
   rematerialized.name = "SandboxCommandTimeoutError";
   (rematerialized as Error & { code: string }).code = "sandbox_timeout";
   return rematerialized;
+}
+
+function fileTranslationWorkflowErrorKind(error: unknown): string {
+  if (isSandboxTimeoutError(error)) {
+    return "sandbox_timeout";
+  }
+  if (!(error instanceof Error)) {
+    return "unknown";
+  }
+  if (isSandboxDisconnectMessage(error.message)) {
+    return "sandbox_disconnect";
+  }
+  if (error.message.startsWith("failed to create stored file record")) {
+    return "output_store_failed";
+  }
+  if (error.message.startsWith("failed to persist document variant")) {
+    return "document_variant_failed";
+  }
+  if (error.message.includes("translation pagination")) {
+    return "translation_pagination_failed";
+  }
+  if (error.message.startsWith("translation failed for locales")) {
+    return "locale_translation_failed";
+  }
+  if (error.message.includes("translation output assembly failed")) {
+    return "output_assembly_failed";
+  }
+  return error.name !== "Error" ? error.name : "unknown";
 }
 
 function userFacingFailureReason(
@@ -850,22 +878,31 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
   let sandboxId = "";
   const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
   let followUpJobId: string | null = null;
+  let cliTokenUsage: CliTokenUsage | null = null;
   const enqueueFollowUpForLocales = async (locales: string[]) => {
     if (followUpJobId || locales.length === 0) {
       return;
     }
-    const followUp = await enqueueFileTranslationFollowUpStep({
-      organizationId,
-      parentJobId: claim.job.id,
-      projectId: claim.job.projectId,
-      sourceFileId: parsedInput.sourceFileId,
-      fileFormat: parsedInput.fileFormat,
-      sourceLocale: parsedInput.sourceLocale,
-      targetLocales: locales,
-      metadata: parsedInput.metadata,
-      ignoreTranslationMemory: parsedInput.ignoreTranslationMemory,
-    });
-    followUpJobId = followUp?.jobId ?? null;
+    try {
+      const followUp = await enqueueFileTranslationFollowUpStep({
+        organizationId,
+        parentJobId: claim.job.id,
+        projectId: claim.job.projectId,
+        sourceFileId: parsedInput.sourceFileId,
+        fileFormat: parsedInput.fileFormat,
+        sourceLocale: parsedInput.sourceLocale,
+        targetLocales: locales,
+        metadata: parsedInput.metadata,
+        ignoreTranslationMemory: parsedInput.ignoreTranslationMemory,
+      });
+      followUpJobId = followUp?.jobId ?? null;
+    } catch {
+      console.warn("[file-translation-workflow] follow-up enqueue interrupted", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        leftoverLocaleCount: locales.length,
+      });
+    }
   };
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
@@ -1196,8 +1233,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       };
     };
 
-    let cliTokenUsage: Awaited<ReturnType<typeof runTranslationStep>>["tokenUsage"] = null;
-
     const runPages = async (locales: string[], attempt: 1 | 2) => {
       for (let page = 0; page < translationMaxPages; page += 1) {
         const result = await runHlForLocales(locales, attempt, {
@@ -1309,9 +1344,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         {
           jobId: claim.job.id,
           projectId: claim.job.projectId,
-          targetLocales: parsedInput.targetLocales,
+          targetLocaleCount: parsedInput.targetLocales.length,
           sandboxId,
-          error: error instanceof Error ? error.message : "unknown",
+          errorKind: fileTranslationWorkflowErrorKind(error),
         },
       );
     }
@@ -1329,7 +1364,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             projectId: claim.job.projectId,
             targetLocale,
             sandboxId,
-            error: error instanceof Error ? error.message : "unknown",
+            errorKind: fileTranslationWorkflowErrorKind(error),
           });
           failedLocales.push(targetLocale);
         }
@@ -1352,9 +1387,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           console.warn("[file-translation-workflow] translation output assembly interrupted", {
             jobId: claim.job.id,
             projectId: claim.job.projectId,
-            targetLocales: successfulLocales,
+            targetLocaleCount: successfulLocales.length,
             sandboxId,
-            error: error instanceof Error ? error.message : "unknown",
+            errorKind: fileTranslationWorkflowErrorKind(error),
           });
         }
         if (!assembledOk) {
@@ -1371,7 +1406,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
                 projectId: claim.job.projectId,
                 targetLocale,
                 sandboxId,
-                error: error instanceof Error ? error.message : "unknown",
+                errorKind: fileTranslationWorkflowErrorKind(error),
               });
               failedLocales.push(targetLocale);
             }
@@ -1428,7 +1463,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           projectId: claim.job.projectId,
           targetLocale,
           sandboxId,
-          error: error instanceof Error ? error.message : "unknown",
+          errorKind: fileTranslationWorkflowErrorKind(error),
         });
         failedLocales.push(targetLocale);
       }
@@ -1479,13 +1514,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         failedLocales: leftoverLocales,
         followUpJobId,
         completedLocaleCount: outputFiles.length,
-        error: error instanceof Error ? error.message : "unknown",
+        errorKind: fileTranslationWorkflowErrorKind(error),
       });
       await completeFileTranslationJobStep({
         jobId: claim.job.id,
         projectId: claim.job.projectId,
         workflowRunId: claim.job.workflowRunId,
         outputFiles,
+        tokenUsage: cliTokenUsage,
         failedLocales: leftoverLocales,
         followUpJobId,
       });

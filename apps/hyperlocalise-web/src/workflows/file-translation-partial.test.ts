@@ -19,6 +19,7 @@ import {
   remainingFileTranslationLocales,
   shouldEnqueueFileTranslationFollowUp,
   uniqueFileTranslationLocales,
+  isReusableFileTranslationFollowUpStatus,
 } from "./file-translation-partial";
 
 describe("file translation partial completion", () => {
@@ -71,6 +72,14 @@ describe("file translation partial completion", () => {
 
   it("dedupes locale failures from assembly and store", () => {
     expect(uniqueFileTranslationLocales(["ja-JP", "de-DE", "ja-JP"])).toEqual(["ja-JP", "de-DE"]);
+  });
+
+  it("reuses an in-flight or finished follow-up instead of creating another", () => {
+    expect(isReusableFileTranslationFollowUpStatus("queued")).toBe(true);
+    expect(isReusableFileTranslationFollowUpStatus("running")).toBe(true);
+    expect(isReusableFileTranslationFollowUpStatus("succeeded")).toBe(true);
+    expect(isReusableFileTranslationFollowUpStatus("failed")).toBe(false);
+    expect(isReusableFileTranslationFollowUpStatus("cancelled")).toBe(false);
   });
 
   it("records the parent job on the follow-up metadata", () => {

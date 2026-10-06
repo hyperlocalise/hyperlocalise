@@ -54,3 +54,14 @@ export function buildFileTranslationFollowUpMetadata(
     parentJobId: input.parentJobId,
   };
 }
+
+export const REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES = [
+  "queued",
+  "running",
+  "waiting_for_review",
+  "succeeded",
+] as const;
+
+export function isReusableFileTranslationFollowUpStatus(status: string): boolean {
+  return (REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES as readonly string[]).includes(status);
+}

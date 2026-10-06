@@ -26,7 +26,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
 }): Promise<{ jobId: string } | null> {
   "use step";
 
-  const { eq } = await import("drizzle-orm");
+  const { and, desc, eq, inArray, sql } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database/client");
   const { isSupportedFileTranslationFileFormat } = await import("@/lib/translation/file-formats");
   const { enqueueFileTranslationJob } =
@@ -35,6 +35,7 @@ export async function enqueueFileTranslationFollowUpStep(input: {
   const {
     buildFileTranslationFollowUpMetadata,
     parseFileTranslationAutoRetryAttempt,
+    REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES,
     shouldEnqueueFileTranslationFollowUp,
     uniqueFileTranslationLocales,
   } = await import("@/workflows/file-translation-partial");
@@ -58,47 +59,107 @@ export async function enqueueFileTranslationFollowUpStep(input: {
     return null;
   }
 
-  const [parentJob] = await db
-    .select({
-      createdByUserId: schema.jobs.createdByUserId,
-      apiKeyId: schema.jobs.apiKeyId,
-      ownerUserId: schema.jobs.ownerUserId,
-    })
-    .from(schema.jobs)
-    .where(eq(schema.jobs.id, input.parentJobId))
-    .limit(1);
+  try {
+    const [existingFollowUp] = await db
+      .select({
+        id: schema.jobs.id,
+        status: schema.jobs.status,
+      })
+      .from(schema.jobs)
+      .where(
+        and(
+          eq(schema.jobs.organizationId, input.organizationId),
+          eq(schema.jobs.projectId, input.projectId),
+          inArray(schema.jobs.status, [...REUSABLE_FILE_TRANSLATION_FOLLOW_UP_STATUSES]),
+          sql`${schema.jobs.inputPayload}->'metadata'->>'parentJobId' = ${input.parentJobId}`,
+        ),
+      )
+      .orderBy(desc(schema.jobs.createdAt))
+      .limit(1);
 
-  const enqueued = await enqueueFileTranslationJob({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    createdByUserId: parentJob?.createdByUserId,
-    apiKeyId: parentJob?.apiKeyId,
-    ownerUserId: parentJob?.ownerUserId,
-    sourceFileId: input.sourceFileId,
-    sourceLocale: input.sourceLocale,
-    targetLocales: failedLocales,
-    fileFormat: input.fileFormat as SupportedTranslationFileFormat,
-    ignoreTranslationMemory: input.ignoreTranslationMemory,
-    metadata: buildFileTranslationFollowUpMetadata(input.metadata, {
-      parentJobId: input.parentJobId,
-      retryAttempt: retryAttempt + 1,
-    }),
-    jobQueue: createTranslationJobEventQueue(),
-  });
+    if (existingFollowUp) {
+      if (existingFollowUp.status === "queued") {
+        try {
+          await createTranslationJobEventQueue().enqueue({
+            kind: "translation",
+            jobId: existingFollowUp.id,
+            projectId: input.projectId,
+            type: "file",
+          });
+        } catch {
+          console.warn("[file-translation-workflow] follow-up re-enqueue failed", {
+            parentJobId: input.parentJobId,
+            followUpJobId: existingFollowUp.id,
+          });
+        }
+      }
+      return { jobId: existingFollowUp.id };
+    }
 
-  if (!enqueued.ok) {
-    console.warn("[file-translation-workflow] follow-up enqueue failed", {
-      parentJobId: input.parentJobId,
+    let parentJob:
+      | {
+          createdByUserId: string | null;
+          apiKeyId: string | null;
+          ownerUserId: string | null;
+          assigneeType: "user" | "agent" | null;
+        }
+      | undefined;
+    try {
+      [parentJob] = await db
+        .select({
+          createdByUserId: schema.jobs.createdByUserId,
+          apiKeyId: schema.jobs.apiKeyId,
+          ownerUserId: schema.jobs.ownerUserId,
+          assigneeType: schema.jobs.assigneeType,
+        })
+        .from(schema.jobs)
+        .where(eq(schema.jobs.id, input.parentJobId))
+        .limit(1);
+    } catch {
+      console.warn("[file-translation-workflow] follow-up parent job read failed", {
+        parentJobId: input.parentJobId,
+      });
+    }
+
+    const enqueued = await enqueueFileTranslationJob({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      createdByUserId: parentJob?.createdByUserId,
+      apiKeyId: parentJob?.apiKeyId,
+      ownerUserId: parentJob?.ownerUserId,
+      assigneeType: parentJob?.assigneeType,
+      sourceFileId: input.sourceFileId,
+      sourceLocale: input.sourceLocale,
       targetLocales: failedLocales,
-      error: enqueued.code,
+      fileFormat: input.fileFormat as SupportedTranslationFileFormat,
+      ignoreTranslationMemory: input.ignoreTranslationMemory,
+      metadata: buildFileTranslationFollowUpMetadata(input.metadata, {
+        parentJobId: input.parentJobId,
+        retryAttempt: retryAttempt + 1,
+      }),
+      jobQueue: createTranslationJobEventQueue(),
+    });
+
+    if (!enqueued.ok) {
+      console.warn("[file-translation-workflow] follow-up enqueue failed", {
+        parentJobId: input.parentJobId,
+        leftoverLocaleCount: failedLocales.length,
+        error: enqueued.code,
+      });
+      return null;
+    }
+
+    console.info("[file-translation-workflow] enqueued follow-up for failed locales", {
+      parentJobId: input.parentJobId,
+      followUpJobId: enqueued.jobId,
+      leftoverLocaleCount: failedLocales.length,
+    });
+    return { jobId: enqueued.jobId };
+  } catch {
+    console.warn("[file-translation-workflow] follow-up enqueue interrupted", {
+      parentJobId: input.parentJobId,
+      leftoverLocaleCount: failedLocales.length,
     });
     return null;
   }
-
-  console.info("[file-translation-workflow] enqueued follow-up for failed locales", {
-    parentJobId: input.parentJobId,
-    followUpJobId: enqueued.jobId,
-    targetLocales: failedLocales,
-  });
-  return { jobId: enqueued.jobId };
 }
