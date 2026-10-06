@@ -146,13 +146,15 @@ function StatusBadge({ status }: { status: MemoryInterchangeAttemptStatus }) {
       ? messages.uploadPending
       : status === "queued"
         ? messages.queued
-        : status === "running"
-          ? messages.running
-          : status === "completed"
-            ? messages.completed
-            : status === "partially_successful"
-              ? messages.partiallySuccessful
-              : messages.failed;
+        : status === "preview_completed"
+          ? messages.previewCompleted
+          : status === "running"
+            ? messages.running
+            : status === "completed"
+              ? messages.completed
+              : status === "partially_successful"
+                ? messages.partiallySuccessful
+                : messages.failed;
   const variant =
     status === "completed"
       ? "success"
@@ -325,7 +327,9 @@ export function TmImportAttemptDetail({
   const countItems = memoryInterchangeCountItems(attempt);
   const reportSamples = memoryInterchangeReportSamples(attempt);
   const showReportSamples =
-    (attempt.status === "completed" || attempt.status === "partially_successful") &&
+    (attempt.status === "completed" ||
+      attempt.status === "partially_successful" ||
+      attempt.status === "preview_completed") &&
     reportSamples.length > 0;
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||

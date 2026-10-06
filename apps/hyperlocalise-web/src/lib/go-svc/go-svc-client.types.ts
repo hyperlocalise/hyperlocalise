@@ -254,6 +254,7 @@ export type MemoryInterchangeAttemptStatus =
   | "upload_pending"
   | "queued"
   | "running"
+  | "preview_completed"
   | "completed"
   | "partially_successful"
   | "failed";
