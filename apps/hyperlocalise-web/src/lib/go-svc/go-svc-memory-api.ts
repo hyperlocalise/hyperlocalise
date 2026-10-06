@@ -224,7 +224,7 @@ export class GoSvcMemoryEntriesApi {
   queueImport(
     organizationSlug: string,
     memoryId: string,
-    body: { attemptId: string; mode: "preview" | "apply"; maxUnits?: number },
+    body: { attemptId: string; mode: "apply" | "cancel"; maxUnits?: number },
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<MemoryImportQueueResponse>(

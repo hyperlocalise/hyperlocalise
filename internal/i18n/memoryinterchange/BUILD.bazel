@@ -3,7 +3,9 @@ go_library(
     srcs = [
         "import_plan.go",
         "interchange.go",
+        "testdata.go",
     ],
+    embedsrcs = glob(["testdata/**"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange",
     visibility = ["//visibility:public"],
     deps = [

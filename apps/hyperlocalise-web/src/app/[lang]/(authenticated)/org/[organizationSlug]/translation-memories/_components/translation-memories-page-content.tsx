@@ -438,7 +438,7 @@ export function TranslationMemoriesPageContent({
       try {
         const queued = await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
           attemptId: upload.attemptId,
-          mode: "preview",
+          mode: "apply",
         });
         return { memoryId, importAttemptId: queued.attemptId };
       } catch (error) {

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -32,7 +32,6 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
@@ -209,8 +208,6 @@ export function TmImportAttemptDetail({
   organizationSlug,
   memoryId,
   attemptId,
-  currentUserId,
-  canWriteMemories,
 }: {
   organizationSlug: string;
   memoryId: string;
@@ -219,7 +216,6 @@ export function TmImportAttemptDetail({
   canWriteMemories: boolean;
 }) {
   const intl = useIntl();
-  const queryClient = useQueryClient();
   const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
   const [downloadPending, setDownloadPending] = useState(false);
   const attemptQuery = useQuery({
@@ -260,27 +256,6 @@ export function TmImportAttemptDetail({
       return body.memory as MemoryRecord;
     },
   });
-  const applyImport = useMutation({
-    mutationFn: async () => {
-      try {
-        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
-          attemptId,
-          mode: "apply",
-        });
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.applyFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
-      });
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
   if (attemptQuery.isPending) {
     return (
       <main
@@ -351,22 +326,14 @@ export function TmImportAttemptDetail({
   };
   const countItems = memoryInterchangeCountItems(attempt);
   const previewSamples = memoryInterchangePreviewSamples(attempt);
-  const showPreviewSamples = attempt.status === "preview_completed" && previewSamples.length > 0;
+  const showPreviewSamples =
+    (attempt.status === "completed" ||
+      attempt.status === "partially_successful" ||
+      attempt.status === "preview_completed") &&
+    previewSamples.length > 0;
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
     intl.formatMessage(messages.unknown);
-  // Applying mirrors finalizeMemoryImport: only the uploader, with memory
-  // write access, on a non-archived memory. Everyone else would get a 409,
-  // so don't offer the action. The memory must have loaded successfully —
-  // while it is loading (or when it fails to load) its status is unknown.
-  const memory = memoryQuery.data;
-  const canApplyImport =
-    attempt.status === "preview_completed" &&
-    canWriteMemories &&
-    attempt.createdByUserId === currentUserId &&
-    memory != null &&
-    memory.status !== "archived";
-
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -388,15 +355,6 @@ export function TmImportAttemptDetail({
         <div className="flex flex-wrap gap-2">
           {attempt.operation === "import" ? (
             <>
-              {canApplyImport ? (
-                <Button
-                  type="button"
-                  disabled={applyImport.isPending}
-                  onClick={() => applyImport.mutate()}
-                >
-                  <FormattedMessage {...messages.applyImport} />
-                </Button>
-              ) : null}
               <Button variant="outline" render={<a href={reportUrl} download />}>
                 <FormattedMessage {...messages.download} />
               </Button>

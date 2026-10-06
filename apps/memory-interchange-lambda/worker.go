@@ -178,14 +178,6 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		"variantCreated": variantCreated, "skipped": skipped, "warned": warned, "failed": failed,
 		"samples": memoryImportPreviewSamples(candidates, memoryImportPreviewSampleLimit),
 	}
-	countsJSON, _ := json.Marshal(counts)
-
-	if mode == "preview" {
-		if _, err = tx.Exec(ctx, `update memory_import_attempts set status='preview_completed', processing_started_at=null, source_sha256=$2, counts=$3::jsonb, header_srclang=$4, completed_at=now() where id=$1`, attemptID, hashHex, countsJSON, headerValue); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
-	}
 
 	created, updated, variantCreated, skipped, err = applyPlannedMemoryImport(ctx, tx, memoryID, attemptID, userID, planned)
 	if err != nil {
@@ -195,7 +187,10 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	counts["updated"] = updated
 	counts["variantCreated"] = variantCreated
 	counts["skipped"] = skipped
-	countsJSON, _ = json.Marshal(counts)
+	countsJSON, err := json.Marshal(counts)
+	if err != nil {
+		return err
+	}
 	actorUserID := ""
 	if userID != nil {
 		actorUserID = *userID

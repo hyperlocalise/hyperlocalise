@@ -564,12 +564,6 @@ describe("GoSvcClient", () => {
     await expect(
       client.memory.entries.queueImport("acme", "memory-1", {
         attemptId: "attempt-1",
-        mode: "preview",
-      }),
-    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });
-    await expect(
-      client.memory.entries.queueImport("acme", "memory-1", {
-        attemptId: "attempt-1",
         mode: "apply",
       }),
     ).resolves.toMatchObject({ attemptId: "attempt-1", status: "queued" });

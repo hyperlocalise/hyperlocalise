@@ -15,9 +15,9 @@ func BenchmarkMemoryParseCSV(b *testing.B) {
 			b.SetBytes(int64(len(content)))
 			b.ResetTimer()
 			for b.Loop() {
-				candidates := parseMemoryCSV(content)
-				if len(candidates) != size {
-					b.Fatalf("candidates=%d", len(candidates))
+				candidates, issues, _ := parseMemoryImport("csv", content)
+				if len(candidates) != size || len(issues) != 0 {
+					b.Fatalf("candidates=%d issues=%d", len(candidates), len(issues))
 				}
 			}
 		})
@@ -32,7 +32,7 @@ func BenchmarkMemoryParseTMX(b *testing.B) {
 			b.SetBytes(int64(len(content)))
 			b.ResetTimer()
 			for b.Loop() {
-				candidates, issues, _ := parseMemoryTMX(content)
+				candidates, issues, _ := parseMemoryImport("tmx", content)
 				if len(candidates) != size || len(issues) != 0 {
 					b.Fatalf("candidates=%d issues=%d", len(candidates), len(issues))
 				}

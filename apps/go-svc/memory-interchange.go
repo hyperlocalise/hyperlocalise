@@ -7,15 +7,14 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	editor_export "github.com/hyperlocalise/hyperlocalise/internal/i18n/editor-export"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -266,163 +265,26 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 }
 
 func parseMemoryImport(format, content string) ([]memoryImportCandidate, []memoryImportIssue, *string) {
-	if format == "tmx" {
-		return parseMemoryTMX(content)
+	parsed, issues, header, err := memoryinterchange.Parse(format, content)
+	if err != nil {
+		return nil, []memoryImportIssue{{Severity: "error", Code: "invalid_format", Message: err.Error()}}, nil
 	}
-	return parseMemoryCSV(content), nil, nil
-}
-
-func parseMemoryCSV(content string) []memoryImportCandidate {
-	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
-	reader.FieldsPerRecord = -1
-	rows, err := reader.ReadAll()
-	if err != nil || len(rows) == 0 {
-		return nil
-	}
-	start := 0
-	if len(rows[0]) >= 2 {
-		joined := strings.ToLower(strings.Join(rows[0], " "))
-		if strings.Contains(joined, "source") || strings.Contains(joined, "locale") {
-			start = 1
-		}
-	}
-	candidates := []memoryImportCandidate{}
-	for i := start; i < len(rows); i++ {
-		row := rows[i]
-		if len(row) < 4 {
-			continue
-		}
-		score := 100
-		if len(row) > 4 {
-			if n, err := strconv.Atoi(strings.TrimSpace(row[4])); err == nil {
-				score = n
-			}
-		}
-		sourceLocale := strings.ReplaceAll(unescapeGlossaryCSVFormula(strings.TrimSpace(row[0])), "_", "-")
-		targetLocale := strings.ReplaceAll(unescapeGlossaryCSVFormula(strings.TrimSpace(row[1])), "_", "-")
-		sourceText := unescapeGlossaryCSVFormula(row[2])
-		targetText := unescapeGlossaryCSVFormula(row[3])
-		if sourceLocale == "" || targetLocale == "" || strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
-			continue
-		}
-		candidates = append(candidates, memoryImportCandidate{
-			SourceLocale: sourceLocale, TargetLocale: targetLocale,
-			SourceText: sourceText, TargetText: targetText, MatchScore: score, UnitIndex: i + 1,
+	outIssues := make([]memoryImportIssue, 0, len(issues))
+	for _, issue := range issues {
+		outIssues = append(outIssues, memoryImportIssue{
+			Severity: issue.Severity, Code: issue.Code, Message: issue.Message,
+			UnitIndex: issue.UnitIndex, Tuid: issue.Tuid,
 		})
 	}
-	return candidates
-}
-
-func parseMemoryTMX(content string) ([]memoryImportCandidate, []memoryImportIssue, *string) {
-	issues := []memoryImportIssue{}
-	var headerSrclang *string
-	candidates := []memoryImportCandidate{}
-	decoder := xml.NewDecoder(strings.NewReader(content))
-	unitIndex := 0
-	for {
-		tok, err := decoder.Token()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, []memoryImportIssue{{Severity: "error", Code: "invalid_tmx", Message: "Unable to parse TMX content"}}, nil
-		}
-		se, ok := tok.(xml.StartElement)
-		if !ok {
-			continue
-		}
-		switch se.Name.Local {
-		case "header":
-			for _, attr := range se.Attr {
-				if attr.Name.Local == "srclang" && attr.Value != "" {
-					v := strings.ReplaceAll(attr.Value, "_", "-")
-					headerSrclang = &v
-				}
-			}
-		case "tu":
-			unitIndex++
-			var tuid *string
-			for _, attr := range se.Attr {
-				if attr.Name.Local == "tuid" && attr.Value != "" {
-					v := attr.Value
-					tuid = &v
-				}
-			}
-			type tuv struct {
-				locale, text string
-			}
-			tuvs := []tuv{}
-			depth := 1
-			var currentLocale string
-			var collectingSeg bool
-			var seg strings.Builder
-			for depth > 0 {
-				inner, innerErr := decoder.Token()
-				if innerErr != nil {
-					break
-				}
-				switch v := inner.(type) {
-				case xml.StartElement:
-					depth++
-					if v.Name.Local == "tuv" {
-						currentLocale = ""
-						for _, attr := range v.Attr {
-							if attr.Name.Local == "lang" {
-								currentLocale = strings.ReplaceAll(attr.Value, "_", "-")
-							}
-						}
-					}
-					if v.Name.Local == "seg" {
-						collectingSeg = true
-						seg.Reset()
-					}
-				case xml.EndElement:
-					if v.Name.Local == "seg" && collectingSeg {
-						tuvs = append(tuvs, tuv{locale: currentLocale, text: seg.String()})
-						collectingSeg = false
-					}
-					depth--
-				case xml.CharData:
-					if collectingSeg {
-						seg.Write(v)
-					}
-				}
-			}
-			if len(tuvs) < 2 {
-				idx := unitIndex
-				issues = append(issues, memoryImportIssue{Severity: "error", Code: "invalid_tu", Message: "Translation unit requires at least two tuv segments", UnitIndex: &idx, Tuid: tuid})
-				continue
-			}
-			source := tuvs[0]
-			if headerSrclang != nil {
-				for _, candidate := range tuvs {
-					if strings.EqualFold(candidate.locale, *headerSrclang) {
-						source = candidate
-						break
-					}
-				}
-			}
-			for _, target := range tuvs {
-				if target.locale == source.locale && target.text == source.text {
-					continue
-				}
-				if strings.TrimSpace(target.text) == "" || target.locale == "" {
-					continue
-				}
-				var externalKey *string
-				if tuid != nil {
-					key := "tmx:" + *tuid + ":" + target.locale
-					externalKey = &key
-				}
-				candidates = append(candidates, memoryImportCandidate{
-					SourceLocale: source.locale, TargetLocale: target.locale,
-					SourceText: source.text, TargetText: target.text, MatchScore: 100,
-					ExternalKey: externalKey, UnitIndex: unitIndex, Tuid: tuid,
-				})
-			}
-		}
+	candidates := make([]memoryImportCandidate, 0, len(parsed))
+	for _, row := range parsed {
+		candidates = append(candidates, memoryImportCandidate{
+			SourceLocale: row.SourceLocale, TargetLocale: row.TargetLocale,
+			SourceText: row.SourceText, TargetText: row.TargetText, MatchScore: row.MatchScore,
+			ExternalKey: row.ExternalKey, UnitIndex: row.UnitIndex, Tuid: row.Tuid,
+		})
 	}
-	return candidates, issues, headerSrclang
+	return candidates, outIssues, header
 }
 
 func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, db dictionaryDB, actor memoryActor, m memoryRecord, payload memoryImportPayload, format string, report map[string]any, issues []memoryImportIssue, headerSrclang *string) (string, error) {

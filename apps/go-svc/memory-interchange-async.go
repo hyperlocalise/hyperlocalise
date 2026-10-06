@@ -63,7 +63,7 @@ func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor mem
 	if payload.ContentType != nil && strings.TrimSpace(*payload.ContentType) != "" {
 		contentType = strings.TrimSpace(*payload.ContentType)
 	}
-	_, err = api.pool.Exec(r.Context(), `insert into memory_import_attempts (id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_filename, source_object_location, source_object_key) values ($1,$2,$3,$4,'import','upload_pending','preview',$5,$6,$7,$8)`, attemptID, actor.organizationID, m.ID, actor.userID, format, payload.SourceFilename, location, key)
+	_, err = api.pool.Exec(r.Context(), `insert into memory_import_attempts (id, organization_id, memory_id, created_by_user_id, operation, status, mode, format, source_filename, source_object_location, source_object_key) values ($1,$2,$3,$4,'import','upload_pending','apply',$5,$6,$7,$8)`, attemptID, actor.organizationID, m.ID, actor.userID, format, payload.SourceFilename, location, key)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -91,13 +91,12 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	}
 	mode := strings.TrimSpace(payload.Mode)
 	if mode == "" {
-		if payload.DryRun != nil && *payload.DryRun {
-			mode = "preview"
-		} else {
-			mode = "apply"
-		}
+		mode = "apply"
 	}
-	if mode != "preview" && mode != "apply" && mode != "cancel" {
+	if mode == "preview" {
+		return nil, 0, memoryFailure(400, "memory_import_preview_unsupported", "Preview mode is not supported for file imports")
+	}
+	if mode != "apply" && mode != "cancel" {
 		return nil, 0, invalidMemory()
 	}
 	var format, location, key, status, currentMode string
@@ -141,11 +140,11 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		size := int32(info.Size)
 		sourceByteSize = &size
 	}
-	if mode == "apply" && status != "preview_completed" && status != "queued" {
+	if mode == "apply" && status != "upload_pending" && status != "queued" {
 		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
 	}
 	options, _ := json.Marshal(map[string]any{"maxUnits": payload.MaxUnits, "mode": mode})
-	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status in ('upload_pending','preview_completed')`, payload.AttemptID, mode, options, sourceByteSize)
+	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status='upload_pending'`, payload.AttemptID, mode, options, sourceByteSize)
 	if err != nil {
 		return nil, 0, err
 	}

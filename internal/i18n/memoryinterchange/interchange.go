@@ -138,6 +138,60 @@ func Parse(format, content string) ([]Candidate, []Issue, *string, error) {
 	}
 }
 
+func looksLikeBCP47Tag(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
+		return false
+	}
+	for _, r := range trimmed {
+		if r == '-' {
+			continue
+		}
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func csvHasFourColumnDataRows(rows [][]string, start int) bool {
+	for i := start; i < len(rows); i++ {
+		if len(rows[i]) >= 4 {
+			return true
+		}
+	}
+	return false
+}
+
+func parseCSVCrowdinTwoColumn(rows [][]string) []Candidate {
+	if len(rows) < 2 || len(rows[0]) != 2 {
+		return nil
+	}
+	if !looksLikeBCP47Tag(rows[0][0]) || !looksLikeBCP47Tag(rows[0][1]) {
+		return nil
+	}
+	sourceLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(rows[0][0])), "_", "-")
+	targetLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(rows[0][1])), "_", "-")
+	candidates := make([]Candidate, 0, len(rows)-1)
+	for i := 1; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) < 2 {
+			continue
+		}
+		sourceText := unescapeFormula(row[0])
+		targetText := unescapeFormula(row[1])
+		if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
+			continue
+		}
+		candidates = append(candidates, Candidate{
+			SourceLocale: sourceLocale, TargetLocale: targetLocale,
+			SourceText: sourceText, TargetText: targetText, MatchScore: 100, UnitIndex: i + 1,
+		})
+	}
+	return candidates
+}
+
 func ParseCSV(content string) []Candidate {
 	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
 	reader.FieldsPerRecord = -1
@@ -150,6 +204,11 @@ func ParseCSV(content string) []Candidate {
 		joined := strings.ToLower(strings.Join(rows[0], " "))
 		if strings.Contains(joined, "source") || strings.Contains(joined, "locale") {
 			start = 1
+		}
+	}
+	if !csvHasFourColumnDataRows(rows, start) {
+		if crowdin := parseCSVCrowdinTwoColumn(rows); len(crowdin) > 0 {
+			return crowdin
 		}
 	}
 	candidates := make([]Candidate, 0, len(rows)-start)

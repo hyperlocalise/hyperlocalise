@@ -13,7 +13,8 @@ go_binary(
 
 go_test(
     name = "memory-interchange-test",
-    srcs = ["contract_test.go", "worker_test.go"],
+    srcs = ["contract_test.go", "fixtures_test.go", "worker_test.go"],
     embed = [":memory-interchange"],
+    deps = ["//internal/i18n/memoryinterchange:memoryinterchange"],
     visibility = ["//visibility:public"],
 )
