@@ -376,7 +376,7 @@ describe("glossaryRoutes", () => {
     };
     expect(body.diagnostics).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "unknown_locale", termId: "term-de" }),
+        expect.objectContaining({ code: "locale_mapped", termId: "term-de" }),
       ]),
     );
     const conceptsResponse = await client.api.orgs[":organizationSlug"].glossaries[
@@ -385,9 +385,12 @@ describe("glossaryRoutes", () => {
     const concepts = (await conceptsResponse.json()) as {
       concepts: Array<{ terms: Array<{ locale: string; term: string }> }>;
     };
-    expect(concepts.concepts[0]?.terms).toEqual([
-      expect.objectContaining({ locale: "en", term: "Checkout" }),
-    ]);
+    expect(concepts.concepts[0]?.terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: "en", term: "Checkout" }),
+        expect.objectContaining({ locale: "de-DE", term: "Kasse" }),
+      ]),
+    );
   });
 
   it("maps Crowdin TBX language IDs to region-qualified glossary locales", async () => {
@@ -401,10 +404,6 @@ describe("glossaryRoutes", () => {
     );
     const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
       .id;
-    await db
-      .update(schema.glossaries)
-      .set({ localeCoverage: ["de-DE", "ja-JP", "ko-KR", "vi-VN"] })
-      .where(eq(schema.glossaries.id, glossaryId));
 
     const tbx = [
       '<?xml version="1.0" encoding="UTF-8"?>',

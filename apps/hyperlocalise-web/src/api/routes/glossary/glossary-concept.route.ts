@@ -377,10 +377,9 @@ function parseConceptImport(
   );
   // Crowdin exports (notably TBX) carry Crowdin language IDs such as `de` or
   // `vi` while native glossaries use region-qualified BCP-47 locales such as
-  // `de-DE` or `vi-VN`. Without a translation step every term is rejected as
-  // `unknown_locale` and the import silently completes with zero terms.
+  // `de-DE` or `vi-VN`. Map those IDs even when locale coverage is inferred
+  // from terms rather than preconfigured on the glossary record.
   const glossaryLocales = options.glossaryLocales ?? [];
-  const knownLocaleKeys = new Set(glossaryLocales.map((locale) => locale.toLowerCase()));
   // Resolves a raw import locale to the glossary locale, recording a warning
   // when the Crowdin catalog translation changes it. Returns null when the
   // locale is not a valid BCP 47 tag.
@@ -391,18 +390,12 @@ function parseConceptImport(
     const mapped = options.localeMapping[rawLocale] ?? rawLocale;
     const canonical = canonicalizeLocale(mapped);
     if (!canonical) return null;
-    if (options.localeMapping[rawLocale] !== undefined || knownLocaleKeys.size === 0) {
-      return { locale: canonical, mapped: false };
-    }
-    if (knownLocaleKeys.has(canonical.toLowerCase())) {
+    if (options.localeMapping[rawLocale] !== undefined) {
       return { locale: canonical, mapped: false };
     }
     const crowdinMapped = toNativeGlossaryLocale(rawLocale, glossaryLocales);
     const crowdinCanonical = canonicalizeLocale(crowdinMapped) ?? crowdinMapped;
-    if (
-      crowdinCanonical.toLowerCase() !== canonical.toLowerCase() &&
-      knownLocaleKeys.has(crowdinCanonical.toLowerCase())
-    ) {
+    if (crowdinCanonical.toLowerCase() !== canonical.toLowerCase()) {
       parsed.diagnostics.push({
         severity: "warning",
         code: "locale_mapped",
@@ -692,7 +685,6 @@ export function createGlossaryConceptRoutes(
         };
         const validated = validateGlossaryImportDocument(parsed.document, {
           sourceLocale: glossary.sourceLocale,
-          knownLocales: new Set([glossary.sourceLocale, ...glossary.localeCoverage]),
           strictLocale: payload.strictLocale,
         });
         const importDocument = validated.document;

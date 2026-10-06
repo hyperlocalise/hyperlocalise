@@ -199,9 +199,10 @@ func TestApplyGlossaryImportLocaleOptionsDoesNotUseCrowdinFallbackForCSV(t *test
 		StrictLocale: &strict,
 	}, concepts, nil)
 	require.Len(t, out, 1)
-	require.Len(t, out[0].Terms, 1)
+	require.Len(t, out[0].Terms, 2)
 	require.Equal(t, "en-US", out[0].Terms[0].Locale)
-	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
+	require.Equal(t, "de", out[0].Terms[1].Locale)
+	require.Empty(t, diagnostics)
 }
 
 func TestApplyGlossaryImportLocaleOptionsHonorsExplicitIdentityMapping(t *testing.T) {

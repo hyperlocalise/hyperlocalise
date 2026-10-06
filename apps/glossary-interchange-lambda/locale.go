@@ -91,10 +91,11 @@ func mappedImportLocale(rawLocale string, configuredLocales []string, explicitMa
 	if len(candidates) == 1 {
 		return candidates[0], true
 	}
+	if len(candidates) > 1 {
+		return rawLocale, false
+	}
 	if preferred, ok := crowdinDefaultLocales[language]; ok {
-		if configuredLocale, exists := configured[localeKey(preferred)]; exists {
-			return configuredLocale, true
-		}
+		return preferred, true
 	}
 	return rawLocale, false
 }

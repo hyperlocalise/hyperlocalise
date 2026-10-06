@@ -69,13 +69,16 @@ func TestCrowdinExportFixture_LocaleMappingMatchesWorker(t *testing.T) {
 		t.Fatalf("decodeTBX() diagnostics = %v", diagnostics)
 	}
 
-	configuredLocales := []string{"en-US", "de-DE", "ja-JP", "ko-KR", "vi-VN"}
+	configuredLocales := []string{"en-US"}
 	for _, concept := range concepts {
 		for _, term := range concept.Terms {
 			rawLocale := normalizeGlossaryLocale(term.Locale)
 			locale, _ := mappedImportLocale(rawLocale, configuredLocales, nil)
-			if !containsConfiguredLocale(locale, configuredLocales) {
-				t.Fatalf("unconfigured locale raw=%q mapped=%q", rawLocale, locale)
+			if locale == "" {
+				t.Fatalf("empty locale raw=%q", rawLocale)
+			}
+			if rawLocale == "de" && locale != "de-DE" {
+				t.Fatalf("crowdin de mapped to %q, want de-DE", locale)
 			}
 		}
 	}

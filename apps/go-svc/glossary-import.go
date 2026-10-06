@@ -308,12 +308,7 @@ func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
 }
 
 func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
-	strict := payload.StrictLocale == nil || *payload.StrictLocale
-	known := map[string]bool{}
 	knownLocales := glossaryLanguages(g)
-	for _, lang := range glossaryLanguages(g) {
-		known[strings.ToLower(lang.Locale)] = true
-	}
 	out := make([]glossaryImportConcept, 0, len(concepts))
 	for _, concept := range concepts {
 		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
@@ -348,16 +343,6 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 				})
 				continue
 			}
-			if strict && len(known) > 0 && !known[strings.ToLower(mapped)] {
-				id := concept.ID
-				termID := term.ID
-				field := "locale"
-				diagnostics = append(diagnostics, glossaryImportDiagnostic{
-					Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary",
-					ConceptID: &id, TermID: &termID, Field: &field,
-				})
-				continue
-			}
 			if mappedByCrowdin {
 				id := concept.ID
 				termID := term.ID
@@ -386,6 +371,35 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 	return out, diagnostics
 }
 
+// crowdinDefaultGlossaryLocales maps Crowdin bare language IDs to native BCP-47
+// locales. Used when glossary locale coverage is inferred from terms rather than
+// preconfigured on the glossary record.
+var crowdinDefaultGlossaryLocales = map[string]string{
+	"ar": "ar-SA",
+	"de": "de-DE",
+	"en": "en-US",
+	"es": "es-ES",
+	"fa": "fa-IR",
+	"fr": "fr-FR",
+	"he": "he-IL",
+	"hi": "hi-IN",
+	"id": "id-ID",
+	"it": "it-IT",
+	"ja": "ja-JP",
+	"ko": "ko-KR",
+	"nl": "nl-NL",
+	"pl": "pl-PL",
+	"pt": "pt-BR",
+	"ro": "ro-RO",
+	"ru": "ru-RU",
+	"sv": "sv-SE",
+	"th": "th-TH",
+	"tr": "tr-TR",
+	"uk": "uk-UA",
+	"vi": "vi-VN",
+	"zh": "zh-CN",
+}
+
 func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {
 	raw = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-")))
 	if raw == "" {
@@ -410,7 +424,16 @@ func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (strin
 		}
 		match = locale
 	}
-	return match, match != ""
+	if match != "" {
+		return match, true
+	}
+	if strings.Contains(raw, "-") {
+		return raw, false
+	}
+	if preferred, ok := crowdinDefaultGlossaryLocales[raw]; ok {
+		return preferred, true
+	}
+	return raw, false
 }
 
 func countImportTerms(concepts []glossaryImportConcept) int {

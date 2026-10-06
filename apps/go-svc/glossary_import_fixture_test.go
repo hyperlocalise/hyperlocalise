@@ -55,7 +55,7 @@ func TestApplyGlossaryImportLocaleOptions_CrowdinExportFixture(t *testing.T) {
 	strict := true
 	g := glossaryRecord{
 		SourceLocale:   "en-US",
-		LocaleCoverage: []string{"de-DE", "ja-JP", "ko-KR", "vi-VN"},
+		LocaleCoverage: []string{},
 	}
 	out, applyDiagnostics := applyGlossaryImportLocaleOptions(g, glossaryImportPayload{
 		Format:       "tbx",

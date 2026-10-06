@@ -196,15 +196,11 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		return err
 	}
 	configuredLocales := append([]string{sourceLocale}, localeCoverage...)
-	strictLocale := importOptions.StrictLocale == nil || *importOptions.StrictLocale
 	var importDiagnostics []interchangeImportDiagnostic
 	for i := range concepts {
 		for j := range concepts[i].Terms {
 			rawLocale := normalizeGlossaryLocale(concepts[i].Terms[j].Locale)
 			locale, mapped := mappedImportLocale(rawLocale, configuredLocales, importOptions.LocaleMapping)
-			if strictLocale && !containsConfiguredLocale(locale, configuredLocales) {
-				return fmt.Errorf("locale %q is not configured for this glossary", locale)
-			}
 			concepts[i].Terms[j].Locale = locale
 			if mapped && localeKey(rawLocale) != localeKey(locale) {
 				importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{

@@ -24,7 +24,7 @@ const fileFatalImportDiagnosticCodes = new Set([
 
 export function validateGlossaryImportDocument(
   document: GlossaryImportDocument,
-  options: { sourceLocale: string; knownLocales: Set<string>; strictLocale: boolean },
+  options: { sourceLocale: string; strictLocale: boolean },
 ) {
   const diagnostics = document.diagnostics;
   for (const concept of document.concepts) {
@@ -61,19 +61,6 @@ export function validateGlossaryImportDocument(
       }
     }
     for (const term of concept.terms) {
-      if (options.strictLocale && !options.knownLocales.has(term.locale)) {
-        diagnostics.push(
-          diagnostic({
-            severity: "error",
-            outcome: "skipped",
-            code: "unknown_locale",
-            message: "Term locale is not configured for this glossary.",
-            conceptId: concept.id,
-            termId: term.id,
-            field: "locale",
-          }),
-        );
-      }
       for (const [field, value] of [
         ["createdAt", term.createdAt],
         ["updatedAt", term.updatedAt],

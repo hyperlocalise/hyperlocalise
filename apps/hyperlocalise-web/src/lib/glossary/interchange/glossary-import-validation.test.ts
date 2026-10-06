@@ -23,7 +23,7 @@ function makeDocument(
 }
 
 describe("glossary import validation", () => {
-  it("skips unknown-locale terms while preserving valid terms", () => {
+  it("keeps import locales that are not listed on the glossary record", () => {
     const result = validateGlossaryImportDocument(
       makeDocument([
         {
@@ -35,19 +35,12 @@ describe("glossary import validation", () => {
           ],
         },
       ]),
-      { sourceLocale: "en", knownLocales: new Set(["en", "fr"]), strictLocale: true },
+      { sourceLocale: "en", strictLocale: true },
     );
 
     expect(result.document.concepts[0]?.terms).toEqual([
       { id: "term-en", locale: "en", term: "Checkout" },
-    ]);
-    expect(result.document.diagnostics).toEqual([
-      expect.objectContaining({
-        code: "unknown_locale",
-        conceptId: "concept-1",
-        termId: "term-de",
-        outcome: "skipped",
-      }),
+      { id: "term-de", locale: "de", term: "Kasse" },
     ]);
     expect(result.hasFileFatalError).toBe(false);
   });
@@ -61,7 +54,7 @@ describe("glossary import validation", () => {
           terms: [{ id: "term-fr", locale: "fr", term: "Caisse" }],
         },
       ]),
-      { sourceLocale: "en", knownLocales: new Set(["en", "fr"]), strictLocale: true },
+      { sourceLocale: "en", strictLocale: true },
     );
 
     expect(result.document.concepts).toEqual([]);
@@ -92,7 +85,7 @@ describe("glossary import validation", () => {
         ],
         [{ severity: "error", code: "invalid_xml", message: "The document is not XML." }],
       ),
-      { sourceLocale: "en", knownLocales: new Set(["en"]), strictLocale: true },
+      { sourceLocale: "en", strictLocale: true },
     );
 
     expect(result.document.concepts).toEqual([]);
@@ -129,7 +122,7 @@ describe("glossary import validation", () => {
           },
         ],
       ),
-      { sourceLocale: "en", knownLocales: new Set(["en"]), strictLocale: true },
+      { sourceLocale: "en", strictLocale: true },
     );
 
     expect(result.document.concepts[0]?.terms).toEqual([
