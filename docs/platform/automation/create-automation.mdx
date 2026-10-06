@@ -9,24 +9,24 @@ Create an automation when the same translation task should run more than once. B
 
 1. Select **New Automation**.
 2. Describe the task, source scope, target locales, and expected output.
-3. Add **Triggers** from the supported choices below.
+3. Choose the **Trigger** from the supported choices below.
 4. Attach the tools and knowledge the task needs.
 5. Save, then test with a small, recognizable source change.
 6. Open **Run History** and inspect the output before relying on the automation.
 
 | Trigger | Configure |
 | --- | --- |
-| Manual run | Run the saved task on demand. |
-| Scheduled | Cadence and **Schedule timezone**. |
-| GitHub push | Repository, branch patterns, and push or pull-request-opened events. |
-| Source upload | The project whose uploads should start work. |
-| Contentful webhook | The matching entry create or update event. |
+| Manually triggered | Run the saved task on demand. |
+| On a schedule | Cadence and **Schedule timezone**. |
+| GitHub: A push is made, A pull request is made, or A push or pull request is made | Branch patterns and repository. |
+| A source file is uploaded | The project whose uploads should start work. |
+| A Contentful entry is published | Starts when an entry of the connection's content types is published. |
 
 GitHub triggers require a connected and enabled repository. A Contentful event trigger does not imply that Contentful file sync is available.
 
 ## Example: translate after upload
 
-Choose **Source upload** for the project and describe the intended task:
+Choose **A source file is uploaded** for the project and describe the intended task:
 
 ```text
 Translate uploaded source content into the project's target locales.

@@ -18,7 +18,6 @@ import {
   PlusIcon,
   CaretDownIcon,
   BrainIcon,
-  ClockIcon,
   ChatTextIcon,
   TrashIcon,
   FoldersIcon,
@@ -31,6 +30,11 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
   XIcon,
+  BinocularsIcon,
+  ListMagnifyingGlassIcon,
+  MegaphoneIcon,
+  TranslateIcon,
+  type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
@@ -45,6 +49,7 @@ import {
   siMeta,
   siSemrush,
   siCrowdin,
+  siContentful,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -101,10 +106,6 @@ import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import {
-  AUTOMATION_WEEKDAY_OPTIONS,
-  addBranchPattern,
-} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
 import { useActiveTmsProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 import { useTmsLiveProjects } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-live-projects";
@@ -113,12 +114,10 @@ import {
   isCrowdinAutomationConnected,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-crowdin";
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
-import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import {
   WORKSPACE_AUTOMATION_MODELS,
-  type WorkspaceAutomationGithubTriggerEvent,
   type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
 import {
@@ -135,6 +134,10 @@ import {
   WORKSPACE_AUTOMATION_SKILLS,
   type WorkspaceAutomationSkillConnections,
   type WorkspaceAutomationSkillIntegration,
+  WORKSPACE_AUTOMATION_SKILL_CATEGORIES,
+  type WorkspaceAutomationSkill,
+  type WorkspaceAutomationSkillCategory,
+  type WorkspaceAutomationSkillTool,
 } from "@/lib/agents/workspace-automation-skills";
 import {
   addSuggestedToolToWorkspaceAutomationForm,
@@ -148,12 +151,18 @@ import {
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
-import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
+import { RunHistoryTable } from "./workspace-automation-run-history";
+import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
+import {
+  formatRepositoryOptionLabel,
+  selectedRepositoryLabel,
+  TriggerSettings,
+  type GithubRepositoryOption,
+} from "./workspace-automation-trigger-settings";
 
 const api = createApiClient();
 
@@ -164,13 +173,6 @@ type ProjectOption = {
   externalProviderKind?: string | null;
   sourceLocale: string | null;
   targetLocales: string[];
-};
-type GithubRepositoryOption = {
-  id: string;
-  fullName: string;
-  enabled: boolean;
-  archived: boolean;
-  defaultBranch: string | null;
 };
 type GitlabProjectOption = {
   id: number;
@@ -198,13 +200,6 @@ type ZernioConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
-type ContentfulConnectionOption = {
-  id: string;
-  displayName: string;
-  contentTypeIds: string[];
-  enabled: boolean;
-};
-
 type AutomationEditorTab = "settings" | "history";
 
 type ComingSoonAutomationTool = {
@@ -216,7 +211,6 @@ type ComingSoonAutomationTool = {
 const COMING_SOON_GOOGLE_MENU_LABEL = "Google";
 const COMING_SOON_LINEAR_MENU_LABEL = "Linear";
 const METADATA_SEPARATOR = "|";
-const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
@@ -297,37 +291,6 @@ function FieldError({ message }: { message?: string }) {
   }
 
   return <p className="text-xs text-destructive">{message}</p>;
-}
-
-function toggleGithubEvent(
-  events: WorkspaceAutomationGithubTriggerEvent[],
-  event: WorkspaceAutomationGithubTriggerEvent,
-  enabled: boolean,
-): WorkspaceAutomationGithubTriggerEvent[] {
-  if (enabled) {
-    return events.includes(event) ? events : [...events, event];
-  }
-
-  return events.filter((value) => value !== event);
-}
-
-function GithubEventSwitch({
-  checked,
-  disabled,
-  label,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  label: ReactNode;
-  onCheckedChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-xs text-foreground">
-      <Switch size="sm" checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
-      <span>{label}</span>
-    </label>
-  );
 }
 
 function EditorSection({
@@ -467,9 +430,8 @@ function triggerSummary(
 ) {
   if (form.triggerMode === "scheduled") {
     if (form.scheduledCadence === "hourly") {
-      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly, {
-        timezone: form.scheduledTimezone,
-      });
+      // Hourly runs start on the hour whatever the timezone, so the summary leaves it out.
+      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly);
     }
 
     if (form.scheduledCadence === "weekly") {
@@ -557,32 +519,6 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.zernioEnabled) +
     Number(form.ahrefsEnabled) +
     Number(form.webSearchEnabled)
-  );
-}
-
-function formatRepositoryOptionLabel(intl: IntlShape, repository: GithubRepositoryOption) {
-  if (repository.enabled) {
-    return repository.fullName;
-  }
-
-  return intl.formatMessage(workspaceAutomationFormMessages.repositoryDisabledSuffix, {
-    name: repository.fullName,
-  });
-}
-
-function selectedRepositoryLabel(
-  intl: IntlShape,
-  repositoryId: string,
-  repositories: GithubRepositoryOption[],
-  placeholder?: string,
-) {
-  if (!repositoryId) {
-    return placeholder ?? intl.formatMessage(workspaceAutomationFormMessages.selectRepository);
-  }
-
-  return (
-    repositories.find((repository) => repository.id === repositoryId)?.fullName ??
-    intl.formatMessage(workspaceAutomationFormMessages.unknownRepository)
   );
 }
 
@@ -931,562 +867,6 @@ function HeaderProjectSelector({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function formatBranchPatternLabel(intl: IntlShape, branches: string[]) {
-  if (branches.length === 0) {
-    return intl.formatMessage(workspaceAutomationFormMessages.branchesPlaceholder);
-  }
-
-  if (branches.length === 1) {
-    return branches[0]!;
-  }
-
-  if (branches.length === 2) {
-    return branches.join(", ");
-  }
-
-  return `${branches[0]!} +${branches.length - 1}`;
-}
-
-function BranchPatternSelector({
-  branches,
-  disabled,
-  error,
-  onChange,
-}: {
-  branches: string[];
-  disabled?: boolean;
-  error?: string;
-  onChange: (branches: string[]) => void;
-}) {
-  const intl = useIntl();
-  const [branchInput, setBranchInput] = useState("");
-  const [inputError, setInputError] = useState<string | undefined>();
-
-  function handleAdd() {
-    const result = addBranchPattern(intl, branches, branchInput);
-    if (result.error) {
-      setInputError(result.error);
-      return;
-    }
-
-    onChange(result.branches);
-    setBranchInput("");
-    setInputError(undefined);
-  }
-
-  return (
-    <div className="min-w-0 md:min-w-36 md:max-w-xs md:flex-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={disabled}
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8 w-full justify-between gap-2 rounded-lg border border-input bg-input/30 px-3 text-sm font-normal text-foreground hover:bg-input/50 disabled:opacity-50"
-            />
-          }
-        >
-          <span className="truncate">{formatBranchPatternLabel(intl, branches)}</span>
-          <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="min-w-56" align="start">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <FormattedMessage {...workspaceAutomationFormMessages.branchPatternsMenu} />
-            </DropdownMenuLabel>
-            {branches.length === 0 ? (
-              <DropdownMenuItem disabled>
-                <FormattedMessage {...workspaceAutomationFormMessages.noBranchesAdded} />
-              </DropdownMenuItem>
-            ) : (
-              branches.map((branch) => (
-                <DropdownMenuItem
-                  key={branch}
-                  onClick={() => onChange(branches.filter((value) => value !== branch))}
-                >
-                  <span className="min-w-0 flex-1 truncate">{branch}</span>
-                  <DropdownMenuHint>
-                    <FormattedMessage {...workspaceAutomationFormMessages.removeShortcut} />
-                  </DropdownMenuHint>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <div
-            className="flex gap-2 p-2"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Input
-              aria-label={intl.formatMessage(
-                workspaceAutomationFormMessages.branchPatternAriaLabel,
-              )}
-              value={branchInput}
-              disabled={disabled}
-              placeholder="main"
-              className="h-8 min-w-0 flex-1 rounded-lg"
-              onChange={(event) => {
-                setBranchInput(event.target.value);
-                setInputError(undefined);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleAdd();
-                }
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              className="h-8 shrink-0"
-              onClick={handleAdd}
-            >
-              <FormattedMessage {...workspaceAutomationFormMessages.addBranch} />
-            </Button>
-          </div>
-          {inputError ? <p className="px-2 pb-2 text-xs text-destructive">{inputError}</p> : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <FieldError message={error} />
-    </div>
-  );
-}
-
-function AddTriggerMenu({
-  contentfulConnected,
-  disabled,
-  form,
-  githubConnected,
-  onChange,
-  repositories,
-}: {
-  contentfulConnected: boolean;
-  disabled?: boolean;
-  form: WorkspaceAutomationFormState;
-  githubConnected: boolean;
-  onChange: (next: WorkspaceAutomationFormState) => void;
-  repositories: GithubRepositoryOption[];
-}) {
-  return (
-    <div className="w-full">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          className="w-full"
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={disabled}
-              className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
-            />
-          }
-        >
-          <PlusIcon className="size-4" />
-          <FormattedMessage {...workspaceAutomationFormMessages.addTrigger} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" align="start" sideOffset={2}>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <FormattedMessage {...workspaceAutomationFormMessages.supportedTriggers} />
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "manual"}
-              onClick={() => onChange({ ...form, triggerMode: "manual" })}
-            >
-              <ClockIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
-              {form.triggerMode === "manual" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "scheduled"}
-              onClick={() => onChange({ ...form, triggerMode: "scheduled" })}
-            >
-              <ClockIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
-              {form.triggerMode === "scheduled" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "github" || !githubConnected}
-              onClick={() => {
-                const defaultRepositoryId =
-                  form.githubInstallationRepositoryId ||
-                  repositories.find((repository) => repository.enabled)?.id ||
-                  repositories[0]?.id ||
-                  "";
-
-                onChange({
-                  ...form,
-                  triggerMode: "github",
-                  githubEnabled: true,
-                  githubEvents: form.githubEvents.length > 0 ? form.githubEvents : ["push"],
-                  repositoryTargetKind: "github",
-                  githubInstallationRepositoryId: defaultRepositoryId,
-                  validationEnabled:
-                    form.githubMode === "agent"
-                      ? form.validationEnabled
-                      : form.pushSourceEnabled || form.pullTranslationsEnabled
-                        ? form.validationEnabled
-                        : true,
-                });
-              }}
-            >
-              <GitBranchIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.githubPush} />
-              {form.triggerMode === "github" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : !githubConnected ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "contentful" || !contentfulConnected}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  triggerMode: "contentful",
-                  contentfulEnabled: true,
-                })
-              }
-            >
-              <MagnifyingGlassIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
-              {form.triggerMode === "contentful" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : !contentfulConnected ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "source_upload"}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  triggerMode: "source_upload",
-                  createNativeTmsJobEnabled: true,
-                  createNativeTmsJobUseProjectTargetLocales: true,
-                  assignTranslateWithAgentEnabled: true,
-                })
-              }
-            >
-              <UploadSimpleIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />
-              {form.triggerMode === "source_upload" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.triggerMode === "web_chat"}
-              onClick={() => onChange({ ...form, triggerMode: "web_chat" })}
-            >
-              <ChatTextIcon className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.webChat} />
-              {form.triggerMode === "web_chat" ? (
-                <DropdownMenuHint>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuHint>
-              ) : null}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-
-function TriggerSettings({
-  automationId,
-  contentfulConnected,
-  disabled,
-  errors,
-  form,
-  githubConnected,
-  onChange,
-  organizationSlug,
-  repositories,
-}: {
-  automationId?: string;
-  contentfulConnected: boolean;
-  disabled?: boolean;
-  errors: Record<string, string | undefined>;
-  form: WorkspaceAutomationFormState;
-  githubConnected: boolean;
-  onChange: (next: WorkspaceAutomationFormState) => void;
-  organizationSlug: string;
-  repositories: GithubRepositoryOption[];
-}) {
-  const intl = useIntl();
-
-  return (
-    <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.triggersSection)}>
-      <EditorPanel>
-        {form.triggerMode === "scheduled" ? (
-          <EditorRow
-            icon={<ClockIcon className="size-4" />}
-            title={
-              <>
-                <span>
-                  <FormattedMessage {...workspaceAutomationFormMessages.every} />
-                </span>
-                <Select
-                  value={form.scheduledCadence}
-                  onValueChange={(value) =>
-                    onChange({
-                      ...form,
-                      scheduledCadence: value as typeof form.scheduledCadence,
-                    })
-                  }
-                  disabled={disabled}
-                >
-                  <SelectTrigger size="sm" className="h-8 min-w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hourly">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceHour} />
-                    </SelectItem>
-                    <SelectItem value="daily">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceDay} />
-                    </SelectItem>
-                    <SelectItem value="weekly">
-                      <FormattedMessage {...workspaceAutomationFormMessages.cadenceWeek} />
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {form.scheduledCadence === "weekly" ? (
-                  <Select
-                    value={String(form.scheduledDayOfWeek)}
-                    onValueChange={(value) =>
-                      onChange({
-                        ...form,
-                        scheduledDayOfWeek: Number(value),
-                      })
-                    }
-                    disabled={disabled}
-                  >
-                    <SelectTrigger size="sm" className="h-8 min-w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AUTOMATION_WEEKDAY_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={String(option.value)}>
-                          {intl.formatMessage(AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE[option.value])}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                {form.scheduledCadence !== "hourly" ? (
-                  <>
-                    <span>
-                      <FormattedMessage {...workspaceAutomationFormMessages.at} />
-                    </span>
-                    <Select
-                      value={String(form.scheduledHourUtc)}
-                      onValueChange={(value) =>
-                        onChange({
-                          ...form,
-                          scheduledHourUtc: Number(value),
-                        })
-                      }
-                      disabled={disabled}
-                    >
-                      <SelectTrigger size="sm" className="h-8 min-w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {Array.from({ length: 24 }, (_, hour) => (
-                          <SelectItem key={hour} value={String(hour)}>
-                            {formatHour(hour)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
-                ) : null}
-                <AutomationTimeZoneSelect
-                  size="sm"
-                  aria-label={intl.formatMessage(
-                    workspaceAutomationFormMessages.scheduleTimezoneAriaLabel,
-                  )}
-                  value={form.scheduledTimezone}
-                  disabled={disabled}
-                  className="h-8 min-w-52"
-                  onValueChange={(value) =>
-                    onChange({
-                      ...form,
-                      scheduledTimezone: value,
-                    })
-                  }
-                />
-              </>
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "github" ? (
-          <EditorRow
-            icon={<GitBranchIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.githubPush} />}
-            className="md:items-center"
-          >
-            <div className="flex w-full min-w-0 flex-col gap-1.5">
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2">
-                <Select
-                  value={form.githubInstallationRepositoryId || null}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-                    onChange({
-                      ...form,
-                      triggerMode: "github",
-                      githubEnabled: true,
-                      repositoryTargetKind: "github",
-                      githubInstallationRepositoryId: value,
-                    });
-                  }}
-                  disabled={disabled}
-                >
-                  <SelectTrigger className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs">
-                    <span className="truncate">
-                      {selectedRepositoryLabel(
-                        intl,
-                        form.githubInstallationRepositoryId,
-                        repositories,
-                        intl.formatMessage(workspaceAutomationFormMessages.repositoryLabel),
-                      )}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {repositories.map((repository) => (
-                      <SelectItem
-                        key={repository.id}
-                        value={repository.id}
-                        label={formatRepositoryOptionLabel(intl, repository)}
-                      >
-                        {formatRepositoryOptionLabel(intl, repository)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <BranchPatternSelector
-                  branches={form.pushBranches}
-                  disabled={disabled}
-                  error={errors.pushBranches}
-                  onChange={(pushBranches) => onChange({ ...form, pushBranches })}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <GithubEventSwitch
-                  checked={form.githubEvents.includes("push")}
-                  disabled={disabled}
-                  label={<FormattedMessage {...workspaceAutomationFormMessages.githubEventPush} />}
-                  onCheckedChange={(checked) =>
-                    onChange({
-                      ...form,
-                      githubEvents: toggleGithubEvent(form.githubEvents, "push", checked),
-                    })
-                  }
-                />
-                <GithubEventSwitch
-                  checked={form.githubEvents.includes("pull_request")}
-                  disabled={disabled}
-                  label={
-                    <FormattedMessage {...workspaceAutomationFormMessages.githubEventPullRequest} />
-                  }
-                  onCheckedChange={(checked) =>
-                    onChange({
-                      ...form,
-                      githubEvents: toggleGithubEvent(form.githubEvents, "pull_request", checked),
-                    })
-                  }
-                />
-              </div>
-              <FieldError message={errors.githubRepository} />
-              <FieldError message={errors.githubEvents} />
-            </div>
-          </EditorRow>
-        ) : null}
-
-        {form.triggerMode === "manual" ? (
-          <EditorRow
-            icon={<ClockIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.manualOnlyTitle} />}
-            description={
-              <FormattedMessage {...workspaceAutomationFormMessages.manualOnlyDescription} />
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "contentful" ? (
-          <EditorRow
-            icon={<MagnifyingGlassIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />}
-            description={
-              contentfulConnected ? (
-                <FormattedMessage
-                  {...workspaceAutomationFormMessages.contentfulWebhookConnectedDescription}
-                />
-              ) : (
-                <FormattedMessage
-                  {...workspaceAutomationFormMessages.contentfulWebhookDisconnectedDescription}
-                />
-              )
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "source_upload" ? (
-          <EditorRow
-            icon={<UploadSimpleIcon className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />}
-            description={
-              <FormattedMessage {...workspaceAutomationFormMessages.sourceUploadDescription} />
-            }
-          />
-        ) : null}
-
-        {form.triggerMode === "web_chat" ? (
-          <WebChatTriggerRow automationId={automationId} organizationSlug={organizationSlug} />
-        ) : null}
-
-        <AddTriggerMenu
-          contentfulConnected={contentfulConnected}
-          disabled={disabled}
-          form={form}
-          githubConnected={githubConnected}
-          onChange={onChange}
-          repositories={repositories}
-        />
-      </EditorPanel>
-      <FieldError message={errors.trigger} />
-    </EditorSection>
   );
 }
 
@@ -2091,6 +1471,47 @@ function formatSkillConnectFirstHint(
   });
 }
 
+const SKILL_CATEGORY_LABELS: Record<WorkspaceAutomationSkillCategory, MessageDescriptor> = {
+  review: workspaceAutomationFormMessages.skillCategoryReview,
+  research: workspaceAutomationFormMessages.skillCategoryResearch,
+  translate: workspaceAutomationFormMessages.skillCategoryTranslate,
+  report: workspaceAutomationFormMessages.skillCategoryReport,
+};
+
+const SKILL_CATEGORY_ICONS: Record<WorkspaceAutomationSkillCategory, Icon> = {
+  review: ListMagnifyingGlassIcon,
+  research: BinocularsIcon,
+  translate: TranslateIcon,
+  report: MegaphoneIcon,
+};
+
+const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon>> = {
+  use_github_repository: siGithub,
+  notify_github_comment: siGithub,
+  use_crowdin: siCrowdin,
+  run_contentful_translation: siContentful,
+};
+
+const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
+  use_web_search: GlobeIcon,
+  create_native_tms_job: UploadSimpleIcon,
+  list_issues: CheckSquareIcon,
+  notify_slack: SlackLogoIcon,
+  notify_email: EnvelopeIcon,
+};
+
+/** The integration or surface the skill touches, the same icon its tool row uses. */
+function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
+  const tool = skill.tools[0];
+  const brand = tool ? SKILL_BRAND_ICONS[tool] : undefined;
+  if (brand) {
+    return <SimpleBrandIcon icon={brand} colored={false} className={cn("size-4", className)} />;
+  }
+
+  const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
+  return <ToolIcon className={cn("size-4", className)} />;
+}
+
 function SkillsSettings({
   connections,
   disabled,
@@ -2120,7 +1541,7 @@ function SkillsSettings({
         {attachedSkills.map((skill) => (
           <EditorRow
             key={skill.id}
-            icon={<SparkleIcon className="size-4" />}
+            icon={<SkillIcon skill={skill} />}
             title={skill.name}
             description={`${skill.description} ${skill.grants}`}
             action={
@@ -2149,49 +1570,77 @@ function SkillsSettings({
             <PlusIcon className="size-4" />
             <FormattedMessage {...workspaceAutomationFormMessages.addSkill} />
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="max-h-(--available-height) w-96 overflow-y-auto"
-            align="start"
-            sideOffset={2}
-          >
-            {WORKSPACE_AUTOMATION_SKILLS.map((skill) => {
-              const availability = resolveWorkspaceAutomationSkillAvailability(form, skill);
-              const missingIntegrations =
-                availability === "available"
-                  ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
-                  : [];
+          <DropdownMenuContent className="w-56" align="start" sideOffset={2}>
+            {WORKSPACE_AUTOMATION_SKILL_CATEGORIES.map((category) => {
+              const CategoryIcon = SKILL_CATEGORY_ICONS[category];
               return (
-                <DropdownMenuItem
-                  key={skill.id}
-                  disabled={availability !== "available" || missingIntegrations.length > 0}
-                  className="items-start"
-                  onClick={() => onAddSkill(skill.id)}
-                >
-                  <SparkleIcon className="mt-0.5 size-4 shrink-0" />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span>{skill.name}</span>
-                    {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
-                    {availability === "trigger_mismatch" ? (
-                      <span className="text-xs font-medium">
-                        <FormattedMessage
-                          {...workspaceAutomationFormMessages.skillNotApplicableHint}
-                        />
-                      </span>
-                    ) : missingIntegrations.length > 0 ? (
-                      <span className="text-xs font-medium">
-                        {formatSkillConnectFirstHint(intl, missingIntegrations)}
-                      </span>
-                    ) : null}
-                    <span className="text-xs text-pretty text-muted-foreground">
-                      {skill.description}
+                <DropdownMenuSub key={category}>
+                  <DropdownMenuSubTrigger className="gap-2.5">
+                    <CategoryIcon className="size-4" />
+                    <span className="flex-1">
+                      <FormattedMessage {...SKILL_CATEGORY_LABELS[category]} />
                     </span>
-                  </span>
-                  {availability === "attached" ? (
-                    <DropdownMenuHint>
-                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuHint>
-                  ) : null}
-                </DropdownMenuItem>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-72">
+                    {WORKSPACE_AUTOMATION_SKILLS.filter((skill) => skill.category === category).map(
+                      (skill) => {
+                        const availability = resolveWorkspaceAutomationSkillAvailability(
+                          form,
+                          skill,
+                        );
+                        const missingIntegrations =
+                          availability === "available"
+                            ? listMissingWorkspaceAutomationSkillIntegrations(skill, connections)
+                            : [];
+                        return (
+                          <Tooltip key={skill.id}>
+                            {/* The wrapper takes the hover: a disabled item ignores the pointer. */}
+                            <TooltipTrigger render={<div />}>
+                              <DropdownMenuItem
+                                disabled={
+                                  availability !== "available" || missingIntegrations.length > 0
+                                }
+                                className="items-start"
+                                onClick={() => onAddSkill(skill.id)}
+                              >
+                                <SkillIcon skill={skill} className="mt-0.5 shrink-0" />
+                                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                  <span>{skill.name}</span>
+                                  {/* Under the name: beside it, the wording squeezes the name onto two lines. */}
+                                  {availability === "trigger_mismatch" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                      />
+                                    </span>
+                                  ) : missingIntegrations.length > 0 ? (
+                                    <span className="text-xs font-medium">
+                                      {formatSkillConnectFirstHint(intl, missingIntegrations)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                {availability === "attached" ? (
+                                  <DropdownMenuHint>
+                                    <FormattedMessage
+                                      {...workspaceAutomationFormMessages.addedShortcut}
+                                    />
+                                  </DropdownMenuHint>
+                                ) : null}
+                              </DropdownMenuItem>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="right"
+                              sideOffset={8}
+                              className="max-w-64 py-2 text-pretty"
+                            >
+                              {skill.description}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      },
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               );
             })}
           </DropdownMenuContent>
@@ -2260,7 +1709,7 @@ function SuggestionChip({
         onClick={() => onAdd(suggestion)}
       >
         {suggestion.kind === "skill" ? (
-          <SparkleIcon className="size-3.5" />
+          <SkillIcon skill={suggestion.skill} className="size-3.5" />
         ) : (
           <PlusIcon className="size-3.5" />
         )}
@@ -3567,133 +3016,6 @@ function ToolsSettings({
   );
 }
 
-function formatRunStatus(intl: IntlShape, status: string) {
-  const statusMessages = {
-    queued: workspaceAutomationFormMessages.runStatusQueued,
-    running: workspaceAutomationFormMessages.runStatusRunning,
-    succeeded: workspaceAutomationFormMessages.runStatusSucceeded,
-    failed: workspaceAutomationFormMessages.runStatusFailed,
-    cancelled: workspaceAutomationFormMessages.runStatusCancelled,
-    skipped: workspaceAutomationFormMessages.runStatusSkipped,
-  } as const;
-
-  const message = statusMessages[status as keyof typeof statusMessages];
-  return message ? intl.formatMessage(message) : status;
-}
-
-function formatTriggerSource(intl: IntlShape, triggerSource: string) {
-  const triggerMessages = {
-    manual: workspaceAutomationFormMessages.triggerSourceManual,
-    scheduled: workspaceAutomationFormMessages.triggerSourceScheduled,
-    github: workspaceAutomationFormMessages.triggerSourceGithub,
-    contentful: workspaceAutomationFormMessages.triggerSourceContentful,
-    source_upload: workspaceAutomationFormMessages.triggerSourceSourceUpload,
-    web_chat: workspaceAutomationFormMessages.triggerSourceWebChat,
-  } as const;
-
-  const message = triggerMessages[triggerSource as keyof typeof triggerMessages];
-  return message ? intl.formatMessage(message) : triggerSource;
-}
-
-function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
-  const intl = useIntl();
-
-  if (runs.length === 0) {
-    return (
-      <EditorPanel className="px-4 py-10">
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...workspaceAutomationFormMessages.noRunsYet} />
-        </p>
-      </EditorPanel>
-    );
-  }
-
-  return (
-    <EditorPanel>
-      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
-        </span>
-      </div>
-      {runs.map((run) => (
-        <div
-          key={run.id}
-          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-4 text-sm last:border-b-0"
-        >
-          <Badge variant="outline" className="w-fit">
-            {formatRunStatus(intl, run.status)}
-          </Badge>
-          <span>{formatTriggerSource(intl, run.triggerSource)}</span>
-          <span className="truncate text-muted-foreground">
-            {Object.keys(run.outputSummary).length > 0
-              ? JSON.stringify(run.outputSummary)
-              : EMPTY_CELL}
-          </span>
-          <span className="text-muted-foreground">
-            {run.completedAt ? new Date(run.completedAt).toLocaleString() : EMPTY_CELL}
-          </span>
-        </div>
-      ))}
-    </EditorPanel>
-  );
-}
-
-function WebChatTriggerRow({
-  automationId,
-  organizationSlug,
-}: {
-  automationId?: string;
-  organizationSlug: string;
-}) {
-  const intl = useIntl();
-  const chatHref = automationId
-    ? buildWorkspaceAutomationWebChatHref({
-        organizationSlug,
-        automationId,
-        locale: intl.locale,
-      })
-    : null;
-
-  return (
-    <EditorRow
-      icon={<ChatTextIcon className="size-4" />}
-      title={<FormattedMessage {...workspaceAutomationFormMessages.webChat} />}
-      description={<FormattedMessage {...workspaceAutomationFormMessages.webChatDescription} />}
-      action={
-        chatHref ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-full px-3"
-            nativeButton={false}
-            render={<Link href={chatHref} target="_blank" rel="noreferrer" />}
-          >
-            <FormattedMessage {...workspaceAutomationFormMessages.openChat} />
-          </Button>
-        ) : null
-      }
-    >
-      {automationId ? (
-        <WebChatUrlCopyField automationId={automationId} organizationSlug={organizationSlug} />
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          <FormattedMessage {...workspaceAutomationFormMessages.webChatUrlPending} />
-        </p>
-      )}
-    </EditorRow>
-  );
-}
-
 export function WorkspaceAutomationEditor({
   actions,
   automationId,
@@ -4143,6 +3465,7 @@ export function WorkspaceAutomationEditor({
           <TriggerSettings
             automationId={automationId}
             contentfulConnected={contentfulConnected}
+            contentfulConnections={contentfulConnections}
             disabled={disabled}
             errors={errors}
             form={form}
@@ -4166,24 +3489,18 @@ export function WorkspaceAutomationEditor({
               />
             }
           >
-            <div className="relative rounded-xl">
-              <Textarea
-                id="automation-instructions"
-                value={form.instructions}
-                disabled={disabled}
-                className="relative z-0 min-h-80 resize-y rounded-xl border-border bg-muted pb-10 font-sans text-sm leading-6"
-                placeholder={intl.formatMessage(
-                  form.skillIds.length > 0
-                    ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
-                    : workspaceAutomationFormMessages.instructionsPlaceholder,
-                )}
-                onChange={(event) => onChange({ ...form, instructions: event.target.value })}
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-px bottom-px z-10 h-11 rounded-b-[calc(0.75rem-1px)] bg-linear-to-t from-gray-alpha-200 via-gray-alpha-100 to-transparent backdrop-blur-sm"
-              />
-            </div>
+            <Textarea
+              id="automation-instructions"
+              value={form.instructions}
+              disabled={disabled}
+              className="min-h-80 resize-y rounded-xl border-border bg-muted font-sans text-sm leading-6"
+              placeholder={intl.formatMessage(
+                form.skillIds.length > 0
+                  ? workspaceAutomationFormMessages.instructionsWithSkillsPlaceholder
+                  : workspaceAutomationFormMessages.instructionsPlaceholder,
+              )}
+              onChange={(event) => onChange({ ...form, instructions: event.target.value })}
+            />
             <FieldError message={errors.instructions} />
           </EditorSection>
 

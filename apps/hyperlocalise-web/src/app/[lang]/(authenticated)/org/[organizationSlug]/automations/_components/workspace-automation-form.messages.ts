@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const workspaceAutomationFormMessages = defineMessages({
   scheduledTriggerHourly: {
-    defaultMessage: "Every hour · {timezone}",
-    id: "SlPmp40QPZ",
+    defaultMessage: "Every hour",
+    id: "/C7cczI0aP",
     description: "Summary for a scheduled automation that runs every hour",
   },
   scheduledTriggerDaily: {
@@ -44,16 +44,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "GitHub push and pull request · {repository} · {branches}",
     id: "/2DsRIRpZu",
     description: "Header summary for a GitHub trigger that runs on push and pull request",
-  },
-  githubEventPush: {
-    defaultMessage: "Push",
-    id: "k2PKKnD3GN",
-    description: "Toggle label for GitHub push trigger events",
-  },
-  githubEventPullRequest: {
-    defaultMessage: "Pull request opened",
-    id: "2C7ykfN2tG",
-    description: "Toggle label for GitHub pull request opened trigger events",
   },
   repositoryRequired: {
     defaultMessage: "repository required",
@@ -180,36 +170,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "uqGZNAVfVF",
     description: "Button to add a branch pattern",
   },
-  addTrigger: {
-    defaultMessage: "Add Trigger",
-    id: "DPE4D8nJkF",
-    description: "Button to open the add-trigger menu",
-  },
-  supportedTriggers: {
-    defaultMessage: "Supported triggers",
-    id: "peYw3ULGLY",
-    description: "Dropdown section label for available automation triggers",
-  },
-  manualRun: {
-    defaultMessage: "Manual run",
-    id: "Ya1gnhy/x1",
-    description: "Menu item to select a manual trigger",
-  },
-  scheduled: {
-    defaultMessage: "Scheduled",
-    id: "bCXvSTPFsb",
-    description: "Menu item to select a scheduled trigger",
-  },
-  githubPush: {
-    defaultMessage: "GitHub push",
-    id: "6YRqpDlcKq",
-    description: "Label for the GitHub push trigger",
-  },
-  sourceUpload: {
-    defaultMessage: "Source upload",
-    id: "91uWukrQcJ",
-    description: "Label for the source upload trigger",
-  },
   addedShortcut: {
     defaultMessage: "Added",
     id: "UQM29Qy4Ux",
@@ -225,65 +185,20 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "G7es7H7NT8",
     description: "Shortcut hint when an email provider must be connected first",
   },
-  triggersSection: {
-    defaultMessage: "Triggers",
-    id: "3kjfANjxLP",
+  triggerSection: {
+    defaultMessage: "Trigger",
+    id: "WuN0lCA6yk",
     description: "Section heading for automation trigger settings",
-  },
-  every: {
-    defaultMessage: "Every",
-    id: "tr/WtfszIz",
-    description: "Prefix label before the schedule cadence select",
-  },
-  cadenceHour: {
-    defaultMessage: "Hour",
-    id: "gXZ1TC7mZA",
-    description: "Hourly schedule cadence option",
-  },
-  cadenceDay: {
-    defaultMessage: "Day",
-    id: "+ixHu5wBKG",
-    description: "Daily schedule cadence option",
-  },
-  cadenceWeek: {
-    defaultMessage: "Week",
-    id: "4Iy9AzpaNC",
-    description: "Weekly schedule cadence option",
-  },
-  at: {
-    defaultMessage: "at",
-    id: "yC7UjRaWKX",
-    description: "Preposition between cadence and time in the schedule row",
   },
   scheduleTimezoneAriaLabel: {
     defaultMessage: "Schedule timezone",
     id: "VFS/q4p0GR",
     description: "Accessible label for the schedule timezone input",
   },
-  manualOnlyTitle: {
-    defaultMessage: "Manual only",
-    id: "YPT/4ux3Z/",
-    description: "Title when the automation only supports manual runs",
-  },
-  manualOnlyDescription: {
-    defaultMessage: "Runs only start when a teammate queues one from this automation.",
-    id: "yc2ziR1Owc",
-    description: "Description for the manual-only trigger",
-  },
-  contentfulWebhookConnectedDescription: {
-    defaultMessage: "Runs when Contentful sends a matching entry create or update webhook.",
-    id: "GdV4Jl3WMg",
-    description: "Description for Contentful webhook trigger when Contentful is connected",
-  },
   contentfulWebhookDisconnectedDescription: {
     defaultMessage: "Connect Contentful in Integrations before this trigger can run.",
     id: "PsCe6RXT6P",
     description: "Description for Contentful webhook trigger when Contentful is not connected",
-  },
-  sourceUploadDescription: {
-    defaultMessage: "Runs when a source file is uploaded to the project selected above.",
-    id: "1QEv3c/AxW",
-    description: "Description for the source upload trigger",
   },
   addTool: {
     defaultMessage: "Add Tool",
@@ -1231,21 +1146,10 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "rkQ7AmKMrt",
     description: "Placeholder for the automation instructions textarea",
   },
-  webChat: {
-    defaultMessage: "Web chat",
-    id: "+lT5g7sqtS",
-    description: "Menu item and label for the public web chat trigger",
-  },
   webChatSummary: {
     defaultMessage: "Web chat",
     id: "mg4r+1o1Aq",
     description: "Header summary for a web chat trigger",
-  },
-  webChatDescription: {
-    defaultMessage:
-      "Anyone with the link can chat with this agent. Traffic is protected with BotID. Visitors can attach images.",
-    id: "cUhuuxlusZ",
-    description: "Description of the public web chat trigger",
   },
   webChatUrlPending: {
     defaultMessage: "Save this automation to get a public chat URL.",
@@ -1362,5 +1266,56 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Web chat",
     id: "xF7D3G1OBo",
     description: "Run history trigger source for web chat",
+  },
+  skillCategoryReview: {
+    defaultMessage: "Review",
+    id: "bQPNqQ6BaC",
+    description: "Skill menu group: skills that check your own code and translations",
+  },
+  skillCategoryResearch: {
+    defaultMessage: "Research",
+    id: "tM2BieLM3f",
+    description:
+      "Skill menu group: skills that look things up outside your content, such as the web",
+  },
+  skillCategoryTranslate: {
+    defaultMessage: "Translate",
+    id: "lV6tIpjosi",
+    description: "Skill menu group: skills that produce translations",
+  },
+  skillCategoryReport: {
+    defaultMessage: "Report results",
+    id: "uY8w9jXbP0",
+    description: "Skill menu group: skills that send the run's outcome somewhere",
+  },
+  runSummaryYes: {
+    defaultMessage: "Yes",
+    id: "VyqM/DHC5Z",
+    description: "A true value in a run's result details",
+  },
+  runSummaryNo: {
+    defaultMessage: "No",
+    id: "nBxDlo+wU3",
+    description: "A false value in a run's result details",
+  },
+  runSummaryShowJson: {
+    defaultMessage: "View raw JSON",
+    id: "VvQgh8Trix",
+    description: "Button to show a run's result as raw JSON",
+  },
+  runSummaryHideJson: {
+    defaultMessage: "View formatted",
+    id: "ZE42IfPAsQ",
+    description: "Button to go back from raw JSON to the formatted run result",
+  },
+  runSummaryCopyJson: {
+    defaultMessage: "Copy JSON",
+    id: "FqcQ3Q8Id9",
+    description: "Accessible label for the button that copies a run's raw JSON result",
+  },
+  runSummaryNoHeadline: {
+    defaultMessage: "View details",
+    id: "AcKddeQtF1",
+    description: "Run history summary cell when a run has result details but no sentence to show",
   },
 });

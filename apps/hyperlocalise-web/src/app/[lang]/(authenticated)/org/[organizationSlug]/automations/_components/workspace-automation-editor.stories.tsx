@@ -13,7 +13,7 @@
 import { useState, type ReactNode } from "react";
 import { PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, waitFor, within } from "storybook/test";
+import { expect, fireEvent, fn, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
 import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
@@ -81,6 +81,24 @@ function WorkspaceAutomationEditorStory({
   );
 }
 
+/** Opens a category in the Add Skill menu. A simulated pointer closes a hover submenu, so use keys. */
+async function openSkillCategory(
+  canvas: ReturnType<typeof within>,
+  body: ReturnType<typeof within>,
+  userEvent: {
+    click: (element: Element) => Promise<void>;
+    keyboard: (text: string) => Promise<void>;
+    hover: (element: Element) => Promise<void>;
+  },
+  category: string,
+) {
+  if (canvas.getByRole("button", { name: "Add Skill" }).getAttribute("aria-expanded") !== "true") {
+    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
+  }
+  await userEvent.hover(await body.findByRole("menuitem", { name: category }));
+  await userEvent.keyboard("{ArrowRight}");
+}
+
 const meta = {
   title: "App/Automations/Editor",
   component: WorkspaceAutomationEditorStory,
@@ -131,8 +149,8 @@ export const ProjectSelectorForScheduledTrigger: Story = {
     await expect(
       await canvas.findByRole("button", { name: /Select project/i }),
     ).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Add Trigger" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: /^Scheduled/ }));
+    await userEvent.click(canvas.getByRole("button", { name: "Manually triggered" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: "On a schedule" }));
     await expect(canvas.getByRole("button", { name: /Select project/i })).toBeInTheDocument();
   },
 };
@@ -221,8 +239,8 @@ export const AddSkillEnablesTools: Story = {
     await expect(
       canvas.getByText("Pick what this automation should do. Each skill adds the tools it needs."),
     ).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: /^Research the web/ }));
+    await openSkillCategory(canvas, body, userEvent, "Research");
+    await fireEvent.click(await body.findByRole("menuitem", { name: /^Research the web/ }));
     await expect(
       canvas.getByText(/Searches the public web\. Changes nothing\./),
     ).toBeInTheDocument();
@@ -267,8 +285,8 @@ export const SuggestsFromInstructions: Story = {
 export const RiskySkillAsksFirst: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
-    await userEvent.click(await body.findByRole("menuitem", { name: /^Email results/ }));
+    await openSkillCategory(canvas, body, userEvent, "Report results");
+    await fireEvent.click(await body.findByRole("menuitem", { name: /^Email results/ }));
     await expect(
       await body.findByRole("alertdialog", { name: "Add Email results?" }),
     ).toBeInTheDocument();
@@ -287,14 +305,21 @@ export const DisconnectedSkillIsGreyedOut: Story = {
   },
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);
-    await userEvent.click(canvas.getByRole("button", { name: "Add Skill" }));
-    const slack = await body.findByRole("menuitem", { name: /^Post results to Slack/ });
-    await waitFor(() => expect(slack).toHaveAttribute("aria-disabled", "true"));
-    await expect(within(slack).getByText("Connect Slack first")).toBeInTheDocument();
-    await expect(body.getByRole("menuitem", { name: /^Research the web/ })).not.toHaveAttribute(
-      "aria-disabled",
-      "true",
+    await openSkillCategory(canvas, body, userEvent, "Report results");
+    // Query again on each try: the item re-renders once the Slack connection has loaded.
+    await waitFor(() =>
+      expect(body.getByRole("menuitem", { name: /^Post results to Slack/ })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      ),
     );
+    const slack = body.getByRole("menuitem", { name: /^Post results to Slack/ });
+    await expect(within(slack).getByText("Connect Slack first")).toBeInTheDocument();
+    await userEvent.keyboard("{ArrowLeft}");
+    await openSkillCategory(canvas, body, userEvent, "Research");
+    await expect(
+      await body.findByRole("menuitem", { name: /^Research the web/ }),
+    ).not.toHaveAttribute("aria-disabled", "true");
   },
 };
 
@@ -456,9 +481,16 @@ export const DetailRunHistory: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
-    await expect(canvas.getByText("succeeded")).toBeInTheDocument();
-    await expect(canvas.getByText("failed")).toBeInTheDocument();
-    await expect(canvas.getByText("running")).toBeInTheDocument();
+    await expect(canvas.getByText("Succeeded")).toBeInTheDocument();
+    await expect(canvas.getByText("Failed")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
+    // The summary reads as a sentence when collapsed and in full, by field, when opened.
+    await expect(canvas.getByText("GitHub sync failed")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Reviewed 12 changed locale files/ }));
+    await expect(canvas.getByText("Repository full name")).toBeInTheDocument();
+    await expect(canvas.getByText("acme/website")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "View raw JSON" }));
+    await expect(canvas.getByText(/"repositoryFullName": "acme\/website"/)).toBeInTheDocument();
   },
 };
 
