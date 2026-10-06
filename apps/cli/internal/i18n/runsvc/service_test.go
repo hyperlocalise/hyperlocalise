@@ -1108,17 +1108,14 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	if report.Succeeded != 1 || report.Failed != 1 {
 		t.Fatalf("unexpected execution totals: %+v", report)
 	}
-	if report.PersistedToLock != 1 {
-		t.Fatalf("expected successful sibling persisted to lock, got persisted=%d", report.PersistedToLock)
+	if report.PersistedToLock != 0 {
+		t.Fatalf("expected lock rollback for failed target, got persisted=%d", report.PersistedToLock)
 	}
 	if len(report.Failures) != 1 || report.Failures[0].EntryKey != "bad" {
 		t.Fatalf("unexpected failures: %+v", report.Failures)
 	}
-	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "ok")]; !ok {
-		t.Fatalf("expected completed lock entry for successful key, got %+v", lockState.RunCompleted)
-	}
-	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "bad")]; ok {
-		t.Fatalf("did not expect completed lock entry for failed key, got %+v", lockState.RunCompleted)
+	if len(lockState.RunCompleted) != 0 {
+		t.Fatalf("expected no completed lock entries for failed target, got %+v", lockState.RunCompleted)
 	}
 
 	var payload map[string]any
@@ -1133,7 +1130,7 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	}
 }
 
-func TestRunPartialFailureResumesOnlyFailedKeyWithoutForce(t *testing.T) {
+func TestRunKeepCompletedOnFailureResumesOnlyFailedKey(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
 	targetPath := "/tmp/out.json"
@@ -1179,7 +1176,7 @@ func TestRunPartialFailureResumesOnlyFailedKeyWithoutForce(t *testing.T) {
 		return strings.ToUpper(req.Source), nil
 	}
 
-	first, err := svc.Run(context.Background(), Input{})
+	first, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
 	if err != nil {
 		t.Fatalf("first run: %v", err)
 	}
@@ -1188,12 +1185,63 @@ func TestRunPartialFailureResumesOnlyFailedKeyWithoutForce(t *testing.T) {
 	}
 
 	failBoom = false
-	second, err := svc.Run(context.Background(), Input{})
+	second, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
 	if err != nil {
 		t.Fatalf("second run: %v", err)
 	}
 	if second.SkippedByLock != 1 || second.ExecutableTotal != 1 || second.Succeeded != 1 || second.Failed != 0 {
 		t.Fatalf("expected resume of only the failed key, got %+v", second)
+	}
+}
+
+func TestRunKeepCompletedOnFailureRollsBackLockWhenFinalizeWriteFails(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	lockState := &lockfile.File{LocaleStates: map[string]lockfile.LocaleCheckpoint{}, RunCompleted: map[string]lockfile.RunCompletion{}}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
+	}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"ok":"hello","bad":"boom"}`), nil
+		case targetPath:
+			return []byte(`{"existing":"v"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "boom" {
+			return "", errors.New("translation failed")
+		}
+		return strings.ToUpper(req.Source), nil
+	}
+	svc.writeFile = func(path string, _ []byte) error {
+		if path == targetPath {
+			return errors.New("disk full")
+		}
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{KeepCompletedOnFailure: true})
+	if err == nil {
+		t.Fatal("expected finalize write failure")
+	}
+	if report.Succeeded != 1 || report.Failed != 1 {
+		t.Fatalf("unexpected execution totals: %+v", report)
+	}
+	if len(lockState.RunCompleted) != 0 {
+		t.Fatalf("expected lock rollback after failed write, got %+v", lockState.RunCompleted)
 	}
 }
 

@@ -20,12 +20,19 @@ export const fileTranslationReportSchema = z.object({
 
 export type FileTranslationReport = z.infer<typeof fileTranslationReportSchema>;
 
-/** A mixed CLI report is progress, not a hard failure. Only fail the step when
- * nothing succeeded — otherwise the next page can resume from the lockfile. */
+const CLI_TASK_FAILURE_MARKER = /run completed with failures:\s*\d+/;
+
+/** Task-level `hl run` failures are progress when some keys succeeded.
+ * Other nonzero exits (output write, lock save) stay fatal even if the
+ * report already counted successes. */
 export function isFileTranslationCliHardFailure(
   progress: Pick<FileTranslationReport, "succeeded" | "failed">,
   exitCode: number,
+  output = "",
 ): boolean {
+  if (exitCode !== 0 && !CLI_TASK_FAILURE_MARKER.test(output)) {
+    return true;
+  }
   if (progress.succeeded > 0) {
     return false;
   }

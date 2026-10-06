@@ -1745,6 +1745,30 @@ func TestRunForceFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunKeepCompletedOnFailureFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	received := false
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		received = input.KeepCompletedOnFailure
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--keep-completed-on-failure"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with keep-completed-on-failure: %v", err)
+	}
+	if !received {
+		t.Fatalf("expected --keep-completed-on-failure to set runsvc.Input.KeepCompletedOnFailure")
+	}
+}
+
 func TestRunMaxTranslationsFlagPlumbedToServiceInput(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })

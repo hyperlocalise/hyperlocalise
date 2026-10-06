@@ -50,12 +50,34 @@ describe("collectCompletedTranslationPageEntries", () => {
 });
 
 describe("isFileTranslationCliHardFailure", () => {
-  it("treats a mixed success report as progress even when hl exits non-zero", () => {
-    expect(isFileTranslationCliHardFailure({ succeeded: 99, failed: 1 }, 1)).toBe(false);
+  it("treats a mixed success report as progress when hl reports task failures", () => {
+    expect(
+      isFileTranslationCliHardFailure(
+        { succeeded: 99, failed: 1 },
+        1,
+        "run completed with failures: 1",
+      ),
+    ).toBe(false);
+  });
+
+  it("fails the step when hl exits after a write or lock error despite successes", () => {
+    expect(
+      isFileTranslationCliHardFailure(
+        { succeeded: 99, failed: 0 },
+        1,
+        "flush outputs: write /tmp/out.json: disk full",
+      ),
+    ).toBe(true);
   });
 
   it("fails the step when every attempted key failed", () => {
-    expect(isFileTranslationCliHardFailure({ succeeded: 0, failed: 1 }, 1)).toBe(true);
+    expect(
+      isFileTranslationCliHardFailure(
+        { succeeded: 0, failed: 1 },
+        1,
+        "run completed with failures: 1",
+      ),
+    ).toBe(true);
   });
 
   it("fails the step when hl exits non-zero without any successes", () => {

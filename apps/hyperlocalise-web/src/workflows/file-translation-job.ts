@@ -460,7 +460,7 @@ async function runTranslationStep(
       [
         "-lc",
         appendHlRunReportOutput(
-          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --workers 4 --progress off${prefilledFlags}`,
+          `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --keep-completed-on-failure --workers 4 --progress off${prefilledFlags}`,
           reportPath,
         ),
       ],
@@ -1182,7 +1182,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       }
 
       const deferredByLimit = translation.progress.deferredByLimit;
-      if (isFileTranslationCliHardFailure(translation.progress, translation.exitCode)) {
+      if (
+        isFileTranslationCliHardFailure(
+          translation.progress,
+          translation.exitCode,
+          translation.output,
+        )
+      ) {
         const cliFailureKind = classifyCliFailureKind(translation.output);
         console.error("[file-translation-workflow] hl run failed", {
           jobId: claim.job.id,
