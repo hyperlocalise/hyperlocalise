@@ -70,6 +70,33 @@ export function memoryInterchangeCountItems(attempt: {
   }));
 }
 
+export type MemoryInterchangePreviewSample = {
+  sourceLocale: string;
+  targetLocale: string;
+  sourceText: string;
+  targetText: string;
+};
+
+export function memoryInterchangePreviewSamples(attempt: {
+  counts: Record<string, unknown> | null;
+}): MemoryInterchangePreviewSample[] {
+  const raw = attempt.counts?.samples;
+  if (!Array.isArray(raw)) return [];
+  const samples: MemoryInterchangePreviewSample[] = [];
+  for (const item of raw.slice(0, 5)) {
+    if (typeof item !== "object" || item === null) continue;
+    const record = item as Record<string, unknown>;
+    if (typeof record.sourceText !== "string" || typeof record.targetText !== "string") continue;
+    samples.push({
+      sourceLocale: typeof record.sourceLocale === "string" ? record.sourceLocale : "",
+      targetLocale: typeof record.targetLocale === "string" ? record.targetLocale : "",
+      sourceText: record.sourceText,
+      targetText: record.targetText,
+    });
+  }
+  return samples;
+}
+
 class ImportReportRequestError extends Error {
   status: number;
 
@@ -323,17 +350,22 @@ export function TmImportAttemptDetail({
     }
   };
   const countItems = memoryInterchangeCountItems(attempt);
+  const previewSamples = memoryInterchangePreviewSamples(attempt);
+  const showPreviewSamples = attempt.status === "preview_completed" && previewSamples.length > 0;
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
     intl.formatMessage(messages.unknown);
   // Applying mirrors finalizeMemoryImport: only the uploader, with memory
   // write access, on a non-archived memory. Everyone else would get a 409,
-  // so don't offer the action.
+  // so don't offer the action. The memory must have loaded successfully —
+  // while it is loading (or when it fails to load) its status is unknown.
+  const memory = memoryQuery.data;
   const canApplyImport =
     attempt.status === "preview_completed" &&
     canWriteMemories &&
     attempt.createdByUserId === currentUserId &&
-    memoryQuery.data?.status !== "archived";
+    memory != null &&
+    memory.status !== "archived";
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -491,6 +523,39 @@ export function TmImportAttemptDetail({
           )}
         </CardContent>
       </Card>
+
+      {showPreviewSamples ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <FormattedMessage {...messages.previewSamples} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {previewSamples.map((sample, index) => (
+                <li
+                  key={`${sample.sourceLocale}-${sample.targetLocale}-${index}`}
+                  className="space-y-1 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sample.sourceLocale ? (
+                      <Badge variant="secondary">{sample.sourceLocale}</Badge>
+                    ) : null}
+                    <span className="text-sm text-foreground">{sample.sourceText}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {sample.targetLocale ? (
+                      <Badge variant="secondary">{sample.targetLocale}</Badge>
+                    ) : null}
+                    <span className="text-sm text-muted-foreground">{sample.targetText}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {attempt.operation === "import" ? (
         <Card>

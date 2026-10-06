@@ -331,6 +331,13 @@ export type MemoryImportQueueResponse = {
   previousMode: string;
 };
 
+export type MemoryImportCancelResponse = {
+  attemptId: string;
+  operation: "import";
+  mode: "cancel";
+  status: "failed";
+};
+
 export type MemoryInterchangeDownloadUrl = {
   url: string;
   method: "GET";

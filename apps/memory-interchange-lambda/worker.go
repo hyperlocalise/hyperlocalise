@@ -20,6 +20,10 @@ import (
 
 const MAX_MEMORY_INTERCHANGE_BYTES int64 = 100 * 1024 * 1024
 
+// memoryImportPreviewSampleLimit bounds the representative translations stored
+// with a preview so the report page can show them before the import is applied.
+const memoryImportPreviewSampleLimit = 5
+
 type permanentMemoryInterchangeError struct {
 	cause error
 }
@@ -35,6 +39,24 @@ func permanentMemoryInterchangeFailure(err error) error {
 func isPermanentMemoryInterchangeFailure(err error) bool {
 	var permanent permanentMemoryInterchangeError
 	return errors.As(err, &permanent)
+}
+
+// memoryImportPreviewSamples captures the first parsed units so reviewers can
+// inspect representative translations before applying the import.
+func memoryImportPreviewSamples(candidates []memoryinterchange.Candidate, limit int) []map[string]any {
+	samples := make([]map[string]any, 0, limit)
+	for _, candidate := range candidates {
+		if len(samples) >= limit {
+			break
+		}
+		samples = append(samples, map[string]any{
+			"sourceLocale": candidate.SourceLocale,
+			"targetLocale": candidate.TargetLocale,
+			"sourceText":   candidate.SourceText,
+			"targetText":   candidate.TargetText,
+		})
+	}
+	return samples
 }
 
 func processMemoryInterchangeRun(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, message memoryInterchangeMessage) error {
@@ -110,7 +132,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		candidates = candidates[:maxUnits]
 		issues = append(issues, memoryinterchange.Issue{Severity: "warning", Code: "truncated_units", Message: "Import truncated to maxUnits"})
 	}
-	counts := map[string]any{"totalRead": len(candidates), "created": 0, "updated": 0, "variantCreated": 0, "skipped": 0, "warned": 0, "failed": 0}
+	counts := map[string]any{"totalRead": len(candidates), "created": 0, "updated": 0, "variantCreated": 0, "skipped": 0, "warned": 0, "failed": 0, "samples": memoryImportPreviewSamples(candidates, memoryImportPreviewSampleLimit)}
 	for _, issue := range issues {
 		if issue.Severity == "warning" {
 			counts["warned"] = counts["warned"].(int) + 1

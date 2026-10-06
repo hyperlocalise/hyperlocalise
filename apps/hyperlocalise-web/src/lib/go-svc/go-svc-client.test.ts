@@ -584,6 +584,26 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
   });
 
+  it("cancels a stale memory import upload session", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ attemptId: "attempt-1", status: "failed" }));
+    const client = clientWith(fetchMock);
+
+    await expect(
+      client.memory.entries.cancelImport("acme", "memory-1", { attemptId: "attempt-1" }),
+    ).resolves.toMatchObject({ attemptId: "attempt-1", status: "failed" });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories/memory-1/entries/import`,
+    );
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)).toMatchObject({
+      attemptId: "attempt-1",
+      mode: "cancel",
+    });
+  });
+
   it("rejects invalid base URLs and non-absolute paths", async () => {
     expect(
       () =>

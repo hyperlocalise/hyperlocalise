@@ -115,6 +115,11 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "uERqNSE1ZH",
     description: "Import report diagnostics heading",
   },
+  previewSamples: {
+    defaultMessage: "Sample entries",
+    id: "8Cx9qyy6lL",
+    description: "Heading for representative translations in an import preview",
+  },
   translationMemory: {
     defaultMessage: "Translation memory",
     id: "jt4oiRYF1R",

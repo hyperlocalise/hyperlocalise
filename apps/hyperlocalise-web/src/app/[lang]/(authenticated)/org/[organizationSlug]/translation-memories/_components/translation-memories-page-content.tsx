@@ -358,9 +358,20 @@ export function TranslationMemoriesPageContent({
       // Lambda-backed import: normalize to UTF-8 before upload (see the
       // translation memory import flow). Re-encoded text can grow, so
       // re-check the limit against the bytes actually uploaded.
-      const importUploadBytes = normalizeMemoryImportUploadBytes(
-        new Uint8Array(await file.arrayBuffer()),
-      );
+      let importUploadBytes: Uint8Array;
+      try {
+        importUploadBytes = normalizeMemoryImportUploadBytes(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+      } catch (error) {
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
       if (
         importUploadBytes.byteLength <= 0 ||
         importUploadBytes.byteLength > MEMORY_IMPORT_UPLOAD_LIMIT_BYTES
@@ -392,12 +403,33 @@ export function TranslationMemoriesPageContent({
       for (const [headerName, headerValues] of Object.entries(upload.upload.headers)) {
         headers.set(headerName, headerValues.join(","));
       }
-      const uploaded = await fetch(upload.upload.url, {
-        method: upload.upload.method,
-        headers,
-        body: importUploadBytes,
-      });
+      // Fail the upload session if the PUT or the queue request fails, so a
+      // stale upload_pending attempt does not linger in import history.
+      const cancelUploadSession = () => {
+        void goSvcClient.memory.entries
+          .cancelImport(organizationSlug, memoryId, { attemptId: upload.attemptId })
+          .catch(() => undefined);
+      };
+      let uploaded;
+      try {
+        uploaded = await fetch(upload.upload.url, {
+          method: upload.upload.method,
+          headers,
+          // BodyInit takes ArrayBuffer but not Uint8Array under this TS DOM lib.
+          body: importUploadBytes.slice().buffer,
+        });
+      } catch (error) {
+        cancelUploadSession();
+        throw new CreateMemoryImportError(
+          memoryId,
+          goSvcErrorMessage(
+            error,
+            intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
+          ),
+        );
+      }
       if (!uploaded.ok) {
+        cancelUploadSession();
         throw new CreateMemoryImportError(
           memoryId,
           intl.formatMessage(translationMemoriesPageContentMessages.importAfterCreateFailed),
@@ -410,6 +442,7 @@ export function TranslationMemoriesPageContent({
         });
         return { memoryId, importAttemptId: queued.attemptId };
       } catch (error) {
+        cancelUploadSession();
         throw new CreateMemoryImportError(
           memoryId,
           goSvcErrorMessage(

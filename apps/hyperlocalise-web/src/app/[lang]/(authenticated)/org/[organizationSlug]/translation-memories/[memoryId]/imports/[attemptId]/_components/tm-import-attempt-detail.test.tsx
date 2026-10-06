@@ -20,6 +20,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   memoryInterchangeCountItems,
+  memoryInterchangePreviewSamples,
   TmImportAttemptDetail,
   TmImportDiagnosticList,
   TmInterchangeFailureDetails,
@@ -32,7 +33,10 @@ const { getAttemptMock, queueImportMock, memoryGetMock } = vi.hoisted(() => ({
     async (): Promise<{
       ok: boolean;
       json?: () => Promise<{ memory: { name: string; status: string } }>;
-    }> => ({ ok: false as const }),
+    }> => ({
+      ok: true as const,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    }),
   ),
 }));
 
@@ -189,6 +193,39 @@ describe("memoryInterchangeCountItems", () => {
   });
 });
 
+describe("memoryInterchangePreviewSamples", () => {
+  it("returns well-formed samples and skips malformed entries", () => {
+    const samples = memoryInterchangePreviewSamples({
+      counts: {
+        samples: [
+          { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+          { sourceText: "Missing target" },
+          "not-an-object",
+          { sourceText: "Second", targetText: "Kedua" },
+        ],
+      },
+    });
+    expect(samples).toEqual([
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+      { sourceLocale: "", targetLocale: "", sourceText: "Second", targetText: "Kedua" },
+    ]);
+  });
+
+  it("caps samples at five entries", () => {
+    const makeSample = (index: number) => ({ sourceText: `s${index}`, targetText: `t${index}` });
+    const samples = memoryInterchangePreviewSamples({
+      counts: { samples: Array.from({ length: 8 }, (_, index) => makeSample(index)) },
+    });
+    expect(samples).toHaveLength(5);
+    expect(samples[0]).toEqual({ sourceLocale: "", targetLocale: "", sourceText: "s0", targetText: "t0" });
+  });
+
+  it("returns an empty list when counts carry no samples", () => {
+    expect(memoryInterchangePreviewSamples({ counts: null })).toEqual([]);
+    expect(memoryInterchangePreviewSamples({ counts: {} })).toEqual([]);
+  });
+});
+
 describe("TmImportAttemptDetail apply action", () => {
   it("shows Import entries while the preview is ready", async () => {
     getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
@@ -250,7 +287,53 @@ describe("TmImportAttemptDetail apply action", () => {
     await screen.findByText("memory.tmx");
 
     expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    });
+  });
+
+  it("hides Import entries while the memory fails to load", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
     memoryGetMock.mockResolvedValue({ ok: false });
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    });
+  });
+});
+
+describe("TmImportAttemptDetail preview samples", () => {
+  it("shows preview samples while the preview is ready", async () => {
+    const response = previewAttemptResponse("preview_completed");
+    (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Goodbye", targetText: "Selamat tinggal" },
+    ];
+    getAttemptMock.mockResolvedValue(response);
+    renderDetail();
+
+    expect(await screen.findByText("Sample entries")).toBeInTheDocument();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.getByText("Selamat tinggal")).toBeInTheDocument();
+  });
+
+  it("hides preview samples once the import completes", async () => {
+    const response = previewAttemptResponse("completed");
+    (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+    ];
+    getAttemptMock.mockResolvedValue(response);
+    renderDetail();
+
+    await screen.findByText("View affected entries");
+
+    expect(screen.queryByText("Sample entries")).not.toBeInTheDocument();
   });
 });
 

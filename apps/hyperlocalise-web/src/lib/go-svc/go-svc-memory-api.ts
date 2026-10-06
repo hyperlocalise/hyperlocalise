@@ -16,6 +16,7 @@ import type {
   GoSvcRequestOptions,
   MemoryEntry,
   MemoryExportJob,
+  MemoryImportCancelResponse,
   MemoryImportQueueResponse,
   MemoryImportUploadSession,
   MemoryInterchangeAttempt,
@@ -229,6 +230,18 @@ export class GoSvcMemoryEntriesApi {
     return this.request.json<MemoryImportQueueResponse>(
       orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import"),
       { method: "POST", body, ...options },
+    );
+  }
+
+  cancelImport(
+    organizationSlug: string,
+    memoryId: string,
+    body: { attemptId: string },
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<MemoryImportCancelResponse>(
+      orgPath(organizationSlug, "translation-memories", memoryId, "entries", "import"),
+      { method: "POST", body: { ...body, mode: "cancel" }, ...options },
     );
   }
 

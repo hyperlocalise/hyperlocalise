@@ -112,12 +112,24 @@ export function TmImportExportPanel({
       for (const [name, values] of Object.entries(upload.upload.headers)) {
         headers.set(name, values.join(","));
       }
+      // Fail the upload session if the PUT or the queue request fails, so a
+      // stale upload_pending attempt does not linger in import history.
+      const cancelUploadSession = () => {
+        void goSvcClient.memory.entries
+          .cancelImport(organizationSlug, memoryId, { attemptId: upload.attemptId })
+          .catch(() => undefined);
+      };
       const uploaded = await fetch(upload.upload.url, {
         method: upload.upload.method,
         headers,
-        body: uploadBytes,
+        // BodyInit takes ArrayBuffer but not Uint8Array under this TS DOM lib.
+        body: uploadBytes.slice().buffer,
+      }).catch((error: unknown) => {
+        cancelUploadSession();
+        throw error;
       });
       if (!uploaded.ok) {
+        cancelUploadSession();
         throw new Error(intl.formatMessage(messages.uploadFailed));
       }
       try {
@@ -126,6 +138,7 @@ export function TmImportExportPanel({
           mode: "preview",
         });
       } catch (error) {
+        cancelUploadSession();
         throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.importFailed)), {
           cause: error,
         });
