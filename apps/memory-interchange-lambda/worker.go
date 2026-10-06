@@ -152,8 +152,8 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	}
 
 	var userID *string
-	var memoryID, memoryStatus string
-	if err := pool.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus); err != nil {
+	var memoryID, memoryStatus, organizationID string
+	if err := pool.QueryRow(ctx, `select a.created_by_user_id::text, a.memory_id::text, m.status, a.organization_id::text from memory_import_attempts a join memories m on m.id=a.memory_id where a.id=$1`, attemptID).Scan(&userID, &memoryID, &memoryStatus, &organizationID); err != nil {
 		return err
 	}
 	if memoryStatus == "archived" {
@@ -196,6 +196,13 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	counts["variantCreated"] = variantCreated
 	counts["skipped"] = skipped
 	countsJSON, _ = json.Marshal(counts)
+	actorUserID := ""
+	if userID != nil {
+		actorUserID = *userID
+	}
+	if err := insertTranslationMemoryImportedActivity(ctx, tx, organizationID, actorUserID, memoryID, attemptID, created+variantCreated); err != nil {
+		return err
+	}
 	status := "completed"
 	if failed > 0 {
 		status = "partially_successful"
@@ -203,11 +210,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if _, err = tx.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1 and status='running'`, attemptID, status, hashHex, countsJSON, headerValue); err != nil {
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	publishTranslationMemoryImportedActivity(ctx, pool, attemptID, memoryID, created+variantCreated)
-	return nil
+	return tx.Commit(ctx)
 }
 
 func runMemoryExport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Registry, attemptID, format string, options []byte) error {

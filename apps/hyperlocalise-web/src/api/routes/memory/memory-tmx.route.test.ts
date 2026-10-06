@@ -175,6 +175,9 @@ describe("memory TMX export and interchange history", () => {
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
+    const olderAttemptAt = new Date("2026-08-01T12:00:00.000Z");
+    const newerAttemptAt = new Date("2026-08-01T13:00:00.000Z");
+
     const [first, second] = await db
       .insert(schema.memoryImportAttempts)
       .values([
@@ -186,6 +189,8 @@ describe("memory TMX export and interchange history", () => {
           status: "completed",
           mode: "preview",
           format: "tmx",
+          createdAt: olderAttemptAt,
+          completedAt: olderAttemptAt,
           counts: {
             totalRead: 1,
             created: 1,
@@ -205,6 +210,8 @@ describe("memory TMX export and interchange history", () => {
           mode: "preview",
           format: "csv",
           failureCode: "malformed_xml",
+          createdAt: newerAttemptAt,
+          completedAt: newerAttemptAt,
           counts: {
             totalRead: 0,
             created: 0,
@@ -233,6 +240,8 @@ describe("memory TMX export and interchange history", () => {
       pagination: { hasMore: boolean };
     };
     expect(firstPageBody.pagination).toMatchObject({ hasMore: true });
+    expect(firstPageBody.memoryImportAttempts).toHaveLength(1);
+    expect(firstPageBody.nextCursor).toEqual(expect.any(String));
 
     const secondPage = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
@@ -248,6 +257,7 @@ describe("memory TMX export and interchange history", () => {
       pagination: { hasMore: boolean };
     };
     expect(secondPageBody.pagination).toMatchObject({ hasMore: false });
+    expect(secondPageBody.memoryImportAttempts).toHaveLength(1);
     expect(
       new Set([
         firstPageBody.memoryImportAttempts[0]?.id,

@@ -674,6 +674,7 @@ describe("GET /translation-memories/:memoryId/entries", () => {
       targetLocale: "es",
       sourceText: "Hello",
       targetText: "Hola",
+      provenance: "import",
       createdByUserId: user.id,
       importBatchId,
     });
@@ -682,6 +683,7 @@ describe("GET /translation-memories/:memoryId/entries", () => {
       targetLocale: "fr",
       sourceText: "Hello",
       targetText: "Bonjour",
+      provenance: "import",
       createdByUserId: user.id,
       importBatchId,
     });

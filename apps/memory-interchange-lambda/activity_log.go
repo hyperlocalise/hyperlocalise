@@ -3,71 +3,42 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/activitylog"
+	"github.com/jackc/pgx/v5"
 )
 
-const memoryInterchangeActivityLogQueueURLEnv = "ACTIVITY_LOG_QUEUE_URL"
-
-type memoryInterchangeActivityInput struct {
-	ActorKind      string
-	ActorUserID    string
-	EventType      string
-	OrganizationID string
-	Payload        json.RawMessage
-	TargetID       string
-	TargetKind     string
-}
-
-type memoryInterchangeActivityPublisher struct {
-	client   *sqs.Client
-	queueURL string
-}
-
-func newMemoryInterchangeActivityPublisher(ctx context.Context) (*memoryInterchangeActivityPublisher, error) {
-	queueURL := strings.TrimSpace(os.Getenv(memoryInterchangeActivityLogQueueURLEnv))
-	if queueURL == "" {
-		return nil, nil
-	}
-	region := strings.TrimSpace(os.Getenv("AWS_REGION"))
-	config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
-	if err != nil {
-		return nil, fmt.Errorf("load AWS configuration: %w", err)
-	}
-	return &memoryInterchangeActivityPublisher{
-		client:   sqs.NewFromConfig(config),
-		queueURL: queueURL,
-	}, nil
-}
-
-func (p *memoryInterchangeActivityPublisher) Publish(ctx context.Context, input memoryInterchangeActivityInput) error {
-	if p == nil || p.client == nil {
+func insertTranslationMemoryImportedActivity(
+	ctx context.Context,
+	tx pgx.Tx,
+	organizationID, userID, memoryID, attemptID string,
+	itemCount int,
+) error {
+	if itemCount <= 0 {
 		return nil
 	}
-	actorKind := strings.TrimSpace(input.ActorKind)
-	if actorKind == "" {
-		actorKind = "user"
+	payload, err := json.Marshal(map[string]any{
+		"batchId":    attemptID,
+		"itemCount":  itemCount,
+		"resourceId": memoryID,
+	})
+	if err != nil {
+		return err
 	}
 	event := activitylog.Event{
-		ActorKind:      actorKind,
+		ActorKind:      "user",
 		CreatedAt:      time.Now().UTC().Format(time.RFC3339Nano),
-		EventType:      input.EventType,
+		EventType:      "translation_memory_imported",
 		ID:             uuid.NewString(),
-		OrganizationID: input.OrganizationID,
-		Payload:        input.Payload,
-		TargetID:       input.TargetID,
-		TargetKind:     input.TargetKind,
+		OrganizationID: organizationID,
+		Payload:        payload,
+		TargetID:       memoryID,
+		TargetKind:     "translation_memory",
 	}
-	if userID := strings.TrimSpace(input.ActorUserID); userID != "" {
+	if userID != "" {
 		event.ActorUserID = aws.String(userID)
 	}
 	message := activitylog.Message{
@@ -78,16 +49,5 @@ func (p *memoryInterchangeActivityPublisher) Publish(ctx context.Context, input 
 	if err := activitylog.ValidateMessage(message); err != nil {
 		return err
 	}
-	body, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-	_, err = p.client.SendMessage(ctx, &sqs.SendMessageInput{
-		MessageBody: aws.String(string(body)),
-		QueueUrl:    aws.String(p.queueURL),
-	})
-	if err != nil {
-		return errors.New("send activity log message")
-	}
-	return nil
+	return activitylog.NewStore(tx).Insert(ctx, event)
 }

@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/memoryinterchange"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const memoryImportLookupBatchSize = 2000
@@ -170,6 +171,7 @@ func applyPlannedMemoryImport(
 				continue
 			}
 			candidate := item.Candidate
+			normalized := memoryinterchange.NormalizeSourceText(candidate.SourceText)
 			var version int
 			if err := tx.QueryRow(ctx, `select version from memory_entries where id=$1 and memory_id=$2`, item.ExistingID, memoryID).Scan(&version); err != nil {
 				if err == pgx.ErrNoRows {
@@ -181,10 +183,12 @@ func applyPlannedMemoryImport(
 			nextVersion := version + 1
 			tag, updateErr := tx.Exec(ctx, `
 				update memory_entries
-				set target_text=$3, match_score=$4, provenance='import', modified_by_user_id=$5,
-				    import_batch_id=$6, external_key=coalesce($7, external_key), version=$8, updated_at=now()
-				where id=$1 and memory_id=$2 and version=$9`,
-				item.ExistingID, memoryID, candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey, nextVersion, version,
+				set source_locale=$3, target_locale=$4, source_text=$5, normalized_source_text=$6,
+				    target_text=$7, match_score=$8, provenance='import', modified_by_user_id=$9,
+				    import_batch_id=$10, external_key=coalesce($11, external_key), version=$12, updated_at=now()
+				where id=$1 and memory_id=$2 and version=$13`,
+				item.ExistingID, memoryID, candidate.SourceLocale, candidate.TargetLocale, candidate.SourceText, normalized,
+				candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey, nextVersion, version,
 			)
 			if updateErr != nil {
 				return created, updated, variantCreated, skipped, updateErr
@@ -217,40 +221,16 @@ func recordMemoryImportEntryEvent(ctx context.Context, tx pgx.Tx, entryID, memor
 		if _, rollbackErr := tx.Exec(ctx, "rollback to savepoint memory_import_entry_event"); rollbackErr != nil {
 			return rollbackErr
 		}
-		return nil
+		if isUndefinedRelation(err) {
+			return nil
+		}
+		return err
 	}
 	_, err = tx.Exec(ctx, "release savepoint memory_import_entry_event")
 	return err
 }
 
-func publishTranslationMemoryImportedActivity(ctx context.Context, pool *pgxpool.Pool, attemptID, memoryID string, itemCount int) {
-	var organizationID, userID string
-	err := pool.QueryRow(ctx, `
-		select organization_id::text, created_by_user_id::text
-		from memory_import_attempts where id=$1`, attemptID,
-	).Scan(&organizationID, &userID)
-	if err != nil {
-		return
-	}
-	payload, err := json.Marshal(map[string]any{
-		"batchId":    attemptID,
-		"itemCount":  itemCount,
-		"resourceId": memoryID,
-	})
-	if err != nil {
-		return
-	}
-	publisher, err := newMemoryInterchangeActivityPublisher(ctx)
-	if err != nil || publisher == nil {
-		return
-	}
-	_ = publisher.Publish(ctx, memoryInterchangeActivityInput{
-		ActorKind:      "user",
-		ActorUserID:    userID,
-		EventType:      "translation_memory_imported",
-		OrganizationID: organizationID,
-		Payload:        payload,
-		TargetID:       memoryID,
-		TargetKind:     "translation_memory",
-	})
+func isUndefinedRelation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "42P01"
 }
