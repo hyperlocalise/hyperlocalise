@@ -256,6 +256,28 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	require.Equal(t, "spelling", withExtras.queueFilterQualifier)
 	require.Equal(t, "icu", withExtras.advancedFilter.StringType)
 	require.Equal(t, "hidden", withExtras.advancedFilter.Visibility)
+	impossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2026-02-31","stringType":"icu"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "", impossibleDate.advancedFilter.AddedFrom)
+	require.Equal(t, "icu", impossibleDate.advancedFilter.StringType)
+	onlyImpossibleDate, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"updatedTo":"2026-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Nil(t, onlyImpossibleDate.advancedFilter)
+	leapDay, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":    {"a.json"},
+		"targetLocale":  {"fr"},
+		"queueAdvanced": {`{"addedFrom":"2024-02-29"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "2024-02-29", leapDay.advancedFilter.AddedFrom)
 	_, err = parseEditorCatQueueQuery(map[string][]string{"sourcePath": {"a.json"}})
 	require.Error(t, err)
 	_, err = parseEditorCatQueueQuery(map[string][]string{
@@ -796,6 +818,13 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, advancedSQL, "k.type = 'icu'")
 	require.Contains(t, advancedSQL, "k.is_hidden = false")
 	require.Contains(t, advancedSQL, "not exists (select 1 from project_translations t where")
+
+	plainSQL := editorCatStringTypeSQL("plain")
+	require.Contains(t, plainSQL, "k.type is null")
+	require.Contains(t, plainSQL, "k.type = ''")
+	require.Contains(t, plainSQL, "'text'")
+	require.Contains(t, plainSQL, "'plain'")
+	require.Contains(t, plainSQL, "'string'")
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {

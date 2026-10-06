@@ -166,10 +166,11 @@ function nativeDateBoundSql(
 
 function nativeStringTypeSql(stringType: ContentEditorAdvancedQueueFilter["stringType"]) {
   if (stringType === "plain") {
+    // Native JSON/JSONC ingestion stores ordinary entries as type "string".
     return sql`(
       ${schema.projectTranslationKeys.type} is null
       or ${schema.projectTranslationKeys.type} = ''
-      or ${schema.projectTranslationKeys.type} in ('text', 'plain')
+      or ${schema.projectTranslationKeys.type} in ('text', 'plain', 'string')
     )`;
   }
   if (stringType === "plural") {

@@ -48,6 +48,22 @@ describe("parseAdvancedQueueFilter", () => {
     expect(parseAdvancedQueueFilter(JSON.stringify({ extra: true }))).toBeUndefined();
     expect(parseAdvancedQueueFilter(JSON.stringify({}))).toBeUndefined();
   });
+
+  it("rejects impossible calendar dates and keeps real ones", () => {
+    expect(parseAdvancedQueueFilter(JSON.stringify({ addedFrom: "2026-02-31" }))).toBeUndefined();
+    expect(parseAdvancedQueueFilter(JSON.stringify({ addedTo: "2026-04-31" }))).toBeUndefined();
+    expect(parseAdvancedQueueFilter(JSON.stringify({ updatedFrom: "2026-02-29" }))).toBeUndefined();
+    expect(parseAdvancedQueueFilter(JSON.stringify({ updatedTo: "2026-13-01" }))).toBeUndefined();
+    expect(
+      parseAdvancedQueueFilter(JSON.stringify({ addedFrom: "2026-02-31", stringType: "plain" })),
+    ).toBeUndefined();
+    expect(parseAdvancedQueueFilter(JSON.stringify({ addedFrom: "2024-02-29" }))).toEqual({
+      addedFrom: "2024-02-29",
+    });
+    expect(parseAdvancedQueueFilter(JSON.stringify({ updatedTo: "2026-01-31" }))).toEqual({
+      updatedTo: "2026-01-31",
+    });
+  });
 });
 
 describe("compactAdvancedQueueFilter", () => {

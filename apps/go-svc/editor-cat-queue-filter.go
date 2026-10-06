@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var editorCatISODate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -136,7 +137,11 @@ func compactEditorCatAdvancedFilter(filter editorCatAdvancedFilter) *editorCatAd
 }
 
 func validEditorCatISODate(value string) bool {
-	return editorCatISODate.MatchString(value)
+	if !editorCatISODate.MatchString(value) {
+		return false
+	}
+	_, err := time.Parse(time.DateOnly, value)
+	return err == nil
 }
 
 func editorCatQueueNeedsLocale(query editorCatQueueQuery) bool {
@@ -282,7 +287,8 @@ func editorCatDateBoundSQL(column, from, to string, args *[]any) string {
 func editorCatStringTypeSQL(stringType string) string {
 	switch stringType {
 	case "plain":
-		return ` and (k.type is null or k.type = '' or k.type in ('text', 'plain'))`
+		// Native JSON/JSONC ingestion stores ordinary entries as type "string".
+		return ` and (k.type is null or k.type = '' or k.type in ('text', 'plain', 'string'))`
 	case "plural":
 		return ` and k.type = 'plural'`
 	case "icu":
