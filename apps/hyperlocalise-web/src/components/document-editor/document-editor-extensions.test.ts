@@ -19,6 +19,7 @@ import {
   createDocumentSchemaExtensions,
   isLossyDocumentRoundTrip,
   normalizeDocumentMarkdown,
+  normalizeGfmTablesInMarkdown,
   parseDocumentMarkdown,
   type DocumentEditorSyntax,
 } from "./document-editor-extensions";
@@ -69,6 +70,13 @@ const spaced = true;
 - one
 - two`;
 
+const GFM_TABLE_FIXTURE = `## Comparison
+
+| Platform | Best for | Main strength |
+| -------- | -------- | ------------- |
+| **Hyperlocalise** | Product teams | AI agents and review |
+| **Crowdin** | Developer-led teams | Integrations and APIs |`;
+
 let editor: Editor | null = null;
 afterEach(() => {
   editor?.destroy();
@@ -96,6 +104,21 @@ describe("document Markdown round trip", () => {
 
   it("drops raw HTML wrappers from Markdown documents", () => {
     expect(roundTrip('# T\n\n<div class="x">keep</div>\n', "markdown")).toBe("# T\n\nkeep");
+  });
+
+  it("parses GFM tables into a table block", () => {
+    const doc = parseDocumentMarkdown(GFM_TABLE_FIXTURE, "markdown");
+    const types = doc.content?.map((node) => node.type);
+
+    expect(types).toEqual(["heading", "table"]);
+  });
+
+  it("round-trips GFM tables without forcing lossy code mode", () => {
+    const normalized = roundTrip(GFM_TABLE_FIXTURE, "markdown");
+
+    expect(isLossyDocumentRoundTrip("markdown", GFM_TABLE_FIXTURE, normalized)).toBe(false);
+    expect(normalized).toMatch(/\| Platform\s+\|/);
+    expect(normalized).toContain("**Hyperlocalise**");
   });
 
   it("reads MDX into component, raw, and callout blocks", () => {
@@ -151,6 +174,85 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(
       isLossyDocumentRoundTrip("markdown", '# T\n\n<div class="x">keep</div>', "# T\n\nkeep"),
     ).toBe(true);
+  });
+
+  it("does not treat GFM table column padding as a lossy round trip", () => {
+    const compact = GFM_TABLE_FIXTURE;
+    const padded = roundTrip(GFM_TABLE_FIXTURE, "markdown");
+
+    expect(isLossyDocumentRoundTrip("markdown", compact, padded)).toBe(false);
+  });
+
+  it("preserves GFM table alignment markers when normalizing", () => {
+    const separator = "| :--- | ---: | :---: |";
+    expect(normalizeGfmTablesInMarkdown(separator)).toBe("| :--- | ---: | :---: |");
+  });
+
+  it("does not drop an empty third cell in a three-column table", () => {
+    const table = `## T
+
+Col1 | Col2 | Col3
+--- | --- | ---
+a | b |`;
+    const serialized = `## T
+
+| Col1 | Col2 | Col3 |
+| --- | --- | --- |
+| a | b | |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", table, serialized)).toBe(false);
+  });
+
+  it("does not treat an optional closing pipe as an extra table cell", () => {
+    const table = `## T
+
+Col1 | Col2
+--- | ---
+a | b |`;
+    const serialized = `## T
+
+| Col1 | Col2 |
+| --- | --- |
+| a | b |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", table, serialized)).toBe(false);
+  });
+
+  it("does not drop a trailing empty table cell without outer pipes", () => {
+    const table = `## T
+
+Col1 | Col2
+--- | ---
+x | `;
+    const serialized = `## T
+
+| Col1 | Col2 |
+| --- | --- |
+| x | |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", table, serialized)).toBe(false);
+  });
+
+  it("does not normalize table-like lines inside fenced code blocks", () => {
+    const original = "```\n| a      | b |\n| --- | --- |\n```";
+    const changed = "```\n| a      | c |\n| --- | --- |\n```";
+
+    expect(isLossyDocumentRoundTrip("markdown", original, changed)).toBe(true);
+  });
+
+  it("treats dropped GFM table alignment as a lossy round trip", () => {
+    const aligned = `## T
+
+| Left | Right |
+| :--- | ---: |
+| a | b |`;
+    const withoutAlignment = `## T
+
+| Left | Right |
+| --- | --- |
+| a | b |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", aligned, withoutAlignment)).toBe(true);
   });
 });
 
