@@ -34,7 +34,7 @@ describe("ContentEditorQueueToolbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /^Hidden$/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Hidden" }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
   });
@@ -52,7 +52,7 @@ describe("ContentEditorQueueToolbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /^Not hidden$/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Not hidden" }));
 
     expect(onQueueFilterChange).toHaveBeenCalledWith("not_hidden");
   });
@@ -80,10 +80,11 @@ describe("ContentEditorQueueToolbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Filter queue" }));
-    expect(screen.getByRole("menuitemradio", { name: "Unsaved translations" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "QA issues" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "Machine translations" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitemradio", { name: "With comments" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Unsaved translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "QA issues" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Machine translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "With comments" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Advanced Filter…" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "View options" }));
@@ -260,5 +261,107 @@ describe("ContentEditorQueueToolbar", () => {
 
     await user.click(selectToggle);
     expect(onSelectionModeChange).toHaveBeenCalledWith(true);
+  });
+
+  it("selects All, untranslated first from the Crowdin-style filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueSortChange = vi.fn();
+    const onQueueFilterQualifierChange = vi.fn();
+    const onQueueAdvancedChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="untranslated"
+        queueSort="file_order"
+        onQueueFilterChange={onQueueFilterChange}
+        onQueueSortChange={onQueueSortChange}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        availableQueueFilters={["all", "untranslated"]}
+        availableQueueSorts={["file_order", "untranslated_first"]}
+        providerKind="crowdin"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitem", { name: "All, untranslated first" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("all");
+    expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
+    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith(undefined);
+    expect(onQueueAdvancedChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it("applies a QA qualifier from the submenu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueFilterQualifierChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        availableQueueFilters={["all", "qa_issues"]}
+        providerKind="native"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.hover(screen.getByRole("menuitem", { name: "QA issues" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Spelling" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("qa_issues");
+    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith("spelling");
+  });
+
+  it("opens the advanced filter dialog and applies native fields", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueAdvancedChange = vi.fn();
+    const onQueueFilterQualifierChange = vi.fn();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        availableQueueFilters={["all", "untranslated"]}
+        providerKind="native"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitem", { name: "Advanced Filter…" }));
+
+    expect(await screen.findByRole("dialog", { name: "Advanced Filter" })).toBeInTheDocument();
+    expect(screen.queryByText("Screenshots")).not.toBeInTheDocument();
+    expect(screen.queryByText("Labels: Include All")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("String type"));
+    await user.click(screen.getByRole("option", { name: "ICU" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("all");
+    expect(onQueueFilterQualifierChange).toHaveBeenCalledWith(undefined);
+    expect(onQueueAdvancedChange).toHaveBeenCalledWith({ stringType: "icu" });
+  });
+
+  it("hides the advanced filter for providers that do not support it", async () => {
+    const user = userEvent.setup();
+
+    renderWithContentEditorProviders(
+      <ContentEditorQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all"]}
+        providerKind="phrase"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    expect(screen.queryByRole("menuitem", { name: "Advanced Filter…" })).not.toBeInTheDocument();
   });
 });

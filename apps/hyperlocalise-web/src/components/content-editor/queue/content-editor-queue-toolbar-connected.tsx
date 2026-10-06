@@ -26,6 +26,7 @@ import {
 import { ContentEditorQueueToolbar } from "./content-editor-queue-toolbar";
 import { CAT_QUEUE_TOOLBAR_HOST_ID } from "./content-editor-queue-toolbar-host";
 import { useContentEditorWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 
 export const ContentEditorQueueToolbarConnected = observer(
   function ContentEditorQueueToolbarConnected({
@@ -35,6 +36,13 @@ export const ContentEditorQueueToolbarConnected = observer(
     queueSort = "file_order",
     onQueueSortChange,
     availableQueueSorts,
+    queueFilterQualifier,
+    onQueueFilterQualifierChange,
+    queueAdvanced,
+    onQueueAdvancedChange,
+    providerKind,
+    organizationSlug,
+    projectId,
     isSearching = false,
     isQueueLoading = false,
     visibleCount = 0,
@@ -55,6 +63,13 @@ export const ContentEditorQueueToolbarConnected = observer(
     queueSort?: ContentEditorQueueSort;
     onQueueSortChange?: (sort: ContentEditorQueueSort) => void;
     availableQueueSorts?: ContentEditorQueueSort[];
+    queueFilterQualifier?: string;
+    onQueueFilterQualifierChange?: (qualifier: string | undefined) => void;
+    queueAdvanced?: ContentEditorAdvancedQueueFilter;
+    onQueueAdvancedChange?: (filter: ContentEditorAdvancedQueueFilter | undefined) => void;
+    providerKind?: string | null;
+    organizationSlug?: string;
+    projectId?: string;
     isSearching?: boolean;
     isQueueLoading?: boolean;
     visibleCount?: number;
@@ -132,6 +147,13 @@ export const ContentEditorQueueToolbarConnected = observer(
         queueSort={queueSort}
         onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
         availableQueueSorts={availableQueueSorts}
+        queueFilterQualifier={queueFilterQualifier}
+        onQueueFilterQualifierChange={onQueueFilterQualifierChange}
+        queueAdvanced={queueAdvanced}
+        onQueueAdvancedChange={onQueueAdvancedChange}
+        providerKind={providerKind}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
         selectionMode={store.selectionMode}
         onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
         selectedCount={store.checkedSegmentIds.size}

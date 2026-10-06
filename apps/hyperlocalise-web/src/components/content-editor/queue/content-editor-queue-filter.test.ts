@@ -191,11 +191,13 @@ describe("resolveAvailableCatQueueFilters", () => {
       expect.arrayContaining(["unsaved", "qa_issues", "machine_translated", "with_comments"]),
     );
     expect(resolveAvailableCatQueueFilters("native")).toContain("qa_issues");
-    expect(resolveAvailableCatQueueFilters("native")).not.toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters("native")).toContain("has_issues");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("qa_issues");
     expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("machine_translated");
     expect(resolveAvailableCatQueueFilters(null)).toContain("unsaved");
-    expect(resolveAvailableCatQueueFilters(null)).not.toContain("with_comments");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("with_comments");
   });
 });
 

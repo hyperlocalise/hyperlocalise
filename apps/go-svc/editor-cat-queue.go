@@ -83,14 +83,16 @@ type editorCatDocumentView struct {
 }
 
 type editorCatQueueQuery struct {
-	sourcePath   string
-	targetLocale string
-	search       string
-	queueFilter  string
-	queueSort    string
-	offset       int
-	limit        int
-	sourcePaths  []string
+	sourcePath           string
+	targetLocale         string
+	search               string
+	queueFilter          string
+	queueFilterQualifier string
+	queueSort            string
+	advancedFilter       *editorCatAdvancedFilter
+	offset               int
+	limit                int
+	sourcePaths          []string
 	// grouped collapses identical source strings into one representative segment.
 	grouped bool
 }
@@ -124,6 +126,11 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 	if queueSort != "file_order" && queueSort != "untranslated_first" {
 		return editorCatQueueQuery{}, editorCatFailure(400, "invalid_project_payload", "Invalid CAT query")
 	}
+	queueFilterQualifier := parseEditorCatQueueFilterQualifier(values.Get("queueFilterQualifier"))
+	advancedFilter, err := parseEditorCatAdvancedFilter(values.Get("queueAdvanced"))
+	if err != nil {
+		return editorCatQueueQuery{}, err
+	}
 	offset, err := parseEditorCatIntQuery(values, "offset", 0, 0, 1_000_000)
 	if err != nil {
 		return editorCatQueueQuery{}, err
@@ -137,15 +144,17 @@ func parseEditorCatQueueQuery(values url.Values) (editorCatQueueQuery, error) {
 		sourcePaths = parsed
 	}
 	return editorCatQueueQuery{
-		sourcePath:   sourcePath,
-		targetLocale: targetLocale,
-		search:       search,
-		queueFilter:  queueFilter,
-		queueSort:    queueSort,
-		offset:       offset,
-		limit:        limit,
-		sourcePaths:  sourcePaths,
-		grouped:      trimEditorCat(values.Get("grouped")) == "true",
+		sourcePath:           sourcePath,
+		targetLocale:         targetLocale,
+		search:               search,
+		queueFilter:          queueFilter,
+		queueFilterQualifier: queueFilterQualifier,
+		queueSort:            queueSort,
+		advancedFilter:       advancedFilter,
+		offset:               offset,
+		limit:                limit,
+		sourcePaths:          sourcePaths,
+		grouped:              trimEditorCat(values.Get("grouped")) == "true",
 	}, nil
 }
 
@@ -177,6 +186,7 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 		"queue_kind", editorCatQueueKind(query.sourcePath),
 		"target_locale", query.targetLocale,
 		"queue_filter", query.queueFilter,
+		"queue_filter_qualifier", query.queueFilterQualifier,
 		"queue_sort", query.queueSort,
 		"limit", query.limit,
 		"offset", query.offset,
@@ -386,66 +396,6 @@ func escapeEditorCatIlike(value string) string {
 	return replacer.Replace(value)
 }
 
-func editorCatQueueFilterSQL(filter string, orgN, projectN, localeN int) string {
-	translationMatch := `t.translation_key_id = k.id and t.organization_id=$` + strconv.Itoa(orgN) +
-		` and t.project_id=$` + strconv.Itoa(projectN) + ` and t.target_locale=$` + strconv.Itoa(localeN)
-	switch filter {
-	case "untranslated":
-		return ` and not exists (select 1 from project_translations t where ` + translationMatch + ` and trim(t.text) != '')`
-	case "reviewed":
-		return ` and exists (select 1 from project_translations t where ` + translationMatch + ` and t.status='approved')`
-	case "needs_review":
-		return ` and exists (select 1 from project_translations t where ` + translationMatch + ` and trim(t.text) != '' and t.status != 'approved')`
-	case "has_issues":
-		return ` and (
-            exists (
-                select 1 from issue_sheet_issues i
-                where i.translation_key_id = k.id and i.organization_id=$` + strconv.Itoa(orgN) + `
-                  and i.project_id=$` + strconv.Itoa(projectN) + ` and i.target_locale=$` + strconv.Itoa(localeN) + `
-                  and i.status in ('open', 'in_progress')
-            )
-            or exists (
-                select 1 from project_translation_comments c
-                where c.translation_key_id = k.id and c.organization_id=$` + strconv.Itoa(orgN) + `
-                  and c.project_id=$` + strconv.Itoa(projectN) + ` and c.target_locale=$` + strconv.Itoa(localeN) + `
-                  and c.type='issue' and c.status='unresolved'
-                  and not exists (select 1 from issue_sheet_issues i where i.linked_comment_id = c.id)
-            )
-        )`
-	case "qa_issues":
-		return ` and exists (
-            select 1 from translation_qa_findings q
-            where q.translation_key_id = k.id and q.organization_id=$` + strconv.Itoa(orgN) + `
-              and q.project_id=$` + strconv.Itoa(projectN) + ` and q.target_locale=$` + strconv.Itoa(localeN) + `
-              and q.status='open'
-              and q.run_id = (
-                  select r.id from translation_qa_runs r
-                  where r.organization_id=$` + strconv.Itoa(orgN) + ` and r.project_id=$` + strconv.Itoa(projectN) + `
-                    and r.status='succeeded'
-                  order by r.completed_at desc nulls last, r.created_at desc
-                  limit 1
-              )
-        )`
-	case "hidden":
-		return ` and k.is_hidden = true`
-	case "not_hidden":
-		return ` and k.is_hidden = false`
-	default:
-		return ""
-	}
-}
-
-// editorCatQueueFilterBindsLocale reports whether the filter SQL references the
-// target-locale placeholder. "all" and the deferred filters do not.
-func editorCatQueueFilterBindsLocale(filter string) bool {
-	switch filter {
-	case "untranslated", "reviewed", "needs_review", "has_issues", "qa_issues":
-		return true
-	default:
-		return false
-	}
-}
-
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
 	args := []any{actor.organizationID, project.ID}
 	where := `k.organization_id=$1 and k.project_id=$2`
@@ -484,12 +434,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	// whose SQL actually references it. The count query has no ORDER BY, so a
 	// sort that needs the locale must not add that argument to the count.
 	countArgs := append([]any(nil), args...)
-	filterLocale := 0
-	if editorCatQueueFilterBindsLocale(query.queueFilter) {
-		countArgs = append(countArgs, query.targetLocale)
-		filterLocale = len(countArgs)
-	}
-	where += editorCatQueueFilterSQL(query.queueFilter, 1, 2, filterLocale)
+	where, countArgs = appendEditorCatQueueFilterSQL(where, countArgs, query, 1, 2)
 
 	join := ""
 	if includeSourcePath {
@@ -511,7 +456,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	}
 	listArgs := append([]any(nil), countArgs...)
 	if query.queueSort == "untranslated_first" {
-		if !editorCatQueueFilterBindsLocale(query.queueFilter) {
+		if !editorCatQueueNeedsLocale(query) {
 			listArgs = append(listArgs, query.targetLocale)
 		}
 		localeN := strconv.Itoa(len(listArgs))

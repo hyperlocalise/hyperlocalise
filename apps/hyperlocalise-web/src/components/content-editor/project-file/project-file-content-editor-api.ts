@@ -37,6 +37,8 @@ export function projectFileCatQueryKey(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   offset: number;
   sourcePaths?: string | null;
@@ -53,6 +55,8 @@ export function projectFileCatQueryKey(input: {
     input.search,
     input.queueFilter,
     input.queueSort,
+    input.queueFilterQualifier ?? null,
+    input.queueAdvanced ?? null,
     input.limit,
     input.offset,
     input.sourcePaths ?? null,
@@ -70,6 +74,8 @@ export function projectFileCatBaseQueryKey(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   sourcePaths?: string | null;
   grouped?: boolean;
@@ -85,13 +91,15 @@ export function projectFileCatBaseQueryKey(input: {
     input.search,
     input.queueFilter,
     input.queueSort,
+    input.queueFilterQualifier ?? null,
+    input.queueAdvanced ?? null,
     input.limit,
     input.sourcePaths ?? null,
     input.grouped ?? false,
   ] as const;
 }
 
-const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 13;
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 15;
 
 function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
   if (
@@ -101,7 +109,7 @@ function contentEditorQueuePlaceholderIdentity(key: readonly unknown[]) {
     return null;
   }
 
-  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11], key[12]] as const;
+  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[13], key[14]] as const;
 }
 
 /**
@@ -140,6 +148,8 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: string;
   limit: number;
   offset: number;
   phraseScanPage?: number;
@@ -163,6 +173,8 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
           ...(input.search ? { search: input.search } : {}),
           ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
           ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+          ...(input.queueFilterQualifier ? { queueFilterQualifier: input.queueFilterQualifier } : {}),
+          ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
           offset: input.offset,
           limit: input.limit,
         },
@@ -197,6 +209,8 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
         ...(input.search ? { search: input.search } : {}),
         ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
         ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
+        ...(input.queueFilterQualifier ? { queueFilterQualifier: input.queueFilterQualifier } : {}),
+        ...(input.queueAdvanced ? { queueAdvanced: input.queueAdvanced } : {}),
         ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
         ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
         ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
@@ -217,6 +231,34 @@ export async function fetchProjectFileContentEditorQueuePage(input: {
 
   const body = await response.json();
   return body.contentEditorQueue;
+}
+
+export async function fetchProjectFileContentEditorLabels(input: {
+  organizationSlug: string;
+  projectId: string;
+  intl: ContentEditorFormatMessageIntl;
+  signal?: AbortSignal;
+}) {
+  const response = await apiClient.api.orgs[":organizationSlug"].projects[
+    ":projectId"
+  ].files.detail.cat.labels.$get(
+    {
+      param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
+    },
+    { init: { signal: input.signal } },
+  );
+
+  if (response.status !== 200) {
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+      ),
+    );
+  }
+
+  const body = await response.json();
+  return body.labels;
 }
 
 /** @deprecated Use fetchProjectFileContentEditorQueuePage — queue panel loads via GET /cat/queue */

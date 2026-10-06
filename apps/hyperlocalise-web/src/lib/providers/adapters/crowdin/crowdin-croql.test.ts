@@ -134,7 +134,7 @@ describe("buildCrowdinFileQueueCroql", () => {
     );
   });
 
-  it("filters machine translations as pre-translated for the target language", () => {
+  it("filters machine translations as auto-translated for the target language", () => {
     expect(
       buildCrowdinFileQueueCroql({
         fileId: 101,
@@ -142,7 +142,57 @@ describe("buildCrowdinFileQueueCroql", () => {
         queueFilter: "machine_translated",
       }),
     ).toBe(
-      'id of file = 101 and count of translations where (language = @language:"fr" and is pre translated) > 0',
+      'id of file = 101 and count of languages summary where (language = @language:"fr" and is auto translated) > 0',
+    );
+  });
+
+  it("filters TM, MT, and AI machine-translation subfilters", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "machine_translated",
+        queueFilterQualifier: "tm",
+      }),
+    ).toContain("is translated by tm");
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "qa_issues",
+        queueFilterQualifier: "spelling",
+      }),
+    ).toContain("has spelling qa issues");
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "has_issues",
+        queueFilterQualifier: "general_question",
+      }),
+    ).toContain('issueType = "generalQuestion"');
+  });
+
+  it("compiles Crowdin advanced filters into CroQL", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "all",
+        advancedFilter: {
+          addedFrom: "2026-01-01",
+          addedTo: "2026-01-31",
+          includeLabelMode: "include_all",
+          includeLabelIds: ["3", "7"],
+          stringType: "icu",
+          translationStatus: "untranslated",
+          comments: "with",
+          screenshots: "without",
+          visibility: "visible",
+        },
+      }),
+    ).toBe(
+      "id of file = 101 and added between '2026-01-01 00:00:00' and '2026-01-31 23:59:59' and count of labels where (id = 3) > 0 and count of labels where (id = 7) > 0 and type is icu and count of languages summary where (language = @language:\"fr\" and is translated) = 0 and count of comments > 0 and count of screenshots = 0 and not is hidden",
     );
   });
 

@@ -37,6 +37,7 @@ import {
   paginateCatQueueSortBuckets,
   shouldPaginateCrowdinUntranslatedFirst,
 } from "@/lib/projects/content-editor/content-editor-queue-sort-buckets";
+import { catQueueHasServerSideFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
 import { legacyProviderContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
@@ -1212,6 +1213,8 @@ async function buildCrowdinLiveCatFile(input: {
             fileId,
             targetLocale: input.targetLocale,
             queueFilter: paginationInput.queueFilter,
+            queueFilterQualifier: paginationInput.queueFilterQualifier,
+            advancedFilter: paginationInput.advancedFilter,
             search: paginationInput.search,
             statusBand: band,
           });
@@ -1240,16 +1243,16 @@ async function buildCrowdinLiveCatFile(input: {
       });
       truncated = pagination.hasMore;
     } else {
-      const croql =
-        paginationInput.search?.trim() ||
-        (paginationInput.queueFilter && paginationInput.queueFilter !== "all")
-          ? buildCrowdinFileQueueCroql({
-              fileId,
-              targetLocale: input.targetLocale,
-              queueFilter: paginationInput.queueFilter,
-              search: paginationInput.search,
-            })
-          : undefined;
+      const croql = catQueueHasServerSideFilter(paginationInput)
+        ? buildCrowdinFileQueueCroql({
+            fileId,
+            targetLocale: input.targetLocale,
+            queueFilter: paginationInput.queueFilter,
+            queueFilterQualifier: paginationInput.queueFilterQualifier,
+            advancedFilter: paginationInput.advancedFilter,
+            search: paginationInput.search,
+          })
+        : undefined;
       const page = await client.listSourceStringsPage(projectId, {
         fileId: croql ? undefined : fileId,
         croql: croql ?? undefined,
@@ -2432,6 +2435,44 @@ export async function getTmsProviderLiveCatFile(
   });
 }
 
+export async function getTmsProviderLiveCatLabels(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+) {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== "crowdin") {
+    return [];
+  }
+
+  const projectId = Number(externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_file_id",
+      "Crowdin project identifier is invalid.",
+    );
+  }
+
+  try {
+    const client = new CrowdinApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+    });
+    const labels = await client.listLabels(projectId);
+    return labels.map((label) => ({
+      id: String(label.id),
+      title: label.title,
+    }));
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    throw error;
+  }
+}
+
 export const CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE =
   "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.";
 
@@ -2573,12 +2614,16 @@ async function buildCrowdinLiveContentEditorAllFiles(input: {
       fileIds,
       targetLocale: input.targetLocale,
       queueFilter: paginationInput.queueFilter,
+      queueFilterQualifier: paginationInput.queueFilterQualifier,
+      advancedFilter: paginationInput.advancedFilter,
       search: paginationInput.search,
       statusBand,
     });
     const croqlProjectWide = buildCrowdinFileQueueCroql({
       targetLocale: input.targetLocale,
       queueFilter: paginationInput.queueFilter,
+      queueFilterQualifier: paginationInput.queueFilterQualifier,
+      advancedFilter: paginationInput.advancedFilter,
       search: paginationInput.search,
       statusBand,
     });

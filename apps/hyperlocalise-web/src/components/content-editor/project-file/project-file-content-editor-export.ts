@@ -21,6 +21,10 @@ import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { collectCatFilteredExportRows } from "@/components/content-editor/project-file/content-editor-filtered-export-collect";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  serializeAdvancedQueueFilter,
+  type ContentEditorAdvancedQueueFilter,
+} from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import {
   buildCatFilteredExportFilename,
   type ContentEditorFilteredExportFormat,
 } from "@/lib/projects/content-editor/content-editor-filtered-export";
@@ -39,6 +43,8 @@ export async function downloadProjectFileContentEditorExport(input: {
   search: string;
   queueFilter: ProjectFileContentEditorQueueFilter;
   queueSort?: ProjectFileContentEditorQueueSort;
+  queueFilterQualifier?: string;
+  queueAdvanced?: ContentEditorAdvancedQueueFilter;
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   sourcePaths?: string | null;
@@ -53,6 +59,8 @@ export async function downloadProjectFileContentEditorExport(input: {
     search: input.search,
     queueFilter: input.queueFilter,
     queueSort: input.queueSort,
+    queueFilterQualifier: input.queueFilterQualifier,
+    queueAdvanced: serializeAdvancedQueueFilter(input.queueAdvanced),
     externalResourceId: input.externalResourceId,
     resourceType: input.resourceType,
     sourcePaths: input.sourcePaths,

@@ -245,6 +245,17 @@ func TestParseEditorCatQueueQuery(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "not_hidden", notHidden.queueFilter)
+	withExtras, err := parseEditorCatQueueQuery(map[string][]string{
+		"sourcePath":           {"a.json"},
+		"targetLocale":         {"fr"},
+		"queueFilter":          {"qa_issues"},
+		"queueFilterQualifier": {"spelling"},
+		"queueAdvanced":        {`{"stringType":"icu","visibility":"hidden"}`},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "spelling", withExtras.queueFilterQualifier)
+	require.Equal(t, "icu", withExtras.advancedFilter.StringType)
+	require.Equal(t, "hidden", withExtras.advancedFilter.Visibility)
 	_, err = parseEditorCatQueueQuery(map[string][]string{"sourcePath": {"a.json"}})
 	require.Error(t, err)
 	_, err = parseEditorCatQueueQuery(map[string][]string{
@@ -719,9 +730,9 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	const orgN, projectN, localeN = 1, 2, 4
 
 	require.Empty(t, editorCatQueueFilterSQL("all", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN))
-	require.Empty(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN))
 	require.Empty(t, editorCatQueueFilterSQL("unknown", orgN, projectN, localeN))
+	require.Contains(t, editorCatQueueFilterSQL("machine_translated", orgN, projectN, localeN), "t.provenance in ('translation_job','agent','import')")
+	require.Contains(t, editorCatQueueFilterSQL("with_comments", orgN, projectN, localeN), "from project_translation_comments c")
 
 	untranslated := editorCatQueueFilterSQL("untranslated", orgN, projectN, localeN)
 	require.Contains(t, untranslated, "not exists (select 1 from project_translations t where")
@@ -757,9 +768,34 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.True(t, editorCatQueueFilterBindsLocale("untranslated"))
 	require.True(t, editorCatQueueFilterBindsLocale("has_issues"))
 	require.True(t, editorCatQueueFilterBindsLocale("qa_issues"))
+	require.True(t, editorCatQueueFilterBindsLocale("machine_translated"))
+	require.True(t, editorCatQueueFilterBindsLocale("with_comments"))
 	require.False(t, editorCatQueueFilterBindsLocale("all"))
 	require.False(t, editorCatQueueFilterBindsLocale("hidden"))
 	require.False(t, editorCatQueueFilterBindsLocale("not_hidden"))
+
+	qaSpelling := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "qa_issues", queueFilterQualifier: "spelling"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, qaSpelling, "q.check_type=$4")
+
+	mtAgent := editorCatPresetFilterSQL(
+		editorCatQueueQuery{queueFilter: "machine_translated", queueFilterQualifier: "agent"},
+		orgN, projectN, localeN, &[]any{"org", "project", "de-DE"},
+	)
+	require.Contains(t, mtAgent, "t.provenance=$4")
+
+	advancedSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		AddedFrom:         "2026-01-01",
+		StringType:        "icu",
+		TranslationStatus: "untranslated",
+		Visibility:        "visible",
+	}, orgN, projectN, localeN, &[]any{"org", "project", "de-DE"})
+	require.Contains(t, advancedSQL, "k.created_at >= CAST($4 AS date)")
+	require.Contains(t, advancedSQL, "k.type = 'icu'")
+	require.Contains(t, advancedSQL, "k.is_hidden = false")
+	require.Contains(t, advancedSQL, "not exists (select 1 from project_translations t where")
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {

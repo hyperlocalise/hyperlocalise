@@ -259,6 +259,10 @@ export function ProjectFileContentEditorWorkspace({
     setQueueFilter,
     queueSort,
     setQueueSort,
+    queueFilterQualifier,
+    setQueueFilterQualifier,
+    queueAdvanced,
+    setQueueAdvanced,
     debouncedSearch,
     isSearchPending,
     pagination,
@@ -289,6 +293,8 @@ export function ProjectFileContentEditorWorkspace({
     queueSort,
     search,
     debouncedSearch,
+    queueFilterQualifier,
+    queueAdvanced,
   });
 
   const [isExporting, setIsExporting] = useState(false);
@@ -312,6 +318,8 @@ export function ProjectFileContentEditorWorkspace({
           search: debouncedSearch,
           queueFilter: toServerQueueFilterForExport(queueFilter),
           queueSort,
+          queueFilterQualifier,
+          queueAdvanced,
           externalResourceId,
           resourceType,
           sourcePaths: sourcePathsFilter,
@@ -333,6 +341,8 @@ export function ProjectFileContentEditorWorkspace({
       projectId,
       queueFilter,
       queueSort,
+      queueFilterQualifier,
+      queueAdvanced,
       resourceType,
       sourceLocale,
       sourcePath,
@@ -359,7 +369,16 @@ export function ProjectFileContentEditorWorkspace({
     }
 
     setQueueFilter("all");
-  }, [availableQueueFilters, contentEditorFile, queueFilter, setQueueFilter]);
+    setQueueFilterQualifier(undefined);
+    setQueueAdvanced(undefined);
+  }, [
+    availableQueueFilters,
+    contentEditorFile,
+    queueFilter,
+    setQueueAdvanced,
+    setQueueFilter,
+    setQueueFilterQualifier,
+  ]);
 
   useEffect(() => {
     if (!contentEditorFile) {
@@ -1044,6 +1063,8 @@ export function ProjectFileContentEditorWorkspace({
         setOpenedSegmentKey(segment.key);
         setSearch(segment.key);
         setQueueFilter("all");
+        setQueueFilterQualifier(undefined);
+        setQueueAdvanced(undefined);
         if (onOpenTranslationLocale) {
           onOpenTranslationLocale(locale, segment.key);
         } else {
@@ -1072,6 +1093,8 @@ export function ProjectFileContentEditorWorkspace({
       contentEditorFile,
       setSearch,
       setQueueFilter,
+      setQueueFilterQualifier,
+      setQueueAdvanced,
     ],
   );
 
@@ -1360,6 +1383,10 @@ export function ProjectFileContentEditorWorkspace({
                   queueSort={queueSort}
                   onQueueSortChange={setQueueSort}
                   availableQueueSorts={availableQueueSorts}
+                  queueFilterQualifier={queueFilterQualifier}
+                  onQueueFilterQualifierChange={setQueueFilterQualifier}
+                  queueAdvanced={queueAdvanced}
+                  onQueueAdvancedChange={setQueueAdvanced}
                   isQueueSearchPending={isSearchPending || contentEditorQuery.isFetching}
                   isQueueFetchingPage={isFetchingPage}
                   isQueueListLoading={isQueueListLoading}

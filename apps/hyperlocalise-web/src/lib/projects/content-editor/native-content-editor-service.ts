@@ -275,6 +275,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         targetLocale: input.targetLocale,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
       }),
       this.translations.listKeysForFile({
         organizationId: input.organizationId,
@@ -285,6 +287,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         offset: paginationInput.offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         queueSort: paginationInput.queueSort,
       }),
     ]);
@@ -634,6 +638,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         targetLocale: input.targetLocale,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         sourcePaths: input.sourcePaths,
       }),
       this.translations.listKeysForProject({
@@ -644,6 +650,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
         offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueFilterQualifier: paginationInput.queueFilterQualifier,
+        advancedFilter: paginationInput.advancedFilter,
         queueSort: paginationInput.queueSort,
         sourcePaths: input.sourcePaths,
       }),
