@@ -18,15 +18,15 @@ tags:
 
 React Intl 将面向用户的文案保存在 TypeScript 中，但译者和 CI 需要磁盘上有一份稳定的目录。ICU 语法（复数、选择、数字和日期）必须在交接过程中保持不变，以免运行时出错。
 
-本指南将展示如何将 **react-intl**、**ICU** 和 **`hyperlocalise` CLI** 整合到一个工作流中：
+This guide shows how to connect **react-intl**, **ICU**, and the **`hyperlocalise` CLI** into one workflow:
 
-1. 工程师用 `defineMessages` 和 `<FormattedMessage />` 编写消息。
-2. `hl extract` 从源文件刷新英文 FormatJS 目录。
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
+2. `hl extract` refreshes the English FormatJS catalog from source.
 3. GitHub 会检查拉取请求是否存在偏差、缺失键和 ICU 结构问题。
-4. `hl sync push` 将目录发送给 Hyperlocalise 进行审核。
-5. `hl sync pull` 和 `hl pack` 会将审核后的翻译带回 `lang/*.json`，供您的应用使用。
+4. `hl sync push` sends the catalog to Hyperlocalise for review.
+5. `hl sync pull` and `hl pack` bring reviewed translations back into `lang/*.json` for your app.
 
-这种模式展示了 Hyperlocalise 如何在自己的 Web 应用中使用 dogfooding。对于同一代码库中的发行说明和非 React JSON，请将本教程与[从拉取请求到多语言发布的 GitHub 本地化工作流](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release)结合使用。
+The pattern matches how Hyperlocalise dogfoods its own web app. For release notes and non-React JSON in the same repository, combine this tutorial with the [GitHub localisation workflow from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release).
 
 ## 我们将构建的内容
 
@@ -48,13 +48,13 @@ React Intl 将面向用户的文案保存在 TypeScript 中，但译者和 CI �
 └── i18n.yml
 ```
 
-英语（`en-US`）是源语言区域。法语和德语是目标语言区域。消息 ID 和 `defaultMessage` 值位于 `*.messages.ts` 文件（客户端模块）中，也偶尔出现在内联描述符中。Hyperlocalise 会同步提取的 JSON；许多应用会在运行时导入打包后的 JSON。
+English (`en-US`) is the source locale. French and German are targets. Message ids and `defaultMessage` values live in `*.messages.ts` files (client modules) and in occasional inline descriptors. Extracted JSON is what Hyperlocalise syncs; packed JSON is what many apps import at runtime.
 
 你将需要：
 
-- 一个 Hyperlocalise 项目，以 `en-US` 为源语言及您的目标区域设置；
-- 并将`HYPERLOCALISE_API_KEY`和`HYPERLOCALISE_PROJECT_ID`作为 GitHub Actions 密钥；并
-- `react-intl`（或 `@formatjs/intl`）已安装在应用中。
+- a Hyperlocalise project with `en-US` as source and your target locales;
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` as GitHub Actions secrets; and
+- `react-intl` (or `@formatjs/intl`) already installed in the app.
 
 ## 步骤 1：编写支持 ICU 的 react-intl 消息
 
@@ -88,9 +88,9 @@ export const savedFiltersBannerMessages = defineMessages({
 });
 ```
 
-当文案取决于数字或枚举值时，请在`defaultMessage`中使用 ICU。React Intl 会在运行时评估完整消息；翻译人员必须保留`{count, plural, ...}`和`{scope, select, ...}`骨架，同时更改人类可读的分支。
+Use ICU inside `defaultMessage` when copy depends on numbers or enums. React Intl evaluates the full message at runtime; translators must preserve `{count, plural, ...}` and `{scope, select, ...}` skeletons while changing the human-readable branches.
 
-在页面组件中，通过`formatMessage`或`<FormattedMessage />`传递 ICU 值：
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -113,13 +113,13 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 }
 ```
 
-**服务器组件：**不要从仅限服务器端的模块导入 `*.messages.ts`——`defineMessages` 仅限客户端使用。请将 UI 标记为 `"use client"`，或在服务器端使用内联 `{ id, defaultMessage, description }` 对象和 `getIntlShape(locale).formatMessage()`。请参阅框架的 react-intl 边界说明；提取步骤仍会在其扫描的 `.ts` 和 `.tsx` 文件中查找描述符。
+**Server Components:** do not import `*.messages.ts` from server-only modules—`defineMessages` is client-only. Either mark the UI as `"use client"` or use inline `{ id, defaultMessage, description }` objects with `getIntlShape(locale).formatMessage()` on the server. See your framework’s react-intl boundaries; the extract step still finds descriptors in `.ts` and `.tsx` files it scans.
 
-对于打算作为单个 react-intl 单元发布的 ICU 消息，请避免使用 `--flatten`。扁平化会将复数和选择分支提取出来，以便用于专门的翻译工作流；这并非运行时目录的默认做法。
+Avoid `--flatten` on ICU messages you intend to ship as single react-intl units. Flattening hoists plural and select branches for specialized translation workflows; it is not the default for runtime catalogs.
 
-## 第 2 步：映射目录 `i18n.yml`
+## Step 2: map catalogs in `i18n.yml`
 
-在仓库根目录（如果 monorepo 将配置文件放在 UI 旁边，则在你的应用目录下）创建 `i18n.yml`：
+Create `i18n.yml` at the repository root (or under your app directory if the monorepo keeps config next to the UI):
 
 ```yaml
 version: hyperlocalise@1.13.3
@@ -148,13 +148,13 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-Hyperlocalise 将 FormatJS JSON 视为一等内容：每个键都是一个消息 ID，每个值都包含 `defaultMessage`，并可选择包含 `description`。ICU 字符串在每个 ID 下保持为单个值——`run`、`check` 和 sync 不会对它们进行句子拆分。
+Hyperlocalise treats FormatJS JSON as first-class content: each key is a message id, each value includes `defaultMessage` and optional `description`. ICU strings stay one value per id—`run`, `check`, and sync do not sentence-split them.
 
-将 CLI 版本固定在 `i18n.yml`（或固定安装操作），以确保本地计算机和 GitHub Actions 运行相同的提取器和验证器。
+Pin the CLI version in `i18n.yml` (or pin the install action) so local machines and GitHub Actions run the same extractor and validators.
 
 ## 第 3 步：使用 CLI 提取源目录
 
-从包含`i18n.yml`的目录中，刷新英文目录：
+From the directory that contains `i18n.yml`, refresh the English catalog:
 
 ```bash
 export HYPERLOCALISE_API_KEY="your-api-key"
@@ -168,7 +168,7 @@ hl extract src \
   --ignore "**/__tests__/**"
 ```
 
-在 `extract` 和 `.ts` 中扫描 `.tsx`，查找以下位置的描述符：
+`extract` scans `.ts` and `.tsx` for descriptors in:
 
 - `defineMessage` / `defineMessages`
 - `intl.formatMessage(...)`
@@ -185,15 +185,15 @@ hl extract src \
 }
 ```
 
-如果描述符省略 `id`，CLI 会根据 `defaultMessage` 和 `description` 生成与 FormatJS 兼容的哈希。显式指定的 ID 更便于在差异中和 Hyperlocalise 中审核。
+If a descriptor omits `id`, the CLI generates a FormatJS-compatible hash from `defaultMessage` and `description`. Explicit ids are easier to review in diffs and in Hyperlocalise.
 
-将 `lang/en-US.json` 与代码更改一并提交。将缺失的提取提交视同缺失的迁移：在目录更新之前，平台永远看不到新字符串。
+Commit `lang/en-US.json` together with the code change. Treat a missing extract commit the same way you would a missing migration: the platform never sees new strings until the catalog updates.
 
-可选：`--prefix-id` 会在 id 前加上规范化文件路径（`src.components.saved-filters-banner.title`）。当运行时 bundle 需要短 id 时，将它与 `hl pack --prefix-id` 配对使用。此处的示例使用的是稳定的逻辑 id。
+Optional: `--prefix-id` prefixes ids with the normalized file path (`src.components.saved-filters-banner.title`). Pair it with `hl pack --prefix-id` when runtime bundles expect short ids. The examples here use stable logical ids instead.
 
-## 第 4 步：使用 extract 和 `check`保护拉取请求
+## Step 4: guard pull requests with extract and `check`
 
-添加 `.github/workflows/localise.yml`：
+Add `.github/workflows/localise.yml`:
 
 ```yaml
 name: Localise
@@ -264,10 +264,10 @@ jobs:
 
 两道门协同工作：
 
-1. **提取漂移** — 如果有人在代码中编辑了 `defaultMessage`，却忘了 `hl extract`，任务就会在 `git diff` 失败。
-2. **`hyperlocalise check`** — 与 `github-diff: true` 配合使用，可检查 `lang/en-US.json` 中已更改的键和目标是否存在 `not_localized`、`placeholder_mismatch` 和 **`icu_shape_mismatch`** 等问题。
+1. **Extract drift** — if someone edits `defaultMessage` in code but forgets `hl extract`, the job fails on `git diff`.
+2. **`hyperlocalise check`** — with `github-diff: true`, validates changed keys in `lang/en-US.json` and targets for problems such as `not_localized`, `placeholder_mismatch`, and **`icu_shape_mismatch`**.
 
-最后一项检查对 ICU 至关重要：法语字符串如果遗漏了 `{count, plural, ...}` 或调整了分支顺序，人工快速浏览 JSON 时可能看不出问题，但运行时会出错。在 CI 中发现结构偏差，比在生产环境中发现要省钱得多。
+That last check matters for ICU: a French string that drops `{count, plural, ...}` or permutes branches may look fine to a human skimming JSON but will fail at runtime. Catching shape drift in CI is cheaper than catching it in production.
 
 推送前在本地运行相同的检查：
 
@@ -312,9 +312,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-合并后，`hl sync push` 会将 `lang/en-US.json` 上传到关联的 Hyperlocalise 项目。在 `main` 上重新运行 extract，可避免代码已合并但 Git 中尚无匹配翻译资源的竞态问题。
+After merge, `hl sync push` uploads `lang/en-US.json` to the linked Hyperlocalise project. Re-running extract on `main` avoids a race where code merged without a matching catalog in Git.
 
-更改存储桶路径或区域设置列表时使用 `hl sync push --dry-run`。
+Use `hl sync push --dry-run` when you change bucket paths or locale lists.
 
 ## 第 6 步：在 Hyperlocalise 中审核 ICU 消息
 
@@ -322,8 +322,8 @@ push-sources:
 
 | 消息                        | 审核问题                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `filters.banner.savedCount` | `=0`、`one` 和 `other` 分支读起来自然吗？`#` 是否能根据每种语言环境的复数规则正确展开？ |
-| `filters.banner.scope`      | `select` 是否涵盖应用发送的每个 `scope` 值？`other` 是安全的备用方案吗？                             |
+| `filters.banner.savedCount` | Do `=0`, `one`, and `other` branches read naturally? Does `#` expand correctly for each locale’s plural rules? |
+| `filters.banner.scope`      | Does `select` cover every `scope` value the app sends? Is `other` a safe fallback?                             |
 | 短标签                | 翻译后的字符串在复数扩展后仍能放进按钮吗？                                                |
 
 当复数分支出现在受限布局中时，请附上屏幕截图。Hyperlocalise 会将术语表和项目说明与片段一并保留——CLI 只负责移动文件。
@@ -382,7 +382,7 @@ pull-translations:
         labels: localization
 ```
 
-`sync pull`以 FormatJS 格式写入`lang/fr-FR.json`和`lang/de-DE.json`（包含 id、`defaultMessage`，有时还包含`description`）。`hl pack`会移除`description`和其他元数据，同时保留每个`defaultMessage`中的 ICU——可供按语言区域导入 JSON 的打包工具使用。
+`sync pull` writes `lang/fr-FR.json` and `lang/de-DE.json` in FormatJS shape (ids, `defaultMessage`, sometimes `description`). `hl pack` removes `description` and other metadata while preserving ICU in each `defaultMessage`—ready for bundlers that import JSON per locale.
 
 打包的法语条目示例：
 
@@ -394,11 +394,11 @@ pull-translations:
 }
 ```
 
-在应用中打开翻译拉取请求，切换语言区域，并测试 `count = 0`、`count = 1` 和 `count = 5`。ICU 回归问题通常只会在非英语复数规则下出现。
+Open the translation pull request in the app, switch locales, and exercise `count = 0`, `count = 1`, and `count = 5`. ICU regressions often appear only on non-English plural rules.
 
 ## 步骤 8：在应用中加载翻译目录
 
-导入打包的区域设置文件，并将其映射到 `IntlProvider` 或 `createIntl`：
+Import packed locale files and map them into `IntlProvider` or `createIntl`:
 
 ```tsx
 import frFR from "../lang/fr-FR.json";
@@ -421,7 +421,7 @@ function flattenFormatJSCatalog(
 }
 ```
 
-有些团队只在源代码中保留英文默认值，而只为目标语言加载 JSON——只要代码中的 `defaultMessage` 和 `lang/en-US.json` 通过 extract 保持一致，这两种模式都可行。
+Some teams keep English defaults only in source code and load JSON for targets only—both patterns work if `defaultMessage` in code and `lang/en-US.json` stay aligned via extract.
 
 ## 完整流程的行为方式
 
@@ -459,40 +459,40 @@ feature branch
 
 ### 拉取请求因提取内容漂移而失败
 
-在本地使用与 CI 相同的 `--ignore`模式运行 `hl extract`，提交 `lang/en-US.json` 并推送。如果 ID 意外跳变，请确认描述符包含稳定的 `id`字段。
+Run `hl extract` locally with the same `--ignore` patterns as CI, commit `lang/en-US.json`, and push. If ids jump unexpectedly, confirm descriptors include stable `id` fields.
 
-### `icu_shape_mismatch` 在一份其他方面都“不错”的译文中
+### `icu_shape_mismatch` on an otherwise “good” translation
 
-将分支顺序和占位符名称与`en-US`进行比较。在本地运行`hl check --check icu_shape_mismatch --locale fr-FR`。修复目标 JSON，或将该片段退回审核——对于真正的 ICU 消息，不要屏蔽此检查。
+Compare branch order and placeholder names to `en-US`. Run `hl check --check icu_shape_mismatch --locale fr-FR` locally. Fix the target JSON or send the segment back to review—do not silence the check for real ICU messages.
 
-### 运行时会在目标区域设置中显示 `MISSING_TRANSLATION` 或英文
+### Runtime shows `MISSING_TRANSLATION` or English in a target locale
 
-确认翻译拉取请求已合并、`hl pack` 已运行，并且导入指向打包后的文件。验证代码中的消息 ID 与 JSON 中的键相匹配（包括任何 `--prefix-id` 约定）。
+Confirm the translation pull request merged, `hl pack` ran, and imports point at the packed files. Verify message ids in code match keys in JSON (including any `--prefix-id` convention).
 
-### `hl sync pull`不会改变任何内容
+### `hl sync pull` changes nothing
 
-确认 `HYPERLOCALISE_PROJECT_ID` 引用的项目中的审批。运行 `hl sync pull --dry-run`。确保 `i18n.yml` `to:` 路径与应用导入目录的位置相匹配。
+Confirm approvals in the project referenced by `HYPERLOCALISE_PROJECT_ID`. Run `hl sync pull --dry-run`. Ensure `i18n.yml` `to:` paths match where the app imports catalogs.
 
 ### 打包文件中的 ICU 被错误移除
 
-对 FormatJS JSON 使用默认的 `hl pack`——它会保持 `defaultMessage` 完整。除非你的目录结构是普通嵌套 JSON，否则不要使用针对普通嵌套 JSON 的工作流运行 pack。
+Use default `hl pack` on FormatJS JSON—it keeps `defaultMessage` intact. Do not run pack with workflows meant for plain nested JSON unless that is your catalog shape.
 
 ## 发布检查清单
 
 在发布依赖新文案的功能之前：
 
-- [ ] 消息描述符与提取的 `lang/en-US.json` 合并了
-- [ ] 拉取请求提取和`hyperlocalise check`已通过
-- [ ] `hl sync push` 在 `main` 上运行
+- [ ] Message descriptors merged with extracted `lang/en-US.json`
+- [ ] Pull request extract and `hyperlocalise check` passed
+- [ ] `hl sync push` ran on `main`
 - [ ] 目标语言区域已在 Hyperlocalise 中审核并批准
-- [ ] 翻译拉取请求已合并 (`sync pull` + `pack`)
-- [ ] 按语言环境对复数和 `select` 分支进行手动 QA
-- [ ] 生产环境部署使用合并后的 `lang/*.json`构件
+- [ ] Translation pull request merged (`sync pull` + `pack`)
+- [ ] Manual QA on plural and `select` branches per locale
+- [ ] Production deploy uses the merged `lang/*.json` artifacts
 
 ## 让提取工具及时了解情况。
 
-React Intl 鼓励将文案与代码共置；Hyperlocalise 鼓励使用经过审核的文件翻译。**`hl extract`** 命令连接了这两个世界，无需为基础目录采用单独的 FormatJS CLI。
+React Intl encourages colocated copy; Hyperlocalise encourages reviewed, file-backed translations. The **`hl extract`** command bridges those worlds without adopting a separate FormatJS CLI for basic catalogs.
 
-使用 **`check`**，以在拉取请求中保护 ICU 结构。使用 **sync** 进行审核者工作流。使用 **`pack`**，这样既能保持生产包精简，又能让译者在两次拉取之间将丰富的元数据保留在 Git 中。
+Use **`check`** to protect ICU shape in pull requests. Use **sync** for reviewer workflow. Use **`pack`** so production bundles stay lean while translators keep rich metadata in Git between pulls.
 
-如需了解更全面的 GitHub 发布流程——包括 Markdown 发布说明和 UI 字符串——请继续阅读[GitHub 本地化工作流程：从拉取请求到多语言发布](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release)，或[探索 Hyperlocalise 上的产品本地化](/use-cases/product-localisation)。
+For a wider GitHub release story—including Markdown release notes alongside UI strings—continue with [GitHub localisation workflow: from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release), or [explore product localisation on Hyperlocalise](/use-cases/product-localisation).

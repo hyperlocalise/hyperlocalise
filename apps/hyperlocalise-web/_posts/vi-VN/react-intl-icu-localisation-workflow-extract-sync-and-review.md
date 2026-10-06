@@ -18,15 +18,15 @@ tags:
 
 React Intl lưu trữ nội dung hiển thị cho người dùng trong TypeScript, nhưng người dịch và CI cần một danh mục ổn định trên đĩa. Cú pháp ICU—số nhiều, lựa chọn, số và ngày tháng—phải được giữ nguyên trong quá trình chuyển giao đó để không gây lỗi khi chạy.
 
-Hướng dẫn này chỉ cách kết nối **react-intl**, **ICU** và **CLI `hyperlocalise`** thành một quy trình làm việc:
+This guide shows how to connect **react-intl**, **ICU**, and the **`hyperlocalise` CLI** into one workflow:
 
-1. Các kỹ sư viết thông điệp bằng `defineMessages` và `<FormattedMessage />`.
-2. `hl extract` làm mới danh mục FormatJS tiếng Anh từ nguồn.
+1. Engineers write messages in `defineMessages` and `<FormattedMessage />`.
+2. `hl extract` refreshes the English FormatJS catalog from source.
 3. GitHub kiểm tra pull request để phát hiện sai lệch, khóa bị thiếu và lỗi cấu trúc ICU.
-4. `hl sync push` gửi danh mục đến Hyperlocalise để xem xét.
-5. `hl sync pull` và `hl pack` đưa các bản dịch đã được duyệt trở lại `lang/*.json` cho ứng dụng của bạn.
+4. `hl sync push` sends the catalog to Hyperlocalise for review.
+5. `hl sync pull` and `hl pack` bring reviewed translations back into `lang/*.json` for your app.
 
-Mẫu này phản ánh cách Hyperlocalise tự sử dụng ứng dụng web của mình. Đối với ghi chú phát hành và JSON không dùng React trong cùng kho lưu trữ, hãy kết hợp hướng dẫn này với [quy trình bản địa hóa GitHub từ pull request đến bản phát hành đa ngôn ngữ](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release).
+The pattern matches how Hyperlocalise dogfoods its own web app. For release notes and non-React JSON in the same repository, combine this tutorial with the [GitHub localisation workflow from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release).
 
 ## Những gì chúng ta sẽ xây dựng
 
@@ -48,13 +48,13 @@ Giả sử một ứng dụng Next.js hoặc Vite React có cấu trúc như sau
 └── i18n.yml
 ```
 
-Tiếng Anh (`en-US`) là ngôn ngữ nguồn. Tiếng Pháp và tiếng Đức là ngôn ngữ đích. Mã thông báo và giá trị `defaultMessage` nằm trong các tệp `*.messages.ts` (mô-đun phía máy khách) và đôi khi trong các bộ mô tả nội tuyến. Hyperlocalise đồng bộ hóa dữ liệu từ JSON đã trích xuất; nhiều ứng dụng nhập JSON đã đóng gói khi chạy.
+English (`en-US`) is the source locale. French and German are targets. Message ids and `defaultMessage` values live in `*.messages.ts` files (client modules) and in occasional inline descriptors. Extracted JSON is what Hyperlocalise syncs; packed JSON is what many apps import at runtime.
 
 Bạn sẽ cần:
 
-- một dự án Hyperlocalise với `en-US` làm ngôn ngữ nguồn và các ngôn ngữ đích của bạn;
-- `HYPERLOCALISE_API_KEY` và `HYPERLOCALISE_PROJECT_ID` dưới dạng secrets của GitHub Actions; và
-- `react-intl` (hoặc `@formatjs/intl`) đã được cài đặt trong ứng dụng.
+- a Hyperlocalise project with `en-US` as source and your target locales;
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` as GitHub Actions secrets; and
+- `react-intl` (or `@formatjs/intl`) already installed in the app.
 
 ## Bước 1: viết các thông điệp react-intl có hỗ trợ ICU
 
@@ -88,9 +88,9 @@ export const savedFiltersBannerMessages = defineMessages({
 });
 ```
 
-Sử dụng ICU bên trong `defaultMessage` khi nội dung phụ thuộc vào số hoặc enum. React Intl đánh giá toàn bộ thông điệp trong thời gian chạy; người dịch phải giữ nguyên các khung `{count, plural, ...}` và `{scope, select, ...}`, đồng thời thay đổi các nhánh hiển thị nội dung dễ hiểu.
+Use ICU inside `defaultMessage` when copy depends on numbers or enums. React Intl evaluates the full message at runtime; translators must preserve `{count, plural, ...}` and `{scope, select, ...}` skeletons while changing the human-readable branches.
 
-Trong một thành phần trang, truyền các giá trị ICU thông qua `formatMessage` hoặc `<FormattedMessage />`:
+In a page component, pass ICU values through `formatMessage` or `<FormattedMessage />`:
 
 ```tsx
 "use client";
@@ -113,13 +113,13 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 }
 ```
 
-**Thành phần Server:** không import `*.messages.ts` từ các mô-đun chỉ dành cho server—`defineMessages` chỉ dành cho client. Hãy đánh dấu giao diện người dùng bằng `"use client"` hoặc dùng các đối tượng `{ id, defaultMessage, description }` nội tuyến với `getIntlShape(locale).formatMessage()` trên server. Xem ranh giới react-intl của framework bạn; bước trích xuất vẫn tìm thấy các descriptor trong các tệp `.ts` và `.tsx` mà nó quét.
+**Server Components:** do not import `*.messages.ts` from server-only modules—`defineMessages` is client-only. Either mark the UI as `"use client"` or use inline `{ id, defaultMessage, description }` objects with `getIntlShape(locale).formatMessage()` on the server. See your framework’s react-intl boundaries; the extract step still finds descriptors in `.ts` and `.tsx` files it scans.
 
-Tránh `--flatten` trên các thông điệp ICU mà bạn định phát hành dưới dạng đơn vị react-intl riêng lẻ. Việc làm phẳng đưa các nhánh số nhiều và lựa chọn lên cấp cao hơn để phục vụ quy trình dịch chuyên biệt; đây không phải là tùy chọn mặc định cho danh mục runtime.
+Avoid `--flatten` on ICU messages you intend to ship as single react-intl units. Flattening hoists plural and select branches for specialized translation workflows; it is not the default for runtime catalogs.
 
-## Bước 2: ánh xạ danh mục trong `i18n.yml`
+## Step 2: map catalogs in `i18n.yml`
 
-Tạo `i18n.yml` tại thư mục gốc của kho lưu trữ (hoặc trong thư mục ứng dụng của bạn nếu monorepo lưu cấu hình bên cạnh giao diện người dùng):
+Create `i18n.yml` at the repository root (or under your app directory if the monorepo keeps config next to the UI):
 
 ```yaml
 version: hyperlocalise@1.13.3
@@ -148,13 +148,13 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-Hyperlocalise xem FormatJS JSON là nội dung hạng nhất: mỗi khóa là một mã thông báo, mỗi giá trị bao gồm `defaultMessage` và `description` tùy chọn. Các chuỗi ICU luôn là một giá trị cho mỗi mã thông báo—`run`, `check` và nội dung đồng bộ không chia chúng thành các câu riêng.
+Hyperlocalise treats FormatJS JSON as first-class content: each key is a message id, each value includes `defaultMessage` and optional `description`. ICU strings stay one value per id—`run`, `check`, and sync do not sentence-split them.
 
-Cố định phiên bản CLI trong `i18n.yml` (hoặc cố định phiên bản của action cài đặt) để máy cục bộ và GitHub Actions chạy cùng một trình trích xuất và các trình xác thực.
+Pin the CLI version in `i18n.yml` (or pin the install action) so local machines and GitHub Actions run the same extractor and validators.
 
 ## Bước 3: trích xuất danh mục nguồn bằng CLI
 
-Từ thư mục chứa `i18n.yml`, làm mới danh mục tiếng Anh:
+From the directory that contains `i18n.yml`, refresh the English catalog:
 
 ```bash
 export HYPERLOCALISE_API_KEY="your-api-key"
@@ -168,7 +168,7 @@ hl extract src \
   --ignore "**/__tests__/**"
 ```
 
-`extract` quét `.ts` và `.tsx` để tìm bộ mô tả trong:
+`extract` scans `.ts` and `.tsx` for descriptors in:
 
 - `defineMessage` / `defineMessages`
 - `intl.formatMessage(...)`
@@ -185,15 +185,15 @@ Nó ghi JSON FormatJS theo định dạng nghiêm ngặt:
 }
 ```
 
-Nếu descriptor không có `id`, CLI sẽ tạo một mã băm tương thích với FormatJS từ `defaultMessage` và `description`. ID tường minh giúp dễ xem xét hơn trong các bản diff và trong Hyperlocalise.
+If a descriptor omits `id`, the CLI generates a FormatJS-compatible hash from `defaultMessage` and `description`. Explicit ids are easier to review in diffs and in Hyperlocalise.
 
-Commit `lang/en-US.json` cùng với thay đổi mã. Hãy coi việc thiếu commit trích xuất giống như thiếu migration: nền tảng sẽ không thấy các chuỗi mới cho đến khi catalog được cập nhật.
+Commit `lang/en-US.json` together with the code change. Treat a missing extract commit the same way you would a missing migration: the platform never sees new strings until the catalog updates.
 
-Tùy chọn: `--prefix-id` thêm tiền tố đường dẫn tệp đã chuẩn hóa (`src.components.saved-filters-banner.title`) vào các id. Kết hợp với `hl pack --prefix-id` khi các gói runtime yêu cầu id ngắn. Các ví dụ ở đây sử dụng id logic ổn định.
+Optional: `--prefix-id` prefixes ids with the normalized file path (`src.components.saved-filters-banner.title`). Pair it with `hl pack --prefix-id` when runtime bundles expect short ids. The examples here use stable logical ids instead.
 
-## Bước 4: bảo vệ các pull request bằng extract và `check`
+## Step 4: guard pull requests with extract and `check`
 
-Thêm `.github/workflows/localise.yml`:
+Add `.github/workflows/localise.yml`:
 
 ```yaml
 name: Localise
@@ -264,10 +264,10 @@ jobs:
 
 Hai cổng hoạt động cùng nhau:
 
-1. **Sai lệch bản trích xuất** — nếu ai đó chỉnh sửa `defaultMessage` trong mã nhưng quên `hl extract`, tác vụ sẽ thất bại ở `git diff`.
-2. **`hyperlocalise check`** — cùng với `github-diff: true`, xác thực các khóa đã thay đổi trong `lang/en-US.json` và các mục tiêu để tìm các vấn đề như `not_localized`, `placeholder_mismatch` và **`icu_shape_mismatch`**.
+1. **Extract drift** — if someone edits `defaultMessage` in code but forgets `hl extract`, the job fails on `git diff`.
+2. **`hyperlocalise check`** — with `github-diff: true`, validates changed keys in `lang/en-US.json` and targets for problems such as `not_localized`, `placeholder_mismatch`, and **`icu_shape_mismatch`**.
 
-Lần kiểm tra cuối cùng đó rất quan trọng đối với ICU: một chuỗi tiếng Pháp làm mất `{count, plural, ...}` hoặc đảo thứ tự các nhánh có thể trông vẫn ổn nếu con người chỉ xem lướt JSON, nhưng sẽ gây lỗi khi chạy. Phát hiện sự sai lệch về cấu trúc trong CI sẽ tiết kiệm hơn so với phát hiện khi đã đưa vào môi trường thực tế.
+That last check matters for ICU: a French string that drops `{count, plural, ...}` or permutes branches may look fine to a human skimming JSON but will fail at runtime. Catching shape drift in CI is cheaper than catching it in production.
 
 Chạy các bước kiểm tra tương tự trên máy của bạn trước khi đẩy:
 
@@ -312,9 +312,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-Sau khi hợp nhất, `hl sync push` tải `lang/en-US.json` lên dự án Hyperlocalise được liên kết. Chạy lại extract trên `main` giúp tránh tình trạng chạy đua khi mã được hợp nhất mà không có danh mục tương ứng trong Git.
+After merge, `hl sync push` uploads `lang/en-US.json` to the linked Hyperlocalise project. Re-running extract on `main` avoids a race where code merged without a matching catalog in Git.
 
-Sử dụng `hl sync push --dry-run` khi bạn thay đổi đường dẫn bucket hoặc danh sách ngôn ngữ.
+Use `hl sync push --dry-run` when you change bucket paths or locale lists.
 
 ## Bước 6: xem lại các thông điệp ICU trong Hyperlocalise
 
@@ -322,8 +322,8 @@ Người dịch nên thấy toàn bộ thông điệp ICU, chứ không phải c
 
 | Tin nhắn                    | Câu hỏi đánh giá                                                                                              |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `filters.banner.savedCount` | Các nhánh `=0`, `one` và `other` có đọc tự nhiên không? `#` có được mở rộng chính xác theo quy tắc số nhiều của từng ngôn ngữ không? |
-| `filters.banner.scope`      | `select` có bao quát mọi giá trị `scope` mà ứng dụng gửi không? `other` có phải là phương án dự phòng an toàn không?                             |
+| `filters.banner.savedCount` | Do `=0`, `one`, and `other` branches read naturally? Does `#` expand correctly for each locale’s plural rules? |
+| `filters.banner.scope`      | Does `select` cover every `scope` value the app sends? Is `other` a safe fallback?                             |
 | Nhãn ngắn                | Các chuỗi đã dịch vẫn vừa với các nút sau khi mở rộng dạng số nhiều?                                                |
 
 Đính kèm ảnh chụp màn hình khi có nhánh số nhiều trong bố cục bị giới hạn. Hyperlocalise lưu bảng thuật ngữ và hướng dẫn dự án cùng với phân đoạn—CLI chỉ di chuyển các tệp.
@@ -382,7 +382,7 @@ pull-translations:
         labels: localization
 ```
 
-`sync pull` ghi `lang/fr-FR.json` và `lang/de-DE.json` theo định dạng FormatJS (id, `defaultMessage`, đôi khi có `description`). `hl pack` loại bỏ `description` và siêu dữ liệu khác, đồng thời giữ nguyên ICU trong từng `defaultMessage`—sẵn sàng cho các trình đóng gói nhập JSON theo từng ngôn ngữ.
+`sync pull` writes `lang/fr-FR.json` and `lang/de-DE.json` in FormatJS shape (ids, `defaultMessage`, sometimes `description`). `hl pack` removes `description` and other metadata while preserving ICU in each `defaultMessage`—ready for bundlers that import JSON per locale.
 
 Ví dụ về mục tiếng Pháp được đóng gói:
 
@@ -394,11 +394,11 @@ Ví dụ về mục tiếng Pháp được đóng gói:
 }
 ```
 
-Mở pull request bản dịch trong ứng dụng, chuyển đổi ngôn ngữ và kiểm tra `count = 0`, `count = 1` và `count = 5`. Lỗi hồi quy ICU thường chỉ xuất hiện với các quy tắc số nhiều không phải tiếng Anh.
+Open the translation pull request in the app, switch locales, and exercise `count = 0`, `count = 1`, and `count = 5`. ICU regressions often appear only on non-English plural rules.
 
 ## Bước 8: tải danh mục vào ứng dụng.
 
-Nhập các tệp ngôn ngữ được đóng gói và ánh xạ chúng vào `IntlProvider` hoặc `createIntl`:
+Import packed locale files and map them into `IntlProvider` or `createIntl`:
 
 ```tsx
 import frFR from "../lang/fr-FR.json";
@@ -421,7 +421,7 @@ function flattenFormatJSCatalog(
 }
 ```
 
-Một số nhóm chỉ giữ các giá trị mặc định tiếng Anh trong mã nguồn và chỉ tải JSON cho các ngôn ngữ đích—cả hai cách đều hoạt động nếu `defaultMessage` trong mã và `lang/en-US.json` luôn đồng bộ với nhau thông qua bước trích xuất.
+Some teams keep English defaults only in source code and load JSON for targets only—both patterns work if `defaultMessage` in code and `lang/en-US.json` stay aligned via extract.
 
 ## Cách toàn bộ quy trình hoạt động
 
@@ -459,40 +459,40 @@ Trích xuất kết nối mã nguồn với các danh mục. Đồng bộ kết 
 
 ### Pull request không thành công do dữ liệu trích xuất bị sai lệch
 
-Chạy `hl extract` cục bộ với cùng các mẫu `--ignore` như CI, commit `lang/en-US.json` rồi push. Nếu ID tăng bất ngờ, hãy xác nhận rằng các descriptor bao gồm các trường `id` ổn định.
+Run `hl extract` locally with the same `--ignore` patterns as CI, commit `lang/en-US.json`, and push. If ids jump unexpectedly, confirm descriptors include stable `id` fields.
 
-### `icu_shape_mismatch` trên một bản dịch “tốt” về mọi mặt khác
+### `icu_shape_mismatch` on an otherwise “good” translation
 
-So sánh thứ tự các nhánh và tên biến giữ chỗ với `en-US`. Chạy `hl check --check icu_shape_mismatch --locale fr-FR` trên máy cục bộ. Sửa JSON đích hoặc gửi lại phân đoạn để xem xét—đừng bỏ qua bước kiểm tra các thông báo ICU thực sự.
+Compare branch order and placeholder names to `en-US`. Run `hl check --check icu_shape_mismatch --locale fr-FR` locally. Fix the target JSON or send the segment back to review—do not silence the check for real ICU messages.
 
-### Runtime hiển thị `MISSING_TRANSLATION` hoặc tiếng Anh trong ngôn ngữ đích
+### Runtime shows `MISSING_TRANSLATION` or English in a target locale
 
-Xác nhận pull request bản dịch đã được hợp nhất, `hl pack` đã chạy và các câu lệnh import trỏ đến các tệp đã đóng gói. Xác minh các ID thông điệp trong mã khớp với các khóa trong JSON (bao gồm cả quy ước `--prefix-id`).
+Confirm the translation pull request merged, `hl pack` ran, and imports point at the packed files. Verify message ids in code match keys in JSON (including any `--prefix-id` convention).
 
-### `hl sync pull` không thay đổi gì
+### `hl sync pull` changes nothing
 
-Xác nhận các phê duyệt trong dự án được tham chiếu bởi `HYPERLOCALISE_PROJECT_ID`. Chạy `hl sync pull --dry-run`. Đảm bảo các đường dẫn `i18n.yml` `to:` khớp với nơi ứng dụng nhập các danh mục.
+Confirm approvals in the project referenced by `HYPERLOCALISE_PROJECT_ID`. Run `hl sync pull --dry-run`. Ensure `i18n.yml` `to:` paths match where the app imports catalogs.
 
 ### Các tệp đã nén bị loại bỏ ICU do nhầm lẫn
 
-Dùng mặc định `hl pack` trên JSON FormatJS—cách này giữ nguyên `defaultMessage`. Đừng chạy pack với các quy trình dành cho JSON lồng nhau thông thường, trừ khi đó là cấu trúc catalog của bạn.
+Use default `hl pack` on FormatJS JSON—it keeps `defaultMessage` intact. Do not run pack with workflows meant for plain nested JSON unless that is your catalog shape.
 
 ## Danh sách kiểm tra phát hành
 
 Trước khi phát hành một tính năng phụ thuộc vào nội dung mới:
 
-- [ ] Các bộ mô tả thông báo đã được hợp nhất với `lang/en-US.json`
-- [ ] Bản trích xuất yêu cầu kéo và `hyperlocalise check` đã đạt.
-- [ ] `hl sync push` đã chạy trên `main`
+- [ ] Message descriptors merged with extracted `lang/en-US.json`
+- [ ] Pull request extract and `hyperlocalise check` passed
+- [ ] `hl sync push` ran on `main`
 - [ ] Các ngôn ngữ đích đã được xem xét và phê duyệt trong Hyperlocalise
-- [ ] Yêu cầu kéo bản dịch đã được hợp nhất (`sync pull` + `pack`)
-- [ ] Kiểm thử QA thủ công các nhánh số nhiều và `select` cho từng locale
-- [ ] Bản triển khai production sử dụng các artifact đã hợp nhất `lang/*.json`
+- [ ] Translation pull request merged (`sync pull` + `pack`)
+- [ ] Manual QA on plural and `select` branches per locale
+- [ ] Production deploy uses the merged `lang/*.json` artifacts
 
 ## Giữ phần trích xuất trong vòng lặp
 
-React Intl khuyến khích đặt nội dung văn bản cùng nơi với mã, còn Hyperlocalise khuyến khích sử dụng bản dịch đã được duyệt và lưu trong tệp. Lệnh **`hl extract`** kết nối hai thế giới đó mà không cần dùng một CLI FormatJS riêng cho các danh mục cơ bản.
+React Intl encourages colocated copy; Hyperlocalise encourages reviewed, file-backed translations. The **`hl extract`** command bridges those worlds without adopting a separate FormatJS CLI for basic catalogs.
 
-Dùng **`check`** để bảo vệ cấu trúc ICU trong các yêu cầu kéo. Dùng **sync** cho quy trình làm việc của người đánh giá. Dùng **`pack`** để giữ cho các gói production gọn nhẹ, đồng thời người dịch vẫn giữ siêu dữ liệu phong phú trong Git giữa các lần kéo.
+Use **`check`** to protect ICU shape in pull requests. Use **sync** for reviewer workflow. Use **`pack`** so production bundles stay lean while translators keep rich metadata in Git between pulls.
 
-Để có cái nhìn toàn diện hơn về quy trình phát hành GitHub—bao gồm ghi chú phát hành Markdown cùng với chuỗi giao diện—hãy tiếp tục với [Quy trình bản địa hóa GitHub: từ pull request đến bản phát hành đa ngôn ngữ](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release), hoặc [khám phá bản địa hóa sản phẩm trên Hyperlocalise](/use-cases/product-localisation).
+For a wider GitHub release story—including Markdown release notes alongside UI strings—continue with [GitHub localisation workflow: from pull request to multilingual release](/blog/github-localisation-workflow-from-pull-request-to-multilingual-release), or [explore product localisation on Hyperlocalise](/use-cases/product-localisation).

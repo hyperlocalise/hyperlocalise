@@ -87,7 +87,7 @@ llm:
   profiles:
     default:
       provider: openai
-      model: gpt-5.6-luna
+      model: gpt-6-luna
 
 hyperlocalise:
   project_id_env: HYPERLOCALISE_PROJECT_ID
