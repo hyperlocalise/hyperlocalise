@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   decodeMemoryImportBytes,
   memoryImportFormatFromFilename,
+  normalizeMemoryImportUploadBytes,
   suggestedMemoryNameFromFilename,
 } from "./decode-import-file";
 
@@ -43,6 +44,20 @@ describe("decodeMemoryImportBytes", () => {
 
   it("keeps UTF-8 TMX unchanged", () => {
     expect(decodeMemoryImportBytes(new TextEncoder().encode(SAMPLE))).toBe(SAMPLE);
+  });
+});
+
+describe("normalizeMemoryImportUploadBytes", () => {
+  it("re-encodes UTF-16 LE and BE files as UTF-8 without a BOM", () => {
+    for (const bytes of [utf16LeWithBom(SAMPLE), utf16BeWithBom(SAMPLE)]) {
+      const normalized = normalizeMemoryImportUploadBytes(bytes);
+      expect(new TextDecoder("utf-8", { fatal: true }).decode(normalized)).toBe(SAMPLE);
+    }
+  });
+
+  it("keeps UTF-8 input byte-identical", () => {
+    const bytes = new TextEncoder().encode(SAMPLE);
+    expect(normalizeMemoryImportUploadBytes(bytes)).toEqual(bytes);
   });
 });
 

@@ -667,43 +667,38 @@ describe("GET /translation-memories/:memoryId/entries", () => {
   it("stamps imported entries with a shared import batch and creator", async () => {
     const { identity, memory, user } = await fixture.createStoredMemoryFixture();
     const headers = await fixture.authHeadersFor(identity);
+    const importBatchId = "11111111-2222-4333-8444-555555555555";
 
-    const importResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
-      ":memoryId"
-    ].entries.import.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          memoryId: memory.id,
-        },
-        json: {
-          format: "csv",
-          content: ["en,es,Hello,Hola,100", "en,fr,Hello,Bonjour,100"].join("\n"),
-        },
-      },
-      { headers },
-    );
-
-    expect(importResponse.status).toBe(201);
-    const imported = (await importResponse.json()) as {
-      imported: number;
-      importBatchId: string;
-      memoryEntries: Array<{ createdByUserId: string | null; importBatchId: string | null }>;
-    };
-    expect(imported.imported).toBe(2);
-    expect(imported.importBatchId).toEqual(expect.any(String));
-    expect(imported.memoryEntries.every((entry) => entry.createdByUserId === user.id)).toBe(true);
-    expect(
-      imported.memoryEntries.every((entry) => entry.importBatchId === imported.importBatchId),
-    ).toBe(true);
+    await fixture.insertMemoryEntry(memory.id, {
+      sourceLocale: "en",
+      targetLocale: "es",
+      sourceText: "Hello",
+      targetText: "Hola",
+      provenance: "import",
+      createdByUserId: user.id,
+      importBatchId,
+    });
+    await fixture.insertMemoryEntry(memory.id, {
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Hello",
+      targetText: "Bonjour",
+      provenance: "import",
+      createdByUserId: user.id,
+      importBatchId,
+    });
 
     const filtered = await listEntries({
       organizationSlug: identity.organization.slug ?? "missing-slug",
       memoryId: memory.id,
       headers,
-      query: { importBatchId: imported.importBatchId, origin: "import" },
+      query: { importBatchId, origin: "import" },
     });
     expect(filtered.status).toBe(200);
-    expect(((await filtered.json()) as EntryListBody).total).toBe(2);
+    const filteredBody = (await filtered.json()) as EntryListBody;
+    expect(filteredBody.total).toBe(2);
+    expect(filteredBody.memoryEntries.every((entry) => entry.importBatchId === importBatchId)).toBe(
+      true,
+    );
   });
 });

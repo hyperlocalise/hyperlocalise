@@ -12,15 +12,132 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { IntlProvider } from "react-intl";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   memoryInterchangeCountItems,
+  memoryInterchangePreviewSamples,
+  TmImportAttemptDetail,
   TmImportDiagnosticList,
   TmInterchangeFailureDetails,
 } from "./tm-import-attempt-detail";
+
+const { getAttemptMock, queueImportMock, memoryGetMock } = vi.hoisted(() => ({
+  getAttemptMock: vi.fn(),
+  queueImportMock: vi.fn(async () => ({ attemptId: "attempt-1", status: "queued" })),
+  memoryGetMock: vi.fn(
+    async (): Promise<{
+      ok: boolean;
+      json?: () => Promise<{ memory: { name: string; status: string } }>;
+    }> => ({
+      ok: true as const,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    }),
+  ),
+}));
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      memory: {
+        importAttempts: { get: getAttemptMock },
+        entries: { queueImport: queueImportMock },
+      },
+    },
+    loading: false,
+  }),
+}));
+
+vi.mock("@/lib/api-client-instance", () => ({
+  apiClient: {
+    api: {
+      orgs: {
+        ":organizationSlug": {
+          "translation-memories": {
+            ":memoryId": {
+              $get: () => memoryGetMock(),
+            },
+          },
+        },
+      },
+    },
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/en/org/acme/translation-memories/memory-1/imports/attempt-1",
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+function previewAttemptResponse(status: string, createdByUserId: string | null = "user-1") {
+  return {
+    memoryImportAttempt: {
+      id: "attempt-1",
+      organizationId: "org-1",
+      memoryId: "memory-1",
+      createdByUserId,
+      actorDisplayName: "Ada",
+      operation: "import",
+      status,
+      importBatchId: "attempt-1",
+      mode: "preview",
+      format: "tmx",
+      options: {},
+      sourceFilename: "memory.tmx",
+      sourceByteSize: 42,
+      sourceSha256: "abc",
+      counts: {
+        totalRead: 3,
+        created: 0,
+        updated: 0,
+        variantCreated: 0,
+        skipped: 0,
+        warned: 0,
+        failed: 0,
+      },
+      headerSrclang: "en",
+      diagnosticsTruncated: false,
+      diagnosticsAvailability: "available",
+      diagnosticsExpiresAt: null,
+      retentionPolicy: "indefinite",
+      failureCode: null,
+      resultFilename: null,
+      resultReady: false,
+      createdAt: "2026-10-06T00:00:00.000000Z",
+      completedAt: null,
+    },
+    diagnostics: [],
+  };
+}
+
+function renderDetail(props?: { currentUserId?: string; canWriteMemories?: boolean }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <IntlProvider locale="en">
+      <QueryClientProvider client={queryClient}>
+        <TmImportAttemptDetail
+          organizationSlug="acme"
+          memoryId="memory-1"
+          attemptId="attempt-1"
+          currentUserId={props?.currentUserId ?? "user-1"}
+          canWriteMemories={props?.canWriteMemories ?? true}
+        />
+      </QueryClientProvider>
+    </IntlProvider>,
+  );
+}
 
 describe("TmImportDiagnosticList", () => {
   it("renders a zero-based diagnostic unit index", () => {
@@ -73,6 +190,160 @@ describe("memoryInterchangeCountItems", () => {
 
   it("does not invent import zeros when an export has no entry count yet", () => {
     expect(memoryInterchangeCountItems({ operation: "export", counts: null })).toEqual([]);
+  });
+});
+
+describe("memoryInterchangePreviewSamples", () => {
+  it("returns well-formed samples and skips malformed entries", () => {
+    const samples = memoryInterchangePreviewSamples({
+      counts: {
+        samples: [
+          { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+          { sourceText: "Missing target" },
+          "not-an-object",
+          { sourceText: "Second", targetText: "Kedua" },
+        ],
+      },
+    });
+    expect(samples).toEqual([
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+      { sourceLocale: "", targetLocale: "", sourceText: "Second", targetText: "Kedua" },
+    ]);
+  });
+
+  it("caps samples at five entries", () => {
+    const makeSample = (index: number) => ({ sourceText: `s${index}`, targetText: `t${index}` });
+    const samples = memoryInterchangePreviewSamples({
+      counts: { samples: Array.from({ length: 8 }, (_, index) => makeSample(index)) },
+    });
+    expect(samples).toHaveLength(5);
+    expect(samples[0]).toEqual({
+      sourceLocale: "",
+      targetLocale: "",
+      sourceText: "s0",
+      targetText: "t0",
+    });
+  });
+
+  it("returns an empty list when counts carry no samples", () => {
+    expect(memoryInterchangePreviewSamples({ counts: null })).toEqual([]);
+    expect(memoryInterchangePreviewSamples({ counts: {} })).toEqual([]);
+  });
+});
+
+describe("TmImportAttemptDetail apply action", () => {
+  it("shows Import entries while the preview is ready", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail();
+
+    expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View affected entries" })).not.toBeInTheDocument();
+  });
+
+  it("queues the import apply when Import entries is clicked", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Import entries" }));
+
+    await waitFor(() => {
+      expect(queueImportMock).toHaveBeenCalledWith("acme", "memory-1", {
+        attemptId: "attempt-1",
+        mode: "apply",
+      });
+    });
+  });
+
+  it("hides Import entries once the import completes", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("completed"));
+    renderDetail();
+
+    await screen.findByText("View affected entries");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries for a viewer who did not start the import", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed", "user-2"));
+    renderDetail({ currentUserId: "user-1" });
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries without memory write access", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    renderDetail({ canWriteMemories: false });
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
+  it("hides Import entries when the memory is archived", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "archived" } }),
+    });
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    });
+  });
+
+  it("hides Import entries while the memory fails to load", async () => {
+    getAttemptMock.mockResolvedValue(previewAttemptResponse("preview_completed"));
+    memoryGetMock.mockResolvedValue({ ok: false });
+    renderDetail();
+
+    await screen.findByText("memory.tmx");
+
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+    memoryGetMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
+    });
+  });
+});
+
+describe("TmImportAttemptDetail preview samples", () => {
+  it("shows preview samples while the preview is ready", async () => {
+    const response = previewAttemptResponse("preview_completed");
+    (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+      {
+        sourceLocale: "en",
+        targetLocale: "ms",
+        sourceText: "Goodbye",
+        targetText: "Selamat tinggal",
+      },
+    ];
+    getAttemptMock.mockResolvedValue(response);
+    renderDetail();
+
+    expect(await screen.findByText("Sample entries")).toBeInTheDocument();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.getByText("Selamat tinggal")).toBeInTheDocument();
+  });
+
+  it("hides preview samples once the import completes", async () => {
+    const response = previewAttemptResponse("completed");
+    (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
+      { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
+    ];
+    getAttemptMock.mockResolvedValue(response);
+    renderDetail();
+
+    await screen.findByText("View affected entries");
+
+    expect(screen.queryByText("Sample entries")).not.toBeInTheDocument();
   });
 });
 
