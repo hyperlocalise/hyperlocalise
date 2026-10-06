@@ -19,6 +19,7 @@ import {
   createDocumentSchemaExtensions,
   isLossyDocumentRoundTrip,
   normalizeDocumentMarkdown,
+  normalizeGfmTablesInMarkdown,
   parseDocumentMarkdown,
   type DocumentEditorSyntax,
 } from "./document-editor-extensions";
@@ -180,6 +181,26 @@ describe("isLossyDocumentRoundTrip", () => {
     const padded = roundTrip(GFM_TABLE_FIXTURE, "markdown");
 
     expect(isLossyDocumentRoundTrip("markdown", compact, padded)).toBe(false);
+  });
+
+  it("preserves GFM table alignment markers when normalizing", () => {
+    const separator = "| :--- | ---: | :---: |";
+    expect(normalizeGfmTablesInMarkdown(separator)).toBe("| :--- | ---: | :---: |");
+  });
+
+  it("treats dropped GFM table alignment as a lossy round trip", () => {
+    const aligned = `## T
+
+| Left | Right |
+| :--- | ---: |
+| a | b |`;
+    const withoutAlignment = `## T
+
+| Left | Right |
+| --- | --- |
+| a | b |`;
+
+    expect(isLossyDocumentRoundTrip("markdown", aligned, withoutAlignment)).toBe(true);
   });
 });
 

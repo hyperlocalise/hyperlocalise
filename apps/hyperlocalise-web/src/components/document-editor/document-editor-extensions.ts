@@ -65,7 +65,7 @@ export function createDocumentSchemaExtensions(
     TaskList.configure({ HTMLAttributes: { class: "document-task-list" } }),
     TaskItem.configure({ nested: true, HTMLAttributes: { class: "document-task-item" } }),
     Image.configure({ inline: false, allowBase64: false }),
-    TableKit.configure({ table: { resizable: false } }),
+    TableKit.configure({ table: { resizable: false, renderWrapper: true } }),
     nodes.callout,
     ...(syntax === "mdx" ? [nodes.mdxRaw, nodes.mdxComponent, nodes.mdxInline] : []),
     Markdown.configure({ marked: new Marked() as never }),
@@ -83,6 +83,16 @@ function isGfmTableRowLine(line: string) {
   return line.trim().includes("|");
 }
 
+function normalizeGfmTableDelimiter(cell: string) {
+  const trimmed = cell.trim();
+  if (!/^:?-{3,}:?$/.test(trimmed)) {
+    return trimmed;
+  }
+  const leftColon = trimmed.startsWith(":");
+  const rightColon = trimmed.endsWith(":") && !/^:-+$/.test(trimmed);
+  return `${leftColon ? ":" : ""}---${rightColon ? ":" : ""}`;
+}
+
 function normalizeGfmTableRow(line: string) {
   let parts = line
     .trim()
@@ -98,7 +108,7 @@ function normalizeGfmTableRow(line: string) {
     return line;
   }
   if (parts.every((part) => /^:?-{3,}:?$/.test(part))) {
-    return `| ${parts.map(() => "---").join(" | ")} |`;
+    return `| ${parts.map(normalizeGfmTableDelimiter).join(" | ")} |`;
   }
   return `| ${parts.join(" | ")} |`;
 }
