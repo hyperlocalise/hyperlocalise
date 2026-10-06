@@ -22,6 +22,7 @@ type memoryImportPayload struct {
 	Format         string  `json:"format"`
 	Content        string  `json:"content"`
 	AttemptID      string  `json:"attemptId"`
+	DryRun         *bool   `json:"dryRun"`
 	Mode           string  `json:"mode"`
 	MaxUnits       *int    `json:"maxUnits"`
 	SourceFilename *string `json:"sourceFilename"`
@@ -142,11 +143,14 @@ func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m 
 		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	var payload memoryImportPayload
-	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
+	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "dryRun", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {
 		return nil, 0, err
 	}
 	if strings.TrimSpace(payload.AttemptID) != "" {
 		return api.finalizeMemoryImport(r.Context(), actor, m, payload)
+	}
+	if payload.DryRun != nil && *payload.DryRun {
+		return nil, 0, memoryFailure(400, "memory_import_dry_run_unsupported", "Translation memory import dry-run is no longer supported. Upload the file and queue a preview instead.")
 	}
 	format := strings.ToLower(trimMemoryInput(payload.Format))
 	if format != "csv" && format != "tmx" {
