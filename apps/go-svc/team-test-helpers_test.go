@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,8 +57,8 @@ func mustOrgTeammate(t *testing.T, scope *testenv.Scope, workosUserID, email, ro
 		scope.OrganizationID, userID, "om_"+uuid.NewString(), role)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, _ = scope.Pool.Exec(t.Context(), `delete from organization_memberships where user_id=$1`, userID)
-		_, _ = scope.Pool.Exec(t.Context(), `delete from users where id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from organization_memberships where user_id=$1`, userID)
+		_, _ = scope.Pool.Exec(context.Background(), `delete from users where id=$1`, userID)
 	})
 	return userID
 }

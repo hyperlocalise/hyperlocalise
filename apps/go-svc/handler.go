@@ -75,6 +75,7 @@ type handler struct {
 	projects           *projectAPI
 	overview           *overviewAPI
 	publicTranslations *publicTranslationsAPI
+	publicJobs         *publicJobsAPI
 	workspace          *workspaceAPI
 	autumn             *autumn.Client
 	knowledgeMemories  *knowledgeMemoryAPI
@@ -135,6 +136,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.publicTranslations != nil {
 		h.publicTranslations.register(mux)
+	}
+	if h.publicJobs != nil {
+		h.publicJobs.register(mux)
 	}
 	if h.workspace != nil {
 		h.registerDomainResearch(mux, verifier)
