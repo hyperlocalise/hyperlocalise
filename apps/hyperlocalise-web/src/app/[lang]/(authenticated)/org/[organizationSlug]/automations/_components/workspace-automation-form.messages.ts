@@ -185,9 +185,9 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "G7es7H7NT8",
     description: "Shortcut hint when an email provider must be connected first",
   },
-  triggersSection: {
-    defaultMessage: "Triggers",
-    id: "3kjfANjxLP",
+  triggerSection: {
+    defaultMessage: "Trigger",
+    id: "WuN0lCA6yk",
     description: "Section heading for automation trigger settings",
   },
   scheduleTimezoneAriaLabel: {

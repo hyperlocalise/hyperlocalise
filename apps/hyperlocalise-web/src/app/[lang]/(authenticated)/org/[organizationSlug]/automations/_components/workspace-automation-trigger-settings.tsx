@@ -846,7 +846,7 @@ export function TriggerSettings({
   return (
     <section className="flex flex-col gap-2">
       <h2 className="px-2 text-xs font-medium text-muted-foreground">
-        <FormattedMessage {...workspaceAutomationFormMessages.triggersSection} />
+        <FormattedMessage {...workspaceAutomationFormMessages.triggerSection} />
       </h2>
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted px-3 py-3">
         <div className="flex flex-wrap items-center gap-2">
