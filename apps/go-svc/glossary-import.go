@@ -591,7 +591,7 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 		concept := glossaryImportConcept{ID: conceptID}
 		for _, d := range entry.Descrips {
 			switch d.Type {
-			case "subjectField":
+			case "subjectField", "subject":
 				concept.Subject = strings.TrimSpace(d.Value)
 			case "definition":
 				concept.Definition = strings.TrimSpace(d.Value)

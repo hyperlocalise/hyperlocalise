@@ -15,7 +15,9 @@
 // import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 // import { tmpdir } from "node:os";
 // import { dirname, join } from "node:path";
-// import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vite-plus/test";
 
@@ -509,5 +511,37 @@ describe("TBX-Basic DCA interchange", () => {
     );
     expect(parsed.diagnostics.some((entry) => entry.code === "invalid_xml")).toBe(true);
     expect(parsed.concepts).toHaveLength(1);
+  });
+
+  // Crowdin locale ID mapping (de → de-DE) is covered in Go fixture tests under go-svc/testdata.
+  describe("real-world TBX fixtures", () => {
+    const fixtureDir = fileURLToPath(
+      new URL("../../../../../go-svc/testdata/glossary-interchange/", import.meta.url),
+    );
+
+    function readFixture(name: string) {
+      return readFileSync(join(fixtureDir, name), "utf8");
+    }
+
+    it("parses the Crowdin glossary export fixture", () => {
+      const parsed = parseTbx(readFixture("crowdin-export.tbx"));
+      expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+      expect(parsed.concepts).toHaveLength(52);
+      const locales = new Set(
+        parsed.concepts.flatMap((concept) => concept.terms.map((term) => term.locale)),
+      );
+      expect(locales.has("de")).toBe(true);
+      expect(locales.has("en")).toBe(true);
+    });
+
+    it("parses the Hyperlocalise glossary export fixture", () => {
+      const parsed = parseTbx(readFixture("hyperlocalise-export.tbx"));
+      expect(parsed.diagnostics.filter((entry) => entry.severity === "error")).toEqual([]);
+      expect(parsed.concepts).toHaveLength(52);
+      const locales = new Set(
+        parsed.concepts.flatMap((concept) => concept.terms.map((term) => term.locale)),
+      );
+      expect(locales).toEqual(new Set(["en-US"]));
+    });
   });
 });

@@ -590,7 +590,8 @@ export function parseTbx(content: string): GlossaryImportDocument {
     const local = tag.local ?? tag.name.split(":").pop() ?? tag.name;
     if (!rootValidated) {
       rootValidated = true;
-      if (local !== "tbx" || tag.uri !== TBX_NAMESPACE) {
+      const hyperlocaliseMartif = local === "martif";
+      if (!hyperlocaliseMartif && (local !== "tbx" || tag.uri !== TBX_NAMESPACE)) {
         diagnostics.push(
           diagnostic({
             code: "unsupported_tbx_namespace",
@@ -598,7 +599,10 @@ export function parseTbx(content: string): GlossaryImportDocument {
           }),
         );
       }
-      if (attr(tag, "type") !== "TBX-Basic" || attr(tag, "style") !== "dca") {
+      if (
+        !hyperlocaliseMartif &&
+        (attr(tag, "type") !== "TBX-Basic" || attr(tag, "style") !== "dca")
+      ) {
         diagnostics.push(
           diagnostic({
             code: "unsupported_tbx_profile",
