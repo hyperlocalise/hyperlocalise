@@ -213,8 +213,8 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
     eq(schema.jobs.id, jobId),
     await buildAccessibleJobsWhere(auth),
     // Include waiting_for_review so native proofread jobs (and review-gated
-    // translation jobs) can be cancelled or marked failed — they count toward
-    // the open-job budget and otherwise have no completion path.
+    // translation jobs) can be cancelled — they count toward the open-job
+    // budget and otherwise have no completion path.
     or(
       eq(schema.jobs.status, "queued"),
       eq(schema.jobs.status, "running"),
@@ -230,6 +230,10 @@ async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
         .where(eq(schema.externalJobDetails.jobId, schema.jobs.id)),
     ),
   );
+}
+
+async function agentActiveJobWhere(auth: ApiAuthContext, jobId: string) {
+  return and(await activeJobWhere(auth, jobId), eq(schema.jobs.assigneeType, "agent"));
 }
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -1451,7 +1455,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             },
             completedAt: new Date(),
           })
-          .where(await activeJobWhere(c.var.auth, params.jobId))
+          .where(await agentActiveJobWhere(c.var.auth, params.jobId))
           .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
 
         if (job?.kind === "translation") {

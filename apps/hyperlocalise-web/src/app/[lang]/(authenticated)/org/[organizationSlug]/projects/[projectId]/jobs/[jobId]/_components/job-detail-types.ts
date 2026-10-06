@@ -180,7 +180,7 @@ function isNativeActiveJob(job: JobDetailRecord) {
 }
 
 export function canMarkJobFailed(job: JobDetailRecord) {
-  return isNativeActiveJob(job);
+  return isNativeActiveJob(job) && job.assigneeType === "agent";
 }
 
 export function canCancelJob(job: JobDetailRecord) {

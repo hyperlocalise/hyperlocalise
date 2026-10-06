@@ -106,6 +106,7 @@ function JobKanbanCard({
   const intl = useIntl();
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
+  const summary = taskDetailSummary(job, intl);
 
   return (
     <article className="rounded-lg border border-border bg-background p-3 shadow-sm">
@@ -158,8 +159,8 @@ function JobKanbanCard({
         ) : null}
       </div>
 
-      <TypographyP className="mt-3" lineClamp={2} size="xsmall" tone="subtlest">
-        {taskDetailSummary(job, intl)}
+      <TypographyP className="mt-3" lineClamp={2} size="xsmall" tone="subtlest" title={summary}>
+        {summary}
       </TypographyP>
       <TypographyP className="mt-1 text-[11px]" tone="subtle">
         <FormattedMessage

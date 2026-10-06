@@ -450,13 +450,22 @@ class TranslationJobCompletionService {
     workflowRunId: string;
     code: string;
     message: string;
+    failedLocales?: string[];
+    followUpJobId?: string | null;
   }) {
     const didFail = await db.transaction(async (tx) => {
       const [updatedJob] = await tx
         .update(schema.jobs)
         .set({
           status: "failed",
-          outcomePayload: { code: input.code, message: input.message },
+          outcomePayload: {
+            code: input.code,
+            message: input.message,
+            ...(input.failedLocales && input.failedLocales.length > 0
+              ? { failedLocales: input.failedLocales }
+              : {}),
+            ...(input.followUpJobId ? { followUpJobId: input.followUpJobId } : {}),
+          },
           lastError: input.message,
           completedAt: new Date(),
         })
@@ -533,6 +542,8 @@ export class TranslationJobService {
     workflowRunId: string;
     code: string;
     message: string;
+    failedLocales?: string[];
+    followUpJobId?: string | null;
   }) {
     return this.completion.fail(input);
   }
@@ -569,6 +580,8 @@ export async function failTranslationJob(input: {
   workflowRunId: string;
   code: string;
   message: string;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   return defaultJobService.fail(input);
 }

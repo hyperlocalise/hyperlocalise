@@ -166,6 +166,7 @@ function JobListRow({
 }) {
   const intl = useIntl();
   const detailHref = buildDetailHref(organizationSlug, projectId ?? job.projectId, job.id);
+  const summary = taskDetailSummary(job, intl);
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/30">
@@ -197,8 +198,11 @@ function JobListRow({
             intl.formatMessage(jobsPageViewMessages.workspaceFallback)}
         </TypographyP>
       ) : null}
-      <span className="hidden max-w-[10rem] min-w-0 truncate text-muted-foreground lg:inline">
-        {taskDetailSummary(job, intl)}
+      <span
+        className="hidden max-w-[10rem] min-w-0 truncate text-muted-foreground lg:inline"
+        title={summary}
+      >
+        {summary}
       </span>
       <time
         className="min-w-[4.75rem] shrink-0 text-end text-muted-foreground tabular-nums"

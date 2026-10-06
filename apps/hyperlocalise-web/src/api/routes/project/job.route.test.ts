@@ -979,7 +979,7 @@ describe("project job create", () => {
     expect(job?.status).toBe("cancelled");
   });
 
-  it("marks native proofread jobs stuck in waiting_for_review as failed", async () => {
+  it("rejects mark-failed for human-assigned native jobs", async () => {
     const { identity, organization, project } = await createFixture.createStoredProjectFixture();
     const headers = await createFixture.authHeadersFor(identity);
     const sourceFile = await insertStoredSourceFile({
@@ -1014,6 +1014,63 @@ describe("project job create", () => {
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as { job: { id: string; status: string } };
     expect(created.job.status).toBe("waiting_for_review");
+
+    const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "mark-failed"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: created.job.id,
+        },
+      },
+      { headers },
+    );
+    expect(markFailedResponse.status).toBe(409);
+    await expect(markFailedResponse.json()).resolves.toMatchObject({
+      error: "job_action_unavailable",
+    });
+  });
+
+  it("marks agent-assigned native jobs as failed", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const createResponse = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Agent translation",
+          kind: "translation",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as { job: { id: string } };
+
+    await db
+      .update(schema.jobs)
+      .set({ assigneeType: "agent", ownerUserId: null })
+      .where(eq(schema.jobs.id, created.job.id));
 
     const markFailedResponse = await createClient.api.orgs[":organizationSlug"].jobs[":jobId"][
       "mark-failed"

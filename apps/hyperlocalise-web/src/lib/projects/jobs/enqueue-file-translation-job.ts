@@ -49,6 +49,7 @@ export type CreateFileTranslationJobInput = {
   createdByUserId?: string | null;
   apiKeyId?: string | null;
   ownerUserId?: string | null;
+  assigneeType?: "user" | "agent" | null;
   sourceFileId: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -56,6 +57,19 @@ export type CreateFileTranslationJobInput = {
   metadata?: Record<string, string>;
   ignoreTranslationMemory?: boolean;
 };
+
+function resolveFileTranslationJobAssignee(input: {
+  assigneeType?: "user" | "agent" | null;
+  ownerUserId?: string | null;
+}): { assigneeType: "user" | "agent" | null; ownerUserId: string | null } {
+  if (input.assigneeType === "agent") {
+    return { assigneeType: "agent", ownerUserId: null };
+  }
+  if (input.assigneeType === "user" || input.ownerUserId) {
+    return { assigneeType: "user", ownerUserId: input.ownerUserId ?? null };
+  }
+  return { assigneeType: null, ownerUserId: input.ownerUserId ?? null };
+}
 
 export type CreateFileTranslationJobResult =
   | {
@@ -327,6 +341,7 @@ export async function createFileTranslationJob(
         fileId: input.sourceFileId,
       });
 
+      const assignee = resolveFileTranslationJobAssignee(input);
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values({
@@ -335,8 +350,8 @@ export async function createFileTranslationJob(
           projectId: input.projectId,
           createdByUserId: input.createdByUserId ?? null,
           apiKeyId: input.apiKeyId ?? null,
-          ownerUserId: input.ownerUserId ?? null,
-          assigneeType: input.ownerUserId ? "user" : null,
+          ownerUserId: assignee.ownerUserId,
+          assigneeType: assignee.assigneeType,
           kind: "translation",
           status: "queued",
           inputPayload,

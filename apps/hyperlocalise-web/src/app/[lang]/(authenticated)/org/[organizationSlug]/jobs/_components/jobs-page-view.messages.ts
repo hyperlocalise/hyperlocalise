@@ -255,6 +255,11 @@ export const jobsPageViewMessages = defineMessages({
     id: "c4wtcYLzS0",
     description: "Task details fallback when a job has neither locales nor assignees",
   },
+  unfinishedLocales: {
+    defaultMessage: "Unfinished: {locales}",
+    id: "lj5gu7kJqA",
+    description: "Jobs list summary suffix for locales that did not finish translating",
+  },
   kindTranslation: {
     defaultMessage: "translation",
     id: "Fkgfxe1y6x",

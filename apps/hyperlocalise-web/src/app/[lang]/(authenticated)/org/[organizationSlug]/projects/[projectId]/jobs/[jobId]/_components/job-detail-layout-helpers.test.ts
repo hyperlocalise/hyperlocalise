@@ -81,4 +81,56 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     expect(assignees?.value).not.toBeNull();
     expect(typeof assignees?.value).toBe("object");
   });
+
+  it("surfaces the stored failure reason and leftover locales", () => {
+    const job = createNativeJobDetail({
+      assigneeType: "agent",
+      ownerUserId: null,
+      status: "failed",
+      lastError: "translating the json file failed. This is usually temporary — try again.",
+      outcomePayload: {
+        code: "file_translation_failed",
+        message: "translating the json file failed. This is usually temporary — try again.",
+        failedLocales: ["ja-JP", "ko-KR"],
+        followUpJobId: "job_retry",
+      },
+    });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+
+    expect(layout.properties.find((property) => property.id === "failure-reason")).toEqual({
+      id: "failure-reason",
+      label: "Failure reason",
+      value: "Translating the json file failed. This is usually temporary — try again.",
+    });
+    expect(layout.properties.find((property) => property.id === "failed-locales")).toEqual({
+      id: "failed-locales",
+      label: "Unfinished locales",
+      value: "ja-JP, ko-KR",
+    });
+    expect(layout.secondaryProperties.find((property) => property.id === "follow-up-job")).toEqual({
+      id: "follow-up-job",
+      label: "Retry job",
+      value: "job_retry",
+    });
+  });
+
+  it("hides agent failure details on human-assigned jobs", () => {
+    const job = createNativeJobDetail({
+      assigneeType: "user",
+      ownerUserId: "user_001",
+      status: "failed",
+      lastError: "Marked failed by user",
+      outcomePayload: {
+        code: "manual_failure",
+        message: "Marked failed by user",
+        failedLocales: ["ja-JP"],
+      },
+    });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+
+    expect(layout.properties.find((property) => property.id === "failure-reason")).toBeUndefined();
+    expect(layout.properties.find((property) => property.id === "failed-locales")).toBeUndefined();
+  });
 });

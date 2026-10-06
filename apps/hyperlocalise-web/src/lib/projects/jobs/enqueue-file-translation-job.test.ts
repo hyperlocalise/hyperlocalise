@@ -376,6 +376,29 @@ describe("enqueueFileTranslationJob", () => {
     });
   });
 
+  it("preserves an agent assignee when no human owner is set", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      assigneeType: "agent",
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(capturedJobValues).toMatchObject({
+      assigneeType: "agent",
+      ownerUserId: null,
+    });
+  });
+
   it("rejects unsupported source file formats", async () => {
     getStoredFileForJobScopeMock.mockResolvedValue({
       id: "file_pdf",

@@ -66,6 +66,8 @@ export async function failTranslationJobStep(input: {
   workflowRunId: string;
   code: string;
   message: string;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
 }) {
   "use step";
   const { failTranslationJob } = await import("@/lib/translation/jobs");
@@ -354,6 +356,7 @@ export async function storeOutputFileStep(input: {
   const { db, schema } = await import("@/lib/database/client");
   const { env } = await import("@/lib/env");
   const { createStoredFileId, sha256Hex, storageKey } = await import("@/lib/file-storage/records");
+  const { FileTranslationWorkflowError } = await import("@/workflows/file-translation-partial");
 
   const id = createStoredFileId();
   const key = storageKey({
@@ -395,7 +398,10 @@ export async function storeOutputFileStep(input: {
       .returning();
 
     if (!file) {
-      throw new Error(`failed to create stored file record for ${input.filename}`);
+      throw new FileTranslationWorkflowError(
+        "output_store_failed",
+        "failed to create stored file record",
+      );
     }
 
     return file;
@@ -473,6 +479,7 @@ export async function persistDocumentVariantBytesStep(input: {
   "use step";
   const { getImageVariant, replaceImageVariantBytes } =
     await import("@/lib/projects/files/image-variant-service");
+  const { FileTranslationWorkflowError } = await import("@/workflows/file-translation-partial");
   const result = await replaceImageVariantBytes({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -497,7 +504,10 @@ export async function persistDocumentVariantBytesStep(input: {
         return existing;
       }
     }
-    throw new Error(`failed to persist document variant: ${result.error.code}`);
+    throw new FileTranslationWorkflowError(
+      "document_variant_failed",
+      "failed to persist document variant",
+    );
   }
   return result.value;
 }
@@ -508,6 +518,10 @@ export async function completeFileTranslationJobStep(input: {
   workflowRunId: string;
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
   tokenUsage?: CliTokenUsage | null;
+  failedLocales?: string[];
+  followUpJobId?: string | null;
+  message?: string;
+  code?: string;
 }) {
   "use step";
   const { and, eq } = await import("drizzle-orm");
@@ -520,6 +534,12 @@ export async function completeFileTranslationJobStep(input: {
         status: "succeeded",
         outcomePayload: {
           outputFiles: input.outputFiles,
+          ...(input.failedLocales && input.failedLocales.length > 0
+            ? { failedLocales: input.failedLocales }
+            : {}),
+          ...(input.followUpJobId ? { followUpJobId: input.followUpJobId } : {}),
+          ...(input.message ? { message: input.message } : {}),
+          ...(input.code ? { code: input.code } : {}),
         },
         lastError: null,
         completedAt: new Date(),

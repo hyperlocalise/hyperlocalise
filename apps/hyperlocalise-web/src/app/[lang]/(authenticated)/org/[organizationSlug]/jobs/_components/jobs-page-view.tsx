@@ -20,6 +20,11 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import {
+  formatJobFailureReason,
+  readJobFailureDetails,
+  shouldShowJobFailureDetails,
+} from "@/lib/projects/jobs/job-failure-details";
 import { nativeJobSourceFileDisplayLabel } from "@/lib/projects/jobs/native-job-source-file-display";
 import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-mark";
 import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-branding";
@@ -306,6 +311,7 @@ function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: J
       job.kind,
       job.externalProviderKind,
       job.externalStatus,
+      job.lastError,
       targetLocales(job),
       assignees(job),
     ]
@@ -323,14 +329,36 @@ export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
       : getInputPayloadStringArray(job, "targetLocales");
   const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
   const people = assignees(job, intl);
-  if (locales === "—" && people === "—") {
-    return intl
-      ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)
-      : "No locales or assignees";
+  const assignmentSummary =
+    locales === "—" && people === "—"
+      ? intl
+        ? intl.formatMessage(jobsPageViewMessages.noLocalesOrAssignees)
+        : "No locales or assignees"
+      : locales === "—"
+        ? people
+        : people === "—"
+          ? locales
+          : `${locales} · ${people}`;
+  const failure = readJobFailureDetails(job);
+  const failureParts = shouldShowJobFailureDetails(job, failure)
+    ? [
+        failure.reason ? formatJobFailureReason(failure.reason) : null,
+        failure.failedLocales.length > 0
+          ? intl
+            ? intl.formatMessage(jobsPageViewMessages.unfinishedLocales, {
+                locales: failure.failedLocales.join(", "),
+              })
+            : `Unfinished: ${failure.failedLocales.join(", ")}`
+          : null,
+      ].filter((part): part is string => Boolean(part))
+    : [];
+  if (failureParts.length === 0) {
+    return assignmentSummary;
   }
-  if (locales === "—") return people;
-  if (people === "—") return locales;
-  return `${locales} · ${people}`;
+  if (locales === "—" && people === "—") {
+    return failureParts.join(" · ");
+  }
+  return `${assignmentSummary} · ${failureParts.join(" · ")}`;
 }
 
 function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
