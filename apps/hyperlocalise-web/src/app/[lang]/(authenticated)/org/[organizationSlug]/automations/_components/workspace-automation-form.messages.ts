@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const workspaceAutomationFormMessages = defineMessages({
   scheduledTriggerHourly: {
-    defaultMessage: "Every hour · {timezone}",
-    id: "SlPmp40QPZ",
+    defaultMessage: "Every hour",
+    id: "/C7cczI0aP",
     description: "Summary for a scheduled automation that runs every hour",
   },
   scheduledTriggerDaily: {

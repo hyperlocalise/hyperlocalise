@@ -17,6 +17,7 @@ import { expect, within } from "storybook/test";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import {
+  automationEditorContentfulConnectionsFixture,
   automationEditorRepositoriesFixture,
   createEmptyAutomationFormFixture,
   createGithubAutomationFormFixture,
@@ -28,6 +29,7 @@ import { TriggerSettings } from "./workspace-automation-trigger-settings";
 function TriggerSettingsStory({
   automationId,
   contentfulConnected = true,
+  contentfulConnections,
   disabled,
   errors = {},
   form: initialForm,
@@ -35,6 +37,7 @@ function TriggerSettingsStory({
 }: {
   automationId?: string;
   contentfulConnected?: boolean;
+  contentfulConnections?: typeof automationEditorContentfulConnectionsFixture;
   disabled?: boolean;
   errors?: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
@@ -47,6 +50,7 @@ function TriggerSettingsStory({
       <TriggerSettings
         automationId={automationId}
         contentfulConnected={contentfulConnected}
+        contentfulConnections={contentfulConnections}
         disabled={disabled}
         errors={errors}
         form={form}
@@ -187,6 +191,49 @@ export const Contentful: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("of type")).toBeInTheDocument();
     await expect(canvas.getByText("landingPage")).toBeInTheDocument();
+  },
+};
+
+export const ContentfulTypesChangedOnConnection: Story = {
+  args: {
+    contentfulConnections: [
+      { ...automationEditorContentfulConnectionsFixture[0]!, contentTypeIds: ["article", "faq"] },
+    ],
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      triggerMode: "contentful",
+      contentfulConnectionId: automationEditorContentfulConnectionsFixture[0]!.id,
+      contentfulContentTypeIds: ["article", "landingPage"],
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    // Only the type both lists share still starts a run.
+    await expect(canvas.getByText("article")).toBeInTheDocument();
+    await expect(canvas.queryByText("landingPage")).not.toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Use the connection's content types" }),
+    );
+    await expect(canvas.getByText("faq")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Use the connection's content types" }),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const ContentfulNoStartingType: Story = {
+  args: {
+    contentfulConnections: [
+      { ...automationEditorContentfulConnectionsFixture[0]!, contentTypeIds: ["faq"] },
+    ],
+    form: {
+      ...createEmptyAutomationFormFixture(),
+      triggerMode: "contentful",
+      contentfulConnectionId: automationEditorContentfulConnectionsFixture[0]!.id,
+      contentfulContentTypeIds: ["landingPage"],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText(/so no run will start/)).toBeInTheDocument();
   },
 };
 

@@ -305,30 +305,33 @@ export function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[]
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-muted">
-      <div
-        className={cn(
-          ROW_GRID,
-          "border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground",
-        )}
-      >
-        <span />
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
-        </span>
+    // Narrow screens scroll sideways: the columns need room to stay apart.
+    <div className="overflow-x-auto rounded-xl border border-border bg-muted">
+      <div className="min-w-140">
+        <div
+          className={cn(
+            ROW_GRID,
+            "border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground",
+          )}
+        >
+          <span />
+          <span>
+            <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
+          </span>
+          <span>
+            <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
+          </span>
+          <span>
+            <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
+          </span>
+          <span>
+            <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
+          </span>
+        </div>
+        {runs.map((run) => (
+          <RunRow key={run.id} run={run} />
+        ))}
       </div>
-      {runs.map((run) => (
-        <RunRow key={run.id} run={run} />
-      ))}
     </div>
   );
 }

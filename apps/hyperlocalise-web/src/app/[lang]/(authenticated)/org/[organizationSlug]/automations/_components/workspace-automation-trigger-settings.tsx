@@ -61,6 +61,10 @@ import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-auto
 import { cn } from "@/lib/primitives/cn";
 
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
+import {
+  resolveContentfulTriggerContentTypes,
+  type ContentfulConnectionOption,
+} from "./workspace-automation-contentful-trigger";
 
 export type GithubRepositoryOption = {
   id: string;
@@ -73,6 +77,7 @@ export type GithubRepositoryOption = {
 /** What a trigger needs from outside the form to offer itself and to fill in defaults. */
 export type TriggerContext = {
   contentfulConnected: boolean;
+  contentfulConnections: ContentfulConnectionOption[];
   githubConnected: boolean;
   repositories: GithubRepositoryOption[];
 };
@@ -467,9 +472,24 @@ function ScheduledTriggerFields({ disabled, errors, form, onChange }: TriggerFie
   );
 }
 
-/** Read-only: the content types come from the Contentful connection chosen in the tool row. */
-function ContentfulTriggerFields({ form }: TriggerFieldsProps) {
-  if (form.contentfulContentTypeIds.length === 0) {
+function readContentfulTriggerContentTypes({ context, form }: TriggerFieldsProps) {
+  const connection = context.contentfulConnections.find(
+    (entry) => entry.id === form.contentfulConnectionId,
+  );
+  return {
+    connection,
+    ...resolveContentfulTriggerContentTypes({
+      savedContentTypeIds: form.contentfulContentTypeIds,
+      connection,
+    }),
+  };
+}
+
+/** Read-only: the content types whose publish reaches this automation. */
+function ContentfulTriggerFields(props: TriggerFieldsProps) {
+  const { any, contentTypeIds } = readContentfulTriggerContentTypes(props);
+
+  if (any) {
     return (
       <Prose>
         <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulAnyType} />
@@ -477,12 +497,16 @@ function ContentfulTriggerFields({ form }: TriggerFieldsProps) {
     );
   }
 
+  if (contentTypeIds.length === 0) {
+    return null;
+  }
+
   return (
     <>
       <Prose>
         <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulOfType} />
       </Prose>
-      {form.contentfulContentTypeIds.map((contentTypeId) => (
+      {contentTypeIds.map((contentTypeId) => (
         <span
           key={contentTypeId}
           className="flex h-8 max-w-xs items-center truncate rounded-lg border border-border px-3 text-sm text-muted-foreground"
@@ -494,18 +518,50 @@ function ContentfulTriggerFields({ form }: TriggerFieldsProps) {
   );
 }
 
-function ContentfulTriggerDetails({ context }: TriggerFieldsProps) {
-  if (context.contentfulConnected) {
+function ContentfulTriggerDetails(props: TriggerFieldsProps) {
+  const { context, disabled, form, onChange } = props;
+  const { any, connection, contentTypeIds, differsFromConnection } =
+    readContentfulTriggerContentTypes(props);
+
+  if (!context.contentfulConnected) {
+    return (
+      <TriggerDetailRow>
+        <span className="text-xs text-muted-foreground">
+          <FormattedMessage
+            {...workspaceAutomationFormMessages.contentfulWebhookDisconnectedDescription}
+          />
+        </span>
+      </TriggerDetailRow>
+    );
+  }
+
+  if (!connection || !differsFromConnection) {
     return null;
   }
 
+  const startsNothing = !any && contentTypeIds.length === 0;
+
   return (
     <TriggerDetailRow>
-      <span className="text-xs text-muted-foreground">
+      <span className={cn("text-xs", startsNothing ? "text-destructive" : "text-muted-foreground")}>
         <FormattedMessage
-          {...workspaceAutomationFormMessages.contentfulWebhookDisconnectedDescription}
+          {...(startsNothing
+            ? workspaceAutomationTriggerMessages.contentfulNoStartingType
+            : workspaceAutomationTriggerMessages.contentfulTypesDiffer)}
         />
       </span>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        className="h-8 rounded-full px-3"
+        onClick={() =>
+          onChange({ ...form, contentfulContentTypeIds: [...connection.contentTypeIds] })
+        }
+      >
+        <FormattedMessage {...workspaceAutomationTriggerMessages.contentfulUseConnectionTypes} />
+      </Button>
     </TriggerDetailRow>
   );
 }
@@ -813,6 +869,7 @@ function TriggerMenu({
 export function TriggerSettings({
   automationId,
   contentfulConnected,
+  contentfulConnections = [],
   disabled,
   errors,
   form,
@@ -823,6 +880,7 @@ export function TriggerSettings({
 }: {
   automationId?: string;
   contentfulConnected: boolean;
+  contentfulConnections?: ContentfulConnectionOption[];
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
@@ -831,7 +889,12 @@ export function TriggerSettings({
   organizationSlug: string;
   repositories: GithubRepositoryOption[];
 }) {
-  const context: TriggerContext = { contentfulConnected, githubConnected, repositories };
+  const context: TriggerContext = {
+    contentfulConnected,
+    contentfulConnections,
+    githubConnected,
+    repositories,
+  };
   const selected = TRIGGER_OPTIONS.find((option) => option.matches(form)) ?? TRIGGER_OPTIONS[0]!;
   const fieldsProps: TriggerFieldsProps = {
     automationId,

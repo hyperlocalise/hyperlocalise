@@ -155,6 +155,7 @@ import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
 import { RunHistoryTable } from "./workspace-automation-run-history";
+import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -199,13 +200,6 @@ type ZernioConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
-type ContentfulConnectionOption = {
-  id: string;
-  displayName: string;
-  contentTypeIds: string[];
-  enabled: boolean;
-};
-
 type AutomationEditorTab = "settings" | "history";
 
 type ComingSoonAutomationTool = {
@@ -436,9 +430,8 @@ function triggerSummary(
 ) {
   if (form.triggerMode === "scheduled") {
     if (form.scheduledCadence === "hourly") {
-      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly, {
-        timezone: form.scheduledTimezone,
-      });
+      // Hourly runs start on the hour whatever the timezone, so the summary leaves it out.
+      return intl.formatMessage(workspaceAutomationFormMessages.scheduledTriggerHourly);
     }
 
     if (form.scheduledCadence === "weekly") {
@@ -3472,6 +3465,7 @@ export function WorkspaceAutomationEditor({
           <TriggerSettings
             automationId={automationId}
             contentfulConnected={contentfulConnected}
+            contentfulConnections={contentfulConnections}
             disabled={disabled}
             errors={errors}
             form={form}

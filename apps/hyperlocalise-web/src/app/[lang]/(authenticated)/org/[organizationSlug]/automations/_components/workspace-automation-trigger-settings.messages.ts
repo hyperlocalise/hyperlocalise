@@ -130,4 +130,24 @@ export const workspaceAutomationTriggerMessages = defineMessages({
     id: "AQFTimLagD",
     description: "Prose after the Contentful trigger name when every content type starts a run",
   },
+  contentfulTypesDiffer: {
+    defaultMessage:
+      "The Contentful connection's content types have changed since this automation was set up.",
+    id: "CnXjT2GLVq",
+    description:
+      "Notice under the Contentful trigger when the automation's saved content types differ from the connection's current ones",
+  },
+  contentfulNoStartingType: {
+    defaultMessage:
+      "The Contentful connection no longer sends any of this automation's content types, so no run will start.",
+    id: "92wPWgG68Q",
+    description:
+      "Warning under the Contentful trigger when none of the automation's saved content types is sent by the connection",
+  },
+  contentfulUseConnectionTypes: {
+    defaultMessage: "Use the connection's content types",
+    id: "02hUDkxuJ0",
+    description:
+      "Button that replaces the automation's saved Contentful content types with the connection's current ones",
+  },
 });
