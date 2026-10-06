@@ -48,7 +48,8 @@ export type ImageVariantError =
       remainingAmountUsd: number;
     }
   | { code: "ai_credit_unavailable"; message: string }
-  | { code: "localization_failed"; message: string };
+  | { code: "localization_failed"; message: string }
+  | { code: "aborted" };
 
 export function projectImageAssetPath(input: {
   organizationSlug: string;
@@ -230,11 +231,12 @@ async function loadSourceImageBytes(input: {
 
 export async function fetchImageBytesFromUrl(
   url: string,
+  options: { signal?: AbortSignal } = {},
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, ImageVariantError>> {
   try {
     return await withPublicHttpFetch(
       url,
-      { method: "GET", redirect: "error" },
+      { method: "GET", redirect: "error", signal: options.signal },
       async (response) => {
         if (!response.ok) {
           return err({
@@ -266,6 +268,9 @@ export async function fetchImageBytesFromUrl(
       },
     );
   } catch (error) {
+    if (options.signal?.aborted) {
+      return err({ code: "aborted" });
+    }
     return err({
       code: "fetch_failed",
       message: error instanceof Error ? error.message : "image fetch failed",
@@ -273,7 +278,10 @@ export async function fetchImageBytesFromUrl(
   }
 }
 
-function mapImageGenerationError(error: unknown): ImageVariantError {
+function mapImageGenerationError(error: unknown, signal?: AbortSignal): ImageVariantError {
+  if (signal?.aborted) {
+    return { code: "aborted" };
+  }
   if (error instanceof ManagedAiCreditAccessError) {
     return { code: "ai_credit_unavailable", message: error.message };
   }
@@ -299,6 +307,7 @@ export async function localizeAndStoreImageVariant(input: {
   sourceJobId?: string | null;
   createdByUserId?: string | null;
   force?: boolean;
+  signal?: AbortSignal;
 }): Promise<Result<typeof schema.projectImageVariants.$inferSelect, ImageVariantError>> {
   const existing = await getImageVariant({
     organizationId: input.organizationId,
@@ -328,7 +337,7 @@ export async function localizeAndStoreImageVariant(input: {
     }
     sourceBytes = loaded.value;
   } else if (input.sourceUrl) {
-    const fetched = await fetchImageBytesFromUrl(input.sourceUrl);
+    const fetched = await fetchImageBytesFromUrl(input.sourceUrl, { signal: input.signal });
     if (!fetched.ok) {
       return fetched;
     }
@@ -368,10 +377,16 @@ export async function localizeAndStoreImageVariant(input: {
           target_locale: input.targetLocale,
         },
       },
+      { signal: input.signal },
     );
     localized = { image: result.image, mimeType: result.mimeType || "image/png" };
   } catch (error) {
-    return err(mapImageGenerationError(error));
+    return err(mapImageGenerationError(error, input.signal));
+  }
+
+  // The caller may have moved on (or started a newer generation) while the model ran.
+  if (input.signal?.aborted) {
+    return err({ code: "aborted" });
   }
 
   const outputFilename = localizedImageOutputFilename(

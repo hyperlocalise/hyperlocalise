@@ -385,6 +385,8 @@ export function ProjectFileContentEditorWorkspace({
     setMaxLength,
     isSavingMaxLength,
     isImageBusy,
+    isImageGenerating,
+    generatingImageSegmentId,
   } = useContentEditorMutations({
     organizationSlug,
     projectId,
@@ -1022,6 +1024,22 @@ export function ProjectFileContentEditorWorkspace({
           coalesceQueueRefresh: true,
         });
       },
+      ...(isNativeProject && aiFeaturesAllowed && contentEditorFile?.canEditTranslations
+        ? {
+            onRegenerateImage: async (
+              segment: ContentEditorSegment,
+              locale: string,
+              options?: { force?: boolean; signal?: AbortSignal },
+            ) => {
+              await regenerateImage({
+                externalStringId: segment.id,
+                targetLocale: locale,
+                force: options?.force,
+                signal: options?.signal,
+              });
+            },
+          }
+        : {}),
       onOpenTranslation: (segment: ContentEditorSegment, locale: string) => {
         setOpenedSegmentKey(segment.key);
         setSearch(segment.key);
@@ -1036,6 +1054,8 @@ export function ProjectFileContentEditorWorkspace({
     [
       intl,
       saveTranslation,
+      regenerateImage,
+      aiFeaturesAllowed,
       assertQaSaveAllowed,
       assertSingleTargetSaveAllowed,
       isNativeProject,
@@ -1346,6 +1366,8 @@ export function ProjectFileContentEditorWorkspace({
                   isQueueDataPending={isQueueDataPending}
                   isTranslationViewLoading={isTranslationViewLoading}
                   isImageBusy={isImageBusy}
+                  isImageGenerating={isImageGenerating}
+                  generatingImageSegmentId={generatingImageSegmentId}
                   isMaxLengthSaving={isSavingMaxLength}
                   queuePagination={pagination}
                   onLoadMoreQueue={loadNextPage}

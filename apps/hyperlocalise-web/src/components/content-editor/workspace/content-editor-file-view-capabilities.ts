@@ -40,6 +40,10 @@ const MULTILINGUAL_SEGMENT_VIEWS = [
   "multilingual",
 ] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 const FILE_ONLY_VIEWS = ["file"] as const satisfies readonly ContentEditorWorkspaceViewMode[];
+const MULTILINGUAL_IMAGE_VIEWS = [
+  ...FILE_ONLY_VIEWS,
+  "multilingual",
+] as const satisfies readonly ContentEditorWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
@@ -76,7 +80,7 @@ export function resolveCatFileViewCapabilities(input: {
   if (contentKind === "image_file" || inferSupportedImageTranslationFileFormat(sourcePath)) {
     return {
       family: "image",
-      availableViews: FILE_ONLY_VIEWS,
+      availableViews: input.multilingualViewAvailable ? MULTILINGUAL_IMAGE_VIEWS : FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "image",
     };
@@ -133,4 +137,31 @@ export function clampCatWorkspaceViewMode(
 
 export function isCatFileViewAvailable(capabilities: ContentEditorFileViewCapabilities) {
   return capabilities.availableViews.includes("file");
+}
+
+export function isCatImageFileSegment(input: {
+  sourcePath?: string | null;
+  contentKind?: ContentEditorContentKind | null;
+}) {
+  return resolveCatFileViewCapabilities(input).family === "image";
+}
+
+/** All Files queues mix file kinds; the gallery only shows the selected image file. */
+export function contentEditorMultilingualGallerySegments<
+  T extends {
+    id: string;
+    sourcePath?: string | null;
+    contentKind?: ContentEditorContentKind | null;
+  },
+>(queueSegments: readonly T[], selectedSegment: T | null | undefined): T[] {
+  if (!selectedSegment || !isCatImageFileSegment(selectedSegment)) {
+    return [];
+  }
+  const selectedPath = selectedSegment.sourcePath?.trim();
+  if (!selectedPath) {
+    return [selectedSegment];
+  }
+  return queueSegments.filter(
+    (segment) => segment.sourcePath === selectedPath && isCatImageFileSegment(segment),
+  );
 }

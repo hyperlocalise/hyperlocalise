@@ -14,7 +14,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   clampCatWorkspaceViewMode,
+  contentEditorMultilingualGallerySegments,
   isCatFileViewAvailable,
+  isCatImageFileSegment,
   resolveCatFileViewCapabilities,
 } from "./content-editor-file-view-capabilities";
 
@@ -111,13 +113,25 @@ describe("cat-file-view-capabilities", () => {
     ).toEqual(["comfortable", "side-by-side"]);
   });
 
-  it("keeps whole-file families on file view even when multilingual is configured", () => {
-    for (const sourcePath of ["marketing/hero.png", "docs/brief.docx", "docs/intro.md"]) {
+  it("keeps document families on file view even when multilingual is configured", () => {
+    for (const sourcePath of ["docs/brief.docx", "docs/intro.md", "media/promo.mp4"]) {
       expect(
         resolveCatFileViewCapabilities({ sourcePath, multilingualViewAvailable: true })
           .availableViews,
       ).toEqual(["file"]);
     }
+  });
+
+  it("offers the multilingual gallery for images when a locale configuration exists", () => {
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "marketing/hero.png",
+        multilingualViewAvailable: true,
+      }).availableViews,
+    ).toEqual(["file", "multilingual"]);
+    expect(
+      resolveCatFileViewCapabilities({ sourcePath: "marketing/hero.png" }).availableViews,
+    ).toEqual(["file"]);
   });
 
   it("registers Univer viewers for office paths", () => {
@@ -179,5 +193,45 @@ describe("cat-file-view-capabilities", () => {
     const image = resolveCatFileViewCapabilities({ sourcePath: "a.webp" });
     expect(clampCatWorkspaceViewMode("comfortable", image)).toBe("file");
     expect(clampCatWorkspaceViewMode("file", image)).toBe("file");
+    expect(clampCatWorkspaceViewMode("multilingual", image)).toBe("file");
+
+    const multilingualImage = resolveCatFileViewCapabilities({
+      sourcePath: "a.webp",
+      multilingualViewAvailable: true,
+    });
+    expect(clampCatWorkspaceViewMode("multilingual", multilingualImage)).toBe("multilingual");
+  });
+
+  it("keeps the multilingual gallery on the selected image file in a mixed queue", () => {
+    const hero = {
+      id: "hero",
+      sourcePath: "marketing/hero.png",
+      contentKind: "image_file" as const,
+    };
+    const copy = { id: "copy", sourcePath: "locales/en.json", contentKind: "text" as const };
+    const video = {
+      id: "promo",
+      sourcePath: "marketing/promo.mp4",
+      contentKind: "video_file" as const,
+    };
+    const banner = {
+      id: "banner",
+      sourcePath: "marketing/banner.png",
+      contentKind: "image_file" as const,
+    };
+
+    expect(isCatImageFileSegment(hero)).toBe(true);
+    expect(isCatImageFileSegment(copy)).toBe(false);
+    expect(contentEditorMultilingualGallerySegments([hero, copy, video, banner], hero)).toEqual([
+      hero,
+    ]);
+    expect(contentEditorMultilingualGallerySegments([hero, copy, video, banner], copy)).toEqual([]);
+    expect(contentEditorMultilingualGallerySegments([hero, copy], null)).toEqual([]);
+
+    const heroAlt = { ...hero, id: "hero-alt" };
+    expect(contentEditorMultilingualGallerySegments([hero, heroAlt, copy], hero)).toEqual([
+      hero,
+      heroAlt,
+    ]);
   });
 });

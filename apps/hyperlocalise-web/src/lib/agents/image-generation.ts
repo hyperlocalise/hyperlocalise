@@ -48,6 +48,7 @@ function imageGenerationId(providerMetadata: unknown) {
 async function generateImageFromPrompt(
   imageBuffer: Buffer,
   prompt: string,
+  signal?: AbortSignal,
 ): Promise<{
   image: Buffer;
   mimeType: string;
@@ -68,6 +69,7 @@ async function generateImageFromPrompt(
       text: prompt,
     },
     n: 1,
+    abortSignal: signal,
   });
 
   const generatedImage = result.images[0];
@@ -101,6 +103,7 @@ export async function regenerateImageFromAttachment(
   _mimeType: string,
   userText: string,
   billing?: ImageGenerationBilling,
+  options: { signal?: AbortSignal } = {},
 ): Promise<ImageGenerationResult> {
   // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
   const prompt = userText.trim();
@@ -109,7 +112,7 @@ export async function regenerateImageFromAttachment(
   }
 
   const run = async () => {
-    const generated = await generateImageFromPrompt(imageBuffer, prompt);
+    const generated = await generateImageFromPrompt(imageBuffer, prompt, options.signal);
     return {
       image: generated.image,
       mimeType: generated.mimeType,

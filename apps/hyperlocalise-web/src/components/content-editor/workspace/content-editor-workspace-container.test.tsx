@@ -18,9 +18,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
+  contentEditorImageFileIntelligenceFixture,
+  createCatImageFileSegment,
   createCatImageFileWorkspaceState,
   createCatVideoFileWorkspaceState,
 } from "@/components/content-editor/file-view/content-editor-file-view.fixture";
+import { toQueueSegment } from "@/components/content-editor/workspace/store/content-editor-segment-view";
 import { ContentEditorQueueToolbarHost } from "@/components/content-editor/queue/content-editor-queue-toolbar-host";
 import {
   contentEditorIntelligenceFixture,
@@ -348,6 +351,102 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     } finally {
       window.matchMedia = originalMatchMedia;
     }
+  });
+
+  it("shows generation progress only for the image being generated", async () => {
+    const generating = createCatImageFileSegment();
+    const other = createCatImageFileSegment({
+      id: "seg-image-banner",
+      index: 2,
+      key: "marketing/banner.png",
+      sourceText: "marketing/banner.png",
+      sourcePath: "marketing/banner.png",
+      contextLabel: "Banner image",
+    });
+    const segments = [generating, other];
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorWorkspaceState({
+          segments,
+          queueSegments: segments.map(toQueueSegment),
+          selectedSegmentId: generating.id,
+          intelligence: contentEditorImageFileIntelligenceFixture,
+          segmentIntelligence: {
+            [generating.id]: contentEditorImageFileIntelligenceFixture,
+            [other.id]: contentEditorImageFileIntelligenceFixture,
+          },
+          fileContext: {
+            sourcePath: generating.sourcePath ?? "marketing/hero.png",
+            filename: "hero.png",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            providerKind: null,
+            canEditTranslations: true,
+            canAddComments: true,
+          },
+        })}
+        initialViewMode="file"
+        isImageGenerating
+        generatingImageSegmentId={generating.id}
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("progressbar", { name: "Generating image" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show generation progress for another image in the same locale", async () => {
+    const generating = createCatImageFileSegment();
+    const selected = createCatImageFileSegment({
+      id: "seg-image-banner",
+      index: 2,
+      key: "marketing/banner.png",
+      sourceText: "marketing/banner.png",
+      sourcePath: "marketing/banner.png",
+      contextLabel: "Banner image",
+    });
+    const segments = [generating, selected];
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorWorkspaceState({
+          segments,
+          queueSegments: segments.map(toQueueSegment),
+          selectedSegmentId: selected.id,
+          intelligence: contentEditorImageFileIntelligenceFixture,
+          segmentIntelligence: {
+            [generating.id]: contentEditorImageFileIntelligenceFixture,
+            [selected.id]: contentEditorImageFileIntelligenceFixture,
+          },
+          fileContext: {
+            sourcePath: selected.sourcePath ?? "marketing/banner.png",
+            filename: "banner.png",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            providerKind: null,
+            canEditTranslations: true,
+            canAddComments: true,
+          },
+        })}
+        initialViewMode="file"
+        isImageGenerating
+        generatingImageSegmentId={generating.id}
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Localised · vi/i })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("progressbar", { name: "Generating image" })).not.toBeInTheDocument();
+    expect(screen.getByAltText("Localised image")).toBeInTheDocument();
   });
 
   it("renders File view for an image file segment", async () => {

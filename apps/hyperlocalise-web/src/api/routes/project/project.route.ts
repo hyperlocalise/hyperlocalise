@@ -2415,6 +2415,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             provenance: "agent",
             createdByUserId: c.var.auth.user.localUserId,
             force: body.force,
+            signal: c.req.raw.signal,
           });
 
           if (!result.ok) {
@@ -2527,6 +2528,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           instructions: body.instructions,
           actorUserId: c.var.auth.user.localUserId,
           force: body.force,
+          signal: c.req.raw.signal,
         });
 
         if (!result.ok) {

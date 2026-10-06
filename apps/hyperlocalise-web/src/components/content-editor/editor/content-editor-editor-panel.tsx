@@ -69,6 +69,7 @@ export function ContentEditorEditorPanel({
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
   isImageBusy = false,
+  isImageGenerating = false,
   canApprove = true,
   canAddComment = false,
   canEditTranslations = true,
@@ -224,6 +225,7 @@ export function ContentEditorEditorPanel({
               segment={segment}
               canEdit={actionState.canEditTarget}
               isBusy={isImageBusy}
+              isGenerating={isImageGenerating}
               isLoading={isSegmentTargetLoading}
               onUpload={onUploadImage}
               onRegenerate={onRegenerateImage}
