@@ -103,6 +103,7 @@ export interface ContentEditorWorkspaceContainerProps {
   isQueueLoading?: boolean;
   isImageBusy?: boolean;
   isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   isMaxLengthSaving?: boolean;
   queuePagination?: ContentEditorWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
@@ -156,6 +157,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
     isQueueLoading: legacyIsQueueLoading,
     isImageBusy,
     isImageGenerating,
+    generatingImageSegmentId,
     isMaxLengthSaving,
     queuePagination,
     hasMoreQueue,
@@ -372,6 +374,7 @@ const ContentEditorWorkspaceContainerObserver = observer(
             isSegmentTargetLoading={store.isSegmentTargetLoading}
             isImageBusy={isImageBusy}
             isImageGenerating={isImageGenerating}
+            generatingImageSegmentId={generatingImageSegmentId}
             isMaxLengthSaving={isMaxLengthSaving}
             queuePagination={queuePagination}
             hasMoreQueue={hasMoreQueue}

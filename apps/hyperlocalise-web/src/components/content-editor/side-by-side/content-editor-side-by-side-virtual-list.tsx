@@ -16,6 +16,7 @@ import { useEditorPageWindow } from "../project-file/content-editor-page-window"
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 
+import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { cn } from "@/lib/primitives/cn";
 
 import type {
@@ -43,6 +44,7 @@ export function ContentEditorSideBySideVirtualList({
   isFormatChecksLoading = false,
   isImageBusy = false,
   isImageGenerating = false,
+  generatingImageSegmentId,
   canUseAiRecommendation = false,
   focusedIntelligence = null,
   aiRecommendationError,
@@ -81,6 +83,7 @@ export function ContentEditorSideBySideVirtualList({
   isFormatChecksLoading?: boolean;
   isImageBusy?: boolean;
   isImageGenerating?: boolean;
+  generatingImageSegmentId?: string;
   canUseAiRecommendation?: boolean;
   focusedIntelligence?: ContentEditorSegmentIntelligence | null;
   aiRecommendationError?: string;
@@ -233,7 +236,12 @@ export function ContentEditorSideBySideVirtualList({
                   (isFormatChecksLoading && segment.id === focusedSegmentId)
                 }
                 isImageBusy={isImageBusy && segment.id === focusedSegmentId}
-                isImageGenerating={isImageGenerating && segment.id === focusedSegmentId}
+                isImageGenerating={isContentEditorImageGenerating({
+                  isPending: isImageGenerating,
+                  pendingExternalStringId: generatingImageSegmentId,
+                  targetLocale: segment.targetLocale,
+                  externalStringId: segment.id,
+                })}
                 canUseAiRecommendation={canUseAiRecommendation}
                 intelligence={segment.id === focusedSegmentId ? focusedIntelligence : null}
                 aiRecommendationError={

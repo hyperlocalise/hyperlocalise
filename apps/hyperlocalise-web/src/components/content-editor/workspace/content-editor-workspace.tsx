@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
 import { ContentEditorEditorPanel } from "@/components/content-editor/editor/content-editor-editor-panel";
+import { isContentEditorImageGenerating } from "@/components/content-editor/project-file/content-editor-image-generation-state";
 import { ContentEditorFileViewPanel } from "@/components/content-editor/file-view/content-editor-file-view-panel";
 import { ContentEditorIntelligencePanel } from "@/components/content-editor/intelligence/content-editor-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/content-editor/issues/content-editor-linked-issue-translation-key";
@@ -114,6 +115,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   isSegmentTargetLoading = false,
   isImageBusy = false,
   isImageGenerating = false,
+  generatingImageSegmentId,
   isMaxLengthSaving = false,
   queuePagination = null,
   hasMoreQueue = false,
@@ -388,6 +390,12 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const canApprove = shell.fileContext.canEditTranslations !== false;
   const canAddComment = shell.fileContext.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(editorSegment.id) ?? false;
+  const isSelectedImageGenerating = isContentEditorImageGenerating({
+    isPending: isImageGenerating,
+    pendingExternalStringId: generatingImageSegmentId,
+    targetLocale: editorSegment.targetLocale,
+    externalStringId: editorSegment.id,
+  });
   const segmentShareUrl = buildSegmentShareUrl?.(editorSegment) ?? null;
   const intelligenceSegmentIntelligence = intelligenceSegment
     ? resolveSegmentIntelligenceForDisplay(
@@ -476,6 +484,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isFormatChecksLoading={isFormatChecksLoading}
           isImageBusy={isImageBusy}
           isImageGenerating={isImageGenerating}
+          generatingImageSegmentId={generatingImageSegmentId}
           canUseAiRecommendation={canUseAiRecommendation}
           focusedIntelligence={selectedSegmentIntelligence}
           aiRecommendationError={aiRecommendationError}
@@ -605,7 +614,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           canApprove={canApprove && !editorSegment.isLocked}
           isApproving={isApproving}
           isImageBusy={isImageBusy}
-          isImageGenerating={isImageGenerating}
+          isImageGenerating={isSelectedImageGenerating}
           isSegmentTargetLoading={isSegmentTargetLoading}
           primaryActionLabel={shell.primaryActionLabel}
           hasPreviousSegment={hasPreviousSegment}
@@ -748,7 +757,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isCommentsLoading={isCommentsLoading}
           isSegmentTargetLoading={isSegmentTargetLoading}
           isImageBusy={isImageBusy}
-          isImageGenerating={isImageGenerating}
+          isImageGenerating={isSelectedImageGenerating}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}

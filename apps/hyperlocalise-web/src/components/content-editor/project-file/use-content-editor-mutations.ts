@@ -985,8 +985,12 @@ export function useContentEditorMutations(input: {
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    generatingImageSegmentId: regenerateImageMutation.isPending
+      ? regenerateImageMutation.variables?.externalStringId
+      : undefined,
     isImageGenerating:
       regenerateImageMutation.isPending &&
+      Boolean(regenerateImageMutation.variables?.externalStringId) &&
       (regenerateImageMutation.variables?.targetLocale ?? input.targetLocale) ===
         input.targetLocale,
     isImageBusy:

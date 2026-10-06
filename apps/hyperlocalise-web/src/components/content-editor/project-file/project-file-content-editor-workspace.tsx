@@ -386,6 +386,7 @@ export function ProjectFileContentEditorWorkspace({
     isSavingMaxLength,
     isImageBusy,
     isImageGenerating,
+    generatingImageSegmentId,
   } = useContentEditorMutations({
     organizationSlug,
     projectId,
@@ -1365,6 +1366,7 @@ export function ProjectFileContentEditorWorkspace({
                   isTranslationViewLoading={isTranslationViewLoading}
                   isImageBusy={isImageBusy}
                   isImageGenerating={isImageGenerating}
+                  generatingImageSegmentId={generatingImageSegmentId}
                   isMaxLengthSaving={isSavingMaxLength}
                   queuePagination={pagination}
                   onLoadMoreQueue={loadNextPage}
