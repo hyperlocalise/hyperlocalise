@@ -39,9 +39,11 @@ func PlanImportActions(
 	for key := range existingByExternalKey {
 		reservedExternal[key] = struct{}{}
 	}
-	reservedSource := make(map[string]struct{}, len(existingBySourceKey))
-	for key := range existingBySourceKey {
-		reservedSource[key] = struct{}{}
+	sourceKeyOwners := make(map[string]string, len(existingBySourceKey))
+	for key, entry := range existingBySourceKey {
+		if entry.ID != "" {
+			sourceKeyOwners[key] = entry.ID
+		}
 	}
 
 	for _, candidate := range candidates {
@@ -52,13 +54,19 @@ func PlanImportActions(
 				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
 				continue
 			}
+			if sourceKeyTakenByOther(sourceKeyOwners, nextSourceKey, existing.ID) {
+				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
+				continue
+			}
+			releaseSourceKeysForEntry(sourceKeyOwners, existing.ID)
 			planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionUpdate, ExistingID: existing.ID})
-			reservedSource[nextSourceKey] = struct{}{}
+			sourceKeyOwners[nextSourceKey] = existing.ID
 			continue
 		}
-		if hasKey(reservedSource, nextSourceKey) {
+		if sourceKeyTakenByOther(sourceKeyOwners, nextSourceKey, "") {
 			existing := existingBySourceKey[nextSourceKey]
-			if candidate.ExternalKey != nil && *candidate.ExternalKey != "" && existing.ID != "" && (existing.ExternalKey == nil || strings.TrimSpace(*existing.ExternalKey) == "") {
+			ownerID := sourceKeyOwners[nextSourceKey]
+			if candidate.ExternalKey != nil && *candidate.ExternalKey != "" && ownerID != "" && existing.ID != "" && existing.ID == ownerID && (existing.ExternalKey == nil || strings.TrimSpace(*existing.ExternalKey) == "") {
 				planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionUpdate, ExistingID: existing.ID})
 				reservedExternal[*candidate.ExternalKey] = struct{}{}
 				continue
@@ -66,7 +74,7 @@ func PlanImportActions(
 			planned = append(planned, PlannedImport{Candidate: candidate, Action: ImportActionSkip})
 			continue
 		}
-		reservedSource[nextSourceKey] = struct{}{}
+		sourceKeyOwners[nextSourceKey] = ""
 		if candidate.ExternalKey != nil && *candidate.ExternalKey != "" {
 			reservedExternal[*candidate.ExternalKey] = struct{}{}
 		}
@@ -83,6 +91,25 @@ func PlanImportActions(
 func hasKey(set map[string]struct{}, key string) bool {
 	_, ok := set[key]
 	return ok
+}
+
+func sourceKeyTakenByOther(owners map[string]string, key, exceptEntryID string) bool {
+	owner, ok := owners[key]
+	if !ok {
+		return false
+	}
+	if exceptEntryID != "" && owner == exceptEntryID {
+		return false
+	}
+	return true
+}
+
+func releaseSourceKeysForEntry(owners map[string]string, entryID string) {
+	for key, owner := range owners {
+		if owner == entryID {
+			delete(owners, key)
+		}
+	}
 }
 
 // CountPlannedImportActions returns report counters for a dry-run plan.

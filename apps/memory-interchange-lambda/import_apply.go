@@ -191,6 +191,10 @@ func applyPlannedMemoryImport(
 				candidate.TargetText, candidate.MatchScore, userID, attemptID, candidate.ExternalKey, nextVersion, version,
 			)
 			if updateErr != nil {
+				if isUniqueViolation(updateErr) {
+					skipped++
+					continue
+				}
 				return created, updated, variantCreated, skipped, updateErr
 			}
 			if tag.RowsAffected() == 0 {
@@ -233,4 +237,9 @@ func recordMemoryImportEntryEvent(ctx context.Context, tx pgx.Tx, entryID, memor
 func isUndefinedRelation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "42P01"
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

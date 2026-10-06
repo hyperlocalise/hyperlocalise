@@ -57,6 +57,27 @@ func TestPlanImportActionsDuplicateTuidInFile(t *testing.T) {
 	}
 }
 
+func TestPlanImportActionsSkipsExternalKeyUpdateSourceCollision(t *testing.T) {
+	next := candidateImportPlan(Candidate{
+		SourceText:  "Hello",
+		TargetText:  "Salut",
+		ExternalKey: strPtr("tmx:existing-1:fr-FR"),
+		Tuid:        strPtr("existing-1"),
+	})
+	collisionKey := SourceLookupKey("en-US", "fr-FR", "Hello")
+	existingByExternalKey := map[string]ExistingEntry{
+		"tmx:existing-1:fr-FR": {ID: "entry-1", ExternalKey: strPtr("tmx:existing-1:fr-FR")},
+	}
+	existingBySourceKey := map[string]ExistingEntry{
+		collisionKey: {ID: "entry-2", ExternalKey: strPtr("tmx:other:fr-FR")},
+	}
+
+	planned := PlanImportActions([]Candidate{next}, existingByExternalKey, existingBySourceKey)
+	if len(planned) != 1 || planned[0].Action != ImportActionSkip {
+		t.Fatalf("PlanImportActions() = %+v, want skip on source collision", planned)
+	}
+}
+
 func TestPlanImportActionsUpdatesExistingExternalKey(t *testing.T) {
 	next := candidateImportPlan(Candidate{
 		SourceText:  "Hello",
