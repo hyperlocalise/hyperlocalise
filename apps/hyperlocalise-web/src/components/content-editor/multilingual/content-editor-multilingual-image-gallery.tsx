@@ -390,147 +390,149 @@ const SegmentImageGallery = observer(function SegmentImageGallery({
 
 export const ContentEditorMultilingualImageGallery = observer(
   function ContentEditorMultilingualImageGallery({
-  config,
-  segments,
-  isLoading = false,
-  hasMore = false,
-  isLoadingMore = false,
-  onLoadMore,
-  onOpenTranslation,
-  generations: generationsProp,
-}: {
-  config: ContentEditorMultilingualConfig;
-  segments: ContentEditorSegment[];
-  isLoading?: boolean;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
-  onLoadMore?: () => void;
-  onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
-  generations?: ContentEditorImageGenerationStore;
-}) {
-  const intl = useIntl();
-  const workspace = useOptionalCatWorkspace();
-  const [ownedGenerations] = useState(() => new ContentEditorImageGenerationStore());
-  const generations = generationsProp ?? workspace?.imageGenerations ?? ownedGenerations;
-  const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
-  const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
-  const visibleLocales = useMemo(
-    () => locales.filter((locale) => !hiddenLocales.has(locale)),
-    [locales, hiddenLocales],
-  );
-  const { onRegenerateImage } = config;
-  const imageSegments = useMemo(
-    () =>
-      segments.filter((segment) =>
-        isCatImageFileSegment({
-          sourcePath: segment.sourcePath,
-          contentKind: segment.contentKind,
-        }),
-      ),
-    [segments],
-  );
-  const generate = useCallback(
-    async (segment: ContentEditorSegment, locale: string, options?: { force?: boolean }) => {
-      if (!onRegenerateImage) return;
-      await generations.run(segment.id, locale, () =>
-        onRegenerateImage(segment, locale, options),
-      );
-    },
-    [generations, onRegenerateImage],
-  );
-  const runningCount = generations.runningCount;
+    config,
+    segments,
+    isLoading = false,
+    hasMore = false,
+    isLoadingMore = false,
+    onLoadMore,
+    onOpenTranslation,
+    generations: generationsProp,
+  }: {
+    config: ContentEditorMultilingualConfig;
+    segments: ContentEditorSegment[];
+    isLoading?: boolean;
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
+    onLoadMore?: () => void;
+    onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+    generations?: ContentEditorImageGenerationStore;
+  }) {
+    const intl = useIntl();
+    const workspace = useOptionalCatWorkspace();
+    const [ownedGenerations] = useState(() => new ContentEditorImageGenerationStore());
+    const generations = generationsProp ?? workspace?.imageGenerations ?? ownedGenerations;
+    const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
+    const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
+    const visibleLocales = useMemo(
+      () => locales.filter((locale) => !hiddenLocales.has(locale)),
+      [locales, hiddenLocales],
+    );
+    const { onRegenerateImage } = config;
+    const imageSegments = useMemo(
+      () =>
+        segments.filter((segment) =>
+          isCatImageFileSegment({
+            sourcePath: segment.sourcePath,
+            contentKind: segment.contentKind,
+          }),
+        ),
+      [segments],
+    );
+    const generate = useCallback(
+      async (segment: ContentEditorSegment, locale: string, options?: { force?: boolean }) => {
+        if (!onRegenerateImage) return;
+        await generations.run(segment.id, locale, () =>
+          onRegenerateImage(segment, locale, options),
+        );
+      },
+      [generations, onRegenerateImage],
+    );
+    const runningCount = generations.runningCount;
 
-  return (
-    <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
-        <p className="truncate text-xs text-muted-foreground">
-          {intl.formatMessage(messages.hint)}
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-              {intl.formatMessage(multilingualMessages.languages)}{" "}
-              <span className="tabular-nums">{visibleLocales.length}</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                {locales.map((locale) => (
-                  <DropdownMenuCheckboxItem
-                    key={locale}
-                    checked={!hiddenLocales.has(locale)}
-                    onCheckedChange={(checked) => {
-                      setHiddenLocales((previous) => {
-                        const next = new Set(previous);
-                        if (checked) next.delete(locale);
-                        else next.add(locale);
-                        return next;
-                      });
-                    }}
-                  >
-                    {formatLocaleDisplayName(intl, locale)}{" "}
-                    <span className="text-muted-foreground">{locale}</span>
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <ContentEditorWorkspaceViewSwitcherConnected size="sm" variant="outline" />
-        </div>
-      </div>
-      <div
-        className="min-h-0 flex-1 overflow-y-auto bg-muted/30"
-        role="region"
-        aria-label={intl.formatMessage(messages.title)}
-        aria-busy={isLoading}
-      >
-        {imageSegments.length === 0 ? (
-          <p role="status" className="p-6 text-sm text-muted-foreground">
-            {intl.formatMessage(
-              isLoading ? multilingualMessages.loading : multilingualMessages.empty,
-            )}
+    return (
+      <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-3 py-2">
+          <p className="truncate text-xs text-muted-foreground">
+            {intl.formatMessage(messages.hint)}
           </p>
-        ) : (
-          <div className="mx-auto flex max-w-[96rem] flex-col gap-8 p-4 sm:p-6">
-            {imageSegments.map((segment) => (
-              <SegmentImageGallery
-                key={segment.id}
-                config={config}
-                segment={segment}
-                locales={visibleLocales}
-                showKey={imageSegments.length > 1}
-                generations={generations}
-                onGenerate={
-                  onRegenerateImage
-                    ? (nextSegment, locale, options) => void generate(nextSegment, locale, options)
-                    : undefined
-                }
-                onOpenTranslation={onOpenTranslation}
-              />
-            ))}
+          <div className="flex shrink-0 items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+                {intl.formatMessage(multilingualMessages.languages)}{" "}
+                <span className="tabular-nums">{visibleLocales.length}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  {locales.map((locale) => (
+                    <DropdownMenuCheckboxItem
+                      key={locale}
+                      checked={!hiddenLocales.has(locale)}
+                      onCheckedChange={(checked) => {
+                        setHiddenLocales((previous) => {
+                          const next = new Set(previous);
+                          if (checked) next.delete(locale);
+                          else next.add(locale);
+                          return next;
+                        });
+                      }}
+                    >
+                      {formatLocaleDisplayName(intl, locale)}{" "}
+                      <span className="text-muted-foreground">{locale}</span>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ContentEditorWorkspaceViewSwitcherConnected size="sm" variant="outline" />
           </div>
-        )}
-      </div>
-      {runningCount > 0 || hasMore ? (
-        <div className="flex min-h-10 shrink-0 items-center justify-between gap-3 border-t px-3 py-1 text-xs text-muted-foreground">
-          <span role="status">
-            {runningCount > 0
-              ? intl.formatMessage(messages.generatingCount, { count: runningCount })
-              : null}
-          </span>
-          {hasMore ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={isLoadingMore || isLoading}
-              onClick={onLoadMore}
-            >
-              {intl.formatMessage(
-                isLoadingMore ? multilingualMessages.loading : multilingualMessages.more,
-              )}
-            </Button>
-          ) : null}
         </div>
-      ) : null}
-    </section>
-  );
-});
+        <div
+          className="min-h-0 flex-1 overflow-y-auto bg-muted/30"
+          role="region"
+          aria-label={intl.formatMessage(messages.title)}
+          aria-busy={isLoading}
+        >
+          {imageSegments.length === 0 ? (
+            <p role="status" className="p-6 text-sm text-muted-foreground">
+              {intl.formatMessage(
+                isLoading ? multilingualMessages.loading : multilingualMessages.empty,
+              )}
+            </p>
+          ) : (
+            <div className="mx-auto flex max-w-[96rem] flex-col gap-8 p-4 sm:p-6">
+              {imageSegments.map((segment) => (
+                <SegmentImageGallery
+                  key={segment.id}
+                  config={config}
+                  segment={segment}
+                  locales={visibleLocales}
+                  showKey={imageSegments.length > 1}
+                  generations={generations}
+                  onGenerate={
+                    onRegenerateImage
+                      ? (nextSegment, locale, options) =>
+                          void generate(nextSegment, locale, options)
+                      : undefined
+                  }
+                  onOpenTranslation={onOpenTranslation}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        {runningCount > 0 || hasMore ? (
+          <div className="flex min-h-10 shrink-0 items-center justify-between gap-3 border-t px-3 py-1 text-xs text-muted-foreground">
+            <span role="status">
+              {runningCount > 0
+                ? intl.formatMessage(messages.generatingCount, { count: runningCount })
+                : null}
+            </span>
+            {hasMore ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={isLoadingMore || isLoading}
+                onClick={onLoadMore}
+              >
+                {intl.formatMessage(
+                  isLoadingMore ? multilingualMessages.loading : multilingualMessages.more,
+                )}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    );
+  },
+);
