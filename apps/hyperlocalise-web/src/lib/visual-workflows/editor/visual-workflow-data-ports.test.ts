@@ -190,6 +190,38 @@ describe("getVisualWorkflowDataPorts", () => {
     expect(ports.outputs).toEqual([]);
   });
 
+  it("exposes typed Return values as connectable data inputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("return", "flow.return", {
+        config: {
+          kind: "flow.return",
+          outputs: [
+            { id: "order-id", name: "orderId", type: "string" },
+            { id: "accepted", name: "accepted", type: "boolean" },
+          ],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.order-id",
+        label: "value.order-id",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+      {
+        id: "value.accepted",
+        label: "value.accepted",
+        type: "boolean",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
   it("does not expose secret bindings as output ports", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("set", "logic.set", {

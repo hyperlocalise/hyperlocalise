@@ -412,7 +412,15 @@ export async function executeDurableWorkflowSlice(input: {
         nodeResults,
         error: redactWorkflowSnapshot(result.error, secrets) as typeof result.error,
       };
-    return { ...result, nodeResults };
+    return {
+      ...result,
+      nodeResults,
+      ...(result.terminal
+        ? {
+            terminal: redactWorkflowSnapshot(result.terminal, secrets) as typeof result.terminal,
+          }
+        : {}),
+    };
   } finally {
     clearInterval(timer);
     clearInterval(leaseTimer);

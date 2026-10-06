@@ -783,19 +783,22 @@ export function VisualWorkflowConfigPanel({
               variant="outline"
               size="sm"
               disabled={config.outputs.length >= 32}
-              onClick={() =>
+              onClick={() => {
+                const usedNames = new Set(config.outputs.map((output) => output.name));
+                let nextIndex = config.outputs.length + 1;
+                while (usedNames.has(`output${nextIndex}`)) nextIndex += 1;
                 onChangeConfig({
                   ...config,
                   outputs: [
                     ...config.outputs,
                     {
                       id: createReturnOutputId(),
-                      name: `output${config.outputs.length + 1}`,
+                      name: `output${nextIndex}`,
                       type: "unknown",
                     },
                   ],
-                })
-              }
+                });
+              }}
             >
               <PlusIcon className="size-4" />
               <FormattedMessage {...messages.addReturnOutput} />

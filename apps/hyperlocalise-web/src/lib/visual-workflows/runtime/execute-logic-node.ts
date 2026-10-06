@@ -143,6 +143,7 @@ export function executeLogicVisualWorkflowNode(input: {
             error: {
               code: "cancelled",
               message: node.config.reason ?? "Workflow cancelled by a Stop node.",
+              terminal: true,
             },
           }
         : {

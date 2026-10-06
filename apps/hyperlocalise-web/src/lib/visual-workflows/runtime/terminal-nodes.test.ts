@@ -136,6 +136,7 @@ describe("terminal workflow nodes", () => {
       error: {
         code: "cancelled",
         message: "The request no longer needs processing",
+        terminal: true,
       },
     });
   });

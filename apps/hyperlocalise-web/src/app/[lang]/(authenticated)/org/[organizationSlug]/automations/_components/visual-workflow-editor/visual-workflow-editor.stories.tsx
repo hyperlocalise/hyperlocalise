@@ -500,6 +500,7 @@ export const TerminalNodes: Story = {
 
     const returnNode = returnTitle.closest(".react-flow__node");
     await expect(returnNode).not.toBeNull();
+    await expect(returnNode!.querySelector('[aria-label="Execution success"]')).toBeNull();
     await userEvent.click(returnNode!);
 
     await expect(await canvas.findByRole("textbox", { name: "Returned output 1" })).toHaveValue(

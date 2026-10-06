@@ -550,6 +550,33 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
+  it("generates a unique Return output name after outputs are renamed", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={terminalNode("flow.return", {
+          kind: "flow.return",
+          outputs: [{ id: "existing", name: "output2", type: "string" }],
+        })}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add returned output" }));
+
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      outputs: [
+        { id: "existing", name: "output2", type: "string" },
+        { name: "output3", type: "unknown" },
+      ],
+    });
+  });
+
   it("configures a controlled Fail code and message", () => {
     const onChangeConfig = vi.fn();
     renderPanel(

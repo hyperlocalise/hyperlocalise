@@ -139,6 +139,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
+  const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const dataPorts = getVisualWorkflowDataPorts({
     node: {
@@ -232,7 +233,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             }}
           />
         ))
-      ) : (
+      ) : isTerminal ? null : (
         <Handle
           id="input"
           className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
@@ -612,7 +613,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.hideAddAction ||
-      ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType) ||
+      isTerminal ||
       (data.config.kind === "logic.sequence" && sequenceOutputs.length === 0) ? null : (
         <VisualWorkflowQuickAddButton
           className={cn(
