@@ -462,9 +462,16 @@ export const DetailRunHistory: Story = {
   },
   play: async ({ canvas, userEvent }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
-    await expect(canvas.getByText("succeeded")).toBeInTheDocument();
-    await expect(canvas.getByText("failed")).toBeInTheDocument();
-    await expect(canvas.getByText("running")).toBeInTheDocument();
+    await expect(canvas.getByText("Succeeded")).toBeInTheDocument();
+    await expect(canvas.getByText("Failed")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
+    // The summary reads as a sentence when collapsed and in full, by field, when opened.
+    await expect(canvas.getByText("GitHub sync failed")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Reviewed 12 changed locale files/ }));
+    await expect(canvas.getByText("Repository full name")).toBeInTheDocument();
+    await expect(canvas.getByText("acme/website")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "View raw JSON" }));
+    await expect(canvas.getByText(/"repositoryFullName": "acme\/website"/)).toBeInTheDocument();
   },
 };
 

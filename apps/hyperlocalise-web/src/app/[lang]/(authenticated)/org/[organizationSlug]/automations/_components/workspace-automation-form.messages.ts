@@ -1282,4 +1282,34 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "3hjwqE47jB",
     description: "Skill menu section: skills that send the run's outcome somewhere",
   },
+  runSummaryYes: {
+    defaultMessage: "Yes",
+    id: "VyqM/DHC5Z",
+    description: "A true value in a run's result details",
+  },
+  runSummaryNo: {
+    defaultMessage: "No",
+    id: "nBxDlo+wU3",
+    description: "A false value in a run's result details",
+  },
+  runSummaryShowJson: {
+    defaultMessage: "View raw JSON",
+    id: "VvQgh8Trix",
+    description: "Button to show a run's result as raw JSON",
+  },
+  runSummaryHideJson: {
+    defaultMessage: "View formatted",
+    id: "ZE42IfPAsQ",
+    description: "Button to go back from raw JSON to the formatted run result",
+  },
+  runSummaryCopyJson: {
+    defaultMessage: "Copy JSON",
+    id: "FqcQ3Q8Id9",
+    description: "Accessible label for the button that copies a run's raw JSON result",
+  },
+  runSummaryNoHeadline: {
+    defaultMessage: "View details",
+    id: "AcKddeQtF1",
+    description: "Run history summary cell when a run has result details but no sentence to show",
+  },
 });

@@ -150,6 +150,7 @@ import {
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
+import { RunHistoryTable } from "./workspace-automation-run-history";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -212,7 +213,6 @@ type ComingSoonAutomationTool = {
 const COMING_SOON_GOOGLE_MENU_LABEL = "Google";
 const COMING_SOON_LINEAR_MENU_LABEL = "Linear";
 const METADATA_SEPARATOR = "|";
-const EMPTY_CELL = "—";
 
 const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
@@ -2994,86 +2994,6 @@ function ToolsSettings({
         </SheetContent>
       </Sheet>
     </EditorSection>
-  );
-}
-
-function formatRunStatus(intl: IntlShape, status: string) {
-  const statusMessages = {
-    queued: workspaceAutomationFormMessages.runStatusQueued,
-    running: workspaceAutomationFormMessages.runStatusRunning,
-    succeeded: workspaceAutomationFormMessages.runStatusSucceeded,
-    failed: workspaceAutomationFormMessages.runStatusFailed,
-    cancelled: workspaceAutomationFormMessages.runStatusCancelled,
-    skipped: workspaceAutomationFormMessages.runStatusSkipped,
-  } as const;
-
-  const message = statusMessages[status as keyof typeof statusMessages];
-  return message ? intl.formatMessage(message) : status;
-}
-
-function formatTriggerSource(intl: IntlShape, triggerSource: string) {
-  const triggerMessages = {
-    manual: workspaceAutomationFormMessages.triggerSourceManual,
-    scheduled: workspaceAutomationFormMessages.triggerSourceScheduled,
-    github: workspaceAutomationFormMessages.triggerSourceGithub,
-    contentful: workspaceAutomationFormMessages.triggerSourceContentful,
-    source_upload: workspaceAutomationFormMessages.triggerSourceSourceUpload,
-    web_chat: workspaceAutomationFormMessages.triggerSourceWebChat,
-  } as const;
-
-  const message = triggerMessages[triggerSource as keyof typeof triggerMessages];
-  return message ? intl.formatMessage(message) : triggerSource;
-}
-
-function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
-  const intl = useIntl();
-
-  if (runs.length === 0) {
-    return (
-      <EditorPanel className="px-4 py-10">
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage {...workspaceAutomationFormMessages.noRunsYet} />
-        </p>
-      </EditorPanel>
-    );
-  }
-
-  return (
-    <EditorPanel>
-      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyStatus} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyTrigger} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historySummary} />
-        </span>
-        <span>
-          <FormattedMessage {...workspaceAutomationFormMessages.historyCompleted} />
-        </span>
-      </div>
-      {runs.map((run) => (
-        <div
-          key={run.id}
-          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-border px-4 py-4 text-sm last:border-b-0"
-        >
-          <Badge variant="outline" className="w-fit">
-            {formatRunStatus(intl, run.status)}
-          </Badge>
-          <span>{formatTriggerSource(intl, run.triggerSource)}</span>
-          <span className="truncate text-muted-foreground">
-            {Object.keys(run.outputSummary).length > 0
-              ? JSON.stringify(run.outputSummary)
-              : EMPTY_CELL}
-          </span>
-          <span className="text-muted-foreground">
-            {run.completedAt ? new Date(run.completedAt).toLocaleString() : EMPTY_CELL}
-          </span>
-        </div>
-      ))}
-    </EditorPanel>
   );
 }
 

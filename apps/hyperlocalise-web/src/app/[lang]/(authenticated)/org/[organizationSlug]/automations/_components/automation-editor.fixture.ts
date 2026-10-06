@@ -94,7 +94,25 @@ export const automationRunsFixture: WorkspaceAutomationRunRecord[] = [
     status: "succeeded",
     idempotencyKey: null,
     inputSnapshot: {},
-    outputSummary: { validatedFiles: 12 },
+    outputSummary: {
+      orchestratorEnqueuedAt: "2026-06-07T11:55:02.000Z",
+      orchestratorStepResults: {
+        use_github_repository: {
+          branch: "main",
+          digest:
+            "Reviewed 12 changed locale files. Two keys in fr-FR are missing the {count} placeholder and one German string still has the English source text.",
+          repositoryFullName: "acme/website",
+          lookbackHours: null,
+        },
+        create_issue: {
+          createdCount: 1,
+          completed: true,
+          issues: [{ title: "fr-FR: missing {count} placeholder", status: "open" }],
+        },
+        notify_slack: { sent: true, channelId: "C01234567" },
+      },
+      targetLocales: ["de-DE", "fr-FR"],
+    },
     error: null,
     githubRepositoryAutomationJobId: null,
     startedAt: "2026-06-07T11:55:00.000Z",
