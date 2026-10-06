@@ -69,6 +69,13 @@ const spaced = true;
 - one
 - two`;
 
+const GFM_TABLE_FIXTURE = `## Comparison
+
+| Platform | Best for | Main strength |
+| -------- | -------- | ------------- |
+| **Hyperlocalise** | Product teams | AI agents and review |
+| **Crowdin** | Developer-led teams | Integrations and APIs |`;
+
 let editor: Editor | null = null;
 afterEach(() => {
   editor?.destroy();
@@ -96,6 +103,21 @@ describe("document Markdown round trip", () => {
 
   it("drops raw HTML wrappers from Markdown documents", () => {
     expect(roundTrip('# T\n\n<div class="x">keep</div>\n', "markdown")).toBe("# T\n\nkeep");
+  });
+
+  it("parses GFM tables into a table block", () => {
+    const doc = parseDocumentMarkdown(GFM_TABLE_FIXTURE, "markdown");
+    const types = doc.content?.map((node) => node.type);
+
+    expect(types).toEqual(["heading", "table"]);
+  });
+
+  it("round-trips GFM tables without forcing lossy code mode", () => {
+    const normalized = roundTrip(GFM_TABLE_FIXTURE, "markdown");
+
+    expect(isLossyDocumentRoundTrip("markdown", GFM_TABLE_FIXTURE, normalized)).toBe(false);
+    expect(normalized).toMatch(/\| Platform\s+\|/);
+    expect(normalized).toContain("**Hyperlocalise**");
   });
 
   it("reads MDX into component, raw, and callout blocks", () => {
@@ -151,6 +173,13 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(
       isLossyDocumentRoundTrip("markdown", '# T\n\n<div class="x">keep</div>', "# T\n\nkeep"),
     ).toBe(true);
+  });
+
+  it("does not treat GFM table column padding as a lossy round trip", () => {
+    const compact = GFM_TABLE_FIXTURE;
+    const padded = roundTrip(GFM_TABLE_FIXTURE, "markdown");
+
+    expect(isLossyDocumentRoundTrip("markdown", compact, padded)).toBe(false);
   });
 });
 

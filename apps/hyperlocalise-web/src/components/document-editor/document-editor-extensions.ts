@@ -74,13 +74,74 @@ export function createDocumentSchemaExtensions(
 
 const FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})/;
 
+function isGfmTableSeparatorLine(line: string) {
+  const trimmed = line.trim();
+  return trimmed.includes("|") && /^[\s|:-]+$/.test(trimmed) && trimmed.includes("-");
+}
+
+function isGfmTableRowLine(line: string) {
+  return line.trim().includes("|");
+}
+
+function normalizeGfmTableRow(line: string) {
+  let parts = line
+    .trim()
+    .split("|")
+    .map((cell) => cell.trim());
+  if (parts[0] === "") {
+    parts = parts.slice(1);
+  }
+  if (parts.at(-1) === "") {
+    parts = parts.slice(0, -1);
+  }
+  if (parts.length === 0) {
+    return line;
+  }
+  if (parts.every((part) => /^:?-{3,}:?$/.test(part))) {
+    return `| ${parts.map(() => "---").join(" | ")} |`;
+  }
+  return `| ${parts.join(" | ")} |`;
+}
+
+/** Collapses GFM table column padding so TipTap serialize width changes are not treated as lossy. */
+export function normalizeGfmTablesInMarkdown(markdown: string) {
+  const lines = markdown.split("\n");
+  const output: string[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    const nextLine = lines[index + 1];
+    if (isGfmTableRowLine(line) && nextLine !== undefined && isGfmTableSeparatorLine(nextLine)) {
+      while (index < lines.length && isGfmTableRowLine(lines[index])) {
+        output.push(normalizeGfmTableRow(lines[index]));
+        index += 1;
+      }
+      continue;
+    }
+    output.push(line);
+    index += 1;
+  }
+  return output.join("\n");
+}
+
 /** True when page-view parse/serialize would change Markdown or MDX that must stay as written. */
 export function isLossyDocumentRoundTrip(
   _syntax: DocumentEditorSyntax,
   original: string,
   normalized: string,
 ) {
-  return normalized !== normalizeDocumentMarkdown(original);
+  const plainOriginal = normalizeDocumentMarkdown(original);
+  if (normalized === plainOriginal) {
+    return false;
+  }
+  const tableComparableOriginal = normalizeDocumentMarkdown(normalizeGfmTablesInMarkdown(original));
+  const tableComparableNormalized = normalizeDocumentMarkdown(
+    normalizeGfmTablesInMarkdown(normalized),
+  );
+  if (tableComparableNormalized === tableComparableOriginal) {
+    return false;
+  }
+  return true;
 }
 
 /** Collapses runs of blank lines that renderers leave around blocks, outside code fences. */
