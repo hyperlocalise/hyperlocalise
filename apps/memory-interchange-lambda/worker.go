@@ -157,7 +157,7 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if memoryStatus == "archived" {
 		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
 	}
-	if mode != "apply" {
+	if mode != "apply" && mode != "preview" {
 		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import mode %q is not supported", mode))
 	}
 
@@ -178,6 +178,17 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 		"totalRead": len(candidates), "created": created, "updated": updated,
 		"variantCreated": variantCreated, "skipped": skipped, "warned": warned, "failed": failed,
 		"samples": memoryImportReportSamples(candidates, memoryImportReportSampleLimit),
+	}
+
+	if mode == "preview" {
+		countsJSON, marshalErr := json.Marshal(counts)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err = tx.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1 and status='running'`, attemptID, "preview_completed", hashHex, countsJSON, headerValue); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
 	}
 
 	created, updated, variantCreated, skipped, err = applyPlannedMemoryImport(ctx, tx, memoryID, attemptID, userID, planned)

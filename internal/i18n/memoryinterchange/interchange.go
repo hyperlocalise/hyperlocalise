@@ -139,14 +139,22 @@ func Parse(format, content string) ([]Candidate, []Issue, *string, error) {
 	}
 }
 
-func looksLikeBCP47Tag(value string) bool {
-	trimmed := strings.TrimSpace(value)
+func parseCanonicalMemoryLocale(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
-		return false
+		return "", false
 	}
 	normalized := strings.ReplaceAll(trimmed, "_", "-")
-	_, err := language.Parse(normalized)
-	return err == nil
+	tag, err := language.Parse(normalized)
+	if err != nil {
+		return "", false
+	}
+	return tag.String(), true
+}
+
+func looksLikeBCP47Tag(value string) bool {
+	_, ok := parseCanonicalMemoryLocale(value)
+	return ok
 }
 
 func csvHasFourColumnDataRows(rows [][]string, start int) bool {
@@ -165,8 +173,14 @@ func parseCSVCrowdinTwoColumn(rows [][]string) []Candidate {
 	if !looksLikeBCP47Tag(rows[0][0]) || !looksLikeBCP47Tag(rows[0][1]) {
 		return nil
 	}
-	sourceLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(rows[0][0])), "_", "-")
-	targetLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(rows[0][1])), "_", "-")
+	sourceLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(rows[0][0])))
+	if !ok {
+		return nil
+	}
+	targetLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(rows[0][1])))
+	if !ok {
+		return nil
+	}
 	candidates := make([]Candidate, 0, len(rows)-1)
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
@@ -217,11 +231,17 @@ func ParseCSV(content string) []Candidate {
 				score = n
 			}
 		}
-		sourceLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(row[0])), "_", "-")
-		targetLocale := strings.ReplaceAll(unescapeFormula(strings.TrimSpace(row[1])), "_", "-")
+		sourceLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(row[0])))
+		if !ok {
+			continue
+		}
+		targetLocale, ok := parseCanonicalMemoryLocale(unescapeFormula(strings.TrimSpace(row[1])))
+		if !ok {
+			continue
+		}
 		sourceText := unescapeFormula(row[2])
 		targetText := unescapeFormula(row[3])
-		if sourceLocale == "" || targetLocale == "" || strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
+		if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 			continue
 		}
 		candidates = append(candidates, Candidate{SourceLocale: sourceLocale, TargetLocale: targetLocale, SourceText: sourceText, TargetText: targetText, MatchScore: score, UnitIndex: i + 1})
@@ -251,8 +271,9 @@ func ParseTMX(content string) ([]Candidate, []Issue, *string) {
 		case "header":
 			for _, attr := range start.Attr {
 				if attr.Name.Local == "srclang" && attr.Value != "" {
-					value := strings.ReplaceAll(attr.Value, "_", "-")
-					headerSrclang = &value
+					if value, ok := parseCanonicalMemoryLocale(attr.Value); ok {
+						headerSrclang = &value
+					}
 				}
 			}
 		case "tu":
@@ -282,7 +303,9 @@ func ParseTMX(content string) ([]Candidate, []Issue, *string) {
 						currentLocale = ""
 						for _, attr := range value.Attr {
 							if attr.Name.Local == "lang" {
-								currentLocale = strings.ReplaceAll(attr.Value, "_", "-")
+								if locale, ok := parseCanonicalMemoryLocale(attr.Value); ok {
+									currentLocale = locale
+								}
 							}
 						}
 					}

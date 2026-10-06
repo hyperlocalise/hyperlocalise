@@ -232,7 +232,7 @@ describe("memoryInterchangeReportSamples", () => {
 });
 
 describe("TmImportAttemptDetail import actions", () => {
-  it("does not offer Import entries after upload (apply runs automatically)", async () => {
+  it("does not offer Import entries while preview is running", async () => {
     getAttemptMock.mockResolvedValue(importAttemptResponse("running"));
     renderDetail();
 
@@ -240,6 +240,13 @@ describe("TmImportAttemptDetail import actions", () => {
 
     expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
     expect(queueImportMock).not.toHaveBeenCalled();
+  });
+
+  it("shows Import entries when preview completes", async () => {
+    getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
+    renderDetail();
+
+    expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
   });
 
   it("shows View affected entries when the import completes", async () => {

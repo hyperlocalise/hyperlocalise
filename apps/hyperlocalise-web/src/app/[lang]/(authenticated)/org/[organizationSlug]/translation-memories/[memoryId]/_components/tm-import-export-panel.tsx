@@ -71,8 +71,8 @@ export function TmImportExportPanel({
   const [exportSourceLocale, setExportSourceLocale] = useState(localeCoverage[0] ?? "en-US");
   const [exportTargetLocale, setExportTargetLocale] = useState(localeCoverage[1] ?? "fr-FR");
 
-  // Lambda-backed import: upload the file to object storage, queue apply, then
-  // navigate to the report page. The report polls until the import finishes.
+  // Lambda-backed import: upload the file to object storage, queue preview, then
+  // navigate to the report page. The report polls until preview completes.
   const startImport = useMutation({
     mutationFn: async (file: File) => {
       const format = memoryImportFormatFromFilename(file.name);
@@ -133,7 +133,7 @@ export function TmImportExportPanel({
       try {
         return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
           attemptId: upload.attemptId,
-          mode: "apply",
+          mode: "preview",
         });
       } catch (error) {
         cancelUploadSession();

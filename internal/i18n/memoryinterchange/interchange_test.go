@@ -54,6 +54,17 @@ func TestParseCSV_RejectsGenericSourceTargetHeader(t *testing.T) {
 	}
 }
 
+func TestParseCSV_CanonicalizesLocaleHeaders(t *testing.T) {
+	csv := "en-us,fr-fr\nHello,Bonjour\n"
+	candidates := ParseCSV(csv)
+	if len(candidates) != 1 {
+		t.Fatalf("ParseCSV() len = %d, want 1", len(candidates))
+	}
+	if candidates[0].SourceLocale != "en-US" || candidates[0].TargetLocale != "fr-FR" {
+		t.Fatalf("unexpected locales: %+v", candidates[0])
+	}
+}
+
 func TestParseCSV_CrowdinTwoColumnFixture(t *testing.T) {
 	candidates := ParseCSV(string(ReadTestdata(t, "crowdin-two-column.csv")))
 	if len(candidates) != 2 {

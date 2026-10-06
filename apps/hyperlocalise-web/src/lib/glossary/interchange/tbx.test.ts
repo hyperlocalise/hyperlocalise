@@ -542,6 +542,19 @@ describe("TBX-Basic DCA interchange", () => {
         parsed.concepts.flatMap((concept) => concept.terms.map((term) => term.locale)),
       );
       expect(locales).toEqual(new Set(["en-US"]));
+      const baggage = parsed.concepts.find(
+        (concept) => concept.primaryTerm === "baggage allowance",
+      );
+      expect(baggage?.terms[0]).toMatchObject({
+        term: "baggage allowance",
+        status: "preferred",
+        partOfSpeech: "noun",
+      });
+      const lodging = parsed.concepts
+        .flatMap((concept) => concept.terms)
+        .find((term) => term.term === "lodging");
+      expect(lodging).toMatchObject({ status: "admitted" });
+      expect(lodging?.partOfSpeech).toBeFalsy();
     });
   });
 });

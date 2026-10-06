@@ -90,6 +90,22 @@ export const tmImportAttemptDetailMessages = defineMessages({
     id: "pZzJNiijOV",
     description: "View entries affected by this import",
   },
+  importEntries: {
+    defaultMessage: "Import entries",
+    id: "cu5vz2inFd",
+    description: "Primary action to apply a completed translation memory import preview",
+  },
+  previewReadyBanner: {
+    defaultMessage:
+      "Preview is ready. Review the counts below, then import entries to write them to this translation memory.",
+    id: "HVlJ+nwIfE",
+    description: "Prompt to confirm a translation memory import after preview completes",
+  },
+  importEntriesFailed: {
+    defaultMessage: "Import could not be queued.",
+    id: "a0hmPusRk9",
+    description: "Error when confirming a translation memory import from preview",
+  },
   overview: {
     defaultMessage: "Overview",
     id: "bsU0qqr6A2",

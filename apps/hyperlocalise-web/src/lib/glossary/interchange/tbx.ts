@@ -387,6 +387,78 @@ function mergeLanguageDetailNote(
   ];
 }
 
+function applyLegacyMartifDescrip(
+  concept: GlossaryImportDocument["concepts"][number],
+  term: MutableTerm | undefined,
+  type: string | undefined,
+  rawValue: string,
+) {
+  const value = rawValue.trim();
+  if (!type || !value) return;
+  if (term) {
+    switch (type) {
+      case "description":
+        term.description = value;
+        break;
+      case "note":
+        term.note = value;
+        break;
+      case "partOfSpeech":
+        term.partOfSpeech = value;
+        break;
+      case "gender":
+        term.gender = value;
+        break;
+      case "termType":
+        term.termType = value;
+        break;
+      case "url":
+        term.url = value;
+        break;
+      case "lemma":
+        term.lemma = value;
+        break;
+      case "status":
+        term.status = value;
+        break;
+      case "provenance":
+        term.provenance = value;
+        break;
+      case "reviewStatus":
+        term.reviewStatus = value;
+        break;
+      case "caseSensitive":
+        term.caseSensitive = value === "true";
+        break;
+      case "forbidden":
+        term.forbidden = value === "true";
+        break;
+      default:
+        break;
+    }
+    return;
+  }
+  switch (type) {
+    case "primaryTerm":
+      concept.primaryTerm = value;
+      break;
+    case "note":
+      concept.note = value;
+      break;
+    case "translatable":
+      concept.translatable = value === "true";
+      break;
+    case "url":
+      concept.url = value;
+      break;
+    case "figure":
+      concept.figure = value;
+      break;
+    default:
+      break;
+  }
+}
+
 function applyTermLabeledNote(term: MutableTerm, labeled: { key: string; value: unknown }) {
   if (labeled.key === "termId" && typeof labeled.value === "string") term.id = labeled.value;
   else if (labeled.key === "partOfSpeech" && typeof labeled.value === "string")
@@ -658,10 +730,7 @@ export function parseTbx(content: string): GlossaryImportDocument {
     const concept = currentConcept;
     if (frame.local === "term" && currentTerm) currentTerm.term = value;
     else if (frame.local === "descrip") {
-      if (currentTerm && frame.type === "context") currentTerm.description = value;
-      else if (frame.type === "subject" || frame.type === "subjectField")
-        currentConcept.subject = value;
-      else if (frame.type === "definition") {
+      if (frame.type === "definition") {
         if (currentLocale) {
           currentConcept.languageDetails = [
             ...(currentConcept.languageDetails ?? []).filter(
@@ -678,6 +747,12 @@ export function parseTbx(content: string): GlossaryImportDocument {
           ];
         } else if (currentTerm) currentTerm.description = value;
         else currentConcept.definition = value;
+      } else if (currentTerm && frame.type === "context") {
+        currentTerm.description = value;
+      } else if (frame.type === "subject" || frame.type === "subjectField") {
+        if (value.trim()) currentConcept.subject = value;
+      } else {
+        applyLegacyMartifDescrip(concept, currentTerm, frame.type, value);
       }
     } else if (frame.local === "note") {
       const noteLines = value

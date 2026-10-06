@@ -93,10 +93,7 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 	if mode == "" {
 		mode = "apply"
 	}
-	if mode == "preview" {
-		return nil, 0, memoryFailure(400, "memory_import_preview_unsupported", "Preview mode is not supported for file imports")
-	}
-	if mode != "apply" && mode != "cancel" {
+	if mode != "apply" && mode != "preview" && mode != "cancel" {
 		return nil, 0, invalidMemory()
 	}
 	var format, location, key, status, currentMode string
@@ -123,7 +120,15 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
 	}
 	var sourceByteSize *int32
-	if status == "upload_pending" {
+	queueFromUpload := status == "upload_pending" && (mode == "preview" || mode == "apply")
+	queueFromPreview := mode == "apply" && status == "preview_completed"
+	if mode == "preview" && status != "upload_pending" {
+		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to preview")
+	}
+	if mode == "apply" && !queueFromUpload && !queueFromPreview {
+		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
+	}
+	if queueFromUpload {
 		store, resolveErr := api.objects.Resolve(location)
 		if resolveErr != nil {
 			return nil, 0, resolveErr
@@ -140,15 +145,22 @@ func (api *memoryAPI) finalizeMemoryImport(ctx context.Context, actor memoryActo
 		size := int32(info.Size)
 		sourceByteSize = &size
 	}
-	if mode == "apply" && status != "upload_pending" && status != "queued" {
-		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is not ready to apply")
-	}
 	options, _ := json.Marshal(map[string]any{"maxUnits": payload.MaxUnits, "mode": mode})
-	updated, err := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status='upload_pending'`, payload.AttemptID, mode, options, sourceByteSize)
-	if err != nil {
-		return nil, 0, err
+	var rowsAffected int64
+	if queueFromPreview {
+		tag, execErr := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', completed_at=null, failure_code=null, failure_message=null where id=$1 and status='preview_completed'`, payload.AttemptID, mode, options)
+		if execErr != nil {
+			return nil, 0, execErr
+		}
+		rowsAffected = tag.RowsAffected()
+	} else {
+		tag, execErr := api.pool.Exec(ctx, `update memory_import_attempts set mode=$2, options=$3::jsonb, status='queued', source_byte_size=coalesce($4, source_byte_size) where id=$1 and status='upload_pending'`, payload.AttemptID, mode, options, sourceByteSize)
+		if execErr != nil {
+			return nil, 0, execErr
+		}
+		rowsAffected = tag.RowsAffected()
 	}
-	if updated.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		return nil, 0, memoryFailure(409, "memory_import_not_queueable", "The memory import is already queued or complete")
 	}
 	if err := api.interchange.Publish(ctx, memoryInterchangeMessage{SchemaVersion: 1, AttemptID: payload.AttemptID, Operation: "import"}); err != nil {

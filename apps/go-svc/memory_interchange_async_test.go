@@ -234,21 +234,68 @@ func TestFinalizeMemoryImportQueuesApplyWhenUploadExists(t *testing.T) {
 	require.Equal(t, int32(6), *sourceByteSize)
 }
 
-func TestFinalizeMemoryImportRejectsPreviewMode(t *testing.T) {
+func TestFinalizeMemoryImportQueuesPreviewWhenUploadExists(t *testing.T) {
 	api, scope := memoryTestAPI(t, "admin")
+	publisher := &recordingMemoryInterchangePublisher{}
+	api.interchange = publisher
+	registry := memoryObjectRegistry(t)
+	api.objects = registry
+	id := scope.MustMemory(t, "", "Product TM")
+	attemptID := uuid.NewString()
+	key := "memory-interchange/preview.tmx"
+	_, err := scope.Pool.Exec(t.Context(), `
+		insert into memory_import_attempts (
+			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
+			source_object_location, source_object_key
+		) values ($1,$2,$3,$4,'import','upload_pending','apply','tmx','r2-primary',$5)`,
+		attemptID, scope.OrganizationID, id, scope.UserID, key)
+	require.NoError(t, err)
+	_, _, err = registry.Put(t.Context(), objectstore.PutInput{
+		Key:         key,
+		Body:        strings.NewReader("<tmx/>"),
+		Size:        6,
+		ContentType: "application/xml",
+	})
+	require.NoError(t, err)
+
+	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), `{"attemptId":"`+attemptID+`","mode":"preview"}`)
+	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"status":"queued"`)
+	require.Len(t, publisher.messages, 1)
+
+	var mode, status string
+	err = scope.Pool.QueryRow(t.Context(), `select mode, status from memory_import_attempts where id=$1`, attemptID).Scan(&mode, &status)
+	require.NoError(t, err)
+	require.Equal(t, "preview", mode)
+	require.Equal(t, "queued", status)
+}
+
+func TestFinalizeMemoryImportApplyFromPreviewCompleted(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	publisher := &recordingMemoryInterchangePublisher{}
+	api.interchange = publisher
+	api.objects = memoryObjectRegistry(t)
 	id := scope.MustMemory(t, "", "Product TM")
 	attemptID := uuid.NewString()
 	_, err := scope.Pool.Exec(t.Context(), `
 		insert into memory_import_attempts (
 			id, organization_id, memory_id, created_by_user_id, operation, status, mode, format,
-			source_object_location, source_object_key
-		) values ($1,$2,$3,$4,'import','upload_pending','apply','tmx','r2-primary','memory-interchange/preview-rejected.tmx')`,
+			source_object_location, source_object_key, source_byte_size, completed_at
+		) values ($1,$2,$3,$4,'import','preview_completed','preview','tmx','r2-primary','memory-interchange/preview-done.tmx',6,now())`,
 		attemptID, scope.OrganizationID, id, scope.UserID)
 	require.NoError(t, err)
 
-	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), `{"attemptId":"`+attemptID+`","mode":"preview"}`)
-	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-	require.Contains(t, rec.Body.String(), "memory_import_preview_unsupported")
+	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), `{"attemptId":"`+attemptID+`","mode":"apply"}`)
+	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+	require.Len(t, publisher.messages, 1)
+
+	var mode, status string
+	var completedAt *time.Time
+	err = scope.Pool.QueryRow(t.Context(), `select mode, status, completed_at from memory_import_attempts where id=$1`, attemptID).Scan(&mode, &status, &completedAt)
+	require.NoError(t, err)
+	require.Equal(t, "apply", mode)
+	require.Equal(t, "queued", status)
+	require.Nil(t, completedAt)
 }
 
 func TestFinalizeMemoryImportCancelsUploadPending(t *testing.T) {

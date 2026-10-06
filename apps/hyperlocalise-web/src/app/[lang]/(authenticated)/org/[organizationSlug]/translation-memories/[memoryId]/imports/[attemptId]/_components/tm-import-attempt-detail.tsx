@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -32,6 +32,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { tmImportAttemptDetailMessages as messages } from "./tm-import-attempt-detail.messages";
@@ -208,6 +209,7 @@ export function TmImportAttemptDetail({
   organizationSlug,
   memoryId,
   attemptId,
+  canWriteMemories,
 }: {
   organizationSlug: string;
   memoryId: string;
@@ -216,8 +218,30 @@ export function TmImportAttemptDetail({
   canWriteMemories: boolean;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
   const [downloadPending, setDownloadPending] = useState(false);
+  const confirmImport = useMutation({
+    mutationFn: async () => {
+      try {
+        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId,
+          mode: "apply",
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(messages.importEntriesFailed)),
+          { cause: error },
+        );
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const attemptQuery = useQuery({
     queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
     enabled: !goSvcLoading,
@@ -371,6 +395,28 @@ export function TmImportAttemptDetail({
           ) : null}
         </div>
       </header>
+
+      {attempt.operation === "import" &&
+      attempt.status === "preview_completed" &&
+      canWriteMemories ? (
+        <Alert>
+          <AlertTitle>
+            <FormattedMessage {...messages.previewCompleted} />
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              <FormattedMessage {...messages.previewReadyBanner} />
+            </span>
+            <Button
+              type="button"
+              disabled={confirmImport.isPending}
+              onClick={() => confirmImport.mutate()}
+            >
+              <FormattedMessage {...messages.importEntries} />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader>
