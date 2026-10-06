@@ -122,7 +122,7 @@ export function FiltersPage({ savedCount, scope }: { savedCount: number; scope: 
 在仓库根目录（如果 monorepo 将配置文件放在 UI 旁边，则在你的应用目录下）创建 `i18n.yml`：
 
 ```yaml
-version: hyperlocalise@1.12.1
+version: hyperlocalise@1.13.3
 
 locales:
   source: en-US
