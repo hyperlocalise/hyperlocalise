@@ -36,6 +36,7 @@ import { GoSvcPdfApi } from "./go-svc-pdf-api";
 import { GoSvcPlaintextApi } from "./go-svc-plaintext-api";
 import { GoSvcProjectApi } from "./go-svc-project-api";
 import { GoSvcTeamApi } from "./go-svc-team-api";
+import { GoSvcTranslationFileApi } from "./go-svc-translation-file-api";
 
 export { DEFAULT_GO_SVC_BASE_URL, GoSvcClientError, type GoSvcClientOptions };
 export type { HyperlabGoSvcClient };
@@ -62,6 +63,7 @@ export class GoSvcClient {
   readonly project: GoSvcProjectApi;
   readonly qaReport: GoSvcQaReportApi;
   readonly team: GoSvcTeamApi;
+  readonly translationFile: GoSvcTranslationFileApi;
 
   constructor(options: GoSvcClientOptions) {
     const request = new GoSvcRequest(options);
@@ -86,5 +88,6 @@ export class GoSvcClient {
     this.project = new GoSvcProjectApi(request);
     this.qaReport = new GoSvcQaReportApi(request);
     this.team = new GoSvcTeamApi(request);
+    this.translationFile = new GoSvcTranslationFileApi(request);
   }
 }

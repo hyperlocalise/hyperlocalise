@@ -689,6 +689,18 @@ export type ValidateSegmentResult = {
   skippedModes?: string[];
 };
 
+export type RenderTranslationFileBody = {
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  /** The source file's bytes, base64-encoded. */
+  source: string;
+  /** Translated text by key. Untranslated keys are left out. */
+  values: Record<string, string>;
+  /** Source text of every SRX span key the file has. */
+  sourceSpans: Record<string, string>;
+};
+
 export type EditorExportBody = {
   format: "csv" | "tmx" | "xlf" | "xliff" | "xlsx";
   rows: GoSvcRecord[];
