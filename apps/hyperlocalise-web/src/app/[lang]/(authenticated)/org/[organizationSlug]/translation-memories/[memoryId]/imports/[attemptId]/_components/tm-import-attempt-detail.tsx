@@ -209,6 +209,7 @@ export function TmImportAttemptDetail({
   organizationSlug,
   memoryId,
   attemptId,
+  currentUserId,
   canWriteMemories,
 }: {
   organizationSlug: string;
@@ -348,6 +349,10 @@ export function TmImportAttemptDetail({
       setDownloadPending(false);
     }
   };
+  const canConfirmPreviewImport =
+    canWriteMemories &&
+    attempt.createdByUserId === currentUserId &&
+    memoryQuery.data?.status !== "archived";
   const countItems = memoryInterchangeCountItems(attempt);
   const reportSamples = memoryInterchangeReportSamples(attempt);
   const showReportSamples =
@@ -398,7 +403,7 @@ export function TmImportAttemptDetail({
 
       {attempt.operation === "import" &&
       attempt.status === "preview_completed" &&
-      canWriteMemories ? (
+      canConfirmPreviewImport ? (
         <Alert>
           <AlertTitle>
             <FormattedMessage {...messages.previewCompleted} />

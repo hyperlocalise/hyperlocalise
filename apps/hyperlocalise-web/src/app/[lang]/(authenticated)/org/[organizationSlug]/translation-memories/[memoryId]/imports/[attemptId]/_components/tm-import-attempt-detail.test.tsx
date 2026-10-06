@@ -249,6 +249,14 @@ describe("TmImportAttemptDetail import actions", () => {
     expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
   });
 
+  it("hides Import entries for another editor's preview", async () => {
+    getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed", "user-2"));
+    renderDetail({ currentUserId: "user-1" });
+
+    await screen.findByText("Import report");
+    expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
+  });
+
   it("shows View affected entries when the import completes", async () => {
     getAttemptMock.mockResolvedValue(importAttemptResponse("completed"));
     renderDetail();
