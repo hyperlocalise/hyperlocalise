@@ -437,6 +437,33 @@ export async function prepareWorkspaceOrchestratorRun(
       source: "workspace_orchestrator",
       dimensions: usageDimensions(automation.id),
     });
+
+    const tools = buildWorkspaceOrchestratorTools(session);
+    const toolSpecs = await Promise.all(
+      plan.tools.map(async (name): Promise<WorkspaceOrchestratorToolSpec> => {
+        const description = tools[name]?.description;
+        return {
+          name,
+          description: typeof description === "string" ? description : "",
+          inputJsonSchema: await asSchema(tools[name]?.inputSchema).jsonSchema,
+        };
+      }),
+    );
+
+    return ok({
+      kind: "ready",
+      runId: run.id,
+      model: resolveWorkspaceAutomationModel(automation.model),
+      instructions: session.composedInstructions,
+      userMessage: buildWorkspaceOrchestratorUserMessage({
+        automationName: automation.name,
+        triggerSource: run.triggerSource,
+        inputSnapshot: run.inputSnapshot,
+      }),
+      maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
+      planTools: plan.tools,
+      toolSpecs,
+    });
   } catch (error) {
     return err(
       await failWorkspaceOrchestratorRun({
@@ -446,33 +473,6 @@ export async function prepareWorkspaceOrchestratorRun(
       }),
     );
   }
-
-  const tools = buildWorkspaceOrchestratorTools(session);
-  const toolSpecs = await Promise.all(
-    plan.tools.map(async (name): Promise<WorkspaceOrchestratorToolSpec> => {
-      const description = tools[name]?.description;
-      return {
-        name,
-        description: typeof description === "string" ? description : "",
-        inputJsonSchema: await asSchema(tools[name]?.inputSchema).jsonSchema,
-      };
-    }),
-  );
-
-  return ok({
-    kind: "ready",
-    runId: run.id,
-    model: resolveWorkspaceAutomationModel(automation.model),
-    instructions: session.composedInstructions,
-    userMessage: buildWorkspaceOrchestratorUserMessage({
-      automationName: automation.name,
-      triggerSource: run.triggerSource,
-      inputSnapshot: run.inputSnapshot,
-    }),
-    maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
-    planTools: plan.tools,
-    toolSpecs,
-  });
 }
 
 export function readWorkspaceOrchestratorToolState(
@@ -519,8 +519,13 @@ export async function loadWorkspaceOrchestratorToolSession(
   return { ok: true, session };
 }
 
-function workspaceOrchestratorToolCallId(runId: string, toolName: WorkspaceOrchestratorToolName) {
-  return `${runId}:${toolName}`;
+/** Prefer the model's tool-call id so two calls in one step do not share a ledger row. */
+function workspaceOrchestratorToolCallId(
+  runId: string,
+  toolName: WorkspaceOrchestratorToolName,
+  modelToolCallId?: string,
+) {
+  return modelToolCallId?.trim() || `${runId}:${toolName}`;
 }
 
 /**
@@ -533,6 +538,7 @@ export async function executeWorkspaceOrchestratorTool(
     planTools: WorkspaceOrchestratorToolName[];
     toolName: WorkspaceOrchestratorToolName;
     toolInput: unknown;
+    toolCallId?: string;
     state: WorkspaceOrchestratorToolState;
   },
 ): Promise<WorkspaceOrchestratorToolOutcome> {
@@ -563,6 +569,7 @@ export async function executeWorkspaceOrchestratorTool(
   const toolCallId = workspaceOrchestratorToolCallId(
     input.workspaceAutomationRunId,
     input.toolName,
+    input.toolCallId,
   );
   const guarded = !RETRY_SAFE_TOOLS.has(input.toolName);
 

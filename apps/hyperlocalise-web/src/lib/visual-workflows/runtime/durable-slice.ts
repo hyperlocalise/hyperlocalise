@@ -41,6 +41,7 @@ import { parseRetryResumeState } from "./retry-delay";
 import { parseWaitResumeState } from "./wait-schedule";
 import { parseMergeResumeState } from "./merge-timeout";
 import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
+import { createSerialAsyncQueue } from "./serial-async-queue";
 
 const logger = createLogger("visual-workflow-node");
 export async function executeDurableWorkflowSlice(input: {
@@ -135,8 +136,9 @@ export async function executeDurableWorkflowSlice(input: {
       .returning({ id: schema.visualWorkflowRuns.id });
     if (!renewed) controller.abort();
   };
+  const leaseRenewals = createSerialAsyncQueue();
   const leaseTimer = setInterval(() => {
-    void renewLease().catch((error: unknown) =>
+    leaseRenewals.enqueue(renewLease, (error: unknown) =>
       logger.warn({ error, runId: input.run.id }, "visual workflow lease renewal failed"),
     );
   }, WORKFLOW_LIMITS.leaseRenewIntervalMs);
@@ -409,5 +411,6 @@ export async function executeDurableWorkflowSlice(input: {
   } finally {
     clearInterval(timer);
     clearInterval(leaseTimer);
+    await leaseRenewals.drain();
   }
 }

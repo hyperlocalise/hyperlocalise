@@ -77,10 +77,12 @@ vi.mock("./build-workspace-orchestrator-tools", () => ({
   ),
 }));
 
+import { buildWorkspaceOrchestratorTools } from "./build-workspace-orchestrator-tools";
 import {
   completeWorkspaceOrchestratorRun,
   executeWorkspaceOrchestratorTool,
   failWorkspaceOrchestratorRun,
+  prepareWorkspaceOrchestratorRun,
 } from "./run-workspace-orchestrator";
 
 const runInput = { workspaceAutomationRunId: "run-1", organizationId: "org-1" };
@@ -107,12 +109,13 @@ function run(status = "running") {
   };
 }
 
-function executeTool(toolName: WorkspaceOrchestratorToolName) {
+function executeTool(toolName: WorkspaceOrchestratorToolName, toolCallId?: string) {
   return executeWorkspaceOrchestratorTool({
     ...runInput,
     planTools: ["list_issues", "notify_slack"],
     toolName,
     toolInput: {},
+    toolCallId,
     state: emptyState,
   });
 }
@@ -210,6 +213,49 @@ describe("executeWorkspaceOrchestratorTool at-most-once guard", () => {
     expect(mocks.settle).not.toHaveBeenCalled();
     expect(mocks.execute).toHaveBeenCalledWith("list_issues", {});
     expect(outcome.ok).toBe(true);
+  });
+
+  it("runs a second call of the same tool when the model uses a different tool-call id", async () => {
+    await executeTool("notify_slack", "call-a");
+    await executeTool("notify_slack", "call-b");
+
+    expect(mocks.claim).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ toolCallId: "call-a", toolName: "notify_slack" }),
+    );
+    expect(mocks.claim).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ toolCallId: "call-b", toolName: "notify_slack" }),
+    );
+    expect(mocks.execute).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("prepareWorkspaceOrchestratorRun", () => {
+  it("marks the run failed when planned tool specs cannot be built", async () => {
+    mocks.getAutomation.mockResolvedValue({
+      id: "automation-1",
+      name: "Automation",
+      repositoryTarget: { kind: "none" },
+      skillIds: [],
+      instructions: null,
+      triggerConfig: { mode: "manual" },
+      toolConfig: { slack: { enabled: true, channelId: "C123" } },
+    });
+    vi.mocked(buildWorkspaceOrchestratorTools).mockImplementationOnce(() => {
+      throw new Error("schema_unavailable");
+    });
+
+    const result = await prepareWorkspaceOrchestratorRun(runInput);
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: "workspace_orchestrator_failed", message: "schema_unavailable" },
+    });
+    expect(mocks.updateRun).toHaveBeenCalledWith(expect.objectContaining({ status: "running" }));
+    expect(mocks.updateRun).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", error: { message: "schema_unavailable" } }),
+    );
   });
 });
 

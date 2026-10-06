@@ -59,6 +59,7 @@ type PlannedToolInput = {
   planTools: WorkspaceOrchestratorToolName[];
   state: WorkspaceOrchestratorToolState;
   toolInput: unknown;
+  toolCallId?: string;
 };
 
 const LOG_PREFIX = "[workspace-automation-agent]";
@@ -291,7 +292,7 @@ export async function workspaceAutomationExecutionWorkflow(
     tools[spec.name] = tool({
       description: spec.description,
       inputSchema: jsonSchema(spec.inputJsonSchema),
-      execute: async (toolInput: unknown) => {
+      execute: async (toolInput: unknown, { toolCallId }) => {
         const outcome = await runPlannedTool({
           event,
           workflowRunId,
@@ -299,6 +300,7 @@ export async function workspaceAutomationExecutionWorkflow(
           state,
           toolName: spec.name,
           toolInput,
+          toolCallId,
         });
         state = outcome.state;
         if (!outcome.ok) {

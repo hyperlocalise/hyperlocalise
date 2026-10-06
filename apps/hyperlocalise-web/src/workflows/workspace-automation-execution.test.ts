@@ -176,6 +176,7 @@ describe("workspaceAutomationExecutionWorkflow", () => {
       ([input]) => input,
     );
     expect(calls.map((input) => input.toolName)).toEqual(["list_issues", "notify_slack"]);
+    expect(calls.map((input) => input.toolCallId)).toEqual(["call-0", "call-1"]);
     expect(calls[0].state).toEqual(stateAfter());
     expect(calls[1].state).toEqual(stateAfter("list_issues"));
     expect(mocks.steps.completeWorkspaceAutomationStep).toHaveBeenCalledWith({

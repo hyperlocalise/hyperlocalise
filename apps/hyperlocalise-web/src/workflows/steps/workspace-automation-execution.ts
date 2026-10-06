@@ -121,6 +121,7 @@ export async function executeWorkspaceOrchestratorToolStep(input: {
   planTools: WorkspaceOrchestratorToolName[];
   toolName: WorkspaceOrchestratorToolName;
   toolInput: unknown;
+  toolCallId?: string;
   state: WorkspaceOrchestratorToolState;
 }): Promise<WorkspaceOrchestratorToolOutcome> {
   "use step";
@@ -133,6 +134,7 @@ export async function executeWorkspaceOrchestratorToolStep(input: {
     planTools: input.planTools,
     toolName: input.toolName,
     toolInput: input.toolInput,
+    toolCallId: input.toolCallId,
     state: input.state,
   });
 }
