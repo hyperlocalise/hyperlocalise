@@ -51,6 +51,9 @@ export type VisualWorkflowInterpreterResult =
       ok: true;
       context: VisualWorkflowExecutionContext;
       nodeResults: Record<string, Record<string, unknown>>;
+      terminal?:
+        | { kind: "completed"; nodeId: string }
+        | { kind: "returned"; nodeId: string; outputs: Record<string, unknown> };
     }
   | {
       ok: false;
@@ -697,7 +700,11 @@ export async function runVisualWorkflowInterpreter(input: {
                   failure.error.code !== "yield_execution" &&
                   failure.error.code !== "retry_backoff" &&
                   failure.error.code !== "wait_suspended" &&
-                  failure.error.code !== "merge_suspended"
+                  failure.error.code !== "merge_suspended" &&
+                  failure.error.code !== "workflow_completed" &&
+                  failure.error.code !== "workflow_returned" &&
+                  failure.error.code !== "cancelled" &&
+                  failure.error.terminal !== true
                 )
                   await emit(node, "failed", iteration, { error: failure.error });
                 return failure;
@@ -741,11 +748,21 @@ export async function runVisualWorkflowInterpreter(input: {
             if (!retryResult.ok) {
               if (
                 retryResult.error.code !== "yield_execution" &&
-                retryResult.error.code !== "retry_backoff"
+                retryResult.error.code !== "retry_backoff" &&
+                retryResult.error.code !== "workflow_completed" &&
+                retryResult.error.code !== "workflow_returned" &&
+                retryResult.error.code !== "cancelled" &&
+                retryResult.error.terminal !== true
               ) {
                 await emit(node, "failed", iteration, { error: retryResult.error });
               }
-              return { nodeId: id, error: retryResult.error };
+              return {
+                nodeId:
+                  typeof retryResult.error.terminalNodeId === "string"
+                    ? retryResult.error.terminalNodeId
+                    : id,
+                error: retryResult.error,
+              };
             }
             retryExitHandle = retryResult.exitHandle;
             execution = { ok: true, output: retryResult.output };
@@ -756,6 +773,25 @@ export async function runVisualWorkflowInterpreter(input: {
             outputSnapshot: execution.output,
             error: null,
           });
+          if (node.config.kind === "flow.stop") {
+            return {
+              nodeId: id,
+              error: {
+                code: "workflow_completed",
+                message: "Workflow completed by a Stop node.",
+              },
+            };
+          }
+          if (node.config.kind === "flow.return") {
+            return {
+              nodeId: id,
+              error: {
+                code: "workflow_returned",
+                message: "Workflow completed with returned outputs.",
+                outputs: execution.output.returnedOutputs ?? {},
+              },
+            };
+          }
         }
         const next =
           node.type === "logic.for_each"
@@ -863,6 +899,30 @@ export async function runVisualWorkflowInterpreter(input: {
     new Set(definition.nodes.filter((node) => !bodyIds.has(node.id)).map((node) => node.id)),
     new Set([graph.triggerNodeId]),
   );
+  if (failure && ["workflow_completed", "workflow_returned"].includes(String(failure.error.code))) {
+    for (const node of definition.nodes)
+      if (!settledIds.has(node.id)) await emit(node, "cancelled");
+
+    if (failure.error.code === "workflow_returned") {
+      const outputs =
+        failure.error.outputs && typeof failure.error.outputs === "object"
+          ? (failure.error.outputs as Record<string, unknown>)
+          : {};
+      return {
+        ok: true,
+        context,
+        nodeResults,
+        terminal: { kind: "returned", nodeId: failure.nodeId, outputs },
+      };
+    }
+
+    return {
+      ok: true,
+      context,
+      nodeResults,
+      terminal: { kind: "completed", nodeId: failure.nodeId },
+    };
+  }
   if (
     failure &&
     failure.error.code !== "yield_execution" &&
@@ -872,7 +932,12 @@ export async function runVisualWorkflowInterpreter(input: {
   )
     for (const node of definition.nodes)
       if (!settledIds.has(node.id))
-        await emit(node, failure.error.code === "cancelled" ? "cancelled" : "blocked");
+        await emit(
+          node,
+          failure.error.code === "cancelled" || failure.error.terminal === true
+            ? "cancelled"
+            : "blocked",
+        );
   if (!failure)
     for (const node of definition.nodes) if (!settledIds.has(node.id)) await emit(node, "skipped");
   return failure ? fail(failure.nodeId, failure.error) : { ok: true, context, nodeResults };

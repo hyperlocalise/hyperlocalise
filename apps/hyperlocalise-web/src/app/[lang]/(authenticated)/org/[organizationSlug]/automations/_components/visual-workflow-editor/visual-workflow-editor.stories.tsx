@@ -22,6 +22,7 @@ import {
   visualWorkflowWaitDraft,
   visualWorkflowMergeDraft,
   visualWorkflowSequenceDraft,
+  visualWorkflowTerminalNodesDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -470,5 +471,45 @@ export const SequenceOutputs: Story = {
     await expect(canvas.getByRole("textbox", { name: "Output 3" })).toHaveValue("Audit");
     await expect(canvas.getByRole("button", { name: "Move output 2 up" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Add output" })).toBeEnabled();
+  },
+};
+
+export const TerminalNodes: Story = {
+  name: "Stop, Return, and Fail",
+  parameters: {
+    docs: {
+      description: {
+        story: "Shows explicit successful, returned-data, and controlled-failure workflow endings.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowTerminalNodesDraft.name,
+    initialNodes: visualWorkflowTerminalNodesDraft.nodes,
+    initialEdges: visualWorkflowTerminalNodesDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByText("Stop workflow", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    const returnTitle = canvas.getByText("Return outputs");
+    await expect(returnTitle).toBeInTheDocument();
+    await expect(canvas.getByText("Fail workflow")).toBeInTheDocument();
+
+    const returnNode = returnTitle.closest(".react-flow__node");
+    await expect(returnNode).not.toBeNull();
+    await expect(returnNode!.querySelector('[aria-label="Execution input"]')).not.toBeNull();
+    await expect(returnNode!.querySelector('[aria-label="Execution success"]')).toBeNull();
+    await userEvent.click(returnNode!);
+
+    await expect(await canvas.findByRole("textbox", { name: "Returned output 1" })).toHaveValue(
+      "result",
+    );
+    await expect(
+      canvas.getByRole("combobox", { name: "Returned output 1 type" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add returned output" })).toBeEnabled();
   },
 };

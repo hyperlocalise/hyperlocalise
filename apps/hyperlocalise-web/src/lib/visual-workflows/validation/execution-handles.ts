@@ -20,6 +20,9 @@ export type VisualWorkflowHandleSource = {
 export function getAllowedExecutionSourceHandles(
   node: VisualWorkflowHandleSource,
 ): Array<string | null> {
+  if (["flow.stop", "flow.return", "flow.fail"].includes(node.type)) {
+    return [];
+  }
   if (node.type === "logic.if") {
     return ["true", "false"];
   }

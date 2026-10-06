@@ -42,8 +42,10 @@ import { parseWaitResumeState } from "./wait-schedule";
 import { parseMergeResumeState } from "./merge-timeout";
 import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
 import { createSerialAsyncQueue } from "./serial-async-queue";
+import { shouldReuseDurableExecution } from "./durable-execution-reuse";
 
 const logger = createLogger("visual-workflow-node");
+
 export async function executeDurableWorkflowSlice(input: {
   run: VisualWorkflowRunRecord;
   leaseToken: string;
@@ -77,23 +79,28 @@ export async function executeDurableWorkflowSlice(input: {
       ? collectRetryBodyNodeIdsForRetryNode(input.definition, retryBackoff.retryNodeId)
       : new Set<string>();
   const completed = new Map(
-    records
-      .filter(
-        (record) =>
-          record.encryptedOutput &&
-          !waitConditionProbeNodeIds.has(record.nodeId) &&
-          ["succeeded", "handled_error"].includes(record.status) &&
-          shouldReuseCompletedNodeRun({
-            nodeId: record.nodeId,
-            retryRegionAttempt: record.iteration,
-            resumedRetryBodyNodeIds,
-            resumeAttempt,
-          }),
-      )
-      .map((record) => [
-        key(record.nodeId, record.iteration),
-        decryptWorkflowPayload(record.encryptedOutput!) as VisualWorkflowNodeExecutionResult,
-      ]),
+    records.flatMap((record) => {
+      if (
+        !record.encryptedOutput ||
+        waitConditionProbeNodeIds.has(record.nodeId) ||
+        !["succeeded", "handled_error", "failed"].includes(record.status) ||
+        !shouldReuseCompletedNodeRun({
+          nodeId: record.nodeId,
+          retryRegionAttempt: record.iteration,
+          resumedRetryBodyNodeIds,
+          resumeAttempt,
+        })
+      ) {
+        return [];
+      }
+
+      const execution = decryptWorkflowPayload(
+        record.encryptedOutput,
+      ) as VisualWorkflowNodeExecutionResult;
+      if (!shouldReuseDurableExecution(record.status, execution)) return [];
+
+      return [[key(record.nodeId, record.iteration), execution] as const];
+    }),
   );
   const pending = new Map<string, VisualWorkflowNodeExecutionResult>();
   const inputs = new Map<string, Record<string, unknown>>();
@@ -407,7 +414,15 @@ export async function executeDurableWorkflowSlice(input: {
         nodeResults,
         error: redactWorkflowSnapshot(result.error, secrets) as typeof result.error,
       };
-    return { ...result, nodeResults };
+    return {
+      ...result,
+      nodeResults,
+      ...(result.terminal
+        ? {
+            terminal: redactWorkflowSnapshot(result.terminal, secrets) as typeof result.terminal,
+          }
+        : {}),
+    };
   } finally {
     clearInterval(timer);
     clearInterval(leaseTimer);

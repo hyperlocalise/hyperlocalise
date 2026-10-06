@@ -795,3 +795,94 @@ it("rejects removed Sequence execution output IDs", () => {
     nodeId: "sequence",
   });
 });
+
+it("compiles typed Return inputs by stable output ID", () => {
+  const input = definition([
+    {
+      id: "trigger-return-value",
+      kind: "data",
+      source: "trigger",
+      target: "return",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.finished-at",
+    },
+  ]);
+  input.nodes[1] = {
+    id: "return",
+    type: "flow.return",
+    config: {
+      kind: "flow.return",
+      outputs: [{ id: "finished-at", name: "finishedAt", type: "string" }],
+    },
+  };
+
+  const result = compileVisualWorkflowV3Definition(input);
+
+  expect(result.issues).toEqual([]);
+  expect(result.definition.nodes[1]?.inputs).toEqual({
+    "value.finished-at": {
+      kind: "reference",
+      nodeId: "trigger",
+      path: ["triggeredAt"],
+    },
+  });
+});
+
+it("rejects missing and incompatible Return inputs", () => {
+  const missing = definition([]);
+  missing.nodes[1] = {
+    id: "return",
+    type: "flow.return",
+    config: {
+      kind: "flow.return",
+      outputs: [{ id: "count", name: "count", type: "number" }],
+    },
+  };
+
+  expect(compileVisualWorkflowV3Definition(missing).issues).toContainEqual({
+    code: "missing_required_input",
+    nodeId: "return",
+  });
+
+  const incompatible = definition([
+    {
+      id: "trigger-return-value",
+      kind: "data",
+      source: "trigger",
+      target: "return",
+      sourcePortId: "triggeredAt",
+      targetPortId: "value.count",
+    },
+  ]);
+  incompatible.nodes[1] = missing.nodes[1]!;
+
+  expect(compileVisualWorkflowV3Definition(incompatible).issues).toContainEqual({
+    code: "incompatible_data_types",
+    edgeId: "trigger-return-value",
+    nodeId: "return",
+  });
+});
+
+it("rejects outgoing edges from terminal nodes", () => {
+  const input = definition([
+    {
+      id: "terminal-set",
+      kind: "execution",
+      source: "terminal",
+      target: "set",
+      sourcePortId: "success",
+      targetPortId: "input",
+    },
+  ]);
+  input.nodes[0] = {
+    id: "terminal",
+    type: "flow.stop",
+    config: { kind: "flow.stop", outcome: "completed" },
+  };
+
+  expect(compileVisualWorkflowV3Definition(input).issues).toContainEqual({
+    code: "terminal_node_outgoing_edge",
+    edgeId: "terminal-set",
+    nodeId: "terminal",
+  });
+});

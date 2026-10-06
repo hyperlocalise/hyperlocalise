@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getWorkflowOutputFields, NODE_CONTRACTS } from "../catalog/node-contracts";
+import {
+  getWorkflowInputFields,
+  getWorkflowOutputFields,
+  NODE_CONTRACTS,
+} from "../catalog/node-contracts";
 import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
@@ -38,6 +42,16 @@ function getInputFields(node: VisualWorkflowRfNode) {
       type: "unknown" as const,
       required: false,
     }));
+  }
+
+  if (node.data.config.kind === "flow.return") {
+    return getWorkflowInputFields({
+      id: node.id,
+      type: node.data.catalogType,
+      config: node.data.config,
+      inputs: node.data.inputs,
+      outputFields: node.data.outputFields,
+    });
   }
 
   if (node.data.config.kind !== "logic.set") {

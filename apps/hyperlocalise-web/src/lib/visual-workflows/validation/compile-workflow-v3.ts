@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { getWorkflowOutputFields, NODE_CONTRACTS } from "../catalog/node-contracts";
+import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
 import type {
   CanonicalVisualWorkflowNode,
   VisualWorkflowV3Definition,
@@ -28,7 +28,9 @@ export type VisualWorkflowV3CompilationIssue = {
     | "invalid_target_port"
     | "conflicting_data_input"
     | "incompatible_data_types"
-    | "execution_cycle";
+    | "execution_cycle"
+    | "terminal_node_outgoing_edge"
+    | "missing_required_input";
   edgeId?: string;
   nodeId?: string;
 };
@@ -59,7 +61,12 @@ function hasDataTargetPort(node: CanonicalVisualWorkflowNode, portId: string): b
     return node.config.inputs.some((input) => input.id === inputId);
   }
 
-  if (NODE_CONTRACTS[node.type].inputs.some((field) => field.name === portId)) {
+  if (node.config.kind === "flow.return" && portId.startsWith("value.")) {
+    const outputId = portId.slice("value.".length);
+    return node.config.outputs.some((output) => output.id === outputId);
+  }
+
+  if (getWorkflowInputFields(node).some((field) => field.name === portId)) {
     return true;
   }
 
@@ -71,6 +78,9 @@ function hasDataTargetPort(node: CanonicalVisualWorkflowNode, portId: string): b
 }
 
 function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> {
+  if (["flow.stop", "flow.return", "flow.fail"].includes(node.type)) {
+    return new Set();
+  }
   if (node.type === "logic.if") {
     return new Set(["true", "false"]);
   }
@@ -202,6 +212,15 @@ export function compileVisualWorkflowV3Definition(
       continue;
     }
 
+    if (["flow.stop", "flow.return", "flow.fail"].includes(source.type)) {
+      issues.push({
+        code: "terminal_node_outgoing_edge",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
     if (!executionSourcePortIds(source).has(edge.sourcePortId)) {
       issues.push({
         code: "invalid_source_port",
@@ -241,6 +260,15 @@ export function compileVisualWorkflowV3Definition(
       continue;
     }
 
+    if (["flow.stop", "flow.return", "flow.fail"].includes(source.type)) {
+      issues.push({
+        code: "terminal_node_outgoing_edge",
+        edgeId: edge.id,
+        nodeId: source.id,
+      });
+      continue;
+    }
+
     if (!hasDataSourcePort(source, edge.sourcePortId)) {
       issues.push({
         code: "invalid_source_port",
@@ -263,7 +291,7 @@ export function compileVisualWorkflowV3Definition(
       (field) => field.path === edge.sourcePortId,
     );
 
-    const targetField = NODE_CONTRACTS[target.type].inputs.find(
+    const targetField = getWorkflowInputFields(target).find(
       (field) => field.name === edge.targetPortId,
     );
 
@@ -314,6 +342,19 @@ export function compileVisualWorkflowV3Definition(
     };
 
     target.inputs = inputs;
+  }
+
+  for (const node of nodes) {
+    if (node.config.kind !== "flow.return") continue;
+
+    for (const field of getWorkflowInputFields(node)) {
+      if (field.required && !Object.hasOwn(node.inputs ?? {}, field.name)) {
+        issues.push({
+          code: "missing_required_input",
+          nodeId: node.id,
+        });
+      }
+    }
   }
 
   return {

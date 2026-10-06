@@ -139,6 +139,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
   const isSwitch = data.catalogType === "logic.switch";
+  const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
   const showErrorHandle = nodeSupportsErrorBranch(data.config);
   const dataPorts = getVisualWorkflowDataPorts({
     node: {
@@ -372,7 +373,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             }}
           />
         ))
-      ) : (
+      ) : isTerminal ? null : (
         <>
           <Handle
             id="success"
@@ -612,6 +613,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.hideAddAction ||
+      isTerminal ||
       (data.config.kind === "logic.sequence" && sequenceOutputs.length === 0) ? null : (
         <VisualWorkflowQuickAddButton
           className={cn(
@@ -663,6 +665,12 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeRetry;
     case "flow.wait":
       return messages.nodeWait;
+    case "flow.stop":
+      return messages.nodeStop;
+    case "flow.return":
+      return messages.nodeReturn;
+    case "flow.fail":
+      return messages.nodeFail;
     case "logic.merge":
       return messages.nodeMerge;
     case "logic.sequence":

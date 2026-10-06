@@ -480,6 +480,96 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "5ZZS0Al3rv",
     description: "Wait node picker hint",
   },
+  nodeStop: {
+    defaultMessage: "Stop workflow",
+    id: "3zOQAJ9ZJz",
+    description: "Catalog title for the terminal workflow stop node",
+  },
+  nodeStopHint: {
+    defaultMessage: "Complete or intentionally cancel this workflow.",
+    id: "iBvzNp8B3k",
+    description: "Catalog description for the terminal workflow stop node",
+  },
+  nodeReturn: {
+    defaultMessage: "Return outputs",
+    id: "BRru1MZaa7",
+    description: "Catalog title for the terminal workflow return node",
+  },
+  nodeReturnHint: {
+    defaultMessage: "Complete this workflow with declared typed outputs.",
+    id: "mrbQRCFXKI",
+    description: "Catalog description for the terminal workflow return node",
+  },
+  nodeFail: {
+    defaultMessage: "Fail workflow",
+    id: "UYOEsTHp00",
+    description: "Catalog title for the terminal workflow failure node",
+  },
+  nodeFailHint: {
+    defaultMessage: "Stop with a controlled error code and safe message.",
+    id: "jDzOaWf1E5",
+    description: "Catalog description for the terminal workflow failure node",
+  },
+  stopOutcome: {
+    defaultMessage: "Outcome",
+    id: "pesQwlzvp0",
+    description: "Stop workflow outcome field",
+  },
+  stopCompleted: {
+    defaultMessage: "Complete successfully",
+    id: "pjmwxFyZ2z",
+    description: "Successful Stop outcome",
+  },
+  stopCancelled: {
+    defaultMessage: "Cancel intentionally",
+    id: "3hgvf7DCgl",
+    description: "Cancelled Stop outcome",
+  },
+  stopReason: {
+    defaultMessage: "Reason (optional)",
+    id: "1X3/JFUGHK",
+    description: "Stop workflow reason field",
+  },
+  returnOutputs: {
+    defaultMessage: "Returned outputs",
+    id: "nAUAvUF3jq",
+    description: "Return workflow output list",
+  },
+  returnOutputsEmpty: {
+    defaultMessage: "No outputs declared. The workflow will return successfully without data.",
+    id: "PcwPy1ufB6",
+    description: "Empty Return output list help",
+  },
+  returnOutputName: {
+    defaultMessage: "Returned output {index}",
+    id: "dKnZgBqrxq",
+    description: "Return output name field",
+  },
+  returnOutputType: {
+    defaultMessage: "Returned output {index} type",
+    id: "L1do6DT9ul",
+    description: "Return output type field",
+  },
+  addReturnOutput: {
+    defaultMessage: "Add returned output",
+    id: "Shn4LOznrH",
+    description: "Add Return output button",
+  },
+  removeReturnOutput: {
+    defaultMessage: "Remove returned output {index}",
+    id: "EHt7HrHrIe",
+    description: "Remove Return output button",
+  },
+  failErrorCode: {
+    defaultMessage: "Error code",
+    id: "eXkQXUV5Ys",
+    description: "Controlled failure error code field",
+  },
+  failMessage: {
+    defaultMessage: "Safe error message",
+    id: "EgYdnRGDaG",
+    description: "Controlled failure safe message field",
+  },
   nodeMerge: {
     defaultMessage: "Merge",
     id: "c0/sujExf3",

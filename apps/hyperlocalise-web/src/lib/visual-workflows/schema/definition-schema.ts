@@ -62,6 +62,9 @@ const visualCatalogTypeSchema = z.enum([
   "logic.for_each",
   "logic.retry",
   "flow.wait",
+  "flow.stop",
+  "flow.return",
+  "flow.fail",
   "logic.merge",
   "logic.sequence",
 ]);
@@ -248,6 +251,61 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
         }
       }
     }),
+  z.object({
+    kind: z.literal("flow.stop"),
+    outcome: z.enum(["completed", "cancelled"]),
+    reason: z.string().trim().min(1).max(500).optional(),
+  }),
+  z.object({
+    kind: z.literal("flow.return"),
+    outputs: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          name: z
+            .string()
+            .trim()
+            .min(1)
+            .max(128)
+            .regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "invalid_return_output_name"),
+          type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+        }),
+      )
+      .max(32)
+      .superRefine((outputs, context) => {
+        const ids = new Set<string>();
+        const names = new Set<string>();
+
+        for (const [index, output] of outputs.entries()) {
+          if (ids.has(output.id)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "id"],
+              message: "duplicate_return_output_id",
+            });
+          }
+          if (names.has(output.name)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "name"],
+              message: "duplicate_return_output_name",
+            });
+          }
+          ids.add(output.id);
+          names.add(output.name);
+        }
+      }),
+  }),
+  z.object({
+    kind: z.literal("flow.fail"),
+    errorCode: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[A-Z][A-Z0-9_]*$/, "invalid_workflow_error_code"),
+    message: z.string().trim().min(1).max(500),
+  }),
   z.object({
     kind: z.literal("logic.merge"),
     mode: z.enum(["all", "any", "first_success"]),

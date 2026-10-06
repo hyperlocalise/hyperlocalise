@@ -18,3 +18,4 @@ export { visualWorkflowSwitchDeleteDraft } from "@/lib/visual-workflows/fixtures
 export { visualWorkflowWaitDraft } from "@/lib/visual-workflows/fixtures/wait-draft";
 export { visualWorkflowMergeDraft } from "@/lib/visual-workflows/fixtures/merge-draft";
 export { visualWorkflowSequenceDraft } from "@/lib/visual-workflows/fixtures/sequence-draft";
+export { visualWorkflowTerminalNodesDraft } from "@/lib/visual-workflows/fixtures/terminal-nodes-draft";
