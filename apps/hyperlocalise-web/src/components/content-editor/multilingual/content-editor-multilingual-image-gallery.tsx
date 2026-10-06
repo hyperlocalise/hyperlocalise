@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { observer } from "mobx-react-lite";
 import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
@@ -49,21 +50,20 @@ import { ContentEditorSegmentKeyMeta } from "@/components/content-editor/segment
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 import { useImageNaturalSize } from "@/components/content-editor/shared/use-image-natural-size";
 import { isCatImageFileSegment } from "@/components/content-editor/workspace/content-editor-file-view-capabilities";
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
 import { ContentEditorWorkspaceViewSwitcherConnected } from "@/components/content-editor/workspace/content-editor-workspace-view-switcher-connected";
 import { formatLocaleDisplayName } from "@/lib/i18n/locale-display-names.messages";
 
+import {
+  ContentEditorImageGenerationStore,
+  type ContentEditorImageGenerationState,
+} from "./content-editor-image-generation-store";
 import type { ContentEditorMultilingualConfig } from "./content-editor-multilingual-table";
 import { multilingualImageGalleryMessages as messages } from "./content-editor-multilingual-image-gallery.messages";
 import { multilingualMessages } from "./content-editor-multilingual.messages";
 
 const DEFAULT_ASPECT_RATIO = 4 / 3;
 const HTTP_URL_PATTERN = /^https?:\/\//i;
-
-type GenerationState = { status: "running"; startedAt: number } | { status: "failed" };
-
-function generationKey(segmentId: string, locale: string) {
-  return JSON.stringify([segmentId, locale]);
-}
 
 function sourceImageSrc(segment: ContentEditorSegment) {
   if (segment.sourceAssetUrl) return segment.sourceAssetUrl;
@@ -151,7 +151,7 @@ function LocaleImageCard({
   locale: string;
   aspectRatio: number;
   sourceSize: { width: number; height: number } | null;
-  generation: GenerationState | undefined;
+  generation: ContentEditorImageGenerationState | undefined;
   onGenerate?: (options?: { force?: boolean }) => void;
   onOpenTranslation?: () => void;
 }) {
@@ -306,7 +306,7 @@ function LocaleImageCard({
   );
 }
 
-function SegmentImageGallery({
+const SegmentImageGallery = observer(function SegmentImageGallery({
   config,
   segment,
   locales,
@@ -319,7 +319,7 @@ function SegmentImageGallery({
   segment: ContentEditorSegment;
   locales: readonly string[];
   showKey: boolean;
-  generations: ReadonlyMap<string, GenerationState>;
+  generations: ContentEditorImageGenerationStore;
   onGenerate?: (
     segment: ContentEditorSegment,
     locale: string,
@@ -371,7 +371,7 @@ function SegmentImageGallery({
               locale={locale}
               aspectRatio={aspectRatio}
               sourceSize={sourceSize}
-              generation={generations.get(generationKey(segment.id, locale))}
+              generation={generations.get(segment.id, locale)}
               onGenerate={
                 canGenerate && sourceSrc
                   ? (options) => onGenerate?.(segment, locale, options)
@@ -386,9 +386,10 @@ function SegmentImageGallery({
       </ul>
     </section>
   );
-}
+});
 
-export function ContentEditorMultilingualImageGallery({
+export const ContentEditorMultilingualImageGallery = observer(
+  function ContentEditorMultilingualImageGallery({
   config,
   segments,
   isLoading = false,
@@ -396,6 +397,7 @@ export function ContentEditorMultilingualImageGallery({
   isLoadingMore = false,
   onLoadMore,
   onOpenTranslation,
+  generations: generationsProp,
 }: {
   config: ContentEditorMultilingualConfig;
   segments: ContentEditorSegment[];
@@ -404,19 +406,13 @@ export function ContentEditorMultilingualImageGallery({
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
   onOpenTranslation?: (segment: ContentEditorSegment, locale: string) => void;
+  generations?: ContentEditorImageGenerationStore;
 }) {
   const intl = useIntl();
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  const workspace = useOptionalCatWorkspace();
+  const [ownedGenerations] = useState(() => new ContentEditorImageGenerationStore());
+  const generations = generationsProp ?? workspace?.imageGenerations ?? ownedGenerations;
   const [hiddenLocales, setHiddenLocales] = useState<ReadonlySet<string>>(() => new Set());
-  const [generations, setGenerations] = useState<ReadonlyMap<string, GenerationState>>(
-    () => new Map(),
-  );
   const locales = useMemo(() => [...new Set(config.targetLocales)], [config.targetLocales]);
   const visibleLocales = useMemo(
     () => locales.filter((locale) => !hiddenLocales.has(locale)),
@@ -436,30 +432,13 @@ export function ContentEditorMultilingualImageGallery({
   const generate = useCallback(
     async (segment: ContentEditorSegment, locale: string, options?: { force?: boolean }) => {
       if (!onRegenerateImage) return;
-      const key = generationKey(segment.id, locale);
-      setGenerations((previous) =>
-        new Map(previous).set(key, { status: "running", startedAt: Date.now() }),
+      await generations.run(segment.id, locale, () =>
+        onRegenerateImage(segment, locale, options),
       );
-      let next: GenerationState | null = null;
-      try {
-        await onRegenerateImage(segment, locale, options);
-      } catch {
-        next = { status: "failed" };
-      }
-      if (!mountedRef.current) return;
-      setGenerations((previous) => {
-        const updated = new Map(previous);
-        if (next) updated.set(key, next);
-        else updated.delete(key);
-        return updated;
-      });
     },
-    [onRegenerateImage],
+    [generations, onRegenerateImage],
   );
-  let runningCount = 0;
-  for (const state of generations.values()) {
-    if (state.status === "running") runningCount++;
-  }
+  const runningCount = generations.runningCount;
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -554,4 +533,4 @@ export function ContentEditorMultilingualImageGallery({
       ) : null}
     </section>
   );
-}
+});

@@ -19,6 +19,7 @@ import { renderWithContentEditorProviders } from "@/components/content-editor/sh
 import { contentEditorSegmentsFixture } from "@/components/content-editor/shared/content-editor.fixture";
 import type { ContentEditorSegment } from "@/components/content-editor/shared/types";
 
+import { ContentEditorImageGenerationStore } from "./content-editor-image-generation-store";
 import { ContentEditorMultilingualImageGallery } from "./content-editor-multilingual-image-gallery";
 import type { ContentEditorMultilingualConfig } from "./content-editor-multilingual-table";
 
@@ -52,15 +53,17 @@ function show(
   config: ContentEditorMultilingualConfig,
   onOpenTranslation = vi.fn<(segment: ContentEditorSegment, locale: string) => void>(),
   segments: ContentEditorSegment[] = [segment],
+  generations?: ContentEditorImageGenerationStore,
 ) {
-  renderWithContentEditorProviders(
+  const view = renderWithContentEditorProviders(
     <ContentEditorMultilingualImageGallery
       config={config}
       segments={segments}
+      generations={generations}
       onOpenTranslation={onOpenTranslation}
     />,
   );
-  return { onOpenTranslation };
+  return { onOpenTranslation, ...view };
 }
 
 beforeEach(() => {
@@ -112,6 +115,32 @@ describe("multilingual image gallery", () => {
     expect(screen.getByRole("progressbar", { name: "Generating image" })).toBeInTheDocument();
     expect(screen.getByText("Localising 1 image…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Localise image for German" })).toBeDisabled();
+
+    finish();
+    await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());
+  });
+
+  it("keeps generation progress after the gallery remounts on the same store", async () => {
+    const generations = new ContentEditorImageGenerationStore();
+    let finish!: () => void;
+    const onRegenerateImage = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    const { unmount } = show(baseConfig({ onRegenerateImage }), undefined, [segment], generations);
+
+    await user.click(screen.getByRole("button", { name: "Localise image for German" }));
+    expect(screen.getByRole("progressbar", { name: "Generating image" })).toBeInTheDocument();
+
+    unmount();
+    show(baseConfig({ onRegenerateImage }), undefined, [segment], generations);
+
+    expect(screen.getByRole("progressbar", { name: "Generating image" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Localise image for German" })).toBeDisabled();
+    expect(onRegenerateImage).toHaveBeenCalledTimes(1);
 
     finish();
     await waitFor(() => expect(screen.queryByRole("progressbar")).not.toBeInTheDocument());

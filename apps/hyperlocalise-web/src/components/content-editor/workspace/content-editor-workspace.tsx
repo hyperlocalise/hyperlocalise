@@ -227,6 +227,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             key={`${multilingual.projectId}:${selectedSegment?.id ?? multilingual.sourcePath}`}
             config={multilingual}
             segments={gallerySegments}
+            generations={store.imageGenerations}
             isLoading={isQueueListLoading || isQueueDataPending}
             onOpenTranslation={
               multilingual.onOpenTranslation
