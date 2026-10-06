@@ -744,10 +744,13 @@ function TriggerMenu({
     const options = TRIGGER_OPTIONS.filter((candidate) => candidate.group === option.group);
     entries.push(
       <DropdownMenuSub key={option.group}>
-        <DropdownMenuSubTrigger>
+        {/* Same gap as a plain item, so the labels line up. */}
+        <DropdownMenuSubTrigger className="gap-2.5">
           <group.icon className="size-4" />
-          <FormattedMessage {...group.label} />
-          {options.includes(selected) ? <CheckIcon className="ms-auto size-4" /> : null}
+          <span className="flex-1">
+            <FormattedMessage {...group.label} />
+          </span>
+          {options.includes(selected) ? <CheckIcon className="size-4" /> : null}
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-80">{options.map(renderItem)}</DropdownMenuSubContent>
       </DropdownMenuSub>,
