@@ -217,7 +217,12 @@ describe("memoryInterchangePreviewSamples", () => {
       counts: { samples: Array.from({ length: 8 }, (_, index) => makeSample(index)) },
     });
     expect(samples).toHaveLength(5);
-    expect(samples[0]).toEqual({ sourceLocale: "", targetLocale: "", sourceText: "s0", targetText: "t0" });
+    expect(samples[0]).toEqual({
+      sourceLocale: "",
+      targetLocale: "",
+      sourceText: "s0",
+      targetText: "t0",
+    });
   });
 
   it("returns an empty list when counts carry no samples", () => {
@@ -313,7 +318,12 @@ describe("TmImportAttemptDetail preview samples", () => {
     const response = previewAttemptResponse("preview_completed");
     (response.memoryImportAttempt.counts as Record<string, unknown>).samples = [
       { sourceLocale: "en", targetLocale: "ms", sourceText: "Hello", targetText: "Helo" },
-      { sourceLocale: "en", targetLocale: "ms", sourceText: "Goodbye", targetText: "Selamat tinggal" },
+      {
+        sourceLocale: "en",
+        targetLocale: "ms",
+        sourceText: "Goodbye",
+        targetText: "Selamat tinggal",
+      },
     ];
     getAttemptMock.mockResolvedValue(response);
     renderDetail();

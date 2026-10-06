@@ -695,8 +695,8 @@ describe("GET /translation-memories/:memoryId/entries", () => {
     expect(filtered.status).toBe(200);
     const filteredBody = (await filtered.json()) as EntryListBody;
     expect(filteredBody.total).toBe(2);
-    expect(
-      filteredBody.memoryEntries.every((entry) => entry.importBatchId === importBatchId),
-    ).toBe(true);
+    expect(filteredBody.memoryEntries.every((entry) => entry.importBatchId === importBatchId)).toBe(
+      true,
+    );
   });
 });

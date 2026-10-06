@@ -12,10 +12,6 @@
  */
 import "dotenv/config";
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -44,11 +40,6 @@ import { createMemoryTestFixture } from "./memory.fixture";
 
 const client = testClient<AppType>(createApp());
 const fixture = createMemoryTestFixture(client);
-const fixtureDir = dirname(fileURLToPath(import.meta.url));
-
-function readTmxFixture(name: string) {
-  return readFileSync(join(fixtureDir, "../../../lib/memory/tmx/fixtures", name), "utf8");
-}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -338,5 +329,4 @@ describe("memory TMX export and interchange history", () => {
     expect(tmx).toContain('<ph x="1"/>');
     expect(tmx).toContain("&amp;");
   });
-
 });
