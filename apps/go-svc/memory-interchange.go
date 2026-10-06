@@ -425,15 +425,19 @@ func parseMemoryTMX(content string) ([]memoryImportCandidate, []memoryImportIssu
 	return candidates, issues, headerSrclang
 }
 
+func memoryImportAttemptStatus(report map[string]any) string {
+	if failed, _ := report["failed"].(int); failed > 0 {
+		return "partially_successful"
+	}
+	return "completed"
+}
+
 func (api *memoryAPI) persistMemoryImportAttempt(ctx context.Context, db dictionaryDB, actor memoryActor, m memoryRecord, payload memoryImportPayload, format string, report map[string]any, issues []memoryImportIssue, headerSrclang *string) (string, error) {
 	options, _ := json.Marshal(map[string]any{"dryRun": false})
 	counts, _ := json.Marshal(report)
 	sum := sha256.Sum256([]byte(payload.Content))
 	sha := hex.EncodeToString(sum[:])
-	status := "completed"
-	if failed, _ := report["failed"].(int); failed > 0 {
-		status = "partially_successful"
-	}
+	status := memoryImportAttemptStatus(report)
 	var attemptID string
 	err := db.QueryRow(ctx, `insert into memory_import_attempts (organization_id, memory_id, created_by_user_id, status, format, options, source_filename, source_byte_size, source_sha256, counts, header_srclang, completed_at) values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10::jsonb,$11,now()) returning id`,
 		actor.organizationID, m.ID, actor.userID, status, format, options, payload.SourceFilename, payload.SourceByteSize, sha, counts, headerSrclang,

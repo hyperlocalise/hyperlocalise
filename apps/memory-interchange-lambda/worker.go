@@ -225,12 +225,12 @@ func runMemoryExport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	}
 	where := `memory_id=$1`
 	args := []any{memoryID}
-	if source, ok := filters["sourceLocale"].(string); ok && strings.TrimSpace(source) != "" {
-		args = append(args, strings.ReplaceAll(strings.TrimSpace(source), "_", "-"))
+	if source, ok := canonicalizeMemoryLocaleFilter(filters["sourceLocale"]); ok {
+		args = append(args, source)
 		where += fmt.Sprintf(" and source_locale=$%d", len(args))
 	}
-	if target, ok := filters["targetLocale"].(string); ok && strings.TrimSpace(target) != "" {
-		args = append(args, strings.ReplaceAll(strings.TrimSpace(target), "_", "-"))
+	if target, ok := canonicalizeMemoryLocaleFilter(filters["targetLocale"]); ok {
+		args = append(args, target)
 		where += fmt.Sprintf(" and target_locale=$%d", len(args))
 	}
 	rows, err := pool.Query(ctx, `select source_locale, target_locale, source_text, target_text, match_score, external_key from memory_entries where `+where+` order by created_at asc, id asc`, args...)
@@ -285,6 +285,18 @@ func persistMemoryDiagnostics(ctx context.Context, pool *pgxpool.Pool, attemptID
 		}
 	}
 	return nil
+}
+
+func canonicalizeMemoryLocaleFilter(value any) (string, bool) {
+	raw, ok := value.(string)
+	if !ok {
+		return "", false
+	}
+	canonical := strings.ReplaceAll(strings.TrimSpace(raw), "_", "-")
+	if canonical == "" {
+		return "", false
+	}
+	return canonical, true
 }
 
 func exportSlug(name string) string {

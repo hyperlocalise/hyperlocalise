@@ -129,6 +129,15 @@ func TestMemoryImportForbiddenForMember(t *testing.T) {
 	require.Equal(t, 403, rec.Code)
 }
 
+func TestMemoryImportAttemptStatus(t *testing.T) {
+	require.Equal(t, "completed", memoryImportAttemptStatus(nil))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{}))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{"failed": 0, "created": 4}))
+	require.Equal(t, "partially_successful", memoryImportAttemptStatus(map[string]any{"failed": 1, "created": 0}))
+	require.Equal(t, "partially_successful", memoryImportAttemptStatus(map[string]any{"failed": 3, "created": 2}))
+	require.Equal(t, "completed", memoryImportAttemptStatus(map[string]any{"failed": 1.0}))
+}
+
 func TestMemoryImportAttemptStatusOnPartialParseErrors(t *testing.T) {
 	api, scope := memoryTestAPI(t, "admin")
 	id := scope.MustMemory(t, "", "Product TM")
