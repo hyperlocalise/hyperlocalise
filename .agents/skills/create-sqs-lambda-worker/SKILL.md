@@ -58,11 +58,18 @@ worker, or a new Lambda artifact under `apps/`.
 7. Add or update deployment workflow configuration using
    `.github/actions/deploy-lambda-artifact` with the build command, binary path,
    artifact key, artifact-bucket SSM parameter, and function-name SSM parameter.
-   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: preserve
-   the changed-path detector and deploy job, and make the smallest possible
-   change—normally only the Lambda source path and the worker-specific test,
-   build, binary, artifact, and function-parameter values. Do not refactor the
-   workflow into a different upload/provision structure.
+   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: copy an
+   existing deploy job and make the smallest possible change—new path filters,
+   test command, build command, binary path, artifact key, function SSM
+   parameter, job-level `concurrency` group, and `ensure-deploy-main-tip`
+   filters. Do not refactor upload/provision structure. Never reintroduce
+   workflow-wide `concurrency` with `cancel-in-progress: true` while deploy
+   jobs are path-skipped.    Set `role-session-name: github-actions-lambda-deploy` on
+   `configure-aws-credentials` (required for every deploy job on `main`; do
+   not introduce per-worker session names). Do not change concurrency groups
+   or deploy steps on existing Lambda jobs when adding a worker. See
+   [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
+   (including “Do not change when launching a new Lambda”) and root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
 9. For an ECS producer, document the infra-owned task-definition/configuration

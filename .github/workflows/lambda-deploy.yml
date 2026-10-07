@@ -21,16 +21,13 @@ on:
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
       - .github/actions/deploy-lambda-artifact/**
+      - .github/actions/ensure-deploy-main-tip/**
       - .github/workflows/lambda-deploy.yml
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
-
-concurrency:
-  group: lambda-deploy-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -70,6 +67,7 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
             glossary-interchange:
               - 'apps/glossary-interchange-lambda/**'
@@ -83,6 +81,7 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
             memory-interchange:
               - 'apps/memory-interchange-lambda/**'
@@ -98,18 +97,46 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
 
+  # Per-lambda concurrency only — see docs/contributing/lambda-deploy.mdx. Workflow-wide
+  # cancel-in-progress can leave a function stale when a later run skips its deploy job.
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
     needs: changed_paths
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-activity-log-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/activity-log-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -160,10 +187,35 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-glossary-interchange-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/glossary-interchange-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -178,7 +230,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-glossary-interchange-lambda-deploy
+          role-session-name: github-actions-lambda-deploy
 
       - name: Build and deploy glossary-interchange Lambda artifact
         id: deploy
@@ -214,10 +266,37 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-memory-interchange-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/memory-interchange-lambda/**'
+              - 'internal/i18n/memoryinterchange/**'
+              - 'internal/i18n/editor-export/**'
+              - 'internal/objectstore/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -232,7 +311,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-memory-interchange-lambda-deploy
+          role-session-name: github-actions-lambda-deploy
 
       - name: Build and deploy memory-interchange Lambda artifact
         id: deploy

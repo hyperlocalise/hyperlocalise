@@ -1,0 +1,89 @@
+---
+title: "Lambda deployment"
+description: "How Go queue workers deploy from GitHub Actions, path filters, and concurrency."
+---
+
+## Overview
+
+Production Go Lambdas under `apps/*-lambda` ship through the [Lambda Deploy](https://github.com/hyperlocalise/hyperlocalise/blob/main/.github/workflows/lambda-deploy.yml) workflow on pushes to `main` (when touched paths match) and through `workflow_dispatch` (manual **Lambda Deploy** run).
+
+Each deploy job builds a Linux `bootstrap` binary, uploads a versioned artifact to S3, and updates the function code via SSM parameters and shared actions under `.github/actions/`.
+
+Current workers:
+
+| Worker | Source (primary) | Deploy job | Concurrency group |
+| --- | --- | --- | --- |
+| activity-log | `apps/activity-log-lambda/**` | `activity_log_deploy` | `lambda-deploy-activity-log-…` |
+| glossary-interchange | `apps/glossary-interchange-lambda/**` | `glossary_interchange_deploy` | `lambda-deploy-glossary-interchange-…` |
+| memory-interchange | `apps/memory-interchange-lambda/**` | `memory_interchange_deploy` | `lambda-deploy-memory-interchange-…` |
+
+Concurrency groups append `${{ github.ref }}` (for example `refs/heads/main`). Every deploy job uses the same AWS role session name: `github-actions-lambda-deploy`.
+
+Infrastructure provisioning (queues, IAM, SSM parameter names) lives in the infra repository. See [Activity-log SQS and Go Lambda infrastructure](../adr/2026-09-25-activity-log-sqs-lambda-infrastructure.md).
+
+## Path filters
+
+The `changed_paths` job runs `dorny/paths-filter` and sets outputs such as `glossary-interchange`. Each deploy job runs only when:
+
+- the push is to `main` and its filter output is `true`, or
+- the workflow was started with `workflow_dispatch` (all deploy jobs run).
+
+Shared paths (for example `Makefile`, `go.mod`, `.github/workflows/lambda-deploy.yml`, and deploy actions) appear in multiple filters, so one commit can trigger more than one deploy job.
+
+When editing filters, keep the workflow `on.push.paths` list in sync so unrelated pushes do not start the workflow unnecessarily.
+
+## Concurrency
+
+Deploy jobs use per-lambda concurrency groups, for example `lambda-deploy-glossary-interchange-refs/heads/main`, with `cancel-in-progress: true`.
+
+### Why not workflow-wide cancel?
+
+If the whole workflow shares one concurrency group with `cancel-in-progress: true`, a new run cancels the entire previous run. Deploy jobs are conditional: a later merge may trigger the workflow but skip glossary (or another worker) because path filters do not match.
+
+That combination caused production glossary-interchange code to fall behind: a glossary deploy was cancelled by an unrelated merge, and the cancelling run never redeployed glossary.
+
+```text
+Merge A (glossary code)  → glossary deploy starts
+Merge B (memory only)    → new workflow run starts, cancels run A
+                         → glossary job skipped on run B
+                         → glossary Lambda never updated for merge A
+```
+
+Per-lambda concurrency fixes cross-worker cancellation. Push deploys also run `ensure-deploy-main-tip`, which skips an older run only when commits between its SHA and `main` touch that worker’s deploy paths (not when unrelated merges advance `main`).
+
+### Rules when changing the workflow
+
+- Do not add workflow-level `concurrency` with `cancel-in-progress: true` while deploy jobs are path-filtered.
+- Do add a dedicated `concurrency` block on each deploy job when you add a new worker.
+- Two pushes that both change the same worker still cancel only that worker’s in-progress deploy (latest SHA wins for that function).
+
+Decision record: [Lambda deploy job-level concurrency](../adr/2026-10-07-lambda-deploy-job-concurrency.md).
+
+## Adding a new worker
+
+Use the [create-sqs-lambda-worker](https://github.com/hyperlocalise/hyperlocalise/blob/main/.agents/skills/create-sqs-lambda-worker/SKILL.md) skill. At minimum in `lambda-deploy.yml`:
+
+1. Add paths under `on.push.paths`.
+2. Add a filter under `changed_paths` → `dorny/paths-filter`.
+3. Add a deploy job with `if` on the new output (and `workflow_dispatch`).
+4. Add job-level `concurrency` with a unique group name (`lambda-deploy-<worker>-${{ github.ref }}`).
+5. Call `ensure-deploy-main-tip` after checkout with the same path list as step 2.
+6. Set `role-session-name: github-actions-lambda-deploy` on the new job’s `configure-aws-credentials` step (same value as every other deploy job on `main`).
+
+### Do not change when launching a new Lambda
+
+When you add a worker, extend the workflow. Do not refactor existing deploy jobs or shared CI behavior.
+
+- Do not use per-worker `role-session-name` values. All Lambda deploy jobs on `main` use `github-actions-lambda-deploy` only.
+- Do not change `role-session-name` on existing deploy jobs when adding a worker.
+- Do not add workflow-level `concurrency` with `cancel-in-progress: true`.
+- Do not remove `ensure-deploy-main-tip` or per-job concurrency from existing workers.
+- Do not change existing concurrency group names for workers already in production.
+
+Copy an existing deploy job as a template, then limit edits to the new worker’s paths, tests, build targets, SSM parameters, artifact key, and concurrency group.
+
+Root [`AGENTS.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/AGENTS.md) summarizes the same rules for automation.
+
+## Operations
+
+Open the completed deploy job on `main`. The **Summarize** step writes function name, S3 URI, version id, and commit SHA to the job summary.
