@@ -89,12 +89,16 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   const leaving = useRef(false);
   // An extra history entry for this page, so the back button lands here first and can be asked about.
   const historyGuardPushed = useRef(false);
+  // Set while the extra entry is being taken away, which the browser does a moment later.
+  const removingHistoryGuard = useRef(false);
 
   const pushHistoryGuard = () => {
-    if (!historyGuardPushed.current) {
-      window.history.pushState({ unsavedChangesLeaveGuard: true }, "", window.location.href);
-      historyGuardPushed.current = true;
+    // While the old entry is still on its way out, a new one waits for `onPopState`.
+    if (historyGuardPushed.current || removingHistoryGuard.current) {
+      return;
     }
+    window.history.pushState({ unsavedChangesLeaveGuard: true }, "", window.location.href);
+    historyGuardPushed.current = true;
   };
 
   const requestLeave = (proceed: () => void) => {
@@ -155,6 +159,17 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   });
 
   const onPopState = useEffectEvent(() => {
+    if (removingHistoryGuard.current) {
+      removingHistoryGuard.current = false;
+      // The changes came back before the extra entry was gone, so it is needed again.
+      if (hasUnsavedChanges) {
+        pushHistoryGuard();
+      }
+      return;
+    }
+    if (!hasUnsavedChanges) {
+      return;
+    }
     historyGuardPushed.current = false;
     if (leaving.current) {
       return;
@@ -174,6 +189,7 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
       // Nothing left to protect, so the extra entry goes and the back button works as usual.
       if (historyGuardPushed.current && !leaving.current) {
         historyGuardPushed.current = false;
+        removingHistoryGuard.current = true;
         window.history.back();
       }
       return;
@@ -182,15 +198,20 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
     pushHistoryGuard();
     const unregisterLeaveGuard = registerLeaveGuard((proceed) => onGuardedNavigation(proceed));
     window.addEventListener("beforeunload", onBeforeUnload);
-    window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onClickCapture, true);
     return () => {
       unregisterLeaveGuard();
       window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("popstate", onPopState);
       document.removeEventListener("click", onClickCapture, true);
     };
   }, [hasUnsavedChanges]);
+
+  // Listens the whole time, because the step back that removes the extra entry arrives after
+  // the changes are gone.
+  useEffect(() => {
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const leaveTo = (href: string) => {
     leaving.current = true;

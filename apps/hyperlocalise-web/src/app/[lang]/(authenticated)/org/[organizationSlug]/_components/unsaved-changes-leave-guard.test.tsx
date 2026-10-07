@@ -264,6 +264,26 @@ describe("useUnsavedChangesLeaveGuard", () => {
     expect(back).toHaveBeenCalledTimes(1);
   });
 
+  it("does not ask when the changes come back before its history entry is gone", () => {
+    const pushState = vi.spyOn(window.history, "pushState");
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const view = renderPage(true);
+    expect(pushState).toHaveBeenCalledTimes(1);
+
+    // The browser steps back a moment after it is asked to, so the changes can return first.
+    rerenderPage(view, false);
+    expect(back).toHaveBeenCalledTimes(1);
+    rerenderPage(view, true);
+    expect(pushState).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(pushState).toHaveBeenCalledTimes(2);
+  });
+
   it("does not ask when the page itself moves on after saving", async () => {
     const user = userEvent.setup();
     renderPage(true);
