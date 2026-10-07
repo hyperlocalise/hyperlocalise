@@ -44,6 +44,12 @@ const meta = {
   component: ContentEditorPageShellStoryView,
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/story/projects/story/files/content-editor",
+      },
+    },
     msw: {
       handlers: [...contentEditorDocumentMswHandlers, ...contentEditorOfficeMswHandlers],
     },

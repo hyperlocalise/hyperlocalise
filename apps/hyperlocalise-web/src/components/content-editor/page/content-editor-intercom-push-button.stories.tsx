@@ -23,6 +23,12 @@ const meta = {
   component: ContentEditorIntercomPushButton,
   parameters: {
     layout: "centered",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/story/projects/story/files/content-editor",
+      },
+    },
   },
 } satisfies Meta<typeof ContentEditorIntercomPushButton>;
 
