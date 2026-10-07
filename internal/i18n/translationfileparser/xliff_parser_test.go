@@ -257,6 +257,46 @@ func TestMarshalXLIFFEscapesPlainTextReplacementWhenFragmentInvalid(t *testing.T
 	}
 }
 
+func TestMarshalXLIFFEscapesXMLForbiddenPlainText(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en-US" target-language="fr">
+    <body>
+      <trans-unit id="plain">
+        <source>Hello</source>
+        <target>Hello</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "cdata terminator", value: "hello ]]> world", want: "hello ]]&gt; world"},
+		{name: "control character", value: "hello\x01world", want: "hello\uFFFDworld"},
+		{name: "noncharacter", value: "hello\uFFFEworld", want: "hello\uFFFDworld"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, err := MarshalXLIFF(template, map[string]string{"plain": tt.value}, "en-US", "fr-FR")
+			if err != nil {
+				t.Fatalf("marshal xliff: %v", err)
+			}
+			want := "<target>" + tt.want + "</target>"
+			if !strings.Contains(string(out), want) {
+				t.Fatalf("expected %q in marshaled XLIFF, got %q", want, out)
+			}
+			if _, err := (XLIFFParser{}).Parse(out); err != nil {
+				t.Fatalf("marshaled XLIFF must remain parseable: %v", err)
+			}
+		})
+	}
+}
+
 func TestMarshalXLIFFClearsTargetWhenReplacementEmpty(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">

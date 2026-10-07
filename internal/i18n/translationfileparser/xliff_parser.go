@@ -539,7 +539,9 @@ func applyXLIFFEdits(template []byte, edits []xliffEdit) ([]byte, error) {
 
 func escapeXLIFFText(value string) string {
 	// BOLT OPTIMIZATION: Fast-path for plain text without special XML characters.
-	if !strings.ContainsAny(value, "<>&'\"\r") {
+	// Also require a legal XML Char production so control characters still go
+	// through xml.EscapeText (which replaces them with U+FFFD).
+	if !strings.ContainsAny(value, "<>&'\"\r") && isXMLPlainCharData(value) {
 		return value
 	}
 	var out bytes.Buffer
@@ -637,7 +639,9 @@ func xliffReplacement(template []byte, source *xliffElement, value string) (stri
 func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature, error) {
 	// BOLT OPTIMIZATION: Plain text fast-path. When value contains no XML elements or entities,
 	// bypass xml.Decoder initialization and wrapper string formatting.
-	if !strings.ContainsAny(value, "<&") {
+	// Reject "]]>" and XML-forbidden code points so MarshalXLIFF still escapes
+	// them instead of writing unparseable character data.
+	if !strings.ContainsAny(value, "<&") && isXMLPlainCharData(value) {
 		return xliffInlineSignature{codes: make(map[string]int), pairRoles: make(map[string]string)}, nil
 	}
 	namespaces := make(map[string]string)
