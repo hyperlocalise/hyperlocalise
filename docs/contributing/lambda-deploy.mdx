@@ -11,11 +11,13 @@ Each deploy job builds a Linux `bootstrap` binary, uploads a versioned artifact 
 
 Current workers:
 
-| Worker | Source (primary) | Deploy job |
-| --- | --- | --- |
-| activity-log | `apps/activity-log-lambda/**` | `activity_log_deploy` |
-| glossary-interchange | `apps/glossary-interchange-lambda/**` | `glossary_interchange_deploy` |
-| memory-interchange | `apps/memory-interchange-lambda/**` | `memory_interchange_deploy` |
+| Worker | Source (primary) | Deploy job | Concurrency group | AWS `role-session-name` |
+| --- | --- | --- | --- | --- |
+| activity-log | `apps/activity-log-lambda/**` | `activity_log_deploy` | `lambda-deploy-activity-log-…` | `github-actions-lambda-deploy` |
+| glossary-interchange | `apps/glossary-interchange-lambda/**` | `glossary_interchange_deploy` | `lambda-deploy-glossary-interchange-…` | `github-actions-glossary-interchange-lambda-deploy` |
+| memory-interchange | `apps/memory-interchange-lambda/**` | `memory_interchange_deploy` | `lambda-deploy-memory-interchange-…` | `github-actions-memory-interchange-lambda-deploy` |
+
+Concurrency groups append `${{ github.ref }}` (for example `refs/heads/main`).
 
 Infrastructure provisioning (queues, IAM, SSM parameter names) lives in the infra repository. See [Activity-log SQS and Go Lambda infrastructure](../adr/2026-09-25-activity-log-sqs-lambda-infrastructure.md).
 
@@ -64,8 +66,21 @@ Use the [create-sqs-lambda-worker](https://github.com/hyperlocalise/hyperlocalis
 1. Add paths under `on.push.paths`.
 2. Add a filter under `changed_paths` → `dorny/paths-filter`.
 3. Add a deploy job with `if` on the new output (and `workflow_dispatch`).
-4. Add job-level `concurrency` with a unique group name.
-5. Call `ensure-deploy-main-tip` after checkout in the deploy job.
+4. Add job-level `concurrency` with a unique group name (`lambda-deploy-<worker>-${{ github.ref }}`).
+5. Call `ensure-deploy-main-tip` after checkout with the same path list as step 2.
+6. Set `role-session-name` on the new job’s `configure-aws-credentials` step only, using `github-actions-<worker>-lambda-deploy` (match the worker’s kebab-case id).
+
+### Do not change when launching a new Lambda
+
+When you add a worker, extend the workflow. Do not refactor existing deploy jobs or shared CI behavior.
+
+- Do not change `role-session-name` on existing deploy jobs. CloudTrail and IAM policies may depend on the current values in the table above.
+- Do not rename, unify, or “clean up” session names across workers as part of a new-lambda PR.
+- Do not add workflow-level `concurrency` with `cancel-in-progress: true`.
+- Do not remove `ensure-deploy-main-tip` or per-job concurrency from existing workers.
+- Do not change existing concurrency group names for workers already in production.
+
+Copy an existing deploy job as a template, then limit edits to the new worker’s paths, tests, build targets, SSM parameters, artifact key, concurrency group, and new `role-session-name`.
 
 Root [`AGENTS.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/AGENTS.md) summarizes the same rules for automation.
 

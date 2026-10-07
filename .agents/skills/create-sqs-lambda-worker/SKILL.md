@@ -58,17 +58,18 @@ worker, or a new Lambda artifact under `apps/`.
 7. Add or update deployment workflow configuration using
    `.github/actions/deploy-lambda-artifact` with the build command, binary path,
    artifact key, artifact-bucket SSM parameter, and function-name SSM parameter.
-   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: preserve
-   the changed-path detector and deploy job, and make the smallest possible
-   change—normally only the Lambda source path and the worker-specific test,
-   build, binary, artifact, and function-parameter values. Do not refactor the
-   workflow into a different upload/provision structure. Add **job-level**
-   `concurrency` on the new deploy job (unique group per worker); never
-   reintroduce workflow-wide `concurrency` with `cancel-in-progress: true`
-   while deploy jobs are path-skipped. Call `ensure-deploy-main-tip` after
-   checkout with the same path filter list as the worker’s deploy job. See
-   [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
-   and the **Lambda deployment (CI)** section in root `AGENTS.md`.
+   Follow the existing `.github/workflows/lambda-deploy.yml` pattern: copy an
+   existing deploy job and make the smallest possible change—new path filters,
+   test command, build command, binary path, artifact key, function SSM
+   parameter, job-level `concurrency` group, and `ensure-deploy-main-tip`
+   filters. Do not refactor upload/provision structure. Never reintroduce
+   workflow-wide `concurrency` with `cancel-in-progress: true` while deploy
+   jobs are path-skipped. For the new job only, set
+   `role-session-name: github-actions-<worker>-lambda-deploy` on
+   `configure-aws-credentials`. Do not change `role-session-name`,
+   concurrency groups, or deploy steps on existing Lambda jobs when adding a
+   worker. See [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
+   (including “Do not change when launching a new Lambda”) and root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
 9. For an ECS producer, document the infra-owned task-definition/configuration

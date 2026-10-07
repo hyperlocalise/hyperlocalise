@@ -23,7 +23,7 @@ This left production out of sync with `main` (for example glossary-interchange a
 - Unrelated merges no longer cancel another worker’s deploy mid-flight.
 - Two consecutive merges touching the same worker still supersede the older deploy for that worker only.
 - Superseded push deploy jobs exit before build or AWS steps when a newer worker-relevant commit is on `main`; `workflow_dispatch` runs skip the check.
-- Adding a new Lambda requires a new deploy job concurrency group; document the invariant in `AGENTS.md`, `docs/contributing/lambda-deploy.mdx`, and the create-sqs-lambda-worker skill.
+- Adding a new Lambda requires a new deploy job concurrency group and a new `role-session-name` on that job only; existing workers keep their session names and concurrency groups. Document the invariant in `AGENTS.md`, `docs/contributing/lambda-deploy.mdx`, and the create-sqs-lambda-worker skill.
 
 ## References
 
