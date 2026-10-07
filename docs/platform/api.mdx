@@ -14,7 +14,9 @@ For identity, project discovery, and Queries, use the separate [Projects and Que
 https://hyperlocalise.com/api/v1
 ```
 
-The CLI `hyperlocalise.api_base_url` default is `https://hyperlocalise.com/api`. Paths below are relative to that host, including `/v1`.
+The CLI `hyperlocalise.api_base_url` default is `https://hyperlocalise.com/api`. Paths below are relative to that host, including `/v1`, except job reads.
+
+Read jobs from `https://api.hyperlocalise.com/v1`. See [Read jobs](#read-jobs).
 
 ## Authentication
 
@@ -157,17 +159,27 @@ JSON body. Discriminate on `type`.
 
 The CLI does not call this endpoint during `sync push`. Platform automations and the UI create jobs after upload.
 
+### Read jobs
+
+Job reads use a different host from the rest of this API:
+
+```
+https://api.hyperlocalise.com/v1
+```
+
+Send the same `x-api-key`. `https://hyperlocalise.com/api/v1` no longer serves these routes.
+
 ### Latest job for a source path
 
-`GET /v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
+`GET https://api.hyperlocalise.com/v1/jobs/latest?projectId={projectId}&sourcePath={sourcePath}`
 
 Permission: `jobs:read`
 
-Returns the most recent file job for that source path, including `outputFiles` when the job has finished.
+Returns the most recent succeeded file job for that source path, including `outputFiles`.
 
 ### Get a job
 
-`GET /v1/jobs/{jobId}`
+`GET https://api.hyperlocalise.com/v1/jobs/{jobId}`
 
 Permission: `jobs:read`
 
@@ -191,11 +203,16 @@ Permission: `jobs:read`
 
 ### Job status
 
-`GET /v1/jobs/{jobId}/status`
+`GET https://api.hyperlocalise.com/v1/jobs/{jobId}/status`
 
 Permission: `jobs:read`
 
-Smaller payload with `id`, `projectId`, `status`, timestamps, and `lastError`.
+Smaller payload with `id`, `projectId`, `kind`, `type`, `status`, timestamps, and `lastError`.
+
+```bash
+curl --fail-with-body "https://api.hyperlocalise.com/v1/jobs/$JOB_ID/status" \
+  -H "x-api-key: $HYPERLOCALISE_API_KEY"
+```
 
 ## Translations and images
 

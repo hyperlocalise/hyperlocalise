@@ -37,7 +37,6 @@ vi.mock("@/lib/activity-log/job-automation-events", () => ({
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
-import { env } from "@/lib/env";
 import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
@@ -52,12 +51,13 @@ const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
   ids: [event.jobId],
 }));
 
-const app = createApp({
-  jobQueue: {
-    enqueue: enqueueJob,
-  },
-});
-const client = testClient<AppType>(app);
+const client = testClient<AppType>(
+  createApp({
+    jobQueue: {
+      enqueue: enqueueJob,
+    },
+  }),
+);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -330,89 +330,5 @@ describe("publicJobRoutes", () => {
       message: expect.any(String),
     });
     expect(enqueueJob).not.toHaveBeenCalled();
-  });
-
-  describe("job reads", () => {
-    const goSvcBaseUrl = (env.GO_SVC_URL ?? "").replace(/\/$/, "");
-
-    function mockGoSvcResponse(init: {
-      status: number;
-      body: unknown;
-      headers?: Record<string, string>;
-    }) {
-      return vi.spyOn(globalThis, "fetch").mockImplementation(
-        async () =>
-          new Response(JSON.stringify(init.body), {
-            status: init.status,
-            headers: { "Content-Type": "application/json", ...init.headers },
-          }),
-      );
-    }
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it.each([
-      "/v1/jobs/latest?projectId=project_1&sourcePath=locales%2Fen.json",
-      "/v1/jobs/job_1",
-      "/v1/jobs/job_1/status",
-    ])("forwards GET %s to go-svc with the caller credentials", async (path) => {
-      const fetchMock = mockGoSvcResponse({
-        status: 200,
-        body: { job: { id: "job_1" } },
-        headers: { "Cache-Control": "no-store" },
-      });
-
-      const response = await app.request(`/api${path}`, {
-        headers: {
-          "x-api-key": "hl_test_key",
-          authorization: "Bearer agent.jwt.token",
-          cookie: "wos-session=secret",
-        },
-      });
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get("cache-control")).toBe("no-store");
-      await expect(response.json()).resolves.toEqual({ job: { id: "job_1" } });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchMock.mock.calls[0]!;
-      expect(url).toBe(`${goSvcBaseUrl}${path}`);
-      const headers = new Headers(init?.headers);
-      expect(init?.method).toBe("GET");
-      expect(headers.get("x-api-key")).toBe("hl_test_key");
-      expect(headers.get("authorization")).toBe("Bearer agent.jwt.token");
-      expect(headers.has("cookie")).toBe(false);
-    });
-
-    it("passes go-svc auth errors through unchanged", async () => {
-      mockGoSvcResponse({
-        status: 401,
-        body: { error: "unauthorized", message: "Authentication required" },
-        headers: { "WWW-Authenticate": 'Bearer resource_metadata="https://example.test"' },
-      });
-
-      const response = await app.request("/api/v1/jobs/job_1");
-
-      expect(response.status).toBe(401);
-      expect(response.headers.get("www-authenticate")).toBe(
-        'Bearer resource_metadata="https://example.test"',
-      );
-      await expect(response.json()).resolves.toEqual({
-        error: "unauthorized",
-        message: "Authentication required",
-      });
-    });
-
-    it("returns 503 when go-svc is unreachable", async () => {
-      vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
-
-      const response = await app.request("/api/v1/jobs/job_1/status", {
-        headers: { "x-api-key": "hl_test_key" },
-      });
-
-      expect(response.status).toBe(503);
-      await expect(response.json()).resolves.toMatchObject({ error: "public_api_unavailable" });
-    });
   });
 });

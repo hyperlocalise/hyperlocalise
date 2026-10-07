@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -26,10 +26,9 @@ import {
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { badRequestResponse, serviceUnavailableResponse } from "@/api/response.schema";
+import { badRequestResponse } from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
-import { forwardPublicApiRequestToGoSvc } from "@/lib/go-svc/go-svc-public-api-proxy";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -69,14 +68,6 @@ const validateCreateJobBody = validator("json", (value, c) => {
   }
   return parsed.data;
 });
-
-async function forwardJobReadToGoSvc(c: Context) {
-  const forwarded = await forwardPublicApiRequestToGoSvc(c.req.raw);
-  if (isErr(forwarded)) {
-    return serviceUnavailableResponse(c, "public_api_unavailable", "Public API is unavailable");
-  }
-  return forwarded.value;
-}
 
 type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
@@ -150,184 +141,176 @@ function canAccessStoredFileWithProjectScope(
 }
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
-  return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .post(
-      "/",
-      publicApiAuthMiddleware,
-      requireApiKeyPermission("jobs:write"),
-      bodyLimit({
-        maxSize: 1024 * 1024, // 1MB
-        onError: (c) => c.json({ error: "payload_too_large" }, 413),
-      }),
-      validateCreateJobBody,
-      async (c) => {
-        const payload = c.req.valid("json");
-        const organizationId = c.var.auth.organization.localOrganizationId;
-        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
+  return new Hono<{ Variables: ApiKeyAuthVariables }>().use("*", publicApiAuthMiddleware).post(
+    "/",
+    requireApiKeyPermission("jobs:write"),
+    bodyLimit({
+      maxSize: 1024 * 1024, // 1MB
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+    validateCreateJobBody,
+    async (c) => {
+      const payload = c.req.valid("json");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
 
-        const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
+      const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
 
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
 
-        const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
 
-        const localeValidation = validateJobLocalesAgainstProject(project, {
-          sourceLocale: inputPayload.sourceLocale,
-          targetLocales: inputPayload.targetLocales,
+      const localeValidation = validateJobLocalesAgainstProject(project, {
+        sourceLocale: inputPayload.sourceLocale,
+        targetLocales: inputPayload.targetLocales,
+      });
+      if (isErr(localeValidation)) {
+        return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+      }
+
+      const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
+      if (aiFeaturesDenied) {
+        return aiFeaturesDenied;
+      }
+
+      if (payload.type === "file") {
+        const sourceFile = await getStoredFileForJobScope({
+          organizationId,
+          projectId: payload.projectId,
+          fileId: payload.fileInput.sourceFileId,
         });
-        if (isErr(localeValidation)) {
-          return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+
+        if (
+          !sourceFile ||
+          !canAccessStoredFileWithProjectScope(c.var.auth.teamAccess, projectAccessScope, {
+            organizationId: sourceFile.organizationId,
+            projectId: sourceFile.projectId,
+            createdByUserId: sourceFile.createdByUserId,
+          })
+        ) {
+          return sourceFileNotFoundResponse(c);
         }
 
-        const aiFeaturesDenied = await rejectIfAiFeaturesUnavailable(c, organizationId);
-        if (aiFeaturesDenied) {
-          return aiFeaturesDenied;
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+        if (!inferredFileFormat) {
+          return unsupportedSourceFileFormatResponse(c);
         }
 
-        if (payload.type === "file") {
-          const sourceFile = await getStoredFileForJobScope({
+        if (inferredFileFormat !== payload.fileInput.fileFormat) {
+          return sourceFileFormatMismatchResponse(c, inferredFileFormat);
+        }
+      }
+
+      const jobId = `job_${randomUUID()}`;
+      let job;
+      try {
+        [job] = await db.transaction(async (tx) => {
+          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+            tx,
             organizationId,
-            projectId: payload.projectId,
-            fileId: payload.fileInput.sourceFileId,
-          });
+          );
+          if (isErr(jobBudget)) {
+            throw new OrganizationJobBudgetExceededError(jobBudget.error);
+          }
 
-          if (
-            !sourceFile ||
-            !canAccessStoredFileWithProjectScope(c.var.auth.teamAccess, projectAccessScope, {
-              organizationId: sourceFile.organizationId,
-              projectId: sourceFile.projectId,
-              createdByUserId: sourceFile.createdByUserId,
+          const sourceFileVersion =
+            payload.type === "file"
+              ? await ensureRepositorySourceFileVersionForStoredFile({
+                  db: tx,
+                  organizationId,
+                  projectId: payload.projectId,
+                  fileId: payload.fileInput.sourceFileId,
+                })
+              : null;
+
+          const [createdJob] = await tx
+            .insert(schema.jobs)
+            .values({
+              id: jobId,
+              organizationId,
+              projectId: payload.projectId,
+              kind: "translation",
+              status: "queued",
+              inputPayload,
+              apiKeyId: storedOrganizationApiKeyId(c.var.auth),
             })
-          ) {
-            return sourceFileNotFoundResponse(c);
-          }
+            .returning();
 
-          const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
-          if (!inferredFileFormat) {
-            return unsupportedSourceFileFormatResponse(c);
-          }
-
-          if (inferredFileFormat !== payload.fileInput.fileFormat) {
-            return sourceFileFormatMismatchResponse(c, inferredFileFormat);
-          }
-        }
-
-        const jobId = `job_${randomUUID()}`;
-        let job;
-        try {
-          [job] = await db.transaction(async (tx) => {
-            const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-              tx,
-              organizationId,
-            );
-            if (isErr(jobBudget)) {
-              throw new OrganizationJobBudgetExceededError(jobBudget.error);
-            }
-
-            const sourceFileVersion =
-              payload.type === "file"
-                ? await ensureRepositorySourceFileVersionForStoredFile({
-                    db: tx,
-                    organizationId,
-                    projectId: payload.projectId,
-                    fileId: payload.fileInput.sourceFileId,
-                  })
-                : null;
-
-            const [createdJob] = await tx
-              .insert(schema.jobs)
-              .values({
-                id: jobId,
-                organizationId,
-                projectId: payload.projectId,
-                kind: "translation",
-                status: "queued",
-                inputPayload,
-                apiKeyId: storedOrganizationApiKeyId(c.var.auth),
-              })
-              .returning();
-
-            const [details] = await tx
-              .insert(schema.translationJobDetails)
-              .values({
-                jobId,
-                type: payload.type,
-                sourceFileVersionId: sourceFileVersion?.id ?? null,
-              })
-              .returning();
-
-            const usageEventResult = await reserveUsageEvent({
-              db: tx,
-              organizationId,
-              featureId: usageFeatureIds.translationJobs,
-              operationKey: `job:${jobId}:translation_jobs`,
-              source: "translation_job_create",
+          const [details] = await tx
+            .insert(schema.translationJobDetails)
+            .values({
               jobId,
-              quantity: 1,
-            });
-            if (isErr(usageEventResult)) {
-              throw new Error(formatUsageControlError(usageEventResult.error));
-            }
+              type: payload.type,
+              sourceFileVersionId: sourceFileVersion?.id ?? null,
+            })
+            .returning();
 
-            return [{ ...createdJob, type: details.type }];
+          const usageEventResult = await reserveUsageEvent({
+            db: tx,
+            organizationId,
+            featureId: usageFeatureIds.translationJobs,
+            operationKey: `job:${jobId}:translation_jobs`,
+            source: "translation_job_create",
+            jobId,
+            quantity: 1,
+          });
+          if (isErr(usageEventResult)) {
+            throw new Error(formatUsageControlError(usageEventResult.error));
+          }
+
+          return [{ ...createdJob, type: details.type }];
+        });
+      } catch (error) {
+        if (error instanceof OrganizationJobBudgetExceededError) {
+          return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
+        }
+        throw error;
+      }
+
+      await enqueueJobCreatedActivity({
+        ...publicApiActivityActor(c.var.auth),
+        jobId: job.id,
+        kind: job.kind,
+        organizationId,
+        projectId: job.projectId,
+        status: job.status,
+      });
+
+      if (options.jobQueue) {
+        try {
+          await options.jobQueue.enqueue({
+            kind: "translation",
+            jobId: job.id,
+            projectId: payload.projectId,
+            type: payload.type,
           });
         } catch (error) {
-          if (error instanceof OrganizationJobBudgetExceededError) {
-            return c.json(
-              { error: error.budgetError.code, message: error.budgetError.message },
-              429,
-            );
-          }
-          throw error;
-        }
-
-        await enqueueJobCreatedActivity({
-          ...publicApiActivityActor(c.var.auth),
-          jobId: job.id,
-          kind: job.kind,
-          organizationId,
-          projectId: job.projectId,
-          status: job.status,
-        });
-
-        if (options.jobQueue) {
-          try {
-            await options.jobQueue.enqueue({
-              kind: "translation",
-              jobId: job.id,
-              projectId: payload.projectId,
-              type: payload.type,
-            });
-          } catch (error) {
-            await db
-              .update(schema.jobs)
-              .set({
-                status: "failed",
-                lastError:
-                  error instanceof Error ? error.message : "translation job queue unavailable",
-              })
-              .where(eq(schema.jobs.id, job.id));
-
-            await enqueueJobFailedActivity({
-              ...publicApiActivityActor(c.var.auth),
-              errorCode: "queue_unavailable",
-              jobId: job.id,
-              kind: job.kind,
-              organizationId,
-              projectId: job.projectId,
+          await db
+            .update(schema.jobs)
+            .set({
               status: "failed",
-            });
+              lastError:
+                error instanceof Error ? error.message : "translation job queue unavailable",
+            })
+            .where(eq(schema.jobs.id, job.id));
 
-            return jobQueueUnavailableResponse(c);
-          }
+          await enqueueJobFailedActivity({
+            ...publicApiActivityActor(c.var.auth),
+            errorCode: "queue_unavailable",
+            jobId: job.id,
+            kind: job.kind,
+            organizationId,
+            projectId: job.projectId,
+            status: "failed",
+          });
+
+          return jobQueueUnavailableResponse(c);
         }
+      }
 
-        return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
-      },
-    )
-    .get("/latest", forwardJobReadToGoSvc)
-    .get("/:jobId", forwardJobReadToGoSvc)
-    .get("/:jobId/status", forwardJobReadToGoSvc);
+      return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
+    },
+  );
 }
