@@ -689,6 +689,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
     includeAllSourceKeys?: boolean;
     /** When true, omit source-text fallbacks and keep only ready translations. */
     readyTranslationsOnly?: boolean;
+    /** When true, keep only translations whose status is approved. */
+    approvedTranslationsOnly?: boolean;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -745,10 +747,12 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
       for (const key of keys) {
         const translation = translationByKeyId.get(key.id);
-        const canPrefill = shouldPrefillTranslation({
-          targetText: translation?.text,
-          status: translation?.status,
-        });
+        const canPrefill =
+          shouldPrefillTranslation({
+            targetText: translation?.text,
+            status: translation?.status,
+          }) &&
+          (!input.approvedTranslationsOnly || translation?.status === "approved");
 
         if (key.isHidden) {
           if (canPrefill) {

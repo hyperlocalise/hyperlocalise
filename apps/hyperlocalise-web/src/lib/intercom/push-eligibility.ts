@@ -16,7 +16,12 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 
-import { hashIntercomTranslationValues, INTERCOM_ARTICLE_JSON_KEYS } from "./article-json";
+import {
+  collectApprovedIntercomArticleValues,
+  hashIntercomTranslationValues,
+  mergeIntercomLocalePushPayload,
+  parseIntercomLastPushRecord,
+} from "./article-json";
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
 
 export type IntercomPushEligibility = {
@@ -100,24 +105,21 @@ export async function getIntercomPushEligibility(input: {
         sourcePath: mapping.sourcePath,
         targetLocale: hlLocale,
         readyTranslationsOnly: true,
+        approvedTranslationsOnly: true,
       });
 
-      const values: Record<string, string> = {};
-      for (const key of INTERCOM_ARTICLE_JSON_KEYS) {
-        const translated = prefilledResult.prefilled[key];
-        if (typeof translated === "string" && translated.trim().length > 0) {
-          values[key] = translated;
-        }
-      }
-
-      if (Object.keys(values).length === 0) {
+      const values = mergeIntercomLocalePushPayload({
+        approved: collectApprovedIntercomArticleValues(prefilledResult.prefilled),
+        remote: null,
+      });
+      if (!values) {
         continue;
       }
 
       const hashKey = normalizeIntercomLocaleTag(intercomLocale);
       const hash = hashIntercomTranslationValues(values);
-      const lastPushHash = mapping.lastPushContentHash ?? {};
-      if (lastPushHash[hashKey] === hash) {
+      const lastPush = parseIntercomLastPushRecord((mapping.lastPushContentHash ?? {})[hashKey]);
+      if (lastPush.hash === hash) {
         continue;
       }
 

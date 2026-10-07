@@ -60,6 +60,64 @@ export function hashIntercomTranslationValues(values: {
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
+const INTERCOM_CONTENT_HASH_PATTERN = /^[0-9a-f]{64}$/;
+
+export function encodeIntercomLastPushRecord(hash: string, pushedAtSeconds: number): string {
+  return `${hash}:${pushedAtSeconds}`;
+}
+
+export function parseIntercomLastPushRecord(value: string | undefined): {
+  hash: string;
+  pushedAtSeconds: number | null;
+} {
+  if (!value) {
+    return { hash: "", pushedAtSeconds: null };
+  }
+  const separatorIndex = value.indexOf(":");
+  if (separatorIndex === 64 && INTERCOM_CONTENT_HASH_PATTERN.test(value.slice(0, 64))) {
+    const pushedAtSeconds = Number(value.slice(65));
+    return {
+      hash: value.slice(0, 64),
+      pushedAtSeconds: Number.isFinite(pushedAtSeconds) ? pushedAtSeconds : null,
+    };
+  }
+  return { hash: value, pushedAtSeconds: null };
+}
+
+export function collectApprovedIntercomArticleValues(
+  prefilled: Record<string, string>,
+): Partial<IntercomArticleJsonPayload> {
+  const values: Partial<IntercomArticleJsonPayload> = {};
+  for (const key of INTERCOM_ARTICLE_JSON_KEYS) {
+    const translated = prefilled[key];
+    if (typeof translated === "string" && translated.trim().length > 0) {
+      values[key] = translated;
+    }
+  }
+  return values;
+}
+
+export function mergeIntercomLocalePushPayload(input: {
+  approved: Partial<IntercomArticleJsonPayload>;
+  remote?: Partial<IntercomArticleJsonPayload> | null;
+}): IntercomArticleJsonPayload | null {
+  if (Object.keys(input.approved).length === 0) {
+    return null;
+  }
+
+  const title = input.approved.title?.trim() ?? "";
+  const body = input.approved.body?.trim() ?? "";
+  if (!title || !body) {
+    return null;
+  }
+
+  return {
+    title,
+    description: input.approved.description ?? input.remote?.description ?? "",
+    body: input.approved.body ?? "",
+  };
+}
+
 export function articleFieldsToJsonPayload(input: {
   title?: string | null;
   description?: string | null;

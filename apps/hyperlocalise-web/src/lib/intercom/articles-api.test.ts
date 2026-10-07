@@ -162,6 +162,57 @@ describe("listIntercomArticlesSince", () => {
     expect(articles.map((article) => article.id)).toEqual(["3102", "2048", "9001"]);
   });
 
+  it("walks cursor-paginated GET /articles/search pages", async () => {
+    const firstStandalone = {
+      type: "article",
+      id: "9001",
+      title: "Standalone FAQ",
+      description: "Not in a collection",
+      body: "<p>FAQ</p>",
+      state: "published",
+      updated_at: 1677000000,
+      parent_ids: [],
+      translated_content: { type: "article_translated_content" },
+    };
+    const secondStandalone = {
+      ...firstStandalone,
+      id: "9002",
+      title: "Another FAQ",
+    };
+    let searchCalls = 0;
+    const client = {
+      helpCenters: {
+        collections: {
+          list: async () => [{ id: "38", help_center_id: 123 }],
+        },
+      },
+      articles: {
+        list: async () => createArticleListPage([]),
+        search: async (request: { starting_after?: string }) => {
+          searchCalls += 1;
+          if (!request.starting_after) {
+            return {
+              data: { articles: [firstStandalone] },
+              pages: { next: { starting_after: "cursor-2" } },
+            };
+          }
+          expect(request.starting_after).toBe("cursor-2");
+          return { data: { articles: [secondStandalone] }, pages: {} };
+        },
+      },
+    };
+
+    const articles = await listIntercomArticlesSince({
+      client: client as never,
+      watermarkUpdatedAt: null,
+      includeDrafts: false,
+      helpCenterId: "123",
+    });
+
+    expect(searchCalls).toBe(2);
+    expect(articles.map((article) => article.id)).toEqual(["9001", "9002"]);
+  });
+
   it("restricts to configured collection ids", async () => {
     const client = {
       helpCenters: {

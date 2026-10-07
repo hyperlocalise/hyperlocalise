@@ -23,6 +23,12 @@ export type IntercomHelpCenterSummary = {
   locales: string[];
 };
 
+export type IntercomLocaleContent = {
+  title: string;
+  description: string;
+  body: string;
+};
+
 export type IntercomArticleSummary = {
   id: string;
   title: string;
@@ -33,6 +39,7 @@ export type IntercomArticleSummary = {
   authorId: number | null;
   parentIds: number[];
   localeUpdatedAt: Record<string, number>;
+  localeContent: Record<string, IntercomLocaleContent>;
 };
 
 export function createIntercomArticlesClient(input: {
@@ -68,20 +75,38 @@ export function parseIntercomNumericId(value: string | number | null | undefined
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function readLocaleUpdatedAt(value: unknown): Record<string, number> {
+function readTranslatedLocaleEntries(value: unknown): Array<[string, Record<string, unknown>]> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
+    return [];
   }
 
-  const locales: Record<string, number> = {};
-  for (const [locale, content] of Object.entries(value as Record<string, unknown>)) {
+  return Object.entries(value as Record<string, unknown>).flatMap(([locale, content]) => {
     if (locale === "type" || !content || typeof content !== "object" || Array.isArray(content)) {
-      continue;
+      return [];
     }
-    const updatedAt = readNumber((content as { updated_at?: unknown }).updated_at);
+    return [[locale, content as Record<string, unknown>]] as const;
+  });
+}
+
+function readLocaleUpdatedAt(value: unknown): Record<string, number> {
+  const locales: Record<string, number> = {};
+  for (const [locale, content] of readTranslatedLocaleEntries(value)) {
+    const updatedAt = readNumber(content.updated_at);
     if (updatedAt != null) {
       locales[locale] = updatedAt;
     }
+  }
+  return locales;
+}
+
+function readLocaleContent(value: unknown): Record<string, IntercomLocaleContent> {
+  const locales: Record<string, IntercomLocaleContent> = {};
+  for (const [locale, content] of readTranslatedLocaleEntries(value)) {
+    locales[locale] = {
+      title: readString(content.title),
+      description: readString(content.description),
+      body: readString(content.body),
+    };
   }
   return locales;
 }
@@ -110,6 +135,7 @@ export function mapIntercomArticleSummary(
     authorId: readNumber(article.author_id),
     parentIds: readIntercomParentIds(article),
     localeUpdatedAt: readLocaleUpdatedAt(article.translated_content),
+    localeContent: readLocaleContent(article.translated_content),
   };
 }
 
@@ -256,6 +282,44 @@ async function listArticlesFromUpdatedAtIndex(input: {
   return articles;
 }
 
+function readSearchArticles(response: unknown): unknown[] {
+  if (!response || typeof response !== "object") {
+    return [];
+  }
+  const record = response as { data?: unknown };
+  if (Array.isArray(record.data)) {
+    return record.data;
+  }
+  if (record.data && typeof record.data === "object") {
+    const articles = (record.data as { articles?: unknown }).articles;
+    if (Array.isArray(articles)) {
+      return articles;
+    }
+  }
+  return [];
+}
+
+function readSearchStartingAfter(response: unknown): string | null {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+  const pages = (response as { pages?: unknown }).pages;
+  if (!pages || typeof pages !== "object") {
+    return null;
+  }
+  const next = (pages as { next?: unknown }).next;
+  if (typeof next === "string" && next.trim().length > 0) {
+    return next.trim();
+  }
+  if (next && typeof next === "object") {
+    const startingAfter = (next as { starting_after?: unknown }).starting_after;
+    if (typeof startingAfter === "string" && startingAfter.trim().length > 0) {
+      return startingAfter.trim();
+    }
+  }
+  return null;
+}
+
 async function searchArticlesInHelpCenter(input: {
   client: IntercomClient;
   helpCenterId: string;
@@ -266,15 +330,50 @@ async function searchArticlesInHelpCenter(input: {
     return [];
   }
 
-  const response = await input.client.articles.search({
+  const summaries: IntercomArticleSummary[] = [];
+  const seenIds = new Set<string>();
+  let startingAfter: string | undefined;
+  let page = await input.client.articles.search({
     help_center_id: helpCenterNumericId,
     state: input.includeDrafts ? "all" : "published",
     highlight: false,
   });
-  const articles = response.data?.articles ?? [];
-  return articles
-    .map((article) => mapIntercomArticleSummary(article as unknown as Record<string, unknown>))
-    .filter((summary) => summary.id.length > 0);
+
+  for (let pageCount = 0; pageCount < 100; pageCount += 1) {
+    for (const article of readSearchArticles(page)) {
+      const summary = mapIntercomArticleSummary(article as Record<string, unknown>);
+      if (!summary.id || seenIds.has(summary.id)) {
+        continue;
+      }
+      seenIds.add(summary.id);
+      summaries.push(summary);
+    }
+
+    const pageRecord = page as {
+      hasNextPage?: () => boolean;
+      getNextPage?: () => Promise<unknown>;
+    };
+    if (typeof pageRecord.hasNextPage === "function" && pageRecord.hasNextPage()) {
+      if (typeof pageRecord.getNextPage !== "function") {
+        break;
+      }
+      page = (await pageRecord.getNextPage()) as typeof page;
+      continue;
+    }
+
+    startingAfter = readSearchStartingAfter(page) ?? undefined;
+    if (!startingAfter) {
+      break;
+    }
+    page = await input.client.articles.search({
+      help_center_id: helpCenterNumericId,
+      state: input.includeDrafts ? "all" : "published",
+      highlight: false,
+      starting_after: startingAfter,
+    } as Parameters<IntercomClient["articles"]["search"]>[0]);
+  }
+
+  return summaries;
 }
 
 export async function listIntercomArticlesSince(input: {

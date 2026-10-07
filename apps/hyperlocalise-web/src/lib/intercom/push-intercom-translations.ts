@@ -19,7 +19,13 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { isErr } from "@/lib/primitives/result/results";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 
-import { hashIntercomTranslationValues, INTERCOM_ARTICLE_JSON_KEYS } from "./article-json";
+import {
+  collectApprovedIntercomArticleValues,
+  encodeIntercomLastPushRecord,
+  hashIntercomTranslationValues,
+  mergeIntercomLocalePushPayload,
+  parseIntercomLastPushRecord,
+} from "./article-json";
 import {
   createIntercomArticlesClient,
   getIntercomArticle,
@@ -132,39 +138,38 @@ export async function runPushIntercomTranslations(input: {
           sourcePath: mapping.sourcePath,
           targetLocale: hlLocale,
           readyTranslationsOnly: true,
+          approvedTranslationsOnly: true,
         });
-        const prefilled = prefilledResult.prefilled;
+        const approved = collectApprovedIntercomArticleValues(prefilledResult.prefilled);
+        const remoteLocale =
+          remoteArticle?.localeContent[intercomLocale] ??
+          remoteArticle?.localeContent[normalizeIntercomLocaleTag(intercomLocale)] ??
+          null;
+        const values = mergeIntercomLocalePushPayload({
+          approved,
+          remote: remoteLocale,
+        });
 
-        const values: Record<string, string> = {};
-        for (const key of INTERCOM_ARTICLE_JSON_KEYS) {
-          const translated = prefilled[key];
-          if (typeof translated !== "string" || translated.trim().length === 0) {
-            continue;
-          }
-          values[key] = translated;
-        }
-
-        if (Object.keys(values).length === 0) {
+        if (!values) {
           articleSkipped += 1;
           continue;
         }
 
         const hash = hashIntercomTranslationValues(values);
         const hashKey = normalizeIntercomLocaleTag(intercomLocale);
-        if (lastPushHash[hashKey] === hash) {
+        const lastPush = parseIntercomLastPushRecord(lastPushHash[hashKey]);
+        if (lastPush.hash === hash) {
           articleSkipped += 1;
           continue;
         }
 
-        const remoteLocaleUpdatedAt = remoteArticle?.localeUpdatedAt[intercomLocale];
-        const lastPushedAtSeconds = mapping.lastPushedAt
-          ? Math.floor(mapping.lastPushedAt.getTime() / 1000)
-          : null;
+        const remoteLocaleUpdatedAt =
+          remoteArticle?.localeUpdatedAt[intercomLocale] ?? remoteArticle?.localeUpdatedAt[hashKey];
         if (
           !intercom.overwriteIntercomDrafts &&
           remoteLocaleUpdatedAt != null &&
-          lastPushedAtSeconds != null &&
-          remoteLocaleUpdatedAt > lastPushedAtSeconds
+          lastPush.pushedAtSeconds != null &&
+          remoteLocaleUpdatedAt > lastPush.pushedAtSeconds
         ) {
           articleSkipped += 1;
           continue;
@@ -175,12 +180,12 @@ export async function runPushIntercomTranslations(input: {
           articleId: mapping.articleId,
           authorId,
           locale: intercomLocale,
-          title: values.title ?? "",
-          description: values.description ?? "",
-          body: values.body ?? "",
+          title: values.title,
+          description: values.description,
+          body: values.body,
         });
 
-        lastPushHash[hashKey] = hash;
+        lastPushHash[hashKey] = encodeIntercomLastPushRecord(hash, Math.floor(Date.now() / 1000));
         articlePushed += 1;
       } catch (error) {
         articleFailed += 1;

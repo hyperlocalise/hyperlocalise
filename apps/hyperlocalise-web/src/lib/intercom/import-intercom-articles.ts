@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
@@ -31,6 +31,7 @@ import {
 } from "./article-json";
 import {
   createIntercomArticlesClient,
+  getIntercomArticle,
   intercomArticleToImportPayload,
   listIntercomArticlesSince,
 } from "./articles-api";
@@ -116,13 +117,36 @@ export async function runImportIntercomArticles(input: {
     !cursorRow?.lastReconcileAt ||
     Date.now() - cursorRow.lastReconcileAt.getTime() > RECONCILE_INTERVAL_MS;
 
-  const articles = await listIntercomArticlesSince({
+  const listedArticles = await listIntercomArticlesSince({
     client,
     watermarkUpdatedAt: needsReconcile ? null : watermarkUpdatedAt,
     includeDrafts: intercom.includeDrafts,
     helpCenterId,
     collectionIds: intercom.collectionIds,
   });
+  const failedMappings = await db
+    .select({
+      articleId: schema.intercomArticleSyncStates.articleId,
+    })
+    .from(schema.intercomArticleSyncStates)
+    .where(
+      and(
+        eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
+        eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
+        inArray(schema.intercomArticleSyncStates.status, ["import_failed"]),
+      ),
+    );
+  const articlesById = new Map(listedArticles.map((article) => [article.id, article]));
+  for (const mapping of failedMappings) {
+    if (articlesById.has(mapping.articleId)) {
+      continue;
+    }
+    const article = await getIntercomArticle(client, mapping.articleId);
+    if (article) {
+      articlesById.set(article.id, article);
+    }
+  }
+  const articles = [...articlesById.values()];
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
@@ -165,7 +189,11 @@ export async function runImportIntercomArticles(input: {
         .limit(1);
 
       if (existing?.sourceContentHash === contentHash && existing.status === "active") {
-        return { outcome: "skipped" as const };
+        return {
+          outcome: "skipped" as const,
+          articleId: article.id,
+          updatedAt: article.updatedAt,
+        };
       }
 
       try {
@@ -211,7 +239,11 @@ export async function runImportIntercomArticles(input: {
             status: "import_failed",
             lastError: { ingestOutcome },
           });
-          return { outcome: "failed" as const };
+          return {
+            outcome: "failed" as const,
+            articleId: article.id,
+            updatedAt: article.updatedAt,
+          };
         }
 
         await upsertSyncState({
@@ -260,7 +292,12 @@ export async function runImportIntercomArticles(input: {
           }
         }
 
-        return { outcome: "imported" as const, jobId };
+        return {
+          outcome: "imported" as const,
+          articleId: article.id,
+          updatedAt: article.updatedAt,
+          jobId,
+        };
       } catch (error) {
         logger.warn(
           {
@@ -284,7 +321,11 @@ export async function runImportIntercomArticles(input: {
             message: error instanceof Error ? error.message : String(error),
           },
         });
-        return { outcome: "failed" as const };
+        return {
+          outcome: "failed" as const,
+          articleId: article.id,
+          updatedAt: article.updatedAt,
+        };
       }
     },
   );
@@ -312,17 +353,19 @@ export async function runImportIntercomArticles(input: {
     }
   }
 
-  const maxUpdatedAt = articles.reduce<number | null>((max, article) => {
-    if (article.updatedAt == null) {
+  const handledUpdatedAt = perArticleResults.reduce<number | null>((max, result) => {
+    if (!result || result.outcome === "failed" || result.updatedAt == null) {
       return max;
     }
-    return max == null ? article.updatedAt : Math.max(max, article.updatedAt);
+    return max == null ? result.updatedAt : Math.max(max, result.updatedAt);
   }, watermarkUpdatedAt);
 
-  if (maxUpdatedAt != null || needsReconcile) {
+  const shouldRecordReconcile = needsReconcile && failed === 0;
+
+  if (handledUpdatedAt != null || shouldRecordReconcile) {
     const watermark =
-      maxUpdatedAt != null
-        ? new Date(maxUpdatedAt * 1000)
+      handledUpdatedAt != null
+        ? new Date(handledUpdatedAt * 1000)
         : (cursorRow?.watermarkUpdatedAt ?? null);
     await db
       .insert(schema.intercomSyncCursors)
@@ -330,13 +373,13 @@ export async function runImportIntercomArticles(input: {
         automationId: input.automation.id,
         organizationId: input.organizationId,
         watermarkUpdatedAt: watermark,
-        ...(needsReconcile ? { lastReconcileAt: new Date() } : {}),
+        ...(shouldRecordReconcile ? { lastReconcileAt: new Date() } : {}),
       })
       .onConflictDoUpdate({
         target: schema.intercomSyncCursors.automationId,
         set: {
           ...(watermark ? { watermarkUpdatedAt: watermark } : {}),
-          ...(needsReconcile ? { lastReconcileAt: new Date() } : {}),
+          ...(shouldRecordReconcile ? { lastReconcileAt: new Date() } : {}),
           updatedAt: new Date(),
         },
       });

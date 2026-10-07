@@ -253,7 +253,7 @@ export function AutomationDetailPageContent({
       ].runs.$post({
         param: { organizationSlug, automationId },
         json: {
-          idempotencyKey: `push_approved:${automationId}:${automation.configVersion}`,
+          idempotencyKey: `push_approved:${automationId}:${crypto.randomUUID()}`,
           inputSnapshot: { operation: "push_approved" },
         },
       });
