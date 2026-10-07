@@ -37,6 +37,7 @@ import {
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
 import {
   assertLiveIntercomAutomationConfigVersion,
+  loadLiveIntercomPushSettings,
   withCurrentIntercomAutomationConfig,
 } from "./intercom-sync-current";
 import {
@@ -202,6 +203,7 @@ export async function runPushIntercomTranslations(input: {
           },
           updatedAt: new Date(),
         },
+        statuses: ["active", "push_failed"],
       });
       return;
     }
@@ -266,11 +268,17 @@ export async function runPushIntercomTranslations(input: {
         });
         const hashKey = normalizeIntercomLocaleTag(intercomLocale);
         const lastPush = parseIntercomLastPushRecord(lastPushHash[hashKey]);
+        const livePushSettings = await loadLiveIntercomPushSettings(db, {
+          organizationId: input.organizationId,
+          automationId: input.automation.id,
+          scopeKey: pushScopeKey,
+          staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+        });
         if (
           shouldSkipUnchangedIntercomHash({
             lastHash: lastPush.hash,
             nextHash: hash,
-            overwriteIntercomDrafts: intercom.overwriteIntercomDrafts,
+            overwriteIntercomDrafts: livePushSettings.overwriteIntercomDrafts,
           })
         ) {
           articleSkipped += 1;
@@ -282,7 +290,7 @@ export async function runPushIntercomTranslations(input: {
             resolveIntercomLocaleRemoteEditedAt(remoteArticle, hashKey))
           : null;
         if (
-          !intercom.overwriteIntercomDrafts &&
+          !livePushSettings.overwriteIntercomDrafts &&
           remoteLocaleEditedAt != null &&
           lastPush.pushedAtSeconds != null &&
           remoteLocaleEditedAt > lastPush.pushedAtSeconds
@@ -291,14 +299,6 @@ export async function runPushIntercomTranslations(input: {
           continue;
         }
 
-        await assertLiveIntercomAutomationConfigVersion(db, {
-          organizationId: input.organizationId,
-          automationId: input.automation.id,
-          configVersion: input.automation.configVersion,
-          scopeKey: pushScopeKey,
-          staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
-          compare: "scope",
-        });
         await updateIntercomArticleTranslatedContent({
           client,
           articleId: mapping.articleId,
@@ -373,9 +373,18 @@ async function persistPushReceipt(input: {
     values: {
       lastPushedAt: input.articlePushed > 0 ? new Date() : input.mapping.lastPushedAt,
       lastPushContentHash: input.lastPushHash,
+      updatedAt: new Date(),
+    },
+  });
+  await updateMappingIfCurrentTarget({
+    mappingId: input.mapping.id,
+    projectId: input.projectId,
+    helpCenterId: input.helpCenterId,
+    values: {
       status: input.articleFailed > 0 ? "push_failed" : "active",
       updatedAt: new Date(),
     },
+    statuses: ["active", "push_failed"],
   });
 }
 
@@ -390,6 +399,7 @@ async function updateMappingIfCurrentTarget(input: {
     lastPushContentHash?: Record<string, string>;
     updatedAt: Date;
   };
+  statuses?: ReadonlyArray<"active" | "push_failed">;
 }) {
   await db
     .update(schema.intercomArticleSyncStates)
@@ -399,6 +409,9 @@ async function updateMappingIfCurrentTarget(input: {
         eq(schema.intercomArticleSyncStates.id, input.mappingId),
         eq(schema.intercomArticleSyncStates.projectId, input.projectId),
         eq(schema.intercomArticleSyncStates.helpCenterId, input.helpCenterId),
+        input.statuses
+          ? inArray(schema.intercomArticleSyncStates.status, [...input.statuses])
+          : undefined,
       ),
     );
 }

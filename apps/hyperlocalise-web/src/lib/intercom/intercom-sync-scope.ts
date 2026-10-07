@@ -100,6 +100,22 @@ export function readLiveIntercomScopeKey(input: {
   });
 }
 
+export function readLiveIntercomOverwriteDrafts(
+  toolConfig: Record<string, unknown> | null | undefined,
+): boolean | null {
+  const intercom = toolConfig?.intercom;
+  if (!intercom || typeof intercom !== "object" || Array.isArray(intercom)) {
+    return null;
+  }
+  if (
+    !("overwriteIntercomDrafts" in intercom) ||
+    typeof intercom.overwriteIntercomDrafts !== "boolean"
+  ) {
+    return null;
+  }
+  return intercom.overwriteIntercomDrafts;
+}
+
 export function buildIntercomImportScopeKey(input: {
   projectId: string;
   helpCenterId: string;

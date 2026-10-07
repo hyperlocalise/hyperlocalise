@@ -17,6 +17,7 @@ import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client"
 
 import {
   IntercomSyncStaleConfigError,
+  readLiveIntercomOverwriteDrafts,
   readLiveIntercomScopeKey,
   resolveIntercomAutomationFreshness,
   resolveIntercomAutomationScopeFreshness,
@@ -74,6 +75,49 @@ export async function assertLiveIntercomAutomationConfigVersion(
   if (freshness === "stale") {
     throw new IntercomSyncStaleConfigError(input.staleErrorCode);
   }
+}
+
+export async function loadLiveIntercomPushSettings(
+  client: DatabaseClient,
+  input: {
+    organizationId: string;
+    automationId: string;
+    scopeKey: string;
+    staleErrorCode: IntercomSyncStaleConfigCode;
+  },
+): Promise<{ overwriteIntercomDrafts: boolean }> {
+  const [row] = await client
+    .select({
+      projectId: schema.workspaceAutomations.projectId,
+      toolConfig: schema.workspaceAutomations.toolConfig,
+    })
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.id, input.automationId),
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  const liveScopeKey = row
+    ? readLiveIntercomScopeKey({
+        projectId: row.projectId,
+        toolConfig: row.toolConfig,
+      })
+    : null;
+  if (
+    resolveIntercomAutomationScopeFreshness({
+      snapshotScopeKey: input.scopeKey,
+      liveScopeKey,
+    }) === "stale"
+  ) {
+    throw new IntercomSyncStaleConfigError(input.staleErrorCode);
+  }
+
+  return {
+    overwriteIntercomDrafts: readLiveIntercomOverwriteDrafts(row?.toolConfig) ?? false,
+  };
 }
 
 export async function withCurrentIntercomAutomationConfig<T>(

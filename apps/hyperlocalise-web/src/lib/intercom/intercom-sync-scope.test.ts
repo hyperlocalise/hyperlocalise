@@ -22,6 +22,7 @@ import {
   intercomMappingMatchesTarget,
   isIntercomSyncStaleConfigError,
   readIntercomImportScopeCursor,
+  readLiveIntercomOverwriteDrafts,
   readLiveIntercomScopeKey,
   resolveIntercomAutomationFreshness,
   resolveIntercomAutomationScopeFreshness,
@@ -203,6 +204,20 @@ describe("intercom sync scope", () => {
         toolConfig: { intercom: { enabled: true } },
       }),
     ).toBeNull();
+  });
+
+  it("reads the live overwrite-drafts setting from automation tool config", () => {
+    expect(
+      readLiveIntercomOverwriteDrafts({
+        intercom: { overwriteIntercomDrafts: true },
+      }),
+    ).toBe(true);
+    expect(
+      readLiveIntercomOverwriteDrafts({
+        intercom: { overwriteIntercomDrafts: false },
+      }),
+    ).toBe(false);
+    expect(readLiveIntercomOverwriteDrafts({ intercom: { enabled: true } })).toBeNull();
   });
 
   it("recognizes stale-config errors from import and push", () => {
