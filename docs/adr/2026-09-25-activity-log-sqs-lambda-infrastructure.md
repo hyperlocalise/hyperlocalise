@@ -14,8 +14,9 @@ The application repository owns:
 - Shared Go activity-log validation and Postgres persistence under `internal/activitylog`.
 - Lambda build artifacts and application-side tests.
 - Updating the already-provisioned Lambda function's `$LATEST` code from the versioned
-  S3 artifact through the `upload` and `provision` jobs in
-  `.github/workflows/lambda-deploy.yml`.
+  S3 artifact through the deploy jobs in
+  `.github/workflows/lambda-deploy.yml` (see
+  [Lambda deploy job-level concurrency](./2026-10-07-lambda-deploy-job-concurrency.md)).
 
 The application repository does not provision AWS resources or embed AWS credentials.
 
