@@ -230,7 +230,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-glossary-interchange-lambda-deploy
+          role-session-name: github-actions-lambda-deploy
 
       - name: Build and deploy glossary-interchange Lambda artifact
         id: deploy
@@ -311,7 +311,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-memory-interchange-lambda-deploy
+          role-session-name: github-actions-lambda-deploy
 
       - name: Build and deploy memory-interchange Lambda artifact
         id: deploy

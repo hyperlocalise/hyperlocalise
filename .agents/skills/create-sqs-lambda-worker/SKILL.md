@@ -64,11 +64,11 @@ worker, or a new Lambda artifact under `apps/`.
    parameter, job-level `concurrency` group, and `ensure-deploy-main-tip`
    filters. Do not refactor upload/provision structure. Never reintroduce
    workflow-wide `concurrency` with `cancel-in-progress: true` while deploy
-   jobs are path-skipped. For the new job only, set
-   `role-session-name: github-actions-<worker>-lambda-deploy` on
-   `configure-aws-credentials`. Do not change `role-session-name`,
-   concurrency groups, or deploy steps on existing Lambda jobs when adding a
-   worker. See [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
+   jobs are path-skipped.    Set `role-session-name: github-actions-lambda-deploy` on
+   `configure-aws-credentials` (required for every deploy job on `main`; do
+   not introduce per-worker session names). Do not change concurrency groups
+   or deploy steps on existing Lambda jobs when adding a worker. See
+   [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
    (including “Do not change when launching a new Lambda”) and root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.

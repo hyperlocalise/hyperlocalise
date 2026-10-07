@@ -33,7 +33,7 @@ Production Go Lambdas deploy from [`.github/workflows/lambda-deploy.yml`](.githu
 
 - The `changed_paths` job uses `dorny/paths-filter`; each `*_deploy` job runs only when its filter matches the push (or on manual dispatch, all deploy jobs run).
 - **Concurrency:** use a separate `concurrency` group on each deploy job (`lambda-deploy-<worker>-${{ github.ref }}`). Do **not** add workflow-level `concurrency` with `cancel-in-progress: true` — a later run that skips a lambda’s deploy job can cancel an in-progress deploy and leave that function stale. Push deploy jobs call `ensure-deploy-main-tip` after checkout; it skips an older run only when newer commits on `main` match that worker’s deploy paths (not on unrelated `main` advances).
-- When adding a lambda: extend the workflow only (new filter, deploy job, concurrency group, `ensure-deploy-main-tip` filters, new job `role-session-name`). Do not change existing workers’ `role-session-name`, concurrency groups, or deploy steps. See [docs/contributing/lambda-deploy.mdx](docs/contributing/lambda-deploy.mdx) and [`.agents/skills/create-sqs-lambda-worker/SKILL.md`](.agents/skills/create-sqs-lambda-worker/SKILL.md).
+- When adding a lambda: extend the workflow only (new filter, deploy job, concurrency group, `ensure-deploy-main-tip` filters). Every deploy job uses `role-session-name: github-actions-lambda-deploy` on `main`; do not add per-worker session names or change existing jobs’ session names. See [docs/contributing/lambda-deploy.mdx](docs/contributing/lambda-deploy.mdx) and [`.agents/skills/create-sqs-lambda-worker/SKILL.md`](.agents/skills/create-sqs-lambda-worker/SKILL.md).
 
 ## Cursor Cloud specific instructions
 
