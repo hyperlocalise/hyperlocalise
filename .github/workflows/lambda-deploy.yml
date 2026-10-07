@@ -28,10 +28,6 @@ permissions:
   contents: read
   id-token: write
 
-concurrency:
-  group: lambda-deploy-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
@@ -100,12 +96,17 @@ jobs:
               - '.github/actions/deploy-lambda-artifact/**'
               - '.github/workflows/lambda-deploy.yml'
 
+  # Per-lambda concurrency only — see docs/contributing/lambda-deploy.mdx. Workflow-wide
+  # cancel-in-progress can leave a function stale when a later run skips its deploy job.
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
     needs: changed_paths
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-activity-log-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
@@ -160,6 +161,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-glossary-interchange-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
@@ -214,6 +218,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-memory-interchange-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout

@@ -62,7 +62,12 @@ worker, or a new Lambda artifact under `apps/`.
    the changed-path detector and deploy job, and make the smallest possible
    change—normally only the Lambda source path and the worker-specific test,
    build, binary, artifact, and function-parameter values. Do not refactor the
-   workflow into a different upload/provision structure.
+   workflow into a different upload/provision structure. Add **job-level**
+   `concurrency` on the new deploy job (unique group per worker); never
+   reintroduce workflow-wide `concurrency` with `cancel-in-progress: true`
+   while deploy jobs are path-skipped. See
+   [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
+   and the **Lambda deployment (CI)** section in root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test
    command. Do not require LocalStack for unit tests.
 9. For an ECS producer, document the infra-owned task-definition/configuration

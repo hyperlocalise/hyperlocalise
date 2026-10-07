@@ -27,6 +27,15 @@ In apps/hyperlocalise-web, if we change these folders:
 
 Do not finalize work until all commands complete successfully.
 
+## Lambda deployment (CI)
+
+Production Go Lambdas deploy from [`.github/workflows/lambda-deploy.yml`](.github/workflows/lambda-deploy.yml) on pushes to `main` (path-filtered) and via **Lambda Deploy** (`workflow_dispatch`).
+
+- The `changed_paths` job uses `dorny/paths-filter`; each `*_deploy` job runs only when its filter matches the push (or on manual dispatch, all deploy jobs run).
+- **Concurrency:** use a separate `concurrency` group on each deploy job (`lambda-deploy-<worker>-${{ github.ref }}`). Do **not** add workflow-level `concurrency` with `cancel-in-progress: true` — a later run that skips a lambda’s deploy job can cancel an in-progress deploy and leave that function stale.
+- When adding a lambda: new path filter, conditional deploy job, and dedicated job-level concurrency group. See [docs/contributing/lambda-deploy.mdx](docs/contributing/lambda-deploy.mdx) and [`.agents/skills/create-sqs-lambda-worker/SKILL.md`](.agents/skills/create-sqs-lambda-worker/SKILL.md).
+- **Stale function recovery:** re-run **Lambda Deploy** on `main` with `workflow_dispatch`, or merge a change under that worker’s path filter.
+
 ## Cursor Cloud specific instructions
 
 ### Prerequisites

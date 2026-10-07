@@ -66,6 +66,12 @@ make precommit
 
 This runs formatting, linting, tests, and build checks in the same flow used by contributors.
 
+## Go Lambda workers
+
+Queue-backed Go Lambdas under `apps/*-lambda` deploy to production through the **Lambda Deploy** GitHub Actions workflow on `main`. Path filters decide which functions build on each push; concurrency is scoped per deploy job so unrelated merges do not cancel another function’s deploy.
+
+See [Lambda deployment](lambda-deploy) for filters, concurrency rules, adding a worker, and recovering from a stale deploy.
+
 ## Platform web app
 
 The Next.js app lives in `apps/hyperlocalise-web`. See [`apps/hyperlocalise-web/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/hyperlocalise-web/README.md) for setup, `.env`, Postgres, and `vp run dev`.
