@@ -54,9 +54,11 @@ func readXLIFF(content []byte) ([]*xliffElement, error) {
 		after := int(decoder.InputOffset())
 		switch t := token.(type) {
 		case xml.StartElement:
-			raw := string(content[before:after])
-			nameEnd := strings.IndexAny(raw[1:], " \t\r\n/>") + 1
-			node := &xliffElement{token: t.Copy(), name: raw[1:nameEnd], start: before, inner: after, selfClosing: strings.HasSuffix(raw, "/>")}
+			// BOLT OPTIMIZATION: Avoid allocating string for the entire start-tag content.
+			raw := content[before:after]
+			nameEnd := bytes.IndexAny(raw[1:], " \t\r\n/>") + 1
+			selfClosing := len(raw) >= 2 && raw[len(raw)-2] == '/' && raw[len(raw)-1] == '>'
+			node := &xliffElement{token: t.Copy(), name: string(raw[1:nameEnd]), start: before, inner: after, selfClosing: selfClosing}
 			if len(stack) > 0 {
 				node.parent = stack[len(stack)-1]
 				node.parent.children = append(node.parent.children, node)
@@ -64,9 +66,11 @@ func readXLIFF(content []byte) ([]*xliffElement, error) {
 			elements = append(elements, node)
 			stack = append(stack, node)
 		case xml.EndElement:
-			node := stack[len(stack)-1]
-			node.close, node.end = before, after
-			stack = stack[:len(stack)-1]
+			if len(stack) > 0 {
+				node := stack[len(stack)-1]
+				node.close, node.end = before, after
+				stack = stack[:len(stack)-1]
+			}
 		}
 	}
 	return elements, nil
@@ -87,8 +91,9 @@ func isXLIFFElement(node *xliffElement) bool {
 }
 
 func xliffEntries(elements []*xliffElement) ([]xliffEntry, error) {
-	var entries []xliffEntry
-	seen := make(map[string]bool)
+	// BOLT OPTIMIZATION: Pre-allocate capacities based on total element count.
+	entries := make([]xliffEntry, 0, len(elements)/4)
+	seen := make(map[string]bool, len(elements)/4)
 	for _, unit := range elements {
 		if !isXLIFFElement(unit) || (unit.token.Name.Local != "unit" && unit.token.Name.Local != "trans-unit") {
 			continue
@@ -287,8 +292,16 @@ func XLIFFTargetEntriesForSource(source, target []byte) (map[string]string, erro
 // normalizeXLIFFMarkup expands empty tags and escapes character data without
 // changing qualified tag names or attributes inherited from the document.
 func normalizeXLIFFMarkup(value []byte) string {
+	// BOLT OPTIMIZATION: Plain text fast-path. When value contains no XML markup or special characters,
+	// return string(value) directly without xml.Decoder initialization.
+	// Tabs and newlines must take the decoder path so they match xml.EscapeText
+	// (&#x9;/&#xA;) used for tagged fragments and inline-code payloads.
+	if !bytes.ContainsAny(value, "<>&'\"\r\t\n") {
+		return string(value)
+	}
 	decoder := xml.NewDecoder(bytes.NewReader(value))
 	var out bytes.Buffer
+	out.Grow(len(value) + 16)
 	var names []string
 	for {
 		before := int(decoder.InputOffset())
@@ -311,10 +324,14 @@ func normalizeXLIFFMarkup(value []byte) string {
 				out.Write(raw)
 			}
 		case xml.EndElement:
-			name := names[len(names)-1]
-			names = names[:len(names)-1]
-			if len(raw) == 0 {
-				out.WriteString("</" + name + ">")
+			if len(names) > 0 {
+				name := names[len(names)-1]
+				names = names[:len(names)-1]
+				if len(raw) == 0 {
+					out.WriteString("</" + name + ">")
+				} else {
+					out.Write(raw)
+				}
 			} else {
 				out.Write(raw)
 			}
@@ -508,6 +525,7 @@ func xliffContentEdit(template []byte, node *xliffElement, fragment string) xlif
 func applyXLIFFEdits(template []byte, edits []xliffEdit) ([]byte, error) {
 	sort.SliceStable(edits, func(i, j int) bool { return edits[i].start < edits[j].start })
 	var out bytes.Buffer
+	out.Grow(len(template) + 64)
 	cursor := 0
 	for _, edit := range edits {
 		if edit.start < cursor {
@@ -522,7 +540,14 @@ func applyXLIFFEdits(template []byte, edits []xliffEdit) ([]byte, error) {
 }
 
 func escapeXLIFFText(value string) string {
+	// BOLT OPTIMIZATION: Fast-path for plain text without special XML characters.
+	// Also require a legal XML Char production so control characters still go
+	// through xml.EscapeText (which replaces them with U+FFFD).
+	if !strings.ContainsAny(value, "<>&'\"\r") && isXMLPlainCharData(value) {
+		return value
+	}
 	var out bytes.Buffer
+	out.Grow(len(value) + 16)
 	_ = xml.EscapeText(&out, []byte(value))
 	return out.String()
 }
@@ -531,7 +556,16 @@ func escapeXLIFFText(value string) string {
 // xml.EscapeText already escapes them; keep these replacements explicit for
 // static analyzers and to preserve the attribute contract if text escaping changes.
 func escapeXLIFFAttrValue(value string) string {
-	escaped := escapeXLIFFText(value)
+	// Attribute values cannot reuse the text fast path: XML attribute-value
+	// normalization turns literal tabs and newlines into spaces, and forbidden
+	// code points must go through xml.EscapeText (U+FFFD) even without quotes.
+	if !strings.ContainsAny(value, "<>&'\"\r\t\n") && isXMLPlainCharData(value) {
+		return value
+	}
+	var out bytes.Buffer
+	out.Grow(len(value) + 16)
+	_ = xml.EscapeText(&out, []byte(value))
+	escaped := out.String()
 	escaped = strings.ReplaceAll(escaped, `"`, "&#34;")
 	escaped = strings.ReplaceAll(escaped, "'", "&#39;")
 	return escaped
@@ -542,40 +576,51 @@ func escapeXLIFFAttrValue(value string) string {
 func setXLIFFTagAttr(tag, name, value string) string {
 	i := strings.IndexAny(tag, " \t\r\n/>")
 	for i < len(tag) {
-		for i < len(tag) && strings.ContainsRune(" \t\r\n", rune(tag[i])) {
+		for i < len(tag) && isXLIFFWhitespace(tag[i]) {
 			i++
 		}
 		if i >= len(tag) || tag[i] == '/' || tag[i] == '>' {
 			break
 		}
 		start := i
-		for i < len(tag) && !strings.ContainsRune("= \t\r\n", rune(tag[i])) {
+		for i < len(tag) && tag[i] != '=' && !isXLIFFWhitespace(tag[i]) {
 			i++
 		}
 		attr := tag[start:i]
-		for tag[i] != '=' {
+		for i < len(tag) && tag[i] != '=' {
 			i++
 		}
-		i++
-		for strings.ContainsRune(" \t\r\n", rune(tag[i])) {
+		if i < len(tag) {
 			i++
+		}
+		for i < len(tag) && isXLIFFWhitespace(tag[i]) {
+			i++
+		}
+		if i >= len(tag) {
+			break
 		}
 		quote := tag[i]
 		i++
 		valueStart := i
-		for tag[i] != quote {
+		for i < len(tag) && tag[i] != quote {
 			i++
 		}
 		if attr == name {
 			return tag[:valueStart] + escapeXLIFFAttrValue(value) + tag[i:]
 		}
-		i++
+		if i < len(tag) {
+			i++
+		}
 	}
 	end := len(tag) - 1
-	if tag[end-1] == '/' {
+	if end > 0 && tag[end-1] == '/' {
 		end--
 	}
 	return tag[:end] + " " + name + `="` + escapeXLIFFAttrValue(value) + `"` + tag[end:]
+}
+
+func isXLIFFWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
 // xliffReplacement validates mixed XML in its inherited namespace context and
@@ -599,6 +644,13 @@ func xliffReplacement(template []byte, source *xliffElement, value string) (stri
 }
 
 func xliffInlineCodes(source *xliffElement, value string) (xliffInlineSignature, error) {
+	// BOLT OPTIMIZATION: Plain text fast-path. When value contains no XML elements or entities,
+	// bypass xml.Decoder initialization and wrapper string formatting.
+	// Reject "]]>" and XML-forbidden code points so MarshalXLIFF still escapes
+	// them instead of writing unparseable character data.
+	if !strings.ContainsAny(value, "<&") && isXMLPlainCharData(value) {
+		return xliffInlineSignature{codes: make(map[string]int), pairRoles: make(map[string]string)}, nil
+	}
 	namespaces := make(map[string]string)
 	for node := source; node != nil; node = node.parent {
 		for _, attr := range node.token.Attr {

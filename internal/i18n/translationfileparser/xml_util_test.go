@@ -142,6 +142,31 @@ func TestIsAllXMLWhitespace(t *testing.T) {
 	}
 }
 
+func TestIsXMLPlainCharData(t *testing.T) {
+	tests := []struct {
+		name  string
+		in    string
+		valid bool
+	}{
+		{name: "empty", in: "", valid: true},
+		{name: "plain text", in: "Hello world", valid: true},
+		{name: "allowed whitespace", in: "a\tb\nc\rd", valid: true},
+		{name: "cdata terminator", in: "hello ]]> world", valid: false},
+		{name: "cdata terminator only", in: "]]>", valid: false},
+		{name: "nul", in: "hello\x00world", valid: false},
+		{name: "control character", in: "hello\x01world", valid: false},
+		{name: "noncharacter", in: "hello\uFFFEworld", valid: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isXMLPlainCharData(tt.in); got != tt.valid {
+				t.Errorf("isXMLPlainCharData(%q) = %v, want %v", tt.in, got, tt.valid)
+			}
+		})
+	}
+}
+
 func TestIsXMLWhitespace(t *testing.T) {
 	tests := []struct {
 		in   byte

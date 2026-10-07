@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"unicode/utf8"
 )
 
 // AndroidXMLResourcesParser parses Android string resource XML files.
@@ -600,26 +599,6 @@ func fastIsXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 	}
 
 	return depth == 0
-}
-
-// scanXMLCharSize returns the byte length of the XML Char at value[i], or 0 if
-// the byte sequence is not a legal XML character.
-func scanXMLCharSize(value string, i int) int {
-	c := value[i]
-	if c < 0x80 {
-		if c == 0x09 || c == 0x0A || c == 0x0D || c >= 0x20 {
-			return 1
-		}
-		return 0
-	}
-	r, size := utf8.DecodeRuneInString(value[i:])
-	if r == utf8.RuneError && size == 1 {
-		return 0
-	}
-	if !isXMLCharacterRange(r) {
-		return 0
-	}
-	return size
 }
 
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
