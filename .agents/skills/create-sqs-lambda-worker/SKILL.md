@@ -66,7 +66,7 @@ worker, or a new Lambda artifact under `apps/`.
    `concurrency` on the new deploy job (unique group per worker); never
    reintroduce workflow-wide `concurrency` with `cancel-in-progress: true`
    while deploy jobs are path-skipped. Call `ensure-deploy-main-tip` after
-   checkout in the new deploy job. See
+   checkout with the same path filter list as the worker’s deploy job. See
    [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)
    and the **Lambda deployment (CI)** section in root `AGENTS.md`.
 8. Document required non-sensitive environment metadata and the local test

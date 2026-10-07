@@ -1,22 +1,49 @@
-name: Ensure deploy main tip
-description: Stop push-triggered deploy jobs superseded by a newer commit on main
+name: Ensure worker deploy not superseded
+description: Skip a push deploy only when main has newer commits that touch this worker's deploy paths
 inputs:
   event-name:
     description: github.event_name for the workflow run
     required: true
+  filters:
+    description: dorny/paths-filter YAML with a single superseding filter key
+    required: true
 runs:
   using: composite
   steps:
-    - name: Verify commit is tip of main
+    - name: Decide whether to compare against main
+      id: prep
       shell: bash
       run: |
         if [ "${{ inputs.event-name }}" != "push" ]; then
+          echo "range_check=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
-        git fetch origin main --depth=1
+        git fetch origin main
         tip="$(git rev-parse origin/main)"
-        if [ "${GITHUB_SHA}" != "${tip}" ]; then
-          echo "::notice title=Deploy skipped::Commit ${GITHUB_SHA} is not the tip of main (${tip}). A newer push owns this worker deploy."
+        if [ "${GITHUB_SHA}" = "${tip}" ]; then
+          echo "range_check=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "range_check=true" >> "$GITHUB_OUTPUT"
+
+    - name: Detect superseding worker changes on main
+      if: steps.prep.outputs.range_check == 'true'
+      id: paths
+      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      with:
+        base: ${{ github.sha }}
+        ref: origin/main
+        filters: ${{ inputs.filters }}
+
+    - name: Abort deploy when a newer worker deploy should win
+      if: steps.prep.outputs.range_check == 'true'
+      shell: bash
+      run: |
+        if [ "${{ steps.paths.outputs.superseding }}" = "true" ]; then
+          echo "::notice title=Deploy skipped::A newer commit on main changes this worker; that workflow run should deploy instead."
           exit 1
         fi
+
+        echo "No superseding changes for this worker between ${GITHUB_SHA} and main; continuing deploy."

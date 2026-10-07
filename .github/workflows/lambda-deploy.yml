@@ -115,11 +115,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Ensure push deploy is not superseded
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/activity-log-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -177,11 +194,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Ensure push deploy is not superseded
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/glossary-interchange-lambda/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/activitylog/**'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -239,11 +273,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Ensure push deploy is not superseded
         uses: ./.github/actions/ensure-deploy-main-tip
         with:
           event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/memory-interchange-lambda/**'
+              - 'internal/i18n/memoryinterchange/**'
+              - 'internal/i18n/editor-export/**'
+              - 'internal/objectstore/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap

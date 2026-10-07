@@ -47,7 +47,7 @@ Merge B (memory only)    → new workflow run starts, cancels run A
                          → glossary Lambda never updated for merge A
 ```
 
-Per-lambda concurrency fixes cross-worker cancellation. Push deploys also run `ensure-deploy-main-tip` so a slow older run cannot deploy after a newer commit already reached `main`.
+Per-lambda concurrency fixes cross-worker cancellation. Push deploys also run `ensure-deploy-main-tip`, which skips an older run only when commits between its SHA and `main` touch that worker’s deploy paths (not when unrelated merges advance `main`).
 
 ### Rules when changing the workflow
 
