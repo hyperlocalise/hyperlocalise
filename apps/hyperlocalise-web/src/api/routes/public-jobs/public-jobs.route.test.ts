@@ -37,6 +37,7 @@ vi.mock("@/lib/activity-log/job-automation-events", () => ({
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
+import { env } from "@/lib/env";
 import { err, ok } from "@/lib/primitives/result/results";
 import { AI_FEATURES_REQUIRED_CODE, AI_FEATURES_REQUIRED_MESSAGE } from "@/lib/billing/ai-features";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
@@ -44,8 +45,6 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   createPublicApiFixture,
   insertStoredSourceFile,
-  insertCompletedPublicFileJob,
-  insertRepositoryPublicFileJob,
   cleanupPublicApiFixture,
 } from "./public-jobs.fixture";
 
@@ -53,13 +52,12 @@ const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
   ids: [event.jobId],
 }));
 
-const client = testClient<AppType>(
-  createApp({
-    jobQueue: {
-      enqueue: enqueueJob,
-    },
-  }),
-);
+const app = createApp({
+  jobQueue: {
+    enqueue: enqueueJob,
+  },
+});
+const client = testClient<AppType>(app);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -334,232 +332,87 @@ describe("publicJobRoutes", () => {
     expect(enqueueJob).not.toHaveBeenCalled();
   });
 
-  it("returns the file output contract needed by sync pull", async () => {
-    const { apiKey, project } = await createPublicApiFixture();
-    const job = await insertCompletedPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      outputFiles: [
-        {
-          fileId: "file_output_fr",
-          locale: "fr-FR",
-          filename: "source.fr-FR.xliff",
-        },
-      ],
+  describe("job reads", () => {
+    const goSvcBaseUrl = (env.GO_SVC_URL ?? "").replace(/\/$/, "");
+
+    function mockGoSvcResponse(init: {
+      status: number;
+      body: unknown;
+      headers?: Record<string, string>;
+    }) {
+      return vi.spyOn(globalThis, "fetch").mockImplementation(
+        async () =>
+          new Response(JSON.stringify(init.body), {
+            status: init.status,
+            headers: { "Content-Type": "application/json", ...init.headers },
+          }),
+      );
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
     });
 
-    const response = await client.api.v1.jobs[":jobId"].$get(
-      {
-        param: {
-          jobId: job.id,
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
+    it.each([
+      "/v1/jobs/latest?projectId=project_1&sourcePath=locales%2Fen.json",
+      "/v1/jobs/job_1",
+      "/v1/jobs/job_1/status",
+    ])("forwards GET %s to go-svc with the caller credentials", async (path) => {
+      const fetchMock = mockGoSvcResponse({
+        status: 200,
+        body: { job: { id: "job_1" } },
+        headers: { "Cache-Control": "no-store" },
+      });
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { job: Record<string, unknown> };
-    expect(body).toEqual({
-      job: {
-        id: job.id,
-        projectId: project.id,
-        type: "file",
-        status: "succeeded",
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
-        completedAt: expect.any(String),
-        lastError: null,
-        outputFiles: [
-          {
-            fileId: "file_output_fr",
-            locale: "fr-FR",
-            filename: "source.fr-FR.xliff",
-          },
-        ],
-      },
-    });
-    expect(body.job).not.toHaveProperty("inputPayload");
-    expect(body.job).not.toHaveProperty("workflowRunId");
-    expect(body.job).not.toHaveProperty("outcomePayload");
-  });
-
-  it("does not expose malformed file output metadata as a valid contract", async () => {
-    const { apiKey, project } = await createPublicApiFixture();
-    const job = await insertCompletedPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      outputFiles: [
-        {
-          fileId: "",
-          locale: "fr-FR",
-          filename: "source.fr-FR.xliff",
+      const response = await app.request(`/api${path}`, {
+        headers: {
+          "x-api-key": "hl_test_key",
+          authorization: "Bearer agent.jwt.token",
+          cookie: "wos-session=secret",
         },
-      ],
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      await expect(response.json()).resolves.toEqual({ job: { id: "job_1" } });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe(`${goSvcBaseUrl}${path}`);
+      const headers = new Headers(init?.headers);
+      expect(init?.method).toBe("GET");
+      expect(headers.get("x-api-key")).toBe("hl_test_key");
+      expect(headers.get("authorization")).toBe("Bearer agent.jwt.token");
+      expect(headers.has("cookie")).toBe(false);
     });
 
-    const response = await client.api.v1.jobs[":jobId"].$get(
-      {
-        param: {
-          jobId: job.id,
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
+    it("passes go-svc auth errors through unchanged", async () => {
+      mockGoSvcResponse({
+        status: 401,
+        body: { error: "unauthorized", message: "Authentication required" },
+        headers: { "WWW-Authenticate": 'Bearer resource_metadata="https://example.test"' },
+      });
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { job: { outputFiles: unknown } };
-    expect(body.job.outputFiles).toBeNull();
-  });
+      const response = await app.request("/api/v1/jobs/job_1");
 
-  it("rejects latest job lookups for another organization's project", async () => {
-    const { apiKey } = await createPublicApiFixture();
-    const { project: otherProject } = await createPublicApiFixture();
-
-    const response = await client.api.v1.jobs.latest.$get(
-      {
-        query: {
-          projectId: otherProject.id,
-          sourcePath: "locales/en/source.xliff",
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
-
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body).toMatchObject({
-      error: "project_not_found",
-      message: expect.any(String),
-    });
-  });
-
-  it("returns the newest succeeded repository file job by source upload order", async () => {
-    const { apiKey, project } = await createPublicApiFixture();
-    const olderJob = await insertRepositoryPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      sourcePath: "locales/en/source.xliff",
-      sourceHash: "sha256:older",
-      status: "succeeded",
-      versionCreatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      jobCreatedAt: new Date("2026-01-01T00:01:00.000Z"),
-      completedAt: new Date("2026-01-04T00:00:00.000Z"),
-      outputFiles: [
-        {
-          fileId: "file_output_older_fr",
-          locale: "fr-FR",
-          filename: "source.older.fr-FR.xliff",
-        },
-      ],
-    });
-    const newerJob = await insertRepositoryPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      sourcePath: "locales/en/source.xliff",
-      sourceHash: "sha256:newer",
-      status: "succeeded",
-      versionCreatedAt: new Date("2026-01-02T00:00:00.000Z"),
-      jobCreatedAt: new Date("2026-01-02T00:01:00.000Z"),
-      completedAt: new Date("2026-01-03T00:00:00.000Z"),
-      outputFiles: [
-        {
-          fileId: "file_output_newer_fr",
-          locale: "fr-FR",
-          filename: "source.newer.fr-FR.xliff",
-        },
-      ],
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe(
+        'Bearer resource_metadata="https://example.test"',
+      );
+      await expect(response.json()).resolves.toEqual({
+        error: "unauthorized",
+        message: "Authentication required",
+      });
     });
 
-    const response = await client.api.v1.jobs.latest.$get(
-      {
-        query: {
-          projectId: project.id,
-          sourcePath: "locales/en/source.xliff",
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
+    it("returns 503 when go-svc is unreachable", async () => {
+      vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { job: { id: string; outputFiles: unknown } };
-    expect(body.job.id).toBe(newerJob.id);
-    expect(body.job.id).not.toBe(olderJob.id);
-    expect(body.job.outputFiles).toEqual([
-      {
-        fileId: "file_output_newer_fr",
-        locale: "fr-FR",
-        filename: "source.newer.fr-FR.xliff",
-      },
-    ]);
-  });
+      const response = await app.request("/api/v1/jobs/job_1/status", {
+        headers: { "x-api-key": "hl_test_key" },
+      });
 
-  it("falls back to the previous succeeded repository file job while the latest push is queued", async () => {
-    const { apiKey, project } = await createPublicApiFixture();
-    const previousJob = await insertRepositoryPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      sourcePath: "locales/en/source.xliff",
-      sourceHash: "sha256:previous",
-      status: "succeeded",
-      versionCreatedAt: new Date("2026-01-01T00:00:00.000Z"),
-      jobCreatedAt: new Date("2026-01-01T00:01:00.000Z"),
-      completedAt: new Date("2026-01-01T00:10:00.000Z"),
-      outputFiles: [
-        {
-          fileId: "file_output_previous_fr",
-          locale: "fr-FR",
-          filename: "source.previous.fr-FR.xliff",
-        },
-      ],
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({ error: "public_api_unavailable" });
     });
-    await insertRepositoryPublicFileJob({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      sourcePath: "locales/en/source.xliff",
-      sourceHash: "sha256:queued",
-      status: "queued",
-      versionCreatedAt: new Date("2026-01-02T00:00:00.000Z"),
-      jobCreatedAt: new Date("2026-01-02T00:01:00.000Z"),
-    });
-
-    const response = await client.api.v1.jobs.latest.$get(
-      {
-        query: {
-          projectId: project.id,
-          sourcePath: "locales/en/source.xliff",
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
-
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { job: { id: string; outputFiles: unknown } };
-    expect(body.job.id).toBe(previousJob.id);
-    expect(body.job.outputFiles).toEqual([
-      {
-        fileId: "file_output_previous_fr",
-        locale: "fr-FR",
-        filename: "source.previous.fr-FR.xliff",
-      },
-    ]);
-  });
-
-  it("rejects job reads without jobs:read", async () => {
-    const { apiKey, project } = await createPublicApiFixture({
-      permissions: ["jobs:write"],
-    });
-
-    const response = await client.api.v1.jobs.latest.$get(
-      {
-        query: {
-          projectId: project.id,
-          sourcePath: "locales/en/source.xliff",
-        },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
   });
 });

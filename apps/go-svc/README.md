@@ -330,6 +330,8 @@ Read job status and stored result metadata:
 - `GET /v1/jobs/{jobId}`
 - `GET /v1/jobs/{jobId}/status`
 
+The web app forwards the same reads on `https://hyperlocalise.com/api/v1/jobs/...` to these routes through `GO_SVC_URL`, passing `X-API-Key` and `Authorization` through unchanged. `POST /api/v1/jobs` stays on Hono.
+
 All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
 
 Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.
@@ -343,7 +345,7 @@ Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millis
 | 403 | `forbidden` | Missing `jobs:read` or workspace access |
 | 404 | `job_not_found` | Job is missing, inaccessible, or no latest match exists |
 | 404 | `project_not_found` | Project is missing or inaccessible |
-| 503 | `public_api_unavailable` | Database is unavailable |
+| 503 | `public_api_unavailable` | Database is unavailable, or the web app cannot reach go-svc |
 
 Responses include `Cache-Control: no-store`.
 

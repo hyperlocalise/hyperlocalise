@@ -74,6 +74,7 @@ Several Cloud surfaces call the Go service directly from the browser (CAT segmen
 - Add new resource methods on dedicated `go-svc-*-api.ts` modules composed by `GoSvcClient`; map failures with `GoSvcClientError` and [`go-svc-error.ts`](src/lib/go-svc/go-svc-error.ts) where transport errors need user-facing copy.
 - Native project list, create, detail, update, delete, locale progress, open-job count, content-editor behavior, and native file list use browser `GoSvcClient` on `/v1/orgs/{slug}/projects...`. Encoded TMS project IDs stay on Hono.
 - Personal access token list, create, and revoke use browser `GoSvcClient` on `/v1/orgs/{slug}/api-keys`. Incoming public-API `x-api-key` auth stays on Hono.
+- Public job reads (`GET /api/v1/jobs/latest`, `/api/v1/jobs/{jobId}`, `/api/v1/jobs/{jobId}/status`) forward to go-svc through [`forwardPublicApiRequestToGoSvc`](src/lib/go-svc/go-svc-public-api-proxy.ts) with `GO_SVC_URL`. go-svc authenticates the credential, so do not run Hono public-API auth before forwarding. `POST /api/v1/jobs` stays on Hono.
 - Domains research, Search Console, linked-domain lifecycle management, and Hyperlab use browser `GoSvcClient` on org-scoped `/v1/orgs/{slug}/domains/...` and `/v1/orgs/{slug}/hyperlab/...` routes with the WorkOS session Bearer token. Linked-domain management uses `/domains/linked-domains`.
 
 See [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](../../docs/adr/2026-09-22-web-go-svc-api-client-design.md).

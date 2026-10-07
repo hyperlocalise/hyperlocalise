@@ -12,8 +12,8 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { Hono } from "hono";
+import { and, eq } from "drizzle-orm";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
@@ -26,9 +26,10 @@ import {
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { getAccessibleProjectIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { badRequestResponse } from "@/api/response.schema";
+import { badRequestResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { rejectIfAiFeaturesUnavailable } from "@/api/billing/ai-features-response";
 import { db, schema } from "@/lib/database/client";
+import { forwardPublicApiRequestToGoSvc } from "@/lib/go-svc/go-svc-public-api-proxy";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -38,7 +39,6 @@ import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
-  normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -52,19 +52,9 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
-import {
-  createPublicJobBodySchema,
-  jobIdParamsSchema,
-  latestPublicJobQuerySchema,
-} from "./public-jobs.schema";
-import {
-  findAccessiblePublicJob,
-  publicJobOutputFiles,
-  toPublicJobEnvelope,
-} from "./public-jobs.read";
+import { createPublicJobBodySchema } from "./public-jobs.schema";
 import {
   invalidJobPayloadResponse,
-  jobNotFoundResponse,
   sourceFileNotFoundResponse,
   unsupportedSourceFileFormatResponse,
   sourceFileFormatMismatchResponse,
@@ -80,21 +70,13 @@ const validateCreateJobBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateJobIdParams = validator("param", (value, c) => {
-  const parsed = jobIdParamsSchema.safeParse(value);
-  if (!parsed.success) {
-    return jobNotFoundResponse(c);
+async function forwardJobReadToGoSvc(c: Context) {
+  const forwarded = await forwardPublicApiRequestToGoSvc(c.req.raw);
+  if (isErr(forwarded)) {
+    return serviceUnavailableResponse(c, "public_api_unavailable", "Public API is unavailable");
   }
-  return parsed.data;
-});
-
-const validateLatestPublicJobQuery = validator("query", (value, c) => {
-  const parsed = latestPublicJobQuerySchema.safeParse(value);
-  if (!parsed.success) {
-    return invalidJobPayloadResponse(c);
-  }
-  return parsed.data;
-});
+  return forwarded.value;
+}
 
 type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
@@ -167,25 +149,11 @@ function canAccessStoredFileWithProjectScope(
   return uploaderId === teamAccess.user.localUserId;
 }
 
-function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScope): SQL {
-  const organizationScope = eq(schema.jobs.organizationId, scope.organizationId);
-
-  if (scope.accessibleProjectIds === null) {
-    return organizationScope;
-  }
-
-  if (scope.accessibleProjectIds.length === 0) {
-    return sql`false`;
-  }
-
-  return and(organizationScope, inArray(schema.jobs.projectId, scope.accessibleProjectIds))!;
-}
-
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
-    .use("*", publicApiAuthMiddleware)
     .post(
       "/",
+      publicApiAuthMiddleware,
       requireApiKeyPermission("jobs:write"),
       bodyLimit({
         maxSize: 1024 * 1024, // 1MB
@@ -359,115 +327,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
       },
     )
-    .get(
-      "/latest",
-      requireApiKeyPermission("jobs:read"),
-      validateLatestPublicJobQuery,
-      async (c) => {
-        const query = c.req.valid("query");
-        const organizationId = c.var.auth.organization.localOrganizationId;
-        const sourcePath = normalizeSourcePath(query.sourcePath);
-        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
-        const project = await getProjectForAccessScope(projectAccessScope, query.projectId);
-
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        const accessibleJobsWhere = buildAccessibleJobsWhereFromProjectScope(projectAccessScope);
-
-        const [job] = await db
-          .select({
-            id: schema.jobs.id,
-            projectId: schema.jobs.projectId,
-            type: schema.translationJobDetails.type,
-            status: schema.jobs.status,
-            outcomeKind: schema.translationJobDetails.outcomeKind,
-            outcomePayload: schema.jobs.outcomePayload,
-            lastError: schema.jobs.lastError,
-            createdAt: schema.jobs.createdAt,
-            updatedAt: schema.jobs.updatedAt,
-            completedAt: schema.jobs.completedAt,
-          })
-          .from(schema.repositorySourceFileVersions)
-          .innerJoin(
-            schema.translationJobDetails,
-            eq(
-              schema.translationJobDetails.sourceFileVersionId,
-              schema.repositorySourceFileVersions.id,
-            ),
-          )
-          .innerJoin(schema.jobs, eq(schema.jobs.id, schema.translationJobDetails.jobId))
-          .where(
-            and(
-              eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-              eq(schema.repositorySourceFileVersions.projectId, project.id),
-              eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-              accessibleJobsWhere,
-              eq(schema.jobs.kind, "translation"),
-              eq(schema.jobs.status, "succeeded"),
-              eq(schema.translationJobDetails.type, "file"),
-              eq(schema.translationJobDetails.outcomeKind, "file_result"),
-            ),
-          )
-          .orderBy(desc(schema.repositorySourceFileVersions.createdAt), desc(schema.jobs.createdAt))
-          .limit(1);
-
-        if (!job) {
-          return jobNotFoundResponse(c);
-        }
-
-        return c.json(
-          {
-            job: {
-              id: job.id,
-              projectId: job.projectId,
-              type: job.type,
-              status: job.status,
-              createdAt: job.createdAt,
-              updatedAt: job.updatedAt,
-              completedAt: job.completedAt,
-              lastError: job.lastError,
-              outputFiles: publicJobOutputFiles(job),
-            },
-          },
-          200,
-        );
-      },
-    )
-    .get("/:jobId", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
-      const params = c.req.valid("param");
-      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
-
-      if (!job) {
-        return jobNotFoundResponse(c);
-      }
-
-      return c.json({ job: toPublicJobEnvelope(job) }, 200);
-    })
-    .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
-      const params = c.req.valid("param");
-      const job = await findAccessiblePublicJob(c.var.auth.teamAccess, params.jobId);
-
-      if (!job) {
-        return jobNotFoundResponse(c);
-      }
-
-      return c.json(
-        {
-          job: {
-            id: job.id,
-            projectId: job.projectId,
-            kind: job.kind,
-            type: job.type,
-            status: job.status,
-            createdAt: job.createdAt,
-            updatedAt: job.updatedAt,
-            completedAt: job.completedAt,
-            lastError: job.lastError,
-          },
-        },
-        200,
-      );
-    });
+    .get("/latest", forwardJobReadToGoSvc)
+    .get("/:jobId", forwardJobReadToGoSvc)
+    .get("/:jobId/status", forwardJobReadToGoSvc);
 }

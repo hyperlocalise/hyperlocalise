@@ -28,10 +28,7 @@ import {
   attachMemoryProjectBodySchema,
   memoryProjectParamsSchema,
 } from "@/api/routes/memory/memory.schema";
-import {
-  createPublicJobBodySchema,
-  latestPublicJobQuerySchema,
-} from "@/api/routes/public-jobs/public-jobs.schema";
+import { createPublicJobBodySchema } from "@/api/routes/public-jobs/public-jobs.schema";
 import { uploadBodySchema } from "@/api/routes/public-files/public-files.schema";
 import {
   projectFilesQuerySchema,
@@ -67,9 +64,6 @@ describe("project id schemas", () => {
           targetLocales: ["fr"],
         },
       }).projectId,
-    ).toBe(decoded);
-    expect(
-      latestPublicJobQuerySchema.parse({ projectId: encoded, sourcePath: "src/en.json" }).projectId,
     ).toBe(decoded);
     expect(createConversationRequestSchema.parse({ text: "", projectId: encoded }).projectId).toBe(
       decoded,
