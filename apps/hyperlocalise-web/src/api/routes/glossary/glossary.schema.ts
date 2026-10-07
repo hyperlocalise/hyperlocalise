@@ -171,18 +171,6 @@ export const updateGlossaryBodySchema = z
     },
   );
 
-export const importGlossaryTermsBodySchema = z.object({
-  format: z.enum(["csv", "tbx", "xlsx"]),
-  content: z.string().min(1).max(14_000_000),
-  sourceFilename: z.string().trim().max(255).optional(),
-  contentEncoding: z.enum(["utf8", "base64"]).optional(),
-  mode: z.enum(["preview", "create", "update", "merge", "replace"]).default("merge"),
-  previewForMode: z.enum(["create", "update", "merge", "replace"]).default("merge"),
-  strictLocale: z.boolean().default(true),
-  localeMapping: z.record(z.string(), localeInputSchema).default({}),
-  previewReportId: z.string().uuid().optional(),
-});
-
 const glossaryExportLocalesSchema = z.preprocess((value) => {
   if (value === undefined) return undefined;
   return Array.isArray(value) ? value : [value];
@@ -514,7 +502,6 @@ export type GlossaryTermPageQuery = z.infer<typeof glossaryTermPageQuerySchema>;
 export type GlossaryHistoryQuery = z.infer<typeof glossaryHistoryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
-export type ImportGlossaryTermsBody = z.infer<typeof importGlossaryTermsBodySchema>;
 export type GlossaryExportQuery = z.infer<typeof glossaryExportQuerySchema>;
 export type AttachGlossaryProjectBody = z.infer<typeof attachGlossaryProjectBodySchema>;
 export type CreateGlossaryConceptBody = z.infer<typeof createGlossaryConceptBodySchema>;

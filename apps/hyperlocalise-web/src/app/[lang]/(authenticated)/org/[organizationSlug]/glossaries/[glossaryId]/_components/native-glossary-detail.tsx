@@ -925,13 +925,15 @@ export function NativeGlossaryDetail({
                     <SelectItem value="all" label={intl.formatMessage(messages.filterAllValue)}>
                       {intl.formatMessage(messages.filterAllValue)}
                     </SelectItem>
-                    {[glossary.sourceLocale, ...glossary.localeCoverage]
-                      .filter((locale, index, locales) => locales.indexOf(locale) === index)
-                      .map((locale) => (
-                        <SelectItem key={locale} value={locale} label={locale}>
-                          {locale}
-                        </SelectItem>
-                      ))}
+                    {glossary.languages.map((language) => (
+                      <SelectItem
+                        key={language.locale}
+                        value={language.locale}
+                        label={language.name}
+                      >
+                        {language.name}
+                      </SelectItem>
+                    ))}
                   </EnumFilterSelect>
                   <EnumFilterSelect
                     id="glossary-filter-modified"

@@ -70,19 +70,19 @@ export function memoryInterchangeCountItems(attempt: {
   }));
 }
 
-export type MemoryInterchangePreviewSample = {
+export type MemoryInterchangeReportSample = {
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
   targetText: string;
 };
 
-export function memoryInterchangePreviewSamples(attempt: {
+export function memoryInterchangeReportSamples(attempt: {
   counts: Record<string, unknown> | null;
-}): MemoryInterchangePreviewSample[] {
+}): MemoryInterchangeReportSample[] {
   const raw = attempt.counts?.samples;
   if (!Array.isArray(raw)) return [];
-  const samples: MemoryInterchangePreviewSample[] = [];
+  const samples: MemoryInterchangeReportSample[] = [];
   for (const item of raw.slice(0, 5)) {
     if (typeof item !== "object" || item === null) continue;
     const record = item as Record<string, unknown>;
@@ -222,6 +222,27 @@ export function TmImportAttemptDetail({
   const queryClient = useQueryClient();
   const { client: goSvcClient, loading: goSvcLoading } = useGoSvcClient();
   const [downloadPending, setDownloadPending] = useState(false);
+  const confirmImport = useMutation({
+    mutationFn: async () => {
+      try {
+        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
+          attemptId,
+          mode: "apply",
+        });
+      } catch (error) {
+        throw new Error(
+          goSvcErrorMessage(error, intl.formatMessage(messages.importEntriesFailed)),
+          { cause: error },
+        );
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
+      });
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const attemptQuery = useQuery({
     queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
     enabled: !goSvcLoading,
@@ -260,27 +281,6 @@ export function TmImportAttemptDetail({
       return body.memory as MemoryRecord;
     },
   });
-  const applyImport = useMutation({
-    mutationFn: async () => {
-      try {
-        return await goSvcClient.memory.entries.queueImport(organizationSlug, memoryId, {
-          attemptId,
-          mode: "apply",
-        });
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.applyFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["translation-memory-import-attempt", organizationSlug, memoryId, attemptId],
-      });
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
   if (attemptQuery.isPending) {
     return (
       <main
@@ -349,24 +349,22 @@ export function TmImportAttemptDetail({
       setDownloadPending(false);
     }
   };
+  const canConfirmPreviewImport =
+    canWriteMemories &&
+    attempt.createdByUserId === currentUserId &&
+    memoryQuery.isSuccess &&
+    memoryQuery.data != null &&
+    memoryQuery.data.status !== "archived";
   const countItems = memoryInterchangeCountItems(attempt);
-  const previewSamples = memoryInterchangePreviewSamples(attempt);
-  const showPreviewSamples = attempt.status === "preview_completed" && previewSamples.length > 0;
+  const reportSamples = memoryInterchangeReportSamples(attempt);
+  const showReportSamples =
+    (attempt.status === "completed" ||
+      attempt.status === "partially_successful" ||
+      attempt.status === "preview_completed") &&
+    reportSamples.length > 0;
   const filename =
     (attempt.operation === "export" ? attempt.resultFilename : attempt.sourceFilename) ||
     intl.formatMessage(messages.unknown);
-  // Applying mirrors finalizeMemoryImport: only the uploader, with memory
-  // write access, on a non-archived memory. Everyone else would get a 409,
-  // so don't offer the action. The memory must have loaded successfully —
-  // while it is loading (or when it fails to load) its status is unknown.
-  const memory = memoryQuery.data;
-  const canApplyImport =
-    attempt.status === "preview_completed" &&
-    canWriteMemories &&
-    attempt.createdByUserId === currentUserId &&
-    memory != null &&
-    memory.status !== "archived";
-
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -388,15 +386,6 @@ export function TmImportAttemptDetail({
         <div className="flex flex-wrap gap-2">
           {attempt.operation === "import" ? (
             <>
-              {canApplyImport ? (
-                <Button
-                  type="button"
-                  disabled={applyImport.isPending}
-                  onClick={() => applyImport.mutate()}
-                >
-                  <FormattedMessage {...messages.applyImport} />
-                </Button>
-              ) : null}
               <Button variant="outline" render={<a href={reportUrl} download />}>
                 <FormattedMessage {...messages.download} />
               </Button>
@@ -413,6 +402,28 @@ export function TmImportAttemptDetail({
           ) : null}
         </div>
       </header>
+
+      {attempt.operation === "import" &&
+      attempt.status === "preview_completed" &&
+      canConfirmPreviewImport ? (
+        <Alert>
+          <AlertTitle>
+            <FormattedMessage {...messages.previewCompleted} />
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              <FormattedMessage {...messages.previewReadyBanner} />
+            </span>
+            <Button
+              type="button"
+              disabled={confirmImport.isPending}
+              onClick={() => confirmImport.mutate()}
+            >
+              <FormattedMessage {...messages.importEntries} />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -524,16 +535,16 @@ export function TmImportAttemptDetail({
         </CardContent>
       </Card>
 
-      {showPreviewSamples ? (
+      {showReportSamples ? (
         <Card>
           <CardHeader>
             <CardTitle>
-              <FormattedMessage {...messages.previewSamples} />
+              <FormattedMessage {...messages.sampleEntries} />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-border rounded-xl border border-border">
-              {previewSamples.map((sample, index) => (
+              {reportSamples.map((sample, index) => (
                 <li
                   key={`${sample.sourceLocale}-${sample.targetLocale}-${index}`}
                   className="space-y-1 p-3"

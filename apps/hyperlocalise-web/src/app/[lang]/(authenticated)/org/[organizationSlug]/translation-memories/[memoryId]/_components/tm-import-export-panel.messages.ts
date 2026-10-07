@@ -32,8 +32,8 @@ export const tmImportExportPanelMessages = defineMessages({
   },
   importDialogDescription: {
     defaultMessage:
-      "Upload a CSV or TMX file. The import runs in the background and opens a report page where you can review the preview before confirming.",
-    id: "ltxCMN20rv",
+      "Upload a CSV or TMX file. The import runs in the background and opens a report page with results and diagnostics.",
+    id: "kvjMFI8hYp",
     description: "Description for the translation memory file picker dialog",
   },
   selectImportFile: {
@@ -42,14 +42,14 @@ export const tmImportExportPanelMessages = defineMessages({
     description: "Prompt inside the translation memory file upload area",
   },
   importFormats: {
-    defaultMessage: "CSV or TMX · preview before saving",
-    id: "G8JuD34Z/q",
+    defaultMessage: "CSV or TMX · up to 100 MB",
+    id: "n/tSL48HZk",
     description: "Accepted translation memory import formats",
   },
-  preparingPreview: {
-    defaultMessage: "Uploading the file and starting the import preview...",
-    id: "Nm2u0vLRPr",
-    description: "Status while a translation memory import file uploads and queues its preview",
+  preparingImport: {
+    defaultMessage: "Uploading the file and starting the import...",
+    id: "3/ebdpqqmW",
+    description: "Status while a translation memory import file uploads and queues processing",
   },
   uploadFailed: {
     defaultMessage: "Unable to upload the import file",

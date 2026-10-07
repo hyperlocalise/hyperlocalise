@@ -196,29 +196,91 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		return err
 	}
 	configuredLocales := append([]string{sourceLocale}, localeCoverage...)
-	strictLocale := importOptions.StrictLocale == nil || *importOptions.StrictLocale
 	var importDiagnostics []interchangeImportDiagnostic
-	for i := range concepts {
-		for j := range concepts[i].Terms {
-			rawLocale := normalizeGlossaryLocale(concepts[i].Terms[j].Locale)
+	filteredConcepts := make([]interchangeConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		terms := make([]interchangeTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			rawLocale := normalizeGlossaryLocale(term.Locale)
 			locale, mapped := mappedImportLocale(rawLocale, configuredLocales, importOptions.LocaleMapping)
-			if strictLocale && !containsConfiguredLocale(locale, configuredLocales) {
-				return fmt.Errorf("locale %q is not configured for this glossary", locale)
+			canonical, valid := canonicalGlossaryImportLocale(locale)
+			if !valid {
+				code := "invalid_locale"
+				message := "Term locale is not a valid BCP 47 language tag."
+				if strings.TrimSpace(locale) == "" {
+					message = "Term locale is missing."
+				}
+				importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
+					Severity: "error",
+					Code:     code,
+					Message:  message,
+					Concept:  concept.ID,
+					Term:     term.ID,
+					Field:    "locale",
+				})
+				continue
 			}
-			concepts[i].Terms[j].Locale = locale
+			locale = canonical
+			term.Locale = locale
 			if mapped && localeKey(rawLocale) != localeKey(locale) {
 				importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
 					Severity: "warning",
 					Code:     "locale_mapped",
 					Message:  fmt.Sprintf("Term locale %q was mapped to the glossary locale %q.", rawLocale, locale),
-					Concept:  concepts[i].ID,
-					Term:     concepts[i].Terms[j].ID,
+					Concept:  concept.ID,
+					Term:     term.ID,
 					Field:    "locale",
 				})
 			}
+			terms = append(terms, term)
 		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
+					Severity: "error",
+					Code:     "concept_has_no_valid_terms",
+					Message:  "Concept has no valid terms and was not imported.",
+					Concept:  concept.ID,
+				})
+			}
+			continue
+		}
+		strict := importOptions.StrictLocale == nil || *importOptions.StrictLocale
+		if strict {
+			if sourceCanon, ok := canonicalGlossaryImportLocale(sourceLocale); ok {
+				sourceKey := localeKey(sourceCanon)
+				hasSource := false
+				for _, term := range terms {
+					if localeKey(term.Locale) == sourceKey {
+						hasSource = true
+						break
+					}
+				}
+				if !hasSource {
+					importDiagnostics = append(importDiagnostics, interchangeImportDiagnostic{
+						Severity: "error",
+						Code:     "missing_source_locale",
+						Message:  "Concept has no term in the glossary source locale.",
+						Concept:  concept.ID,
+						Field:    "sourceLocale",
+					})
+					continue
+				}
+			}
+		}
+		concept.Terms = terms
+		filteredConcepts = append(filteredConcepts, concept)
 	}
+	concepts = filteredConcepts
 	if err := persistImportDiagnostics(ctx, pool, runID, importDiagnostics); err != nil {
+		return err
+	}
+	if mode == "replace" && interchangeImportHasErrors(importDiagnostics) {
+		countsJSON, _ := json.Marshal(map[string]int{
+			"concepts": len(concepts),
+			"terms":    countTerms(concepts),
+		})
+		_, err = pool.Exec(ctx, `update glossary_import_runs set status='failed', processing_started_at=null, error_code='replace_requires_valid_input', error_message=$2, counts=$3::jsonb, completed_at=now() where id=$1`, runID, "Replace was not applied because the source contains validation errors.", countsJSON)
 		return err
 	}
 	if mode == "preview" {
@@ -269,6 +331,9 @@ func runImport(ctx context.Context, pool *pgxpool.Pool, objects *objectstore.Reg
 		mutationCounts.TermsUpdated += counts.TermsUpdated
 		mutationCounts.TermsMerged += counts.TermsMerged
 	}
+	if err := refreshGlossaryLocaleCoverage(ctx, tx, glossaryID, sourceLocale); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
@@ -288,6 +353,15 @@ func countTerms(concepts []interchangeConcept) int {
 		total += len(concept.Terms)
 	}
 	return total
+}
+
+func interchangeImportHasErrors(diagnostics []interchangeImportDiagnostic) bool {
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Severity == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func persistImportDiagnostics(ctx context.Context, pool *pgxpool.Pool, runID string, diagnostics []interchangeImportDiagnostic) error {
@@ -969,4 +1043,23 @@ func decodeTBX(data []byte) ([]interchangeConcept, []string, error) {
 		out = append(out, c)
 	}
 	return out, nil, nil
+}
+
+func refreshGlossaryLocaleCoverage(ctx context.Context, tx pgx.Tx, glossaryID, sourceLocale string) error {
+	_, err := tx.Exec(ctx, `
+		update glossaries g
+		set locale_coverage = coalesce(
+			(select jsonb_agg(locale order by locale)
+			 from (
+			   select distinct locale
+			   from glossary_terms
+			   where glossary_id = $1
+			     and locale is not null
+			     and btrim(locale) <> ''
+			     and lower(locale) <> lower($2)
+			 ) locales),
+			'[]'::jsonb
+		)
+		where g.id = $1`, glossaryID, sourceLocale)
+	return err
 }

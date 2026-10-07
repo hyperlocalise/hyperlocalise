@@ -755,7 +755,7 @@ All paths below are relative to `/v1/orgs/{organizationSlug}`:
 | DELETE | `/translation-memories/{memoryId}/projects/{projectId}` | Detach a project |
 | GET, POST | `/translation-memories/{memoryId}/entries` | List or create entries |
 | GET | `/translation-memories/{memoryId}/entries/export` | Export CSV or TMX |
-| POST | `/translation-memories/{memoryId}/entries/import` | Import CSV/TMX (supports dryRun) |
+| POST | `/translation-memories/{memoryId}/entries/import` | Import CSV/TMX inline (always applies) |
 | POST | `/translation-memories/{memoryId}/entries/promote-from-project` | Promote approved project translations |
 | GET | `/translation-memories/{memoryId}/import-attempts` | List import attempts |
 | GET | `/translation-memories/{memoryId}/import-attempts/{attemptId}` | Attempt + diagnostics |

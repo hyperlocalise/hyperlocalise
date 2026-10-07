@@ -20,9 +20,9 @@ import (
 
 const MAX_MEMORY_INTERCHANGE_BYTES int64 = 100 * 1024 * 1024
 
-// memoryImportPreviewSampleLimit bounds the representative translations stored
-// with a preview so the report page can show them before the import is applied.
-const memoryImportPreviewSampleLimit = 5
+// memoryImportReportSampleLimit bounds representative translations stored on the
+// completed import report.
+const memoryImportReportSampleLimit = 5
 
 type permanentMemoryInterchangeError struct {
 	cause error
@@ -41,9 +41,7 @@ func isPermanentMemoryInterchangeFailure(err error) bool {
 	return errors.As(err, &permanent)
 }
 
-// memoryImportPreviewSamples captures the first parsed units so reviewers can
-// inspect representative translations before applying the import.
-func memoryImportPreviewSamples(candidates []memoryinterchange.Candidate, limit int) []map[string]any {
+func memoryImportReportSamples(candidates []memoryinterchange.Candidate, limit int) []map[string]any {
 	samples := make([]map[string]any, 0, limit)
 	for _, candidate := range candidates {
 		if len(samples) >= limit {
@@ -159,6 +157,9 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	if memoryStatus == "archived" {
 		return permanentMemoryInterchangeFailure(fmt.Errorf("translation memory is archived"))
 	}
+	if mode != "apply" && mode != "preview" {
+		return permanentMemoryInterchangeFailure(fmt.Errorf("memory import mode %q is not supported", mode))
+	}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -176,12 +177,15 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	counts := map[string]any{
 		"totalRead": len(candidates), "created": created, "updated": updated,
 		"variantCreated": variantCreated, "skipped": skipped, "warned": warned, "failed": failed,
-		"samples": memoryImportPreviewSamples(candidates, memoryImportPreviewSampleLimit),
+		"samples": memoryImportReportSamples(candidates, memoryImportReportSampleLimit),
 	}
-	countsJSON, _ := json.Marshal(counts)
 
 	if mode == "preview" {
-		if _, err = tx.Exec(ctx, `update memory_import_attempts set status='preview_completed', processing_started_at=null, source_sha256=$2, counts=$3::jsonb, header_srclang=$4, completed_at=now() where id=$1`, attemptID, hashHex, countsJSON, headerValue); err != nil {
+		countsJSON, marshalErr := json.Marshal(counts)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err = tx.Exec(ctx, `update memory_import_attempts set status=$2, processing_started_at=null, source_sha256=$3, counts=$4::jsonb, header_srclang=$5, completed_at=now() where id=$1 and status='running'`, attemptID, "preview_completed", hashHex, countsJSON, headerValue); err != nil {
 			return err
 		}
 		return tx.Commit(ctx)
@@ -195,7 +199,10 @@ func runMemoryImport(ctx context.Context, pool *pgxpool.Pool, objects *objectsto
 	counts["updated"] = updated
 	counts["variantCreated"] = variantCreated
 	counts["skipped"] = skipped
-	countsJSON, _ = json.Marshal(counts)
+	countsJSON, err := json.Marshal(counts)
+	if err != nil {
+		return err
+	}
 	actorUserID := ""
 	if userID != nil {
 		actorUserID = *userID

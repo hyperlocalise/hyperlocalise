@@ -199,9 +199,44 @@ func TestApplyGlossaryImportLocaleOptionsDoesNotUseCrowdinFallbackForCSV(t *test
 		StrictLocale: &strict,
 	}, concepts, nil)
 	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 2)
+	require.Equal(t, "en-US", out[0].Terms[0].Locale)
+	require.Equal(t, "de", out[0].Terms[1].Locale)
+	require.Empty(t, diagnostics)
+}
+
+func TestFilterGlossaryImportConceptsRejectsMissingSourceLocale(t *testing.T) {
+	strict := true
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{}}
+	concepts := []glossaryImportConcept{{
+		ID:    "c1",
+		Terms: []glossaryImportTerm{{ID: "t1", Locale: "de-DE", Term: "Kasse"}},
+	}}
+	out, diagnostics := filterGlossaryImportConcepts(g, glossaryImportPayload{StrictLocale: &strict}, concepts, nil)
+	require.Empty(t, out)
+	require.NotEmpty(t, diagnostics)
+	require.Contains(t, diagnostics[0].Code, "missing_source_locale")
+}
+
+func TestApplyGlossaryImportLocaleOptionsRejectsInvalidLocale(t *testing.T) {
+	strict := true
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{}}
+	concepts := []glossaryImportConcept{{
+		ID: "c1",
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: "t2", Locale: "source", Term: "Bad"},
+		},
+	}}
+
+	out, diagnostics := applyGlossaryImportLocaleOptions(g, glossaryImportPayload{
+		Format:       "tbx",
+		StrictLocale: &strict,
+	}, concepts, nil)
+	require.Len(t, out, 1)
 	require.Len(t, out[0].Terms, 1)
 	require.Equal(t, "en-US", out[0].Terms[0].Locale)
-	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
+	require.Contains(t, diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_locale", Message: "Term locale is not a valid BCP 47 language tag", ConceptID: stringPtr("c1"), TermID: stringPtr("t2"), Field: stringPtr("locale")})
 }
 
 func TestApplyGlossaryImportLocaleOptionsHonorsExplicitIdentityMapping(t *testing.T) {

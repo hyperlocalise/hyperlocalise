@@ -1,0 +1,2000 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://raw.githubusercontent.com/LTAC-Global/TBX-Basic_dialect/master/DCA/TBXcoreStructV03_TBX-Basic_integrated.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="https://raw.githubusercontent.com/LTAC-Global/TBX-Basic_dialect/master/DCA/TBX-Basic_DCA.sch" type="application/xml" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<tbx type="TBX-Basic" style="dca" xml:lang="en" xmlns="urn:iso:std:iso:30042:ed-2">
+    <tbxHeader>
+        <fileDesc>
+            <sourceDesc>
+                <p>Crowdin glossary download</p>
+            </sourceDesc>
+        </fileDesc>
+    </tbxHeader>
+    <text>
+        <body>
+            <conceptEntry id="c-ota-001">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">The place a traveler plans to visit.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="95">destination</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="101">Reiseziel</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="99">目的地</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="103">목적지</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="97">điểm đến</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-002">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">The place from which a traveler begins a journey.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="105">origin</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="111">Abflugort</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="109">出発地</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="113">출발지</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="107">điểm khởi hành</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-003">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">The calendar date on which a journey begins.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="115">departure date</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="121">Abreisedatum</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="119">出発日</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="123">출발일</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="117">ngày khởi hành</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-004">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">The calendar date on which a return journey begins.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="125">return date</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="127">return day</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                        <descrip type="context">Use return date in product copy.</descrip>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="133">Rückreisedatum</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="131">復路出発日</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="135">귀국일</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="129">ngày về</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-005">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">A search option that allows travel dates to vary around the selected period.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="137">flexible dates</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="143">flexible Reisedaten</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="141">日付を柔軟に設定</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="145">유연한 날짜</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="139">ngày linh hoạt</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-006">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">search</descrip>
+                <descrip type="definition">Airports located close enough to the selected airport to be included in search results.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="147">nearby airports</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="153">Flughäfen in der Nähe</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="151">近隣の空港</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="155">인근 공항</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="149">sân bay lân cận</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-007">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">A flight that travels from origin to destination without landing at an intermediate airport.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="157">nonstop flight</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="159">direct flight</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                        <descrip type="context">Allowed in informal copy, but prefer nonstop flight when no landing occurs.</descrip>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="165">Nonstop-Flug</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="163">直行便</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="167">직항편</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="161">chuyến bay thẳng</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-008">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">A scheduled stop between the origin and final destination of a journey.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="169">layover</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="175">Aufenthalt beim Umstieg</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="173">乗り継ぎ時間</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="177">경유 시간</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="171">thời gian quá cảnh</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-009">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">A place where a traveler stays overnight during a trip.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="179">accommodation</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="181">lodging</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="187">Unterkunft</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="185">宿泊施設</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="189">숙박 시설</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="183">chỗ ở</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-010">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">The category or configuration of a room offered by a property.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="191">room type</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="197">Zimmertyp</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="195">部屋タイプ</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="199">객실 유형</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="193">loại phòng</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-011">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A journey that includes travel in one direction only.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="201">one-way</term>
+                        <termNote type="partOfSpeech">adjective</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="207">einfache Strecke</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="205">片道</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="209">편도</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="203">một chiều</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-012">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A journey that includes travel to a destination and back to the origin.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="211">round trip</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="213">return trip</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="219">Hin- und Rückflug</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="217">往復</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="221">왕복</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="215">khứ hồi</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-013">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A journey that uses more than one origin-destination pair in one reservation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="223">multi-city</term>
+                        <termNote type="partOfSpeech">adjective</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="229">Mehrere Städte</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="227">複数都市</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="231">다구간</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="225">nhiều thành phố</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-014">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A confirmed arrangement for travel or accommodation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="233">booking</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="235">reservation</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="241">Buchung</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="239">予約</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="243">예약</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="237">đặt chỗ</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-015">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">The unique code used to identify a travel reservation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="245">booking reference</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="247">reservation code</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="249">PNR</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                        <descrip type="context">Common industry abbreviation for passenger name record.</descrip>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="255">Buchungsnummer</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="253">予約番号</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="257">예약 번호</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="251">mã đặt chỗ</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-016">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">The complete sequence of travel arrangements in a reservation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="259">itinerary</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="265">Reiseplan</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="263">旅程</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="267">여정</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="261">hành trình</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-017">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A person who travels or is included in a travel reservation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="269">traveler</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="271">traveller</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="277">Reisende Person</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="275">旅行者</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="279">여행자</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="273">du khách</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-018">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A person occupying a room or included in a hotel reservation.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="281">guest</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="287">Gast</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="285">宿泊者</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="289">투숙객</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="283">khách</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-019">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">The date on which a guest is scheduled to arrive at a property.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="291">check-in date</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="297">Check-in-Datum</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="295">チェックイン日</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="299">체크인 날짜</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="293">ngày nhận phòng</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-020">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">The date on which a guest is scheduled to leave a property.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="301">check-out date</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="307">Check-out-Datum</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="305">チェックアウト日</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="309">체크아웃 날짜</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="303">ngày trả phòng</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-021">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">The direction or class of service selected for an airline journey.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="311">cabin class</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="317">Kabinenklasse</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="315">客室クラス</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="319">객실 등급</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="313">hạng khoang</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-022">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">The standard airline cabin with the lowest typical service level.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="321">economy class</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="323">coach</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="329">Economy Class</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="327">エコノミークラス</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="331">이코노미 클래스</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="325">hạng phổ thông</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-023">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">An airline cabin positioned above economy and below business class.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="333">premium economy</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="339">Premium Economy</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="337">プレミアムエコノミー</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="341">프리미엄 이코노미</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="335">hạng phổ thông đặc biệt</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-024">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">An airline cabin offering enhanced service and space above economy.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="343">business class</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="349">Business Class</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="347">ビジネスクラス</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="351">비즈니스 클래스</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="345">hạng thương gia</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-025">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">The highest standard airline cabin with the most extensive service offering.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="353">first class</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="359">First Class</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="357">ファーストクラス</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="361">퍼스트 클래스</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="355">hạng nhất</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-026">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">A named group of fare conditions and included benefits sold by an airline.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="363">fare family</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="369">Tariffamilie</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="367">運賃ファミリー</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="371">운임 패밀리</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="365">nhóm giá vé</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-027">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">The option to choose a particular seat on a flight.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="373">seat selection</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="379">Sitzplatzauswahl</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="377">座席指定</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="381">좌석 선택</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="375">chọn chỗ ngồi</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-028">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">The document or digital credential that allows a passenger to board a flight.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="383">boarding pass</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="389">Bordkarte</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="387">搭乗券</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="391">탑승권</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="385">thẻ lên máy bay</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-029">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">A document or record that confirms a passenger's right to travel.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="393">ticket</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="399">Flugticket</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="397">航空券</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="401">항공권</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="395">vé</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-030">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">flight</descrip>
+                <descrip type="definition">An electronic version of a travel ticket stored digitally rather than printed.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="403">e-ticket</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="405">electronic ticket</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="411">E-Ticket</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="409">電子航空券</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="413">전자 항공권</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="407">vé điện tử</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-031">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">traveler-data</descrip>
+                <descrip type="definition">The full name of the person traveling, as it appears on an identity document.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="415">passenger name</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="421">Name der reisenden Person</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="419">搭乗者名</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="423">승객 이름</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="417">tên hành khách</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-032">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">traveler-data</descrip>
+                <descrip type="definition">The calendar date on which a traveler was born.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="425">date of birth</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="431">Geburtsdatum</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="429">生年月日</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="433">생년월일</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="427">ngày sinh</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-033">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">traveler-data</descrip>
+                <descrip type="definition">The identifying number printed on a traveler's passport.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="435">passport number</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="441">Reisepassnummer</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="439">パスポート番号</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="443">여권 번호</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="437">số hộ chiếu</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-034">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">traveler-data</descrip>
+                <descrip type="definition">The membership identifier for an airline loyalty program.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="445">frequent flyer number</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="451">Vielfliegernummer</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="449">マイレージ番号</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="453">상용 고객 번호</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="447">số hội viên hàng không thường xuyên</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-035">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">traveler-data</descrip>
+                <descrip type="definition">A requested service or accommodation for a traveler with accessibility or health needs.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="455">special assistance</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="461">besondere Unterstützung</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="459">特別サポート</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="463">특별 지원</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="457">hỗ trợ đặc biệt</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-036">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">baggage</descrip>
+                <descrip type="definition">A small bag that a passenger may bring into the aircraft cabin.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="465">carry-on baggage</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="467">hand luggage</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="473">Handgepäck</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="471">機内持ち込み手荷物</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="475">기내 수하물</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="469">hành lý xách tay</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-037">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">baggage</descrip>
+                <descrip type="definition">Baggage handed to the airline for transport in the aircraft hold.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="477">checked baggage</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="479">checked luggage</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="485">Aufgabegepäck</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="483">受託手荷物</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="487">위탁 수하물</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="481">hành lý ký gửi</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-038">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">baggage</descrip>
+                <descrip type="definition">The amount, size, or weight of baggage included in a fare.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="489">baggage allowance</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="495">Freigepäckmenge</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="493">手荷物許容量</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="497">수하물 허용량</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="491">hạn mức hành lý</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-039">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">pricing</descrip>
+                <descrip type="definition">The price of travel before taxes, fees, and optional extras are added.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="499">base fare</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="505">Grundtarif</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="503">基本運賃</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="507">기본 운임</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="501">giá vé cơ bản</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-040">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">pricing</descrip>
+                <descrip type="definition">Mandatory government charges and service costs added to the base fare.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="509">taxes and fees</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="511">taxes &amp; fees</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="517">Steuern und Gebühren</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="515">税金および手数料</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="519">세금 및 수수료</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="513">thuế và phí</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-041">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">pricing</descrip>
+                <descrip type="definition">The complete amount payable for a booking, including mandatory charges.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="521">total price</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="527">Gesamtpreis</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="525">合計料金</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="529">총 가격</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="523">tổng giá</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-042">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">pricing</descrip>
+                <descrip type="definition">The conversion of a displayed or charged amount from one currency to another.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="531">currency conversion</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="537">Währungsumrechnung</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="535">通貨換算</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="539">통화 환산</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="533">quy đổi tiền tệ</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-043">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">payment</descrip>
+                <descrip type="definition">The instrument or service used to pay for a booking.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="541">payment method</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="547">Zahlungsmethode</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="545">支払い方法</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="549">결제 수단</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="543">phương thức thanh toán</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-044">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">pricing</descrip>
+                <descrip type="definition">A notification that informs a traveler when the price of a tracked trip changes.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="551">price alert</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="557">Preisalarm</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="555">料金アラート</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="559">가격 알림</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="553">cảnh báo giá</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-045">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">The cost charged for one night at an accommodation property.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="561">nightly rate</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="567">Preis pro Nacht</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="565">1泊料金</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="569">1박 요금</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="563">giá mỗi đêm</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-046">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">accommodation</descrip>
+                <descrip type="definition">A mandatory property charge that is separate from the advertised room rate.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="571">resort fee</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="577">Resortgebühr</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="575">リゾート料金</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="579">리조트 요금</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="573">phí khu nghỉ dưỡng</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-047">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">changes</descrip>
+                <descrip type="definition">Describing a fare or booking that permits money to be returned under its conditions.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="581">refundable</term>
+                        <termNote type="partOfSpeech">adjective</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="587">erstattungsfähig</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="585">払い戻し可能</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="589">환불 가능</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="583">có thể hoàn tiền</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-048">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">changes</descrip>
+                <descrip type="definition">The rules that explain when and how a booking may be canceled.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="591">cancellation policy</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                    <termSec>
+                        <term id="593">cancelation policy</term>
+                        <termNote type="administrativeStatus">admittedTerm-admn-sts</termNote>
+                        <descrip type="context">Use the double-l spelling cancellation in product copy.</descrip>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="599">Stornierungsbedingungen</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="597">キャンセルポリシー</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="601">취소 정책</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="595">chính sách hủy</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-049">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">changes</descrip>
+                <descrip type="definition">A charge applied when a traveler changes an eligible part of a booking.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="603">change fee</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="609">Änderungsgebühr</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="607">変更手数料</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="611">변경 수수료</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="605">phí thay đổi</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-050">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">changes</descrip>
+                <descrip type="definition">Money returned to a traveler after an eligible cancellation or adjustment.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="613">refund</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="619">Rückerstattung</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="617">払い戻し</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="621">환불</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="615">hoàn tiền</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-051">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">booking</descrip>
+                <descrip type="definition">A booking that has been created recently and did not previously exist.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="623">new</term>
+                        <termNote type="partOfSpeech">adjective</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="629">neu</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="627">新規</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="631">신규</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="625">mới</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+            <conceptEntry id="c-ota-052">
+                <descrip type="translatable">yes</descrip>
+                <descrip type="subjectField">content</descrip>
+                <descrip type="definition">Information about travel products, destinations, or booking updates.</descrip>
+                <note>[Hyperlocalise::translatable]::true</note>
+                <langSec xml:lang="en">
+                    <termSec>
+                        <term id="633">news</term>
+                        <termNote type="partOfSpeech">noun</termNote>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="de">
+                    <termSec>
+                        <term id="639">Neuigkeiten</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ja">
+                    <termSec>
+                        <term id="637">ニュース</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="ko">
+                    <termSec>
+                        <term id="641">뉴스</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+                <langSec xml:lang="vi">
+                    <termSec>
+                        <term id="635">tin tức</term>
+                        <termNote type="administrativeStatus">preferredTerm-admn-sts</termNote>
+                    </termSec>
+                </langSec>
+            </conceptEntry>
+        </body>
+    </text>
+</tbx>

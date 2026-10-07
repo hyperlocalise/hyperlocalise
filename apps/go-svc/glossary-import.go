@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/language"
 )
 
 type glossaryImportPayload struct {
@@ -233,6 +234,7 @@ func (api *glossaryAPI) importGlossaryConcepts(r *http.Request, actor glossaryAc
 	}
 	concepts, diagnostics := parseGlossaryImport(format, content)
 	concepts, diagnostics = applyGlossaryImportLocaleOptions(g, payload, concepts, diagnostics)
+	concepts, diagnostics = filterGlossaryImportConcepts(g, payload, concepts, diagnostics)
 	if mode == "preview" {
 		counts := glossaryImportCounts(concepts, diagnostics)
 		reportID, err := api.persistGlossaryImportRun(r.Context(), api.pool, actor, g, payload, mode, "preview", concepts, counts, diagnostics, nil)
@@ -308,12 +310,7 @@ func glossaryImportHasErrors(diagnostics []glossaryImportDiagnostic) bool {
 }
 
 func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
-	strict := payload.StrictLocale == nil || *payload.StrictLocale
-	known := map[string]bool{}
 	knownLocales := glossaryLanguages(g)
-	for _, lang := range glossaryLanguages(g) {
-		known[strings.ToLower(lang.Locale)] = true
-	}
 	out := make([]glossaryImportConcept, 0, len(concepts))
 	for _, concept := range concepts {
 		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
@@ -337,27 +334,22 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 					mappedByCrowdin = true
 				}
 			}
-			term.Locale = mapped
-			if mapped == "" {
+			canonical, valid := canonicalGlossaryImportLocale(mapped)
+			if !valid {
 				id := concept.ID
 				termID := term.ID
 				field := "locale"
+				message := "Term locale is not a valid BCP 47 language tag"
+				if strings.TrimSpace(mapped) == "" {
+					message = "Term locale is missing"
+				}
 				diagnostics = append(diagnostics, glossaryImportDiagnostic{
-					Severity: "error", Code: "invalid_locale", Message: "Term locale is missing",
+					Severity: "error", Code: "invalid_locale", Message: message,
 					ConceptID: &id, TermID: &termID, Field: &field,
 				})
 				continue
 			}
-			if strict && len(known) > 0 && !known[strings.ToLower(mapped)] {
-				id := concept.ID
-				termID := term.ID
-				field := "locale"
-				diagnostics = append(diagnostics, glossaryImportDiagnostic{
-					Severity: "error", Code: "unknown_locale", Message: "Term locale is not configured for this glossary",
-					ConceptID: &id, TermID: &termID, Field: &field,
-				})
-				continue
-			}
+			term.Locale = canonical
 			if mappedByCrowdin {
 				id := concept.ID
 				termID := term.ID
@@ -386,6 +378,135 @@ func applyGlossaryImportLocaleOptions(g glossaryRecord, payload glossaryImportPa
 	return out, diagnostics
 }
 
+// crowdinDefaultGlossaryLocales maps Crowdin bare language IDs to native BCP-47
+// locales. Used when glossary locale coverage is inferred from terms rather than
+// preconfigured on the glossary record.
+var crowdinDefaultGlossaryLocales = map[string]string{
+	"ar": "ar-SA",
+	"de": "de-DE",
+	"en": "en-US",
+	"es": "es-ES",
+	"fa": "fa-IR",
+	"fr": "fr-FR",
+	"he": "he-IL",
+	"hi": "hi-IN",
+	"id": "id-ID",
+	"it": "it-IT",
+	"ja": "ja-JP",
+	"ko": "ko-KR",
+	"nl": "nl-NL",
+	"pl": "pl-PL",
+	"pt": "pt-BR",
+	"ro": "ro-RO",
+	"ru": "ru-RU",
+	"sv": "sv-SE",
+	"th": "th-TH",
+	"tr": "tr-TR",
+	"uk": "uk-UA",
+	"vi": "vi-VN",
+	"zh": "zh-CN",
+}
+
+func refreshGlossaryLocaleCoverage(ctx context.Context, tx dictionaryDB, glossaryID, sourceLocale string) error {
+	_, err := tx.Exec(ctx, `
+		update glossaries g
+		set locale_coverage = coalesce(
+			(select jsonb_agg(locale order by locale)
+			 from (
+			   select distinct locale
+			   from glossary_terms
+			   where glossary_id = $1
+			     and locale is not null
+			     and btrim(locale) <> ''
+			     and lower(locale) <> lower($2)
+			 ) locales),
+			'[]'::jsonb
+		)
+		where g.id = $1`, glossaryID, sourceLocale)
+	return err
+}
+
+func filterGlossaryImportConcepts(g glossaryRecord, payload glossaryImportPayload, concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	strict := payload.StrictLocale == nil || *payload.StrictLocale
+	sourceCanon, _ := canonicalGlossaryImportLocale(g.SourceLocale)
+	sourceKey := strings.ToLower(sourceCanon)
+	for i := range concepts {
+		concept := concepts[i]
+		if strict && sourceKey != "" {
+			hasSource := false
+			for _, term := range concept.Terms {
+				if strings.ToLower(strings.TrimSpace(term.Locale)) == sourceKey {
+					hasSource = true
+					break
+				}
+			}
+			if !hasSource {
+				id := concept.ID
+				field := "sourceLocale"
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "missing_source_locale", Message: "Concept has no term in the glossary source locale",
+					ConceptID: &id, Field: &field,
+				})
+			}
+		}
+	}
+	return filterGlossaryImportConceptsByDiagnostics(concepts, diagnostics)
+}
+
+func filterGlossaryImportConceptsByDiagnostics(concepts []glossaryImportConcept, diagnostics []glossaryImportDiagnostic) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
+	termErrorKeys := make(map[string]struct{})
+	conceptBlockingIDs := make(map[string]struct{})
+	for _, entry := range diagnostics {
+		if entry.Severity != "error" || entry.ConceptID == nil {
+			continue
+		}
+		if entry.TermID != nil {
+			termErrorKeys[*entry.ConceptID+"\x00"+*entry.TermID] = struct{}{}
+			continue
+		}
+		conceptBlockingIDs[*entry.ConceptID] = struct{}{}
+	}
+	out := make([]glossaryImportConcept, 0, len(concepts))
+	for _, concept := range concepts {
+		if _, blocked := conceptBlockingIDs[concept.ID]; blocked {
+			continue
+		}
+		terms := make([]glossaryImportTerm, 0, len(concept.Terms))
+		for _, term := range concept.Terms {
+			if _, blocked := termErrorKeys[concept.ID+"\x00"+term.ID]; blocked {
+				continue
+			}
+			terms = append(terms, term)
+		}
+		if len(terms) == 0 {
+			if len(concept.Terms) > 0 {
+				id := concept.ID
+				diagnostics = append(diagnostics, glossaryImportDiagnostic{
+					Severity: "error", Code: "concept_has_no_valid_terms", Message: "Concept has no valid terms and was not imported",
+					ConceptID: &id,
+				})
+			}
+			continue
+		}
+		concept.Terms = terms
+		out = append(out, concept)
+	}
+	return out, diagnostics
+}
+
+func canonicalGlossaryImportLocale(raw string) (string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || len(trimmed) > 35 || strings.Contains(trimmed, " ") {
+		return "", false
+	}
+	normalized := strings.ReplaceAll(trimmed, "_", "-")
+	tag, err := language.Parse(normalized)
+	if err != nil {
+		return "", false
+	}
+	return tag.String(), true
+}
+
 func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (string, bool) {
 	raw = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(raw, "_", "-")))
 	if raw == "" {
@@ -410,7 +531,16 @@ func resolveCrowdinGlossaryLocale(raw string, locales []glossaryLanguage) (strin
 		}
 		match = locale
 	}
-	return match, match != ""
+	if match != "" {
+		return match, true
+	}
+	if strings.Contains(raw, "-") {
+		return raw, false
+	}
+	if preferred, ok := crowdinDefaultGlossaryLocales[raw]; ok {
+		return preferred, true
+	}
+	return raw, false
 }
 
 func countImportTerms(concepts []glossaryImportConcept) int {
@@ -591,7 +721,7 @@ func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImport
 		concept := glossaryImportConcept{ID: conceptID}
 		for _, d := range entry.Descrips {
 			switch d.Type {
-			case "subjectField":
+			case "subjectField", "subject":
 				concept.Subject = strings.TrimSpace(d.Value)
 			case "definition":
 				concept.Definition = strings.TrimSpace(d.Value)
@@ -793,6 +923,9 @@ func (api *glossaryAPI) applyGlossaryImport(ctx context.Context, actor glossaryA
 	allDiagnostics := append(append([]glossaryImportDiagnostic{}, parseDiagnostics...), diagnostics...)
 	reportID, err := api.persistGlossaryImportRun(ctx, tx, actor, g, payload, mode, "completed", concepts, counts, allDiagnostics, nil)
 	if err != nil {
+		return nil, nil, nil, "", err
+	}
+	if err := refreshGlossaryLocaleCoverage(ctx, tx, g.ID, g.SourceLocale); err != nil {
 		return nil, nil, nil, "", err
 	}
 	if err := tx.Commit(ctx); err != nil {
