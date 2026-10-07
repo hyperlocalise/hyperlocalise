@@ -218,6 +218,61 @@ func TestFilterGlossaryImportConceptsRejectsMissingSourceLocale(t *testing.T) {
 	require.Contains(t, diagnostics[0].Code, "missing_source_locale")
 }
 
+func TestFilterGlossaryImportConceptsAllowsMissingSourceWhenNotStrict(t *testing.T) {
+	strict := false
+	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{"de-DE"}}
+	concepts := []glossaryImportConcept{{
+		ID:    "c1",
+		Terms: []glossaryImportTerm{{ID: "t1", Locale: "de-DE", Term: "Kasse"}},
+	}}
+	out, diagnostics := filterGlossaryImportConcepts(g, glossaryImportPayload{StrictLocale: &strict}, concepts, nil)
+	require.Len(t, out, 1)
+	require.Equal(t, "de-DE", out[0].Terms[0].Locale)
+	require.Empty(t, diagnostics)
+}
+
+func TestFilterGlossaryImportConceptsByDiagnosticsDropsTermButKeepsConcept(t *testing.T) {
+	conceptID := "c1"
+	termID := "t2"
+	field := "locale"
+	concepts := []glossaryImportConcept{{
+		ID: conceptID,
+		Terms: []glossaryImportTerm{
+			{ID: "t1", Locale: "en-US", Term: "Checkout"},
+			{ID: termID, Locale: "xx", Term: "Bad"},
+		},
+	}}
+	out, diagnostics := filterGlossaryImportConceptsByDiagnostics(concepts, []glossaryImportDiagnostic{{
+		Severity:  "error",
+		Code:      "invalid_locale",
+		Message:   "Term locale is not a valid BCP 47 language tag",
+		ConceptID: &conceptID,
+		TermID:    &termID,
+		Field:     &field,
+	}})
+	require.Len(t, out, 1)
+	require.Len(t, out[0].Terms, 1)
+	require.Equal(t, "t1", out[0].Terms[0].ID)
+	require.Equal(t, "invalid_locale", diagnostics[0].Code)
+}
+
+func TestFilterGlossaryImportConceptsByDiagnosticsConceptHasNoValidTerms(t *testing.T) {
+	conceptID := "c1"
+	termID := "t1"
+	concepts := []glossaryImportConcept{{
+		ID:    conceptID,
+		Terms: []glossaryImportTerm{{ID: termID, Locale: "xx", Term: "Bad"}},
+	}}
+	out, diagnostics := filterGlossaryImportConceptsByDiagnostics(concepts, []glossaryImportDiagnostic{{
+		Severity:  "error",
+		Code:      "invalid_locale",
+		ConceptID: &conceptID,
+		TermID:    &termID,
+	}})
+	require.Empty(t, out)
+	require.Equal(t, "concept_has_no_valid_terms", diagnostics[len(diagnostics)-1].Code)
+}
+
 func TestApplyGlossaryImportLocaleOptionsRejectsInvalidLocale(t *testing.T) {
 	strict := true
 	g := glossaryRecord{SourceLocale: "en-US", LocaleCoverage: []string{}}

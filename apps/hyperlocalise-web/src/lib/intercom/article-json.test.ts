@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   articleFieldsToJsonPayload,
+  collectApprovedIntercomArticleValues,
   buildIntercomArticleSourcePath,
   encodeIntercomLastPushRecord,
   hashIntercomArticleContent,
@@ -116,6 +117,20 @@ describe("intercom article json", () => {
     ).toEqual({
       title: "Hallo",
       description: "Hilfe",
+      body: "<p>Neu</p>",
+    });
+  });
+
+  it("collects only approved article fields and drops whitespace-only values", () => {
+    expect(
+      collectApprovedIntercomArticleValues({
+        title: "Hallo",
+        description: "   ",
+        body: "<p>Neu</p>",
+        extra: "ignored",
+      }),
+    ).toEqual({
+      title: "Hallo",
       body: "<p>Neu</p>",
     });
   });

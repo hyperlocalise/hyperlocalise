@@ -135,6 +135,16 @@ func TestCreateMemoryExportAllowsMember(t *testing.T) {
 	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
 }
 
+func TestFinalizeMemoryImportRejectsDryRun(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	api.interchange = &recordingMemoryInterchangePublisher{}
+	id := scope.MustMemory(t, "", "Product TM")
+	body := `{"attemptId":"` + uuid.NewString() + `","mode":"apply","dryRun":true}`
+	rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories/"+id+"/entries/import"), body)
+	require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "memory_import_dry_run_unsupported")
+}
+
 func TestFinalizeMemoryImportApplyRejectsCompletedAttempt(t *testing.T) {
 	api, scope := memoryTestAPI(t, "admin")
 	api.interchange = &recordingMemoryInterchangePublisher{}
