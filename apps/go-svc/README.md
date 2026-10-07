@@ -330,6 +330,8 @@ Read job status and stored result metadata:
 - `GET /v1/jobs/{jobId}`
 - `GET /v1/jobs/{jobId}/status`
 
+These routes replace the former web app reads on `https://hyperlocalise.com/api/v1/jobs/...`. Clients call `https://api.hyperlocalise.com/v1/jobs/...`. Job creation (`POST /api/v1/jobs`) stays on the web app.
+
 All routes require PAT or WorkOS agent authentication with `jobs:read`. Workspace-wide roles can read all jobs in the organization; other roles are limited to projects accessible through their teams.
 
 Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millisecond precision. Job reads return stored PostgreSQL metadata only and never fetch output file contents.

@@ -21,10 +21,6 @@ export function invalidJobPayloadResponse(c: JsonContext) {
   return badRequestResponse(c, "invalid_job_payload", "Invalid job payload");
 }
 
-export function jobNotFoundResponse(c: JsonContext) {
-  return notFoundResponse(c, "job_not_found", "Job not found");
-}
-
 export function sourceFileNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "source_file_not_found", "Source file not found");
 }

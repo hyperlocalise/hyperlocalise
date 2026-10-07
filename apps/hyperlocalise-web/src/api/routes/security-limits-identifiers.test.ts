@@ -23,11 +23,7 @@ import {
   workspaceJobParamsSchema,
   fileTranslationJobInputSchema,
 } from "./project/job.schema";
-import {
-  createPublicJobBodySchema,
-  jobIdParamsSchema,
-  latestPublicJobQuerySchema,
-} from "./public-jobs/public-jobs.schema";
+import { createPublicJobBodySchema, jobIdParamsSchema } from "./public-jobs/public-jobs.schema";
 import {
   uploadBodySchema,
   fileParamsSchema as publicFileParamsSchema,
@@ -65,9 +61,6 @@ describe("Identifier Schema length limits", () => {
 
   it("should enforce max length on projectId and jobId in public-jobs.schema", () => {
     expect(jobIdParamsSchema.safeParse({ jobId: longId }).success).toBe(false);
-    expect(
-      latestPublicJobQuerySchema.safeParse({ projectId: longId, sourcePath: "a" }).success,
-    ).toBe(false);
 
     const stringJobResult = createPublicJobBodySchema.safeParse({
       type: "string",

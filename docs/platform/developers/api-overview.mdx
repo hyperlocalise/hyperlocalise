@@ -9,6 +9,7 @@ Choose the API that serves your task. The two interfaces use different base URLs
 | Task | Base URL | Authentication | Guide |
 | --- | --- | --- | --- |
 | Upload source files, create translation jobs, download translations | `https://hyperlocalise.com/api/v1` | Platform API key or supported personal token in `x-api-key`, with file/job scopes | [Files and jobs](/platform/api) |
+| Read translation jobs | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with `jobs:read` | [Read jobs](/platform/api#read-jobs) |
 | Read your identity, accessible projects, and Queries | `https://api.hyperlocalise.com/v1` | Personal access token in `x-api-key`, with the required effective permissions | [Projects and Queries](/platform/developers/projects-and-queries) |
 
 [CLI Platform sync](/platform/cli) uses the files and jobs API. Keep its `api_base_url` at `https://hyperlocalise.com/api` unless you are using a separately configured environment. Do not replace it with the Projects and Queries host.
