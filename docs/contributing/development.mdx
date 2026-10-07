@@ -70,7 +70,7 @@ This runs formatting, linting, tests, and build checks in the same flow used by 
 
 Queue-backed Go Lambdas under `apps/*-lambda` deploy to production through the **Lambda Deploy** GitHub Actions workflow on `main`. Path filters decide which functions build on each push; concurrency is scoped per deploy job so unrelated merges do not cancel another function’s deploy.
 
-See [Lambda deployment](lambda-deploy) for filters, concurrency rules, adding a worker, and recovering from a stale deploy.
+See [Lambda deployment](lambda-deploy) for filters, concurrency rules, and adding a worker.
 
 ## Platform web app
 

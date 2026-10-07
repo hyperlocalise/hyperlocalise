@@ -1,6 +1,6 @@
 ---
 title: "Lambda deployment"
-description: "How Go queue workers deploy from GitHub Actions, path filters, concurrency, and recovery from stale production code."
+description: "How Go queue workers deploy from GitHub Actions, path filters, and concurrency."
 ---
 
 ## Overview
@@ -66,18 +66,6 @@ Use the [create-sqs-lambda-worker](https://github.com/hyperlocalise/hyperlocalis
 
 Root [`AGENTS.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/AGENTS.md) summarizes the same rules for automation.
 
-## Operations and recovery
-
-### Verify a deploy
+## Operations
 
 Open the completed deploy job on `main`. The **Summarize** step writes function name, S3 URI, version id, and commit SHA to the job summary.
-
-### Suspect a stale function
-
-Check whether an earlier run was **cancelled** while a deploy job was running, and whether the next successful run **skipped** that worker’s deploy job.
-
-### Redeploy without a code change
-
-On `main`, run **Actions → Lambda Deploy → Run workflow** (`workflow_dispatch`). That runs all three deploy jobs regardless of path filters.
-
-Alternatively, merge any change under that worker’s primary path (for example `apps/glossary-interchange-lambda/**`) after the concurrency fix is on `main`.
