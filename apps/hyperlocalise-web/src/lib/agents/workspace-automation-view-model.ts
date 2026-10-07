@@ -114,6 +114,15 @@ export type WorkspaceAutomationFormState = {
   zernioEnabled: boolean;
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
+  intercomEnabled: boolean;
+  intercomRestEndpoint: "us" | "eu" | "au";
+  intercomHelpCenterId: string;
+  intercomHelpCenterLocales: string[];
+  intercomSourceLocale: string;
+  intercomTargetLocales: string[];
+  intercomCollectionIds: string[];
+  intercomIncludeDrafts: boolean;
+  intercomOverwriteIntercomDrafts: boolean;
   crowdinEnabled: boolean;
   crowdinProjectId: string;
   webSearchEnabled: boolean;
@@ -125,6 +134,9 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     return true;
   }
   if (form.contentfulEnabled) {
+    return true;
+  }
+  if (form.intercomEnabled) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -158,6 +170,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "semrushConnectionId"
     | "zernioConnectionId"
     | "ahrefs"
+    | "intercom"
+    | "intercomHelpCenterId"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -192,7 +206,15 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+  intercom_not_connected: "Connect Intercom in Integrations before using it.",
+  intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
+  intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
+  intercom_help_center_required: "Choose an Intercom Help Center.",
+  intercom_target_locales_unmapped:
+    "One or more target locales do not match Intercom Help Center locales.",
+  intercom_source_locale_unmapped:
+    "The source locale does not match an Intercom Help Center locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -315,6 +337,15 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioEnabled: false,
     zernioConnectionId: "",
     ahrefsEnabled: false,
+    intercomEnabled: false,
+    intercomRestEndpoint: "us",
+    intercomHelpCenterId: "",
+    intercomHelpCenterLocales: [],
+    intercomSourceLocale: "en",
+    intercomTargetLocales: [],
+    intercomCollectionIds: [],
+    intercomIncludeDrafts: false,
+    intercomOverwriteIntercomDrafts: false,
     crowdinEnabled: false,
     crowdinProjectId: "",
     webSearchEnabled: false,
@@ -340,6 +371,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const semrush = automation.toolConfig.semrush;
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
+  const intercom = automation.toolConfig.intercom;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -425,6 +457,15 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioEnabled: Boolean(zernio?.enabled),
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
+    intercomEnabled: Boolean(intercom?.enabled),
+    intercomRestEndpoint: intercom?.restEndpoint ?? "us",
+    intercomHelpCenterId: intercom?.helpCenterId ?? "",
+    intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
+    intercomSourceLocale: intercom?.sourceLocale ?? "en",
+    intercomTargetLocales: intercom?.targetLocales ? [...intercom.targetLocales] : [],
+    intercomCollectionIds: intercom?.collectionIds ? [...intercom.collectionIds] : [],
+    intercomIncludeDrafts: Boolean(intercom?.includeDrafts),
+    intercomOverwriteIntercomDrafts: Boolean(intercom?.overwriteIntercomDrafts),
     crowdinEnabled: Boolean(crowdin?.enabled),
     crowdinProjectId: crowdin?.projectId ?? "",
     webSearchEnabled: Boolean(webSearch?.enabled),
@@ -643,6 +684,21 @@ export function formStateToWorkspaceAutomationPayload(
             overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
             runQa: form.contentfulRunQa,
             writeDrafts: form.contentfulWriteDrafts,
+          },
+        }
+      : {}),
+    ...(form.intercomEnabled
+      ? {
+          intercom: {
+            enabled: true,
+            restEndpoint: form.intercomRestEndpoint,
+            helpCenterId: form.intercomHelpCenterId.trim() || undefined,
+            helpCenterLocales: form.intercomHelpCenterLocales,
+            collectionIds: form.intercomCollectionIds,
+            sourceLocale: form.intercomSourceLocale.trim() || "en",
+            targetLocales: form.intercomTargetLocales,
+            includeDrafts: form.intercomIncludeDrafts,
+            overwriteIntercomDrafts: form.intercomOverwriteIntercomDrafts,
           },
         }
       : {}),
@@ -865,6 +921,15 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.intercomEnabled) {
+    if (!form.intercomHelpCenterId.trim()) {
+      errors.intercomHelpCenterId = "Choose an Intercom Help Center.";
+    }
+    if (form.intercomHelpCenterLocales.length === 0 && form.intercomTargetLocales.length === 0) {
+      errors.intercomHelpCenterId = "Load Help Center locales before saving.";
+    }
+  }
+
   if (form.contentfulEnabled) {
     if (!form.contentfulConnectionId) {
       errors.contentfulConnectionId = "Choose a Contentful connection.";
@@ -994,6 +1059,14 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "ahrefs_pipes_needs_reauthorization":
     case "ahrefs_pipes_unavailable":
       return { ahrefs: message };
+    case "intercom_not_connected":
+    case "intercom_pipes_needs_reauthorization":
+    case "intercom_pipes_unavailable":
+      return { intercom: message };
+    case "intercom_help_center_required":
+    case "intercom_target_locales_unmapped":
+    case "intercom_source_locale_unmapped":
+      return { intercomHelpCenterId: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1044,6 +1117,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.emailEnabled ||
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
+    form.intercomEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

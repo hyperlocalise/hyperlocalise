@@ -304,6 +304,32 @@ const gitlabToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const intercomRestEndpointSchema = z.enum(["us", "eu", "au"]);
+
+const intercomToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    restEndpoint: intercomRestEndpointSchema.default("us"),
+    helpCenterId: z.string().trim().min(1).max(64).optional(),
+    helpCenterLocales: z.array(z.string().trim().min(1).max(32)).max(50).default([]),
+    collectionIds: z.array(z.string().trim().min(1).max(64)).max(50).default([]),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    includeDrafts: z.boolean().default(false),
+    overwriteIntercomDrafts: z.boolean().default(false),
+  })
+  .default({
+    enabled: false,
+    restEndpoint: "us",
+    helpCenterLocales: [],
+    collectionIds: [],
+    sourceLocale: "en",
+    targetLocales: [],
+    includeDrafts: false,
+    overwriteIntercomDrafts: false,
+  });
+
 const crowdinToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -381,6 +407,7 @@ const toolConfigObjectSchema = z
     zernio: zernioToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
+    intercom: intercomToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -441,6 +468,7 @@ export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolCon
 export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
+export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -476,6 +504,30 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "gitlab_pipes_unavailable";
       message: "WorkOS is not configured, so GitLab cannot connect through Pipes.";
+    }
+  | {
+      code: "intercom_not_connected";
+      message: "Connect Intercom in Integrations before using it.";
+    }
+  | {
+      code: "intercom_pipes_needs_reauthorization";
+      message: "Reconnect Intercom in Integrations, then try again.";
+    }
+  | {
+      code: "intercom_pipes_unavailable";
+      message: "WorkOS is not configured, so Intercom cannot connect through Pipes.";
+    }
+  | {
+      code: "intercom_help_center_required";
+      message: "Choose an Intercom Help Center for this automation.";
+    }
+  | {
+      code: "intercom_target_locales_unmapped";
+      message: "One or more project target locales do not match Intercom Help Center locales.";
+    }
+  | {
+      code: "intercom_source_locale_unmapped";
+      message: "The source locale does not match an Intercom Help Center locale.";
     }
   | {
       code: "skill_not_found";
@@ -515,7 +567,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -719,6 +771,10 @@ export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomation
 
 export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.gitlab?.enabled);
+}
+
+export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.intercom?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

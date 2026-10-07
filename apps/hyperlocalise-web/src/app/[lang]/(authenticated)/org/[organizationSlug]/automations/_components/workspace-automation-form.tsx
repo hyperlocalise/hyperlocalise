@@ -103,6 +103,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
+import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
@@ -163,6 +164,7 @@ import {
   TriggerSettings,
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
+import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 
 const api = createApiClient();
 
@@ -518,6 +520,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.semrushEnabled) +
     Number(form.zernioEnabled) +
     Number(form.ahrefsEnabled) +
+    Number(form.intercomEnabled) +
     Number(form.webSearchEnabled)
   );
 }
@@ -884,6 +887,7 @@ function AddToolMenu({
   onChange,
   repositories,
   ahrefsConnected,
+  intercomConnected,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -902,6 +906,7 @@ function AddToolMenu({
   onChange: (next: WorkspaceAutomationFormState) => void;
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
+  intercomConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1157,6 +1162,22 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuHint>
               ) : !contentfulConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.intercomEnabled || !intercomConnected}
+              onClick={() => onChange({ ...form, intercomEnabled: true })}
+            >
+              <ChatTextIcon className="size-4" />
+              Intercom Help Center
+              {form.intercomEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !intercomConnected ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
@@ -1791,6 +1812,7 @@ function ToolsSettings({
   projects,
   repositories,
   ahrefsConnected,
+  intercomConnected,
   semrushConnections,
   zernioConnections,
   slackConnected,
@@ -1815,6 +1837,7 @@ function ToolsSettings({
   projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
+  intercomConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -2470,6 +2493,40 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.intercomEnabled ? (
+          <EditorRow
+            icon={<ChatTextIcon className="size-4" />}
+            title={
+              <>
+                <span>Intercom Help Center</span>
+                {!intercomConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import articles on a schedule, translate in Jobs, then push approved translations when you are ready."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_intercom_articles")}
+                label="Remove Intercom"
+                onClick={() => onChange({ ...form, intercomEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationIntercomSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              intercomConnected={intercomConnected}
+              onChange={onChange}
+            />
+            <FieldError message={errors.intercom} />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
@@ -2988,6 +3045,7 @@ function ToolsSettings({
           onChange={onChange}
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
+          intercomConnected={intercomConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3221,6 +3279,24 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const intercomPipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: INTERCOM_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Intercom connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+        apiKeyLast4: string | null;
+      };
+    },
+  });
+
   const ahrefsPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, AHREFS_PIPES_SLUG],
     queryFn: async () => {
@@ -3293,6 +3369,7 @@ export function WorkspaceAutomationEditor({
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
+  const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -3534,6 +3611,7 @@ export function WorkspaceAutomationEditor({
             projects={projectsQuery.data ?? []}
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
+            intercomConnected={intercomConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}

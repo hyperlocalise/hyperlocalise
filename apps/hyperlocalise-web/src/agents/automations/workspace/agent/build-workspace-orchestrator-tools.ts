@@ -22,6 +22,8 @@ import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifyGithubCommentTool } from "./tools/notify_github_comment";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
+import { createImportIntercomArticlesTool } from "./tools/import_intercom_articles";
+import { createPushIntercomTranslationsTool } from "./tools/push_intercom_translations";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
 import { createSaveMemoryTool } from "./tools/save_memory";
@@ -41,6 +43,8 @@ const TOOL_BUILDERS: Record<
   use_gitlab_repository: createUseGitlabRepositoryTool,
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
+  import_intercom_articles: createImportIntercomArticlesTool,
+  push_intercom_translations: createPushIntercomTranslationsTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   list_issues: createListIssuesTool,
