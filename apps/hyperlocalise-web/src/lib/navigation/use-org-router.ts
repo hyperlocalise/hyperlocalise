@@ -15,6 +15,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { addTransitionType, startTransition } from "react";
 
+import { navigateThroughLeaveGuard } from "@/lib/navigation/leave-guard";
 import { getOrgNavigationTransitionTypes } from "@/lib/navigation/org-nav-transition";
 
 type OrgRouterNavigateOptions = {
@@ -29,17 +30,20 @@ export function useOrgRouter() {
   function navigate(href: string, options?: OrgRouterNavigateOptions) {
     const transitionTypes = getOrgNavigationTransitionTypes(pathname, href);
 
-    startTransition(() => {
-      for (const transitionType of transitionTypes ?? []) {
-        addTransitionType(transitionType);
-      }
+    // A page with unsaved changes may ask first, and may need its extra history entry replaced.
+    navigateThroughLeaveGuard(({ replace }) => {
+      startTransition(() => {
+        for (const transitionType of transitionTypes ?? []) {
+          addTransitionType(transitionType);
+        }
 
-      if (options?.replace) {
-        router.replace(href, { scroll: options.scroll });
-        return;
-      }
+        if (options?.replace || replace) {
+          router.replace(href, { scroll: options?.scroll });
+          return;
+        }
 
-      router.push(href, { scroll: options?.scroll });
+        router.push(href, { scroll: options?.scroll });
+      });
     });
   }
 

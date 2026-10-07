@@ -17,6 +17,8 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
+
 import {
   getInternalNavigationHrefFromClick,
   useUnsavedChangesLeaveGuard,
@@ -24,9 +26,26 @@ import {
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
-vi.mock("@/lib/navigation/use-org-router", () => ({
-  useOrgRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+// Only the React build that Next bundles has this; the one the tests run on does not.
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  addTransitionType: vi.fn(),
 }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/org/acme/automations/new",
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+}));
+
+// Stands in for navigation from outside the page, such as a breadcrumb menu.
+function ProjectMenuItem() {
+  const router = useOrgRouter();
+  return (
+    <button type="button" onClick={() => router.push("/org/acme/projects/proj_2/automations")}>
+      Other project
+    </button>
+  );
+}
 
 function Page({ hasUnsavedChanges }: { hasUnsavedChanges: boolean }) {
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
@@ -39,6 +58,7 @@ function Page({ hasUnsavedChanges }: { hasUnsavedChanges: boolean }) {
       <button type="button" onClick={() => leaveTo("/org/acme/automations/auto_1")}>
         Create
       </button>
+      <ProjectMenuItem />
       {leaveGuardDialog}
     </>
   );
@@ -133,7 +153,7 @@ describe("useUnsavedChangesLeaveGuard", () => {
     await user.click(screen.getByRole("button", { name: "Leave without saving" }));
 
     // The page's extra history entry is replaced, so going back does not show the page twice.
-    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/inbox");
+    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/inbox", { scroll: undefined });
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
@@ -158,10 +178,39 @@ describe("useUnsavedChangesLeaveGuard", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
-  it("asks when the back button is used, and puts its history entry back on staying", async () => {
+  it("asks before navigation that does not come from a link, and leaves when told to", async () => {
+    const user = userEvent.setup();
+    renderPage(true);
+
+    await user.click(screen.getByRole("button", { name: "Other project" }));
+
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(mocks.push).not.toHaveBeenCalled();
+    expect(mocks.replace).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Leave without saving" }));
+
+    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/projects/proj_2/automations", {
+      scroll: undefined,
+    });
+  });
+
+  it("lets navigation that does not come from a link through when nothing is unsaved", async () => {
+    const user = userEvent.setup();
+    renderPage(false);
+
+    await user.click(screen.getByRole("button", { name: "Other project" }));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(mocks.push).toHaveBeenCalledWith("/org/acme/projects/proj_2/automations", {
+      scroll: undefined,
+    });
+  });
+
+  it("asks when the back button is used, and stays on the page until answered", async () => {
     const user = userEvent.setup();
     const pushState = vi.spyOn(window.history, "pushState");
-    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
     renderPage(true);
     expect(pushState).toHaveBeenCalledTimes(1);
 
@@ -169,16 +218,26 @@ describe("useUnsavedChangesLeaveGuard", () => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
     expect(screen.getByRole("alertdialog")).toBeTruthy();
+    // The history entry is back before the person answers, so a second back press lands here too.
+    expect(pushState).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(pushState).toHaveBeenCalledTimes(3);
+    expect(go).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect(pushState).toHaveBeenCalledTimes(2);
-    expect(back).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledTimes(3);
+    expect(go).not.toHaveBeenCalled();
 
     act(() => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
     await user.click(screen.getByRole("button", { name: "Leave without saving" }));
-    expect(back).toHaveBeenCalledTimes(1);
+    // Past the extra entry and past this page.
+    expect(go).toHaveBeenCalledWith(-2);
   });
 
   it("warns on reload or close only while something is unsaved", () => {
@@ -212,6 +271,8 @@ describe("useUnsavedChangesLeaveGuard", () => {
     await user.click(screen.getByRole("button", { name: "Create" }));
 
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/automations/auto_1");
+    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/automations/auto_1", {
+      scroll: undefined,
+    });
   });
 });

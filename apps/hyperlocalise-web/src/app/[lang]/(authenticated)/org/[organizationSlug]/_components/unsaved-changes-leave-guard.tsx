@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { registerLeaveGuard, type GuardedNavigation } from "@/lib/navigation/leave-guard";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import { unsavedChangesLeaveGuardMessages } from "./unsaved-changes-leave-guard.messages";
@@ -73,8 +74,9 @@ export function getInternalNavigationHrefFromClick(
 
 /**
  * Asks before the person leaves a page whose changes are not saved: on an in-app link, on
- * the browser's back button, and on reload or close. `leaveTo` is for navigation the page does
- * itself once the changes are saved or thrown away, which must not ask.
+ * navigation through `useOrgRouter` (a breadcrumb menu, say), on the browser's back button, and
+ * on reload or close. `leaveTo` is for navigation the page does itself once the changes are saved
+ * or thrown away, which must not ask.
  */
 export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   leaveGuardDialog: ReactNode;
@@ -87,16 +89,6 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   const leaving = useRef(false);
   // An extra history entry for this page, so the back button lands here first and can be asked about.
   const historyGuardPushed = useRef(false);
-
-  const navigate = (href: string) => {
-    // Replacing drops the extra entry, so going back later does not show this page twice.
-    if (historyGuardPushed.current) {
-      historyGuardPushed.current = false;
-      router.replace(href);
-      return;
-    }
-    router.push(href);
-  };
 
   const pushHistoryGuard = () => {
     if (!historyGuardPushed.current) {
@@ -113,10 +105,6 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   const keepEditing = () => {
     pendingLeave.current = null;
     setConfirmOpen(false);
-    // The back button already took the extra entry, so it is put back.
-    if (hasUnsavedChanges) {
-      pushHistoryGuard();
-    }
   };
 
   const leave = () => {
@@ -148,7 +136,22 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
     }
     event.preventDefault();
     event.stopPropagation();
-    requestLeave(() => navigate(href));
+    requestLeave(() => router.push(href));
+  });
+
+  // Every `useOrgRouter` navigation comes through here while the changes are unsaved.
+  const onGuardedNavigation = useEffectEvent((proceed: GuardedNavigation) => {
+    const go = () => {
+      // Replacing drops the extra entry, so going back later does not show this page twice.
+      const replace = historyGuardPushed.current;
+      historyGuardPushed.current = false;
+      proceed({ replace });
+    };
+    if (leaving.current) {
+      go();
+      return;
+    }
+    requestLeave(go);
   });
 
   const onPopState = useEffectEvent(() => {
@@ -156,7 +159,14 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
     if (leaving.current) {
       return;
     }
-    requestLeave(() => window.history.back());
+    // The back button took the extra entry. It is put back at once, so pressing back again
+    // while the question is open cannot leave either.
+    pushHistoryGuard();
+    requestLeave(() => {
+      historyGuardPushed.current = false;
+      // One step for the extra entry, one for this page.
+      window.history.go(-2);
+    });
   });
 
   useEffect(() => {
@@ -170,10 +180,12 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
     }
 
     pushHistoryGuard();
+    const unregisterLeaveGuard = registerLeaveGuard((proceed) => onGuardedNavigation(proceed));
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onClickCapture, true);
     return () => {
+      unregisterLeaveGuard();
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("click", onClickCapture, true);
@@ -182,7 +194,7 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
 
   const leaveTo = (href: string) => {
     leaving.current = true;
-    navigate(href);
+    router.push(href);
   };
 
   const leaveGuardDialog = (
