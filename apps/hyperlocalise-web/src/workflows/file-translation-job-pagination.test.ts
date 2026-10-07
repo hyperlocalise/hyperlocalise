@@ -94,6 +94,45 @@ describe("nextFileTranslationPageDecision", () => {
       }),
     ).toBe("abort");
   });
+
+  it("aborts a zero-progress page so paging cannot spin forever", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 12,
+        acceptedCount: 0,
+        deferredByLimit: 0,
+        failedCount: 0,
+      }),
+    ).toBe("abort");
+  });
+
+  it("aborts when the sandbox emitted invalid translations", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 2,
+        pendingCount: 8,
+        acceptedCount: 4,
+        deferredByLimit: 0,
+        failedCount: 0,
+      }),
+    ).toBe("abort");
+  });
+
+  it("continues when the page deferred remaining keys by session limit", () => {
+    expect(
+      nextFileTranslationPageDecision({
+        cliHardFailure: false,
+        invalidCount: 0,
+        pendingCount: 20,
+        acceptedCount: 0,
+        deferredByLimit: 20,
+        failedCount: 0,
+      }),
+    ).toBe("continue");
+  });
 });
 
 describe("parseDeferredByLimit", () => {

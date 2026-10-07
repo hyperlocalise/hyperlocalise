@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   collectCompletedTranslationPageEntries,
+  completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
 } from "./file-translation-progress";
 
@@ -86,5 +87,56 @@ describe("isFileTranslationCliHardFailure", () => {
 
   it("accepts a fully successful report", () => {
     expect(isFileTranslationCliHardFailure({ succeeded: 10, failed: 0 }, 0)).toBe(false);
+  });
+});
+
+describe("completedFileTranslationKeys", () => {
+  it("reads keys for an exact output filename", () => {
+    expect(
+      completedFileTranslationKeys(
+        {
+          run_completed: {
+            "fr.json": {
+              greeting: { s: "Hello", t: "Bonjour" },
+              farewell: { s: "Bye", t: "Au revoir" },
+            },
+          },
+        },
+        "fr.json",
+      ),
+    ).toEqual(["greeting", "farewell"]);
+  });
+
+  it("matches a nested sandbox path by filename suffix", () => {
+    expect(
+      completedFileTranslationKeys(
+        {
+          run_completed: {
+            "sandbox/out/locales/de.json": {
+              greeting: { s: "Hello", t: "Hallo" },
+            },
+            "fr.json": {
+              other: { s: "Other", t: "Autre" },
+            },
+          },
+        },
+        "de.json",
+      ),
+    ).toEqual(["greeting"]);
+  });
+
+  it("returns no keys when the lock has no matching completed path", () => {
+    expect(completedFileTranslationKeys({ run_completed: {} }, "fr.json")).toEqual([]);
+    expect(completedFileTranslationKeys({}, "fr.json")).toEqual([]);
+  });
+
+  it("rejects a malformed lock so resume cannot invent completed keys", () => {
+    expect(() => completedFileTranslationKeys("not-a-lock", "fr.json")).toThrow();
+    expect(() =>
+      completedFileTranslationKeys(
+        { run_completed: { "fr.json": { greeting: { s: "Hello" } } } },
+        "fr.json",
+      ),
+    ).toThrow();
   });
 });

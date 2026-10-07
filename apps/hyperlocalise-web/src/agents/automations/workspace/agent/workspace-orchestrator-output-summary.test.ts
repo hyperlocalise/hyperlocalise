@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
+import {
+  buildWorkspaceOrchestratorOutputSummary,
+  readImportIntercomArticles,
+  readPushIntercomTranslations,
+} from "./workspace-orchestrator-output-summary";
 
 describe("buildWorkspaceOrchestratorOutputSummary", () => {
   it("preserves contentfulTranslationRunId from current step results", () => {
@@ -148,5 +152,88 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
         message: "GitHub comment failed.",
       },
     ]);
+  });
+
+  it("preserves Intercom import and push results from the current step", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-10-07T00:00:00.000Z" },
+      {
+        import_intercom_articles: {
+          imported: 0,
+          failed: 0,
+          status: "succeeded",
+        },
+        push_intercom_translations: {
+          pushedLocales: 0,
+          failedLocales: 0,
+          status: "succeeded",
+        },
+      },
+    );
+
+    expect(outputSummary.importIntercomArticles).toEqual({
+      imported: 0,
+      failed: 0,
+      status: "succeeded",
+    });
+    expect(outputSummary.pushIntercomTranslations).toEqual({
+      pushedLocales: 0,
+      failedLocales: 0,
+      status: "succeeded",
+    });
+  });
+});
+
+describe("readImportIntercomArticles", () => {
+  it("prefers the current step over a persisted summary", () => {
+    expect(
+      readImportIntercomArticles(
+        {
+          importIntercomArticles: { imported: 4, status: "stale" },
+        },
+        {
+          import_intercom_articles: { imported: 0, failed: 2, status: "partial" },
+        },
+      ),
+    ).toEqual({ imported: 0, failed: 2, status: "partial" });
+  });
+
+  it("falls back to prior orchestrator step results", () => {
+    expect(
+      readImportIntercomArticles(
+        {
+          orchestratorStepResults: {
+            import_intercom_articles: { imported: 3, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 3, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportIntercomArticles(
+        { importIntercomArticles: { status: "succeeded", failed: 0 } },
+        { import_intercom_articles: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readPushIntercomTranslations", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushIntercomTranslations(
+        {},
+        { push_intercom_translations: { pushedLocales: 0, failedLocales: 0 } },
+      ),
+    ).toEqual({ pushedLocales: 0, failedLocales: 0 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(
+      readPushIntercomTranslations({ pushIntercomTranslations: { status: "succeeded" } }, {}),
+    ).toBeNull();
   });
 });
