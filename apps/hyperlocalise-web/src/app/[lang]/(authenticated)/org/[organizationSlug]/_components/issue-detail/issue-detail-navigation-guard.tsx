@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
+import { getInternalNavigationHrefFromClick } from "../unsaved-changes-leave-guard";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import type { IssueDetailPanelHandle } from "./issue-detail-panel";
 
@@ -61,47 +62,6 @@ export function useIssueDetailGuardedNavigate() {
     },
     [guard, router],
   );
-}
-
-export function getInternalNavigationHrefFromClick(
-  target: EventTarget | null,
-  currentHref: string,
-): string | null {
-  if (!(target instanceof Element)) {
-    return null;
-  }
-
-  const anchor = target.closest("a[href]");
-  if (!(anchor instanceof HTMLAnchorElement)) {
-    return null;
-  }
-
-  if (anchor.target === "_blank" || anchor.hasAttribute("download")) {
-    return null;
-  }
-
-  const href = anchor.getAttribute("href");
-  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-    return null;
-  }
-
-  try {
-    const url = new URL(href, currentHref);
-    if (url.origin !== new URL(currentHref).origin) {
-      return null;
-    }
-
-    const next = `${url.pathname}${url.search}${url.hash}`;
-    const current = new URL(currentHref);
-    const currentPath = `${current.pathname}${current.search}${current.hash}`;
-    if (next === currentPath) {
-      return null;
-    }
-
-    return next;
-  } catch {
-    return null;
-  }
 }
 
 export function IssueDetailNavigationGuard({

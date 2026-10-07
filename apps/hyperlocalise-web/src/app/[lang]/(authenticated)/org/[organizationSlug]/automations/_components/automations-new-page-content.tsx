@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -27,8 +26,10 @@ import {
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
@@ -47,10 +48,13 @@ export function AutomationsNewPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
-  const router = useOrgRouter();
-  const [form, setForm] = useState(initialForm);
+  const [startForm] = useState(initialForm);
+  const [form, setForm] = useState(startForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
+    workspaceAutomationFormHasChanges(form, startForm),
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -86,7 +90,7 @@ export function AutomationsNewPageContent({
     },
     onSuccess: (body) => {
       toast.success(intl.formatMessage(automationsNewPageContentMessages.createSuccess));
-      router.push(`${automationsBasePath}/${body.automation.id}`);
+      leaveTo(`${automationsBasePath}/${body.automation.id}`);
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
@@ -127,6 +131,7 @@ export function AutomationsNewPageContent({
         onChange={setForm}
         actions={actions}
       />
+      {leaveGuardDialog}
     </WorkspacePageShell>
   );
 }

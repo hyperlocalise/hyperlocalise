@@ -64,6 +64,7 @@ import {
   workspaceAutomationFormHasChanges,
   workspaceAutomationFormSupportsOnDemandRun,
 } from "@/lib/agents/workspace-automation-view-model";
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
@@ -366,7 +367,7 @@ export function AutomationDetailPageContent({
         queryKey: ["workspace-automations", organizationSlug],
       });
       setDeleteDialogOpen(false);
-      router.push(automationsBasePath);
+      leaveTo(automationsBasePath);
     },
     onError: (error) => {
       if (error.message === "save_in_progress") {
@@ -375,6 +376,17 @@ export function AutomationDetailPageContent({
       toast.error(intl.formatMessage(automationDetailPageContentMessages.deleteError));
     },
   });
+
+  // Read before the loading return, because a hook cannot come after it.
+  const hasUnsavedChanges =
+    form !== null &&
+    automation !== undefined &&
+    automation !== null &&
+    workspaceAutomationFormHasChanges(
+      form,
+      createWorkspaceAutomationFormStateFromRecord(automation),
+    );
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   if (automationQuery.isLoading || !form || !automation) {
     return (
@@ -710,6 +722,7 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
         </Button>
       </div>
+      {leaveGuardDialog}
     </WorkspacePageShell>
   );
 }
