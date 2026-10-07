@@ -46,7 +46,6 @@ import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-ap
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
@@ -59,6 +58,7 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { useAutomationLeaveGuard } from "./automation-leave-guard";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -94,7 +94,6 @@ export function AutomationDetailPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
-  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
@@ -327,7 +326,7 @@ export function AutomationDetailPageContent({
         queryKey: ["workspace-automations", organizationSlug],
       });
       setDeleteDialogOpen(false);
-      router.push(automationsBasePath);
+      leaveTo(automationsBasePath);
     },
     onError: (error) => {
       if (error.message === "save_in_progress") {
@@ -336,6 +335,17 @@ export function AutomationDetailPageContent({
       toast.error(intl.formatMessage(automationDetailPageContentMessages.deleteError));
     },
   });
+
+  // Read before the loading return, because a hook cannot come after it.
+  const hasUnsavedChanges =
+    form !== null &&
+    automation !== undefined &&
+    automation !== null &&
+    workspaceAutomationFormHasChanges(
+      form,
+      createWorkspaceAutomationFormStateFromRecord(automation),
+    );
+  const { leaveGuardDialog, leaveTo } = useAutomationLeaveGuard(hasUnsavedChanges);
 
   if (automationQuery.isLoading || !form || !automation) {
     return (
@@ -647,6 +657,7 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
         </Button>
       </div>
+      {leaveGuardDialog}
     </WorkspacePageShell>
   );
 }
