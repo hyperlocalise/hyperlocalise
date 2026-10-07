@@ -108,8 +108,9 @@ export async function getIntercomPushEligibility(input: {
         approvedTranslationsOnly: true,
       });
 
+      const approved = collectApprovedIntercomArticleValues(prefilledResult.prefilled);
       const values = mergeIntercomLocalePushPayload({
-        approved: collectApprovedIntercomArticleValues(prefilledResult.prefilled),
+        approved,
         remote: null,
       });
       if (!values) {
@@ -117,7 +118,11 @@ export async function getIntercomPushEligibility(input: {
       }
 
       const hashKey = normalizeIntercomLocaleTag(intercomLocale);
-      const hash = hashIntercomTranslationValues(values);
+      const hash = hashIntercomTranslationValues({
+        title: approved.title,
+        description: approved.description,
+        body: approved.body,
+      });
       const lastPush = parseIntercomLastPushRecord((mapping.lastPushContentHash ?? {})[hashKey]);
       if (lastPush.hash === hash) {
         continue;

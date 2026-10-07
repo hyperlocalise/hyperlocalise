@@ -141,9 +141,20 @@ export async function runImportIntercomArticles(input: {
     if (articlesById.has(mapping.articleId)) {
       continue;
     }
-    const article = await getIntercomArticle(client, mapping.articleId);
-    if (article) {
-      articlesById.set(article.id, article);
+    try {
+      const article = await getIntercomArticle(client, mapping.articleId);
+      if (article) {
+        articlesById.set(article.id, article);
+      }
+    } catch (error) {
+      logger.warn(
+        {
+          automationId: input.automation.id,
+          articleId: mapping.articleId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "intercom failed-article retry read failed",
+      );
     }
   }
   const articles = [...articlesById.values()];
@@ -161,7 +172,8 @@ export async function runImportIntercomArticles(input: {
     configuredTargetLocales: intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
   });
 
-  if (!localeMapping.sourceIntercomLocale) {
+  const sourceIntercomLocale = localeMapping.sourceIntercomLocale;
+  if (!sourceIntercomLocale) {
     throw new Error("intercom_source_locale_unmapped");
   }
 
@@ -169,7 +181,7 @@ export async function runImportIntercomArticles(input: {
     articles,
     ARTICLE_IMPORT_CONCURRENCY,
     async (article) => {
-      const payload = intercomArticleToImportPayload(article);
+      const payload = intercomArticleToImportPayload(article, sourceIntercomLocale);
       const contentHash = hashIntercomArticleContent(payload);
       const sourcePath = buildIntercomArticleSourcePath({
         helpCenterId,
@@ -235,7 +247,7 @@ export async function runImportIntercomArticles(input: {
             article,
             sourcePath,
             contentHash,
-            sourceLocale: localeMapping.sourceIntercomLocale!,
+            sourceLocale: sourceIntercomLocale,
             status: "import_failed",
             lastError: { ingestOutcome },
           });
@@ -254,7 +266,7 @@ export async function runImportIntercomArticles(input: {
           article,
           sourcePath,
           contentHash,
-          sourceLocale: localeMapping.sourceIntercomLocale!,
+          sourceLocale: sourceIntercomLocale,
           status: "active",
           lastError: null,
           lastImportedAt: new Date(),
@@ -278,15 +290,20 @@ export async function runImportIntercomArticles(input: {
               targetLocales: jobTargetLocales,
             });
 
-            if (jobResult.ok) {
-              jobId = jobResult.jobId;
+            if (!jobResult.ok) {
+              throw new Error(jobResult.code);
+            }
 
-              if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
-                await enqueueExistingFileTranslationJob({
-                  organizationId: input.organizationId,
-                  jobId: jobResult.jobId,
-                  jobQueue,
-                });
+            jobId = jobResult.jobId;
+
+            if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
+              const enqueueResult = await enqueueExistingFileTranslationJob({
+                organizationId: input.organizationId,
+                jobId: jobResult.jobId,
+                jobQueue,
+              });
+              if (!enqueueResult.ok) {
+                throw new Error(enqueueResult.code);
               }
             }
           }
@@ -315,7 +332,7 @@ export async function runImportIntercomArticles(input: {
           article,
           sourcePath,
           contentHash,
-          sourceLocale: localeMapping.sourceIntercomLocale!,
+          sourceLocale: sourceIntercomLocale,
           status: "import_failed",
           lastError: {
             message: error instanceof Error ? error.message : String(error),

@@ -19,10 +19,14 @@ import {
 
 import {
   articleBelongsToCollections,
+  getIntercomArticle,
+  IntercomArticleReadError,
+  intercomArticleToImportPayload,
   listIntercomArticlesSince,
   mapIntercomArticleSummary,
   mapIntercomHelpCenterSummary,
   parseIntercomNumericId,
+  resolveIntercomLocaleRemoteEditedAt,
 } from "./articles-api";
 
 function createArticleListPage(data: unknown[]) {
@@ -56,9 +60,15 @@ describe("mapIntercomArticleSummary", () => {
       title: "Getting started with Acme",
       state: "published",
       parentIds: [38],
+      defaultLocale: "en",
       localeUpdatedAt: {
         de: 1672317851,
         fr: 1672317900,
+      },
+      localeContent: {
+        de: {
+          title: "Erste Schritte mit Acme",
+        },
       },
     });
     expect(resetPassword?.parentIds).toEqual([38]);
@@ -246,6 +256,72 @@ describe("articleBelongsToCollections", () => {
     expect(articleBelongsToCollections([18, 19], new Set(["19"]))).toBe(true);
     expect(articleBelongsToCollections([18], new Set(["19"]))).toBe(false);
     expect(articleBelongsToCollections([], new Set(["19"]))).toBe(false);
+  });
+});
+
+describe("intercomArticleToImportPayload", () => {
+  it("imports translated_content for a non-default source locale", () => {
+    const article = mapIntercomArticleSummary(intercomApiArticlesListResponse.data[2]!);
+
+    expect(intercomArticleToImportPayload(article, "de").title).toBe("Erste Schritte mit Acme");
+    expect(intercomArticleToImportPayload(article, "en").title).toBe("Getting started with Acme");
+  });
+
+  it("fails when the configured source locale has no content", () => {
+    const article = mapIntercomArticleSummary(intercomApiArticlesListResponse.data[2]!);
+
+    expect(() => intercomArticleToImportPayload(article, "ja")).toThrow(
+      "intercom_source_locale_content_missing",
+    );
+  });
+});
+
+describe("resolveIntercomLocaleRemoteEditedAt", () => {
+  it("uses the later of updated_at and draft_updated_at", () => {
+    const article = mapIntercomArticleSummary({
+      id: "1",
+      title: "Hello",
+      default_locale: "en",
+      translated_content: {
+        type: "article_translated_content",
+        de: {
+          type: "article_content",
+          title: "Hallo",
+          updated_at: 100,
+          draft_updated_at: 250,
+        },
+      },
+    });
+
+    expect(resolveIntercomLocaleRemoteEditedAt(article, "de")).toBe(250);
+  });
+});
+
+describe("getIntercomArticle", () => {
+  it("propagates provider failures instead of treating them as missing", async () => {
+    const client = {
+      articles: {
+        find: async () => {
+          throw Object.assign(new Error("rate limited"), { status: 429 });
+        },
+      },
+    };
+
+    await expect(getIntercomArticle(client as never, "2048")).rejects.toBeInstanceOf(
+      IntercomArticleReadError,
+    );
+  });
+
+  it("returns null for a missing article", async () => {
+    const client = {
+      articles: {
+        find: async () => {
+          throw Object.assign(new Error("not found"), { status: 404 });
+        },
+      },
+    };
+
+    await expect(getIntercomArticle(client as never, "2048")).resolves.toBeNull();
   });
 });
 

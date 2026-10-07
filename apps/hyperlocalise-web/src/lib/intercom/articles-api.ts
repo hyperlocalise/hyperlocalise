@@ -15,6 +15,7 @@ import type { IntercomClient } from "intercom-client";
 import { createIntercomClient } from "./client";
 import type { IntercomRestEndpoint } from "./constants";
 import { articleFieldsToJsonPayload } from "./article-json";
+import { normalizeIntercomLocaleTag } from "./intercom-locale";
 
 export type IntercomHelpCenterSummary = {
   id: string;
@@ -37,10 +38,22 @@ export type IntercomArticleSummary = {
   state: string | null;
   updatedAt: number | null;
   authorId: number | null;
+  defaultLocale: string | null;
   parentIds: number[];
   localeUpdatedAt: Record<string, number>;
+  localeDraftUpdatedAt: Record<string, number>;
   localeContent: Record<string, IntercomLocaleContent>;
 };
+
+export class IntercomArticleReadError extends Error {
+  readonly articleId: string;
+
+  constructor(articleId: string, cause?: unknown) {
+    super("intercom_article_read_failed", { cause });
+    this.name = "IntercomArticleReadError";
+    this.articleId = articleId;
+  }
+}
 
 export function createIntercomArticlesClient(input: {
   accessToken: string;
@@ -88,12 +101,15 @@ function readTranslatedLocaleEntries(value: unknown): Array<[string, Record<stri
   });
 }
 
-function readLocaleUpdatedAt(value: unknown): Record<string, number> {
+function readLocaleTimestampField(
+  value: unknown,
+  field: "updated_at" | "draft_updated_at",
+): Record<string, number> {
   const locales: Record<string, number> = {};
   for (const [locale, content] of readTranslatedLocaleEntries(value)) {
-    const updatedAt = readNumber(content.updated_at);
-    if (updatedAt != null) {
-      locales[locale] = updatedAt;
+    const timestamp = readNumber(content[field]);
+    if (timestamp != null) {
+      locales[locale] = timestamp;
     }
   }
   return locales;
@@ -133,10 +149,27 @@ export function mapIntercomArticleSummary(
     state: typeof article.state === "string" ? article.state : null,
     updatedAt: readNumber(article.updated_at),
     authorId: readNumber(article.author_id),
+    defaultLocale: typeof article.default_locale === "string" ? article.default_locale : null,
     parentIds: readIntercomParentIds(article),
-    localeUpdatedAt: readLocaleUpdatedAt(article.translated_content),
+    localeUpdatedAt: readLocaleTimestampField(article.translated_content, "updated_at"),
+    localeDraftUpdatedAt: readLocaleTimestampField(article.translated_content, "draft_updated_at"),
     localeContent: readLocaleContent(article.translated_content),
   };
+}
+
+export function resolveIntercomLocaleRemoteEditedAt(
+  article: IntercomArticleSummary,
+  locale: string,
+): number | null {
+  const updatedAt = article.localeUpdatedAt[locale] ?? null;
+  const draftUpdatedAt = article.localeDraftUpdatedAt[locale] ?? null;
+  if (updatedAt == null) {
+    return draftUpdatedAt;
+  }
+  if (draftUpdatedAt == null) {
+    return updatedAt;
+  }
+  return Math.max(updatedAt, draftUpdatedAt);
 }
 
 export function mapIntercomHelpCenterSummary(
@@ -446,6 +479,14 @@ export async function listIntercomArticlesSince(input: {
   return merged;
 }
 
+function isIntercomNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const record = error as { status?: unknown; statusCode?: unknown };
+  return record.status === 404 || record.statusCode === 404;
+}
+
 export async function getIntercomArticle(
   client: IntercomClient,
   articleId: string,
@@ -461,17 +502,38 @@ export async function getIntercomArticle(
     })) as unknown as Record<string, unknown>;
     const summary = mapIntercomArticleSummary(article);
     return summary.id ? summary : null;
-  } catch {
-    return null;
+  } catch (error) {
+    if (isIntercomNotFoundError(error)) {
+      return null;
+    }
+    throw new IntercomArticleReadError(articleId, error);
   }
 }
 
-export function intercomArticleToImportPayload(article: IntercomArticleSummary) {
-  return articleFieldsToJsonPayload({
-    title: article.title,
-    description: article.description,
-    body: article.body,
-  });
+export function intercomArticleToImportPayload(
+  article: IntercomArticleSummary,
+  sourceLocale: string,
+) {
+  const normalizedSource = normalizeIntercomLocaleTag(sourceLocale);
+  const localized =
+    article.localeContent[sourceLocale] ?? article.localeContent[normalizedSource] ?? null;
+  const defaultLocale = article.defaultLocale
+    ? normalizeIntercomLocaleTag(article.defaultLocale)
+    : null;
+  const isDefaultLocale = defaultLocale == null || defaultLocale === normalizedSource;
+
+  if (localized && (localized.title.trim().length > 0 || localized.body.trim().length > 0)) {
+    return articleFieldsToJsonPayload(localized);
+  }
+  if (isDefaultLocale) {
+    return articleFieldsToJsonPayload({
+      title: article.title,
+      description: article.description,
+      body: article.body,
+    });
+  }
+
+  throw new Error("intercom_source_locale_content_missing");
 }
 
 export async function updateIntercomArticleTranslatedContent(input: {

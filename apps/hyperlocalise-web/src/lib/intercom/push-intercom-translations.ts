@@ -29,6 +29,7 @@ import {
 import {
   createIntercomArticlesClient,
   getIntercomArticle,
+  resolveIntercomLocaleRemoteEditedAt,
   updateIntercomArticleTranslatedContent,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
@@ -115,7 +116,31 @@ export async function runPushIntercomTranslations(input: {
   let failedLocales = 0;
 
   await mapWithConcurrency(mappings, PUSH_CONCURRENCY, async (mapping) => {
-    const remoteArticle = await getIntercomArticle(client, mapping.articleId);
+    let remoteArticle;
+    try {
+      remoteArticle = await getIntercomArticle(client, mapping.articleId);
+    } catch (error) {
+      failedLocales += 1;
+      logger.warn(
+        {
+          automationId: input.automation.id,
+          articleId: mapping.articleId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "intercom article read failed",
+      );
+      await db
+        .update(schema.intercomArticleSyncStates)
+        .set({
+          status: "push_failed",
+          lastError: {
+            message: error instanceof Error ? error.message : String(error),
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      return;
+    }
     const authorId = remoteArticle?.authorId ?? null;
 
     const lastPushHash = { ...mapping.lastPushContentHash };
@@ -155,7 +180,11 @@ export async function runPushIntercomTranslations(input: {
           continue;
         }
 
-        const hash = hashIntercomTranslationValues(values);
+        const hash = hashIntercomTranslationValues({
+          title: approved.title,
+          description: approved.description,
+          body: approved.body,
+        });
         const hashKey = normalizeIntercomLocaleTag(intercomLocale);
         const lastPush = parseIntercomLastPushRecord(lastPushHash[hashKey]);
         if (lastPush.hash === hash) {
@@ -163,13 +192,15 @@ export async function runPushIntercomTranslations(input: {
           continue;
         }
 
-        const remoteLocaleUpdatedAt =
-          remoteArticle?.localeUpdatedAt[intercomLocale] ?? remoteArticle?.localeUpdatedAt[hashKey];
+        const remoteLocaleEditedAt = remoteArticle
+          ? (resolveIntercomLocaleRemoteEditedAt(remoteArticle, intercomLocale) ??
+            resolveIntercomLocaleRemoteEditedAt(remoteArticle, hashKey))
+          : null;
         if (
           !intercom.overwriteIntercomDrafts &&
-          remoteLocaleUpdatedAt != null &&
+          remoteLocaleEditedAt != null &&
           lastPush.pushedAtSeconds != null &&
-          remoteLocaleUpdatedAt > lastPush.pushedAtSeconds
+          remoteLocaleEditedAt > lastPush.pushedAtSeconds
         ) {
           articleSkipped += 1;
           continue;
