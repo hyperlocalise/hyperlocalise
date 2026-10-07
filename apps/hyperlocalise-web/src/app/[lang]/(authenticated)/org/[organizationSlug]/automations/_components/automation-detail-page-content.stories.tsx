@@ -15,9 +15,14 @@ import { expect, within } from "storybook/test";
 
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
 
+import {
+  createIntercomAutomationRecord,
+  intercomAutomationRunsFixture,
+} from "./automation-editor.fixture";
 import { createAutomationSummary } from "./automations.fixture";
 import { AutomationDetailPageContent } from "./automation-detail-page-content";
 import { createAutomationDetailMswHandlers } from "./automation-msw-handlers";
+import { intercomApiArticlesFixture, intercomSupportHelpCenter } from "./intercom-api.fixture";
 
 const githubAutomation = createAutomationSummary();
 const scheduledAutomation = createAutomationSummary({
@@ -213,6 +218,118 @@ export const SavePendingDisablesDelete: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Save changes" }));
     await expect(canvas.getByRole("button", { name: /Saving/ })).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
+  },
+};
+
+const intercomAutomation = createIntercomAutomationRecord();
+const publishedIntercomArticles = intercomApiArticlesFixture.filter(
+  (article) => article.state === "published",
+);
+
+export const IntercomWeeklyImport: Story = {
+  args: {
+    automationId: intercomAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
+        recentRuns: intercomAutomationRunsFixture.filter(
+          (run) => run.inputSnapshot.operation !== "push_approved",
+        ),
+        intercomPush: {
+          eligibleLocaleCount: 0,
+          mappedArticleCount: publishedIntercomArticles.length,
+          pushRunInProgress: false,
+        },
+      }),
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/automations/${intercomAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByDisplayValue("Translate Intercom Help Center articles"),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByText(intercomSupportHelpCenter.displayName),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
+    await expect(
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const IntercomPushApprovedReady: Story = {
+  args: {
+    automationId: intercomAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
+        recentRuns: intercomAutomationRunsFixture,
+        intercomPush: {
+          eligibleLocaleCount: 2,
+          mappedArticleCount: publishedIntercomArticles.length,
+          pushRunInProgress: false,
+        },
+      }),
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/automations/${intercomAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
+  },
+};
+
+export const IntercomPushInProgress: Story = {
+  args: {
+    automationId: intercomAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
+        recentRuns: [
+          {
+            ...intercomAutomationRunsFixture[0],
+            id: "run_intercom_push_running",
+            status: "running",
+            completedAt: null,
+          },
+          ...intercomAutomationRunsFixture.slice(1),
+        ],
+        intercomPush: {
+          eligibleLocaleCount: 2,
+          mappedArticleCount: publishedIntercomArticles.length,
+          pushRunInProgress: true,
+        },
+      }),
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/automations/${intercomAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
   },
 };
 

@@ -1,0 +1,73 @@
+---
+title: "Localize Intercom Help Center articles"
+description: "Import Intercom articles into a native project, translate them in Jobs, and push approved drafts back to Intercom."
+---
+
+Use a saved automation to import Intercom Help Center articles into a native project, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Intercom as drafts. Import never publishes to Intercom. Push is a separate action.
+
+## Connect Intercom
+
+1. Open workspace **Integrations** and find **Intercom**.
+2. Complete the Intercom authorization for the workspace that owns the Help Center.
+3. Confirm the connection shows as connected. Reauthorize if Platform asks you to.
+
+The automation uses this Intercom connection. Connect Intercom before you add the **Translate Intercom Help Center articles** skill.
+
+## Prepare the native project
+
+Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales match the Help Center locales **exactly**. `en` does not match `en-US`. `de` does not match `de-DE`.
+
+After you select a Help Center, the editor lists that Help Center’s locale codes. Use those codes on the project.
+
+## Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Intercom Help Center articles** template, or add that skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed articles. It does not push translations.
+5. Under **Intercom Help Center**, set:
+   - **Intercom region** (`United States`, `European Union`, or `Australia`)
+   - **Help Center**
+   - **Intercom source locale** (usually the Help Center default)
+   - Optional **Collection IDs** to limit import to those collections
+   - **Include draft articles on import** only when unpublished source should enter the project
+   - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
+6. Save the automation.
+
+Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom** for write-back.
+
+## Import articles
+
+**Run now** or wait for the schedule. Import writes one JSON source file per article at `intercom/{help-center-id}/{article-id}.json` with `title`, `description`, and `body`. Review those files in the project like other [JSON sources](/platform/projects/files).
+
+Without collection IDs, import includes articles in Help Center collections and standalone articles in that Help Center. With collection IDs, import includes only articles in those collections.
+
+A later import skips an article whose source has not changed. Periodic reconcile also picks up standalone articles that a collection filter would miss.
+
+The run opens native translation jobs when that tool is enabled. Inspect **Run History** for imported, skipped, and failed articles.
+
+Import does not write translations to Intercom.
+
+## Review and push drafts
+
+1. Translate and [approve](/platform/cat) the target locales in the project.
+2. In the Content editor header or on the automation, choose **Push to Intercom** when approved locales are ready and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
+3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
+
+A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.
+
+## Change or remove access
+
+Disconnect Intercom from **Integrations** when this workspace should stop using that Intercom account. Inspect automations that depend on the connection before you disconnect. After you reconnect, confirm the region and Help Center still match.
+
+If a Help Center is missing, confirm the Intercom workspace, region, and that you completed authorization. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Intercom is connected and the automation is **Active**.
+- Confirm the Help Center and region match the Intercom workspace.
+- Confirm project locales match the Help Center locale codes exactly.
+- If **Push to Intercom** is missing, approve at least one mapped locale, confirm you have permission to manage automations, and wait until any in-progress push finishes.
+- Open **Run History** for the failed article or locale.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

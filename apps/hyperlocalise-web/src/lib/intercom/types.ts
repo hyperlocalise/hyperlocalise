@@ -39,3 +39,15 @@ export type IntercomConnectionError =
   | { code: "intercom_connection_decrypt_failed"; message: string }
   | { code: "intercom_connection_validation_failed"; message: string }
   | { code: "intercom_validation_timeout"; message: string };
+
+export type IntercomPipesConnectionStatus = {
+  connected: boolean;
+  needsReauthorization: boolean;
+};
+
+export type IntercomPipesError =
+  | { code: "intercom_pipes_unavailable"; message: string }
+  | { code: "intercom_not_connected"; message: string }
+  | { code: "intercom_pipes_needs_reauthorization"; message: string };
+
+export type IntercomArticleSyncStatus = "active" | "archived" | "import_failed" | "push_failed";

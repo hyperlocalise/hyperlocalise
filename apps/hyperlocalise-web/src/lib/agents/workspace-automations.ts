@@ -18,6 +18,14 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
+import {
+  getIntercomPipesConnectionStatus,
+  resolveIntercomPipesWorkosUserId,
+} from "@/lib/intercom/pipes";
+import {
+  mapProjectLocalesToIntercom,
+  normalizeIntercomLocaleTag,
+} from "@/lib/intercom/intercom-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
@@ -56,6 +64,7 @@ import {
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   hoistLegacyWorkspaceAutomationProjectId,
@@ -100,6 +109,9 @@ export function workspaceAutomationNeedsProject(input: {
     return true;
   }
   if (hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)) {
+    return true;
+  }
+  if (hasWorkspaceAutomationIntercomTool(input.toolConfig)) {
     return true;
   }
   if (
@@ -248,6 +260,7 @@ function validateWorkspaceAutomationConfig(input: {
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationGitlabAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
     !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
     !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
     !hasWorkspaceAutomationWebSearchTool(input.toolConfig) &&
@@ -256,7 +269,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -289,6 +302,26 @@ function validateWorkspaceAutomationConfig(input: {
       return err({
         code: "contentful_entry_id_required",
         message: "Scheduled Contentful automations require an entry ID.",
+      });
+    }
+  }
+
+  const intercomTools = input.toolConfig.intercom;
+  if (intercomTools?.enabled) {
+    if (!intercomTools.helpCenterId?.trim()) {
+      return err({
+        code: "intercom_help_center_required",
+        message: "Choose an Intercom Help Center for this automation.",
+      });
+    }
+    const helpCenterLocales =
+      intercomTools.helpCenterLocales.length > 0
+        ? intercomTools.helpCenterLocales
+        : intercomTools.targetLocales;
+    if (helpCenterLocales.length === 0) {
+      return err({
+        code: "intercom_help_center_required",
+        message: "Choose an Intercom Help Center for this automation.",
       });
     }
   }
@@ -387,6 +420,7 @@ function validateWorkspaceAutomationConfig(input: {
 
 export async function validateWorkspaceAutomationIntegrations(input: {
   organizationId: string;
+  projectId?: string | null;
   toolConfig: WorkspaceAutomationToolConfig;
   db?: DatabaseClient;
   /**
@@ -675,6 +709,104 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.intercom?.enabled) {
+    const intercom = input.toolConfig.intercom;
+    const workosUserId = intercom.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "intercom_not_connected",
+        message: "Connect Intercom in Integrations before using it.",
+      });
+    }
+
+    const status = await getIntercomPipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "intercom_pipes_unavailable",
+        message: "WorkOS is not configured, so Intercom cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "intercom_pipes_needs_reauthorization",
+        message: "Reconnect Intercom in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "intercom_not_connected",
+        message: "Connect Intercom in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+          targetLocales: schema.projects.targetLocales,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = intercom.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          normalizeIntercomLocaleTag(configuredSourceLocale) !==
+            normalizeIntercomLocaleTag(projectSourceLocale)
+        ) {
+          return err({
+            code: "intercom_source_locale_mismatch",
+            message: "The Intercom source locale must match the project source locale.",
+          });
+        }
+
+        const helpCenterLocales =
+          intercom.helpCenterLocales.length > 0
+            ? intercom.helpCenterLocales
+            : intercom.targetLocales;
+        const localeMapping = mapProjectLocalesToIntercom({
+          projectSourceLocale,
+          projectTargetLocales: Array.isArray(project.targetLocales)
+            ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+            : [],
+          intercomLocales: helpCenterLocales,
+          configuredSourceLocale: intercom.sourceLocale,
+          configuredTargetLocales:
+            intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
+        });
+
+        if (!localeMapping.sourceIntercomLocale) {
+          return err({
+            code: "intercom_source_locale_unmapped",
+            message: "The source locale does not match an Intercom Help Center locale.",
+          });
+        }
+
+        if (localeMapping.unmappedProjectTargets.length > 0) {
+          return err({
+            code: "intercom_target_locales_unmapped",
+            message:
+              "One or more project target locales do not match Intercom Help Center locales.",
+          });
+        }
+      }
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -876,6 +1008,22 @@ async function stampPipesUsersOnToolConfig(input: {
     };
   }
 
+  if (toolConfig.intercom?.enabled) {
+    const workosUserId = await resolveIntercomPipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      intercom: {
+        ...toolConfig.intercom,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
   if (toolConfig.email?.enabled) {
     // Same rule as visual-workflow email stamping: only actor/author may own
     // the Pipes credential binding, never a client-chosen workosUserId.
@@ -1027,6 +1175,7 @@ export async function createWorkspaceAutomation(input: {
   ): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> => {
     const integrationValidation = await validateWorkspaceAutomationIntegrations({
       organizationId: input.organizationId,
+      projectId,
       toolConfig,
       db: database,
       lockSemrushConnection,
@@ -1242,6 +1391,7 @@ export async function updateWorkspaceAutomation(input: {
     if (configChanged) {
       const integrationValidation = await validateWorkspaceAutomationIntegrations({
         organizationId: input.organizationId,
+        projectId,
         toolConfig: config.toolConfig,
         db: database,
         lockSemrushConnection,

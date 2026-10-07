@@ -22,6 +22,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "use_crowdin",
   "use_web_search",
   "run_contentful_translation",
+  "import_intercom_articles",
+  "push_intercom_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -202,6 +204,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-intercom-articles",
+    name: "Translate Intercom Help Center articles",
+    category: "translate",
+    description:
+      "Import Intercom Help Center articles into a project, open native translation jobs, and push approved translations on demand.",
+    grants:
+      "Reads Intercom articles through Pipes, writes JSON source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
+    tools: ["import_intercom_articles", "push_intercom_translations"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["intercom", "help center", "help centre"],
+      weak: ["article", "articles", "knowledge base", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -308,6 +326,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "github"
   | "crowdin"
   | "contentful"
+  | "intercom"
   | "slack"
   | "email";
 
@@ -319,6 +338,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   use_crowdin: "crowdin",
   use_web_search: null,
   run_contentful_translation: "contentful",
+  import_intercom_articles: "intercom",
+  push_intercom_translations: "intercom",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -417,6 +438,9 @@ export function workspaceAutomationSkillToolEnabled(
       return Boolean(toolConfig.webSearch?.enabled);
     case "run_contentful_translation":
       return Boolean(toolConfig.contentful?.enabled);
+    case "import_intercom_articles":
+    case "push_intercom_translations":
+      return Boolean(toolConfig.intercom?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

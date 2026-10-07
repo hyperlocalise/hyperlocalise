@@ -146,6 +146,7 @@ describe("workspace template manifest", () => {
 
     expect(activatableIds).toEqual([
       "translate-on-source-upload",
+      "translate-intercom-articles",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

@@ -243,6 +243,31 @@ describe("workspace automation view model", () => {
     expect(state.webSearchProvider).toBe("exa");
   });
 
+  it("prefills the Intercom Help Center template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-intercom-articles",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Intercom articles",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      intercomEnabled: true,
+      intercomRestEndpoint: "us",
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-intercom-articles"]);
+    expect(
+      workspaceAutomationFormCanActivate({
+        ...form!,
+        intercomHelpCenterId: "hc-1",
+        intercomHelpCenterLocales: ["en", "de"],
+      }),
+    ).toBe(true);
+  });
+
   it("prefills the Contentful translation template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-contentful-article",

@@ -20,6 +20,7 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
@@ -33,6 +34,8 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "use_gitlab_repository",
   "run_github_workflows",
   "run_contentful_translation",
+  "import_intercom_articles",
+  "push_intercom_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -57,6 +60,7 @@ export type WorkspaceOrchestratorPlan = {
 
 export type WorkspaceOrchestratorTriggerContext = {
   templateSkillId?: string | null;
+  operation?: string | null;
 };
 
 const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
@@ -64,6 +68,8 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "use_gitlab_repository",
   "run_github_workflows",
   "run_contentful_translation",
+  "import_intercom_articles",
+  "push_intercom_translations",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -100,6 +106,9 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationGithubWorkflow(toolConfig);
     case "run_contentful_translation":
       return hasWorkspaceAutomationContentfulWorkflow(toolConfig);
+    case "import_intercom_articles":
+    case "push_intercom_translations":
+      return hasWorkspaceAutomationIntercomTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -197,6 +206,17 @@ export function buildWorkspaceOrchestratorPlan(
   automation: WorkspaceAutomationRecord,
   triggerContext?: WorkspaceOrchestratorTriggerContext,
 ): WorkspaceOrchestratorPlan {
+  if (hasWorkspaceAutomationIntercomTool(automation.toolConfig)) {
+    const intercomTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_intercom_translations"
+        : "import_intercom_articles";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [intercomTool, ...notificationTools] };
+  }
+
   const workflowTools = orderWorkflowTools({
     toolConfig: automation.toolConfig,
     templateSkillId: triggerContext?.templateSkillId,

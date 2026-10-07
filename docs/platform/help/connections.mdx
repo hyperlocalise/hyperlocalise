@@ -15,6 +15,10 @@ Confirm the token belongs to the intended workspace, has the required scopes, an
 
 Secrets are shown once. If you lost one, create a replacement, update the client that uses it, verify the connection, then revoke the old credential when appropriate. See [API keys and personal tokens](/platform/settings).
 
+## Intercom Help Center is missing or import fails
+
+Confirm **Integrations** → **Intercom** is connected for the workspace that owns the Help Center. Reauthorize if Platform asks you to. Check the automation’s **Intercom region** (`United States`, `European Union`, or `Australia`) and selected Help Center. Project locales must match Intercom locale codes exactly. See [Localize Intercom Help Center articles](/platform/connections/intercom).
+
 ## An external service asks to reconnect
 
 Reconnect the intended provider account from **Integrations** and inspect the permissions granted. Check whether the automation depends on a particular user’s connection. After reconnecting, test one small read or task before resuming a large batch.

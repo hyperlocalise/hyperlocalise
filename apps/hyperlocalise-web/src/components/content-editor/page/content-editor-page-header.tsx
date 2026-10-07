@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { observer } from "mobx-react-lite";
 import { ArrowLeftIcon, SidebarIcon } from "@phosphor-icons/react";
 import { useIntl } from "react-intl";
@@ -33,9 +34,11 @@ import type { ContentEditorPageActions } from "./content-editor-page-shell";
 export const ContentEditorPageHeader = observer(function ContentEditorPageHeader({
   backHref,
   actions,
+  headerTrailing,
 }: {
   backHref: string;
   actions: ContentEditorPageActions;
+  headerTrailing?: ReactNode;
 }) {
   const intl = useIntl();
   const workspace = useContentEditorWorkspace();
@@ -116,7 +119,10 @@ export const ContentEditorPageHeader = observer(function ContentEditorPageHeader
         ) : null}
       </div>
 
-      <ContentEditorQueueToolbarHost />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+        {headerTrailing}
+        <ContentEditorQueueToolbarHost />
+      </div>
     </div>
   );
 });

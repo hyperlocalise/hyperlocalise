@@ -81,6 +81,12 @@ function enableSkillTool(
         contentfulConnectionId:
           form.contentfulConnectionId || defaults.contentfulConnectionId || "",
       };
+    case "import_intercom_articles":
+    case "push_intercom_translations":
+      return {
+        ...form,
+        intercomEnabled: true,
+      };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
     case "assign_translate_with_agent":
@@ -130,6 +136,9 @@ function disableSkillTool(
       return { ...form, webSearchEnabled: false };
     case "run_contentful_translation":
       return { ...form, contentfulEnabled: false };
+    case "import_intercom_articles":
+    case "push_intercom_translations":
+      return { ...form, intercomEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":
