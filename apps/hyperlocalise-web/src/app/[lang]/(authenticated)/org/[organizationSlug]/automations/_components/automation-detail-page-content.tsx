@@ -56,9 +56,9 @@ import {
   workspaceAutomationFormHasChanges,
   workspaceAutomationFormSupportsOnDemandRun,
 } from "@/lib/agents/workspace-automation-view-model";
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
-import { useAutomationLeaveGuard } from "./automation-leave-guard";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -345,7 +345,7 @@ export function AutomationDetailPageContent({
       form,
       createWorkspaceAutomationFormStateFromRecord(automation),
     );
-  const { leaveGuardDialog, leaveTo } = useAutomationLeaveGuard(hasUnsavedChanges);
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   if (automationQuery.isLoading || !form || !automation) {
     return (

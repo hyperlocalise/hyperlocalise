@@ -29,8 +29,8 @@ import {
   workspaceAutomationFormHasChanges,
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { useAutomationLeaveGuard } from "./automation-leave-guard";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -52,7 +52,7 @@ export function AutomationsNewPageContent({
   const [form, setForm] = useState(startForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
-  const { leaveGuardDialog, leaveTo } = useAutomationLeaveGuard(
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
     workspaceAutomationFormHasChanges(form, startForm),
   );
 

@@ -14,28 +14,28 @@
  */
 import { defineMessages } from "react-intl";
 
-export const automationLeaveGuardMessages = defineMessages({
+export const unsavedChangesLeaveGuardMessages = defineMessages({
   title: {
     defaultMessage: "Leave without saving?",
-    id: "CrkzTgTZa+",
+    id: "OvsW5vUzUg",
     description:
-      "Title of the dialog shown when the user tries to leave an automation setup page with unsaved changes",
+      "Title of the dialog shown when the user tries to leave a page with unsaved changes",
   },
   description: {
     defaultMessage:
-      "This automation has changes that are not saved. If you leave now, they will be lost.",
-    id: "dsN24mbKQR",
+      "This page has changes that are not saved. If you leave now, they will be lost.",
+    id: "bdFq+TlEbd",
     description:
-      "Body of the dialog shown when the user tries to leave an automation setup page with unsaved changes",
+      "Body of the dialog shown when the user tries to leave a page with unsaved changes",
   },
   keepEditing: {
     defaultMessage: "Keep editing",
-    id: "TB0gZwuSGC",
-    description: "Button that closes the unsaved changes dialog and stays on the automation page",
+    id: "zIhD8Y76tZ",
+    description: "Button that closes the unsaved changes dialog and stays on the page",
   },
   leave: {
     defaultMessage: "Leave without saving",
-    id: "UkvPtQMDuQ",
-    description: "Button that leaves the automation setup page and throws away its unsaved changes",
+    id: "MAhf92hF3b",
+    description: "Button that leaves the page and throws away its unsaved changes",
   },
 });

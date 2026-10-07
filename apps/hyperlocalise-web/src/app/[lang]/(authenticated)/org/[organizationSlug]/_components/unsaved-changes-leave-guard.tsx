@@ -15,7 +15,6 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage } from "react-intl";
 
-import { getInternalNavigationHrefFromClick } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-detail-navigation-guard";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -28,14 +27,56 @@ import {
 import { Button } from "@/components/ui/button";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
-import { automationLeaveGuardMessages } from "./automation-leave-guard.messages";
+import { unsavedChangesLeaveGuardMessages } from "./unsaved-changes-leave-guard.messages";
+
+/** The in-app path a click on a link would go to, or null when the click does not leave the page. */
+export function getInternalNavigationHrefFromClick(
+  target: EventTarget | null,
+  currentHref: string,
+): string | null {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+
+  const anchor = target.closest("a[href]");
+  if (!(anchor instanceof HTMLAnchorElement)) {
+    return null;
+  }
+
+  if (anchor.target === "_blank" || anchor.hasAttribute("download")) {
+    return null;
+  }
+
+  const href = anchor.getAttribute("href");
+  if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+    return null;
+  }
+
+  try {
+    const url = new URL(href, currentHref);
+    if (url.origin !== new URL(currentHref).origin) {
+      return null;
+    }
+
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    const current = new URL(currentHref);
+    const currentPath = `${current.pathname}${current.search}${current.hash}`;
+    if (next === currentPath) {
+      return null;
+    }
+
+    return next;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Asks before the person leaves a setup page whose changes are not saved: on an in-app link, on
+ * Asks before the person leaves a page whose changes are not saved: on an in-app link, on
  * the browser's back button, and on reload or close. `leaveTo` is for navigation the page does
  * itself once the changes are saved or thrown away, which must not ask.
  */
-export function useAutomationLeaveGuard(hasUnsavedChanges: boolean): {
+export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   leaveGuardDialog: ReactNode;
   leaveTo: (href: string) => void;
 } {
@@ -59,7 +100,7 @@ export function useAutomationLeaveGuard(hasUnsavedChanges: boolean): {
 
   const pushHistoryGuard = () => {
     if (!historyGuardPushed.current) {
-      window.history.pushState({ automationLeaveGuard: true }, "", window.location.href);
+      window.history.pushState({ unsavedChangesLeaveGuard: true }, "", window.location.href);
       historyGuardPushed.current = true;
     }
   };
@@ -156,18 +197,18 @@ export function useAutomationLeaveGuard(hasUnsavedChanges: boolean): {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            <FormattedMessage {...automationLeaveGuardMessages.title} />
+            <FormattedMessage {...unsavedChangesLeaveGuardMessages.title} />
           </AlertDialogTitle>
           <AlertDialogDescription>
-            <FormattedMessage {...automationLeaveGuardMessages.description} />
+            <FormattedMessage {...unsavedChangesLeaveGuardMessages.description} />
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={keepEditing}>
-            <FormattedMessage {...automationLeaveGuardMessages.keepEditing} />
+            <FormattedMessage {...unsavedChangesLeaveGuardMessages.keepEditing} />
           </AlertDialogCancel>
           <Button variant="destructive" onClick={leave}>
-            <FormattedMessage {...automationLeaveGuardMessages.leave} />
+            <FormattedMessage {...unsavedChangesLeaveGuardMessages.leave} />
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
