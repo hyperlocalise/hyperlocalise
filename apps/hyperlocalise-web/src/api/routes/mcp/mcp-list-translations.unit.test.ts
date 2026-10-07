@@ -28,5 +28,8 @@ describe("toCatQueueFilter", () => {
     expect(toCatQueueFilter("has_issues")).toBe("has_issues");
     expect(toCatQueueFilter("hidden")).toBe("hidden");
     expect(toCatQueueFilter("not_hidden")).toBe("not_hidden");
+    expect(toCatQueueFilter("qa_issues")).toBe("qa_issues");
+    expect(toCatQueueFilter("machine_translated")).toBe("machine_translated");
+    expect(toCatQueueFilter("with_comments")).toBe("with_comments");
   });
 });

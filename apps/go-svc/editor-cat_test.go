@@ -866,6 +866,14 @@ func TestEditorCatQueueFilterSQL(t *testing.T) {
 	require.Contains(t, plainSQL, "'text'")
 	require.Contains(t, plainSQL, "'plain'")
 	require.Contains(t, plainSQL, "'string'")
+
+	withoutSQL := editorCatAdvancedFilterSQL(&editorCatAdvancedFilter{
+		QaIssues: "without",
+		Comments: "without",
+	}, orgN, projectN, localeN, &[]any{"org", "project", "de-DE"})
+	require.Contains(t, withoutSQL, " and not exists (\n            select 1 from translation_qa_findings q")
+	require.Contains(t, withoutSQL, " and not exists (\n            select 1 from project_translation_comments c")
+	require.NotContains(t, withoutSQL, "q.check_type=")
 }
 
 func TestEditorCatQueueDefaultFilter(t *testing.T) {

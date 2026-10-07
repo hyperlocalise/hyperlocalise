@@ -489,6 +489,8 @@ func TestPayloadTargetDisplayName(t *testing.T) {
 	require.Equal(t, "phrase", *payloadTargetDisplayName(map[string]any{"integrationKind": "phrase"}))
 	require.Equal(t, "hl_AbCd", *payloadTargetDisplayName(map[string]any{"keyPrefix": "hl_AbCd"}))
 	require.Equal(t, "en.json", *payloadTargetDisplayName(map[string]any{"fileName": "en.json"}))
+	require.Equal(t, "en.json", *payloadTargetDisplayName(map[string]any{"name": "   ", "fileName": "en.json"}))
+	require.Equal(t, "crowdin", *payloadTargetDisplayName(map[string]any{"name": "", "fileName": "  ", "integrationKind": "crowdin"}))
 	require.Nil(t, payloadTargetDisplayName(map[string]any{"resourceId": "resource_123"}))
 }
 
