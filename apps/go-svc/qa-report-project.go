@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -257,38 +258,82 @@ func (api *qaReportAPI) patchProjectQaSettings(ctx context.Context, actor qaRepo
 
 func parseProjectFindingsQuery(r *http.Request) (locale, checkType, severity string, limit, offset int, err error) {
 	limit, offset = 50, 0
-	q := r.URL.Query()
-	if raw := strings.TrimSpace(q.Get("locale")); raw != "" {
-		if len(raw) > 32 {
-			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+	raw := r.URL.RawQuery
+	var gotLocale, gotCheckType, gotSeverity, gotLimit, gotOffset bool
+	for raw != "" {
+		var pair string
+		pair, raw, _ = strings.Cut(raw, "&")
+		if pair == "" || strings.IndexByte(pair, ';') >= 0 {
+			continue
 		}
-		locale = raw
-	}
-	if raw := strings.TrimSpace(q.Get("checkType")); raw != "" {
-		if _, ok := translationQaCheckTypes[raw]; !ok {
-			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+		k, v, _ := strings.Cut(pair, "=")
+		decodedKey, keyErr := url.QueryUnescape(k)
+		if keyErr != nil {
+			continue
 		}
-		checkType = raw
-	}
-	if raw := strings.TrimSpace(q.Get("severity")); raw != "" {
-		if _, ok := translationQaSeverities[raw]; !ok {
-			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+		val, valOK := decodeQueryValue(v)
+		if !valOK {
+			continue
 		}
-		severity = raw
-	}
-	if raw, ok := q["limit"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
-		if parseErr != nil || n < 1 || n > 100 {
-			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+		switch decodedKey {
+		case "locale":
+			if gotLocale {
+				continue
+			}
+			gotLocale = true
+			if val != "" {
+				if len(val) > 32 {
+					return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+				}
+				locale = val
+			}
+		case "checkType":
+			if gotCheckType {
+				continue
+			}
+			gotCheckType = true
+			if val != "" {
+				if _, ok := translationQaCheckTypes[val]; !ok {
+					return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+				}
+				checkType = val
+			}
+		case "severity":
+			if gotSeverity {
+				continue
+			}
+			gotSeverity = true
+			if val != "" {
+				if _, ok := translationQaSeverities[val]; !ok {
+					return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+				}
+				severity = val
+			}
+		case "limit":
+			if gotLimit {
+				continue
+			}
+			gotLimit = true
+			if val != "" {
+				n, parseErr := strconv.Atoi(val)
+				if parseErr != nil || n < 1 || n > 100 {
+					return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+				}
+				limit = n
+			}
+		case "offset":
+			if gotOffset {
+				continue
+			}
+			gotOffset = true
+			if val != "" {
+				n, parseErr := strconv.Atoi(val)
+				if parseErr != nil || n < 0 {
+					return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
+				}
+				offset = n
+			}
 		}
-		limit = n
-	}
-	if raw, ok := q["offset"]; ok && strings.TrimSpace(raw[0]) != "" {
-		n, parseErr := strconv.Atoi(strings.TrimSpace(raw[0]))
-		if parseErr != nil || n < 0 {
-			return "", "", "", 0, 0, qaReportFailure(400, "invalid_qa_report_query", "Invalid QA report query")
-		}
-		offset = n
 	}
 	return locale, checkType, severity, limit, offset, nil
 }
