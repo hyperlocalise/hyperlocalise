@@ -1476,6 +1476,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   github: workspaceAutomationFormMessages.skillIntegrationGithub,
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
+  intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -3394,6 +3395,7 @@ export function WorkspaceAutomationEditor({
     github: githubInstallationQuery.isSuccess ? githubConnected : undefined,
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
+    intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true

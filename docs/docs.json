@@ -206,6 +206,7 @@
                       "platform/integrations",
                       "platform/tms",
                       "platform/connections/github",
+                      "platform/connections/intercom",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false

@@ -326,6 +326,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "github"
   | "crowdin"
   | "contentful"
+  | "intercom"
   | "slack"
   | "email";
 
@@ -337,8 +338,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   use_crowdin: "crowdin",
   use_web_search: null,
   run_contentful_translation: "contentful",
-  import_intercom_articles: null,
-  push_intercom_translations: null,
+  import_intercom_articles: "intercom",
+  push_intercom_translations: "intercom",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,

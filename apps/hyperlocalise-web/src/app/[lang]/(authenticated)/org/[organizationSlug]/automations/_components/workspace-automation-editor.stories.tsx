@@ -26,9 +26,11 @@ import {
   createDetailAutomationFormFixture,
   createEmptyAutomationFormFixture,
   createGithubAutomationFormFixture,
+  createIntercomAutomationFormFixture,
   createManualAutomationFormFixture,
   createMemoriesAutomationFormFixture,
   createScheduledAutomationFormFixture,
+  intercomAutomationRunsFixture,
 } from "./automation-editor.fixture";
 import {
   automationEditorDisconnectedMswHandlers,
@@ -230,6 +232,44 @@ export const CreateFromContentfulTemplate: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Translate Contentful article")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
+  },
+};
+
+export const CreateFromIntercomTemplate: Story = {
+  args: {
+    form: createIntercomAutomationFormFixture(),
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByDisplayValue("Translate Intercom Help Center articles"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Intercom Help Center")).toBeInTheDocument();
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveValue("en");
+    await expect(canvas.getByLabelText("Collection IDs (optional)")).toHaveValue("38");
+    await expect(canvas.getByText("Include draft articles on import")).toBeInTheDocument();
+  },
+};
+
+export const CreateIntercomDisconnected: Story = {
+  parameters: {
+    msw: {
+      handlers: automationEditorDisconnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await openSkillCategory(canvas, body, userEvent, "Translate");
+    await waitFor(() =>
+      expect(
+        body.getByRole("menuitem", { name: /^Translate Intercom Help Center articles/ }),
+      ).toHaveAttribute("aria-disabled", "true"),
+    );
+    const intercom = body.getByRole("menuitem", {
+      name: /^Translate Intercom Help Center articles/,
+    });
+    await expect(within(intercom).getByText("Connect Intercom first")).toBeInTheDocument();
   },
 };
 
@@ -491,6 +531,36 @@ export const DetailRunHistory: Story = {
     await expect(canvas.getByText("acme/website")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "View raw JSON" }));
     await expect(canvas.getByText(/"repositoryFullName": "acme\/website"/)).toBeInTheDocument();
+  },
+};
+
+export const DetailIntercomRunHistory: Story = {
+  args: {
+    mode: "detail",
+    form: createIntercomAutomationFormFixture(),
+    runHistory: intercomAutomationRunsFixture,
+    actions: (
+      <>
+        <Button type="button" variant="outline" onClick={fn()}>
+          <PlayIcon data-icon="inline-start" />
+          Run now
+        </Button>
+        <Button type="button" disabled>
+          <FloppyDiskIcon data-icon="inline-start" />
+          Save changes
+        </Button>
+      </>
+    ),
+  },
+  play: async ({ canvas, userEvent }) => {
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
+    await expect(
+      canvas.getByText(/Imported 2 published articles from Customer Support/),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/Pushed approved drafts to Intercom for Getting started with Acme/),
+    ).toBeInTheDocument();
   },
 };
 

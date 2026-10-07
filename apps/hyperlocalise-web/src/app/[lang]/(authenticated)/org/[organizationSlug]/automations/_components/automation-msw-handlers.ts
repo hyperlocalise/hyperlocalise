@@ -14,6 +14,8 @@ import { delay, http, HttpResponse } from "msw";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
+
 import {
   automationEditorContentfulConnectionsFixture,
   automationEditorCrowdinProjectsFixture,
@@ -21,6 +23,7 @@ import {
   automationEditorRepositoriesFixture,
   automationEditorSlackChannelsFixture,
 } from "./automation-editor.fixture";
+import { intercomHelpCenterSummariesFixture } from "./intercom-api.fixture";
 
 export const automationEditorMswHandlers = [
   http.get("*/v1/orgs/:organizationSlug/projects", () =>
@@ -98,7 +101,10 @@ export const automationEditorMswHandlers = [
     HttpResponse.json({
       pipe: {
         provider: params.provider,
-        connected: params.provider === "gitlab" || params.provider === "resend",
+        connected:
+          params.provider === "gitlab" ||
+          params.provider === "resend" ||
+          params.provider === "intercom",
         needsReauthorization: false,
         apiKeyLast4: null,
       },
@@ -112,6 +118,9 @@ export const automationEditorMswHandlers = [
         updatedByUserId: "user_001",
       },
     }),
+  ),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+    HttpResponse.json({ helpCenters: intercomHelpCenterSummariesFixture }),
   ),
   http.put("/api/orgs/:organizationSlug/knowledge-memory", async ({ request }) => {
     const body = (await request.json()) as { content?: string };
@@ -177,6 +186,9 @@ export const automationEditorDisconnectedMswHandlers = [
       },
     }),
   ),
+  http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+    HttpResponse.json({ helpCenters: [] }),
+  ),
 ];
 
 export function createAutomationDetailMswHandlers(
@@ -184,12 +196,20 @@ export function createAutomationDetailMswHandlers(
   options?: {
     patchDelay?: number | "infinite";
     deleteDelay?: number | "infinite";
+    recentRuns?: WorkspaceAutomationRunRecord[];
+    intercomPush?: {
+      eligibleLocaleCount: number;
+      mappedArticleCount: number;
+      pushRunInProgress: boolean;
+    } | null;
   },
 ) {
+  const recentRuns = options?.recentRuns ?? [];
+  const intercomPush = options?.intercomPush ?? null;
   return [
     ...automationEditorMswHandlers,
     http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
-      HttpResponse.json({ automation, recentRuns: [] }),
+      HttpResponse.json({ automation, recentRuns, intercomPush }),
     ),
     http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
       if (options?.patchDelay !== undefined) {
