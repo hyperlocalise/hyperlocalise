@@ -294,7 +294,9 @@ func XLIFFTargetEntriesForSource(source, target []byte) (map[string]string, erro
 func normalizeXLIFFMarkup(value []byte) string {
 	// BOLT OPTIMIZATION: Plain text fast-path. When value contains no XML markup or special characters,
 	// return string(value) directly without xml.Decoder initialization.
-	if !bytes.ContainsAny(value, "<>&'\"\r") {
+	// Tabs and newlines must take the decoder path so they match xml.EscapeText
+	// (&#x9;/&#xA;) used for tagged fragments and inline-code payloads.
+	if !bytes.ContainsAny(value, "<>&'\"\r\t\n") {
 		return string(value)
 	}
 	decoder := xml.NewDecoder(bytes.NewReader(value))
@@ -554,11 +556,16 @@ func escapeXLIFFText(value string) string {
 // xml.EscapeText already escapes them; keep these replacements explicit for
 // static analyzers and to preserve the attribute contract if text escaping changes.
 func escapeXLIFFAttrValue(value string) string {
-	// BOLT OPTIMIZATION: Fast-path for plain text without special XML characters or quotes.
-	if !strings.ContainsAny(value, "<>&'\"\r") {
+	// Attribute values cannot reuse the text fast path: XML attribute-value
+	// normalization turns literal tabs and newlines into spaces, and forbidden
+	// code points must go through xml.EscapeText (U+FFFD) even without quotes.
+	if !strings.ContainsAny(value, "<>&'\"\r\t\n") && isXMLPlainCharData(value) {
 		return value
 	}
-	escaped := escapeXLIFFText(value)
+	var out bytes.Buffer
+	out.Grow(len(value) + 16)
+	_ = xml.EscapeText(&out, []byte(value))
+	escaped := out.String()
 	escaped = strings.ReplaceAll(escaped, `"`, "&#34;")
 	escaped = strings.ReplaceAll(escaped, "'", "&#39;")
 	return escaped

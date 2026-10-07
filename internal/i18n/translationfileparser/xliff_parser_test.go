@@ -297,6 +297,43 @@ func TestMarshalXLIFFEscapesXMLForbiddenPlainText(t *testing.T) {
 	}
 }
 
+func TestMarshalXLIFFWritebackPreservesInlineCodeNewlinePayload(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en-US" target-language="fr">
+    <body>
+      <trans-unit id="hello">
+        <source><ph id="p">a
+b</ph>Hello</source>
+        <target><ph id="p">a
+b</ph>Hello</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	entries, err := (XLIFFParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	out, err := MarshalXLIFF(template, map[string]string{"hello": entries["hello"]}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal parsed value with newline in inline code: %v", err)
+	}
+	if _, err := (XLIFFParser{}).Parse(out); err != nil {
+		t.Fatalf("writeback must remain parseable: %v", err)
+	}
+}
+
+func TestXLIFFSourceStructureEqualTreatsEscapedAndLiteralNewlinesAsEqual(t *testing.T) {
+	literal := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source>Hello
+world</source></trans-unit></body></file></xliff>`)
+	escaped := []byte(`<xliff version="1.2"><file><body><trans-unit id="u"><source>Hello&#10;world</source></trans-unit></body></file></xliff>`)
+	if !XLIFFSourceStructureEqual(literal, escaped) {
+		t.Fatal("literal and escaped source newlines should compare equal")
+	}
+}
+
 func TestMarshalXLIFFClearsTargetWhenReplacementEmpty(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
