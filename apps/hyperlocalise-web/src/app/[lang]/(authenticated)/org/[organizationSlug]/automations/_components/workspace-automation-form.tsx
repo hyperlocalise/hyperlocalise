@@ -104,6 +104,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
+import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
@@ -202,7 +203,6 @@ type ZernioConnectionOption = {
   enabled: boolean;
   validationStatus: string;
 };
-type AutomationEditorTab = "settings" | "history";
 
 type ComingSoonAutomationTool = {
   id: string;
@@ -3087,6 +3087,7 @@ export function WorkspaceAutomationEditor({
   onChange,
   organizationSlug,
   runHistory,
+  initialEditorTab,
 }: {
   actions?: ReactNode;
   automationId?: string;
@@ -3099,9 +3100,17 @@ export function WorkspaceAutomationEditor({
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
+  initialEditorTab?: WorkspaceAutomationEditorTab;
 }) {
   const intl = useIntl();
-  const [activeTab, setActiveTab] = useState<AutomationEditorTab>("settings");
+  const [activeTab, setActiveTab] = useState<WorkspaceAutomationEditorTab>(
+    initialEditorTab ?? "settings",
+  );
+  useEffect(() => {
+    if (initialEditorTab) {
+      setActiveTab(initialEditorTab);
+    }
+  }, [initialEditorTab]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -3528,7 +3537,10 @@ export function WorkspaceAutomationEditor({
         <FieldError message={errors.form} />
       </section>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as AutomationEditorTab)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as WorkspaceAutomationEditorTab)}
+      >
         <TabsList>
           <TabsTrigger value="settings">
             <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />

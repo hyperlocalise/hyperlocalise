@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -133,6 +134,7 @@ function ProjectFileContentEditorPageContentInner({
   branch = null,
   sourcePaths = null,
   canWriteDictionaries = false,
+  canManageAutomations = false,
   adaptiveWorkspaceEnabled = false,
 }: {
   organizationSlug: string;
@@ -152,6 +154,7 @@ function ProjectFileContentEditorPageContentInner({
   branch?: string | null;
   sourcePaths?: string | null;
   canWriteDictionaries?: boolean;
+  canManageAutomations?: boolean;
   adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
@@ -702,6 +705,16 @@ function ProjectFileContentEditorPageContentInner({
       }}
       backHref={filesHref}
       actions={pageActions}
+      headerTrailing={
+        canManageAutomations ? (
+          <ContentEditorIntercomPushButton
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            canManageAutomations={canManageAutomations}
+            pageNavigationGuardRef={pageNavigationGuardRef}
+          />
+        ) : null
+      }
       banners={
         <>
           {repositoryBanner}

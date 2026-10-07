@@ -34,6 +34,9 @@ import {
   contentEditorPageShellXlsxPath,
   createContentEditorPageShellWorkspaceBySourcePath,
 } from "./content-editor-page-shell.fixture";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
+import { createContentEditorIntercomPushMswHandlers } from "@/components/content-editor/page/content-editor-intercom-push-msw-handlers";
+
 import { ContentEditorPageShellStoryView } from "./content-editor-page-shell.story-view";
 
 const meta = {
@@ -193,5 +196,31 @@ export const Default: Story = {
     await selectFileInTree(canvasElement, contentEditorPageShellProductJsonPath);
     await waitFor(() => expect(canvas.getByText("Source")).toBeInTheDocument());
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
+  },
+};
+
+export const IntercomPushInHeader: Story = {
+  args: {
+    ...Default.args,
+    headerTrailing: (
+      <ContentEditorIntercomPushButton
+        organizationSlug="story"
+        projectId="story"
+        canManageAutomations
+      />
+    ),
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        ...contentEditorDocumentMswHandlers,
+        ...contentEditorOfficeMswHandlers,
+        ...createContentEditorIntercomPushMswHandlers(),
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
   },
 };

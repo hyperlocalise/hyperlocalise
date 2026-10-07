@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import {
   isReleaseCatAdaptiveWorkspaceEnabled,
@@ -124,6 +125,7 @@ async function ProjectStringsPageLoader({
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}
       sourcePaths={parsedSearchParams.sourcePaths}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

@@ -260,7 +260,7 @@ export const IntercomWeeklyImport: Story = {
     await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
     await expect(
-      canvas.queryByRole("button", { name: "Push approved translations" }),
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
     ).not.toBeInTheDocument();
   },
 };
@@ -289,7 +289,7 @@ export const IntercomPushApprovedReady: Story = {
   },
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Push approved translations" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
   },
 };
@@ -327,7 +327,7 @@ export const IntercomPushInProgress: Story = {
   play: async ({ canvas }) => {
     await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
     await expect(
-      canvas.queryByRole("button", { name: "Push approved translations" }),
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
     ).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
   },

@@ -210,7 +210,7 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     description:
       "Import Intercom Help Center articles into a project, open native translation jobs, and push approved translations on demand.",
     grants:
-      "Reads Intercom articles through Pipes, writes JSON source files and native jobs. Push writes Intercom drafts when you run Push approved translations.",
+      "Reads Intercom articles through Pipes, writes JSON source files and native jobs. Push writes Intercom drafts when you run Push to Intercom.",
     tools: ["import_intercom_articles", "push_intercom_translations"],
     triggers: ["manual", "scheduled"],
     sharedSkills: [],

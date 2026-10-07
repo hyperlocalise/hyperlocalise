@@ -44,6 +44,7 @@ import {
   sortJobContentEditorProviderFiles,
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
+import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -197,6 +198,7 @@ export function JobContentEditorPageContent({
   contentEditorAllFilesEnabled = false,
   adaptiveWorkspaceEnabled = false,
   canWriteDictionaries = false,
+  canManageAutomations = false,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -214,12 +216,21 @@ export function JobContentEditorPageContent({
   contentEditorAllFilesEnabled?: boolean;
   adaptiveWorkspaceEnabled?: boolean;
   canWriteDictionaries?: boolean;
+  canManageAutomations?: boolean;
 }) {
   const intl = useIntl();
   const router = useRouter();
   const { client: goSvcClient } = useGoSvcClient();
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  const intercomPushHeaderTrailing = canManageAutomations ? (
+    <ContentEditorIntercomPushButton
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canManageAutomations={canManageAutomations}
+      pageNavigationGuardRef={pageNavigationGuardRef}
+    />
+  ) : null;
   const canUseAllFiles = contentEditorAllFilesEnabled;
   const requestedAllFiles = isContentEditorAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
   const allFiles = canUseAllFiles && requestedAllFiles;
@@ -675,6 +686,7 @@ export function JobContentEditorPageContent({
           onLocaleChange: handleAllFilesLocaleChange,
           onRepositoryChange: handleRepositoryChange,
         }}
+        headerTrailing={intercomPushHeaderTrailing}
         banners={repositoryBanner}
       >
         <ProjectFileContentEditorWorkspace
@@ -850,6 +862,7 @@ export function JobContentEditorPageContent({
           onLocaleChange: handleLocaleChange,
           onRepositoryChange: handleRepositoryChange,
         }}
+        headerTrailing={intercomPushHeaderTrailing}
         banners={repositoryBanner}
       >
         <ProjectFileContentEditorWorkspace
@@ -977,6 +990,7 @@ export function JobContentEditorPageContent({
         onLocaleChange: handleLocaleChange,
         onRepositoryChange: handleRepositoryChange,
       }}
+      headerTrailing={intercomPushHeaderTrailing}
       banners={repositoryBanner}
     >
       <ProjectFileContentEditorWorkspace

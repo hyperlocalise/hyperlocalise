@@ -17,6 +17,7 @@ import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { TrashIcon, PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -46,6 +47,12 @@ import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-ap
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
+import { intercomPushUiMessages } from "@/lib/intercom/intercom-push-ui.messages";
+import {
+  buildAutomationsDetailHref,
+  parseWorkspaceAutomationEditorTab,
+} from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
@@ -95,6 +102,8 @@ export function AutomationDetailPageContent({
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
+  const searchParams = useSearchParams();
+  const initialEditorTab = parseWorkspaceAutomationEditorTab(searchParams.get("tab")) ?? undefined;
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
@@ -243,33 +252,32 @@ export function AutomationDetailPageContent({
     },
   });
 
+  const navigateToIntercomPushRunHistory = () => {
+    router.push(
+      buildAutomationsDetailHref(organizationSlug, {
+        automationId,
+        projectId,
+        tab: "history",
+      }),
+    );
+  };
+
   const pushApprovedMutation = useMutation({
     mutationFn: async () => {
       if (!automation) {
         throw new Error("missing_automation");
       }
-      const response = await apiClient.api.orgs[":organizationSlug"].automations[
-        ":automationId"
-      ].runs.$post({
-        param: { organizationSlug, automationId },
-        json: {
-          idempotencyKey: `push_approved:${automationId}:${crypto.randomUUID()}`,
-          inputSnapshot: { operation: "push_approved" },
-        },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to queue push run");
-      }
-      return response.json();
+      return queueIntercomPushRun({ organizationSlug, automationId });
     },
     onSuccess: () => {
-      toast.success("Push approved translations queued");
+      toast.success(intl.formatMessage(intercomPushUiMessages.pushQueued));
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, automationId],
       });
+      navigateToIntercomPushRunHistory();
     },
     onError: () => {
-      toast.error("Failed to queue push run");
+      toast.error(intl.formatMessage(intercomPushUiMessages.pushFailed));
     },
   });
 
@@ -448,7 +456,7 @@ export function AutomationDetailPageContent({
               }
             >
               {pushApprovedMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
-              Push approved translations
+              <FormattedMessage {...intercomPushUiMessages.pushButton} />
             </Button>
           ) : null}
           {showRunButton || showSourceFileRunButton ? (
@@ -512,6 +520,7 @@ export function AutomationDetailPageContent({
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         runHistory={recentRuns}
+        initialEditorTab={initialEditorTab}
         actions={editorActions}
       />
 

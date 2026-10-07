@@ -34,7 +34,7 @@ After you select a Help Center, the editor lists that Help Center’s locale cod
    - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
 6. Save the automation.
 
-Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push approved translations** for write-back.
+Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom** for write-back.
 
 ## Import articles
 
@@ -51,7 +51,7 @@ Import does not write translations to Intercom.
 ## Review and push drafts
 
 1. Translate and [approve](/platform/cat) the target locales in the project.
-2. Open the automation. **Push approved translations** appears when approved locales are ready and no push is already running.
+2. In the Content editor header or on the automation, choose **Push to Intercom** when approved locales are ready and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
 3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
 
 A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.
@@ -67,7 +67,7 @@ If a Help Center is missing, confirm the Intercom workspace, region, and that yo
 - Confirm Intercom is connected and the automation is **Active**.
 - Confirm the Help Center and region match the Intercom workspace.
 - Confirm project locales match the Help Center locale codes exactly.
-- For no **Push approved translations** button, approve at least one mapped locale and wait until any in-progress push finishes.
+- If **Push to Intercom** is missing, approve at least one mapped locale, confirm you have permission to manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed article or locale.
 
 See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).
