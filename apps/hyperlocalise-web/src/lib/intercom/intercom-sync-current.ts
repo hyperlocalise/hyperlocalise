@@ -16,8 +16,11 @@ import { db, schema } from "@/lib/database/client";
 import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
 
 import {
+  IntercomSyncStaleConfigError,
   readLiveIntercomScopeKey,
   resolveIntercomAutomationFreshness,
+  resolveIntercomAutomationScopeFreshness,
+  type IntercomSyncStaleConfigCode,
 } from "./intercom-sync-scope";
 
 export async function assertLiveIntercomAutomationConfigVersion(
@@ -27,8 +30,9 @@ export async function assertLiveIntercomAutomationConfigVersion(
     automationId: string;
     configVersion: number;
     scopeKey: string;
-    staleErrorCode: string;
+    staleErrorCode: IntercomSyncStaleConfigCode;
     lock?: boolean;
+    compare?: "config" | "scope";
   },
 ): Promise<void> {
   const query = client
@@ -54,15 +58,21 @@ export async function assertLiveIntercomAutomationConfigVersion(
       })
     : null;
 
-  if (
-    resolveIntercomAutomationFreshness({
-      snapshotConfigVersion: input.configVersion,
-      snapshotScopeKey: input.scopeKey,
-      liveConfigVersion: row?.configVersion ?? null,
-      liveScopeKey,
-    }) === "stale"
-  ) {
-    throw new Error(input.staleErrorCode);
+  const freshness =
+    input.compare === "scope"
+      ? resolveIntercomAutomationScopeFreshness({
+          snapshotScopeKey: input.scopeKey,
+          liveScopeKey,
+        })
+      : resolveIntercomAutomationFreshness({
+          snapshotConfigVersion: input.configVersion,
+          snapshotScopeKey: input.scopeKey,
+          liveConfigVersion: row?.configVersion ?? null,
+          liveScopeKey,
+        });
+
+  if (freshness === "stale") {
+    throw new IntercomSyncStaleConfigError(input.staleErrorCode);
   }
 }
 
@@ -72,7 +82,8 @@ export async function withCurrentIntercomAutomationConfig<T>(
     automationId: string;
     configVersion: number;
     scopeKey: string;
-    staleErrorCode: string;
+    staleErrorCode: IntercomSyncStaleConfigCode;
+    compare?: "config" | "scope";
   },
   write: (tx: DatabaseTransaction) => Promise<T>,
 ): Promise<T> {

@@ -63,6 +63,7 @@ describe("workspace automation templates", () => {
       ),
     ).toEqual([
       "translate-on-source-upload",
+      "translate-intercom-articles",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

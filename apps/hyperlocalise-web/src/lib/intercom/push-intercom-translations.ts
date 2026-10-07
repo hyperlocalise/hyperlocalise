@@ -89,6 +89,7 @@ export async function runPushIntercomTranslations(input: {
         configVersion: input.automation.configVersion,
         scopeKey: pushScopeKey,
         staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+        compare: "scope",
       },
       write,
     );
@@ -99,6 +100,7 @@ export async function runPushIntercomTranslations(input: {
     configVersion: input.automation.configVersion,
     scopeKey: pushScopeKey,
     staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+    compare: "scope",
   });
 
   const tokenResult = await loadIntercomPipesAccessToken({
@@ -189,18 +191,18 @@ export async function runPushIntercomTranslations(input: {
         },
         "intercom article read failed",
       );
-      await writeIfCurrent((tx) =>
-        tx
-          .update(schema.intercomArticleSyncStates)
-          .set({
-            status: "push_failed",
-            lastError: {
-              message: error instanceof Error ? error.message : String(error),
-            },
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
-      );
+      await updateMappingIfCurrentTarget({
+        mappingId: mapping.id,
+        projectId,
+        helpCenterId,
+        values: {
+          status: "push_failed",
+          lastError: {
+            message: error instanceof Error ? error.message : String(error),
+          },
+          updatedAt: new Date(),
+        },
+      });
       return;
     }
     if (
@@ -289,6 +291,14 @@ export async function runPushIntercomTranslations(input: {
           continue;
         }
 
+        await assertLiveIntercomAutomationConfigVersion(db, {
+          organizationId: input.organizationId,
+          automationId: input.automation.id,
+          configVersion: input.automation.configVersion,
+          scopeKey: pushScopeKey,
+          staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+          compare: "scope",
+        });
         await updateIntercomArticleTranslatedContent({
           client,
           articleId: mapping.articleId,
@@ -303,6 +313,14 @@ export async function runPushIntercomTranslations(input: {
         articlePushed += 1;
       } catch (error) {
         if (isIntercomSyncStaleConfigError(error)) {
+          await persistPushReceipt({
+            mapping,
+            projectId,
+            helpCenterId,
+            lastPushHash,
+            articlePushed,
+            articleFailed,
+          });
           throw error;
         }
         articleFailed += 1;
@@ -318,17 +336,14 @@ export async function runPushIntercomTranslations(input: {
       }
     }
 
-    await writeIfCurrent((tx) =>
-      tx
-        .update(schema.intercomArticleSyncStates)
-        .set({
-          lastPushedAt: articlePushed > 0 ? new Date() : mapping.lastPushedAt,
-          lastPushContentHash: lastPushHash,
-          status: articleFailed > 0 ? "push_failed" : "active",
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
-    );
+    await persistPushReceipt({
+      mapping,
+      projectId,
+      helpCenterId,
+      lastPushHash,
+      articlePushed,
+      articleFailed,
+    });
 
     pushedLocales += articlePushed;
     skippedLocales += articleSkipped;
@@ -341,4 +356,49 @@ export async function runPushIntercomTranslations(input: {
     failedLocales,
     articlesProcessed: mappings.length,
   };
+}
+
+async function persistPushReceipt(input: {
+  mapping: { id: string; lastPushedAt: Date | null };
+  projectId: string;
+  helpCenterId: string;
+  lastPushHash: Record<string, string>;
+  articlePushed: number;
+  articleFailed: number;
+}) {
+  await updateMappingIfCurrentTarget({
+    mappingId: input.mapping.id,
+    projectId: input.projectId,
+    helpCenterId: input.helpCenterId,
+    values: {
+      lastPushedAt: input.articlePushed > 0 ? new Date() : input.mapping.lastPushedAt,
+      lastPushContentHash: input.lastPushHash,
+      status: input.articleFailed > 0 ? "push_failed" : "active",
+      updatedAt: new Date(),
+    },
+  });
+}
+
+async function updateMappingIfCurrentTarget(input: {
+  mappingId: string;
+  projectId: string;
+  helpCenterId: string;
+  values: {
+    status?: "active" | "archived" | "push_failed";
+    lastError?: Record<string, unknown> | null;
+    lastPushedAt?: Date | null;
+    lastPushContentHash?: Record<string, string>;
+    updatedAt: Date;
+  };
+}) {
+  await db
+    .update(schema.intercomArticleSyncStates)
+    .set(input.values)
+    .where(
+      and(
+        eq(schema.intercomArticleSyncStates.id, input.mappingId),
+        eq(schema.intercomArticleSyncStates.projectId, input.projectId),
+        eq(schema.intercomArticleSyncStates.helpCenterId, input.helpCenterId),
+      ),
+    );
 }

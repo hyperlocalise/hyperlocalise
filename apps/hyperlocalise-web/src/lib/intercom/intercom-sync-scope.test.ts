@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   INTERCOM_IMPORT_STALE_CONFIG,
   INTERCOM_PUSH_STALE_CONFIG,
+  IntercomSyncStaleConfigError,
   buildIntercomImportScopeKey,
   encodeIntercomImportScopeCursor,
   intercomArticleInConfiguredCollections,
@@ -23,6 +24,7 @@ import {
   readIntercomImportScopeCursor,
   readLiveIntercomScopeKey,
   resolveIntercomAutomationFreshness,
+  resolveIntercomAutomationScopeFreshness,
 } from "./intercom-sync-scope";
 
 describe("intercom sync scope", () => {
@@ -127,6 +129,31 @@ describe("intercom sync scope", () => {
     ).toBe("stale");
   });
 
+  it("treats a matching live scope as current even when config version is ignored", () => {
+    const scopeKey = buildIntercomImportScopeKey({
+      projectId: "project-1",
+      helpCenterId: "hc-1",
+      collectionIds: ["38"],
+    });
+
+    expect(
+      resolveIntercomAutomationScopeFreshness({
+        snapshotScopeKey: scopeKey,
+        liveScopeKey: scopeKey,
+      }),
+    ).toBe("current");
+    expect(
+      resolveIntercomAutomationScopeFreshness({
+        snapshotScopeKey: scopeKey,
+        liveScopeKey: buildIntercomImportScopeKey({
+          projectId: "project-2",
+          helpCenterId: "hc-1",
+          collectionIds: ["38"],
+        }),
+      }),
+    ).toBe("stale");
+  });
+
   it("rejects a missing automation or incomplete live scope", () => {
     const scopeKey = buildIntercomImportScopeKey({
       projectId: "project-1",
@@ -179,8 +206,15 @@ describe("intercom sync scope", () => {
   });
 
   it("recognizes stale-config errors from import and push", () => {
-    expect(isIntercomSyncStaleConfigError(new Error(INTERCOM_IMPORT_STALE_CONFIG))).toBe(true);
-    expect(isIntercomSyncStaleConfigError(new Error(INTERCOM_PUSH_STALE_CONFIG))).toBe(true);
+    expect(
+      isIntercomSyncStaleConfigError(
+        new IntercomSyncStaleConfigError(INTERCOM_IMPORT_STALE_CONFIG),
+      ),
+    ).toBe(true);
+    expect(
+      isIntercomSyncStaleConfigError(new IntercomSyncStaleConfigError(INTERCOM_PUSH_STALE_CONFIG)),
+    ).toBe(true);
+    expect(isIntercomSyncStaleConfigError(new Error(INTERCOM_IMPORT_STALE_CONFIG))).toBe(false);
     expect(isIntercomSyncStaleConfigError(new Error("intercom_upload_failed"))).toBe(false);
   });
 });

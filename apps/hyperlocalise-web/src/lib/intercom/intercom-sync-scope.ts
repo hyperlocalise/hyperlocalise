@@ -17,11 +17,24 @@ const INTERCOM_IMPORT_SCOPE_PREFIX = "scope:";
 export const INTERCOM_IMPORT_STALE_CONFIG = "intercom_import_stale_config";
 export const INTERCOM_PUSH_STALE_CONFIG = "intercom_push_stale_config";
 
-export function isIntercomSyncStaleConfigError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message === INTERCOM_IMPORT_STALE_CONFIG || error.message === INTERCOM_PUSH_STALE_CONFIG)
-  );
+export type IntercomSyncStaleConfigCode =
+  | typeof INTERCOM_IMPORT_STALE_CONFIG
+  | typeof INTERCOM_PUSH_STALE_CONFIG;
+
+export class IntercomSyncStaleConfigError extends Error {
+  readonly code: IntercomSyncStaleConfigCode;
+
+  constructor(code: IntercomSyncStaleConfigCode) {
+    super(code);
+    this.name = "IntercomSyncStaleConfigError";
+    this.code = code;
+  }
+}
+
+export function isIntercomSyncStaleConfigError(
+  error: unknown,
+): error is IntercomSyncStaleConfigError {
+  return error instanceof IntercomSyncStaleConfigError;
 }
 
 export function resolveIntercomAutomationFreshness(input: {
@@ -37,6 +50,16 @@ export function resolveIntercomAutomationFreshness(input: {
     return "stale";
   }
   if (input.liveScopeKey !== input.snapshotScopeKey) {
+    return "stale";
+  }
+  return "current";
+}
+
+export function resolveIntercomAutomationScopeFreshness(input: {
+  snapshotScopeKey: string;
+  liveScopeKey: string | null;
+}): "current" | "stale" {
+  if (input.liveScopeKey == null || input.liveScopeKey !== input.snapshotScopeKey) {
     return "stale";
   }
   return "current";
