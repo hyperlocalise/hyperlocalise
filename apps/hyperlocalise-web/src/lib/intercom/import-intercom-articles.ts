@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
@@ -36,6 +36,11 @@ import {
   listIntercomArticlesSince,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom } from "./intercom-locale";
+import {
+  buildIntercomImportScopeKey,
+  encodeIntercomImportScopeCursor,
+  readIntercomImportScopeCursor,
+} from "./intercom-sync-scope";
 import { loadIntercomPipesAccessToken } from "./pipes";
 import { waitForSourceFileVersionIngest } from "./wait-for-source-file-ingest";
 
@@ -103,17 +108,36 @@ export async function runImportIntercomArticles(input: {
     restEndpoint: intercom.restEndpoint,
   });
 
+  const importScopeKey = buildIntercomImportScopeKey({
+    projectId,
+    helpCenterId,
+    collectionIds: intercom.collectionIds,
+  });
   const [cursorRow] = await db
     .select()
     .from(schema.intercomSyncCursors)
     .where(eq(schema.intercomSyncCursors.automationId, input.automation.id))
     .limit(1);
 
-  const watermarkUpdatedAt = cursorRow?.watermarkUpdatedAt
-    ? Math.floor(cursorRow.watermarkUpdatedAt.getTime() / 1000)
-    : null;
+  const storedScopeKey = readIntercomImportScopeCursor(cursorRow?.listCursor);
+  const importScopeChanged = storedScopeKey !== importScopeKey;
+
+  if (importScopeChanged) {
+    await archiveOutOfScopeMappings({
+      organizationId: input.organizationId,
+      automationId: input.automation.id,
+      projectId,
+      helpCenterId,
+    });
+  }
+
+  const watermarkUpdatedAt =
+    importScopeChanged || !cursorRow?.watermarkUpdatedAt
+      ? null
+      : Math.floor(cursorRow.watermarkUpdatedAt.getTime() / 1000);
 
   const needsReconcile =
+    importScopeChanged ||
     !cursorRow?.lastReconcileAt ||
     Date.now() - cursorRow.lastReconcileAt.getTime() > RECONCILE_INTERVAL_MS;
 
@@ -124,6 +148,15 @@ export async function runImportIntercomArticles(input: {
     helpCenterId,
     collectionIds: intercom.collectionIds,
   });
+  if (needsReconcile) {
+    await archiveOutOfScopeMappings({
+      organizationId: input.organizationId,
+      automationId: input.automation.id,
+      projectId,
+      helpCenterId,
+      inScopeArticleIds: listedArticles.map((article) => article.id),
+    });
+  }
   const failedMappings = await db
     .select({
       articleId: schema.intercomArticleSyncStates.articleId,
@@ -133,6 +166,8 @@ export async function runImportIntercomArticles(input: {
       and(
         eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
         eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
+        eq(schema.intercomArticleSyncStates.projectId, projectId),
+        eq(schema.intercomArticleSyncStates.helpCenterId, helpCenterId),
         inArray(schema.intercomArticleSyncStates.status, ["import_failed"]),
       ),
     );
@@ -181,8 +216,6 @@ export async function runImportIntercomArticles(input: {
     articles,
     ARTICLE_IMPORT_CONCURRENCY,
     async (article) => {
-      const payload = intercomArticleToImportPayload(article, sourceIntercomLocale);
-      const contentHash = hashIntercomArticleContent(payload);
       const sourcePath = buildIntercomArticleSourcePath({
         helpCenterId,
         articleId: article.id,
@@ -200,15 +233,17 @@ export async function runImportIntercomArticles(input: {
         )
         .limit(1);
 
-      if (existing?.sourceContentHash === contentHash && existing.status === "active") {
-        return {
-          outcome: "skipped" as const,
-          articleId: article.id,
-          updatedAt: article.updatedAt,
-        };
-      }
-
       try {
+        const payload = intercomArticleToImportPayload(article, sourceIntercomLocale);
+        const contentHash = hashIntercomArticleContent(payload);
+
+        if (existing?.sourceContentHash === contentHash && existing.status === "active") {
+          return {
+            outcome: "skipped" as const,
+            articleId: article.id,
+            updatedAt: article.updatedAt,
+          };
+        }
         const jsonBytes = Buffer.from(serializeIntercomArticleJson(payload), "utf8");
         const upload = await uploadSourceFile({
           organizationId: input.organizationId,
@@ -331,7 +366,9 @@ export async function runImportIntercomArticles(input: {
           helpCenterId,
           article,
           sourcePath,
-          contentHash,
+          contentHash:
+            existing?.sourceContentHash ??
+            hashIntercomArticleContent({ title: "", description: "", body: "" }),
           sourceLocale: sourceIntercomLocale,
           status: "import_failed",
           lastError: {
@@ -379,30 +416,82 @@ export async function runImportIntercomArticles(input: {
 
   const shouldRecordReconcile = needsReconcile && failed === 0;
 
-  if (handledUpdatedAt != null || shouldRecordReconcile) {
+  if (handledUpdatedAt != null || shouldRecordReconcile || importScopeChanged) {
     const watermark =
       handledUpdatedAt != null
         ? new Date(handledUpdatedAt * 1000)
-        : (cursorRow?.watermarkUpdatedAt ?? null);
+        : importScopeChanged
+          ? null
+          : (cursorRow?.watermarkUpdatedAt ?? null);
     await db
       .insert(schema.intercomSyncCursors)
       .values({
         automationId: input.automation.id,
         organizationId: input.organizationId,
         watermarkUpdatedAt: watermark,
-        ...(shouldRecordReconcile ? { lastReconcileAt: new Date() } : {}),
+        listCursor: encodeIntercomImportScopeCursor(importScopeKey),
+        lastReconcileAt: shouldRecordReconcile ? new Date() : null,
       })
       .onConflictDoUpdate({
         target: schema.intercomSyncCursors.automationId,
         set: {
-          ...(watermark ? { watermarkUpdatedAt: watermark } : {}),
-          ...(shouldRecordReconcile ? { lastReconcileAt: new Date() } : {}),
+          ...(importScopeChanged || watermark ? { watermarkUpdatedAt: watermark } : {}),
+          listCursor: encodeIntercomImportScopeCursor(importScopeKey),
+          ...(shouldRecordReconcile
+            ? { lastReconcileAt: new Date() }
+            : importScopeChanged
+              ? { lastReconcileAt: null }
+              : {}),
           updatedAt: new Date(),
         },
       });
   }
 
   return { imported, skipped, failed, jobsCreated, jobIds };
+}
+
+async function archiveOutOfScopeMappings(input: {
+  organizationId: string;
+  automationId: string;
+  projectId: string;
+  helpCenterId: string;
+  inScopeArticleIds?: readonly string[];
+}) {
+  const scopeFilter = and(
+    eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
+    eq(schema.intercomArticleSyncStates.automationId, input.automationId),
+    inArray(schema.intercomArticleSyncStates.status, ["active", "import_failed", "push_failed"]),
+  );
+
+  if (input.inScopeArticleIds && input.inScopeArticleIds.length === 0) {
+    await db
+      .update(schema.intercomArticleSyncStates)
+      .set({
+        status: "archived",
+        updatedAt: new Date(),
+      })
+      .where(scopeFilter);
+    return;
+  }
+
+  const targetMismatch = or(
+    ne(schema.intercomArticleSyncStates.projectId, input.projectId),
+    ne(schema.intercomArticleSyncStates.helpCenterId, input.helpCenterId),
+  );
+  const articleOutOfScope =
+    input.inScopeArticleIds && input.inScopeArticleIds.length > 0
+      ? notInArray(schema.intercomArticleSyncStates.articleId, [...input.inScopeArticleIds])
+      : undefined;
+
+  await db
+    .update(schema.intercomArticleSyncStates)
+    .set({
+      status: "archived",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(scopeFilter, articleOutOfScope ? or(targetMismatch, articleOutOfScope) : targetMismatch),
+    );
 }
 
 async function upsertSyncState(input: {
@@ -442,6 +531,8 @@ async function upsertSyncState(input: {
         schema.intercomArticleSyncStates.articleId,
       ],
       set: {
+        projectId: input.projectId,
+        helpCenterId: input.helpCenterId,
         sourcePath: input.sourcePath,
         sourceContentHash: input.contentHash,
         sourceUpdatedAt:

@@ -22,7 +22,10 @@ import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
 } from "@/lib/intercom/pipes";
-import { mapProjectLocalesToIntercom } from "@/lib/intercom/intercom-locale";
+import {
+  mapProjectLocalesToIntercom,
+  normalizeIntercomLocaleTag,
+} from "@/lib/intercom/intercom-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
@@ -758,12 +761,25 @@ export async function validateWorkspaceAutomationIntegrations(input: {
         .limit(1);
 
       if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = intercom.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          normalizeIntercomLocaleTag(configuredSourceLocale) !==
+            normalizeIntercomLocaleTag(projectSourceLocale)
+        ) {
+          return err({
+            code: "intercom_source_locale_mismatch",
+            message: "The Intercom source locale must match the project source locale.",
+          });
+        }
+
         const helpCenterLocales =
           intercom.helpCenterLocales.length > 0
             ? intercom.helpCenterLocales
             : intercom.targetLocales;
         const localeMapping = mapProjectLocalesToIntercom({
-          projectSourceLocale: project.sourceLocale ?? "en",
+          projectSourceLocale,
           projectTargetLocales: Array.isArray(project.targetLocales)
             ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
             : [],

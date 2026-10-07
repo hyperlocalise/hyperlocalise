@@ -15,6 +15,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automations-api";
 import { apiClient } from "@/lib/api-client-instance";
 import { hasWorkspaceAutomationIntercomTool } from "@/lib/agents/workspace-automation-types";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorIntercomPushCandidate = {
   automationId: string;
@@ -38,6 +39,7 @@ export function invalidateContentEditorIntercomPushQueries(
 }
 
 const automationsApi = createAutomationsApi(apiClient);
+const INTERCOM_PUSH_DETAIL_CONCURRENCY = 3;
 
 export async function fetchContentEditorIntercomPushCandidates(input: {
   organizationSlug: string;
@@ -61,8 +63,10 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
     return [];
   }
 
-  const details = await Promise.all(
-    intercomAutomations.map(async (automation) => {
+  const details = await mapWithConcurrency(
+    intercomAutomations,
+    INTERCOM_PUSH_DETAIL_CONCURRENCY,
+    async (automation) => {
       const response = await apiClient.api.orgs[":organizationSlug"].automations[
         ":automationId"
       ].$get({
@@ -85,7 +89,7 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
         eligibleLocaleCount: intercomPush.eligibleLocaleCount,
         pushRunInProgress: intercomPush.pushRunInProgress,
       } satisfies ContentEditorIntercomPushCandidate;
-    }),
+    },
   );
 
   return details.filter((entry): entry is ContentEditorIntercomPushCandidate => entry != null);

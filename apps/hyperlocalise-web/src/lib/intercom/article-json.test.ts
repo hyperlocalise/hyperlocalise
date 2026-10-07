@@ -21,6 +21,7 @@ import {
   mergeIntercomLocalePushPayload,
   parseIntercomLastPushRecord,
   serializeIntercomArticleJson,
+  shouldSkipUnchangedIntercomHash,
 } from "./article-json";
 
 describe("intercom article json", () => {
@@ -75,6 +76,29 @@ describe("intercom article json", () => {
       hash,
       pushedAtSeconds: 1_672_317_851,
     });
+  });
+
+  it("lets overwrite resend an unchanged approved hash", () => {
+    const hash = hashIntercomTranslationValues({
+      title: "Hello",
+      description: "Help",
+      body: "<p>Body</p>",
+    });
+
+    expect(
+      shouldSkipUnchangedIntercomHash({
+        lastHash: hash,
+        nextHash: hash,
+        overwriteIntercomDrafts: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipUnchangedIntercomHash({
+        lastHash: hash,
+        nextHash: hash,
+        overwriteIntercomDrafts: true,
+      }),
+    ).toBe(false);
   });
 
   it("requires approved title and body and preserves a remote description", () => {

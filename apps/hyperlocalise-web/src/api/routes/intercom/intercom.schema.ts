@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,4 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export { intercomPushUiMessages as contentEditorIntercomPushButtonMessages } from "@/lib/intercom/intercom-push-ui.messages";
+import { z } from "zod";
+
+import { INTERCOM_REST_ENDPOINTS } from "@/lib/intercom/constants";
+
+export const intercomRestEndpointSchema = z.enum(INTERCOM_REST_ENDPOINTS);
+
+export const intercomHelpCentersQuerySchema = z.object({
+  restEndpoint: intercomRestEndpointSchema.default("us"),
+});

@@ -207,10 +207,14 @@ export function buildWorkspaceOrchestratorPlan(
   triggerContext?: WorkspaceOrchestratorTriggerContext,
 ): WorkspaceOrchestratorPlan {
   if (hasWorkspaceAutomationIntercomTool(automation.toolConfig)) {
-    if (triggerContext?.operation === "push_approved") {
-      return { tools: ["push_intercom_translations"] };
-    }
-    return { tools: ["import_intercom_articles"] };
+    const intercomTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_intercom_translations"
+        : "import_intercom_articles";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [intercomTool, ...notificationTools] };
   }
 
   const workflowTools = orderWorkflowTools({

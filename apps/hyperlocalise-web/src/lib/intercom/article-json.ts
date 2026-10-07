@@ -66,6 +66,14 @@ export function encodeIntercomLastPushRecord(hash: string, pushedAtSeconds: numb
   return `${hash}:${pushedAtSeconds}`;
 }
 
+export function shouldSkipUnchangedIntercomHash(input: {
+  lastHash: string;
+  nextHash: string;
+  overwriteIntercomDrafts: boolean;
+}): boolean {
+  return input.lastHash === input.nextHash && !input.overwriteIntercomDrafts;
+}
+
 export function parseIntercomLastPushRecord(value: string | undefined): {
   hash: string;
   pushedAtSeconds: number | null;

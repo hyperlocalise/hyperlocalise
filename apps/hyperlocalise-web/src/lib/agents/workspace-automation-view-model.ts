@@ -215,6 +215,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "One or more target locales do not match Intercom Help Center locales.",
   intercom_source_locale_unmapped:
     "The source locale does not match an Intercom Help Center locale.",
+  intercom_source_locale_mismatch:
+    "The Intercom source locale must match the project source locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -1066,6 +1068,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "intercom_help_center_required":
     case "intercom_target_locales_unmapped":
     case "intercom_source_locale_unmapped":
+    case "intercom_source_locale_mismatch":
       return { intercomHelpCenterId: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":

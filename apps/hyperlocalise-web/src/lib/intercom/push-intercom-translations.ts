@@ -25,6 +25,7 @@ import {
   hashIntercomTranslationValues,
   mergeIntercomLocalePushPayload,
   parseIntercomLastPushRecord,
+  shouldSkipUnchangedIntercomHash,
 } from "./article-json";
 import {
   createIntercomArticlesClient,
@@ -33,6 +34,10 @@ import {
   updateIntercomArticleTranslatedContent,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
+import {
+  intercomArticleInConfiguredCollections,
+  intercomMappingMatchesTarget,
+} from "./intercom-sync-scope";
 import { loadIntercomPipesAccessToken } from "./pipes";
 
 const logger = createLogger("push-intercom-translations");
@@ -57,6 +62,10 @@ export async function runPushIntercomTranslations(input: {
   const projectId = input.automation.projectId?.trim();
   if (!projectId) {
     throw new Error("intercom_project_required");
+  }
+  const helpCenterId = intercom.helpCenterId?.trim();
+  if (!helpCenterId) {
+    throw new Error("intercom_help_center_required");
   }
 
   const tokenResult = await loadIntercomPipesAccessToken({
@@ -115,7 +124,23 @@ export async function runPushIntercomTranslations(input: {
   let skippedLocales = 0;
   let failedLocales = 0;
 
+  const currentTarget = {
+    projectId,
+    helpCenterId,
+  };
+
   await mapWithConcurrency(mappings, PUSH_CONCURRENCY, async (mapping) => {
+    if (!intercomMappingMatchesTarget(mapping, currentTarget)) {
+      await db
+        .update(schema.intercomArticleSyncStates)
+        .set({
+          status: "archived",
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      return;
+    }
+
     let remoteArticle;
     try {
       remoteArticle = await getIntercomArticle(client, mapping.articleId);
@@ -136,6 +161,19 @@ export async function runPushIntercomTranslations(input: {
           lastError: {
             message: error instanceof Error ? error.message : String(error),
           },
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      return;
+    }
+    if (
+      remoteArticle &&
+      !intercomArticleInConfiguredCollections(remoteArticle.parentIds, intercom.collectionIds)
+    ) {
+      await db
+        .update(schema.intercomArticleSyncStates)
+        .set({
+          status: "archived",
           updatedAt: new Date(),
         })
         .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
@@ -187,7 +225,13 @@ export async function runPushIntercomTranslations(input: {
         });
         const hashKey = normalizeIntercomLocaleTag(intercomLocale);
         const lastPush = parseIntercomLastPushRecord(lastPushHash[hashKey]);
-        if (lastPush.hash === hash) {
+        if (
+          shouldSkipUnchangedIntercomHash({
+            lastHash: lastPush.hash,
+            nextHash: hash,
+            overwriteIntercomDrafts: intercom.overwriteIntercomDrafts,
+          })
+        ) {
           articleSkipped += 1;
           continue;
         }

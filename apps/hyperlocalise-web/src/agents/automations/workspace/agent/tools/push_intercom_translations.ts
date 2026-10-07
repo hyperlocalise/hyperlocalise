@@ -54,6 +54,11 @@ export function createPushIntercomTranslationsTool(session: WorkspaceOrchestrato
         summary: summary?.trim() || undefined,
       };
 
+      if (result.failedLocales > 0 && result.pushedLocales === 0) {
+        session.terminalStatus = "failed";
+        session.terminalError = "intercom_push_failed";
+      }
+
       session.stepResults.push_intercom_translations = output;
 
       await updateWorkspaceAutomationRun({

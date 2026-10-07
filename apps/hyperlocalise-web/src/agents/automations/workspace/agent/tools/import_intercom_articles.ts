@@ -55,6 +55,11 @@ export function createImportIntercomArticlesTool(session: WorkspaceOrchestratorS
         summary: summary?.trim() || undefined,
       };
 
+      if (result.failed > 0 && result.imported === 0) {
+        session.terminalStatus = "failed";
+        session.terminalError = "intercom_import_failed";
+      }
+
       session.stepResults.import_intercom_articles = output;
 
       await updateWorkspaceAutomationRun({

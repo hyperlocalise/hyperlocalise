@@ -12,7 +12,6 @@
  */
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -27,14 +26,10 @@ import type { IntercomRestEndpoint } from "@/lib/intercom/constants";
 import { loadIntercomPipesAccessToken } from "@/lib/intercom/pipes";
 import { isErr } from "@/lib/primitives/result/results";
 
-const intercomRestEndpointSchema = z.enum(["us", "eu", "au"]);
+import { intercomHelpCentersQuerySchema } from "./intercom.schema";
 
 const validateHelpCentersQuery = validator("query", (value, c) => {
-  const parsed = z
-    .object({
-      restEndpoint: intercomRestEndpointSchema.default("us"),
-    })
-    .safeParse(value);
+  const parsed = intercomHelpCentersQuerySchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(c, "invalid_query_params", "Query parameters are invalid.");
   }

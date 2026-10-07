@@ -47,4 +47,16 @@ describe("mapProjectLocalesToIntercom", () => {
     expect(result.intercomTargetLocales).toEqual(["de", "fr"]);
     expect(result.unmappedProjectTargets).toEqual([]);
   });
+
+  it("rejects a configured source locale that does not match the project source", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en",
+      projectTargetLocales: ["de"],
+      intercomLocales: ["en", "de"],
+      configuredSourceLocale: "de",
+    });
+
+    expect(result.sourceIntercomLocale).toBeNull();
+    expect(result.jobTargetLocales).toEqual([]);
+  });
 });

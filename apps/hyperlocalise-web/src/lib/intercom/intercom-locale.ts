@@ -51,8 +51,21 @@ export function mapProjectLocalesToIntercom(input: {
   intercomTargetLocales: string[];
   unmappedProjectTargets: string[];
 } {
-  const intercomSource =
-    input.configuredSourceLocale?.trim() || input.projectSourceLocale.trim() || "en";
+  const projectSource = input.projectSourceLocale.trim() || "en";
+  const configuredSource = input.configuredSourceLocale?.trim() || "";
+  if (
+    configuredSource &&
+    normalizeIntercomLocaleTag(configuredSource) !== normalizeIntercomLocaleTag(projectSource)
+  ) {
+    return {
+      sourceIntercomLocale: null,
+      jobTargetLocales: [],
+      intercomTargetLocales: [],
+      unmappedProjectTargets: [],
+    };
+  }
+
+  const intercomSource = configuredSource || projectSource;
   const sourceIntercomLocale = resolveIntercomLocaleKey(intercomSource, input.intercomLocales);
   if (!sourceIntercomLocale) {
     return {

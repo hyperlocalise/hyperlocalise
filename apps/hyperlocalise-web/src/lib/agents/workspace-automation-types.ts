@@ -530,6 +530,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "The source locale does not match an Intercom Help Center locale.";
     }
   | {
+      code: "intercom_source_locale_mismatch";
+      message: "The Intercom source locale must match the project source locale.";
+    }
+  | {
       code: "skill_not_found";
       message: "A selected skill is no longer available. Remove it and try again.";
     }
