@@ -532,6 +532,16 @@
                       }
                     ],
                     "expanded": false
+                  },
+                  {
+                    "group": "Contributing",
+                    "pages": [
+                      "contributing/docs-contributions",
+                      "contributing/development",
+                      "contributing/lambda-deploy",
+                      "contributing/release-maintenance"
+                    ],
+                    "expanded": false
                   }
                 ]
               }

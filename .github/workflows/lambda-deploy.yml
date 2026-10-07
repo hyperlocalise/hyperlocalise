@@ -21,6 +21,7 @@ on:
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
       - .github/actions/deploy-lambda-artifact/**
+      - .github/actions/ensure-deploy-main-tip/**
       - .github/workflows/lambda-deploy.yml
   workflow_dispatch:
 
@@ -66,6 +67,7 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
             glossary-interchange:
               - 'apps/glossary-interchange-lambda/**'
@@ -79,6 +81,7 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
             memory-interchange:
               - 'apps/memory-interchange-lambda/**'
@@ -94,6 +97,7 @@ jobs:
               - '.github/actions/provision-lambda/**'
               - '.github/actions/upload-lambda-artifact/**'
               - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
               - '.github/workflows/lambda-deploy.yml'
 
   # Per-lambda concurrency only — see docs/contributing/lambda-deploy.mdx. Workflow-wide
@@ -111,6 +115,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
@@ -169,6 +178,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
         with:
@@ -225,6 +239,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap

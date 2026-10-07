@@ -16,11 +16,13 @@ This left production out of sync with `main` (for example glossary-interchange a
 
 - Remove workflow-level concurrency from **Lambda Deploy**.
 - Add job-level concurrency on each `*_deploy` job with a unique group per worker (`lambda-deploy-<worker>-${{ github.ref }}`), keeping `cancel-in-progress: true` within that worker only.
+- After checkout, push-triggered deploy jobs run `ensure-deploy-main-tip` so a slow older run cannot deploy once a newer commit is already at `main`.
 
 ## Consequences
 
 - Unrelated merges no longer cancel another worker’s deploy mid-flight.
 - Two consecutive merges touching the same worker still supersede the older deploy for that worker only.
+- Superseded push deploy jobs exit before build or AWS steps; `workflow_dispatch` runs skip the tip check.
 - Adding a new Lambda requires a new deploy job concurrency group; document the invariant in `AGENTS.md`, `docs/contributing/lambda-deploy.mdx`, and the create-sqs-lambda-worker skill.
 
 ## References

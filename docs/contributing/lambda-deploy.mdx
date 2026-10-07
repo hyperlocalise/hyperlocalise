@@ -5,7 +5,7 @@ description: "How Go queue workers deploy from GitHub Actions, path filters, and
 
 ## Overview
 
-Production Go Lambdas under `apps/*-lambda` ship through the [**Lambda Deploy**](https://github.com/hyperlocalise/hyperlocalise/blob/main/.github/workflows/lambda-deploy.yml) workflow on pushes to `main` (when touched paths match) and through **workflow_dispatch** (manual **Lambda Deploy** run).
+Production Go Lambdas under `apps/*-lambda` ship through the [Lambda Deploy](https://github.com/hyperlocalise/hyperlocalise/blob/main/.github/workflows/lambda-deploy.yml) workflow on pushes to `main` (when touched paths match) and through `workflow_dispatch` (manual **Lambda Deploy** run).
 
 Each deploy job builds a Linux `bootstrap` binary, uploads a versioned artifact to S3, and updates the function code via SSM parameters and shared actions under `.github/actions/`.
 
@@ -24,7 +24,7 @@ Infrastructure provisioning (queues, IAM, SSM parameter names) lives in the infr
 The `changed_paths` job runs `dorny/paths-filter` and sets outputs such as `glossary-interchange`. Each deploy job runs only when:
 
 - the push is to `main` and its filter output is `true`, or
-- the workflow was started with **workflow_dispatch** (all deploy jobs run).
+- the workflow was started with `workflow_dispatch` (all deploy jobs run).
 
 Shared paths (for example `Makefile`, `go.mod`, `.github/workflows/lambda-deploy.yml`, and deploy actions) appear in multiple filters, so one commit can trigger more than one deploy job.
 
@@ -32,11 +32,11 @@ When editing filters, keep the workflow `on.push.paths` list in sync so unrelate
 
 ## Concurrency
 
-Deploy jobs use **per-lambda** concurrency groups, for example `lambda-deploy-glossary-interchange-refs/heads/main`, with `cancel-in-progress: true`.
+Deploy jobs use per-lambda concurrency groups, for example `lambda-deploy-glossary-interchange-refs/heads/main`, with `cancel-in-progress: true`.
 
 ### Why not workflow-wide cancel?
 
-If the whole workflow shares one concurrency group with `cancel-in-progress: true`, a new run **cancels the entire previous run**. Deploy jobs are **conditional**: a later merge may trigger the workflow but skip glossary (or another worker) because path filters do not match.
+If the whole workflow shares one concurrency group with `cancel-in-progress: true`, a new run cancels the entire previous run. Deploy jobs are conditional: a later merge may trigger the workflow but skip glossary (or another worker) because path filters do not match.
 
 That combination caused production glossary-interchange code to fall behind: a glossary deploy was cancelled by an unrelated merge, and the cancelling run never redeployed glossary.
 
@@ -47,10 +47,12 @@ Merge B (memory only)    → new workflow run starts, cancels run A
                          → glossary Lambda never updated for merge A
 ```
 
+Per-lambda concurrency fixes cross-worker cancellation. Push deploys also run `ensure-deploy-main-tip` so a slow older run cannot deploy after a newer commit already reached `main`.
+
 ### Rules when changing the workflow
 
-- Do **not** add workflow-level `concurrency` with `cancel-in-progress: true` while deploy jobs are path-filtered.
-- **Do** add a dedicated `concurrency` block on each deploy job when you add a new worker.
+- Do not add workflow-level `concurrency` with `cancel-in-progress: true` while deploy jobs are path-filtered.
+- Do add a dedicated `concurrency` block on each deploy job when you add a new worker.
 - Two pushes that both change the same worker still cancel only that worker’s in-progress deploy (latest SHA wins for that function).
 
 Decision record: [Lambda deploy job-level concurrency](../adr/2026-10-07-lambda-deploy-job-concurrency.md).
@@ -63,6 +65,7 @@ Use the [create-sqs-lambda-worker](https://github.com/hyperlocalise/hyperlocalis
 2. Add a filter under `changed_paths` → `dorny/paths-filter`.
 3. Add a deploy job with `if` on the new output (and `workflow_dispatch`).
 4. Add job-level `concurrency` with a unique group name.
+5. Call `ensure-deploy-main-tip` after checkout in the deploy job.
 
 Root [`AGENTS.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/AGENTS.md) summarizes the same rules for automation.
 

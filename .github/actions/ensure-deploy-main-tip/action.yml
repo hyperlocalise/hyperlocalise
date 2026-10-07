@@ -1,0 +1,22 @@
+name: Ensure deploy main tip
+description: Stop push-triggered deploy jobs superseded by a newer commit on main
+inputs:
+  event-name:
+    description: github.event_name for the workflow run
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify commit is tip of main
+      shell: bash
+      run: |
+        if [ "${{ inputs.event-name }}" != "push" ]; then
+          exit 0
+        fi
+
+        git fetch origin main --depth=1
+        tip="$(git rev-parse origin/main)"
+        if [ "${GITHUB_SHA}" != "${tip}" ]; then
+          echo "::notice title=Deploy skipped::Commit ${GITHUB_SHA} is not the tip of main (${tip}). A newer push owns this worker deploy."
+          exit 1
+        fi
