@@ -31,7 +31,7 @@ export function useOrgRouter() {
     const transitionTypes = getOrgNavigationTransitionTypes(pathname, href);
 
     // A page with unsaved changes may ask first, and may need its extra history entry replaced.
-    navigateThroughLeaveGuard(({ replace }) => {
+    navigateThroughLeaveGuard(href, ({ replace }) => {
       startTransition(() => {
         for (const transitionType of transitionTypes ?? []) {
           addTransitionType(transitionType);

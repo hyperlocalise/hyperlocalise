@@ -15,7 +15,7 @@
 /** Carries out a navigation that was held back; `replace` is set when it must not add a history entry. */
 export type GuardedNavigation = (how: { replace: boolean }) => void;
 
-type LeaveGuard = (proceed: GuardedNavigation) => void;
+type LeaveGuard = (href: string, proceed: GuardedNavigation) => void;
 
 let activeLeaveGuard: LeaveGuard | null = null;
 
@@ -30,9 +30,9 @@ export function registerLeaveGuard(guard: LeaveGuard): () => void {
 }
 
 /** Runs `proceed` at once, or hands it to the page's leave guard when one is registered. */
-export function navigateThroughLeaveGuard(proceed: GuardedNavigation) {
+export function navigateThroughLeaveGuard(href: string, proceed: GuardedNavigation) {
   if (activeLeaveGuard) {
-    activeLeaveGuard(proceed);
+    activeLeaveGuard(href, proceed);
     return;
   }
   proceed({ replace: false });

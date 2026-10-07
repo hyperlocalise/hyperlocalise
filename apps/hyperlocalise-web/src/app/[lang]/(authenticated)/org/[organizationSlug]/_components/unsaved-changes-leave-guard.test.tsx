@@ -47,6 +47,16 @@ function ProjectMenuItem() {
   );
 }
 
+// Stands in for the page moving to another of its own tabs through the address.
+function HistoryTabItem() {
+  const router = useOrgRouter();
+  return (
+    <button type="button" onClick={() => router.push("/org/acme/automations/new?tab=history")}>
+      Run history
+    </button>
+  );
+}
+
 function Page({ hasUnsavedChanges }: { hasUnsavedChanges: boolean }) {
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
   return (
@@ -59,6 +69,7 @@ function Page({ hasUnsavedChanges }: { hasUnsavedChanges: boolean }) {
         Create
       </button>
       <ProjectMenuItem />
+      <HistoryTabItem />
       {leaveGuardDialog}
     </>
   );
@@ -205,6 +216,25 @@ describe("useUnsavedChangesLeaveGuard", () => {
     expect(mocks.push).toHaveBeenCalledWith("/org/acme/projects/proj_2/automations", {
       scroll: undefined,
     });
+  });
+
+  it("does not ask about navigation that stays on the same page, and still asks afterwards", async () => {
+    const user = userEvent.setup();
+    // The address has the locale in front; the links and pushes of the app do not.
+    window.history.replaceState(null, "", "/en/org/acme/automations/new");
+    renderPage(true);
+
+    await user.click(screen.getByRole("button", { name: "Run history" }));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    // Replaced, so the extra history entry stays the newest one.
+    expect(mocks.replace).toHaveBeenCalledWith("/org/acme/automations/new?tab=history", {
+      scroll: undefined,
+    });
+    expect(mocks.push).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("link", { name: "Inbox" }));
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
   });
 
   it("asks when the back button is used, and stays on the page until answered", async () => {

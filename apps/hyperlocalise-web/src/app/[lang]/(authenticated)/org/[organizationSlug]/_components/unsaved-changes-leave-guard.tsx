@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { registerLeaveGuard, type GuardedNavigation } from "@/lib/navigation/leave-guard";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
@@ -69,6 +70,20 @@ export function getInternalNavigationHrefFromClick(
     return next;
   } catch {
     return null;
+  }
+}
+
+/** Whether `href` is this same page with another query or hash, which keeps the page and its form. */
+function staysOnCurrentPage(href: string, currentHref: string): boolean {
+  try {
+    const target = new URL(href, currentHref);
+    const current = new URL(currentHref);
+    return (
+      target.origin === current.origin &&
+      stripAppLocalePrefix(target.pathname) === stripAppLocalePrefix(current.pathname)
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -144,7 +159,13 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
   });
 
   // Every `useOrgRouter` navigation comes through here while the changes are unsaved.
-  const onGuardedNavigation = useEffectEvent((proceed: GuardedNavigation) => {
+  const onGuardedNavigation = useEffectEvent((href: string, proceed: GuardedNavigation) => {
+    if (!leaving.current && staysOnCurrentPage(href, window.location.href)) {
+      // Nothing is lost, so nothing is asked. The extra entry is replaced and stays the newest
+      // one, so the back button is still caught.
+      proceed({ replace: historyGuardPushed.current });
+      return;
+    }
     const go = () => {
       // Replacing drops the extra entry, so going back later does not show this page twice.
       const replace = historyGuardPushed.current;
@@ -196,7 +217,9 @@ export function useUnsavedChangesLeaveGuard(hasUnsavedChanges: boolean): {
     }
 
     pushHistoryGuard();
-    const unregisterLeaveGuard = registerLeaveGuard((proceed) => onGuardedNavigation(proceed));
+    const unregisterLeaveGuard = registerLeaveGuard((href, proceed) =>
+      onGuardedNavigation(href, proceed),
+    );
     window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClickCapture, true);
     return () => {
