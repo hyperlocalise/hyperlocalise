@@ -13,6 +13,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import type { DatabaseTransaction } from "@/lib/database/client";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
@@ -35,8 +36,15 @@ import {
 } from "./articles-api";
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
 import {
+  assertLiveIntercomAutomationConfigVersion,
+  withCurrentIntercomAutomationConfig,
+} from "./intercom-sync-current";
+import {
+  INTERCOM_PUSH_STALE_CONFIG,
+  buildIntercomImportScopeKey,
   intercomArticleInConfiguredCollections,
   intercomMappingMatchesTarget,
+  isIntercomSyncStaleConfigError,
 } from "./intercom-sync-scope";
 import { loadIntercomPipesAccessToken } from "./pipes";
 
@@ -67,6 +75,31 @@ export async function runPushIntercomTranslations(input: {
   if (!helpCenterId) {
     throw new Error("intercom_help_center_required");
   }
+
+  const pushScopeKey = buildIntercomImportScopeKey({
+    projectId,
+    helpCenterId,
+    collectionIds: intercom.collectionIds,
+  });
+  const writeIfCurrent = <T>(write: (tx: DatabaseTransaction) => Promise<T>) =>
+    withCurrentIntercomAutomationConfig(
+      {
+        organizationId: input.organizationId,
+        automationId: input.automation.id,
+        configVersion: input.automation.configVersion,
+        scopeKey: pushScopeKey,
+        staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+      },
+      write,
+    );
+
+  await assertLiveIntercomAutomationConfigVersion(db, {
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    configVersion: input.automation.configVersion,
+    scopeKey: pushScopeKey,
+    staleErrorCode: INTERCOM_PUSH_STALE_CONFIG,
+  });
 
   const tokenResult = await loadIntercomPipesAccessToken({
     localOrganizationId: input.organizationId,
@@ -131,13 +164,15 @@ export async function runPushIntercomTranslations(input: {
 
   await mapWithConcurrency(mappings, PUSH_CONCURRENCY, async (mapping) => {
     if (!intercomMappingMatchesTarget(mapping, currentTarget)) {
-      await db
-        .update(schema.intercomArticleSyncStates)
-        .set({
-          status: "archived",
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      await writeIfCurrent((tx) =>
+        tx
+          .update(schema.intercomArticleSyncStates)
+          .set({
+            status: "archived",
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
+      );
       return;
     }
 
@@ -154,29 +189,33 @@ export async function runPushIntercomTranslations(input: {
         },
         "intercom article read failed",
       );
-      await db
-        .update(schema.intercomArticleSyncStates)
-        .set({
-          status: "push_failed",
-          lastError: {
-            message: error instanceof Error ? error.message : String(error),
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      await writeIfCurrent((tx) =>
+        tx
+          .update(schema.intercomArticleSyncStates)
+          .set({
+            status: "push_failed",
+            lastError: {
+              message: error instanceof Error ? error.message : String(error),
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
+      );
       return;
     }
     if (
       remoteArticle &&
       !intercomArticleInConfiguredCollections(remoteArticle.parentIds, intercom.collectionIds)
     ) {
-      await db
-        .update(schema.intercomArticleSyncStates)
-        .set({
-          status: "archived",
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+      await writeIfCurrent((tx) =>
+        tx
+          .update(schema.intercomArticleSyncStates)
+          .set({
+            status: "archived",
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
+      );
       return;
     }
     const authorId = remoteArticle?.authorId ?? null;
@@ -263,6 +302,9 @@ export async function runPushIntercomTranslations(input: {
         lastPushHash[hashKey] = encodeIntercomLastPushRecord(hash, Math.floor(Date.now() / 1000));
         articlePushed += 1;
       } catch (error) {
+        if (isIntercomSyncStaleConfigError(error)) {
+          throw error;
+        }
         articleFailed += 1;
         logger.warn(
           {
@@ -276,15 +318,17 @@ export async function runPushIntercomTranslations(input: {
       }
     }
 
-    await db
-      .update(schema.intercomArticleSyncStates)
-      .set({
-        lastPushedAt: articlePushed > 0 ? new Date() : mapping.lastPushedAt,
-        lastPushContentHash: lastPushHash,
-        status: articleFailed > 0 ? "push_failed" : "active",
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.intercomArticleSyncStates.id, mapping.id));
+    await writeIfCurrent((tx) =>
+      tx
+        .update(schema.intercomArticleSyncStates)
+        .set({
+          lastPushedAt: articlePushed > 0 ? new Date() : mapping.lastPushedAt,
+          lastPushContentHash: lastPushHash,
+          status: articleFailed > 0 ? "push_failed" : "active",
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.intercomArticleSyncStates.id, mapping.id)),
+    );
 
     pushedLocales += articlePushed;
     skippedLocales += articleSkipped;

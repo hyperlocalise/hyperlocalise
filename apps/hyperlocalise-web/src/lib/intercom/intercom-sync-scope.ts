@@ -14,6 +14,69 @@ import { articleBelongsToCollections } from "./articles-api";
 
 const INTERCOM_IMPORT_SCOPE_PREFIX = "scope:";
 
+export const INTERCOM_IMPORT_STALE_CONFIG = "intercom_import_stale_config";
+export const INTERCOM_PUSH_STALE_CONFIG = "intercom_push_stale_config";
+
+export function isIntercomSyncStaleConfigError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === INTERCOM_IMPORT_STALE_CONFIG || error.message === INTERCOM_PUSH_STALE_CONFIG)
+  );
+}
+
+export function resolveIntercomAutomationFreshness(input: {
+  snapshotConfigVersion: number;
+  snapshotScopeKey: string;
+  liveConfigVersion: number | null;
+  liveScopeKey: string | null;
+}): "current" | "stale" {
+  if (input.liveConfigVersion == null || input.liveScopeKey == null) {
+    return "stale";
+  }
+  if (input.liveConfigVersion !== input.snapshotConfigVersion) {
+    return "stale";
+  }
+  if (input.liveScopeKey !== input.snapshotScopeKey) {
+    return "stale";
+  }
+  return "current";
+}
+
+export function readLiveIntercomScopeKey(input: {
+  projectId: string | null;
+  toolConfig: Record<string, unknown> | null | undefined;
+}): string | null {
+  const projectId = input.projectId?.trim();
+  if (!projectId) {
+    return null;
+  }
+
+  const intercom = input.toolConfig?.intercom;
+  if (!intercom || typeof intercom !== "object" || Array.isArray(intercom)) {
+    return null;
+  }
+
+  const helpCenterId =
+    "helpCenterId" in intercom && typeof intercom.helpCenterId === "string"
+      ? intercom.helpCenterId.trim()
+      : "";
+  if (!helpCenterId) {
+    return null;
+  }
+
+  const rawCollectionIds =
+    "collectionIds" in intercom && Array.isArray(intercom.collectionIds)
+      ? intercom.collectionIds
+      : [];
+  const collectionIds = rawCollectionIds.filter((id): id is string => typeof id === "string");
+
+  return buildIntercomImportScopeKey({
+    projectId,
+    helpCenterId,
+    collectionIds,
+  });
+}
+
 export function buildIntercomImportScopeKey(input: {
   projectId: string;
   helpCenterId: string;

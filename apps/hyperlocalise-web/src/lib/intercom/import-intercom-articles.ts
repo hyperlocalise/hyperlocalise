@@ -13,6 +13,7 @@
 import { and, eq, inArray, ne, notInArray, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import type { DatabaseClient, DatabaseTransaction } from "@/lib/database/client";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
@@ -37,8 +38,14 @@ import {
 } from "./articles-api";
 import { mapProjectLocalesToIntercom } from "./intercom-locale";
 import {
+  assertLiveIntercomAutomationConfigVersion,
+  withCurrentIntercomAutomationConfig,
+} from "./intercom-sync-current";
+import {
+  INTERCOM_IMPORT_STALE_CONFIG,
   buildIntercomImportScopeKey,
   encodeIntercomImportScopeCursor,
+  isIntercomSyncStaleConfigError,
   readIntercomImportScopeCursor,
 } from "./intercom-sync-scope";
 import { loadIntercomPipesAccessToken } from "./pipes";
@@ -79,6 +86,30 @@ export async function runImportIntercomArticles(input: {
   workflowRunId?: string | null;
 }): Promise<ImportIntercomArticlesResult> {
   const { intercom, projectId, helpCenterId } = readIntercomConfig(input.automation);
+  const importScopeKey = buildIntercomImportScopeKey({
+    projectId,
+    helpCenterId,
+    collectionIds: intercom.collectionIds,
+  });
+  const writeIfCurrent = <T>(write: (tx: DatabaseTransaction) => Promise<T>) =>
+    withCurrentIntercomAutomationConfig(
+      {
+        organizationId: input.organizationId,
+        automationId: input.automation.id,
+        configVersion: input.automation.configVersion,
+        scopeKey: importScopeKey,
+        staleErrorCode: INTERCOM_IMPORT_STALE_CONFIG,
+      },
+      write,
+    );
+
+  await assertLiveIntercomAutomationConfigVersion(db, {
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    configVersion: input.automation.configVersion,
+    scopeKey: importScopeKey,
+    staleErrorCode: INTERCOM_IMPORT_STALE_CONFIG,
+  });
 
   const tokenResult = await loadIntercomPipesAccessToken({
     localOrganizationId: input.organizationId,
@@ -108,11 +139,6 @@ export async function runImportIntercomArticles(input: {
     restEndpoint: intercom.restEndpoint,
   });
 
-  const importScopeKey = buildIntercomImportScopeKey({
-    projectId,
-    helpCenterId,
-    collectionIds: intercom.collectionIds,
-  });
   const [cursorRow] = await db
     .select()
     .from(schema.intercomSyncCursors)
@@ -123,12 +149,15 @@ export async function runImportIntercomArticles(input: {
   const importScopeChanged = storedScopeKey !== importScopeKey;
 
   if (importScopeChanged) {
-    await archiveOutOfScopeMappings({
-      organizationId: input.organizationId,
-      automationId: input.automation.id,
-      projectId,
-      helpCenterId,
-    });
+    await writeIfCurrent((tx) =>
+      archiveOutOfScopeMappings({
+        organizationId: input.organizationId,
+        automationId: input.automation.id,
+        projectId,
+        helpCenterId,
+        client: tx,
+      }),
+    );
   }
 
   const watermarkUpdatedAt =
@@ -149,13 +178,16 @@ export async function runImportIntercomArticles(input: {
     collectionIds: intercom.collectionIds,
   });
   if (needsReconcile) {
-    await archiveOutOfScopeMappings({
-      organizationId: input.organizationId,
-      automationId: input.automation.id,
-      projectId,
-      helpCenterId,
-      inScopeArticleIds: listedArticles.map((article) => article.id),
-    });
+    await writeIfCurrent((tx) =>
+      archiveOutOfScopeMappings({
+        organizationId: input.organizationId,
+        automationId: input.automation.id,
+        projectId,
+        helpCenterId,
+        inScopeArticleIds: listedArticles.map((article) => article.id),
+        client: tx,
+      }),
+    );
   }
   const failedMappings = await db
     .select({
@@ -274,7 +306,30 @@ export async function runImportIntercomArticles(input: {
         });
 
         if (ingestOutcome !== "ingested") {
-          await upsertSyncState({
+          await writeIfCurrent((tx) =>
+            upsertSyncState({
+              organizationId: input.organizationId,
+              automationId: input.automation.id,
+              projectId,
+              helpCenterId,
+              article,
+              sourcePath,
+              contentHash,
+              sourceLocale: sourceIntercomLocale,
+              status: "import_failed",
+              lastError: { ingestOutcome },
+              client: tx,
+            }),
+          );
+          return {
+            outcome: "failed" as const,
+            articleId: article.id,
+            updatedAt: article.updatedAt,
+          };
+        }
+
+        await writeIfCurrent((tx) =>
+          upsertSyncState({
             organizationId: input.organizationId,
             automationId: input.automation.id,
             projectId,
@@ -283,29 +338,12 @@ export async function runImportIntercomArticles(input: {
             sourcePath,
             contentHash,
             sourceLocale: sourceIntercomLocale,
-            status: "import_failed",
-            lastError: { ingestOutcome },
-          });
-          return {
-            outcome: "failed" as const,
-            articleId: article.id,
-            updatedAt: article.updatedAt,
-          };
-        }
-
-        await upsertSyncState({
-          organizationId: input.organizationId,
-          automationId: input.automation.id,
-          projectId,
-          helpCenterId,
-          article,
-          sourcePath,
-          contentHash,
-          sourceLocale: sourceIntercomLocale,
-          status: "active",
-          lastError: null,
-          lastImportedAt: new Date(),
-        });
+            status: "active",
+            lastError: null,
+            lastImportedAt: new Date(),
+            client: tx,
+          }),
+        );
 
         let jobId: string | null = null;
         const createJobConfig = input.automation.toolConfig.createNativeTmsJob;
@@ -351,6 +389,9 @@ export async function runImportIntercomArticles(input: {
           jobId,
         };
       } catch (error) {
+        if (isIntercomSyncStaleConfigError(error)) {
+          throw error;
+        }
         logger.warn(
           {
             automationId: input.automation.id,
@@ -359,22 +400,25 @@ export async function runImportIntercomArticles(input: {
           },
           "intercom article import failed",
         );
-        await upsertSyncState({
-          organizationId: input.organizationId,
-          automationId: input.automation.id,
-          projectId,
-          helpCenterId,
-          article,
-          sourcePath,
-          contentHash:
-            existing?.sourceContentHash ??
-            hashIntercomArticleContent({ title: "", description: "", body: "" }),
-          sourceLocale: sourceIntercomLocale,
-          status: "import_failed",
-          lastError: {
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
+        await writeIfCurrent((tx) =>
+          upsertSyncState({
+            organizationId: input.organizationId,
+            automationId: input.automation.id,
+            projectId,
+            helpCenterId,
+            article,
+            sourcePath,
+            contentHash:
+              existing?.sourceContentHash ??
+              hashIntercomArticleContent({ title: "", description: "", body: "" }),
+            sourceLocale: sourceIntercomLocale,
+            status: "import_failed",
+            lastError: {
+              message: error instanceof Error ? error.message : String(error),
+            },
+            client: tx,
+          }),
+        );
         return {
           outcome: "failed" as const,
           articleId: article.id,
@@ -423,28 +467,30 @@ export async function runImportIntercomArticles(input: {
         : importScopeChanged
           ? null
           : (cursorRow?.watermarkUpdatedAt ?? null);
-    await db
-      .insert(schema.intercomSyncCursors)
-      .values({
-        automationId: input.automation.id,
-        organizationId: input.organizationId,
-        watermarkUpdatedAt: watermark,
-        listCursor: encodeIntercomImportScopeCursor(importScopeKey),
-        lastReconcileAt: shouldRecordReconcile ? new Date() : null,
-      })
-      .onConflictDoUpdate({
-        target: schema.intercomSyncCursors.automationId,
-        set: {
-          ...(importScopeChanged || watermark ? { watermarkUpdatedAt: watermark } : {}),
+    await writeIfCurrent((tx) =>
+      tx
+        .insert(schema.intercomSyncCursors)
+        .values({
+          automationId: input.automation.id,
+          organizationId: input.organizationId,
+          watermarkUpdatedAt: watermark,
           listCursor: encodeIntercomImportScopeCursor(importScopeKey),
-          ...(shouldRecordReconcile
-            ? { lastReconcileAt: new Date() }
-            : importScopeChanged
-              ? { lastReconcileAt: null }
-              : {}),
-          updatedAt: new Date(),
-        },
-      });
+          lastReconcileAt: shouldRecordReconcile ? new Date() : null,
+        })
+        .onConflictDoUpdate({
+          target: schema.intercomSyncCursors.automationId,
+          set: {
+            ...(importScopeChanged || watermark ? { watermarkUpdatedAt: watermark } : {}),
+            listCursor: encodeIntercomImportScopeCursor(importScopeKey),
+            ...(shouldRecordReconcile
+              ? { lastReconcileAt: new Date() }
+              : importScopeChanged
+                ? { lastReconcileAt: null }
+                : {}),
+            updatedAt: new Date(),
+          },
+        }),
+    );
   }
 
   return { imported, skipped, failed, jobsCreated, jobIds };
@@ -456,6 +502,7 @@ async function archiveOutOfScopeMappings(input: {
   projectId: string;
   helpCenterId: string;
   inScopeArticleIds?: readonly string[];
+  client: DatabaseClient;
 }) {
   const scopeFilter = and(
     eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
@@ -464,7 +511,7 @@ async function archiveOutOfScopeMappings(input: {
   );
 
   if (input.inScopeArticleIds && input.inScopeArticleIds.length === 0) {
-    await db
+    await input.client
       .update(schema.intercomArticleSyncStates)
       .set({
         status: "archived",
@@ -483,7 +530,7 @@ async function archiveOutOfScopeMappings(input: {
       ? notInArray(schema.intercomArticleSyncStates.articleId, [...input.inScopeArticleIds])
       : undefined;
 
-  await db
+  await input.client
     .update(schema.intercomArticleSyncStates)
     .set({
       status: "archived",
@@ -506,8 +553,9 @@ async function upsertSyncState(input: {
   status: "active" | "import_failed";
   lastError: Record<string, unknown> | null;
   lastImportedAt?: Date;
+  client: DatabaseClient;
 }) {
-  await db
+  await input.client
     .insert(schema.intercomArticleSyncStates)
     .values({
       organizationId: input.organizationId,
