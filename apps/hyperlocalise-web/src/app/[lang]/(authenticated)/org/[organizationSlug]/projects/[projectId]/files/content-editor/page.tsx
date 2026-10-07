@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability } from "@/api/auth/policy";
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import {
   isReleaseCatAdaptiveWorkspaceEnabled,
@@ -111,6 +111,7 @@ async function ProjectFileContentEditorPageLoader({
       branch={parsedSearchParams.branch}
       sourcePaths={parsedSearchParams.sourcePaths}
       canWriteDictionaries={hasCapability(auth.membership.role, "dictionaries:write")}
+      canManageAutomations={isWorkspaceOperatorRole(auth.membership.role)}
     />
   );
 }

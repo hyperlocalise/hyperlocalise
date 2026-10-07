@@ -102,6 +102,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-intercom-articles",
+    category: "source-content",
+    name: "Translate Intercom Help Center articles",
+    description:
+      "Import Intercom Help Center articles into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an Intercom Help Center localisation connector",
+      capabilities: [
+        "Import changed public articles as JSON source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue push separately",
+      ],
+      goal: "Keep Intercom articles in sync for localisation and write approved translations back as Intercom drafts.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-intercom-articles"],
+      name: "Translate Intercom articles",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      intercomEnabled: true,
+      intercomRestEndpoint: "us",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",

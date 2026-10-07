@@ -11,6 +11,9 @@
  * Version 2.0 or later.
  */
 
+/** WorkOS Pipes provider slug for Intercom. */
+export const INTERCOM_PIPES_SLUG = "intercom" as const;
+
 /** Allowlisted Intercom regional REST endpoint keys. */
 export const INTERCOM_REST_ENDPOINTS = ["us", "eu", "au"] as const;
 

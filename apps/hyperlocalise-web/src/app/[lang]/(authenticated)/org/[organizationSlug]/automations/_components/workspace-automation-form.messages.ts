@@ -588,6 +588,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Name of the Contentful integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationIntercom: {
+    defaultMessage: "Intercom",
+    id: "8GHkIAG5lJ",
+    description: "Name of the Intercom integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",

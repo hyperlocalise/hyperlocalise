@@ -12,10 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
+
 import { NativeTargetProvider } from "./content-editor-native-target-context";
 import { ContentEditorPageWindowProvider } from "./content-editor-page-window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -177,6 +179,7 @@ export function ProjectFileContentEditorWorkspace({
   adaptiveWorkspaceEnabled?: boolean;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
   const qaPolicyQuery = useQuery({
     queryKey: ["project-qa-reports", organizationSlug, projectId],
@@ -624,6 +627,7 @@ export function ProjectFileContentEditorWorkspace({
               targetLocale,
               status: "approved",
             });
+            invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
             return "reviewed" as const;
           } catch (error) {
             if (!isCatDeferredToApp(error)) {
@@ -645,6 +649,7 @@ export function ProjectFileContentEditorWorkspace({
         if (response.status !== 200) {
           throw new Error(await readApiError(response, statusFallback));
         }
+        invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
         return "reviewed" as const;
       }
 
@@ -658,7 +663,11 @@ export function ProjectFileContentEditorWorkspace({
         approve: isNativeProject ? true : undefined,
         deferQueueRefresh: options?.deferQueueRefresh,
       });
-      return translation.isApproved ? "reviewed" : "needs_review";
+      if (translation.isApproved) {
+        invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+        return "reviewed";
+      }
+      return "needs_review";
     },
     [
       contentEditorFile?.canEditTranslations,
@@ -674,8 +683,16 @@ export function ProjectFileContentEditorWorkspace({
       goSvcClient,
       assertQaSaveAllowed,
       assertSingleTargetSaveAllowed,
+      queryClient,
+      organizationSlug,
+      projectId,
     ],
   );
+
+  const handleBulkApproveComplete = useCallback(() => {
+    void invalidateQueue();
+    invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+  }, [invalidateQueue, organizationSlug, projectId, queryClient]);
 
   const handleSaveDraft = useCallback(
     async (segmentId: string, targetText: string) => {
@@ -1359,7 +1376,7 @@ export function ProjectFileContentEditorWorkspace({
                   }}
                   review={{
                     onApprove: handleApprove,
-                    onBulkApproveComplete: invalidateQueue,
+                    onBulkApproveComplete: handleBulkApproveComplete,
                     onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
                     onAddComment: handleAddComment,
                     onAddToIssueSheet: handleAddToIssueSheet,

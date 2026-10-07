@@ -34,12 +34,14 @@ export type ContentEditorPageActions = {
 export const ContentEditorPageShell = observer(function ContentEditorPageShell({
   backHref,
   actions,
+  headerTrailing,
   banners,
   className,
   children,
 }: {
   backHref: string;
   actions: ContentEditorPageActions;
+  headerTrailing?: ReactNode;
   banners?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -55,7 +57,11 @@ export const ContentEditorPageShell = observer(function ContentEditorPageShell({
         className,
       )}
     >
-      <ContentEditorPageHeader backHref={backHref} actions={actions} />
+      <ContentEditorPageHeader
+        backHref={backHref}
+        actions={actions}
+        headerTrailing={headerTrailing}
+      />
       {banners}
 
       <ContentEditorPageBody

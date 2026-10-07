@@ -142,3 +142,16 @@ export function buildWorkspaceContentfulScheduledAutomationIdempotencyKey(input:
     input.scheduledRunAt.toISOString(),
   ].join(":");
 }
+
+export function buildWorkspaceIntercomPushAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  clientKey: string;
+}): string {
+  return [
+    "workspace-automation:intercom-push",
+    input.automationId,
+    String(input.configVersion),
+    input.clientKey.trim(),
+  ].join(":");
+}

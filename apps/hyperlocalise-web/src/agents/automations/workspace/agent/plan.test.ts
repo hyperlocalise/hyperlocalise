@@ -58,6 +58,102 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
+  it("plans import-only tools for Intercom automations", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_intercom_articles"]);
+  });
+
+  it("keeps enabled notifications after the Intercom step", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["import_intercom_articles", "notify_slack"]);
+  });
+
+  it("plans push-only tools when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_intercom_translations"]);
+  });
+
+  it("keeps enabled notifications after an Intercom push", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          intercom: {
+            enabled: true,
+            restEndpoint: "us",
+            helpCenterId: "hc-1",
+            helpCenterLocales: ["en", "de"],
+            sourceLocale: "en",
+            targetLocales: [],
+            collectionIds: [],
+            includeDrafts: false,
+            overwriteIntercomDrafts: false,
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_intercom_translations", "notify_slack"]);
+  });
+
   it("puts contentful before github when template skill targets contentful", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

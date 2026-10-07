@@ -46,11 +46,16 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
+  hasWorkspaceAutomationIntercomTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  getIntercomPushEligibility,
+  isIntercomPushRunActive,
+} from "@/lib/intercom/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
   deleteWorkspaceAutomationKnowledgeFile,
@@ -551,7 +556,24 @@ export function createWorkspaceAutomationRoutes(
         limit: 10,
       });
 
-      return c.json({ automation, recentRuns }, 200);
+      let intercomPush: {
+        eligibleLocaleCount: number;
+        mappedArticleCount: number;
+        pushRunInProgress: boolean;
+      } | null = null;
+      if (hasWorkspaceAutomationIntercomTool(automation.toolConfig)) {
+        const eligibility = await getIntercomPushEligibility({
+          organizationId,
+          automation,
+        });
+        intercomPush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedArticleCount: eligibility?.mappedArticleCount ?? 0,
+          pushRunInProgress: isIntercomPushRunActive(recentRuns),
+        };
+      }
+
+      return c.json({ automation, recentRuns, intercomPush }, 200);
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");

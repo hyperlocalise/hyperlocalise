@@ -90,6 +90,17 @@ describe("workspace automation skills", () => {
     expect(
       listMissingWorkspaceAutomationSkillIntegrations(research, { github: false, slack: false }),
     ).toEqual([]);
+
+    const [intercom] = resolveWorkspaceAutomationSkills(["translate-intercom-articles"]);
+    if (!intercom) {
+      throw new Error("missing skill");
+    }
+    expect(listMissingWorkspaceAutomationSkillIntegrations(intercom, { intercom: false })).toEqual([
+      "intercom",
+    ]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(intercom, { intercom: true })).toEqual(
+      [],
+    );
   });
 
   it("offers research, Crowdin and issue skills on every orchestrated trigger", () => {

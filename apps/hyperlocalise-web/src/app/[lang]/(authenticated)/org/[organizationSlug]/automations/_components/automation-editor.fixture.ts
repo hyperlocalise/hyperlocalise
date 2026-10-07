@@ -20,6 +20,7 @@ import { getWorkspaceAutomationTemplate } from "@/lib/agents/workspace-automatio
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 
 import { createAutomationSummary } from "./automations.fixture";
+import { intercomApiArticlesFixture, intercomSupportHelpCenter } from "./intercom-api.fixture";
 
 export const automationEditorNativeProjectsFixture = [
   {
@@ -35,6 +36,13 @@ export const automationEditorNativeProjectsFixture = [
     source: "contentful",
     sourceLocale: "en-US",
     targetLocales: ["es-ES", "pt-BR"],
+  },
+  {
+    id: "project_help_center",
+    name: "Help Center",
+    source: "file_upload",
+    sourceLocale: "en",
+    targetLocales: ["de", "fr"],
   },
 ];
 
@@ -203,6 +211,155 @@ export const createManualAutomationFormFixture = () =>
       triggerConfig: { mode: "manual" },
     }),
   );
+
+export const createIntercomAutomationRecord = () =>
+  createAutomationSummary({
+    id: "66666666-6666-4666-8666-666666666666",
+    skillIds: ["translate-intercom-articles"],
+    name: "Translate Intercom Help Center articles",
+    instructions:
+      "Import Intercom Help Center articles into the Help Center project each week. Open native jobs for de and fr. Push approved translations only when requested.",
+    projectId: "project_help_center",
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: {
+        cadence: "weekly",
+        hourUtc: 6,
+        dayOfWeek: 1,
+        timezone: "UTC",
+      },
+    },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      github: {
+        enabled: false,
+        mode: "sync",
+        pushSource: false,
+        pullTranslations: false,
+        validation: false,
+      },
+      slack: { enabled: false },
+      email: { enabled: false, provider: "resend" },
+      contentful: {
+        enabled: false,
+        sourceLocale: "en",
+        contentTypeIds: [],
+        targetLocales: [],
+        fieldMode: "auto",
+        overwriteDraftLocales: false,
+        runQa: true,
+        writeDrafts: true,
+      },
+      intercom: {
+        enabled: true,
+        restEndpoint: "us",
+        helpCenterId: intercomSupportHelpCenter.id,
+        helpCenterLocales: [...intercomSupportHelpCenter.locales],
+        collectionIds: ["38"],
+        sourceLocale: intercomSupportHelpCenter.defaultLocale ?? "en",
+        targetLocales: ["de", "fr"],
+        includeDrafts: false,
+        overwriteIntercomDrafts: false,
+        workosUserId: "user_001",
+      },
+    },
+  });
+
+export const createIntercomAutomationFormFixture = () => {
+  const form = createWorkspaceAutomationFormStateFromTemplate("translate-intercom-articles");
+  if (!form) {
+    throw new Error("translate-intercom-articles template is missing");
+  }
+
+  return {
+    ...form,
+    name: "Translate Intercom Help Center articles",
+    projectId: "project_help_center",
+    intercomHelpCenterId: intercomSupportHelpCenter.id,
+    intercomHelpCenterLocales: [...intercomSupportHelpCenter.locales],
+    intercomSourceLocale: intercomSupportHelpCenter.defaultLocale ?? "en",
+    intercomTargetLocales: ["de", "fr"],
+    intercomCollectionIds: ["38"],
+  };
+};
+
+const intercomGettingStarted = intercomApiArticlesFixture[0];
+
+export const intercomAutomationRunsFixture: WorkspaceAutomationRunRecord[] = [
+  {
+    id: "run_intercom_push_001",
+    automationId: "66666666-6666-4666-8666-666666666666",
+    organizationId: "org_001",
+    triggerSource: "manual",
+    status: "succeeded",
+    idempotencyKey: "intercom-push-1",
+    inputSnapshot: { operation: "push_approved" },
+    outputSummary: {
+      orchestratorEnqueuedAt: "2026-06-14T09:12:00.000Z",
+      orchestratorStepResults: {
+        push_intercom_translations: {
+          summary:
+            "Pushed approved drafts to Intercom for Getting started with Acme (de, fr) from Help Center 123.",
+          pushed: 2,
+          skipped: 0,
+          failed: 0,
+          articles: [
+            {
+              articleId: intercomGettingStarted.id,
+              title: intercomGettingStarted.title,
+              locales: ["de", "fr"],
+            },
+          ],
+        },
+      },
+    },
+    error: null,
+    githubRepositoryAutomationJobId: null,
+    startedAt: "2026-06-14T09:10:00.000Z",
+    completedAt: "2026-06-14T09:12:20.000Z",
+    createdAt: "2026-06-14T09:10:00.000Z",
+    updatedAt: "2026-06-14T09:12:20.000Z",
+  },
+  {
+    id: "run_intercom_import_001",
+    automationId: "66666666-6666-4666-8666-666666666666",
+    organizationId: "org_001",
+    triggerSource: "scheduled",
+    status: "succeeded",
+    idempotencyKey: "intercom-import-weekly",
+    inputSnapshot: {},
+    outputSummary: {
+      orchestratorEnqueuedAt: "2026-06-09T06:00:02.000Z",
+      orchestratorStepResults: {
+        import_intercom_articles: {
+          summary:
+            "Imported 2 published articles from Customer Support into Help Center (skipped 1 draft).",
+          imported: 2,
+          skipped: 1,
+          failed: 0,
+          articles: intercomApiArticlesFixture
+            .filter((article) => article.state === "published")
+            .map((article) => ({
+              articleId: article.id,
+              title: article.title,
+              path: `intercom/${intercomSupportHelpCenter.id}/${article.id}.json`,
+            })),
+        },
+        create_native_tms_job: {
+          created: true,
+          jobId: "job_help_center_001",
+          targetLocales: ["de", "fr"],
+        },
+      },
+    },
+    error: null,
+    githubRepositoryAutomationJobId: null,
+    startedAt: "2026-06-09T06:00:00.000Z",
+    completedAt: "2026-06-09T06:04:00.000Z",
+    createdAt: "2026-06-09T06:00:00.000Z",
+    updatedAt: "2026-06-09T06:04:00.000Z",
+  },
+];
 
 export const createMemoriesAutomationFormFixture = () => ({
   ...createGithubAutomationFormFixture(),
