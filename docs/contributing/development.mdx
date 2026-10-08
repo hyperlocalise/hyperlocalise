@@ -98,15 +98,19 @@ vp test
 
 ### go-svc sidecar
 
-[`apps/go-svc`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md) hosts segment validation, native CRUD APIs (dictionaries, glossaries, teams, QA reports), Domains research, Search Console proxies, and Hyperlab OFREP evaluate routes.
+[`apps/go-svc`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md) hosts segment validation, native CRUD APIs (dictionaries, glossaries, translation memory, teams, native projects, native job reads), personal access token management, public PAT/agent job reads, public translation download, Domains research, Search Console proxies, and Hyperlab OFREP evaluate routes.
 
 The web app uses two call paths:
 
 | Caller | Env var | Auth | Typical routes |
 | --- | --- | --- | --- |
-| Browser (`GoSvcClient` via `useGoSvcClient`) | `NEXT_PUBLIC_API_BASE_URL` (defaults to `https://api.hyperlocalise.com`) | WorkOS session access token (`Authorization: Bearer`) | CAT validation, dictionaries, teams, QA reports |
+| Browser (`GoSvcClient` via `useGoSvcClient`) | `NEXT_PUBLIC_API_BASE_URL` (defaults to `https://api.hyperlocalise.com`) | WorkOS session access token (`Authorization: Bearer`) | CAT validation, dictionaries, teams, native projects, QA reports |
 | Next.js server (Domains, GSC) | `GO_SVC_URL` | Session cookie plus `X-Go-Svc-Research-Token` where required | `/v1/domains/research/*`, `/v1/domains/gsc/*` |
-For local development, run `go run ./apps/go-svc` with matching `WORKOS_*` and `WORKOS_COOKIE_PASSWORD`, then set both `GO_SVC_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080` in `apps/hyperlocalise-web/.env`. Domains research also needs `DATAFORSEO_API_KEY` on `go-svc` (see [`apps/go-svc/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md)).
+| CLI, agents, and integrations | `https://api.hyperlocalise.com` (not the web `/api` host) | `X-API-Key` or Agent Registration JWT with `jobs:read` / `files:read` | `GET /v1/jobs/*`, `GET /v1/projects/{id}/translations/download` |
+
+Job creation (`POST /api/v1/jobs` on the web app) and the Platform **Jobs** UI still use Hono `/api/orgs/.../jobs`. Session-authenticated native job reads are also implemented on go-svc at `/v1/orgs/{slug}/projects/{id}/jobs...` and `/v1/orgs/{slug}/jobs...` (see [`apps/go-svc/README.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md#native-job-reads)). Public PAT/agent job **reads** (`GET /v1/jobs/latest`, `/v1/jobs/{jobId}`, `/v1/jobs/{jobId}/status`) are go-svc only on `https://api.hyperlocalise.com` — do not re-add them to Hono.
+
+For local development, start Postgres and Valkey (`docker compose up -d`), run migrations, then run go-svc with matching `WORKOS_*`, `WORKOS_COOKIE_PASSWORD`, and `VALKEY_URL=redis://localhost:6379`. Set both `GO_SVC_URL=http://127.0.0.1:8080` and `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080` in `apps/hyperlocalise-web/.env`, plus `GO_SVC_CORS_ORIGINS=http://localhost:3000` on go-svc. Domains research also needs `DATAFORSEO_API_KEY` on go-svc. Full steps: [`apps/go-svc/README.md#local-development`](https://github.com/hyperlocalise/hyperlocalise/blob/main/apps/go-svc/README.md#local-development).
 
 Design notes: [`docs/adr/2026-09-22-web-go-svc-api-client-design.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/docs/adr/2026-09-22-web-go-svc-api-client-design.md) and [`docs/adr/2026-09-20-go-svc-workos-access-token-design.md`](https://github.com/hyperlocalise/hyperlocalise/blob/main/docs/adr/2026-09-20-go-svc-workos-access-token-design.md).
 
