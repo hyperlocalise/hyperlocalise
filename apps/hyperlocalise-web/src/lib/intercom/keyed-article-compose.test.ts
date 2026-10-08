@@ -87,6 +87,39 @@ describe("composeIntercomArticleFromApprovedKeyedUnits", () => {
     expect(composed?.body).not.toContain("HLMDPH");
   });
 
+  it("translates body text that also appears in the title", () => {
+    const composed = composeIntercomArticleFromApprovedKeyedUnits({
+      sourceMarkdown: serializeIntercomArticleMarkdown({
+        title: "Hello",
+        description: "Hello",
+        body: "Hello\n",
+      }),
+      units: [
+        {
+          key: "md.frontmatter/title",
+          sourceText: "Hello",
+          targetText: "Hallo",
+        },
+        {
+          key: "md.frontmatter/description",
+          sourceText: "Hello",
+          targetText: "Begrüßung",
+        },
+        {
+          key: "md.Paragraph[0]/line[0]",
+          sourceText: "Hello",
+          targetText: "Guten Tag",
+        },
+      ],
+    });
+
+    expect(composed).toEqual({
+      title: "Hallo",
+      description: "Begrüßung",
+      body: "Guten Tag\n",
+    });
+  });
+
   it("keeps approved titles that contain JSON escape sequences", () => {
     const composed = composeIntercomArticleFromApprovedKeyedUnits({
       sourceMarkdown: SOURCE_MARKDOWN,

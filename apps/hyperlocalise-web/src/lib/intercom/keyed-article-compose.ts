@@ -80,16 +80,15 @@ export function composeIntercomArticleFromApprovedKeyedUnits(input: {
     byKey,
     INTERCOM_ARTICLE_DESCRIPTION_KEY_ALIASES,
   );
+  const parsed = parseIntercomArticleMarkdown(input.sourceMarkdown);
   const bodyUnits = units.filter((unit) => !isIntercomFrontmatterFieldKey(unit.key));
-  const applied = applyApprovedKeyedUnitsToMarkdown(input.sourceMarkdown, bodyUnits);
-  if (applied == null) {
+  const body = applyApprovedKeyedUnitsToMarkdown(parsed.body, bodyUnits);
+  if (body == null) {
     return null;
   }
 
-  const parsed = parseIntercomArticleMarkdown(applied);
   const title = approvedTitle?.trim() || "";
   const description = approvedDescription ?? parsed.description;
-  const body = parsed.body;
   if (!approvedTitle || !title || !body.trim()) {
     return null;
   }
