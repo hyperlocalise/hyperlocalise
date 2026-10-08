@@ -26,6 +26,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - `interactions` gains the source `automation_assistant` and two nullable columns, the creating user's id and the automation's id. These rows get no inbox item, so the Inbox list and the existing visibility helper never see them.
 - Access is its own check: same organisation, operator role, author. No one else can read or continue a session.
 - One session per saved automation, resumed when its page opens. A session for a new automation gets its automation id when Create succeeds; until then it is bound to nothing.
+- An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server deletes unbound sessions after a day through an `expires_at` column, as the repository sandbox sessions are. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
 - Message persistence, parts and the model-history loader are reused as they are.
 
 ### Agent
@@ -42,6 +43,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 ### Panel
 
 - Mounted by the form editor and the visual editor, built from the existing composer and message list. Its own small store: session id, messages, stream status. No tabs, no local-storage restore, no reply started by a page load. A turn begins only when someone sends from that page.
+- A collapsible panel on the right of the editor, opened from a button in the editor's header, and a sheet from the right edge on narrow screens. Never floating and never bottom-right, so it cannot be taken for the dock.
 - Titled "Automation assistant" with the automation's name, its own empty state ("Describe what this automation should do, or ask for a change"), its own avatar and name in replies.
 - The bridge, the summary, the suggestions and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each turn is one undo step.
 - Leaving the page unmounts the panel. The turn finishes on the server and its reply is in the session when the person returns to that automation.
@@ -78,11 +80,10 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 ## Not decided
 
-- Shared tables with a source value, or separate tables. Proposed: shared.
-- Panel placement, beside or below the form, and whether it is open by default on a new automation.
-- Whether sessions for automations that were never saved are kept or cleared after some time.
+- Shared or separate tables. Shared means a source value and two columns on `interactions`, reusing message storage, parts, the streaming save and the model-history loader, with the visibility helper and every conversation listing made to exclude that source. Separate means `assistant_sessions` and `assistant_messages` with their own writer and loader, where nothing can leak by omission. Proposed: shared, with a test that no conversation listing ever returns an assistant session.
+- Whether the panel is open by default on a new automation.
 - Billing: proposed the same per-turn charge as a dock turn, counted under the `surface` dimension. The usage decision is still open.
-- What the first version shows on the page: changes with undo only, or also held-back suggestions. On hold.
+- Whether the first version shows held-back suggestions. A held-back suggestion is a change the assistant does not make itself but offers on the page with Use it, Add it or Dismiss: a skill that declares a risk, a change that would drop a skill or switch off a tool the person set, and a skill whose integration is not connected or whose trigger does not fit. The alternative is to apply what can be applied, leave the rest out, and say so in the reply. On hold.
 
 ## Validation
 
