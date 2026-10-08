@@ -299,7 +299,6 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
   "github_agent",
   "slack_agent",
   "web_chat",
-  "automation_assistant",
 ]);
 /**
  * Tracks whether an inbox item is still active for operators or has been archived from the active work queue.

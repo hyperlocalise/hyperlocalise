@@ -149,11 +149,11 @@ describe("automation assistant sessions", () => {
     const { session } = await json<SessionBody>(created);
     expect(session).toMatchObject({ automationId: null, turnInProgress: false });
 
-    const inboxItems = await db
-      .select()
-      .from(schema.inboxItems)
-      .where(eq(schema.inboxItems.interactionId, session.id));
-    expect(inboxItems).toEqual([]);
+    const conversations = await db
+      .select({ id: schema.interactions.id })
+      .from(schema.interactions)
+      .where(eq(schema.interactions.id, session.id));
+    expect(conversations).toEqual([]);
 
     const listed = await client.api.orgs[":organizationSlug"].conversations.$get(
       { param: { organizationSlug: slug }, query: { limit: "50" } },

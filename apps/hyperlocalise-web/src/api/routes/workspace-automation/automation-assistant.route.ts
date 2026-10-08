@@ -84,7 +84,7 @@ function toSessionResponse(
     id: session.id,
     automationId: session.automationId,
     title: session.title,
-    turnInProgress: session.assistantTurnStartedAt !== null,
+    turnInProgress: session.turnStartedAt !== null,
     createdAt: session.createdAt.toISOString(),
     lastMessageAt: session.lastMessageAt.toISOString(),
   };
@@ -246,7 +246,6 @@ export function createAutomationAssistantRoutes() {
         return createAutomationAssistantTurnResponse({
           session,
           organizationId,
-          userEmail: c.var.auth.user.email,
           text,
           pageContext: pageContext.data,
           languageModel,

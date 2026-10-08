@@ -29,7 +29,7 @@ export type AutomationAssistantSession = {
   createdByUserId: string;
   automationId: string | null;
   title: string;
-  assistantTurnStartedAt: Date | null;
+  turnStartedAt: Date | null;
   createdAt: Date;
   lastMessageAt: Date;
 };
@@ -43,19 +43,17 @@ export type AutomationAssistantMessage = {
   createdAt: Date;
 };
 
-type SessionRow = typeof schema.interactions.$inferSelect;
+const sessions = schema.automationAssistantSessions;
+const messages = schema.automationAssistantMessages;
 
-function toSession(row: SessionRow): AutomationAssistantSession | null {
-  if (row.source !== "automation_assistant" || !row.createdByUserId) {
-    return null;
-  }
+function toSession(row: typeof sessions.$inferSelect): AutomationAssistantSession {
   return {
     id: row.id,
     organizationId: row.organizationId,
     createdByUserId: row.createdByUserId,
     automationId: row.automationId,
     title: row.title,
-    assistantTurnStartedAt: row.assistantTurnStartedAt,
+    turnStartedAt: row.turnStartedAt,
     createdAt: row.createdAt,
     lastMessageAt: row.lastMessageAt,
   };
@@ -64,10 +62,9 @@ function toSession(row: SessionRow): AutomationAssistantSession | null {
 /** The author's own sessions only, and never one whose page is gone and whose time is up. */
 function ownedBy(input: { organizationId: string; userId: string }) {
   return and(
-    eq(schema.interactions.source, "automation_assistant"),
-    eq(schema.interactions.organizationId, input.organizationId),
-    eq(schema.interactions.createdByUserId, input.userId),
-    or(isNull(schema.interactions.expiresAt), sql`${schema.interactions.expiresAt} > now()`),
+    eq(sessions.organizationId, input.organizationId),
+    eq(sessions.createdByUserId, input.userId),
+    or(isNull(sessions.expiresAt), sql`${sessions.expiresAt} > now()`),
   )!;
 }
 
@@ -83,20 +80,13 @@ export async function createAutomationAssistantSession(input: {
   firstMessageText?: string;
 }): Promise<AutomationAssistantSession> {
   await db
-    .delete(schema.interactions)
-    .where(
-      and(
-        eq(schema.interactions.source, "automation_assistant"),
-        eq(schema.interactions.createdByUserId, input.userId),
-        lt(schema.interactions.expiresAt, new Date()),
-      ),
-    );
+    .delete(sessions)
+    .where(and(eq(sessions.createdByUserId, input.userId), lt(sessions.expiresAt, new Date())));
   const now = new Date();
   const [row] = await db
-    .insert(schema.interactions)
+    .insert(sessions)
     .values({
       organizationId: input.organizationId,
-      source: "automation_assistant",
       title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
       createdByUserId: input.userId,
       automationId: input.automationId ?? null,
@@ -108,11 +98,10 @@ export async function createAutomationAssistantSession(input: {
       updatedAt: now,
     })
     .returning();
-  const session = row ? toSession(row) : null;
-  if (!session) {
+  if (!row) {
     throw new Error("The automation assistant session could not be created.");
   }
-  return session;
+  return toSession(row);
 }
 
 export async function getAutomationAssistantSession(input: {
@@ -122,8 +111,8 @@ export async function getAutomationAssistantSession(input: {
 }): Promise<AutomationAssistantSession | null> {
   const [row] = await db
     .select()
-    .from(schema.interactions)
-    .where(and(eq(schema.interactions.id, input.sessionId), ownedBy(input)))
+    .from(sessions)
+    .where(and(eq(sessions.id, input.sessionId), ownedBy(input)))
     .limit(1);
   return row ? toSession(row) : null;
 }
@@ -136,9 +125,9 @@ export async function findAutomationAssistantSessionForAutomation(input: {
 }): Promise<AutomationAssistantSession | null> {
   const [row] = await db
     .select()
-    .from(schema.interactions)
-    .where(and(eq(schema.interactions.automationId, input.automationId), ownedBy(input)))
-    .orderBy(desc(schema.interactions.createdAt))
+    .from(sessions)
+    .where(and(eq(sessions.automationId, input.automationId), ownedBy(input)))
+    .orderBy(desc(sessions.createdAt))
     .limit(1);
   return row ? toSession(row) : null;
 }
@@ -149,13 +138,13 @@ export async function bindAutomationAssistantSession(input: {
   automationId: string;
 }): Promise<void> {
   await db
-    .update(schema.interactions)
+    .update(sessions)
     .set({ automationId: input.automationId, expiresAt: null, updatedAt: new Date() })
-    .where(eq(schema.interactions.id, input.sessionId));
+    .where(eq(sessions.id, input.sessionId));
 }
 
 export async function deleteAutomationAssistantSession(sessionId: string): Promise<void> {
-  await db.delete(schema.interactions).where(eq(schema.interactions.id, sessionId));
+  await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
 /**
@@ -165,39 +154,52 @@ export async function deleteAutomationAssistantSession(sessionId: string): Promi
 export async function beginAutomationAssistantTurn(sessionId: string): Promise<boolean> {
   const stale = new Date(Date.now() - AUTOMATION_ASSISTANT_TURN_STALE_MS);
   const claimed = await db
-    .update(schema.interactions)
-    .set({ assistantTurnStartedAt: new Date() })
+    .update(sessions)
+    .set({ turnStartedAt: new Date() })
     .where(
       and(
-        eq(schema.interactions.id, sessionId),
-        or(
-          isNull(schema.interactions.assistantTurnStartedAt),
-          lt(schema.interactions.assistantTurnStartedAt, stale),
-        ),
+        eq(sessions.id, sessionId),
+        or(isNull(sessions.turnStartedAt), lt(sessions.turnStartedAt, stale)),
       ),
     )
-    .returning({ id: schema.interactions.id });
+    .returning({ id: sessions.id });
   return claimed.length === 1;
 }
 
 export async function endAutomationAssistantTurn(sessionId: string): Promise<void> {
-  await db
-    .update(schema.interactions)
-    .set({ assistantTurnStartedAt: null })
-    .where(eq(schema.interactions.id, sessionId));
+  await db.update(sessions).set({ turnStartedAt: null }).where(eq(sessions.id, sessionId));
 }
 
-function toMessage(
-  row: typeof schema.interactionMessages.$inferSelect,
-): AutomationAssistantMessage {
+function toMessage(row: typeof messages.$inferSelect): AutomationAssistantMessage {
   return {
     id: row.id,
-    sessionId: row.interactionId,
+    sessionId: row.sessionId,
     senderType: row.senderType,
     text: row.text,
     parts: row.parts ?? null,
     createdAt: row.createdAt,
   };
+}
+
+/** Saves one message of the session and moves the session's last-message time on. */
+export async function addAutomationAssistantMessage(input: {
+  sessionId: string;
+  senderType: AutomationAssistantMessage["senderType"];
+  text: string;
+  parts?: UIMessage["parts"] | null;
+}): Promise<void> {
+  const now = new Date();
+  await db.insert(messages).values({
+    sessionId: input.sessionId,
+    senderType: input.senderType,
+    text: input.text,
+    parts: input.parts ?? null,
+    createdAt: now,
+  });
+  await db
+    .update(sessions)
+    .set({ lastMessageAt: now, updatedAt: now })
+    .where(eq(sessions.id, input.sessionId));
 }
 
 /** Every message of the session, oldest first, for the panel. */
@@ -206,9 +208,9 @@ export async function listAutomationAssistantMessages(
 ): Promise<AutomationAssistantMessage[]> {
   const rows = await db
     .select()
-    .from(schema.interactionMessages)
-    .where(eq(schema.interactionMessages.interactionId, sessionId))
-    .orderBy(schema.interactionMessages.createdAt);
+    .from(messages)
+    .where(eq(messages.sessionId, sessionId))
+    .orderBy(messages.createdAt);
   return rows.map(toMessage);
 }
 
@@ -221,12 +223,12 @@ export async function loadAutomationAssistantModelMessages(
 ): Promise<ModelMessage[]> {
   const rows = await db
     .select({
-      senderType: schema.interactionMessages.senderType,
-      text: schema.interactionMessages.text,
+      senderType: messages.senderType,
+      text: messages.text,
     })
-    .from(schema.interactionMessages)
-    .where(eq(schema.interactionMessages.interactionId, sessionId))
-    .orderBy(desc(schema.interactionMessages.createdAt))
+    .from(messages)
+    .where(eq(messages.sessionId, sessionId))
+    .orderBy(desc(messages.createdAt))
     .limit(AUTOMATION_ASSISTANT_HISTORY_MESSAGES);
   return rows
     .toReversed()

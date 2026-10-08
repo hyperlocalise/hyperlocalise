@@ -16,6 +16,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, type UIMessage } 
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
+  addAutomationAssistantMessage,
   endAutomationAssistantTurn,
   loadAutomationAssistantModelMessages,
   type AutomationAssistantSession,
@@ -27,7 +28,6 @@ import {
   trackSucceededAgentRuntimeUsage,
 } from "@/lib/billing/agent-runtime-usage";
 import type { AiTokenUsage } from "@/lib/billing/usage-control";
-import { addInteractionMessage } from "@/lib/conversations/interactions";
 import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 import { createAutomationAssistantAgent } from "../agent";
@@ -57,34 +57,33 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
 export function createAutomationAssistantTurnResponse(input: {
   session: AutomationAssistantSession;
   organizationId: string;
-  userEmail: string;
   text: string;
   pageContext: WorkspaceAutomationEditorContext;
   languageModel: ResolvedAgentLanguageModel;
 }) {
   const { session } = input;
   const usageOperationKey = `automation-assistant-turn:${session.id}:${randomUUID()}`;
+  // The session is not a conversation, so the usage record names it here instead of linking to one.
   const usageDimensions = {
     surface: "automation_assistant",
     agent_surface: "automation_assistant",
     mode: input.pageContext.mode,
+    automation_assistant_session_id: session.id,
   };
   let shouldTrackUsage = false;
   let agentTokenUsagePromise: Promise<AiTokenUsage | null> | null = null;
 
   const stream = createUIMessageStream<InboxChatUIMessage>({
     execute: async ({ writer }) => {
-      await addInteractionMessage({
-        interactionId: session.id,
+      await addAutomationAssistantMessage({
+        sessionId: session.id,
         senderType: "user",
-        senderEmail: input.userEmail,
         text: input.text,
       });
       await reserveAgentRuntimeUsage({
         organizationId: input.organizationId,
         operationKey: usageOperationKey,
         source: AUTOMATION_ASSISTANT_USAGE_SOURCE,
-        interactionId: session.id,
         dimensions: usageDimensions,
       });
       shouldTrackUsage = true;
@@ -105,8 +104,8 @@ export function createAutomationAssistantTurnResponse(input: {
           const parts = persistableParts(responseMessage.parts);
           const text = textFromParts(parts).trim();
           if (text || parts.length > 0) {
-            await addInteractionMessage({
-              interactionId: session.id,
+            await addAutomationAssistantMessage({
+              sessionId: session.id,
               senderType: "agent",
               text: text || "(no response)",
               parts: parts.length > 0 ? parts : [{ type: "text", text: text || "(no response)" }],
@@ -129,7 +128,6 @@ export function createAutomationAssistantTurnResponse(input: {
                 ? "gateway"
                 : "byok"
               : undefined,
-            interactionId: session.id,
           });
         }
       } catch (error) {

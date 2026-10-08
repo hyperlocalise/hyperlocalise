@@ -19,6 +19,7 @@ import { db, schema } from "@/lib/database/client";
 
 import {
   AUTOMATION_ASSISTANT_HISTORY_MESSAGES,
+  addAutomationAssistantMessage,
   beginAutomationAssistantTurn,
   bindAutomationAssistantSession,
   createAutomationAssistantSession,
@@ -61,7 +62,7 @@ async function automationFor(scope: { organizationId: string; userId: string }) 
 }
 
 describe("automation assistant sessions", () => {
-  it("makes a session without an inbox item, kept for a day while unbound", async () => {
+  it("makes a session that is no conversation, kept for a day while unbound", async () => {
     const scope = await person();
 
     const session = await createAutomationAssistantSession({
@@ -72,15 +73,14 @@ describe("automation assistant sessions", () => {
     expect(session).toMatchObject({ automationId: null, title: "Post a weekly summary to Slack" });
     const [row] = await db
       .select()
-      .from(schema.interactions)
-      .where(eq(schema.interactions.id, session.id));
-    expect(row?.source).toBe("automation_assistant");
+      .from(schema.automationAssistantSessions)
+      .where(eq(schema.automationAssistantSessions.id, session.id));
     expect(row?.expiresAt?.getTime()).toBeGreaterThan(Date.now());
-    const inboxItems = await db
-      .select()
-      .from(schema.inboxItems)
-      .where(eq(schema.inboxItems.interactionId, session.id));
-    expect(inboxItems).toEqual([]);
+    const conversations = await db
+      .select({ id: schema.interactions.id })
+      .from(schema.interactions)
+      .where(eq(schema.interactions.organizationId, scope.organizationId));
+    expect(conversations).toEqual([]);
   });
 
   it("is read by its author only", async () => {
@@ -116,9 +116,9 @@ describe("automation assistant sessions", () => {
     const found = await findAutomationAssistantSessionForAutomation({ ...scope, automationId });
     expect(found).toMatchObject({ id: unbound.id, automationId });
     const [row] = await db
-      .select({ expiresAt: schema.interactions.expiresAt })
-      .from(schema.interactions)
-      .where(eq(schema.interactions.id, unbound.id));
+      .select({ expiresAt: schema.automationAssistantSessions.expiresAt })
+      .from(schema.automationAssistantSessions)
+      .where(eq(schema.automationAssistantSessions.id, unbound.id));
     expect(row?.expiresAt).toBeNull();
   });
 
@@ -138,18 +138,18 @@ describe("automation assistant sessions", () => {
     const scope = await person();
     const stale = await createAutomationAssistantSession(scope);
     await db
-      .update(schema.interactions)
+      .update(schema.automationAssistantSessions)
       .set({ expiresAt: new Date(Date.now() - 1000) })
-      .where(eq(schema.interactions.id, stale.id));
+      .where(eq(schema.automationAssistantSessions.id, stale.id));
 
     expect(await getAutomationAssistantSession({ ...scope, sessionId: stale.id })).toBeNull();
 
     await createAutomationAssistantSession(scope);
 
     const rows = await db
-      .select({ id: schema.interactions.id })
-      .from(schema.interactions)
-      .where(eq(schema.interactions.id, stale.id));
+      .select({ id: schema.automationAssistantSessions.id })
+      .from(schema.automationAssistantSessions)
+      .where(eq(schema.automationAssistantSessions.id, stale.id));
     expect(rows).toEqual([]);
   });
 
@@ -164,19 +164,41 @@ describe("automation assistant sessions", () => {
     expect(await beginAutomationAssistantTurn(session.id)).toBe(true);
 
     await db
-      .update(schema.interactions)
-      .set({ assistantTurnStartedAt: new Date(Date.now() - 11 * 60 * 1000) })
-      .where(eq(schema.interactions.id, session.id));
+      .update(schema.automationAssistantSessions)
+      .set({ turnStartedAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .where(eq(schema.automationAssistantSessions.id, session.id));
     expect(await beginAutomationAssistantTurn(session.id)).toBe(true);
+  });
+
+  it("saves a message with its parts and moves the session's last-message time on", async () => {
+    const scope = await person();
+    const session = await createAutomationAssistantSession(scope);
+    await db
+      .update(schema.automationAssistantSessions)
+      .set({ lastMessageAt: new Date(Date.now() - 60_000) })
+      .where(eq(schema.automationAssistantSessions.id, session.id));
+
+    await addAutomationAssistantMessage({
+      sessionId: session.id,
+      senderType: "agent",
+      text: "Done.",
+      parts: [{ type: "text", text: "Done." }],
+    });
+
+    expect(await listAutomationAssistantMessages(session.id)).toMatchObject([
+      { senderType: "agent", text: "Done.", parts: [{ type: "text", text: "Done." }] },
+    ]);
+    const after = await getAutomationAssistantSession({ ...scope, sessionId: session.id });
+    expect(after!.lastMessageAt.getTime()).toBeGreaterThan(Date.now() - 30_000);
   });
 
   it("lists every message for the page and the newest fifty, oldest first, for the model", async () => {
     const scope = await person();
     const session = await createAutomationAssistantSession(scope);
     const start = Date.now() - 100_000;
-    await db.insert(schema.interactionMessages).values(
+    await db.insert(schema.automationAssistantMessages).values(
       Array.from({ length: AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 2 }, (_, index) => ({
-        interactionId: session.id,
+        sessionId: session.id,
         senderType: index % 2 === 0 ? ("user" as const) : ("agent" as const),
         text: `message ${index}`,
         createdAt: new Date(start + index * 1000),

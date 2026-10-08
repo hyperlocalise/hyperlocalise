@@ -268,16 +268,6 @@ export const interactions = pgTable(
     source: interactionSourceEnum("source").notNull(),
     title: text("title").notNull(),
     sourceThreadId: text("source_thread_id"),
-    // The next four columns belong to automation assistant sessions only and stay null on every
-    // other source. A session has no inbox item and is read by its author alone.
-    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "cascade" }),
-    automationId: uuid("automation_id").references(() => workspaceAutomations.id, {
-      onDelete: "cascade",
-    }),
-    // A session bound to no automation is deleted once this passes.
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
-    // Set while a turn runs, so a session runs one turn at a time.
-    assistantTurnStartedAt: timestamp("assistant_turn_started_at", { withTimezone: true }),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -287,7 +277,6 @@ export const interactions = pgTable(
   },
   (table) => [
     uniqueIndex("interactions_id_organization_id_key").on(table.id, table.organizationId),
-    index("idx_interactions_automation_author").on(table.automationId, table.createdByUserId),
     uniqueIndex("interactions_org_source_thread_id_key")
       .on(table.organizationId, table.source, table.sourceThreadId)
       .where(sql`${table.sourceThreadId} IS NOT NULL`),
