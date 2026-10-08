@@ -38,14 +38,15 @@ import {
   DEFAULT_WORKSPACE_AUTOMATION_GITHUB_EVENTS,
   type WorkspaceAutomationGithubTriggerEvent,
 } from "./workspace-automation-types";
-import type {
-  WorkspaceAutomationFormState,
-  WorkspaceAutomationTriggerMode,
+import {
+  createDefaultWorkspaceAutomationFormState,
+  type WorkspaceAutomationFormState,
+  type WorkspaceAutomationTriggerMode,
 } from "./workspace-automation-view-model";
 
 const DEFAULT_PUSH_BRANCHES = ["main"];
 
-/** What happened to one skill: in the setup, or asked for and left out with the reason. */
+/** What happened to one skill: in the setup, or left out with the reason. */
 export type WorkspaceAutomationProposalSkillOutcome = {
   id: string;
   name: string;
@@ -55,6 +56,46 @@ export type WorkspaceAutomationProposalSkillOutcome = {
   /** What the skill does that cannot be undone. */
   risk?: string;
 };
+
+export type WorkspaceAutomationChangeLeftOutReason = "needs_connection" | "wrong_trigger";
+
+/** Something the person set by hand that a change would take away. */
+export type WorkspaceAutomationReplacedSetting = "gitlab" | "github_sync" | "other";
+
+export type WorkspaceAutomationChangeReplaces = {
+  skills: Array<{ id: string; name: string }>;
+  settings: WorkspaceAutomationReplacedSetting[];
+};
+
+type WorkspaceAutomationChangeItemState = {
+  /** Names the item within its proposal. */
+  key: string;
+  status: "applied" | "left_out";
+  reason?: WorkspaceAutomationChangeLeftOutReason;
+  /** What the change took from the person, so the reply can say so. */
+  replaces?: WorkspaceAutomationChangeReplaces;
+};
+
+/** One thing a proposal changes, as the page lists it. */
+export type WorkspaceAutomationChangeItem = WorkspaceAutomationChangeItemState &
+  (
+    | { kind: "name" | "instructions"; before: string; after: string }
+    | {
+        kind: "trigger";
+        before: WorkspaceAutomationTriggerSummary;
+        after: WorkspaceAutomationTriggerSummary;
+        /** The skill the trigger was set for, when the request named no trigger. */
+        forSkillId?: string;
+      }
+    | {
+        kind: "skill_added";
+        skillId: string;
+        skillName: string;
+        risk?: string;
+        missingIntegrations?: WorkspaceAutomationSkillIntegration[];
+      }
+    | { kind: "skill_removed"; skillId: string; skillName: string }
+  );
 
 /** When the setup runs, read from the form after the change. */
 export type WorkspaceAutomationTriggerSummary =
@@ -83,6 +124,8 @@ export type WorkspaceAutomationProposalOutcome = {
   skills: WorkspaceAutomationProposalSkillOutcome[];
   removedSkills: Array<{ id: string; name: string }>;
   setupSteps: WorkspaceAutomationSetupStep[];
+  /** Every change this call looked at, in the order it was made or left out. */
+  items: WorkspaceAutomationChangeItem[];
 };
 
 /** Content-sync and web-chat automations are set up by hand. */
@@ -160,10 +203,53 @@ function applyProposalTrigger(
   }
 }
 
+function sameValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+const REPLACED_SETTING_BY_FIELD: Partial<
+  Record<keyof WorkspaceAutomationFormState, WorkspaceAutomationReplacedSetting>
+> = {
+  gitlabEnabled: "gitlab",
+  gitlabPathWithNamespace: "gitlab",
+  // Only GitLab holds a repository target that a skill's tool then replaces.
+  repositoryTargetKind: "gitlab",
+  githubMode: "github_sync",
+  pushSourceEnabled: "github_sync",
+  pullTranslationsEnabled: "github_sync",
+  validationEnabled: "github_sync",
+};
+
 /**
- * Applies a proposal to the form and says what happened. A skill is attached only when it runs on
- * the trigger and none of its integrations is known to be disconnected. Run with the same inputs
- * in the browser and on the server, it gives the same form and the same outcome.
+ * What attaching a skill would take from the person: a field that already holds something other
+ * than the form's default and would end up different. Fields a skill fills in from the default
+ * are not counted.
+ */
+function listReplacedSettings(
+  current: WorkspaceAutomationFormState,
+  candidate: WorkspaceAutomationFormState,
+): WorkspaceAutomationReplacedSetting[] {
+  const defaults = createDefaultWorkspaceAutomationFormState();
+  const replaced = new Set<WorkspaceAutomationReplacedSetting>();
+  for (const field of Object.keys(current) as Array<keyof WorkspaceAutomationFormState>) {
+    if (
+      field === "skillIds" ||
+      sameValue(current[field], candidate[field]) ||
+      sameValue(current[field], defaults[field])
+    ) {
+      continue;
+    }
+    replaced.add(REPLACED_SETTING_BY_FIELD[field] ?? "other");
+  }
+  return [...replaced];
+}
+
+/**
+ * Applies a proposal to the form and says what happened to each change. Every change the
+ * proposal asks for is made; the page's undo takes a turn back. A skill is attached only when it
+ * runs on the trigger and none of its integrations is known to be disconnected; otherwise it is
+ * left out with the reason. Run with the same inputs in the browser and on the server, it gives
+ * the same form and outcome.
  */
 export function applyWorkspaceAutomationProposal(input: {
   form: WorkspaceAutomationFormState;
@@ -176,39 +262,83 @@ export function applyWorkspaceAutomationProposal(input: {
   const available = isWorkspaceAutomationAssistantForm(input.form);
   let form = input.form;
   const removedSkills: Array<{ id: string; name: string }> = [];
-  const leftOut: WorkspaceAutomationProposalSkillOutcome[] = [];
+  const items: WorkspaceAutomationChangeItem[] = [];
   const addedSkillIds = new Set<string>();
+  const skillName = (skillId: string) => getWorkspaceAutomationSkill(skillId)?.name ?? skillId;
 
   if (available) {
-    if (proposal.name !== null) {
-      form = { ...form, name: proposal.name };
-    }
-    if (proposal.instructions !== null) {
-      form = { ...form, instructions: proposal.instructions };
+    for (const kind of ["name", "instructions"] as const) {
+      const after = proposal[kind];
+      const before = form[kind];
+      if (after === null || after === before) {
+        continue;
+      }
+      form = { ...form, [kind]: after };
+      items.push({ key: kind, kind, status: "applied", before, after });
     }
 
+    // A skill the new trigger cannot run goes with the trigger change, not on its own.
+    const removedForTrigger = new Set(
+      proposal.notes
+        .filter((note) => note.code === "skill_removed_for_trigger")
+        .map((note) => note.skillId),
+    );
     for (const skillId of proposal.removeSkillIds) {
-      if (!form.skillIds.includes(skillId)) {
+      const key = `skill_removed:${skillId}`;
+      if (removedForTrigger.has(skillId) || !form.skillIds.includes(skillId)) {
         continue;
       }
       form = removeSkillFromWorkspaceAutomationForm(form, skillId);
-      removedSkills.push({
-        id: skillId,
-        name: getWorkspaceAutomationSkill(skillId)?.name ?? skillId,
+      removedSkills.push({ id: skillId, name: skillName(skillId) });
+      items.push({
+        key,
+        kind: "skill_removed",
+        status: "applied",
+        skillId,
+        skillName: skillName(skillId),
       });
     }
 
     if (proposal.trigger) {
-      form = applyProposalTrigger(form, proposal.trigger);
+      const before = summarizeWorkspaceAutomationFormTrigger(form);
+      let candidate = applyProposalTrigger(form, proposal.trigger);
+      // Skills attached by hand since the assistant read the page are checked here too.
+      const dropped = resolveWorkspaceAutomationSkills(candidate.skillIds)
+        .filter((skill) => !workspaceAutomationSkillSupportsTrigger(skill, candidate.triggerMode))
+        .map((skill) => ({ id: skill.id, name: skill.name }));
+      for (const skill of dropped) {
+        candidate = removeSkillFromWorkspaceAutomationForm(candidate, skill.id);
+      }
+      const after = summarizeWorkspaceAutomationFormTrigger(candidate);
+
+      if (!sameValue(before, after) || dropped.length > 0) {
+        const forSkillId = proposal.notes.find(
+          (note) => note.code === "trigger_set_for_skill",
+        )?.skillId;
+        const replaces = dropped.length > 0 ? { skills: dropped, settings: [] } : undefined;
+        form = candidate;
+        removedSkills.push(...dropped);
+        items.push({
+          key: "trigger",
+          kind: "trigger",
+          status: "applied",
+          before,
+          after,
+          ...(forSkillId ? { forSkillId } : {}),
+          ...(replaces ? { replaces } : {}),
+        });
+      }
     }
 
     for (const skillId of proposal.addSkillIds) {
+      const key = `skill_added:${skillId}`;
       const skill = getWorkspaceAutomationSkill(skillId);
       if (!skill || form.skillIds.includes(skillId)) {
         continue;
       }
+      const item = { key, kind: "skill_added" as const, skillId, skillName: skill.name };
       if (!workspaceAutomationSkillSupportsTrigger(skill, form.triggerMode)) {
-        leftOut.push({ id: skill.id, name: skill.name, state: "not_applicable" });
+        items.push({ ...item, status: "left_out", reason: "wrong_trigger" });
         continue;
       }
       const missingIntegrations = listMissingWorkspaceAutomationSkillIntegrations(
@@ -216,16 +346,27 @@ export function applyWorkspaceAutomationProposal(input: {
         connections,
       );
       if (missingIntegrations.length > 0) {
-        leftOut.push({
-          id: skill.id,
-          name: skill.name,
-          state: "needs_connection",
+        items.push({
+          ...item,
+          status: "left_out",
+          reason: "needs_connection",
           missingIntegrations,
         });
         continue;
       }
-      form = addSkillToWorkspaceAutomationForm(form, skillId, input.defaults);
+
+      const candidate = addSkillToWorkspaceAutomationForm(form, skillId, input.defaults);
+      const replacedSettings = listReplacedSettings(form, candidate);
+      const replaces =
+        replacedSettings.length > 0 ? { skills: [], settings: replacedSettings } : undefined;
+      form = candidate;
       addedSkillIds.add(skillId);
+      items.push({
+        ...item,
+        status: "applied",
+        ...(skill.risk ? { risk: skill.risk } : {}),
+        ...(replaces ? { replaces } : {}),
+      });
     }
   }
 
@@ -237,6 +378,20 @@ export function applyWorkspaceAutomationProposal(input: {
       ...(skill.risk ? { risk: skill.risk } : {}),
     }),
   );
+  const notAttached = items.flatMap((item): WorkspaceAutomationProposalSkillOutcome[] => {
+    if (item.kind !== "skill_added" || item.status === "applied") {
+      return [];
+    }
+    return [
+      {
+        id: item.skillId,
+        name: item.skillName,
+        state: item.reason === "needs_connection" ? "needs_connection" : "not_applicable",
+        ...(item.missingIntegrations ? { missingIntegrations: item.missingIntegrations } : {}),
+        ...(item.risk ? { risk: item.risk } : {}),
+      },
+    ];
+  });
 
   return {
     form,
@@ -244,9 +399,10 @@ export function applyWorkspaceAutomationProposal(input: {
       changed: JSON.stringify(form) !== JSON.stringify(input.form),
       name: form.name,
       trigger: summarizeWorkspaceAutomationFormTrigger(form),
-      skills: [...attached, ...leftOut],
+      skills: [...attached, ...notAttached],
       removedSkills,
       setupSteps: listWorkspaceAutomationSetupSteps({ form, connections }),
+      items,
     },
   };
 }

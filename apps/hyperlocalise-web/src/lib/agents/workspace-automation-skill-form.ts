@@ -21,7 +21,10 @@ import {
   type WorkspaceAutomationSkillTool,
   type WorkspaceAutomationSkillTrigger,
 } from "./workspace-automation-skills";
-import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
+import type {
+  WorkspaceAutomationFieldErrors,
+  WorkspaceAutomationFormState,
+} from "./workspace-automation-view-model";
 
 /** Settings a skill cannot know, used only where the form has no value yet. */
 export type WorkspaceAutomationSkillDefaults = {
@@ -31,6 +34,48 @@ export type WorkspaceAutomationSkillDefaults = {
 };
 
 export type WorkspaceAutomationSkillAvailability = "available" | "attached" | "trigger_mismatch";
+
+export type WorkspaceAutomationSetupField = keyof WorkspaceAutomationFieldErrors;
+
+/**
+ * The settings each skill tool owns: what the person fills in once the tool is on. A field owned
+ * by no skill tool, such as the name or the trigger, belongs to the setup as a whole.
+ */
+export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
+  WorkspaceAutomationSkillTool,
+  readonly WorkspaceAutomationSetupField[]
+> = {
+  use_github_repository: ["githubRepository"],
+  notify_github_comment: ["githubRepository"],
+  use_crowdin: ["crowdinProjectId"],
+  use_web_search: [],
+  run_contentful_translation: [
+    "contentfulConnectionId",
+    "contentfulTargetLocales",
+    "contentfulEntryId",
+    "projectId",
+  ],
+  create_native_tms_job: ["projectId", "createNativeTmsJobTargetLocales"],
+  assign_translate_with_agent: ["projectId"],
+  list_issues: ["projectId"],
+  create_issue: ["projectId"],
+  notify_slack: ["slackChannelId"],
+  notify_email: ["emailRecipients", "emailFrom"],
+  import_intercom_articles: ["intercomHelpCenterId", "projectId"],
+  push_intercom_translations: ["intercomHelpCenterId", "projectId"],
+};
+
+/** Ids of the given skills whose tools own the field, in the order given. */
+export function listWorkspaceAutomationSetupFieldOwners(
+  skillIds: readonly string[],
+  field: WorkspaceAutomationSetupField,
+): string[] {
+  return resolveWorkspaceAutomationSkills(skillIds)
+    .filter((skill) =>
+      skill.tools.some((tool) => WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS[tool].includes(field)),
+    )
+    .map((skill) => skill.id);
+}
 
 function enableSkillTool(
   form: WorkspaceAutomationFormState,

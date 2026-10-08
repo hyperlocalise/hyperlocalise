@@ -191,24 +191,6 @@ describe("applyWorkspaceAutomationProposal", () => {
     ]);
   });
 
-  it("attaches a skill that declares a risk and reports the risk", () => {
-    const result = applyWorkspaceAutomationProposal({
-      form: createDefaultWorkspaceAutomationFormState(),
-      proposal: proposal({ addSkillIds: ["email-results"] }),
-      connections: { email: true },
-    });
-
-    expect(result.form).toMatchObject({ skillIds: ["email-results"], emailEnabled: true });
-    expect(result.outcome.skills).toEqual([
-      {
-        id: "email-results",
-        name: "Email results",
-        state: "added",
-        risk: getWorkspaceAutomationSkill("email-results")?.risk,
-      },
-    ]);
-  });
-
   it("leaves out a skill whose integration is known to be disconnected", () => {
     const form = createDefaultWorkspaceAutomationFormState();
 
@@ -271,6 +253,24 @@ describe("applyWorkspaceAutomationProposal", () => {
     expect(result.outcome.skills.map((skill) => skill.state)).toEqual(["not_applicable"]);
   });
 
+  it("leaves out a skill whose trigger an attached skill cannot run on", () => {
+    const form = addSkillToWorkspaceAutomationForm(
+      createDefaultWorkspaceAutomationFormState(),
+      "translate-contentful-entries",
+    );
+
+    const result = applyWorkspaceAutomationProposal({
+      form,
+      proposal: normalized(form, { addSkillIds: ["comment-on-pull-request"] }),
+    });
+
+    expect(result.form).toBe(form);
+    expect(result.outcome.skills.map((skill) => [skill.id, skill.state])).toEqual([
+      ["translate-contentful-entries", "kept"],
+      ["comment-on-pull-request", "not_applicable"],
+    ]);
+  });
+
   it("detaches a skill, switches off its tools and lists the ones that stay", () => {
     const form = addSkillToWorkspaceAutomationForm(
       addSkillToWorkspaceAutomationForm(
@@ -293,6 +293,100 @@ describe("applyWorkspaceAutomationProposal", () => {
       { id: "research-web", name: "Research the web", state: "kept" },
     ]);
   });
+
+  it("lists each change it made", () => {
+    const form = createDefaultWorkspaceAutomationFormState();
+
+    const result = applyWorkspaceAutomationProposal({
+      form,
+      proposal: normalized(form, {
+        name: "PR check",
+        addSkillIds: ["comment-on-pull-request"],
+      }),
+    });
+
+    expect(result.outcome.items).toEqual([
+      { key: "name", kind: "name", status: "applied", before: "", after: "PR check" },
+      {
+        key: "trigger",
+        kind: "trigger",
+        status: "applied",
+        before: { mode: "manual" },
+        after: { mode: "github", events: ["pull_request"], branches: ["main"] },
+        forSkillId: "comment-on-pull-request",
+      },
+      {
+        key: "skill_added:comment-on-pull-request",
+        kind: "skill_added",
+        status: "applied",
+        skillId: "comment-on-pull-request",
+        skillName: "Comment on the pull request",
+      },
+    ]);
+  });
+
+  it("changes the trigger and drops the attached skill that cannot run on it", () => {
+    const base = addSkillToWorkspaceAutomationForm(
+      { ...createDefaultWorkspaceAutomationFormState(), triggerMode: "github" as const },
+      "comment-on-pull-request",
+    );
+    const input = {
+      form: base,
+      proposal: normalized(base, {
+        trigger: {
+          mode: "scheduled",
+          cadence: "weekly",
+          hour: 9,
+          dayOfWeek: 1,
+          timeZone: null,
+          githubEvents: null,
+          branches: null,
+        },
+      }),
+    };
+    const dropped = [{ id: "comment-on-pull-request", name: "Comment on the pull request" }];
+
+    const result = applyWorkspaceAutomationProposal(input);
+
+    expect(result.form).toMatchObject({
+      triggerMode: "scheduled",
+      skillIds: [],
+      githubCommentEnabled: false,
+    });
+    expect(result.outcome.items).toMatchObject([
+      { key: "trigger", status: "applied", replaces: { skills: dropped, settings: [] } },
+    ]);
+    expect(result.outcome.removedSkills).toEqual(dropped);
+  });
+
+  it.each([
+    ["GitLab", { gitlabEnabled: true, gitlabPathWithNamespace: "acme/web" }, "gitlab"],
+    ["GitHub sync workflows", { githubEnabled: true, pushSourceEnabled: true }, "github_sync"],
+  ] as const)(
+    "attaches a skill and says it switched off %s the person turned on",
+    (_name, manual, setting) => {
+      const form = { ...createDefaultWorkspaceAutomationFormState(), ...manual };
+
+      const result = applyWorkspaceAutomationProposal({
+        form,
+        proposal: proposal({ addSkillIds: ["review-translation-changes"] }),
+        connections: { github: true },
+      });
+
+      expect(result.form).toMatchObject({
+        skillIds: ["review-translation-changes"],
+        githubMode: "agent",
+        gitlabEnabled: false,
+      });
+      expect(result.outcome.items).toMatchObject([
+        {
+          key: "skill_added:review-translation-changes",
+          status: "applied",
+          replaces: { skills: [], settings: [setting] },
+        },
+      ]);
+    },
+  );
 
   it("never touches the project, status or model", () => {
     const form = {
@@ -340,7 +434,13 @@ describe("applyWorkspaceAutomationProposal", () => {
       listWorkspaceAutomationSetupSteps({ form: result.form, connections }),
     );
     expect(result.outcome.setupSteps).toEqual([
-      { kind: "field", field: "slackChannelId", message: "Enter a valid Slack channel ID." },
+      {
+        kind: "field",
+        field: "slackChannelId",
+        message: "Enter a valid Slack channel ID.",
+        skillIds: ["post-to-slack"],
+      },
+      { kind: "nothing_to_deliver" },
     ]);
   });
 

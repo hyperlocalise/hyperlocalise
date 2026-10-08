@@ -254,6 +254,31 @@ describe("normalizeWorkspaceAutomationProposal", () => {
     expect(upload.trigger).toEqual({ mode: "source_upload" });
   });
 
+  it("sets no trigger an attached skill cannot run on, unless that skill is being removed", () => {
+    const kept = normalizeWorkspaceAutomationProposal(
+      proposalInput({ addSkillIds: ["comment-on-pull-request"] }),
+      proposalBase({ skillIds: ["translate-contentful-entries"] }),
+    );
+    const removed = normalizeWorkspaceAutomationProposal(
+      proposalInput({
+        addSkillIds: ["comment-on-pull-request"],
+        removeSkillIds: ["translate-contentful-entries"],
+      }),
+      proposalBase({ skillIds: ["translate-contentful-entries"] }),
+    );
+    const compatible = normalizeWorkspaceAutomationProposal(
+      proposalInput({ addSkillIds: ["comment-on-pull-request"] }),
+      proposalBase({ skillIds: ["review-translation-changes"] }),
+    );
+
+    expect(kept.trigger).toBeNull();
+    expect(kept.removeSkillIds).toEqual([]);
+    expect(kept.notes).toEqual([]);
+    expect(removed.trigger).toMatchObject({ mode: "github" });
+    expect(compatible.trigger).toMatchObject({ mode: "github" });
+    expect(compatible.removeSkillIds).toEqual([]);
+  });
+
   it("sets no trigger for a skill that runs on the current one", () => {
     expect(
       normalizeWorkspaceAutomationProposal(

@@ -17,6 +17,7 @@ import {
   listWorkspaceAutomationSetupSteps,
 } from "./workspace-automation-setup-steps";
 import { addSkillToWorkspaceAutomationForm } from "./workspace-automation-skill-form";
+import { WORKSPACE_AUTOMATION_SKILLS } from "./workspace-automation-skills";
 import {
   createDefaultWorkspaceAutomationFormState,
   type WorkspaceAutomationFormState,
@@ -47,19 +48,88 @@ describe("listWorkspaceAutomationSetupSteps", () => {
 
     expect(listWorkspaceAutomationSetupSteps({ form, connections: { slack: false } })).toEqual([
       { kind: "connect", integration: "slack" },
-      { kind: "field", field: "slackChannelId", message: "Enter a valid Slack channel ID." },
+      {
+        kind: "field",
+        field: "slackChannelId",
+        message: "Enter a valid Slack channel ID.",
+        skillIds: ["post-to-slack"],
+      },
+      { kind: "nothing_to_deliver" },
     ]);
   });
 
   it("adds no connection step while a status is unknown or connected", () => {
     const form = addSkillToWorkspaceAutomationForm(namedForm(), "post-to-slack");
 
-    expect(listWorkspaceAutomationSetupSteps({ form }).map((step) => step.kind)).toEqual(["field"]);
+    expect(listWorkspaceAutomationSetupSteps({ form }).map((step) => step.kind)).toEqual([
+      "field",
+      "nothing_to_deliver",
+    ]);
     expect(
       listWorkspaceAutomationSetupSteps({ form, connections: { slack: true } }).map(
         (step) => step.kind,
       ),
-    ).toEqual(["field"]);
+    ).toEqual(["field", "nothing_to_deliver"]);
+  });
+
+  it("names every attached skill that owns a missing setting", () => {
+    const form = addSkillToWorkspaceAutomationForm(
+      addSkillToWorkspaceAutomationForm(
+        namedForm({ triggerMode: "github" }),
+        "review-translation-changes",
+      ),
+      "comment-on-pull-request",
+    );
+
+    expect(listWorkspaceAutomationSetupSteps({ form })).toEqual([
+      {
+        kind: "field",
+        field: "githubRepository",
+        message: "Choose a GitHub repository.",
+        skillIds: ["review-translation-changes", "comment-on-pull-request"],
+      },
+    ]);
+  });
+
+  it("says a skill that only sends results has nothing to send", () => {
+    const delivering = addSkillToWorkspaceAutomationForm(
+      namedForm({ slackChannelId: "C0123456789" }),
+      "post-to-slack",
+    );
+
+    expect(listWorkspaceAutomationSetupSteps({ form: delivering })).toEqual([
+      { kind: "nothing_to_deliver" },
+    ]);
+    expect(
+      listWorkspaceAutomationSetupSteps({
+        form: addSkillToWorkspaceAutomationForm(delivering, "research-web"),
+      }),
+    ).toEqual([]);
+    expect(
+      listWorkspaceAutomationSetupSteps({
+        form: { ...delivering, instructions: "Post a reminder to file timesheets." },
+      }),
+    ).toEqual([]);
+  });
+
+  it("gives every missing setting of a skill's tools an owner", () => {
+    const setupWideFields = new Set(["name", "instructions", "trigger", "skills", "form"]);
+
+    for (const skill of WORKSPACE_AUTOMATION_SKILLS) {
+      for (const triggerMode of skill.triggers) {
+        const form = addSkillToWorkspaceAutomationForm(namedForm({ triggerMode }), skill.id);
+        const unowned = listWorkspaceAutomationSetupSteps({ form }).filter(
+          (step) =>
+            step.kind === "field" &&
+            !step.skillIds?.length &&
+            !setupWideFields.has(step.field) &&
+            // An upload trigger needs a project whatever the skills are.
+            !(triggerMode === "source_upload" && step.field === "projectId"),
+        );
+
+        expect(unowned, `${skill.id} on ${triggerMode}`).toEqual([]);
+      }
+    }
   });
 
   it("lists one connection step for an integration several skills need", () => {
@@ -100,7 +170,7 @@ describe("listWorkspaceAutomationSetupSteps", () => {
         kind: "field",
         field: "trigger",
         message:
-          "Scheduled automations require at least one GitHub, GitLab, Contentful, Queries, Web Search, or Crowdin workflow tool.",
+          "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
       },
     ]);
     expect(
@@ -126,6 +196,12 @@ describe("describeWorkspaceAutomationSetupStep", () => {
         message: "Choose a GitHub repository.",
       }),
     ).toBe("Choose a GitHub repository.");
+  });
+
+  it("says what to add when nothing produces a result", () => {
+    expect(describeWorkspaceAutomationSetupStep({ kind: "nothing_to_deliver" })).toContain(
+      "Nothing produces a result to send yet.",
+    );
   });
 
   it("explains what a GitHub trigger is missing", () => {

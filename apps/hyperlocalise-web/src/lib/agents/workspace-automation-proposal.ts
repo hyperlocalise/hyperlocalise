@@ -18,6 +18,7 @@ import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
   getWorkspaceAutomationSkill,
   MAX_WORKSPACE_AUTOMATION_SKILLS,
+  resolveWorkspaceAutomationSkills,
   workspaceAutomationSkillSupportsTrigger,
   type WorkspaceAutomationSkillTrigger,
 } from "./workspace-automation-skills";
@@ -283,20 +284,31 @@ function defaultGithubEvents(
   return null;
 }
 
-/** The trigger a skill needs when the setup is still on the untouched manual default. */
+/**
+ * The trigger a skill needs when the setup is still on the untouched manual default. As in the
+ * editor, it is one the skills that stay attached work with too; a skill with no such trigger
+ * sets none and is left out when the proposal is applied.
+ */
 function resolveImpliedTrigger(
   base: WorkspaceAutomationProposalBase,
   addSkillIds: readonly string[],
+  keptSkillIds: readonly string[],
   notes: WorkspaceAutomationProposalNote[],
 ): WorkspaceAutomationProposalTrigger | null {
   if (base.triggerMode !== "manual") {
     return null;
   }
 
+  const keptSkills = resolveWorkspaceAutomationSkills(keptSkillIds);
   for (const skillId of addSkillIds) {
     const skill = getWorkspaceAutomationSkill(skillId);
-    const mode = skill?.triggers[0];
-    if (!skill || !mode || workspaceAutomationSkillSupportsTrigger(skill, "manual")) {
+    if (!skill || workspaceAutomationSkillSupportsTrigger(skill, "manual")) {
+      continue;
+    }
+    const mode = skill.triggers.find((trigger) =>
+      keptSkills.every((kept) => workspaceAutomationSkillSupportsTrigger(kept, trigger)),
+    );
+    if (!mode) {
       continue;
     }
     notes.push({ code: "trigger_set_for_skill", skillId });
@@ -359,7 +371,12 @@ export function normalizeWorkspaceAutomationProposal(
 
   const trigger = input.trigger
     ? normalizeTrigger(input.trigger, base, addSkillIds, notes)
-    : resolveImpliedTrigger(base, addSkillIds, notes);
+    : resolveImpliedTrigger(
+        base,
+        addSkillIds,
+        base.skillIds.filter((skillId) => !removeSkillIds.includes(skillId)),
+        notes,
+      );
 
   if (trigger && trigger.mode !== base.triggerMode) {
     for (const skillId of base.skillIds) {
