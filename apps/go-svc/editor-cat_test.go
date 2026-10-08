@@ -150,6 +150,23 @@ func TestEditorCatQueueNative(t *testing.T) {
 	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
 }
 
+func TestEditorCatQueueOmitsIntercomCalloutFences(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "intercom/help/article.md")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[0]", ":::callout backgroundColor=\"#feedaf80\"\nborderColor=\"#fbc91633\"")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[1]", "For a public article to be enabled for Fin")
+	mustEditorCatKey(t, scope, fileID, "md.Paragraph[4]/line[2]", ":::")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=intercom/help/article.md&targetLocale=de-DE"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, 1, body.ContentEditorQueue.Pagination.TotalCount)
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, "md.Paragraph[4]/line[1]", body.ContentEditorQueue.Segments[0].Key)
+}
+
 func TestEditorCatMemberCannotMutate(t *testing.T) {
 	routes := []struct {
 		name, method, path, body string

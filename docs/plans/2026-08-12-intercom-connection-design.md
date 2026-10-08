@@ -1,5 +1,9 @@
 # Intercom connection (org credentials)
 
+Article import, CAT compose, and draft push are specified in
+[`docs/adr/2026-10-08-intercom-help-center-markdown-design.md`](../adr/2026-10-08-intercom-help-center-markdown-design.md).
+This note covers the original org credential slice only.
+
 ## Problem
 
 Teams want to connect Intercom workspaces so Hyperlocalise can later read and

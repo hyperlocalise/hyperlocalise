@@ -53,6 +53,19 @@ function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
 }
 
+export function excludeMarkdownCalloutFenceKeys() {
+  return sql`(
+    (
+      ${schema.projectTranslationKeys.key} not like 'md.%'
+      and ${schema.projectTranslationKeys.key} not like 'frontmatter/%'
+    )
+    or (
+      trim(${schema.projectTranslationKeys.sourceText}) <> ':::'
+      and trim(${schema.projectTranslationKeys.sourceText}) not like ':::callout%'
+    )
+  )`;
+}
+
 function translationKeysFileConditions(input: {
   organizationId: string;
   projectId: string;
@@ -62,6 +75,7 @@ function translationKeysFileConditions(input: {
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
     eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
@@ -69,6 +83,7 @@ function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
   return and(
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
@@ -662,22 +677,31 @@ export class ProjectTranslationService extends ProjectServiceBase {
       return [];
     }
 
-    return this.database
-      .select({
-        id: schema.projectTranslations.id,
-        translationKeyId: schema.projectTranslations.translationKeyId,
-        text: schema.projectTranslations.text,
-        status: schema.projectTranslations.status,
-      })
-      .from(schema.projectTranslations)
-      .where(
-        and(
-          eq(schema.projectTranslations.organizationId, input.organizationId),
-          eq(schema.projectTranslations.projectId, input.projectId),
-          eq(schema.projectTranslations.targetLocale, input.targetLocale),
-          inArray(schema.projectTranslations.translationKeyId, input.translationKeyIds),
-        ),
+    const batches = [];
+    for (const translationKeyIds of chunkItems(
+      input.translationKeyIds,
+      PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
+    )) {
+      batches.push(
+        await this.database
+          .select({
+            id: schema.projectTranslations.id,
+            translationKeyId: schema.projectTranslations.translationKeyId,
+            text: schema.projectTranslations.text,
+            status: schema.projectTranslations.status,
+          })
+          .from(schema.projectTranslations)
+          .where(
+            and(
+              eq(schema.projectTranslations.organizationId, input.organizationId),
+              eq(schema.projectTranslations.projectId, input.projectId),
+              eq(schema.projectTranslations.targetLocale, input.targetLocale),
+              inArray(schema.projectTranslations.translationKeyId, translationKeyIds),
+            ),
+          ),
       );
+    }
+    return batches.flat();
   }
 
   async loadAsPrefilledEntries(input: {

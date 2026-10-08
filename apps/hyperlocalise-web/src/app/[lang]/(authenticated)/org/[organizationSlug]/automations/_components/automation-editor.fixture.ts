@@ -342,7 +342,7 @@ export const intercomAutomationRunsFixture: WorkspaceAutomationRunRecord[] = [
             .map((article) => ({
               articleId: article.id,
               title: article.title,
-              path: `intercom/${intercomSupportHelpCenter.id}/${article.id}.json`,
+              path: `intercom/${intercomSupportHelpCenter.id}/${article.id}.md`,
             })),
         },
         create_native_tms_job: {

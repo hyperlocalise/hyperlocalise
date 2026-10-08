@@ -24,7 +24,7 @@ import {
   CheckSquareIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
-import { siGithub } from "simple-icons";
+import { siGithub, siIntercom } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -41,6 +41,7 @@ type IconBucket =
   | "slack"
   | "email"
   | "contentful"
+  | "intercom"
   | "web-search"
   | "web-chat"
   | "upload"
@@ -67,6 +68,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "contentful-webhook":
     case "contentful":
       return "contentful";
+    case "intercom":
+      return "intercom";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -115,6 +118,8 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
           className={iconClassName}
         />
       );
+    case "intercom":
+      return <SimpleBrandIcon icon={siIntercom} colored={false} className={iconClassName} />;
     case "web-search":
       return <MagnifyingGlassIcon className={iconClassName} />;
     case "web-chat":
@@ -138,7 +143,11 @@ export function AutomationTemplateTriggerIcon({
   template: WorkspaceAutomationTemplate;
 }) {
   const flow = getWorkspaceAutomationTemplateFlow(template);
-  return <FlowIcon bucket={iconBucketForNode(flow.trigger)} className="size-4" />;
+  const triggerBucket = iconBucketForNode(flow.trigger);
+  const intercomTool = flow.tools.find((tool) => tool.id === "intercom");
+  const bucket =
+    triggerBucket === "schedule" && intercomTool ? iconBucketForNode(intercomTool) : triggerBucket;
+  return <FlowIcon bucket={bucket} className="size-4" />;
 }
 
 export function AutomationTemplateFlow({

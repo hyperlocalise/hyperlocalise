@@ -469,7 +469,10 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
           ) : (
             <div className={CELL_BOX_CLASS_NAME}>
               <Text size="small" wrapStyle="pretty">
-                <ContentEditorMessagePreview message={segment.sourceText} />
+                <ContentEditorMessagePreview
+                  message={segment.sourceText}
+                  companionMessage={segment.targetText}
+                />
               </Text>
             </div>
           )}
@@ -646,6 +649,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                     <Text size="small" wrapStyle="pretty">
                       <ContentEditorMessagePreview
                         message={segment.targetText}
+                        companionMessage={segment.sourceText}
                         highlightTokens={highlightTokens}
                         highlightStatus={highlightStatus}
                         highlightWholeTerm={highlightWholeTerm}

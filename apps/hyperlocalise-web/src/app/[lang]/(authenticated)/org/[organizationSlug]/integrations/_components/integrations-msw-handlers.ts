@@ -78,6 +78,14 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
       HttpResponse.json({ intercomConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+      HttpResponse.json({
+        restEndpoint: "us",
+        helpCenters: [
+          { id: "123", displayName: "Customer Support", defaultLocale: "en", locales: ["en"] },
+        ],
+      }),
+    ),
     http.get("/api/orgs/:organizationSlug/canva-connections", () =>
       HttpResponse.json({ canvaConnections: [] }),
     ),
@@ -102,6 +110,15 @@ function createIntegrationsGetHandlers({
           apiKeyLast4: params.provider === "intercom" ? "abcd" : null,
         },
       }),
+    ),
+    http.get("/api/orgs/:organizationSlug/pipes/:provider/authorize-url", () =>
+      HttpResponse.json({
+        url: "https://api.workos.com/data-integrations/intercom/authorize-redirect",
+      }),
+    ),
+    http.delete(
+      "/api/orgs/:organizationSlug/pipes/:provider",
+      () => new HttpResponse(null, { status: 204 }),
     ),
     http.get("/api/orgs/:organizationSlug/mcp-server-connections", () =>
       HttpResponse.json({ mcpServerConnections: [] }),

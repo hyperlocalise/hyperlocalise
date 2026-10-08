@@ -54,7 +54,9 @@ function WorkspaceAutomationEditorStory({
   knowledgeAvailable = true,
   mode,
   organizationSlug = "acme",
+  onRefreshRunHistory,
   runHistory,
+  runHistoryRefreshing,
 }: {
   actions?: ReactNode;
   canUpdateKnowledgeMemory?: boolean;
@@ -63,8 +65,10 @@ function WorkspaceAutomationEditorStory({
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
+  onRefreshRunHistory?: () => void;
   organizationSlug?: string;
   runHistory?: typeof automationRunsFixture;
+  runHistoryRefreshing?: boolean;
 }) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState(initialErrors);
@@ -84,7 +88,9 @@ function WorkspaceAutomationEditorStory({
           setErrors({});
         }}
         organizationSlug={organizationSlug}
+        onRefreshRunHistory={onRefreshRunHistory}
         runHistory={runHistory}
+        runHistoryRefreshing={runHistoryRefreshing}
       />
     </WorkspacePageShell>
   );
@@ -309,10 +315,32 @@ export const CreateFromIntercomTemplate: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Intercom Help Center")).toBeInTheDocument();
     await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
-    await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
-    await expect(canvas.getByLabelText("Intercom source locale")).toHaveValue("en");
-    await expect(canvas.getByLabelText("Collection IDs (optional)")).toHaveValue("38");
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveTextContent("English (en)");
+    await expect(canvas.getByLabelText("Collections (optional)")).toHaveTextContent(
+      "Getting started",
+    );
     await expect(canvas.getByText("Include draft articles on import")).toBeInTheDocument();
+  },
+};
+
+export const CreateIntercomAutopicksHelpCenter: Story = {
+  args: {
+    form: {
+      ...createIntercomAutomationFormFixture(),
+      projectId: "project_mobile",
+      intercomHelpCenterId: "",
+      intercomHelpCenterLocales: [],
+      intercomCollectionIds: [],
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveTextContent("English (en)");
+    await expect(
+      await canvas.findByText("Spanish (Spain) (es-ES) → Unmapped, skipped"),
+    ).toBeInTheDocument();
   },
 };
 
@@ -575,6 +603,7 @@ export const DetailRunHistory: Story = {
   args: {
     mode: "detail",
     form: createDetailAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: automationRunsFixture,
     actions: (
       <Button type="button" disabled>
@@ -583,8 +612,10 @@ export const DetailRunHistory: Story = {
       </Button>
     ),
   },
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvas, userEvent, args }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Refresh" }));
+    await expect(args.onRefreshRunHistory).toHaveBeenCalledOnce();
     await expect(canvas.getByText("Succeeded")).toBeInTheDocument();
     await expect(canvas.getByText("Failed")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
@@ -602,6 +633,7 @@ export const DetailIntercomRunHistory: Story = {
   args: {
     mode: "detail",
     form: createIntercomAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: intercomAutomationRunsFixture,
     actions: (
       <>
@@ -632,6 +664,7 @@ export const DetailRunHistoryEmpty: Story = {
   args: {
     mode: "detail",
     form: createDetailAutomationFormFixture(),
+    onRefreshRunHistory: fn(),
     runHistory: [],
     actions: (
       <Button type="button" disabled>
@@ -640,9 +673,11 @@ export const DetailRunHistoryEmpty: Story = {
       </Button>
     ),
   },
-  play: async ({ canvas, userEvent }) => {
+  play: async ({ canvas, userEvent, args }) => {
     await userEvent.click(canvas.getByRole("tab", { name: "Run History" }));
     await expect(canvas.getByText("No runs yet.")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Refresh" }));
+    await expect(args.onRefreshRunHistory).toHaveBeenCalledOnce();
   },
 };
 

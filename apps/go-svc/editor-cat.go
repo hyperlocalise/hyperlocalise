@@ -366,6 +366,11 @@ func editorCatGroupIdentitySQL(alias string) string {
 	return "case when " + editorCatGroupSeparatesMediaSQL(alias) + " then 'media:' || " + alias + ".id::text else 'text:' || " + alias + ".source_text end"
 }
 
+func editorCatExcludeCalloutFenceSQL(alias string) string {
+	col := alias + ".source_text"
+	return "(trim(" + col + ") <> ':::' and trim(" + col + ") not like ':::callout%')"
+}
+
 type editorCatFileKind string
 
 const (

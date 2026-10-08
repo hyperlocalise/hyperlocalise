@@ -227,6 +227,6 @@ export const IntercomPushInHeader: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom as draft" })).toBeEnabled();
   },
 };

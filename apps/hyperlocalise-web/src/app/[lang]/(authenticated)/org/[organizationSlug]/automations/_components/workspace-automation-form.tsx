@@ -34,6 +34,7 @@ import {
   ListMagnifyingGlassIcon,
   MegaphoneIcon,
   TranslateIcon,
+  ArrowClockwiseIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ import {
   siSemrush,
   siCrowdin,
   siContentful,
+  siIntercom,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -102,6 +104,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
@@ -1171,7 +1174,7 @@ function AddToolMenu({
               disabled={form.intercomEnabled || !intercomConnected}
               onClick={() => onChange({ ...form, intercomEnabled: true })}
             >
-              <ChatTextIcon className="size-4" />
+              <AutomationToolMenuIcon icon={siIntercom} />
               Intercom Help Center
               {form.intercomEnabled ? (
                 <DropdownMenuHint>
@@ -1512,6 +1515,8 @@ const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon
   notify_github_comment: siGithub,
   use_crowdin: siCrowdin,
   run_contentful_translation: siContentful,
+  import_intercom_articles: siIntercom,
+  push_intercom_translations: siIntercom,
 };
 
 const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
@@ -2496,7 +2501,7 @@ function ToolsSettings({
 
         {form.intercomEnabled ? (
           <EditorRow
-            icon={<ChatTextIcon className="size-4" />}
+            icon={<AutomationToolMenuIcon icon={siIntercom} />}
             title={
               <>
                 <span>Intercom Help Center</span>
@@ -2522,6 +2527,8 @@ function ToolsSettings({
               form={form}
               errors={errors}
               intercomConnected={intercomConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
               onChange={onChange}
             />
             <FieldError message={errors.intercom} />
@@ -3087,6 +3094,8 @@ export function WorkspaceAutomationEditor({
   onChange,
   organizationSlug,
   runHistory,
+  runHistoryRefreshing,
+  onRefreshRunHistory,
   initialEditorTab,
 }: {
   actions?: ReactNode;
@@ -3098,8 +3107,10 @@ export function WorkspaceAutomationEditor({
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
   onChange: (next: WorkspaceAutomationFormState) => void;
+  onRefreshRunHistory?: () => void;
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
+  runHistoryRefreshing?: boolean;
   initialEditorTab?: WorkspaceAutomationEditorTab;
 }) {
   const intl = useIntl();
@@ -3633,7 +3644,21 @@ export function WorkspaceAutomationEditor({
         </TabsContent>
 
         {hasHistory ? (
-          <TabsContent value="history" className="mt-4">
+          <TabsContent value="history" className="mt-4 flex flex-col gap-3">
+            {onRefreshRunHistory ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={runHistoryRefreshing}
+                  onClick={onRefreshRunHistory}
+                >
+                  {runHistoryRefreshing ? <Spinner className="size-3.5" /> : <ArrowClockwiseIcon />}
+                  <FormattedMessage {...workspaceAutomationFormMessages.refreshRunHistory} />
+                </Button>
+              </div>
+            ) : null}
             <RunHistoryTable runs={runHistory ?? []} />
           </TabsContent>
         ) : null}

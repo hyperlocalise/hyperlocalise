@@ -73,9 +73,14 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 		RuntimeContext: runtimeContext,
 	}
 
-	return s.translateWithValidationStrategy(ctx, request, func(_, translated string) error {
-		return validateTranslatedOutput(task, translated)
+	translated, err := s.translateWithValidationStrategy(ctx, request, func(_, candidate string) error {
+		_, verr := acceptTranslatedOutput(task, candidate)
+		return verr
 	})
+	if err != nil {
+		return "", err
+	}
+	return acceptTranslatedOutput(task, translated)
 }
 
 func (s *Service) translateRequestWithRetry(ctx context.Context, request translator.Request) (string, error) {

@@ -26,15 +26,18 @@ import {
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import {
+  assignIntercomArticleSourcePaths,
   buildIntercomArticleSourcePath,
   hashIntercomArticleContent,
-  serializeIntercomArticleJson,
-} from "./article-json";
+  serializeIntercomArticleMarkdown,
+} from "./article-markdown";
 import {
   createIntercomArticlesClient,
   getIntercomArticle,
   intercomArticleToImportPayload,
   listIntercomArticlesSince,
+  listIntercomHelpCenters,
+  loadIntercomArticleForImport,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom } from "./intercom-locale";
 import {
@@ -138,6 +141,14 @@ export async function runImportIntercomArticles(input: {
     accessToken: tokenResult.value,
     restEndpoint: intercom.restEndpoint,
   });
+  let helpCenterName: string | null = null;
+  try {
+    const helpCenters = await listIntercomHelpCenters(client);
+    helpCenterName =
+      helpCenters.find((center) => String(center.id) === String(helpCenterId))?.displayName ?? null;
+  } catch {
+    helpCenterName = null;
+  }
 
   const [cursorRow] = await db
     .select()
@@ -225,6 +236,26 @@ export async function runImportIntercomArticles(input: {
     }
   }
   const articles = [...articlesById.values()];
+  const existingMappings = await db
+    .select({
+      articleId: schema.intercomArticleSyncStates.articleId,
+      sourcePath: schema.intercomArticleSyncStates.sourcePath,
+      status: schema.intercomArticleSyncStates.status,
+      helpCenterId: schema.intercomArticleSyncStates.helpCenterId,
+    })
+    .from(schema.intercomArticleSyncStates)
+    .where(
+      and(
+        eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
+        eq(schema.intercomArticleSyncStates.projectId, projectId),
+      ),
+    );
+  const sourcePathByArticleId = assignIntercomArticleSourcePaths({
+    helpCenterId,
+    helpCenterName,
+    articles,
+    existingMappings,
+  });
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
@@ -248,10 +279,14 @@ export async function runImportIntercomArticles(input: {
     articles,
     ARTICLE_IMPORT_CONCURRENCY,
     async (article) => {
-      const sourcePath = buildIntercomArticleSourcePath({
-        helpCenterId,
-        articleId: article.id,
-      });
+      const sourcePath =
+        sourcePathByArticleId.get(article.id) ??
+        buildIntercomArticleSourcePath({
+          helpCenterId,
+          articleId: article.id,
+          helpCenterName,
+          articleTitle: article.title,
+        });
 
       const [existing] = await db
         .select()
@@ -266,17 +301,22 @@ export async function runImportIntercomArticles(input: {
         .limit(1);
 
       try {
-        const payload = intercomArticleToImportPayload(article, sourceIntercomLocale);
+        const detailedArticle = await loadIntercomArticleForImport(client, article.id);
+        const payload = intercomArticleToImportPayload(detailedArticle, sourceIntercomLocale);
         const contentHash = hashIntercomArticleContent(payload);
 
-        if (existing?.sourceContentHash === contentHash && existing.status === "active") {
+        if (
+          existing?.sourceContentHash === contentHash &&
+          existing.status === "active" &&
+          existing.sourcePath === sourcePath
+        ) {
           return {
             outcome: "skipped" as const,
             articleId: article.id,
             updatedAt: article.updatedAt,
           };
         }
-        const jsonBytes = Buffer.from(serializeIntercomArticleJson(payload), "utf8");
+        const markdownBytes = Buffer.from(serializeIntercomArticleMarkdown(payload), "utf8");
         const upload = await uploadSourceFile({
           organizationId: input.organizationId,
           project,
@@ -285,9 +325,9 @@ export async function runImportIntercomArticles(input: {
           workflowRunId: input.workflowRunId ?? null,
           uploadSurface: "intercom_automation",
           file: {
-            filename: `${article.id}.json`,
-            contentType: "application/json",
-            content: jsonBytes,
+            filename: sourcePath.slice(sourcePath.lastIndexOf("/") + 1),
+            contentType: "text/markdown",
+            content: markdownBytes,
           },
         });
 
