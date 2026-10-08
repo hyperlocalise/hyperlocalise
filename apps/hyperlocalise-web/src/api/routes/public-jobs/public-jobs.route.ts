@@ -51,6 +51,10 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
+import {
+  canAccessStoredFileWithProjectScope,
+  type ApiKeyProjectAccessScope,
+} from "./public-jobs.access";
 import { createPublicJobBodySchema } from "./public-jobs.schema";
 import {
   invalidJobPayloadResponse,
@@ -71,11 +75,6 @@ const validateCreateJobBody = validator("json", (value, c) => {
 
 type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
-};
-
-type ApiKeyProjectAccessScope = {
-  organizationId: string;
-  accessibleProjectIds: string[] | null;
 };
 
 async function resolveApiKeyProjectAccessScope(
@@ -107,37 +106,6 @@ async function getProjectForAccessScope(scope: ApiKeyProjectAccessScope, project
     .limit(1);
 
   return project ?? null;
-}
-
-function canAccessStoredFileWithProjectScope(
-  teamAccess: ApiAuthContext,
-  scope: ApiKeyProjectAccessScope,
-  input: {
-    organizationId: string;
-    projectId: string | null;
-    createdByUserId?: string | null;
-  },
-) {
-  if (input.organizationId !== scope.organizationId) {
-    return false;
-  }
-
-  if (input.projectId) {
-    return (
-      scope.accessibleProjectIds === null || scope.accessibleProjectIds.includes(input.projectId)
-    );
-  }
-
-  if (scope.accessibleProjectIds === null) {
-    return true;
-  }
-
-  const uploaderId = input.createdByUserId ?? null;
-  if (uploaderId === null) {
-    return true;
-  }
-
-  return uploaderId === teamAccess.user.localUserId;
 }
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {

@@ -72,6 +72,8 @@ vi.mock("@/lib/database/client", () => ({
   },
 }));
 
+import { inArray } from "drizzle-orm";
+
 import {
   persistFileJobTranslations,
   persistStringJobTranslations,
@@ -189,6 +191,16 @@ describe("persistFileJobTranslations", () => {
     );
     expect(insertedBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
     expect(insertedBatches[1]).toHaveLength(1);
+
+    const lookupBatches = vi
+      .mocked(inArray)
+      .mock.calls.map((call) => call[1] as unknown[])
+      .filter(
+        (values) => Array.isArray(values) && values.every((value) => typeof value === "string"),
+      );
+    expect(lookupBatches).toHaveLength(2);
+    expect(lookupBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
+    expect(lookupBatches[1]).toHaveLength(1);
   });
 });
 

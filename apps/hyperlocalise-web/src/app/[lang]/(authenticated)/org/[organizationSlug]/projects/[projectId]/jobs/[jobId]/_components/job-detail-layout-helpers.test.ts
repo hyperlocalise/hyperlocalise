@@ -115,6 +115,42 @@ describe("jobDetailTaskLayoutFromRecord", () => {
     });
   });
 
+  it("surfaces leftover locales on a succeeded agent job when lastError was cleared", () => {
+    const job = createNativeJobDetail({
+      assigneeType: "agent",
+      ownerUserId: null,
+      status: "succeeded",
+      lastError: null,
+      outcomePayload: {
+        outputFiles: [{ fileId: "file_de", locale: "de-DE", filename: "messages.de.json" }],
+        failedLocales: ["ja-JP"],
+        followUpJobId: "job_retry",
+        message:
+          "the translation environment disconnected mid-run. This is usually temporary — try again.",
+        code: "sandbox_timeout",
+      },
+    });
+
+    const layout = jobDetailTaskLayoutFromRecord(job, intl);
+
+    expect(layout.properties.find((property) => property.id === "failure-reason")).toEqual({
+      id: "failure-reason",
+      label: "Failure reason",
+      value:
+        "The translation environment disconnected mid-run. This is usually temporary — try again.",
+    });
+    expect(layout.properties.find((property) => property.id === "failed-locales")).toEqual({
+      id: "failed-locales",
+      label: "Unfinished locales",
+      value: "ja-JP",
+    });
+    expect(layout.secondaryProperties.find((property) => property.id === "follow-up-job")).toEqual({
+      id: "follow-up-job",
+      label: "Retry job",
+      value: "job_retry",
+    });
+  });
+
   it("hides agent failure details on human-assigned jobs", () => {
     const job = createNativeJobDetail({
       assigneeType: "user",
