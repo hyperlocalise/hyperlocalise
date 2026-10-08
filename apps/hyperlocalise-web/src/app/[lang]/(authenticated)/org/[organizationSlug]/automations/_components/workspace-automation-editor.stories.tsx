@@ -246,8 +246,10 @@ export const CreateFromIntercomTemplate: Story = {
     await expect(canvas.getByText("Intercom Help Center")).toBeInTheDocument();
     await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
     await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
-    await expect(canvas.getByLabelText("Intercom source locale")).toHaveValue("en");
-    await expect(canvas.getByLabelText("Collection IDs (optional)")).toHaveValue("38");
+    await expect(canvas.getByLabelText("Intercom source locale")).toHaveTextContent("English (en)");
+    await expect(canvas.getByLabelText("Collections (optional)")).toHaveTextContent(
+      "Getting started",
+    );
     await expect(canvas.getByText("Include draft articles on import")).toBeInTheDocument();
   },
 };

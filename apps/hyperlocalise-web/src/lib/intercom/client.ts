@@ -12,9 +12,10 @@
  */
 import { IntercomClient, IntercomError } from "intercom-client";
 
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isOk, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
+  INTERCOM_REST_ENDPOINTS,
   INTERCOM_VALIDATE_TIMEOUT_MS,
   resolveIntercomRestBaseUrl,
   type IntercomRestEndpoint,
@@ -94,4 +95,37 @@ export async function validateIntercomAccessToken(input: {
         error instanceof Error ? error.message : "Unable to validate the Intercom access token.",
     });
   }
+}
+
+/**
+ * Intercom OAuth tokens only work on one regional host. Probe `/me` on us, eu,
+ * then au and return the first region that accepts the token.
+ */
+export async function resolveIntercomRestEndpoint(input: {
+  accessToken: string;
+  signal?: AbortSignal;
+}): Promise<Result<IntercomRestEndpoint, IntercomConnectionError>> {
+  const accessToken = input.accessToken.trim();
+  if (!accessToken) {
+    return err({
+      code: "intercom_access_token_required",
+      message: "An Intercom access token is required.",
+    });
+  }
+
+  for (const restEndpoint of INTERCOM_REST_ENDPOINTS) {
+    const result = await validateIntercomAccessToken({
+      accessToken,
+      restEndpoint,
+      signal: input.signal,
+    });
+    if (isOk(result)) {
+      return ok(restEndpoint);
+    }
+  }
+
+  return err({
+    code: "intercom_region_unresolved",
+    message: "Could not determine the Intercom region for this connected account.",
+  });
 }

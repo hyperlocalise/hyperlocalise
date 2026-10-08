@@ -995,6 +995,10 @@ export function getWorkspaceAutomationTemplateFlow(
     }
   }
 
+  if (form.intercomEnabled) {
+    tools.push({ id: "intercom", label: "Intercom" });
+  }
+
   if (form.createNativeTmsJobEnabled) {
     tools.push({ id: "create-job", label: "Create job" });
   }

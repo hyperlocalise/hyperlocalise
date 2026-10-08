@@ -50,6 +50,7 @@ import {
   siSemrush,
   siCrowdin,
   siContentful,
+  siIntercom,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -1171,7 +1172,7 @@ function AddToolMenu({
               disabled={form.intercomEnabled || !intercomConnected}
               onClick={() => onChange({ ...form, intercomEnabled: true })}
             >
-              <ChatTextIcon className="size-4" />
+              <AutomationToolMenuIcon icon={siIntercom} />
               Intercom Help Center
               {form.intercomEnabled ? (
                 <DropdownMenuHint>
@@ -1512,6 +1513,8 @@ const SKILL_BRAND_ICONS: Partial<Record<WorkspaceAutomationSkillTool, SimpleIcon
   notify_github_comment: siGithub,
   use_crowdin: siCrowdin,
   run_contentful_translation: siContentful,
+  import_intercom_articles: siIntercom,
+  push_intercom_translations: siIntercom,
 };
 
 const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
@@ -2496,7 +2499,7 @@ function ToolsSettings({
 
         {form.intercomEnabled ? (
           <EditorRow
-            icon={<ChatTextIcon className="size-4" />}
+            icon={<AutomationToolMenuIcon icon={siIntercom} />}
             title={
               <>
                 <span>Intercom Help Center</span>
@@ -2522,6 +2525,8 @@ function ToolsSettings({
               form={form}
               errors={errors}
               intercomConnected={intercomConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
               onChange={onChange}
             />
             <FieldError message={errors.intercom} />

@@ -22,13 +22,26 @@ export type IntercomArticleJsonPayload = {
   body: string;
 };
 
+export function slugifyIntercomPathSegment(value: string, fallback: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || fallback.trim() || "item";
+}
+
 export function buildIntercomArticleSourcePath(input: {
   helpCenterId: string;
   articleId: string;
+  helpCenterName?: string | null;
+  articleTitle?: string | null;
 }): string {
   const helpCenterId = input.helpCenterId.trim();
   const articleId = input.articleId.trim();
-  return normalizeSourcePath(`intercom/${helpCenterId}/${articleId}.json`);
+  const helpCenterSlug = slugifyIntercomPathSegment(input.helpCenterName ?? "", helpCenterId);
+  const articleSlug = slugifyIntercomPathSegment(input.articleTitle ?? "", articleId);
+  return normalizeSourcePath(`intercom/${helpCenterSlug}/${articleSlug}.json`);
 }
 
 export function serializeIntercomArticleJson(payload: IntercomArticleJsonPayload): string {

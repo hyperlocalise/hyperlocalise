@@ -17,8 +17,37 @@ export function normalizeIntercomLocaleTag(locale: string): string {
   return canonicalizeLocale(normalized) ?? normalized;
 }
 
+function parseIntercomLocaleParts(locale: string): { language: string; region: string | null } {
+  const normalized = normalizeIntercomLocaleTag(locale);
+  try {
+    const parsed = new Intl.Locale(normalized);
+    return {
+      language: parsed.language.toLowerCase(),
+      region: parsed.region?.toUpperCase() ?? null,
+    };
+  } catch {
+    const [language, maybeRegion] = normalized.split("-");
+    return {
+      language: (language ?? normalized).toLowerCase(),
+      region: maybeRegion && /^[A-Za-z]{2}$/.test(maybeRegion) ? maybeRegion.toUpperCase() : null,
+    };
+  }
+}
+
+export function intercomLocaleLanguage(locale: string): string {
+  return parseIntercomLocaleParts(locale).language;
+}
+
+export function intercomLocalesShareLanguage(left: string, right: string): boolean {
+  const leftLanguage = intercomLocaleLanguage(left);
+  const rightLanguage = intercomLocaleLanguage(right);
+  return Boolean(leftLanguage) && leftLanguage === rightLanguage;
+}
+
 /**
- * MVP: exact locale match only (no language-only fallback).
+ * Maps a project locale onto an Intercom Help Center locale.
+ * Prefers an exact tag, then the language-only Intercom locale (`en-US` → `en`).
+ * Does not map across regions (`en-US` ↛ `en-GB`, `zh-CN` ↛ `zh-TW`).
  */
 export function resolveIntercomLocaleKey(
   preferredLocale: string,
@@ -34,6 +63,21 @@ export function resolveIntercomLocaleKey(
     if (normalizeIntercomLocaleTag(locale) === normalizedPreferred) {
       return locale;
     }
+  }
+
+  const preferred = parseIntercomLocaleParts(preferredLocale);
+  const sameLanguage = available.filter(
+    (locale) => parseIntercomLocaleParts(locale).language === preferred.language,
+  );
+  const languageOnly = sameLanguage.find(
+    (locale) => parseIntercomLocaleParts(locale).region == null,
+  );
+  if (languageOnly) {
+    return languageOnly;
+  }
+
+  if (preferred.region == null && sameLanguage.length === 1) {
+    return sameLanguage[0] ?? null;
   }
 
   return null;
@@ -53,10 +97,7 @@ export function mapProjectLocalesToIntercom(input: {
 } {
   const projectSource = input.projectSourceLocale.trim() || "en";
   const configuredSource = input.configuredSourceLocale?.trim() || "";
-  if (
-    configuredSource &&
-    normalizeIntercomLocaleTag(configuredSource) !== normalizeIntercomLocaleTag(projectSource)
-  ) {
+  if (configuredSource && !intercomLocalesShareLanguage(configuredSource, projectSource)) {
     return {
       sourceIntercomLocale: null,
       jobTargetLocales: [],
@@ -66,7 +107,9 @@ export function mapProjectLocalesToIntercom(input: {
   }
 
   const intercomSource = configuredSource || projectSource;
-  const sourceIntercomLocale = resolveIntercomLocaleKey(intercomSource, input.intercomLocales);
+  const sourceIntercomLocale =
+    resolveIntercomLocaleKey(intercomSource, input.intercomLocales) ??
+    resolveIntercomLocaleKey(projectSource, input.intercomLocales);
   if (!sourceIntercomLocale) {
     return {
       sourceIntercomLocale: null,

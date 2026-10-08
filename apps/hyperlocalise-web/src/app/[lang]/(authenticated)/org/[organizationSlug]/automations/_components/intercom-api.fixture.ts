@@ -10,6 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type {
+  IntercomApiCollection,
+  IntercomApiHelpCenter,
+} from "@/lib/intercom/intercom-api.types";
 
 /**
  * Fake Intercom REST payloads shaped like API 2.16:
@@ -93,26 +97,6 @@ export type IntercomApiArticle = {
     happy_reaction_percentage: number;
     neutral_reaction_percentage: number;
     sad_reaction_percentage: number;
-  };
-};
-
-export type IntercomApiHelpCenter = {
-  type: "help_center";
-  id: string;
-  workspace_id: string;
-  created_at: number;
-  updated_at: number;
-  identifier: string;
-  website_turned_on: boolean;
-  display_name: string;
-  default: boolean;
-  default_locale: string;
-  locales: string[];
-  translated_content: {
-    type: "group_translated_content";
-    de?: { type: "group_content"; name: string };
-    fr?: { type: "group_content"; name: string };
-    ja?: { type: "group_content"; name: string };
   };
 };
 
@@ -377,21 +361,29 @@ export const intercomApiHelpCentersListResponse = {
   data: intercomApiHelpCentersFixture,
 };
 
-function localeKeysFromTranslatedContent(translatedContent: Record<string, unknown>): string[] {
+function localeKeysFromTranslatedContent(
+  translatedContent: IntercomApiHelpCenter["translated_content"],
+): string[] {
+  if (!translatedContent) {
+    return [];
+  }
   return Object.keys(translatedContent).filter((key) => key !== "type");
 }
 
 export function mapIntercomHelpCentersFromApi(helpCenters: IntercomApiHelpCenter[]) {
-  return helpCenters.map((center) => ({
-    id: center.id,
-    displayName: center.display_name,
-    identifier: center.identifier,
-    defaultLocale: center.default_locale,
-    locales:
-      center.locales.length > 0
-        ? [...center.locales]
-        : localeKeysFromTranslatedContent(center.translated_content),
-  }));
+  return helpCenters.map((center) => {
+    const id = String(center.id);
+    return {
+      id,
+      displayName: center.display_name ?? center.identifier ?? `Help Center ${id}`,
+      identifier: center.identifier ?? id,
+      defaultLocale: center.default_locale ?? null,
+      locales:
+        (center.locales ?? []).length > 0
+          ? [...(center.locales ?? [])]
+          : localeKeysFromTranslatedContent(center.translated_content),
+    };
+  });
 }
 
 export const intercomHelpCenterSummariesFixture = mapIntercomHelpCentersFromApi(
@@ -399,3 +391,33 @@ export const intercomHelpCenterSummariesFixture = mapIntercomHelpCentersFromApi(
 );
 
 export const intercomSupportHelpCenter = intercomHelpCenterSummariesFixture[0];
+
+export const intercomApiCollectionsFixture: IntercomApiCollection[] = [
+  {
+    type: "collection" as const,
+    id: String(GETTING_STARTED_COLLECTION_ID),
+    name: "Getting started",
+    help_center_id: 123,
+  },
+  {
+    type: "collection" as const,
+    id: String(BILLING_COLLECTION_ID),
+    name: "Billing",
+    help_center_id: 123,
+  },
+  {
+    type: "collection" as const,
+    id: "99",
+    name: "Developer API",
+    help_center_id: 456,
+  },
+];
+
+export const intercomCollectionSummariesFixture = intercomApiCollectionsFixture
+  .filter((collection) => collection.help_center_id === 123)
+  .map((collection) => ({
+    id: collection.id,
+    name: collection.name,
+    helpCenterId: String(collection.help_center_id),
+    locales: [],
+  }));

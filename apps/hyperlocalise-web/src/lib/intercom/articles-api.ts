@@ -12,15 +12,33 @@
  */
 import type { IntercomClient } from "intercom-client";
 
+import { articleFieldsToJsonPayload } from "./article-json";
 import { createIntercomClient } from "./client";
 import type { IntercomRestEndpoint } from "./constants";
-import { articleFieldsToJsonPayload } from "./article-json";
+import type {
+  IntercomApiArticle,
+  IntercomApiArticleContent,
+  IntercomApiArticleSearchResponse,
+  IntercomApiArticleTranslatedContent,
+  IntercomApiCollection,
+  IntercomApiCursorPages,
+  IntercomApiHelpCenter,
+  IntercomApiId,
+  IntercomSdkListPage,
+} from "./intercom-api.types";
 import { normalizeIntercomLocaleTag } from "./intercom-locale";
 
 export type IntercomHelpCenterSummary = {
   id: string;
   displayName: string;
   defaultLocale: string | null;
+  locales: string[];
+};
+
+export type IntercomCollectionSummary = {
+  id: string;
+  name: string;
+  helpCenterId: string | null;
   locales: string[];
 };
 
@@ -62,19 +80,11 @@ export function createIntercomArticlesClient(input: {
   return createIntercomClient(input);
 }
 
-function readString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function readNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function readIdString(value: unknown): string {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
+function intercomIdString(id: IntercomApiId | null | undefined): string {
+  if (id == null) {
+    return "";
   }
-  return "";
+  return String(id);
 }
 
 export function parseIntercomNumericId(value: string | number | null | undefined): number | null {
@@ -88,68 +98,70 @@ export function parseIntercomNumericId(value: string | number | null | undefined
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function readTranslatedLocaleEntries(value: unknown): Array<[string, Record<string, unknown>]> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+function readTranslatedLocaleEntries(
+  value: IntercomApiArticleTranslatedContent | undefined,
+): Array<[string, IntercomApiArticleContent]> {
+  if (!value) {
     return [];
   }
 
-  return Object.entries(value as Record<string, unknown>).flatMap(([locale, content]) => {
-    if (locale === "type" || !content || typeof content !== "object" || Array.isArray(content)) {
+  return Object.entries(value).flatMap(([locale, content]) => {
+    if (locale === "type" || !content || typeof content === "string") {
       return [];
     }
-    return [[locale, content as Record<string, unknown>]] as const;
+    return [[locale, content]] as const;
   });
 }
 
 function readLocaleTimestampField(
-  value: unknown,
+  value: IntercomApiArticleTranslatedContent | undefined,
   field: "updated_at" | "draft_updated_at",
 ): Record<string, number> {
   const locales: Record<string, number> = {};
   for (const [locale, content] of readTranslatedLocaleEntries(value)) {
-    const timestamp = readNumber(content[field]);
-    if (timestamp != null) {
+    const timestamp = content[field];
+    if (typeof timestamp === "number" && Number.isFinite(timestamp)) {
       locales[locale] = timestamp;
     }
   }
   return locales;
 }
 
-function readLocaleContent(value: unknown): Record<string, IntercomLocaleContent> {
+function readLocaleContent(
+  value: IntercomApiArticleTranslatedContent | undefined,
+): Record<string, IntercomLocaleContent> {
   const locales: Record<string, IntercomLocaleContent> = {};
   for (const [locale, content] of readTranslatedLocaleEntries(value)) {
     locales[locale] = {
-      title: readString(content.title),
-      description: readString(content.description),
-      body: readString(content.body),
+      title: content.title ?? "",
+      description: content.description ?? "",
+      body: content.body ?? "",
     };
   }
   return locales;
 }
 
-export function readIntercomParentIds(article: Record<string, unknown>): number[] {
+export function readIntercomParentIds(
+  article: Pick<IntercomApiArticle, "parent_ids" | "parent_id">,
+): number[] {
   if (Array.isArray(article.parent_ids)) {
-    return article.parent_ids.filter(
-      (value): value is number => typeof value === "number" && Number.isFinite(value),
-    );
+    return article.parent_ids.filter((value) => Number.isFinite(value));
   }
 
-  const legacyParentId = readNumber(article.parent_id);
+  const legacyParentId = parseIntercomNumericId(article.parent_id);
   return legacyParentId != null ? [legacyParentId] : [];
 }
 
-export function mapIntercomArticleSummary(
-  article: Record<string, unknown>,
-): IntercomArticleSummary {
+export function mapIntercomArticleSummary(article: IntercomApiArticle): IntercomArticleSummary {
   return {
-    id: readIdString(article.id),
-    title: readString(article.title),
-    description: readString(article.description),
-    body: readString(article.body),
-    state: typeof article.state === "string" ? article.state : null,
-    updatedAt: readNumber(article.updated_at),
-    authorId: readNumber(article.author_id),
-    defaultLocale: typeof article.default_locale === "string" ? article.default_locale : null,
+    id: intercomIdString(article.id),
+    title: article.title ?? "",
+    description: article.description ?? "",
+    body: article.body ?? "",
+    state: article.state ?? null,
+    updatedAt: article.updated_at ?? null,
+    authorId: article.author_id ?? null,
+    defaultLocale: article.default_locale ?? null,
     parentIds: readIntercomParentIds(article),
     localeUpdatedAt: readLocaleTimestampField(article.translated_content, "updated_at"),
     localeDraftUpdatedAt: readLocaleTimestampField(article.translated_content, "draft_updated_at"),
@@ -173,32 +185,60 @@ export function resolveIntercomLocaleRemoteEditedAt(
 }
 
 export function mapIntercomHelpCenterSummary(
-  record: Record<string, unknown>,
+  record: IntercomApiHelpCenter,
 ): IntercomHelpCenterSummary {
-  const localesFromField = Array.isArray(record.locales)
-    ? record.locales.filter(
-        (locale): locale is string => typeof locale === "string" && locale.trim().length > 0,
-      )
+  const localesFromField = (record.locales ?? []).filter((locale) => locale.trim().length > 0);
+  const localesFromTranslatedContent = record.translated_content
+    ? Object.keys(record.translated_content).filter((key) => key !== "type")
     : [];
-  const localesRaw = record.translated_content;
-  const localesFromTranslatedContent =
-    localesRaw && typeof localesRaw === "object"
-      ? Object.keys(localesRaw as Record<string, unknown>).filter((key) => key !== "type")
-      : [];
   const locales = localesFromField.length > 0 ? localesFromField : localesFromTranslatedContent;
-  const centerId = readIdString(record.id);
-  const defaultLocale =
-    typeof record.default_locale === "string" ? record.default_locale : (locales[0] ?? null);
+  const centerId = intercomIdString(record.id);
 
   return {
     id: centerId,
     displayName:
-      readString(record.display_name) ||
-      readString(record.identifier) ||
+      record.display_name?.trim() ||
+      record.identifier?.trim() ||
       (centerId ? `Help Center ${centerId}` : "Help Center"),
-    defaultLocale,
+    defaultLocale: record.default_locale ?? locales[0] ?? null,
     locales,
   };
+}
+
+function uniqueLocales(values: Array<string | null | undefined>): string[] {
+  const locales: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const locale = value?.trim();
+    if (!locale || seen.has(locale)) {
+      continue;
+    }
+    seen.add(locale);
+    locales.push(locale);
+  }
+  return locales;
+}
+
+export function mapIntercomCollectionSummary(
+  record: IntercomApiCollection,
+): IntercomCollectionSummary {
+  const id = intercomIdString(record.id);
+  const localesFromTranslatedContent = record.translated_content
+    ? Object.keys(record.translated_content).filter((key) => key !== "type")
+    : [];
+
+  return {
+    id,
+    name: record.name?.trim() || (id ? `Collection ${id}` : "Collection"),
+    helpCenterId: record.help_center_id != null ? String(record.help_center_id) : null,
+    locales: uniqueLocales([record.default_locale, ...localesFromTranslatedContent]),
+  };
+}
+
+export function localesFromIntercomCollections(
+  collections: readonly IntercomCollectionSummary[],
+): string[] {
+  return uniqueLocales(collections.flatMap((collection) => collection.locales));
 }
 
 export function articleBelongsToCollections(
@@ -211,14 +251,77 @@ export function articleBelongsToCollections(
   return parentIds.some((parentId) => allowedCollectionIds.has(String(parentId)));
 }
 
+const INTERCOM_LIST_PAGE_CAP = 10;
+
+function hasIntercomPagesNext(pages: IntercomApiCursorPages | null | undefined): boolean {
+  const next = pages?.next;
+  if (next == null) {
+    return false;
+  }
+  if (typeof next === "string") {
+    return next.trim().length > 0;
+  }
+  return Boolean(next.starting_after?.trim() || next.page != null);
+}
+
+function isIntercomSdkListPage<T>(
+  page: IntercomSdkListPage<T> | readonly T[],
+): page is IntercomSdkListPage<T> {
+  return !Array.isArray(page);
+}
+
+function readIntercomListPage<T>(page: IntercomSdkListPage<T> | readonly T[]): {
+  items: readonly T[];
+  pages?: IntercomApiCursorPages | null;
+  getNextPage?: () => Promise<IntercomSdkListPage<T>>;
+} {
+  if (!isIntercomSdkListPage(page)) {
+    return { items: page };
+  }
+  return {
+    items: page.data ?? [],
+    pages: page.pages ?? page.response?.pages,
+    getNextPage: page.getNextPage,
+  };
+}
+
+async function iterateIntercomListPages<T extends { id?: IntercomApiId }>(
+  initialPage: IntercomSdkListPage<T> | readonly T[],
+): Promise<T[]> {
+  const items: T[] = [];
+  const seenIds = new Set<string>();
+  let page: IntercomSdkListPage<T> | readonly T[] = initialPage;
+
+  for (let pageCount = 0; pageCount < INTERCOM_LIST_PAGE_CAP; pageCount += 1) {
+    const current = readIntercomListPage(page);
+    for (const item of current.items) {
+      const id = intercomIdString(item.id);
+      if (id) {
+        if (seenIds.has(id)) {
+          continue;
+        }
+        seenIds.add(id);
+      }
+      items.push(item);
+    }
+
+    if (!hasIntercomPagesNext(current.pages) || !current.getNextPage) {
+      break;
+    }
+    page = await current.getNextPage();
+  }
+
+  return items;
+}
+
 export async function listIntercomHelpCenters(
   client: IntercomClient,
 ): Promise<IntercomHelpCenterSummary[]> {
-  const page = await client.helpCenters.list();
+  const page = (await client.helpCenters.list()) as IntercomSdkListPage<IntercomApiHelpCenter>;
   const centers: IntercomHelpCenterSummary[] = [];
 
-  for await (const item of page) {
-    const summary = mapIntercomHelpCenterSummary(item as Record<string, unknown>);
+  for (const item of await iterateIntercomListPages(page)) {
+    const summary = mapIntercomHelpCenterSummary(item);
     if (summary.id) {
       centers.push(summary);
     }
@@ -227,23 +330,22 @@ export async function listIntercomHelpCenters(
   return centers;
 }
 
-export async function listIntercomCollectionIdsForHelpCenter(input: {
+export async function listIntercomCollectionsForHelpCenter(input: {
   client: IntercomClient;
   helpCenterId: string;
-}): Promise<string[]> {
+}): Promise<IntercomCollectionSummary[]> {
   const helpCenterNumericId = parseIntercomNumericId(input.helpCenterId);
-  const collectionIds: string[] = [];
-  const page = await input.client.helpCenters.collections.list();
+  const collections: IntercomCollectionSummary[] = [];
+  const page = (await input.client.helpCenters.collections.list()) as
+    | IntercomSdkListPage<IntercomApiCollection>
+    | IntercomApiCollection[];
 
-  for await (const item of page) {
-    const record = item as unknown as Record<string, unknown>;
-    const collectionId = readIdString(record.id);
-    if (!collectionId) {
+  for (const item of await iterateIntercomListPages(page)) {
+    const summary = mapIntercomCollectionSummary(item);
+    if (!summary.id) {
       continue;
     }
-    const collectionHelpCenterId =
-      readNumber(record.help_center_id) ??
-      parseIntercomNumericId(readIdString(record.help_center_id));
+    const collectionHelpCenterId = parseIntercomNumericId(summary.helpCenterId);
     if (
       helpCenterNumericId != null &&
       collectionHelpCenterId != null &&
@@ -251,10 +353,18 @@ export async function listIntercomCollectionIdsForHelpCenter(input: {
     ) {
       continue;
     }
-    collectionIds.push(collectionId);
+    collections.push(summary);
   }
 
-  return collectionIds;
+  return collections;
+}
+
+export async function listIntercomCollectionIdsForHelpCenter(input: {
+  client: IntercomClient;
+  helpCenterId: string;
+}): Promise<string[]> {
+  const collections = await listIntercomCollectionsForHelpCenter(input);
+  return collections.map((collection) => collection.id);
 }
 
 function resolveAllowedCollectionIds(input: {
@@ -285,7 +395,7 @@ async function listArticlesFromUpdatedAtIndex(input: {
   while (true) {
     let reachedWatermark = false;
     for (const item of page.data) {
-      const summary = mapIntercomArticleSummary(item as Record<string, unknown>);
+      const summary = mapIntercomArticleSummary(item as IntercomApiArticle);
       if (!summary.id) {
         continue;
       }
@@ -315,42 +425,19 @@ async function listArticlesFromUpdatedAtIndex(input: {
   return articles;
 }
 
-function readSearchArticles(response: unknown): unknown[] {
-  if (!response || typeof response !== "object") {
-    return [];
+function readSearchArticles(response: IntercomApiArticleSearchResponse): IntercomApiArticle[] {
+  if (Array.isArray(response.data)) {
+    return response.data;
   }
-  const record = response as { data?: unknown };
-  if (Array.isArray(record.data)) {
-    return record.data;
-  }
-  if (record.data && typeof record.data === "object") {
-    const articles = (record.data as { articles?: unknown }).articles;
-    if (Array.isArray(articles)) {
-      return articles;
-    }
-  }
-  return [];
+  return response.data?.articles ?? [];
 }
 
-function readSearchStartingAfter(response: unknown): string | null {
-  if (!response || typeof response !== "object") {
-    return null;
+function readSearchStartingAfter(response: IntercomApiArticleSearchResponse): string | null {
+  const next = response.pages?.next;
+  if (typeof next === "string") {
+    return next.trim() || null;
   }
-  const pages = (response as { pages?: unknown }).pages;
-  if (!pages || typeof pages !== "object") {
-    return null;
-  }
-  const next = (pages as { next?: unknown }).next;
-  if (typeof next === "string" && next.trim().length > 0) {
-    return next.trim();
-  }
-  if (next && typeof next === "object") {
-    const startingAfter = (next as { starting_after?: unknown }).starting_after;
-    if (typeof startingAfter === "string" && startingAfter.trim().length > 0) {
-      return startingAfter.trim();
-    }
-  }
-  return null;
+  return next?.starting_after?.trim() || null;
 }
 
 async function searchArticlesInHelpCenter(input: {
@@ -366,15 +453,15 @@ async function searchArticlesInHelpCenter(input: {
   const summaries: IntercomArticleSummary[] = [];
   const seenIds = new Set<string>();
   let startingAfter: string | undefined;
-  let page = await input.client.articles.search({
+  let page = (await input.client.articles.search({
     help_center_id: helpCenterNumericId,
     state: input.includeDrafts ? "all" : "published",
     highlight: false,
-  });
+  })) as IntercomApiArticleSearchResponse;
 
   for (let pageCount = 0; pageCount < 100; pageCount += 1) {
     for (const article of readSearchArticles(page)) {
-      const summary = mapIntercomArticleSummary(article as Record<string, unknown>);
+      const summary = mapIntercomArticleSummary(article);
       if (!summary.id || seenIds.has(summary.id)) {
         continue;
       }
@@ -382,15 +469,11 @@ async function searchArticlesInHelpCenter(input: {
       summaries.push(summary);
     }
 
-    const pageRecord = page as {
-      hasNextPage?: () => boolean;
-      getNextPage?: () => Promise<unknown>;
-    };
-    if (typeof pageRecord.hasNextPage === "function" && pageRecord.hasNextPage()) {
-      if (typeof pageRecord.getNextPage !== "function") {
+    if (page.hasNextPage?.()) {
+      if (!page.getNextPage) {
         break;
       }
-      page = (await pageRecord.getNextPage()) as typeof page;
+      page = await page.getNextPage();
       continue;
     }
 
@@ -398,12 +481,12 @@ async function searchArticlesInHelpCenter(input: {
     if (!startingAfter) {
       break;
     }
-    page = await input.client.articles.search({
+    page = (await input.client.articles.search({
       help_center_id: helpCenterNumericId,
       state: input.includeDrafts ? "all" : "published",
       highlight: false,
       starting_after: startingAfter,
-    } as Parameters<IntercomClient["articles"]["search"]>[0]);
+    } as Parameters<IntercomClient["articles"]["search"]>[0])) as IntercomApiArticleSearchResponse;
   }
 
   return summaries;
@@ -499,7 +582,7 @@ export async function getIntercomArticle(
   try {
     const article = (await client.articles.find({
       article_id: numericId,
-    })) as unknown as Record<string, unknown>;
+    })) as IntercomApiArticle;
     const summary = mapIntercomArticleSummary(article);
     return summary.id ? summary : null;
   } catch (error) {

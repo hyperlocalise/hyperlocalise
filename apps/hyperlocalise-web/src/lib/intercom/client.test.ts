@@ -14,10 +14,11 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { validateIntercomAccessToken } from "./client";
+import { resolveIntercomRestEndpoint, validateIntercomAccessToken } from "./client";
 
 const mocks = vi.hoisted(() => {
   const identify = vi.fn();
+  const constructed: { environment: string }[] = [];
   class IntercomError extends Error {
     statusCode: number;
 
@@ -31,10 +32,12 @@ const mocks = vi.hoisted(() => {
   class IntercomClient {
     admins = { identify };
 
-    constructor(public options: { token: string; environment: string }) {}
+    constructor(public options: { token: string; environment: string }) {
+      constructed.push(options);
+    }
   }
 
-  return { identify, IntercomClient, IntercomError };
+  return { identify, constructed, IntercomClient, IntercomError };
 });
 
 vi.mock("intercom-client", () => ({
@@ -45,6 +48,7 @@ vi.mock("intercom-client", () => ({
 describe("intercom client", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    mocks.constructed.length = 0;
   });
 
   it("rejects blank access tokens before calling Intercom", async () => {
@@ -107,5 +111,50 @@ describe("intercom client", () => {
     if (isErr(result)) {
       expect(result.error.code).toBe("intercom_validation_timeout");
     }
+  });
+
+  it("probes us then eu and returns the first matching Intercom region", async () => {
+    mocks.identify
+      .mockRejectedValueOnce(new mocks.IntercomError("Unauthorized", 401))
+      .mockResolvedValueOnce({ app: { name: "EU Help" } });
+
+    const result = await resolveIntercomRestEndpoint({ accessToken: "token" });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value).toBe("eu");
+    }
+    expect(mocks.identify).toHaveBeenCalledTimes(2);
+    expect(mocks.constructed.map((client) => client.environment)).toEqual([
+      "https://api.intercom.io",
+      "https://api.eu.intercom.io",
+    ]);
+  });
+
+  it("returns unresolved when no Intercom region accepts the token", async () => {
+    mocks.identify.mockRejectedValue(new mocks.IntercomError("Unauthorized", 401));
+
+    const result = await resolveIntercomRestEndpoint({ accessToken: "token" });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe("intercom_region_unresolved");
+    }
+    expect(mocks.identify).toHaveBeenCalledTimes(3);
+    expect(mocks.constructed.map((client) => client.environment)).toEqual([
+      "https://api.intercom.io",
+      "https://api.eu.intercom.io",
+      "https://api.au.intercom.io",
+    ]);
+  });
+
+  it("does not probe regions for a blank access token", async () => {
+    const result = await resolveIntercomRestEndpoint({ accessToken: "   " });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe("intercom_access_token_required");
+    }
+    expect(mocks.identify).not.toHaveBeenCalled();
   });
 });

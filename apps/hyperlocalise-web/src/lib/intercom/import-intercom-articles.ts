@@ -35,6 +35,7 @@ import {
   getIntercomArticle,
   intercomArticleToImportPayload,
   listIntercomArticlesSince,
+  listIntercomHelpCenters,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom } from "./intercom-locale";
 import {
@@ -138,6 +139,14 @@ export async function runImportIntercomArticles(input: {
     accessToken: tokenResult.value,
     restEndpoint: intercom.restEndpoint,
   });
+  let helpCenterName: string | null = null;
+  try {
+    const helpCenters = await listIntercomHelpCenters(client);
+    helpCenterName =
+      helpCenters.find((center) => String(center.id) === String(helpCenterId))?.displayName ?? null;
+  } catch {
+    helpCenterName = null;
+  }
 
   const [cursorRow] = await db
     .select()
@@ -225,6 +234,27 @@ export async function runImportIntercomArticles(input: {
     }
   }
   const articles = [...articlesById.values()];
+  const usedArticleFilenames = new Set<string>();
+  const sourcePathByArticleId = new Map<string, string>();
+  for (const article of articles) {
+    let sourcePath = buildIntercomArticleSourcePath({
+      helpCenterId,
+      articleId: article.id,
+      helpCenterName,
+      articleTitle: article.title,
+    });
+    const filename = sourcePath.slice(sourcePath.lastIndexOf("/") + 1);
+    if (usedArticleFilenames.has(filename)) {
+      sourcePath = buildIntercomArticleSourcePath({
+        helpCenterId,
+        articleId: article.id,
+        helpCenterName,
+        articleTitle: `${article.title}-${article.id}`,
+      });
+    }
+    usedArticleFilenames.add(sourcePath.slice(sourcePath.lastIndexOf("/") + 1));
+    sourcePathByArticleId.set(article.id, sourcePath);
+  }
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
@@ -248,10 +278,14 @@ export async function runImportIntercomArticles(input: {
     articles,
     ARTICLE_IMPORT_CONCURRENCY,
     async (article) => {
-      const sourcePath = buildIntercomArticleSourcePath({
-        helpCenterId,
-        articleId: article.id,
-      });
+      const sourcePath =
+        sourcePathByArticleId.get(article.id) ??
+        buildIntercomArticleSourcePath({
+          helpCenterId,
+          articleId: article.id,
+          helpCenterName,
+          articleTitle: article.title,
+        });
 
       const [existing] = await db
         .select()
@@ -285,7 +319,7 @@ export async function runImportIntercomArticles(input: {
           workflowRunId: input.workflowRunId ?? null,
           uploadSurface: "intercom_automation",
           file: {
-            filename: `${article.id}.json`,
+            filename: sourcePath.slice(sourcePath.lastIndexOf("/") + 1),
             contentType: "application/json",
             content: jsonBytes,
           },

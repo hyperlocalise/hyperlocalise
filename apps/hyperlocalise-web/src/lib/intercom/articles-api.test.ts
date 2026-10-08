@@ -14,8 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   intercomApiArticlesListResponse,
+  intercomApiCollectionsFixture,
   intercomApiHelpCentersFixture,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/intercom-api.fixture";
+import type { IntercomApiArticle } from "@/lib/intercom/intercom-api.types";
 
 import {
   articleBelongsToCollections,
@@ -23,13 +25,18 @@ import {
   IntercomArticleReadError,
   intercomArticleToImportPayload,
   listIntercomArticlesSince,
+  listIntercomCollectionIdsForHelpCenter,
+  listIntercomCollectionsForHelpCenter,
+  localesFromIntercomCollections,
+  listIntercomHelpCenters,
   mapIntercomArticleSummary,
+  mapIntercomCollectionSummary,
   mapIntercomHelpCenterSummary,
   parseIntercomNumericId,
   resolveIntercomLocaleRemoteEditedAt,
 } from "./articles-api";
 
-function createArticleListPage(data: unknown[]) {
+function createArticleListPage(data: IntercomApiArticle[]) {
   return {
     data,
     hasNextPage: () => false,
@@ -85,10 +92,171 @@ describe("mapIntercomArticleSummary", () => {
       id: "99",
       title: "Legacy",
       parent_id: 12,
-      parent_type: "collection",
     });
 
     expect(summary.parentIds).toEqual([12]);
+  });
+});
+
+describe("listIntercomHelpCenters", () => {
+  it("reads the first page without following a sticky hasNextPage", async () => {
+    let nextCalls = 0;
+    const client = {
+      helpCenters: {
+        list: async () => ({
+          data: intercomApiHelpCentersFixture,
+          hasNextPage: () => true,
+          getNextPage: async () => {
+            nextCalls += 1;
+            if (nextCalls > 3) {
+              throw new Error("infinite pagination");
+            }
+            return {
+              data: intercomApiHelpCentersFixture,
+              hasNextPage: () => true,
+              getNextPage: async () => {
+                throw new Error("should not fetch next without pages.next");
+              },
+            };
+          },
+        }),
+      },
+    };
+
+    const centers = await listIntercomHelpCenters(client as never);
+
+    expect(centers.map((center) => center.id)).toEqual(["123", "456"]);
+    expect(nextCalls).toBe(0);
+  });
+
+  it("follows Intercom pages.next and dedupes repeated ids", async () => {
+    const client = {
+      helpCenters: {
+        list: async () => ({
+          data: [intercomApiHelpCentersFixture[0]],
+          pages: { next: { page: 2 } },
+          getNextPage: async () => ({
+            data: [intercomApiHelpCentersFixture[0], intercomApiHelpCentersFixture[1]],
+            pages: {},
+          }),
+        }),
+      },
+    };
+
+    const centers = await listIntercomHelpCenters(client as never);
+
+    expect(centers.map((center) => center.id)).toEqual(["123", "456"]);
+  });
+});
+
+describe("mapIntercomCollectionSummary", () => {
+  it("reads collection name and help center id", () => {
+    expect(mapIntercomCollectionSummary(intercomApiCollectionsFixture[0]!)).toEqual({
+      id: "38",
+      name: "Getting started",
+      helpCenterId: "123",
+      locales: [],
+    });
+  });
+
+  it("falls back to Collection {id} when name is missing", () => {
+    expect(mapIntercomCollectionSummary({ id: "52", help_center_id: 123 })).toEqual({
+      id: "52",
+      name: "Collection 52",
+      helpCenterId: "123",
+      locales: [],
+    });
+
+    expect(
+      mapIntercomCollectionSummary({
+        id: "52",
+        name: "Billing",
+        help_center_id: 123,
+        default_locale: "en",
+        translated_content: {
+          type: "group_translated_content",
+          de: { type: "group_content", name: "Abrechnung" },
+        },
+      }),
+    ).toEqual({
+      id: "52",
+      name: "Billing",
+      helpCenterId: "123",
+      locales: ["en", "de"],
+    });
+  });
+});
+
+describe("listIntercomCollectionsForHelpCenter", () => {
+  it("returns named collections for the selected Help Center", async () => {
+    const collections = await listIntercomCollectionsForHelpCenter({
+      client: {
+        helpCenters: {
+          collections: {
+            list: async () => intercomApiCollectionsFixture,
+          },
+        },
+      } as never,
+      helpCenterId: "123",
+    });
+
+    expect(collections).toEqual([
+      { id: "38", name: "Getting started", helpCenterId: "123", locales: [] },
+      { id: "52", name: "Billing", helpCenterId: "123", locales: [] },
+    ]);
+  });
+
+  it("unions collection default and translated locales", () => {
+    expect(
+      localesFromIntercomCollections([
+        { id: "38", name: "Getting started", helpCenterId: "123", locales: ["en", "de"] },
+        { id: "52", name: "Billing", helpCenterId: "123", locales: ["en", "fr"] },
+      ]),
+    ).toEqual(["en", "de", "fr"]);
+  });
+});
+
+describe("listIntercomCollectionIdsForHelpCenter", () => {
+  it("accepts a bare collection array from tests and older SDK shapes", async () => {
+    const collections = await listIntercomCollectionIdsForHelpCenter({
+      client: {
+        helpCenters: {
+          collections: {
+            list: async () => [
+              { id: "38", help_center_id: 123 },
+              { id: "99", help_center_id: 456 },
+            ],
+          },
+        },
+      } as never,
+      helpCenterId: "123",
+    });
+
+    expect(collections).toEqual(["38"]);
+  });
+
+  it("stops when the SDK reports hasNextPage without pages.next", async () => {
+    let nextCalls = 0;
+    const collections = await listIntercomCollectionIdsForHelpCenter({
+      client: {
+        helpCenters: {
+          collections: {
+            list: async () => ({
+              data: [{ id: "38", help_center_id: 123 }],
+              hasNextPage: () => true,
+              getNextPage: async () => {
+                nextCalls += 1;
+                throw new Error("infinite pagination");
+              },
+            }),
+          },
+        },
+      } as never,
+      helpCenterId: "123",
+    });
+
+    expect(collections).toEqual(["38"]);
+    expect(nextCalls).toBe(0);
   });
 });
 

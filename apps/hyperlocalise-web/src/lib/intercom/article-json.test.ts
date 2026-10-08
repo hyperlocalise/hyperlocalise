@@ -35,6 +35,28 @@ describe("intercom article json", () => {
     ).toBe("intercom/123/456.json");
   });
 
+  it("slugs help center and article names when present", () => {
+    expect(
+      buildIntercomArticleSourcePath({
+        helpCenterId: "580669844",
+        articleId: "17431620",
+        helpCenterName: "Customer Support",
+        articleTitle: "Reset your password",
+      }),
+    ).toBe("intercom/customer-support/reset-your-password.json");
+  });
+
+  it("falls back to ids when names do not slug", () => {
+    expect(
+      buildIntercomArticleSourcePath({
+        helpCenterId: "123",
+        articleId: "456",
+        helpCenterName: "!!!",
+        articleTitle: "   ",
+      }),
+    ).toBe("intercom/123/456.json");
+  });
+
   it("serializes only title, description, and body", () => {
     const json = serializeIntercomArticleJson({
       title: "Hello",
