@@ -3503,8 +3503,9 @@ export function WorkspaceAutomationEditor({
   const editor = (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1">
+        {/* The actions drop under the name when both do not fit, as with the assistant open. */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-64 flex-1">
             <Label htmlFor="automation-name" className="sr-only">
               <FormattedMessage {...workspaceAutomationFormMessages.automationNameLabel} />
             </Label>
@@ -3521,7 +3522,7 @@ export function WorkspaceAutomationEditor({
             <FieldError message={errors.name} />
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
 

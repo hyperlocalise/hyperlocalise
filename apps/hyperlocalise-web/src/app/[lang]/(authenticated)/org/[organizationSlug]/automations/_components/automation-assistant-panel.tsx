@@ -14,7 +14,7 @@
  */
 import { ArrowCounterClockwiseIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
 import type { UIMessage } from "ai";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MessageResponse } from "@/components/ai-elements/message";
@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { UPDATE_AUTOMATION_SETUP_TOOL_NAME } from "@/lib/agents/workspace-automation-assistant";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
@@ -226,6 +225,9 @@ export function AutomationAssistantOpenButton() {
  */
 export const AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS = "max-w-[89.25rem]";
 
+/** Below this much room the form would be too narrow beside the panel, so the panel is a sheet. */
+const SIDE_BY_SIDE_MIN_WIDTH_PX = 920;
+
 /**
  * Puts the panel beside the editor on a wide screen and in a sheet from the right edge on a
  * narrow one. Never floating, so it cannot be taken for the chat dock. The form keeps the width
@@ -234,21 +236,51 @@ export const AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS = "max-w-[89.25rem]";
 export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
-  const isMobile = useIsMobile();
+  const rowRef = useRef<HTMLDivElement>(null);
+  // Decided from the room the page really has, which the sidebar changes, not from the window.
+  const [roomBeside, setRoomBeside] = useState(true);
+  const offered = assistant !== null;
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) {
+      return;
+    }
+    // A width of nothing means no layout has happened, as in a test; the default stands.
+    const measure = () => {
+      if (row.clientWidth > 0) {
+        setRoomBeside(row.clientWidth >= SIDE_BY_SIDE_MIN_WIDTH_PX);
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [offered]);
+
   if (!assistant) {
     return children;
   }
+  const inSheet = !roomBeside;
   return (
-    <div className="flex w-full gap-6">
+    <div ref={rowRef} className="flex w-full gap-6">
       <div className="min-w-0 max-w-5xl flex-1">{children}</div>
-      {assistant.open && !isMobile ? (
+      {assistant.open && !inSheet ? (
         <aside className="sticky top-4 h-[calc(var(--app-shell-content-height,100svh)-3rem)] w-[380px] shrink-0 self-start">
           <AutomationAssistantPanel />
         </aside>
       ) : null}
-      {isMobile ? (
+      {inSheet ? (
         <Sheet open={assistant.open} onOpenChange={assistant.setOpen}>
-          <SheetContent side="right" className="flex w-full flex-col p-2 sm:max-w-md">
+          {/* The panel has its own close button. */}
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            className="flex w-full flex-col p-2 sm:max-w-md"
+          >
             <SheetHeader className="sr-only">
               <SheetTitle>{intl.formatMessage(messages.title)}</SheetTitle>
             </SheetHeader>
