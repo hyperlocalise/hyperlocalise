@@ -2,6 +2,7 @@
 id: translate-intercom-articles
 name: Translate Intercom Help Center articles
 description: Import Intercom Help Center articles into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.
+category: popular
 ---
 
 ## Translate Intercom Help Center articles

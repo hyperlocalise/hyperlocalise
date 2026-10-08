@@ -103,7 +103,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
   },
   {
     id: "translate-intercom-articles",
-    category: "source-content",
+    category: "popular",
     name: "Translate Intercom Help Center articles",
     description:
       "Import Intercom Help Center articles into a native project on a schedule, localise in Jobs, then push approved translations when you are ready.",

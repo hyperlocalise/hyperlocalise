@@ -13,10 +13,12 @@
  * Version 2.0 or later.
  */
 import { useCallback, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Box } from "@/components/ui/layout/box";
 import { Rows } from "@/components/ui/layout/rows";
@@ -24,7 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
 import { resolveWorkspaceIntegrationSummary } from "@/lib/integrations/workspace-integrations";
-import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
+import type { IntercomHelpCenterSummary } from "@/lib/intercom/articles-api";
+import {
+  INTERCOM_PIPES_SLUG,
+  intercomRestEndpointLabel,
+  isIntercomRestEndpoint,
+} from "@/lib/intercom/constants";
 
 import { IntegrationLogo } from "./integration-logo";
 import { IntegrationRow } from "./integration-row";
@@ -56,6 +63,31 @@ export function IntercomConnectionPanel({
   const isConnected = Boolean(statusQuery.data?.connected);
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
   const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
+  const detailsQuery = useQuery({
+    queryKey: ["intercom-help-centers", organizationSlug],
+    enabled: expanded && isConnected,
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].intercom["help-centers"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Intercom help centers");
+      }
+      const body = await response.json();
+      if (!("helpCenters" in body) || !Array.isArray(body.helpCenters)) {
+        throw new Error("Failed to load Intercom help centers");
+      }
+      return {
+        restEndpoint:
+          "restEndpoint" in body && isIntercomRestEndpoint(body.restEndpoint)
+            ? body.restEndpoint
+            : null,
+        helpCenters: body.helpCenters as IntercomHelpCenterSummary[],
+      };
+    },
+  });
+  const helpCenters = detailsQuery.data?.helpCenters ?? [];
+  const restEndpoint = detailsQuery.data?.restEndpoint ?? null;
 
   const connect = useMutation({
     mutationFn: async () => {
@@ -151,15 +183,56 @@ export function IntercomConnectionPanel({
               />
             </TypographyP>
           ) : null}
-          <TypographyP size="small" weight="medium" tone="content">
-            {apiKeyLast4
-              ? intl.formatMessage(intercomConnectionPanelMessages.connectedStatusWithToken, {
-                  suffix: apiKeyLast4,
-                })
-              : intl.formatMessage(intercomConnectionPanelMessages.connectedStatus)}
-          </TypographyP>
-          {userCanManage ? (
-            <Box display="flex" flexWrap="wrap" gap="1u">
+          <Box padding="1.5u" background="canvas" border="standard" borderRadius="standard">
+            <Rows spacing="1u">
+              <TypographyP size="small" weight="medium" tone="content">
+                <FormattedMessage {...intercomConnectionPanelMessages.connectedStatus} />
+              </TypographyP>
+              {apiKeyLast4 ? (
+                <TypographyP size="xsmall" tone="subtle">
+                  {intl.formatMessage(intercomConnectionPanelMessages.tokenSuffix, {
+                    suffix: apiKeyLast4,
+                  })}
+                </TypographyP>
+              ) : null}
+              <TypographyP size="small" tone="subtle">
+                <FormattedMessage {...intercomConnectionPanelMessages.connectedDescription} />
+              </TypographyP>
+              {detailsQuery.isLoading ? <Skeleton className="h-4 w-32" /> : null}
+              {restEndpoint ? (
+                <TypographyP size="xsmall" tone="subtle">
+                  {intl.formatMessage(intercomConnectionPanelMessages.regionLabel, {
+                    region: intercomRestEndpointLabel(restEndpoint),
+                  })}
+                </TypographyP>
+              ) : null}
+              {helpCenters.length > 0 ? (
+                <Rows spacing="0.5u">
+                  <TypographyP size="xsmall" weight="medium" tone="content">
+                    <FormattedMessage {...intercomConnectionPanelMessages.helpCentersLabel} />
+                  </TypographyP>
+                  {helpCenters.map((helpCenter) => (
+                    <TypographyP key={helpCenter.id} size="small" tone="content">
+                      {helpCenter.displayName}
+                    </TypographyP>
+                  ))}
+                </Rows>
+              ) : detailsQuery.isSuccess ? (
+                <TypographyP size="xsmall" tone="subtle">
+                  <FormattedMessage {...intercomConnectionPanelMessages.noHelpCenters} />
+                </TypographyP>
+              ) : null}
+            </Rows>
+          </Box>
+          <Box display="flex" flexWrap="wrap" gap="1u">
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href={buildAutomationsPath(organizationSlug)} />}
+            >
+              <FormattedMessage {...intercomConnectionPanelMessages.openAutomations} />
+            </Button>
+            {userCanManage ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -172,8 +245,8 @@ export function IntercomConnectionPanel({
                   <FormattedMessage {...intercomConnectionPanelMessages.disconnect} />
                 )}
               </Button>
-            </Box>
-          ) : null}
+            ) : null}
+          </Box>
         </Rows>
       )}
     </IntegrationRow>

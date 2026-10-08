@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   authorizeGet: vi.fn(),
   disconnectDelete: vi.fn(),
+  helpCentersGet: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -61,6 +62,11 @@ vi.mock("@/lib/api-client", () => ({
               "authorize-url": {
                 $get: (...args: unknown[]) => mocks.authorizeGet(...args),
               },
+            },
+          },
+          intercom: {
+            "help-centers": {
+              $get: (...args: unknown[]) => mocks.helpCentersGet(...args),
             },
           },
         },
@@ -94,6 +100,21 @@ describe("IntercomConnectionPanel", () => {
     mocks.isError = false;
     mocks.authorizeGet.mockReset();
     mocks.disconnectDelete.mockReset();
+    mocks.helpCentersGet.mockReset();
+    mocks.helpCentersGet.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        restEndpoint: "us",
+        helpCenters: [
+          {
+            id: "123",
+            displayName: "Customer Support",
+            defaultLocale: "en",
+            locales: ["en"],
+          },
+        ],
+      }),
+    });
     mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
     window.location.href = "http://localhost/";
@@ -140,8 +161,23 @@ describe("IntercomConnectionPanel", () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Manage" }));
 
-    expect(screen.getByText("Connected · token ending in abcd")).toBeVisible();
+    expect(screen.getByText("Connected")).toBeVisible();
+    expect(screen.getByText("Token ending in abcd")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open automations" })).toHaveAttribute(
+      "href",
+      "/org/acme/automations",
+    );
     expect(screen.queryByTestId("workos-pipes-widget")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Region · US")).toBeVisible();
+      expect(screen.getByText("Customer Support")).toBeVisible();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
 

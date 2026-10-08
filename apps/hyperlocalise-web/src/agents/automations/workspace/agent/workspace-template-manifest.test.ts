@@ -48,7 +48,7 @@ describe("workspace template manifest", () => {
 
     expect(template).toMatchObject({
       name: "Translate Intercom Help Center articles",
-      category: "source-content",
+      category: "popular",
       activatable: true,
     });
     expect(template?.description).toBe(
@@ -84,6 +84,7 @@ describe("workspace template manifest", () => {
     expect(getTemplateExecutorAgent("translate-on-source-upload")).toBeNull();
     expect(getTemplateCategoryFromSkill("validate-localisation-on-push")).toBe("quality");
     expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
+    expect(getTemplateCategoryFromSkill("translate-intercom-articles")).toBe("popular");
   });
 
   it("merges summarize changes daily skill onto the gallery template", () => {

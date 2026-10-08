@@ -805,7 +805,7 @@ export function IntegrationsPageContent({
   }
 
   return (
-    <WorkspacePageShell>
+    <WorkspacePageShell className="min-w-0">
       <PageHeader
         icon={PuzzlePieceIcon}
         label={intl.formatMessage(integrationsPageContentMessages.pageLabel)}
@@ -821,15 +821,16 @@ export function IntegrationsPageContent({
       ) : null}
 
       <Tabs
+        className="min-w-0"
         value={categoryFilter}
         onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
       >
-        <TabsList>
-          <TabsTrigger value="all">
+        <TabsList className="flex h-auto! min-h-9 w-full max-w-full flex-wrap justify-start">
+          <TabsTrigger className="flex-none" value="all">
             <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
           </TabsTrigger>
           {visibleCategoryIds.map((categoryId) => (
-            <TabsTrigger key={categoryId} value={categoryId}>
+            <TabsTrigger key={categoryId} className="flex-none" value={categoryId}>
               <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
             </TabsTrigger>
           ))}

@@ -78,6 +78,12 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/intercom-connections", () =>
       HttpResponse.json({ intercomConnections }),
     ),
+    http.get("/api/orgs/:organizationSlug/intercom/help-centers", () =>
+      HttpResponse.json({
+        restEndpoint: "us",
+        helpCenters: [{ id: "123", displayName: "Customer Support", defaultLocale: "en", locales: ["en"] }],
+      }),
+    ),
     http.get("/api/orgs/:organizationSlug/canva-connections", () =>
       HttpResponse.json({ canvaConnections: [] }),
     ),
