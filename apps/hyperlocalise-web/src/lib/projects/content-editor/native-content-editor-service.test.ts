@@ -681,3 +681,143 @@ describe("NativeContentEditorService.setKeyMaxLength", () => {
     expect(setKeyMaxLength).not.toHaveBeenCalled();
   });
 });
+
+describe("NativeContentEditorService.getSegmentTarget", () => {
+  const getRepositorySourceFileByPath = vi.fn();
+  const getTranslationsByKeyIds = vi.fn();
+  const selectLimit = vi.fn();
+  let service: NativeContentEditorService;
+
+  const segmentInput = {
+    organizationId: "org_1",
+    projectId: "project_1",
+    targetLocale: "fr",
+    organizationSlug: "acme",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
+    getTranslationsByKeyIds.mockResolvedValue([]);
+    getImageVariant.mockResolvedValue(null);
+    getVideoVariant.mockResolvedValue(null);
+    selectLimit.mockResolvedValue([]);
+
+    const translations = {
+      getRepositorySourceFileByPath,
+      getTranslationsByKeyIds,
+    } as unknown as ProjectTranslationService;
+    const database = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: selectLimit,
+          })),
+        })),
+      })),
+    };
+
+    service = new NativeContentEditorService(
+      database as never,
+      translations,
+      {} as NativeContentEditorCommentService,
+    );
+  });
+
+  it("returns not_found when a whole-file source path has no repository file", async () => {
+    getRepositorySourceFileByPath.mockResolvedValue(null);
+
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "docs/intro.md",
+        externalStringId: "file_1",
+      }),
+    ).resolves.toBe("not_found");
+  });
+
+  it("loads a markdown document variant when the CAT id is the source file", async () => {
+    getImageVariant.mockResolvedValue({
+      id: "variant_1",
+      storedFileId: "file_fr",
+      status: "approved",
+    });
+
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "docs/intro.md",
+        externalStringId: "file_1",
+      }),
+    ).resolves.toEqual({
+      text: "/api/orgs/acme/projects/project_1/assets/file_fr",
+      externalTranslationId: "variant_1",
+      isApproved: true,
+      contentKind: "document",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/file_fr",
+      imageVariantId: "variant_1",
+      status: "approved",
+    });
+    expect(getTranslationsByKeyIds).not.toHaveBeenCalled();
+  });
+
+  it("loads an image file variant for binary CAT ids", async () => {
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "assets/hero.png",
+        externalStringId: "binary:assets/hero.png",
+      }),
+    ).resolves.toEqual({
+      text: "",
+      externalTranslationId: null,
+      isApproved: false,
+      contentKind: "image_file",
+      targetAssetUrl: null,
+      imageVariantId: null,
+      status: "draft",
+    });
+  });
+
+  it("rejects a key UUID on a non-document whole file", async () => {
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "assets/hero.png",
+        externalStringId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      }),
+    ).resolves.toBe("not_found");
+    expect(getTranslationsByKeyIds).not.toHaveBeenCalled();
+  });
+
+  it("resolves a markdown segment key instead of the whole-file variant", async () => {
+    selectLimit.mockResolvedValue([{ id: "key-uuid", metadata: {} }]);
+    getTranslationsByKeyIds.mockResolvedValue([
+      {
+        id: "translation_1",
+        text: "Bienvenue",
+        status: "needs_review",
+      },
+    ]);
+
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "docs/intro.md",
+        externalStringId: "key-uuid",
+      }),
+    ).resolves.toEqual({
+      text: "Bienvenue",
+      externalTranslationId: "translation_1",
+      isApproved: false,
+      status: "needs_review",
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+    expect(getTranslationsByKeyIds).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["key-uuid"],
+      targetLocale: "fr",
+    });
+  });
+});
