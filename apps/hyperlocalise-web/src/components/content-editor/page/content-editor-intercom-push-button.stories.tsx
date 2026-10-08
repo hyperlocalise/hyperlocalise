@@ -50,7 +50,7 @@ export const HiddenWhenNotEligible: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole("button", { name: "Push to Intercom" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Push to Intercom as draft" })).toBeNull();
   },
 };
 
@@ -67,7 +67,7 @@ export const SingleAutomationEnabled: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom as draft" })).toBeEnabled();
   },
 };
 
@@ -86,7 +86,7 @@ export const HiddenWhilePushInProgress: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole("button", { name: "Push to Intercom" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Push to Intercom as draft" })).toBeNull();
   },
 };
 
@@ -112,7 +112,7 @@ export const MultipleAutomationsMenu: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom as draft" }));
     await expect(
       canvas.getByRole("menuitem", { name: /Translate Intercom Help Center articles/ }),
     ).toBeVisible();

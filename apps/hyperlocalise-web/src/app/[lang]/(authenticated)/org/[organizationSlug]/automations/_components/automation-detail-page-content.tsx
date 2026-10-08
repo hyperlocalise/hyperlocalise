@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { TrashIcon, PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { siIntercom } from "simple-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -47,6 +48,7 @@ import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-ap
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
 import { intercomPushUiMessages } from "@/lib/intercom/intercom-push-ui.messages";
 import {
@@ -459,7 +461,6 @@ export function AutomationDetailPageContent({
         <>
           {showIntercomPushButton ? (
             <Button
-              variant="outline"
               onClick={() => pushApprovedMutation.mutate()}
               disabled={
                 pushApprovedMutation.isPending ||
@@ -467,7 +468,17 @@ export function AutomationDetailPageContent({
                 automation.status !== "active"
               }
             >
-              {pushApprovedMutation.isPending ? <Spinner data-icon="inline-start" /> : null}
+              {pushApprovedMutation.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <SimpleBrandIcon
+                  icon={siIntercom}
+                  colored={false}
+                  className="size-4"
+                  data-icon="inline-start"
+                  opacity={1}
+                />
+              )}
               <FormattedMessage {...intercomPushUiMessages.pushButton} />
             </Button>
           ) : null}

@@ -14,9 +14,11 @@
  */
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { siIntercom } from "simple-icons";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -106,13 +108,23 @@ export function ContentEditorIntercomPushButton({
 
   const pushLabel = intl.formatMessage(messages.pushButton);
   const isPending = pushMutation.isPending;
+  const pushIcon = isPending ? (
+    <Spinner data-icon="inline-start" />
+  ) : (
+    <SimpleBrandIcon
+      icon={siIntercom}
+      colored={false}
+      className="size-4"
+      data-icon="inline-start"
+      opacity={1}
+    />
+  );
 
   if (candidates.length === 1) {
     const candidate = candidates[0]!;
     return (
       <Button
         type="button"
-        variant="outline"
         size="sm"
         className="h-8 shrink-0"
         disabled={isPending}
@@ -123,7 +135,7 @@ export function ContentEditorIntercomPushButton({
           })
         }
       >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
+        {pushIcon}
         {pushLabel}
       </Button>
     );
@@ -133,16 +145,10 @@ export function ContentEditorIntercomPushButton({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0"
-            disabled={isPending}
-          />
+          <Button type="button" size="sm" className="h-8 shrink-0" disabled={isPending} />
         }
       >
-        {isPending ? <Spinner data-icon="inline-start" /> : null}
+        {pushIcon}
         {pushLabel}
         <CaretDownIcon data-icon="inline-end" className="size-4" />
       </DropdownMenuTrigger>
