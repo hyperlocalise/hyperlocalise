@@ -737,7 +737,7 @@ describe("AutomationDetailPageContent undo", () => {
     );
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
     expect(toastMocks.message).toHaveBeenLastCalledWith(
-      "Undid discarding your changes",
+      "Brought your discarded changes back",
       expect.objectContaining({ id: "automation-undo" }),
     );
   });
@@ -811,7 +811,7 @@ describe("AutomationDetailPageContent undo", () => {
     );
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
     expect(toastMocks.message).toHaveBeenLastCalledWith(
-      "Undid the reload of the saved automation",
+      "Brought your changes back over the reloaded automation",
       expect.anything(),
     );
   });

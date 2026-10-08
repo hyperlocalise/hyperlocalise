@@ -120,14 +120,14 @@ describe("AutomationsNewPageContent undo", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Redo" })).toBeEnabled();
     expect(toastMocks.message).toHaveBeenLastCalledWith(
-      "Undid the name",
+      "Undid changes to the name",
       expect.objectContaining({ id: "automation-undo" }),
     );
 
     await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
     expect(name).toHaveValue("Startabc");
     expect(toastMocks.message).toHaveBeenLastCalledWith(
-      "Redid the name",
+      "Redid changes to the name",
       expect.objectContaining({ id: "automation-undo" }),
     );
   });

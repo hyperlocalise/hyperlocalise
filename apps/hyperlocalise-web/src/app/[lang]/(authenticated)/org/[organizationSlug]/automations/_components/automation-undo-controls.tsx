@@ -53,23 +53,53 @@ const GROUP_MESSAGES: Record<WorkspaceAutomationChangeGroup, keyof typeof automa
     settings: "changeSettings",
   };
 
-/** Names what a step changed, in words that follow "Undo" or "Undid". */
-export function formatWorkspaceAutomationChange(
+export type AutomationUndoPhrase = "undo" | "redo" | "undone" | "redone";
+
+const PHRASES: Record<
+  "edit" | "discard" | "reload" | "assistant" | "unknown",
+  Record<AutomationUndoPhrase, keyof typeof automationUndoMessages>
+> = {
+  edit: { undo: "undoEdit", redo: "redoEdit", undone: "undoneEdit", redone: "redoneEdit" },
+  discard: {
+    undo: "undoDiscard",
+    redo: "redoDiscard",
+    undone: "undoneDiscard",
+    redone: "redoneDiscard",
+  },
+  reload: {
+    undo: "undoReload",
+    redo: "redoReload",
+    undone: "undoneReload",
+    redone: "redoneReload",
+  },
+  assistant: {
+    undo: "undoAssistant",
+    redo: "redoAssistant",
+    undone: "undoneAssistant",
+    redone: "redoneAssistant",
+  },
+  unknown: {
+    undo: "undoUnknown",
+    redo: "redoUnknown",
+    undone: "undoneUnknown",
+    redone: "redoneUnknown",
+  },
+};
+
+/** A sentence about a step: what undoing or redoing it would do, or did. */
+export function formatWorkspaceAutomationUndoText(
   intl: IntlShape,
   change: WorkspaceAutomationFormChange | null | undefined,
+  phrase: AutomationUndoPhrase,
 ): string {
-  switch (change?.kind) {
-    case "edit":
-      return intl.formatMessage(automationUndoMessages[GROUP_MESSAGES[change.group]]);
-    case "discard":
-      return intl.formatMessage(automationUndoMessages.changeDiscard);
-    case "reload":
-      return intl.formatMessage(automationUndoMessages.changeReload);
-    case "assistant":
-      return intl.formatMessage(automationUndoMessages.changeAssistant);
-    default:
-      return intl.formatMessage(automationUndoMessages.changeUnknown);
+  const kind = change?.kind ?? "unknown";
+  const message = automationUndoMessages[PHRASES[kind][phrase]];
+  if (change?.kind === "edit") {
+    return intl.formatMessage(message, {
+      target: intl.formatMessage(automationUndoMessages[GROUP_MESSAGES[change.group]]),
+    });
   }
+  return intl.formatMessage(message);
 }
 
 function useShortcutLabels() {
@@ -131,9 +161,7 @@ export function AutomationUndoRedoButtons({
           }
         />
         <TooltipContent side="bottom">
-          {intl.formatMessage(automationUndoMessages.undoWithChange, {
-            change: formatWorkspaceAutomationChange(intl, undoStep?.description),
-          })}
+          {formatWorkspaceAutomationUndoText(intl, undoStep?.description, "undo")}
           <ShortcutKeys keys={undoKeys} />
         </TooltipContent>
       </Tooltip>
@@ -152,9 +180,7 @@ export function AutomationUndoRedoButtons({
           }
         />
         <TooltipContent side="bottom">
-          {intl.formatMessage(automationUndoMessages.redoWithChange, {
-            change: formatWorkspaceAutomationChange(intl, redoStep?.description),
-          })}
+          {formatWorkspaceAutomationUndoText(intl, redoStep?.description, "redo")}
           <ShortcutKeys keys={redoKeys} />
         </TooltipContent>
       </Tooltip>
@@ -169,28 +195,18 @@ export function useAutomationUndoNotice() {
 
   return {
     notifyUndo: (step: AutomationUndoStep, redo: () => void) => {
-      toast.message(
-        intl.formatMessage(automationUndoMessages.undone, {
-          change: formatWorkspaceAutomationChange(intl, step.description),
-        }),
-        {
-          id: AUTOMATION_UNDO_TOAST_ID,
-          description: intl.formatMessage(automationUndoMessages.redoHint, { shortcut: redoText }),
-          action: { label: intl.formatMessage(automationUndoMessages.redo), onClick: redo },
-        },
-      );
+      toast.message(formatWorkspaceAutomationUndoText(intl, step.description, "undone"), {
+        id: AUTOMATION_UNDO_TOAST_ID,
+        description: intl.formatMessage(automationUndoMessages.redoHint, { shortcut: redoText }),
+        action: { label: intl.formatMessage(automationUndoMessages.redo), onClick: redo },
+      });
     },
     notifyRedo: (step: AutomationUndoStep, undo: () => void) => {
-      toast.message(
-        intl.formatMessage(automationUndoMessages.redone, {
-          change: formatWorkspaceAutomationChange(intl, step.description),
-        }),
-        {
-          id: AUTOMATION_UNDO_TOAST_ID,
-          description: intl.formatMessage(automationUndoMessages.undoHint, { shortcut: undoText }),
-          action: { label: intl.formatMessage(automationUndoMessages.undo), onClick: undo },
-        },
-      );
+      toast.message(formatWorkspaceAutomationUndoText(intl, step.description, "redone"), {
+        id: AUTOMATION_UNDO_TOAST_ID,
+        description: intl.formatMessage(automationUndoMessages.undoHint, { shortcut: undoText }),
+        action: { label: intl.formatMessage(automationUndoMessages.undo), onClick: undo },
+      });
     },
   };
 }
