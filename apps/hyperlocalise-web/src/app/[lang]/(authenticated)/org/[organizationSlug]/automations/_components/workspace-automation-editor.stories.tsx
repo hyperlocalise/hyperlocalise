@@ -10,14 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react/ssr";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fireEvent, fn, waitFor, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
 import { addSkillToWorkspaceAutomationForm } from "@/lib/agents/workspace-automation-skill-form";
+import {
+  workspaceAutomationUndoStackOptions,
+  type WorkspaceAutomationFormChange,
+} from "@/lib/agents/workspace-automation-undo";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import {
@@ -36,6 +42,7 @@ import {
   automationEditorDisconnectedMswHandlers,
   automationEditorMswHandlers,
 } from "./automation-msw-handlers";
+import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 function WorkspaceAutomationEditorStory({
@@ -78,6 +85,63 @@ function WorkspaceAutomationEditorStory({
         }}
         organizationSlug={organizationSlug}
         runHistory={runHistory}
+      />
+    </WorkspacePageShell>
+  );
+}
+
+/** The editor on an undo stack, as the automation pages mount it. */
+function WorkspaceAutomationUndoStory({
+  form: initialForm,
+  mode,
+}: {
+  form: WorkspaceAutomationFormState;
+  mode: "create" | "detail";
+}) {
+  const history = useUndoStack<
+    WorkspaceAutomationFormState | null,
+    WorkspaceAutomationFormChange | null
+  >(initialForm, workspaceAutomationUndoStackOptions);
+  const form = history.form ?? initialForm;
+  const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const runRedo = () => {
+    const step = historyRef.current.redoStep;
+    if (step) {
+      historyRef.current.redo();
+      notifyRedo(step, runUndo);
+    }
+  };
+  const runUndo = () => {
+    const step = historyRef.current.undoStep;
+    if (step) {
+      historyRef.current.undo();
+      notifyUndo(step, runRedo);
+    }
+  };
+  const { rootRef } = useUndoShortcuts({ onUndo: runUndo, onRedo: runRedo, onSeal: history.seal });
+
+  return (
+    <WorkspacePageShell ref={rootRef} className="max-w-5xl">
+      <WorkspaceAutomationEditor
+        actions={
+          <AutomationUndoRedoButtons
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            undoStep={history.undoStep}
+            redoStep={history.redoStep}
+            onUndo={runUndo}
+            onRedo={runRedo}
+          />
+        }
+        canUpdateKnowledgeMemory
+        errors={{}}
+        form={form}
+        knowledgeAvailable
+        mode={mode}
+        onChange={history.change}
+        organizationSlug="acme"
       />
     </WorkspacePageShell>
   );
@@ -597,5 +661,50 @@ export const ReadOnly: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Untitled automation")).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  },
+};
+
+export const UndoTyping: Story = {
+  args: {
+    mode: "detail",
+    form: createScheduledAutomationFormFixture(),
+  },
+  render: (args) => <WorkspaceAutomationUndoStory form={args.form} mode={args.mode} />,
+  play: async ({ canvas, userEvent }) => {
+    const name = canvas.getByPlaceholderText("Untitled automation");
+    const original = (name as HTMLInputElement).value;
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    await userEvent.type(name, " extra");
+    await expect(name).toHaveValue(`${original} extra`);
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeEnabled();
+
+    // A burst of typing is one step.
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await expect(name).toHaveValue(original);
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeEnabled();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Redo" }));
+    await expect(name).toHaveValue(`${original} extra`);
+  },
+};
+
+export const UndoSwitch: Story = {
+  args: {
+    mode: "detail",
+    form: createScheduledAutomationFormFixture(),
+  },
+  render: (args) => <WorkspaceAutomationUndoStory form={args.form} mode={args.mode} />,
+  play: async ({ canvas, userEvent }) => {
+    const status = canvas.getByRole("switch");
+    const wasChecked = status.getAttribute("aria-checked");
+
+    await userEvent.click(status);
+    await waitFor(() => expect(status).not.toHaveAttribute("aria-checked", wasChecked));
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(status).toHaveAttribute("aria-checked", wasChecked));
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeEnabled();
   },
 };
