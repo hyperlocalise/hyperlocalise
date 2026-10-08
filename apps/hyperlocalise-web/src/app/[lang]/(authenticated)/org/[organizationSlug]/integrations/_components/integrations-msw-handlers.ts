@@ -103,6 +103,15 @@ function createIntegrationsGetHandlers({
         },
       }),
     ),
+    http.get("/api/orgs/:organizationSlug/pipes/:provider/authorize-url", () =>
+      HttpResponse.json({
+        url: "https://api.workos.com/data-integrations/intercom/authorize-redirect",
+      }),
+    ),
+    http.delete(
+      "/api/orgs/:organizationSlug/pipes/:provider",
+      () => new HttpResponse(null, { status: 204 }),
+    ),
     http.get("/api/orgs/:organizationSlug/mcp-server-connections", () =>
       HttpResponse.json({ mcpServerConnections: [] }),
     ),

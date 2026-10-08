@@ -44,6 +44,8 @@ describe("createApiClient", () => {
     expect(typeof org["semrush-connections"].$get).toBe("function");
     expect(typeof org["ahrefs-connections"].$get).toBe("function");
     expect(typeof org.pipes[":provider"].$get).toBe("function");
+    expect(typeof org.pipes[":provider"].$delete).toBe("function");
+    expect(typeof org.pipes[":provider"]["authorize-url"].$get).toBe("function");
     expect(typeof org["intercom-connections"].$get).toBe("function");
     expect(typeof org["canva-connections"].$get).toBe("function");
     expect(typeof org["agent-email"].$get).toBe("function");
