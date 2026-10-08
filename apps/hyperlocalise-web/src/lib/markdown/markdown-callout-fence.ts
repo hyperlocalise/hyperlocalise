@@ -16,3 +16,11 @@ export function isMarkdownCalloutFenceText(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === ":::" || trimmed.startsWith(":::callout");
 }
+
+export function isMarkdownTranslationKey(key: string): boolean {
+  return key.startsWith("md.") || key.startsWith("frontmatter/");
+}
+
+export function isMarkdownCalloutFenceEntry(key: string, text: string): boolean {
+  return isMarkdownTranslationKey(key) && isMarkdownCalloutFenceText(text);
+}

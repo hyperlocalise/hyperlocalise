@@ -148,6 +148,25 @@ describe("applyApprovedKeyedUnitsToMarkdown", () => {
     ).toBe("Hallo Titel\n\n# Hallo Überschrift\n");
   });
 
+  it("places later paragraph keys on later identical source text", () => {
+    const markdown = "Hello title\n\nHello again\n\nHello again\n";
+    expect(
+      applyApprovedKeyedUnitsToMarkdown(markdown, [
+        {
+          key: "md.Paragraph[10]/line[0]",
+          sourceText: "Hello again",
+          targetText: "Zehnter Absatz",
+        },
+        {
+          key: "md.Paragraph[2]/line[0]",
+          sourceText: "Hello again",
+          targetText: "Zweiter Absatz",
+        },
+        { key: "md.frontmatter/title", sourceText: "Hello title", targetText: "Hallo Titel" },
+      ]),
+    ).toBe("Hallo Titel\n\nZweiter Absatz\n\nZehnter Absatz\n");
+  });
+
   it("returns null when a keyed source segment is not in the markdown", () => {
     expect(
       applyApprovedKeyedUnitsToMarkdown("# Hello\n", [

@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isMarkdownCalloutFenceText } from "./markdown-callout-fence";
+import { isMarkdownCalloutFenceEntry, isMarkdownCalloutFenceText } from "./markdown-callout-fence";
 
 describe("isMarkdownCalloutFenceText", () => {
   it("matches Intercom callout opening and closing fences", () => {
@@ -28,5 +28,12 @@ describe("isMarkdownCalloutFenceText", () => {
     expect(isMarkdownCalloutFenceText(":::tip")).toBe(false);
     expect(isMarkdownCalloutFenceText("For a public article to be enabled for Fin")).toBe(false);
     expect(isMarkdownCalloutFenceText("")).toBe(false);
+  });
+
+  it("does not treat JSON or YAML values as Intercom fences", () => {
+    expect(isMarkdownCalloutFenceEntry("examples.callout", ":::callout examples")).toBe(false);
+    expect(isMarkdownCalloutFenceEntry("md.Paragraph[4]/line[0]", ":::callout examples")).toBe(
+      true,
+    );
   });
 });

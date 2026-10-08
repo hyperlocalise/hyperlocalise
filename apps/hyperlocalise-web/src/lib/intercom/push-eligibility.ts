@@ -18,7 +18,7 @@ import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
-import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
@@ -345,7 +345,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
       }> = [];
       let allVisibleApproved = true;
       for (const key of pathKeys) {
-        if (isMarkdownCalloutFenceText(key.sourceText)) {
+        if (isMarkdownCalloutFenceEntry(key.key, key.sourceText)) {
           continue;
         }
         const translation = translationByKeyId.get(key.id);

@@ -113,6 +113,49 @@ describe("intercom article markdown", () => {
     expect(paths.get("222")).toBe("intercom/customer-support/getting-started-222.md");
   });
 
+  it("keeps checking after the article-id filename is also taken", () => {
+    const paths = assignIntercomArticleSourcePaths({
+      helpCenterId: "123",
+      helpCenterName: "Customer Support",
+      articles: [{ id: "222", title: "Intro" }],
+      existingMappings: [
+        {
+          articleId: "111",
+          sourcePath: "intercom/customer-support/intro.md",
+          status: "active",
+        },
+        {
+          articleId: "333",
+          sourcePath: "intercom/customer-support/intro-222.md",
+          status: "active",
+        },
+        {
+          articleId: "444",
+          sourcePath: "intercom/other-center/intro.md",
+          status: "active",
+          helpCenterId: "999",
+        },
+      ],
+    });
+
+    expect(paths.get("222")).toBe("intercom/customer-support/intro-222-2.md");
+  });
+
+  it("round-trips titles that look like YAML", () => {
+    const quoted = serializeIntercomArticleMarkdown({
+      title: '"Hello"',
+      description: "- Getting started",
+      body: "Body",
+    });
+
+    expect(quoted).toBe('---\ntitle: "\\"Hello\\""\ndescription: "- Getting started"\n---\nBody');
+    expect(parseIntercomArticleMarkdown(quoted)).toEqual({
+      title: '"Hello"',
+      description: "- Getting started",
+      body: "Body",
+    });
+  });
+
   it("falls back to ids when names do not slug", () => {
     expect(
       buildIntercomArticleSourcePath({
@@ -131,7 +174,9 @@ describe("intercom article markdown", () => {
       body: "Go to *Settings → Billing*.",
     });
 
-    expect(markdown).toBe("---\ntitle: Hello\ndescription: Help\n---\nGo to *Settings → Billing*.");
+    expect(markdown).toBe(
+      '---\ntitle: "Hello"\ndescription: "Help"\n---\nGo to *Settings → Billing*.',
+    );
     expect(parseIntercomArticleMarkdown(markdown)).toEqual({
       title: "Hello",
       description: "Help",

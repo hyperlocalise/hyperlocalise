@@ -93,6 +93,21 @@ describe("entriesFromHlOutput", () => {
     ]);
   });
 
+  it("keeps ordinary resource strings that look like callout fences", () => {
+    expect(
+      entriesFromHlOutput({
+        "examples.callout": ":::callout examples",
+      }),
+    ).toEqual([
+      {
+        key: "examples.callout",
+        text: ":::callout examples",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
   it("drops Intercom callout fence lines", () => {
     expect(
       entriesFromHlOutput({

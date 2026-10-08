@@ -55,11 +55,40 @@ export type IntercomPersistedArticlePath = {
   articleId: string;
   sourcePath: string;
   status?: string | null;
+  helpCenterId?: string | null;
 };
 
-function sourcePathFilename(sourcePath: string): string {
-  const separator = sourcePath.lastIndexOf("/");
-  return separator === -1 ? sourcePath : sourcePath.slice(separator + 1);
+function nextUnusedIntercomArticleSourcePath(input: {
+  helpCenterId: string;
+  articleId: string;
+  helpCenterName?: string | null;
+  articleTitle?: string | null;
+  usedPaths: ReadonlySet<string>;
+}): string {
+  const candidates = [input.articleTitle ?? "", `${input.articleTitle ?? ""}-${input.articleId}`];
+  for (const articleTitle of candidates) {
+    const sourcePath = buildIntercomArticleSourcePath({
+      helpCenterId: input.helpCenterId,
+      articleId: input.articleId,
+      helpCenterName: input.helpCenterName,
+      articleTitle,
+    });
+    if (!input.usedPaths.has(sourcePath)) {
+      return sourcePath;
+    }
+  }
+
+  for (let suffix = 2; ; suffix += 1) {
+    const sourcePath = buildIntercomArticleSourcePath({
+      helpCenterId: input.helpCenterId,
+      articleId: input.articleId,
+      helpCenterName: input.helpCenterName,
+      articleTitle: `${input.articleTitle ?? ""}-${input.articleId}-${suffix}`,
+    });
+    if (!input.usedPaths.has(sourcePath)) {
+      return sourcePath;
+    }
+  }
 }
 
 export function assignIntercomArticleSourcePaths(input: {
@@ -68,40 +97,36 @@ export function assignIntercomArticleSourcePaths(input: {
   articles: readonly IntercomArticlePathAssignment[];
   existingMappings?: readonly IntercomPersistedArticlePath[];
 }): Map<string, string> {
-  const existingByArticleId = new Map(
-    (input.existingMappings ?? []).map((mapping) => [mapping.articleId, mapping.sourcePath]),
+  const reuseMappings = (input.existingMappings ?? []).filter(
+    (mapping) => !mapping.helpCenterId || mapping.helpCenterId === input.helpCenterId,
   );
-  const usedFilenames = new Set(
+  const existingByArticleId = new Map(
+    reuseMappings.map((mapping) => [mapping.articleId, mapping.sourcePath]),
+  );
+  const usedPaths = new Set(
     (input.existingMappings ?? [])
       .filter((mapping) => mapping.status !== "archived")
       .filter((mapping) => !isLegacyIntercomJsonSourcePath(mapping.sourcePath))
-      .map((mapping) => sourcePathFilename(mapping.sourcePath)),
+      .map((mapping) => mapping.sourcePath),
   );
   const sourcePathByArticleId = new Map<string, string>();
 
   for (const article of input.articles) {
     const existingPath = existingByArticleId.get(article.id);
     if (existingPath && !isLegacyIntercomJsonSourcePath(existingPath)) {
-      usedFilenames.add(sourcePathFilename(existingPath));
+      usedPaths.add(existingPath);
       sourcePathByArticleId.set(article.id, existingPath);
       continue;
     }
 
-    let sourcePath = buildIntercomArticleSourcePath({
+    const sourcePath = nextUnusedIntercomArticleSourcePath({
       helpCenterId: input.helpCenterId,
       articleId: article.id,
       helpCenterName: input.helpCenterName,
       articleTitle: article.title,
+      usedPaths,
     });
-    if (usedFilenames.has(sourcePathFilename(sourcePath))) {
-      sourcePath = buildIntercomArticleSourcePath({
-        helpCenterId: input.helpCenterId,
-        articleId: article.id,
-        helpCenterName: input.helpCenterName,
-        articleTitle: `${article.title ?? ""}-${article.id}`,
-      });
-    }
-    usedFilenames.add(sourcePathFilename(sourcePath));
+    usedPaths.add(sourcePath);
     sourcePathByArticleId.set(article.id, sourcePath);
   }
 
@@ -151,17 +176,7 @@ export function parseIntercomArticleMarkdown(markdown: string): IntercomArticleF
 }
 
 function quoteIntercomYamlScalar(value: string) {
-  if (
-    value === "" ||
-    value !== value.trim() ||
-    /[\n\r\t:#{}[\],&*?|<>=!%@`]/.test(value) ||
-    /^(?:true|false|null|yes|no|on|off|~)$/i.test(value) ||
-    /^-?0\d/.test(value) ||
-    /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value)
-  ) {
-    return JSON.stringify(value);
-  }
-  return value;
+  return JSON.stringify(value);
 }
 
 function unquoteIntercomYamlScalar(value: string) {

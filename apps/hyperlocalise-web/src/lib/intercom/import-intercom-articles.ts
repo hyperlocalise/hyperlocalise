@@ -241,14 +241,13 @@ export async function runImportIntercomArticles(input: {
       articleId: schema.intercomArticleSyncStates.articleId,
       sourcePath: schema.intercomArticleSyncStates.sourcePath,
       status: schema.intercomArticleSyncStates.status,
+      helpCenterId: schema.intercomArticleSyncStates.helpCenterId,
     })
     .from(schema.intercomArticleSyncStates)
     .where(
       and(
         eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
-        eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
         eq(schema.intercomArticleSyncStates.projectId, projectId),
-        eq(schema.intercomArticleSyncStates.helpCenterId, helpCenterId),
       ),
     );
   const sourcePathByArticleId = assignIntercomArticleSourcePaths({

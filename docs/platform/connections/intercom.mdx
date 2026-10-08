@@ -15,7 +15,7 @@ The automation uses this Intercom connection. Connect Intercom before you add th
 
 ## Prepare the native project
 
-Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales match the Help Center locales **exactly**. `en` does not match `en-US`. `de` does not match `de-DE`.
+Create or choose a [native project](/platform/projects/create-project) whose source locale and target locales map onto the Help Center locales. Exact tags match first. Language-only aliases such as `en` ↔ `en-US` and `de-DE` ↔ `de` are supported when only one regional form is present. Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, `pt-BR` is not `pt`, and `de` is not `de-form`.
 
 After you select a Help Center, the editor lists that Help Center’s locale codes. Use those codes on the project.
 
@@ -66,7 +66,7 @@ If a Help Center is missing, confirm the Intercom workspace, region, and that yo
 
 - Confirm Intercom is connected and the automation is **Active**.
 - Confirm the Help Center and region match the Intercom workspace.
-- Confirm project locales match the Help Center locale codes exactly.
+- Confirm project locales map onto the Help Center locale codes (exact tags or the supported language-only aliases). Do not pair locked writing-system or regional variants.
 - If **Push to Intercom as draft** is missing, approve every visible string for at least one mapped locale (including the title), confirm you have permission to manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed article or locale.
 

@@ -198,6 +198,12 @@ See {name} in the heading {#not-an-id-here}.`;
     expect(jsonText(doc)).toContain("part of a live Help Center and in a collection.");
   });
 
+  it("round-trips an uncolored Intercom callout", () => {
+    const source = ":::callout\nKeep this note.\n:::";
+    expect(roundTrip(source, "markdown")).toContain(":::callout");
+    expect(roundTrip(source, "markdown")).not.toContain("[!NOTE]");
+  });
+
   it("round-trips Intercom body_markdown for draft push", () => {
     const serialized = roundTrip(INTERCOM_ARTICLE_BODY_MARKDOWN, "markdown");
     expect(serialized).toContain("{#h_61bff2dd7a}");

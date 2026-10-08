@@ -57,6 +57,10 @@ export const DocumentCallout = Node.create({
         default: "note",
         parseHTML: (element) => element.getAttribute("data-callout") ?? "note",
       },
+      format: {
+        default: "alert",
+        parseHTML: (element) => element.getAttribute("data-callout-format") ?? "alert",
+      },
       backgroundColor: {
         default: null,
         parseHTML: (element) => element.getAttribute("data-background-color"),
@@ -77,6 +81,7 @@ export const DocumentCallout = Node.create({
       "aside",
       {
         "data-callout": node.attrs.kind,
+        "data-callout-format": node.attrs.format ?? "alert",
         ...(node.attrs.backgroundColor
           ? { "data-background-color": node.attrs.backgroundColor }
           : {}),
@@ -109,6 +114,7 @@ export const DocumentCallout = Node.create({
           type: "callout",
           raw: intercom[0],
           kind: "note",
+          format: "intercom",
           backgroundColor: readQuotedAttr(intercom[1] ?? "", "backgroundColor"),
           borderColor: readQuotedAttr(intercom[1] ?? "", "borderColor"),
           tokens: body ? lexer.blockTokens(body) : [],
@@ -127,6 +133,7 @@ export const DocumentCallout = Node.create({
         type: "callout",
         raw: match[0],
         kind: match[1].toLowerCase(),
+        format: "alert",
         tokens: body ? lexer.blockTokens(body) : [],
       };
     },
@@ -138,6 +145,7 @@ export const DocumentCallout = Node.create({
       "callout",
       {
         kind: token.kind ?? "note",
+        format: token.format === "intercom" ? "intercom" : "alert",
         backgroundColor: token.backgroundColor ?? null,
         borderColor: token.borderColor ?? null,
       },
@@ -150,14 +158,14 @@ export const DocumentCallout = Node.create({
     const backgroundColor =
       typeof node.attrs?.backgroundColor === "string" ? node.attrs.backgroundColor : "";
     const borderColor = typeof node.attrs?.borderColor === "string" ? node.attrs.borderColor : "";
-    if (backgroundColor || borderColor) {
+    if (node.attrs?.format === "intercom" || backgroundColor || borderColor) {
       const attrs = [
         backgroundColor ? `backgroundColor="${backgroundColor}"` : "",
         borderColor ? `borderColor="${borderColor}"` : "",
       ]
         .filter(Boolean)
         .join(" ");
-      return `:::callout ${attrs}\n${body}\n:::`;
+      return attrs ? `:::callout ${attrs}\n${body}\n:::` : `:::callout\n${body}\n:::`;
     }
     const kind = String(node.attrs?.kind ?? "note").toUpperCase();
     const quoted = body

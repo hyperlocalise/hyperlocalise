@@ -16,7 +16,7 @@ import type {
   ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
 import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
-import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
@@ -275,7 +275,7 @@ export function projectFileCatToWorkspaceState(
   const fileContext = fileContextFor(contentEditorFile, sourceLocale);
   const segmentOffset = contentEditorFile.pagination?.offset ?? 0;
   const visibleFileSegments = contentEditorFile.segments.filter(
-    (segment) => !isMarkdownCalloutFenceText(segment.sourceText),
+    (segment) => !isMarkdownCalloutFenceEntry(segment.key, segment.sourceText),
   );
   const segments: ContentEditorQueueSegment[] = visibleFileSegments.map((segment, index) => ({
     id: segment.externalStringId,

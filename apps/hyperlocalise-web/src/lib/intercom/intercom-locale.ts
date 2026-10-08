@@ -155,6 +155,10 @@ export function intercomLocalesShareLanguage(left: string, right: string): boole
   return Boolean(leftLanguage) && leftLanguage === rightLanguage;
 }
 
+export function areIntercomSourceLocalesCompatible(left: string, right: string): boolean {
+  return intercomLocalesShareLanguage(left, right) && !isLockedLocalePair(left, right);
+}
+
 function uniqueNonEmptyLocales(values: readonly string[]): string[] {
   const locales: string[] = [];
   const seen = new Set<string>();
@@ -364,7 +368,7 @@ export function mapProjectLocalesToIntercom(input: {
 } {
   const projectSource = input.projectSourceLocale.trim() || "en";
   const configuredSource = input.configuredSourceLocale?.trim() || "";
-  if (configuredSource && !intercomLocalesShareLanguage(configuredSource, projectSource)) {
+  if (configuredSource && !areIntercomSourceLocalesCompatible(configuredSource, projectSource)) {
     return {
       sourceIntercomLocale: null,
       jobTargetLocales: [],

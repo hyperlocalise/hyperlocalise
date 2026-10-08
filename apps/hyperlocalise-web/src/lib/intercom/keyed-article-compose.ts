@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 
-import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
 
 import { parseIntercomArticleMarkdown, type IntercomArticleFields } from "./article-markdown";
 
@@ -56,7 +56,9 @@ export function composeIntercomArticleFromApprovedKeyedUnits(input: {
   sourceMarkdown: string;
   units: readonly IntercomApprovedKeyedUnit[];
 }): IntercomArticleFields | null {
-  const units = input.units.filter((unit) => !isMarkdownCalloutFenceText(unit.sourceText));
+  const units = input.units.filter(
+    (unit) => !isMarkdownCalloutFenceEntry(unit.key, unit.sourceText),
+  );
   const visibleUnits = units.filter((unit) => !unit.isHidden);
   if (
     visibleUnits.length === 0 ||
@@ -115,6 +117,13 @@ export function applyApprovedKeyedUnitsToMarkdown(
         (found.start === best.start && length > bestLength)
       ) {
         best = { index, ...found };
+        continue;
+      }
+      if (found.start === best.start && length === bestLength) {
+        const current = remaining[best.index]!;
+        if (compareMarkdownUnitPlacement(remaining[index]!, current, output, found.start) < 0) {
+          best = { index, ...found };
+        }
       }
     }
 
@@ -128,6 +137,83 @@ export function applyApprovedKeyedUnitsToMarkdown(
   }
 
   return output;
+}
+
+type MarkdownUnitKey = {
+  kind: string;
+  index: number;
+  line: number;
+  isFrontmatter: boolean;
+};
+
+function parseMarkdownUnitKey(key: string): MarkdownUnitKey {
+  const frontmatter = /^(?:md\.)?frontmatter\/(.+)$/.exec(key);
+  if (frontmatter) {
+    const field = frontmatter[1] ?? "";
+    const fieldOrder = field === "title" ? 0 : field === "description" ? 1 : 2;
+    return { kind: "frontmatter", index: fieldOrder, line: 0, isFrontmatter: true };
+  }
+  const match = /^md\.([A-Za-z]+)\[(\d+)\](?:\/line\[(\d+)\])?/.exec(key);
+  if (match) {
+    return {
+      kind: match[1] ?? "",
+      index: Number(match[2]),
+      line: Number(match[3] ?? 0),
+      isFrontmatter: false,
+    };
+  }
+  return { kind: key, index: Number.MAX_SAFE_INTEGER, line: 0, isFrontmatter: false };
+}
+
+function markdownFrontmatterEnd(markdown: string): number {
+  if (!markdown.startsWith("---")) {
+    return -1;
+  }
+  return markdown.indexOf("\n---", 3);
+}
+
+function markdownUnitFitsPosition(
+  parsed: MarkdownUnitKey,
+  markdown: string,
+  start: number,
+): boolean {
+  const frontmatterEnd = markdownFrontmatterEnd(markdown);
+  if (parsed.isFrontmatter) {
+    return frontmatterEnd >= 0 && start < frontmatterEnd;
+  }
+  if (frontmatterEnd >= 0 && start < frontmatterEnd) {
+    return false;
+  }
+  const headingPrefix = /(^|\n)#{1,6}[ \t]*$/.test(markdown.slice(0, start));
+  if (parsed.kind === "Heading") {
+    return headingPrefix;
+  }
+  return !headingPrefix;
+}
+
+function compareMarkdownUnitPlacement(
+  left: IntercomApprovedKeyedUnit,
+  right: IntercomApprovedKeyedUnit,
+  markdown: string,
+  start: number,
+): number {
+  const leftKey = parseMarkdownUnitKey(left.key);
+  const rightKey = parseMarkdownUnitKey(right.key);
+  const leftFits = markdownUnitFitsPosition(leftKey, markdown, start) ? 0 : 1;
+  const rightFits = markdownUnitFitsPosition(rightKey, markdown, start) ? 0 : 1;
+  if (leftFits !== rightFits) {
+    return leftFits - rightFits;
+  }
+  if (leftKey.isFrontmatter !== rightKey.isFrontmatter) {
+    return leftKey.isFrontmatter ? -1 : 1;
+  }
+  if (leftKey.kind === rightKey.kind && leftKey.index !== rightKey.index) {
+    return leftKey.index - rightKey.index;
+  }
+  if (leftKey.line !== rightKey.line) {
+    return leftKey.line - rightKey.line;
+  }
+  return left.key.localeCompare(right.key);
 }
 
 function findKeyedUnitInMarkdown(

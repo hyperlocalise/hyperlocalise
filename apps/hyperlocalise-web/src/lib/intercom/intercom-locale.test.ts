@@ -173,4 +173,16 @@ describe("mapProjectLocalesToIntercom", () => {
     expect(result.sourceIntercomLocale).toBeNull();
     expect(result.jobTargetLocales).toEqual([]);
   });
+
+  it("rejects a configured source locale with a locked writing form", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "zh-CN",
+      projectTargetLocales: ["en"],
+      intercomLocales: ["zh-TW", "en"],
+      configuredSourceLocale: "zh-TW",
+    });
+
+    expect(result.sourceIntercomLocale).toBeNull();
+    expect(result.jobTargetLocales).toEqual([]);
+  });
 });

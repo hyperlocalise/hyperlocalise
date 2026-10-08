@@ -80,8 +80,11 @@ The write uses `translated_content.{locale}` with `body_markdown` and
 approved hash matches the last successful push unless overwrite is enabled
 for newer Intercom drafts.
 
-Project locales must match Help Center locale codes exactly (`en` is not
-`en-US`).
+Project locales map onto Help Center locales by exact tag first, then
+language-only aliases such as `en` ↔ `en-US` and `de-DE` ↔ `de` when only
+one regional form is present. Keep locked writing-system and regional pairs
+separate (`en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, `pt-BR` is not
+`pt`, and `de` is not `de-form`).
 
 ## Alternatives considered
 
