@@ -119,7 +119,7 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
         />
       );
     case "intercom":
-      return <SimpleBrandIcon icon={siIntercom} colored className={iconClassName} />;
+      return <SimpleBrandIcon icon={siIntercom} colored={false} className={iconClassName} />;
     case "web-search":
       return <MagnifyingGlassIcon className={iconClassName} />;
     case "web-chat":
