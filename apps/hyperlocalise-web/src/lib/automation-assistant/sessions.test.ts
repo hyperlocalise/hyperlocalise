@@ -15,7 +15,6 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { addInteractionMessage } from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database/client";
 
 import {
@@ -89,11 +88,17 @@ describe("automation assistant sessions", () => {
     const other = await person();
     const session = await createAutomationAssistantSession(author);
 
-    expect(await getAutomationAssistantSession({ ...author, sessionId: session.id })).toMatchObject({
-      id: session.id,
-    });
+    expect(await getAutomationAssistantSession({ ...author, sessionId: session.id })).toMatchObject(
+      {
+        id: session.id,
+      },
+    );
     expect(
-      await getAutomationAssistantSession({ ...author, userId: other.userId, sessionId: session.id }),
+      await getAutomationAssistantSession({
+        ...author,
+        userId: other.userId,
+        sessionId: session.id,
+      }),
     ).toBeNull();
   });
 
@@ -102,7 +107,9 @@ describe("automation assistant sessions", () => {
     const automationId = await automationFor(scope);
     const unbound = await createAutomationAssistantSession(scope);
 
-    expect(await findAutomationAssistantSessionForAutomation({ ...scope, automationId })).toBeNull();
+    expect(
+      await findAutomationAssistantSessionForAutomation({ ...scope, automationId }),
+    ).toBeNull();
 
     await bindAutomationAssistantSession({ sessionId: unbound.id, automationId });
 
@@ -120,7 +127,9 @@ describe("automation assistant sessions", () => {
     const automationId = await automationFor(scope);
     const session = await createAutomationAssistantSession({ ...scope, automationId });
 
-    await db.delete(schema.workspaceAutomations).where(eq(schema.workspaceAutomations.id, automationId));
+    await db
+      .delete(schema.workspaceAutomations)
+      .where(eq(schema.workspaceAutomations.id, automationId));
 
     expect(await getAutomationAssistantSession({ ...scope, sessionId: session.id })).toBeNull();
   });
@@ -164,17 +173,23 @@ describe("automation assistant sessions", () => {
   it("lists every message for the page and the newest fifty, oldest first, for the model", async () => {
     const scope = await person();
     const session = await createAutomationAssistantSession(scope);
-    for (let index = 0; index < AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 2; index += 1) {
-      await addInteractionMessage({
+    const start = Date.now() - 100_000;
+    await db.insert(schema.interactionMessages).values(
+      Array.from({ length: AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 2 }, (_, index) => ({
         interactionId: session.id,
-        senderType: index % 2 === 0 ? "user" : "agent",
+        senderType: index % 2 === 0 ? ("user" as const) : ("agent" as const),
         text: `message ${index}`,
-      });
-    }
+        createdAt: new Date(start + index * 1000),
+      })),
+    );
 
     const listed = await listAutomationAssistantMessages(session.id);
     expect(listed).toHaveLength(AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 2);
-    expect(listed[0]).toMatchObject({ sessionId: session.id, senderType: "user", text: "message 0" });
+    expect(listed[0]).toMatchObject({
+      sessionId: session.id,
+      senderType: "user",
+      text: "message 0",
+    });
 
     const history = await loadAutomationAssistantModelMessages(session.id);
     expect(history).toHaveLength(AUTOMATION_ASSISTANT_HISTORY_MESSAGES);

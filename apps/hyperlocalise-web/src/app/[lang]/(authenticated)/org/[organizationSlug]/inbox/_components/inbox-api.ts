@@ -91,7 +91,11 @@ export function createInboxApi(client: ApiClient): InboxApi {
         throw await readApiResponseError(response, "Failed to load conversations");
       }
       const body = await response.json();
-      return body.conversations;
+      // The server lists no automation assistant session; this keeps the type honest about it.
+      return body.conversations.filter(
+        (conversation): conversation is Conversation =>
+          conversation.source !== "automation_assistant",
+      );
     },
 
     async listMessages(organizationSlug, conversationId) {

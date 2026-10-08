@@ -100,7 +100,9 @@ export async function createAutomationAssistantSession(input: {
       title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
       createdByUserId: input.userId,
       automationId: input.automationId ?? null,
-      expiresAt: input.automationId ? null : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
+      expiresAt: input.automationId
+        ? null
+        : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
       lastMessageAt: now,
       createdAt: now,
       updatedAt: now,
@@ -185,7 +187,9 @@ export async function endAutomationAssistantTurn(sessionId: string): Promise<voi
     .where(eq(schema.interactions.id, sessionId));
 }
 
-function toMessage(row: typeof schema.interactionMessages.$inferSelect): AutomationAssistantMessage {
+function toMessage(
+  row: typeof schema.interactionMessages.$inferSelect,
+): AutomationAssistantMessage {
   return {
     id: row.id,
     sessionId: row.interactionId,

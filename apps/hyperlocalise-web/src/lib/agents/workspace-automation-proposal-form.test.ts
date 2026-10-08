@@ -26,10 +26,7 @@ import {
 } from "./workspace-automation-proposal-form";
 import { listWorkspaceAutomationSetupSteps } from "./workspace-automation-setup-steps";
 import { addSkillToWorkspaceAutomationForm } from "./workspace-automation-skill-form";
-import {
-  getWorkspaceAutomationSkill,
-  WORKSPACE_AUTOMATION_SKILLS,
-} from "./workspace-automation-skills";
+import { WORKSPACE_AUTOMATION_SKILLS } from "./workspace-automation-skills";
 import {
   createDefaultWorkspaceAutomationFormState,
   validateWorkspaceAutomationFormState,

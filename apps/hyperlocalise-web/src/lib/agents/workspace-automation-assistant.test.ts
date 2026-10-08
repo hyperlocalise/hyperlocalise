@@ -19,7 +19,6 @@ import {
   collectAutomationSetupChanges,
   describeWorkspaceAutomationTrigger,
   updateWorkspaceAutomationSetup,
-  type AutomationSetupTarget,
 } from "./workspace-automation-assistant";
 import {
   buildWorkspaceAutomationEditorContext,
