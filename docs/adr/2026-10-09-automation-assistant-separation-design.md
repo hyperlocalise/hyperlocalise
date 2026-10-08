@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted on 2026-10-09. Not built yet.
 
 ## Context
 
@@ -23,11 +23,12 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 ### Sessions
 
-- `interactions` gains the source `automation_assistant` and two nullable columns, the creating user's id and the automation's id. These rows get no inbox item, so the Inbox list and the existing visibility helper never see them.
+- `interactions` gains the source `automation_assistant` and two nullable columns, the creating user's id and the automation's id. These rows get no inbox item, so the Inbox list and the existing visibility helper never see them. The tables are shared rather than new ones because they give message storage, parts and the streaming save for nothing; a test asserts that no conversation listing ever returns an assistant session.
 - Access is its own check: same organisation, operator role, author. No one else can read or continue a session.
 - One session per saved automation and author, resumed when that person opens the automation's page. Two operators working on one automation each have their own. A session for a new automation gets its automation id when Create succeeds; until then it is bound to nothing. Deleting an automation deletes its sessions.
 - An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server deletes unbound sessions after a day through an `expires_at` column, as the repository sandbox sessions are. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
-- Message persistence and parts are reused as they are. The session's history comes from its own small loader: the session's messages within a budget, newest kept, text only. The shared loader, which reads the oldest fifty messages of a conversation, is not used.
+- Message persistence and parts are reused as they are. The session's history comes from its own small loader: the newest fifty messages of the session, text only, the same cap the dock's loader uses. The shared loader is not used because it keeps the oldest fifty instead.
+- An assistant turn writes nothing to the workspace activity log. The assistant saves nothing, and the person's Save is logged already.
 
 ### Agent
 
@@ -49,6 +50,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - The bridge, the summary and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each turn is one undo step.
 - Every change the assistant decides on lands in the form. What cannot be applied, a skill whose integration is not connected or whose trigger does not fit, is left out and the reply says so. Nothing is held back for the person to accept on the page.
 - Closed by default. A "Configure with agent" button in the header row of the instructions section, aligned to the right above the textarea, opens it; the visual editor has the same button in its chrome. The page opened from the home page's prompt box starts with the panel open.
+- A "Start over" action in the panel ends the session and begins a new one, so a session on a saved automation does not grow for the automation's lifetime.
 - Leaving the page unmounts the panel. The turn finishes on the server and its reply is in the session when the person returns to that automation.
 - A tool output is applied by the tab whose panel ran the turn, as it streams. A page that resumes a session shows its history and applies nothing from it: the form is the saved automation as it is, and the reply text says what was done. A second tab on the same automation sees the running turn and waits.
 - The home page's prompt box creates the session and opens the new page with its id.
@@ -58,6 +60,10 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 - The form editor sends its form state and the agent gets the patch tool, as today.
 - The visual editor sends its saved definition and the agent gets a tool that adds, configures and connects nodes. The tool returns the definition the page applies, so the canvas is changed by the page like the form is.
+
+### Roll-out
+
+- On for every workspace with automations, behind the one switch the code already has. No new feature flag.
 
 ## Consequences
 
@@ -83,14 +89,6 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - Moving the content editor's assistant, today the dock with a page context, to the same pattern.
 - The stop button, and duplicate turns in the dock.
 - The visual workflow tool itself; only where it plugs in.
-
-## Not decided
-
-- Shared or separate tables. Shared means a source value and two columns on `interactions`, reusing message storage, parts, the streaming save and the model-history loader, with the visibility helper and every conversation listing made to exclude that source. Separate means `assistant_sessions` and `assistant_messages` with their own writer and loader, where nothing can leak by omission. Proposed: shared, with a test that no conversation listing ever returns an assistant session.
-- Roll-out: a new feature flag for a staged release, or on for every workspace with automations. The code keeps one switch either way.
-- A "Start over" action in the panel that ends the session and begins a new one. Proposed: yes, since a session on a saved automation otherwise grows for the automation's lifetime.
-- The history budget for a turn. Proposed: the newest forty messages of the session.
-- Whether an assistant turn is written to the workspace activity log. Proposed: no; the assistant saves nothing, and the person's Save is logged already.
 
 ## Validation
 
