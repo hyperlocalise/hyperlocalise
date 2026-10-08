@@ -159,7 +159,12 @@ From the **repository root** (not `apps/hyperlocalise-web`):
 
 ```bash
 docker compose up -d
-(cd apps/hyperlocalise-web && vp run db:migrate)
+```
+
+`vp run db:migrate` reads `DATABASE_URL` from the environment or from `apps/hyperlocalise-web/.env`. Configure that file first ([web setup](../hyperlocalise-web/README.md#setup)), or pass the Compose URL on the command:
+
+```bash
+(cd apps/hyperlocalise-web && DATABASE_URL='postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise' vp run db:migrate)
 ```
 
 Postgres and Valkey URLs match `docker-compose.yml`. go-svc fails at startup when `VALKEY_URL` is set but Valkey is unreachable.
@@ -705,13 +710,13 @@ Required for integration tests:
 | `VALKEY_URL` | Valkey/Redis URL (`redis://127.0.0.1:6379` locally). |
 | `GO_SVC_INTEGRATION` | Set to `1` in CI / `make test-go-svc` so missing deps fail instead of skip. |
 
-Local loop with Compose:
+Local loop with Compose. Export `DATABASE_URL` before migrating so Drizzle can reach Postgres:
 
 ```bash
 docker compose up -d
-(cd apps/hyperlocalise-web && vp run db:migrate)
 export DATABASE_URL='postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable'
 export VALKEY_URL='redis://127.0.0.1:6379'
+(cd apps/hyperlocalise-web && vp run db:migrate)
 make test-go-svc
 ```
 
