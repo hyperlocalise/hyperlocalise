@@ -136,6 +136,8 @@ export function executeLogicVisualWorkflowNode(input: {
           dispatchedOutputIds: node.config.outputs.map((output) => output.id),
         },
       };
+    case "logic.try_catch":
+      return { ok: true, output: {} };
     case "flow.stop":
       return node.config.outcome === "cancelled"
         ? {

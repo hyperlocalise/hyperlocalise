@@ -158,7 +158,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
     data.catalogType !== "logic.retry" &&
     data.catalogType !== "flow.wait" &&
     data.catalogType !== "logic.merge" &&
-    data.catalogType !== "logic.sequence";
+    data.catalogType !== "logic.sequence" &&
+    data.catalogType !== "logic.try_catch";
   const title = intl.formatMessage(titleMessage(data.catalogType));
   const subtitle = data.previewSubtitle ?? resolveNodeSubtitle(data.config);
   const primaryHandle = getPrimaryExecutionSourceHandle({
@@ -177,7 +178,9 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             ? intl.formatMessage(messages.attemptHandle)
             : data.catalogType === "flow.wait"
               ? intl.formatMessage(messages.completedHandle)
-              : null;
+              : data.catalogType === "logic.try_catch"
+                ? intl.formatMessage(messages.tryHandle)
+                : null;
 
   const addFromHandle = (handleId?: string) => {
     onAddFromNode({
@@ -359,6 +362,25 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             type="source"
             aria-label="Error"
           />
+        </>
+      ) : data.catalogType === "logic.try_catch" ? (
+        <>
+          {[
+            { id: "try", label: "Try", className: null },
+            { id: "success", label: "Success", className: null },
+            { id: "catch", label: "Catch", className: "bg-destructive" },
+            { id: "finally", label: "Finally", className: "bg-muted-foreground" },
+          ].map((handle, index) => (
+            <Handle
+              aria-label={handle.label}
+              className={cn(HANDLE_CLASS, handle.className)}
+              id={handle.id}
+              key={handle.id}
+              position={Position.Right}
+              style={{ top: `${((index + 1) / 5) * 100}%` }}
+              type="source"
+            />
+          ))}
         </>
       ) : isSwitch ? (
         switchHandles.map((handle, index) => (
@@ -543,6 +565,33 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           </span>
         </div>
       ) : null}
+      {data.catalogType === "logic.try_catch" ? (
+        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+          {[
+            { id: "try", message: messages.tryHandle, destructive: false },
+            { id: "success", message: messages.successHandle, destructive: false },
+            { id: "catch", message: messages.catchHandle, destructive: true },
+            { id: "finally", message: messages.finallyHandle, destructive: false },
+          ].map((handle) => (
+            <span
+              className={cn("flex items-center gap-1", handle.destructive && "text-destructive")}
+              key={handle.id}
+            >
+              <FormattedMessage {...handle.message} />
+              {data.hideAddAction ? null : (
+                <VisualWorkflowQuickAddButton
+                  className="pointer-events-auto size-5"
+                  handleId={handle.id}
+                  label={intl.formatMessage(messages.addNodeFromHandle, {
+                    handle: intl.formatMessage(handle.message),
+                  })}
+                  onAdd={addFromHandle}
+                />
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {data.runStatus && data.runStatus !== "idle" ? (
         <p className="mt-2 text-center text-xs text-muted-foreground" role="status">
           {intl.formatMessage(nodeStatusMessages[data.runStatus])}
@@ -614,6 +663,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
       {data.hideAddAction ||
       isTerminal ||
+      data.catalogType === "logic.try_catch" ||
       (data.config.kind === "logic.sequence" && sequenceOutputs.length === 0) ? null : (
         <VisualWorkflowQuickAddButton
           className={cn(
@@ -675,5 +725,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeMerge;
     case "logic.sequence":
       return messages.nodeSequence;
+    case "logic.try_catch":
+      return messages.nodeTryCatch;
   }
 }

@@ -86,6 +86,10 @@ function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfN
   if (!handleId || handleId === "true" || handleId === "each") {
     return 0;
   }
+  if (source.data.catalogType === "logic.try_catch") {
+    const outputIndex = ["try", "success", "catch", "finally"].indexOf(handleId);
+    if (outputIndex >= 0) return outputIndex * branchStep;
+  }
   if (source.data.config.kind === "logic.sequence") {
     const outputIndex = source.data.config.outputs.findIndex((output) => output.id === handleId);
     if (outputIndex >= 0) {
@@ -717,6 +721,10 @@ function issueMessage(
       return messages.nonIdempotentRetry;
     case "invalid_retry_policy":
       return messages.invalidRetryPolicy;
+    case "invalid_try_catch_region":
+      return messages.invalidTryCatchRegion;
+    case "overlapping_try_catch_region":
+      return messages.overlappingTryCatchRegion;
     default:
       return messages.invalidNodeConfig;
   }

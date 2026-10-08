@@ -119,3 +119,48 @@ export function computeRetryBodyNodeIds(
 ): string[] {
   return [...collectReachableNodeIds(retryId, edges, "attempt")].toSorted();
 }
+
+export function deriveTryCatchRegion(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): FlowBodyRegion {
+  const tryReachable = collectReachableNodeIds(boundaryId, edges, "try");
+  const exitReachable = new Set(
+    ["success", "catch", "finally"].flatMap((handle) => [
+      ...collectReachableNodeIds(boundaryId, edges, handle),
+    ]),
+  );
+
+  return {
+    bodyNodeIds: [...tryReachable].filter((nodeId) => !exitReachable.has(nodeId)).toSorted(),
+    exitNodeIds: [...exitReachable].toSorted(),
+  };
+}
+
+export function computeTryCatchBodyNodeIds(
+  boundaryId: string,
+  edges: readonly VisualWorkflowRfEdge[],
+): string[] {
+  return deriveTryCatchRegion(boundaryId, edges).bodyNodeIds;
+}
+
+export function computeTryCatchBodyNodeIdsFromV3Edges(
+  boundaryId: string,
+  edges: readonly VisualWorkflowV3Edge[],
+): string[] {
+  const editorEdges: VisualWorkflowRfEdge[] = edges
+    .filter(
+      (edge): edge is Extract<VisualWorkflowV3Edge, { kind: "execution" }> =>
+        edge.kind === "execution",
+    )
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourcePortId,
+      targetHandle: edge.targetPortId,
+      data: { kind: "execution" },
+    }));
+
+  return computeTryCatchBodyNodeIds(boundaryId, editorEdges);
+}

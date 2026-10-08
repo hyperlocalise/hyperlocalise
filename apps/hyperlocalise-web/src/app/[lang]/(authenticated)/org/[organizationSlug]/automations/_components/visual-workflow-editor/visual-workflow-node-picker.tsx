@@ -179,6 +179,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeMerge;
     case "logic.sequence":
       return messages.nodeSequence;
+    case "logic.try_catch":
+      return messages.nodeTryCatch;
   }
 }
 
@@ -224,6 +226,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeMergeHint;
     case "logic.sequence":
       return messages.nodeSequenceHint;
+    case "logic.try_catch":
+      return messages.nodeTryCatchHint;
   }
 }
 

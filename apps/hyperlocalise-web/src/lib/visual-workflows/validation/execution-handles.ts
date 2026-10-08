@@ -44,6 +44,9 @@ export function getAllowedExecutionSourceHandles(
   if (node.config.kind === "logic.sequence") {
     return node.config.outputs.map((output) => output.id);
   }
+  if (node.type === "logic.try_catch") {
+    return ["try", "success", "catch", "finally"];
+  }
   return [
     null,
     "success",
@@ -72,6 +75,9 @@ export function getPrimaryExecutionSourceHandle(node: VisualWorkflowHandleSource
   }
   if (node.config.kind === "logic.sequence") {
     return node.config.outputs[0]?.id ?? null;
+  }
+  if (node.type === "logic.try_catch") {
+    return "try";
   }
   return null;
 }

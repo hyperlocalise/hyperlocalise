@@ -609,6 +609,7 @@ export async function runVisualWorkflowInterpreter(input: {
           };
         }
         let retryExitHandle: "succeeded" | "exhausted" | null = null;
+        let tryCatchExitHandles: Array<"success" | "catch" | "finally"> | null = null;
         if (execution.ok && node.type !== "logic.for_each" && node.type !== "logic.retry") {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
@@ -769,6 +770,72 @@ export async function runVisualWorkflowInterpreter(input: {
             setNodeOutput(context, id, retryResult.output);
             nodeResults[id] = retryResult.output;
           }
+          if (node.type === "logic.try_catch") {
+            const bodyIds = node.bodyNodeIds ?? [];
+            const body = new Set(bodyIds);
+            const starts = new Set(
+              (graph.outgoingByNodeId.get(node.id) ?? [])
+                .filter((edge) => edge.sourceHandle === "try")
+                .map((edge) => edge.target),
+            );
+            const cachedBoundaryStatus =
+              execution.output.boundaryStatus === "succeeded" ||
+              execution.output.boundaryStatus === "caught"
+                ? execution.output.boundaryStatus
+                : null;
+            const regionFailure = cachedBoundaryStatus
+              ? null
+              : await runScope(body, starts, iteration, { failOnHandledErrors: true });
+
+            if (cachedBoundaryStatus) {
+              tryCatchExitHandles = [
+                cachedBoundaryStatus === "caught" ? "catch" : "success",
+                "finally",
+              ];
+            } else if (regionFailure) {
+              const errorCode =
+                typeof regionFailure.error.code === "string"
+                  ? regionFailure.error.code
+                  : "node_execution_failed";
+              if (
+                [
+                  "yield_execution",
+                  "needs_attention",
+                  "cancelled",
+                  "retry_backoff",
+                  "wait_suspended",
+                  "merge_suspended",
+                  "workflow_completed",
+                  "workflow_returned",
+                ].includes(errorCode) ||
+                regionFailure.error.terminal === true
+              ) {
+                return regionFailure;
+              }
+
+              execution = {
+                ok: true,
+                output: {
+                  errorCode,
+                  errorMessage: "The protected workflow region failed.",
+                  failedNodeId: regionFailure.nodeId,
+                  attempt: iteration === undefined ? {} : { number: iteration + 1 },
+                  boundaryStatus: "caught",
+                },
+              };
+              tryCatchExitHandles = ["catch", "finally"];
+            } else {
+              execution = { ok: true, output: { boundaryStatus: "succeeded" } };
+              tryCatchExitHandles = ["success", "finally"];
+            }
+
+            for (const bodyId of bodyIds) {
+              delete context.nodes[bodyId];
+              delete nodeResults[bodyId];
+            }
+            setNodeOutput(context, id, execution.output);
+            nodeResults[id] = execution.output;
+          }
           await emit(node, "succeeded", iteration, {
             outputSnapshot: execution.output,
             error: null,
@@ -798,25 +865,30 @@ export async function runVisualWorkflowInterpreter(input: {
             ? outgoing.filter((edge) => edge.sourceHandle === "done")
             : node.type === "logic.retry" && retryExitHandle
               ? outgoing.filter((edge) => edge.sourceHandle === retryExitHandle)
-              : node.type === "logic.merge" && mergeExitHandle
-                ? outgoing.filter((edge) => edge.sourceHandle === mergeExitHandle)
-                : node.type === "flow.wait" && waitExitHandle
-                  ? outgoing.filter((edge) => edge.sourceHandle === waitExitHandle)
-                  : selectNextEdges({
-                      nodeType: node.type,
-                      branchResult: execution.ok ? (execution.branchResult ?? null) : null,
-                      switchCase: execution.ok ? (execution.switchCase ?? null) : null,
-                      useErrorBranch: errorBranch,
-                      outgoing,
-                      sequenceOutputIds:
-                        node.config.kind === "logic.sequence"
-                          ? node.config.outputs.map((output) => output.id)
-                          : undefined,
-                    });
+              : node.type === "logic.try_catch" && tryCatchExitHandles
+                ? tryCatchExitHandles.flatMap((handle) =>
+                    outgoing.filter((edge) => edge.sourceHandle === handle),
+                  )
+                : node.type === "logic.merge" && mergeExitHandle
+                  ? outgoing.filter((edge) => edge.sourceHandle === mergeExitHandle)
+                  : node.type === "flow.wait" && waitExitHandle
+                    ? outgoing.filter((edge) => edge.sourceHandle === waitExitHandle)
+                    : selectNextEdges({
+                        nodeType: node.type,
+                        branchResult: execution.ok ? (execution.branchResult ?? null) : null,
+                        switchCase: execution.ok ? (execution.switchCase ?? null) : null,
+                        useErrorBranch: errorBranch,
+                        outgoing,
+                        sequenceOutputIds:
+                          node.config.kind === "logic.sequence"
+                            ? node.config.outputs.map((output) => output.id)
+                            : undefined,
+                      });
         const selectedIds = new Set(next.map((edge) => edge.id));
-        const sequenceReleaseEdge =
-          node.config.kind === "logic.sequence" ? (next[0] ?? null) : null;
-        const sequenceHeldEdges = node.config.kind === "logic.sequence" ? next.slice(1) : [];
+        const holdsOrderedExits =
+          node.config.kind === "logic.sequence" || node.config.kind === "logic.try_catch";
+        const sequenceReleaseEdge = holdsOrderedExits ? (next[0] ?? null) : null;
+        const sequenceHeldEdges = holdsOrderedExits ? next.slice(1) : [];
 
         for (const edge of outgoing) {
           if (!selectedIds.has(edge.id)) {
@@ -824,11 +896,7 @@ export async function runVisualWorkflowInterpreter(input: {
             continue;
           }
 
-          if (
-            node.config.kind === "logic.sequence" &&
-            sequenceReleaseEdge &&
-            edge.id !== sequenceReleaseEdge.id
-          ) {
+          if (holdsOrderedExits && sequenceReleaseEdge && edge.id !== sequenceReleaseEdge.id) {
             // Defer settlement until earlier Sequence paths fully propagate.
             continue;
           }
@@ -841,7 +909,7 @@ export async function runVisualWorkflowInterpreter(input: {
           const target = graph.nodesById.get(edge.target);
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
-        if (node.config.kind === "logic.sequence") {
+        if (holdsOrderedExits) {
           sequenceHoldStack.push({
             heldEdges: sequenceHeldEdges,
             activeReleasedEdge: sequenceReleaseEdge,

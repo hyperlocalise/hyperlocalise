@@ -19,7 +19,10 @@ import type {
   VisualWorkflowDefinition,
 } from "../schema/types";
 import { isTriggerType } from "../catalog/node-catalog";
-import { computeForEachBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
+import {
+  computeForEachBodyNodeIdsFromV3Edges,
+  computeTryCatchBodyNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
 
 export type VisualWorkflowV3CompilationIssue = {
   code:
@@ -30,7 +33,9 @@ export type VisualWorkflowV3CompilationIssue = {
     | "incompatible_data_types"
     | "execution_cycle"
     | "terminal_node_outgoing_edge"
-    | "missing_required_input";
+    | "missing_required_input"
+    | "invalid_try_catch_region"
+    | "overlapping_try_catch_region";
   edgeId?: string;
   nodeId?: string;
 };
@@ -109,6 +114,10 @@ function executionSourcePortIds(node: CanonicalVisualWorkflowNode): Set<string> 
 
   if (node.config.kind === "logic.sequence") {
     return new Set(node.config.outputs.map((output) => output.id));
+  }
+
+  if (node.type === "logic.try_catch") {
+    return new Set(["try", "success", "catch", "finally"]);
   }
 
   return portIds;
@@ -248,6 +257,38 @@ export function compileVisualWorkflowV3Definition(
     });
   }
 
+  const tryCatchRegions = nodes
+    .filter((node) => node.type === "logic.try_catch")
+    .map((node) => ({
+      nodeId: node.id,
+      bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(node.id, executionEdges),
+    }));
+
+  for (const region of tryCatchRegions) {
+    if (region.bodyNodeIds.length === 0) {
+      issues.push({ code: "invalid_try_catch_region", nodeId: region.nodeId });
+    }
+  }
+
+  for (const [index, left] of tryCatchRegions.entries()) {
+    const leftIds = new Set(left.bodyNodeIds);
+
+    for (const right of tryCatchRegions.slice(index + 1)) {
+      const rightIds = new Set(right.bodyNodeIds);
+      const intersects = [...leftIds].some((nodeId) => rightIds.has(nodeId));
+      if (!intersects) continue;
+
+      const leftStrictlyContainsRight =
+        leftIds.size > rightIds.size && [...rightIds].every((nodeId) => leftIds.has(nodeId));
+      const rightStrictlyContainsLeft =
+        rightIds.size > leftIds.size && [...leftIds].every((nodeId) => rightIds.has(nodeId));
+
+      if (!leftStrictlyContainsRight && !rightStrictlyContainsLeft) {
+        issues.push({ code: "overlapping_try_catch_region", nodeId: right.nodeId });
+      }
+    }
+  }
+
   for (const edge of dataEdges) {
     const source = nodesById.get(edge.source);
     const target = nodesById.get(edge.target);
@@ -379,7 +420,15 @@ export function toVisualWorkflowExecutionDefinition(
             ...node,
             bodyNodeIds: computeForEachBodyNodeIdsFromV3Edges(node.id, compiled.definition.edges),
           }
-        : node,
+        : node.type === "logic.try_catch"
+          ? {
+              ...node,
+              bodyNodeIds: computeTryCatchBodyNodeIdsFromV3Edges(
+                node.id,
+                compiled.definition.edges,
+              ),
+            }
+          : node,
     ),
     edges: compiled.executionEdges.map((edge) => ({
       id: edge.id,

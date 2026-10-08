@@ -37,7 +37,8 @@ export type VisualCatalogType =
   | "flow.return"
   | "flow.fail"
   | "logic.merge"
-  | "logic.sequence";
+  | "logic.sequence"
+  | "logic.try_catch";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -198,7 +199,8 @@ export type VisualNodeConfig =
   | {
       kind: "logic.sequence";
       outputs: VisualSequenceOutput[];
-    };
+    }
+  | { kind: "logic.try_catch" };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
   catalogType: VisualCatalogType;
@@ -283,7 +285,9 @@ export type VisualWorkflowValidationIssue = {
     | "cycle"
     | "invalid_handle"
     | "invalid_binding"
-    | "invalid_loop";
+    | "invalid_loop"
+    | "invalid_try_catch_region"
+    | "overlapping_try_catch_region";
   nodeId?: string;
   edgeId?: string;
 };

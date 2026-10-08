@@ -25,9 +25,17 @@ import type {
 } from "../schema/types";
 import { collectRemovedSwitchCaseIds, pruneSwitchCaseEdges } from "../schema/switch-cases";
 import { validateVisualWorkflowConnection } from "../validation/validate-connection";
-import { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
+import {
+  computeForEachBodyNodeIds,
+  computeRetryBodyNodeIds,
+  computeTryCatchBodyNodeIds,
+} from "./for-each-body-membership";
 
-export { computeForEachBodyNodeIds, computeRetryBodyNodeIds } from "./for-each-body-membership";
+export {
+  computeForEachBodyNodeIds,
+  computeRetryBodyNodeIds,
+  computeTryCatchBodyNodeIds,
+} from "./for-each-body-membership";
 
 export const VISUAL_TRIGGER_TYPES = VISUAL_NODE_CATALOG.filter(
   (item) => item.enabled && item.category === "trigger",
@@ -128,7 +136,7 @@ function forEachBodyIdsEqual(left: readonly string[], right: readonly string[]):
 function reconcileBodyMembershipForType(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
-  catalogType: "logic.for_each" | "logic.retry",
+  catalogType: "logic.for_each" | "logic.retry" | "logic.try_catch",
   compute: (ownerId: string, edges: readonly VisualWorkflowRfEdge[]) => string[],
 ): VisualWorkflowRfNode[] {
   let changed = false;
@@ -193,11 +201,26 @@ export function reconcileRetryBodyMembership(
   return reconcileBodyMembershipForType(nodes, edges, "logic.retry", computeRetryBodyNodeIds);
 }
 
+export function reconcileTryCatchBodyMembership(
+  nodes: readonly VisualWorkflowRfNode[],
+  edges: readonly VisualWorkflowRfEdge[],
+): VisualWorkflowRfNode[] {
+  return reconcileBodyMembershipForType(
+    nodes,
+    edges,
+    "logic.try_catch",
+    computeTryCatchBodyNodeIds,
+  );
+}
+
 export function reconcileFlowBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
-  return reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges);
+  return reconcileTryCatchBodyMembership(
+    reconcileRetryBodyMembership(reconcileForEachBodyMembership(nodes, edges), edges),
+    edges,
+  );
 }
 
 export function applyNodeConfigUpdate(

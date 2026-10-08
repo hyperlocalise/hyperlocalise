@@ -207,6 +207,18 @@ describe("normalizeExecutionSourceHandle", () => {
     expect(getPrimaryExecutionSourceHandle(sequence)).toBeNull();
   });
 
+  it("exposes Try, Success, Catch, and Finally handles for an error boundary", () => {
+    const boundary = canonical("logic.try_catch");
+
+    expect(getAllowedExecutionSourceHandles(boundary)).toEqual([
+      "try",
+      "success",
+      "catch",
+      "finally",
+    ]);
+    expect(getPrimaryExecutionSourceHandle(boundary)).toBe("try");
+  });
+
   it.each(["flow.stop", "flow.return", "flow.fail"] as const)(
     "does not expose execution outputs for %s",
     (type) => {

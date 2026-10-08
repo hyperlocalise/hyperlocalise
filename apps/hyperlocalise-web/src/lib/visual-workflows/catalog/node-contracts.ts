@@ -166,6 +166,16 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     outputs: [],
     mock: {},
   },
+  "logic.try_catch": {
+    inputs: [],
+    outputs: [
+      output("errorCode", "string", true),
+      output("errorMessage", "string", true),
+      output("failedNodeId", "string", true),
+      output("attempt", "object", true),
+    ],
+    mock: {},
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;
