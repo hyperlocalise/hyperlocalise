@@ -20,6 +20,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Marked } from "marked";
 
 import { DocumentCallout } from "./document-editor-callout";
+import { DocumentHeading } from "./document-editor-heading";
 import { MdxComponent, MdxInline, MdxRaw } from "./document-editor-mdx";
 
 export type DocumentEditorSyntax = "markdown" | "mdx";
@@ -59,9 +60,10 @@ export function createDocumentSchemaExtensions(
   return [
     StarterKit.configure({
       underline: false,
+      heading: false,
       link: { openOnClick: false, linkOnPaste: true, HTMLAttributes: { target: null } },
-      heading: { levels: [1, 2, 3, 4] },
     }),
+    DocumentHeading.configure({ levels: [1, 2, 3, 4] }),
     TaskList.configure({ HTMLAttributes: { class: "document-task-list" } }),
     TaskItem.configure({ nested: true, HTMLAttributes: { class: "document-task-item" } }),
     Image.configure({ inline: false, allowBase64: false }),

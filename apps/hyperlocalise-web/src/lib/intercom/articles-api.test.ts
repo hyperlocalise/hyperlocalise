@@ -17,6 +17,7 @@ import {
   intercomApiCollectionsFixture,
   intercomApiHelpCentersFixture,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/intercom-api.fixture";
+import { INTERCOM_ARTICLE_BODY_MARKDOWN } from "@/lib/intercom/intercom-article-markdown.fixture";
 import type { IntercomApiArticle } from "@/lib/intercom/intercom-api.types";
 
 import {
@@ -640,6 +641,37 @@ describe("updateIntercomArticleTranslatedContent", () => {
         },
       },
     ]);
+    expect(JSON.stringify(updates)).not.toContain('"body":');
+  });
+
+  it("pushes the real Intercom body_markdown as a draft only", async () => {
+    const updates: unknown[] = [];
+    const client = {
+      articles: {
+        update: async (payload: unknown) => {
+          updates.push(payload);
+        },
+      },
+    };
+
+    await updateIntercomArticleTranslatedContent({
+      client: client as never,
+      articleId: "2048",
+      authorId: 19,
+      locale: "fr",
+      title: "Utiliser les articles",
+      description: "Centre d'aide",
+      body: INTERCOM_ARTICLE_BODY_MARKDOWN,
+    });
+
+    const update = updates[0] as {
+      translated_content: { fr: { body_markdown: string; state: string } };
+    };
+    expect(update.translated_content.fr.state).toBe("draft");
+    expect(update.translated_content.fr.body_markdown).toContain("{#h_bb4813e5c6}");
+    expect(update.translated_content.fr.body_markdown).toContain(
+      ':::callout backgroundColor="#feedaf80"',
+    );
     expect(JSON.stringify(updates)).not.toContain('"body":');
   });
 });

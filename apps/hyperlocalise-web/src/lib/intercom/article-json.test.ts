@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { INTERCOM_ARTICLE_BODY_MARKDOWN } from "./intercom-article-markdown.fixture";
 import {
   articleFieldsToJsonPayload,
   assignIntercomArticleSourcePaths,
@@ -207,6 +208,27 @@ describe("intercom article json", () => {
         overwriteIntercomDrafts: true,
       }),
     ).toBe(false);
+  });
+
+  it("keeps Intercom heading ids and callouts on the draft push body", () => {
+    const markdown = serializeIntercomArticleMarkdown({
+      title: "Using articles",
+      description: "Help Center",
+      body: INTERCOM_ARTICLE_BODY_MARKDOWN,
+    });
+    const merged = mergeIntercomLocalePushPayload({
+      approved: parseIntercomArticleMarkdown(markdown),
+    });
+
+    expect(merged?.body).toContain("{#h_61bff2dd7a}");
+    expect(merged?.body).toContain("{#h_bb4813e5c6}");
+    expect(merged?.body).toContain("{#h_8b76258d80}");
+    expect(merged?.body).toContain(
+      ':::callout backgroundColor="#feedaf80" borderColor="#fbc91633"',
+    );
+    expect(merged?.body).toContain(
+      "[collection.](https://www.intercom.com/help/en/articles/56647-create-collections-in-your-help-center)",
+    );
   });
 
   it("requires approved title and body and preserves a remote description", () => {
