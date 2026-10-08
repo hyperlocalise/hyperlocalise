@@ -14,7 +14,7 @@
 
 import type { UIMessage } from "ai";
 import { useState } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -322,6 +322,7 @@ describe("AutomationAssistantProvider", () => {
     const user = userEvent.setup();
     api.createAssistantSession.mockResolvedValue(session("sess-1"));
     api.streamAssistantTurn.mockImplementation(async function* () {
+      yield* [];
       throw new AssistantTurnInProgressError();
     });
     renderProvider();
