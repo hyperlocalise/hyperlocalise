@@ -36,8 +36,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { getInternalNavigationHrefFromClick } from "@/lib/navigation/use-leave-attempt-guard";
 
-import { getInternalNavigationHrefFromClick } from "../unsaved-changes-leave-guard";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import type { IssueDetailPanelHandle } from "./issue-detail-panel";
 
