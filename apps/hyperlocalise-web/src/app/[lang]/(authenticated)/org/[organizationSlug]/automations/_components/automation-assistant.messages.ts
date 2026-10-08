@@ -38,6 +38,21 @@ export const automationAssistantMessages = defineMessages({
     id: "vqH0waecvA",
     description: "Empty state of the assistant panel before any message",
   },
+  composerPlaceholder: {
+    defaultMessage: "Ask for a change, or say what this automation should do.",
+    id: "fnD091ugod",
+    description: "Placeholder of the box in the assistant panel where a follow-up request is typed",
+  },
+  composerLabel: {
+    defaultMessage: "Message the automation assistant",
+    id: "K4EZaisMM5",
+    description: "Accessible name of the box in the assistant panel where a request is typed",
+  },
+  composerSend: {
+    defaultMessage: "Send",
+    id: "dE9jOO9W+A",
+    description: "Button that sends the request typed in the assistant panel",
+  },
   working: {
     defaultMessage: "Working\u2026",
     id: "fU1mV7SlJj",

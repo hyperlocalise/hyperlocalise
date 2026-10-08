@@ -304,21 +304,28 @@ function FieldError({ message }: { message?: string }) {
 function EditorSection({
   title,
   titleAside,
+  titleEnd,
   children,
 }: {
   title: string;
+  /** Shown after the title, wrapping onto further lines when it is long. */
   titleAside?: ReactNode;
+  /** Kept at the right end of the title's own line, whatever wraps beside it. */
+  titleEnd?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {titleAside === undefined ? (
+      {titleAside === undefined && titleEnd === undefined ? (
         <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
       ) : (
-        // As tall as a suggestion chip, so the content below stays put when one appears.
-        <div className="flex min-h-7.5 flex-wrap items-center gap-x-3 gap-y-2 px-2">
-          <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
-          {titleAside}
+        <div className="flex items-start gap-x-3 px-2">
+          {/* As tall as a suggestion chip, so the content below stays put when one appears. */}
+          <div className="flex min-h-7.5 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+            {titleAside}
+          </div>
+          {titleEnd ? <div className="flex h-7.5 shrink-0 items-center">{titleEnd}</div> : null}
         </div>
       )}
       {children}
@@ -3577,18 +3584,22 @@ export function WorkspaceAutomationEditor({
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as WorkspaceAutomationEditorTab)}
       >
-        <TabsList>
-          <TabsTrigger value="settings">
-            <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-          </TabsTrigger>
-          {hasHistory ? (
+        {/* A new automation has settings only, and one tab is no choice to offer. */}
+        {hasHistory ? (
+          <TabsList>
+            <TabsTrigger value="settings">
+              <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+            </TabsTrigger>
             <TabsTrigger value="history">
               <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
             </TabsTrigger>
-          ) : null}
-        </TabsList>
+          </TabsList>
+        ) : null}
 
-        <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
+        <TabsContent
+          value="settings"
+          className={cn("flex flex-col gap-6", hasHistory ? "mt-4" : undefined)}
+        >
           <TriggerSettings
             automationId={automationId}
             contentfulConnected={contentfulConnected}
@@ -3605,19 +3616,18 @@ export function WorkspaceAutomationEditor({
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
             titleAside={
-              <div className="flex items-center justify-end gap-2">
-                <SuggestionChips
-                  disabled={disabled}
-                  shownKeys={shownSuggestionKeys}
-                  suggestions={suggestions}
-                  onAdd={addSuggestion}
-                  onDismiss={(suggestion) =>
-                    setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
-                  }
-                />
-                <AutomationAssistantOpenButton />
-              </div>
+              <SuggestionChips
+                disabled={disabled}
+                shownKeys={shownSuggestionKeys}
+                suggestions={suggestions}
+                onAdd={addSuggestion}
+                onDismiss={(suggestion) =>
+                  setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
+                }
+              />
             }
+            // Above the right edge of the text box it helps to fill in.
+            titleEnd={assistantEnabled ? <AutomationAssistantOpenButton /> : undefined}
           >
             <Textarea
               id="automation-instructions"

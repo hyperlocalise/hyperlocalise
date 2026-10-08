@@ -39,6 +39,7 @@ import {
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { bindAssistantSession } from "./automation-assistant-api";
+import { AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
@@ -198,7 +199,12 @@ export function AutomationsNewPageContent({
   );
 
   return (
-    <WorkspacePageShell ref={rootRef} className="max-w-5xl" data-undo-root="automation">
+    <WorkspacePageShell
+      ref={rootRef}
+      // With the assistant offered the page is wide enough for its panel beside the form.
+      className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS : "max-w-5xl"}
+      data-undo-root="automation"
+    >
       <WorkspaceAutomationEditor
         mode="create"
         organizationSlug={organizationSlug}

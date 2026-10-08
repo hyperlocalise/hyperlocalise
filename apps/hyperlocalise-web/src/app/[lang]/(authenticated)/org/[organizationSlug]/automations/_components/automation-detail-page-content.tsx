@@ -81,6 +81,7 @@ import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
@@ -665,7 +666,12 @@ export function AutomationDetailPageContent({
   );
 
   return (
-    <WorkspacePageShell ref={rootRef} className="max-w-5xl" data-undo-root="automation">
+    <WorkspacePageShell
+      ref={rootRef}
+      // With the assistant offered the page is wide enough for its panel beside the form.
+      className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS : "max-w-5xl"}
+      data-undo-root="automation"
+    >
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}

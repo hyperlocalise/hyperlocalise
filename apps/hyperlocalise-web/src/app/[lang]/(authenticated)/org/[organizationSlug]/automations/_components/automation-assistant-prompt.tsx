@@ -26,6 +26,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { UpgradePlanButton } from "@/components/billing/upgrade-plan-button";
 import type { AiFeaturesAccessStatus } from "@/lib/billing/use-ai-features-access";
+import { cn } from "@/lib/primitives/cn";
 
 import { automationAssistantPromptMessages } from "./automation-assistant-prompt.messages";
 
@@ -39,6 +40,10 @@ export function AutomationAssistantPrompt({
   onSubmitPrompt,
   organizationSlug,
   pending = false,
+  label,
+  placeholder,
+  submitLabel,
+  compact = false,
 }: {
   aiFeaturesStatus: AiFeaturesAccessStatus;
   inputRef?: Ref<HTMLTextAreaElement>;
@@ -46,9 +51,17 @@ export function AutomationAssistantPrompt({
   organizationSlug: string;
   /** The request was sent and the setup page is opening. */
   pending?: boolean;
+  /** Wording for a place other than the automations page, where the box starts a setup. */
+  label?: string;
+  placeholder?: string;
+  submitLabel?: string;
+  /** A shorter box, for the panel beside the form. */
+  compact?: boolean;
 }) {
   const intl = useIntl();
   const [prompt, setPrompt] = useState("");
+  const submitText =
+    submitLabel ?? intl.formatMessage(automationAssistantPromptMessages.submitPrompt);
   const disabled = aiFeaturesStatus !== "allowed" || pending;
 
   if (aiFeaturesStatus === "denied") {
@@ -68,6 +81,8 @@ export function AutomationAssistantPrompt({
         const trimmed = text.trim();
         if (trimmed && !disabled) {
           onSubmitPrompt(trimmed);
+          // The box empties itself once sent; this keeps the send button in step with it.
+          setPrompt("");
         }
       }}
       className="overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
@@ -75,24 +90,26 @@ export function AutomationAssistantPrompt({
       <PromptInputBody>
         <PromptInputTextarea
           ref={inputRef}
-          aria-label={intl.formatMessage(automationAssistantPromptMessages.promptLabel)}
+          aria-label={label ?? intl.formatMessage(automationAssistantPromptMessages.promptLabel)}
           disabled={disabled}
           maxLength={AUTOMATION_ASSISTANT_TEXT_MAX_CHARS}
           onChange={(event) => setPrompt(event.currentTarget.value)}
-          className="min-h-24 max-h-60 px-4 py-3 text-sm leading-6"
-          placeholder={intl.formatMessage(automationAssistantPromptMessages.promptPlaceholder)}
-          rows={3}
+          className={cn("max-h-60 px-4 py-3 text-sm leading-6", compact ? "min-h-14" : "min-h-24")}
+          placeholder={
+            placeholder ?? intl.formatMessage(automationAssistantPromptMessages.promptPlaceholder)
+          }
+          rows={compact ? 2 : 3}
         />
       </PromptInputBody>
       <PromptInputFooter className="justify-end border-0 bg-transparent px-2 pb-2">
         <PromptInputSubmit
           size="sm"
-          aria-label={intl.formatMessage(automationAssistantPromptMessages.submitPrompt)}
+          aria-label={submitText}
           disabled={disabled || !prompt.trim()}
           className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <ArrowUpIcon />
-          <FormattedMessage {...automationAssistantPromptMessages.submitPrompt} />
+          {submitText}
         </PromptInputSubmit>
       </PromptInputFooter>
     </PromptInput>

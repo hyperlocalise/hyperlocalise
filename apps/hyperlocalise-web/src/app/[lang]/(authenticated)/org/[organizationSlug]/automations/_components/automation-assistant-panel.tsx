@@ -62,7 +62,10 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
     <div className="flex flex-col gap-2 text-sm leading-6">
       {blocks.map((block, index) =>
         block.kind === "text" ? (
-          <MessageResponse key={index}>{block.text}</MessageResponse>
+          // List markers sit outside their text, so lists are indented to keep them in the panel.
+          <MessageResponse key={index} className="[&_ol]:ps-5 [&_ul]:ps-5">
+            {block.text}
+          </MessageResponse>
         ) : (
           <TypographyMuted key={index} size="xsmall" className="flex items-center gap-1.5">
             {block.done ? null : <Spinner className="size-3" />}
@@ -85,13 +88,19 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
   const intl = useIntl();
   const assistant = useAutomationAssistant();
   const aiFeatures = useAiFeaturesAccess();
-  const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const messageCount = assistant?.messages.length ?? 0;
   const streamingLength = assistant?.streaming?.parts.length ?? 0;
 
+  const working = assistant?.working ?? false;
+
+  // Only the panel's own list moves; scrolling an element into view would move the page too.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
-  }, [messageCount, streamingLength]);
+    const list = listRef.current;
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [messageCount, streamingLength, working]);
 
   if (!assistant) {
     return null;
@@ -139,7 +148,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           <XIcon />
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3">
+      <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3">
         {assistant.messages.length === 0 && !assistant.streaming ? (
           <TypographyMuted className="text-sm">
             <FormattedMessage {...messages.empty} />
@@ -160,8 +169,11 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
             />
           ),
         )}
-        {assistant.streaming ? <Reply parts={assistant.streaming.parts} pending /> : null}
-        <div ref={endRef} />
+        {assistant.streaming ? (
+          <Reply parts={assistant.streaming.parts} pending />
+        ) : assistant.working ? (
+          <Reply parts={[]} pending />
+        ) : null}
       </div>
       <footer className="flex flex-col gap-2 border-t border-border p-2">
         {assistant.error ? (
@@ -178,6 +190,10 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           onSubmitPrompt={assistant.send}
           organizationSlug=""
           pending={assistant.working}
+          label={intl.formatMessage(messages.composerLabel)}
+          placeholder={intl.formatMessage(messages.composerPlaceholder)}
+          submitLabel={intl.formatMessage(messages.composerSend)}
+          compact
         />
       </footer>
     </section>
@@ -194,7 +210,7 @@ export function AutomationAssistantOpenButton() {
     <Button
       type="button"
       variant="outline"
-      size="sm"
+      size="xs"
       aria-pressed={assistant.open}
       onClick={() => assistant.setOpen(!assistant.open)}
     >
@@ -205,8 +221,15 @@ export function AutomationAssistantOpenButton() {
 }
 
 /**
+ * The widest an automation page gets with the assistant offered: the form's own width, the gap
+ * and the panel. A page passes this to its shell in place of the form's width alone.
+ */
+export const AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS = "max-w-[89.25rem]";
+
+/**
  * Puts the panel beside the editor on a wide screen and in a sheet from the right edge on a
- * narrow one. Never floating, so it cannot be taken for the chat dock.
+ * narrow one. Never floating, so it cannot be taken for the chat dock. The form keeps the width
+ * it has without the assistant; the panel fills the height between the app's header and footer.
  */
 export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
   const intl = useIntl();
@@ -216,10 +239,10 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
     return children;
   }
   return (
-    <div className="mx-auto flex w-full max-w-7xl gap-6">
-      <div className="min-w-0 flex-1">{children}</div>
+    <div className="flex w-full gap-6">
+      <div className="min-w-0 max-w-5xl flex-1">{children}</div>
       {assistant.open && !isMobile ? (
-        <aside className="sticky top-4 h-[calc(100vh-6rem)] w-[380px] shrink-0 self-start">
+        <aside className="sticky top-4 h-[calc(var(--app-shell-content-height,100svh)-3rem)] w-[380px] shrink-0 self-start">
           <AutomationAssistantPanel />
         </aside>
       ) : null}
