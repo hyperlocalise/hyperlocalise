@@ -40,7 +40,7 @@ import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-l
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { bindAssistantSession } from "./automation-assistant-api";
 import { AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS } from "./automation-assistant-panel";
-import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
+import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
@@ -104,14 +104,10 @@ export function AutomationsNewPageContent({
     setErrors({});
     notifyUndo(step, runRedo);
   };
-  const { requestUndo, undoConfirmDialog } = useAssistantUndoConfirm(performUndo);
-  const runUndo = () => requestUndo(historyRef.current.undoStep);
-  // A turn of the assistant's is one step, kept apart from the typing around it.
-  const applyAssistantChange = (next: WorkspaceAutomationFormState) => {
-    historyRef.current.seal();
-    historyRef.current.change(next, { origin: "assistant" });
-    historyRef.current.seal();
-  };
+  const { runUndo, applyAssistantChange, undoConfirmDialog } = useAssistantUndoSteps(
+    historyRef,
+    performUndo,
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {

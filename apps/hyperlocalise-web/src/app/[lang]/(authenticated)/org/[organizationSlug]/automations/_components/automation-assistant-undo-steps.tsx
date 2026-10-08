@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { FormattedMessage } from "react-intl";
 
 import {
@@ -25,21 +25,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { UndoStep } from "@/lib/undo-stack/undo-stack";
+import type { UndoOrigin, UndoStep } from "@/lib/undo-stack/undo-stack";
 
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
 
+/** What this needs of a page's undo history. */
+type AssistantUndoHistory<TForm> = {
+  undoStep: UndoStep<unknown, unknown> | null;
+  seal: () => void;
+  change: (next: TForm, meta?: { origin?: UndoOrigin }) => void;
+};
+
 /**
- * Asks before an undo that would take back a turn of the assistant's, since that is several
- * fields at once and anything typed since. Any other step is undone straight away.
+ * How a page with an undo history takes the assistant's changes and gives them back.
+ *
+ * A change of the assistant's becomes one step, kept apart from the typing around it. Undoing
+ * such a step asks first, since it is several fields at once and anything typed since; any other
+ * step is undone straight away. The history is read through a ref, because undo also runs from a
+ * notice shown renders ago.
  */
-export function useAssistantUndoConfirm(onConfirm: () => void): {
-  requestUndo: (step: UndoStep<unknown, unknown> | null) => void;
+export function useAssistantUndoSteps<TForm>(
+  history: RefObject<AssistantUndoHistory<TForm>>,
+  onUndo: () => void,
+): {
+  runUndo: () => void;
+  applyAssistantChange: (next: TForm) => void;
   undoConfirmDialog: ReactNode;
 } {
   const [open, setOpen] = useState(false);
 
-  const requestUndo = (step: UndoStep<unknown, unknown> | null) => {
+  const runUndo = () => {
+    const step = history.current.undoStep;
     if (!step) {
       return;
     }
@@ -47,7 +63,13 @@ export function useAssistantUndoConfirm(onConfirm: () => void): {
       setOpen(true);
       return;
     }
-    onConfirm();
+    onUndo();
+  };
+
+  const applyAssistantChange = (next: TForm) => {
+    history.current.seal();
+    history.current.change(next, { origin: "assistant" });
+    history.current.seal();
   };
 
   const undoConfirmDialog = (
@@ -68,7 +90,7 @@ export function useAssistantUndoConfirm(onConfirm: () => void): {
           <AlertDialogAction
             onClick={() => {
               setOpen(false);
-              onConfirm();
+              onUndo();
             }}
           >
             <FormattedMessage {...messages.undoConfirm} />
@@ -78,5 +100,5 @@ export function useAssistantUndoConfirm(onConfirm: () => void): {
     </AlertDialog>
   );
 
-  return { requestUndo, undoConfirmDialog };
+  return { runUndo, applyAssistantChange, undoConfirmDialog };
 }

@@ -19,7 +19,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { UndoStep } from "@/lib/undo-stack/undo-stack";
 
-import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
+import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 
 function step(origin: UndoStep<unknown, unknown>["origin"]): UndoStep<unknown, unknown> {
   return {
@@ -34,25 +34,80 @@ function step(origin: UndoStep<unknown, unknown>["origin"]): UndoStep<unknown, u
   };
 }
 
+/** A page's undo history that records, in order, what was asked of it. */
+function historyWith(pending: UndoStep<unknown, unknown> | null) {
+  const calls: string[] = [];
+  return {
+    calls,
+    history: {
+      current: {
+        undoStep: pending,
+        seal: () => {
+          calls.push("seal");
+        },
+        change: (next: string, meta?: { origin?: string }) => {
+          calls.push(`change ${next} as ${meta?.origin}`);
+        },
+      },
+    },
+  };
+}
+
 function Harness({
   onConfirm,
   pending,
+  calls,
 }: {
   onConfirm: () => void;
-  pending: UndoStep<unknown, unknown>;
+  pending: UndoStep<unknown, unknown> | null;
+  calls?: string[];
 }) {
-  const { requestUndo, undoConfirmDialog } = useAssistantUndoConfirm(onConfirm);
+  const { history, calls: recorded } = historyWith(pending);
+  const { runUndo, applyAssistantChange, undoConfirmDialog } = useAssistantUndoSteps(
+    history,
+    onConfirm,
+  );
   return (
     <IntlProvider locale="en" messages={{}}>
-      <button type="button" onClick={() => requestUndo(pending)}>
+      <button type="button" onClick={runUndo}>
         Undo now
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          applyAssistantChange("the assistant's form");
+          calls?.push(...recorded);
+        }}
+      >
+        Apply
       </button>
       {undoConfirmDialog}
     </IntlProvider>
   );
 }
 
-describe("useAssistantUndoConfirm", () => {
+describe("useAssistantUndoSteps", () => {
+  it("takes a change of the assistant's as one step, sealed off from the typing around it", async () => {
+    const user = userEvent.setup();
+    const calls: string[] = [];
+    render(<Harness onConfirm={vi.fn()} pending={null} calls={calls} />);
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(calls).toEqual(["seal", "change the assistant's form as assistant", "seal"]);
+  });
+
+  it("does nothing when there is no step to undo", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(<Harness onConfirm={onConfirm} pending={null} />);
+
+    await user.click(screen.getByRole("button", { name: "Undo now" }));
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(screen.queryByText("Undo the assistant's changes?")).toBeNull();
+  });
+
   it("undoes the person's own step straight away", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();
