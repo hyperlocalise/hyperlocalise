@@ -677,6 +677,7 @@ export function AutomationDetailPageContent({
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         assistantEnabled={assistantEnabled}
+        assistantHasUnsavedChanges={hasChanges}
         onAssistantChange={applyAssistantChange}
         onAssistantWorkingChange={setAssistantWorking}
         onChange={history.change}

@@ -70,7 +70,10 @@ export type AutomationAssistantValue = {
   streaming: UIMessage | null;
   send: (text: string) => void;
   startOver: () => void;
-  /** Tool calls of the assistant that changed the page, and the changes they made in all. */
+  /**
+   * Tool calls of the assistant that changed the page, and the changes they made in all, since
+   * the page last held nothing unsaved.
+   */
   appliedCallCount: number;
   appliedChangeCount: number;
   steps: readonly WorkspaceAutomationSetupStep[];
@@ -116,6 +119,7 @@ export function AutomationAssistantProvider({
   contentfulConnectionIds,
   crowdinProjectIds,
   form,
+  hasUnsavedChanges = true,
   initialPrompt,
   mode,
   onChange,
@@ -133,6 +137,11 @@ export function AutomationAssistantProvider({
   contentfulConnectionIds: readonly string[];
   crowdinProjectIds: readonly string[];
   form: WorkspaceAutomationFormState;
+  /**
+   * Whether the page holds anything unsaved. Once it does not, the assistant's changes were saved
+   * or taken back, and its count of them starts again.
+   */
+  hasUnsavedChanges?: boolean;
   /** A request handed over from the automations page, sent once the page is ready. */
   initialPrompt?: string | null;
   mode: "create" | "detail";
@@ -239,6 +248,14 @@ export function AutomationAssistantProvider({
       ignore = true;
     };
   }, [automationId, organizationSlug]);
+
+  // Saving, discarding or undoing everything leaves nothing of the assistant's to call unsaved.
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      setAppliedCallCount(0);
+      setAppliedChangeCount(0);
+    }
+  }, [hasUnsavedChanges]);
 
   const notifyWorking = useEffectEvent((working: boolean) => onWorkingChange?.(working));
   useEffect(() => {
@@ -428,8 +445,9 @@ export function AutomationAssistantProvider({
       streaming,
       send,
       startOver,
-      appliedCallCount,
-      appliedChangeCount,
+      // A change that left the page as it is saved is counted until the next render only.
+      appliedCallCount: hasUnsavedChanges ? appliedCallCount : 0,
+      appliedChangeCount: hasUnsavedChanges ? appliedChangeCount : 0,
       steps: listWorkspaceAutomationSetupSteps({ form, connections }),
     }),
     [
@@ -438,6 +456,7 @@ export function AutomationAssistantProvider({
       connections,
       error,
       form,
+      hasUnsavedChanges,
       messages,
       mode,
       open,

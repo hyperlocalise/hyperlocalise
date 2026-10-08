@@ -195,6 +195,56 @@ describe("AutomationAssistantProvider", () => {
     expect(screen.getByText("messages:user,agent")).toBeTruthy();
   });
 
+  it("stops counting its changes as unsaved once the page is saved", async () => {
+    const user = userEvent.setup();
+    api.createAssistantSession.mockResolvedValue(session("sess-1"));
+    api.streamAssistantTurn.mockImplementation(async function* (input: {
+      pageContext: WorkspaceAutomationEditorContext;
+    }) {
+      yield replyFor(input.pageContext);
+    });
+    api.loadAssistantSession.mockResolvedValue({ session: session("sess-1"), messages: [] });
+    function Page() {
+      const [form, setForm] = useState(createDefaultWorkspaceAutomationFormState());
+      const [saved, setSaved] = useState(form);
+      return (
+        <AutomationAssistantProvider
+          connections={{ slack: true, github: true }}
+          connectionsSettled
+          contentfulConnectionIds={[]}
+          crowdinProjectIds={[]}
+          form={form}
+          hasUnsavedChanges={form !== saved}
+          mode="detail"
+          onChange={setForm}
+          organizationSlug="acme"
+          repositories={[]}
+        >
+          <Consumer />
+          <button type="button" onClick={() => setSaved(form)}>
+            Save
+          </button>
+          <button type="button" onClick={() => setForm({ ...form, name: "Edited by hand" })}>
+            Edit
+          </button>
+        </AutomationAssistantProvider>
+      );
+    }
+    render(<Page />);
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle open:true calls:1 changes:2/)).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText(/calls:0 changes:0/)).toBeTruthy();
+
+    // A later edit by hand is unsaved, and is not the assistant's.
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByText(/calls:0 changes:0/)).toBeTruthy();
+  });
+
   it("ignores a change made for another page", async () => {
     const user = userEvent.setup();
     api.createAssistantSession.mockResolvedValue(session("sess-1"));

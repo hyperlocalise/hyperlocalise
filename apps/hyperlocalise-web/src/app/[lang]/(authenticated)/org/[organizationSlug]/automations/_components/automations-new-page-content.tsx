@@ -78,8 +78,9 @@ export function AutomationsNewPageContent({
   const form = history.form ?? startForm;
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
+  const hasUnsavedChanges = workspaceAutomationFormHasChanges(form, startForm);
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
-    workspaceAutomationFormHasChanges(form, startForm) || assistantWorking,
+    hasUnsavedChanges || assistantWorking,
   );
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   // The notice's action runs after later renders, so it reads the history as it is then.
@@ -209,6 +210,7 @@ export function AutomationsNewPageContent({
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         assistantEnabled={assistantEnabled}
+        assistantHasUnsavedChanges={hasUnsavedChanges}
         assistantInitialPrompt={assistantInitialPrompt}
         onAssistantChange={applyAssistantChange}
         onAssistantSessionChange={setAssistantSessionId}

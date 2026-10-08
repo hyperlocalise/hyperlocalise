@@ -3091,6 +3091,7 @@ function ToolsSettings({
 export function WorkspaceAutomationEditor({
   actions,
   assistantEnabled = false,
+  assistantHasUnsavedChanges,
   assistantInitialPrompt = null,
   automationId,
   canUpdateKnowledgeMemory = false,
@@ -3110,6 +3111,8 @@ export function WorkspaceAutomationEditor({
   actions?: ReactNode;
   /** Offers the automation assistant beside the form. */
   assistantEnabled?: boolean;
+  /** Whether the page holds anything unsaved, so the assistant stops calling saved changes unsaved. */
+  assistantHasUnsavedChanges?: boolean;
   /** A request handed over from the automations page, which the assistant starts with. */
   assistantInitialPrompt?: string | null;
   automationId?: string;
@@ -3740,6 +3743,7 @@ export function WorkspaceAutomationEditor({
         (project) => project.id,
       )}
       form={form}
+      hasUnsavedChanges={assistantHasUnsavedChanges}
       initialPrompt={assistantInitialPrompt}
       mode={mode}
       onChange={onAssistantChange ?? onChange}
