@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { computeTryCatchBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
+import {
+  computeTryCatchBodyNodeIdsFromV3Edges,
+  computeTryCatchCatchNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
 import type { VisualWorkflowV3Definition, VisualWorkflowV3Edge } from "../schema/types";
 import { compileVisualWorkflowV3Definition } from "./compile-workflow-v3";
 
@@ -72,6 +75,17 @@ describe("Try / Catch owned regions", () => {
     ];
 
     expect(computeTryCatchBodyNodeIdsFromV3Edges("boundary", edges)).toEqual(["child", "work"]);
+  });
+
+  it("derives the exclusive Catch path for durable failure reuse", () => {
+    const edges = [
+      edge("try-work", "boundary", "try", "work"),
+      edge("catch-recover", "boundary", "catch", "recover"),
+      edge("recover-shared", "recover", "success", "shared"),
+      edge("finally-shared", "boundary", "finally", "shared"),
+    ];
+
+    expect(computeTryCatchCatchNodeIdsFromV3Edges("boundary", edges)).toEqual(["recover"]);
   });
 
   it("rejects a boundary without an explicit Try region", () => {

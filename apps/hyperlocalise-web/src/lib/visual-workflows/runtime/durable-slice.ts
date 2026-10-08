@@ -46,7 +46,10 @@ import {
   shouldReuseDurableExecution,
   shouldReuseTryCatchBodyFailure,
 } from "./durable-execution-reuse";
-import { computeTryCatchBodyNodeIdsFromV3Edges } from "../editor/for-each-body-membership";
+import {
+  computeTryCatchBodyNodeIdsFromV3Edges,
+  computeTryCatchCatchNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -69,10 +72,16 @@ export async function executeDurableWorkflowSlice(input: {
     .orderBy(asc(schema.visualWorkflowNodeRuns.attempt));
   const key = (id: string, iteration = -1) => JSON.stringify([id, iteration]);
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
-  const tryCatchBodyNodeIds = new Set(
+  // Catch failures may be held while Finally suspends. Reuse those persisted
+  // failures on the next slice so the Catch action is not executed again and
+  // the original terminal result is not lost.
+  const reusableTryCatchFailureNodeIds = new Set(
     input.definition.nodes
       .filter((node) => node.type === "logic.try_catch")
-      .flatMap((node) => computeTryCatchBodyNodeIdsFromV3Edges(node.id, input.definition.edges)),
+      .flatMap((node) => [
+        ...computeTryCatchBodyNodeIdsFromV3Edges(node.id, input.definition.edges),
+        ...computeTryCatchCatchNodeIdsFromV3Edges(node.id, input.definition.edges),
+      ]),
   );
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const waitResume = parseWaitResumeState(input.payload.waitResume);
@@ -109,7 +118,7 @@ export async function executeDurableWorkflowSlice(input: {
       if (
         !shouldReuseDurableExecution(record.status, execution) &&
         !(
-          tryCatchBodyNodeIds.has(record.nodeId) &&
+          reusableTryCatchFailureNodeIds.has(record.nodeId) &&
           shouldReuseTryCatchBodyFailure(record.status, execution)
         )
       )
