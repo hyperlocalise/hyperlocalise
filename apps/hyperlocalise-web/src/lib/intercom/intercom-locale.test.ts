@@ -16,6 +16,7 @@ import {
   intercomLocalesShareLanguage,
   mapProjectLocalesToIntercom,
   resolveIntercomLocaleKey,
+  resolveProjectLocaleKey,
 } from "./intercom-locale";
 
 describe("resolveIntercomLocaleKey", () => {
@@ -26,6 +27,8 @@ describe("resolveIntercomLocaleKey", () => {
   it("maps a regional project locale onto a language-only Intercom locale", () => {
     expect(resolveIntercomLocaleKey("en-US", ["en", "de"])).toBe("en");
     expect(resolveIntercomLocaleKey("de-DE", ["en", "de", "fr"])).toBe("de");
+    expect(resolveIntercomLocaleKey("es-ES", ["en", "es"])).toBe("es");
+    expect(resolveIntercomLocaleKey("es-MX", ["en", "es"])).toBe("es");
   });
 
   it("maps a language-only project locale onto a single Intercom regional locale", () => {
@@ -36,6 +39,35 @@ describe("resolveIntercomLocaleKey", () => {
     expect(resolveIntercomLocaleKey("en-US", ["en-GB", "de"])).toBeNull();
     expect(resolveIntercomLocaleKey("zh-CN", ["zh-TW"])).toBeNull();
     expect(resolveIntercomLocaleKey("en", ["en-US", "en-GB"])).toBeNull();
+    expect(resolveIntercomLocaleKey("pt-BR", ["pt"])).toBeNull();
+    expect(resolveIntercomLocaleKey("pt-PT", ["pt-BR"])).toBeNull();
+    expect(resolveIntercomLocaleKey("de-form", ["de", "de-DE"])).toBeNull();
+    expect(resolveIntercomLocaleKey("de-DE", ["de-form"])).toBeNull();
+  });
+});
+
+describe("resolveProjectLocaleKey", () => {
+  it("maps Intercom es onto project es-ES", () => {
+    expect(resolveProjectLocaleKey("es", ["es-ES", "de-DE"])).toBe("es-ES");
+    expect(resolveProjectLocaleKey("es-ES", ["es-ES", "de-DE"])).toBe("es-ES");
+  });
+
+  it("maps Intercom es onto the only Spanish project locale", () => {
+    expect(resolveProjectLocaleKey("es", ["es-MX"])).toBe("es-MX");
+  });
+
+  it("prefers documented es-ES when multiple Spanish project locales exist", () => {
+    expect(resolveProjectLocaleKey("es", ["es-MX", "es-ES"])).toBe("es-ES");
+  });
+
+  it("does not pick a Spanish locale when two non-preferred regionals compete", () => {
+    expect(resolveProjectLocaleKey("es", ["es-MX", "es-AR"])).toBeNull();
+  });
+
+  it("does not map across locked Intercom regionals", () => {
+    expect(resolveProjectLocaleKey("pt-BR", ["pt-PT"])).toBeNull();
+    expect(resolveProjectLocaleKey("zh-CN", ["zh-TW"])).toBeNull();
+    expect(resolveProjectLocaleKey("de-form", ["de-DE"])).toBeNull();
   });
 });
 
@@ -43,6 +75,11 @@ describe("intercomLocalesShareLanguage", () => {
   it("treats en and en-US as the same language", () => {
     expect(intercomLocalesShareLanguage("en", "en-US")).toBe(true);
     expect(intercomLocalesShareLanguage("de", "en-US")).toBe(false);
+  });
+
+  it("does not treat formal German as the same language as de-DE", () => {
+    expect(intercomLocalesShareLanguage("de-form", "de-DE")).toBe(false);
+    expect(intercomLocalesShareLanguage("de-form", "de")).toBe(false);
   });
 });
 
@@ -61,6 +98,46 @@ describe("mapProjectLocalesToIntercom", () => {
     expect(result.unmappedProjectTargets).toEqual([]);
   });
 
+  it("maps Intercom es onto project es-ES", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en-US",
+      projectTargetLocales: ["es-ES", "de-DE"],
+      intercomLocales: ["en", "es", "de"],
+    });
+
+    expect(result.sourceIntercomLocale).toBe("en");
+    expect(result.jobTargetLocales).toEqual(["es-ES", "de-DE"]);
+    expect(result.intercomTargetLocales).toEqual(["es", "de"]);
+    expect(result.unmappedProjectTargets).toEqual([]);
+  });
+
+  it("maps a configured Intercom target key back onto the project locale", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en-US",
+      projectTargetLocales: ["es-ES", "de-DE"],
+      intercomLocales: ["en", "es", "de"],
+      configuredSourceLocale: "en",
+      configuredTargetLocales: ["es"],
+    });
+
+    expect(result.sourceIntercomLocale).toBe("en");
+    expect(result.jobTargetLocales).toEqual(["es-ES"]);
+    expect(result.intercomTargetLocales).toEqual(["es"]);
+    expect(result.unmappedProjectTargets).toEqual([]);
+  });
+
+  it("keeps job and Intercom target arrays aligned when two project locales share a key", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en",
+      projectTargetLocales: ["es-ES", "es-MX"],
+      intercomLocales: ["en", "es"],
+    });
+
+    expect(result.jobTargetLocales).toEqual(["es-ES"]);
+    expect(result.intercomTargetLocales).toEqual(["es"]);
+    expect(result.jobTargetLocales).toHaveLength(result.intercomTargetLocales.length);
+  });
+
   it("maps when tags align exactly", () => {
     const result = mapProjectLocalesToIntercom({
       projectSourceLocale: "en",
@@ -72,6 +149,17 @@ describe("mapProjectLocalesToIntercom", () => {
     expect(result.jobTargetLocales).toEqual(["de", "fr"]);
     expect(result.intercomTargetLocales).toEqual(["de", "fr"]);
     expect(result.unmappedProjectTargets).toEqual([]);
+  });
+
+  it("keeps pt-BR exact and does not map it onto pt", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en",
+      projectTargetLocales: ["pt-BR", "pt-PT"],
+      intercomLocales: ["en", "pt", "pt-BR"],
+    });
+
+    expect(result.jobTargetLocales).toEqual(["pt-BR", "pt-PT"]);
+    expect(result.intercomTargetLocales).toEqual(["pt-BR", "pt"]);
   });
 
   it("rejects a configured source locale in a different language", () => {

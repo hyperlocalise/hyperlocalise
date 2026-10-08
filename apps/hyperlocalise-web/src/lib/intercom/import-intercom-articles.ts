@@ -26,6 +26,7 @@ import {
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import {
+  assignIntercomArticleSourcePaths,
   buildIntercomArticleSourcePath,
   hashIntercomArticleContent,
   serializeIntercomArticleJson,
@@ -234,27 +235,27 @@ export async function runImportIntercomArticles(input: {
     }
   }
   const articles = [...articlesById.values()];
-  const usedArticleFilenames = new Set<string>();
-  const sourcePathByArticleId = new Map<string, string>();
-  for (const article of articles) {
-    let sourcePath = buildIntercomArticleSourcePath({
-      helpCenterId,
-      articleId: article.id,
-      helpCenterName,
-      articleTitle: article.title,
-    });
-    const filename = sourcePath.slice(sourcePath.lastIndexOf("/") + 1);
-    if (usedArticleFilenames.has(filename)) {
-      sourcePath = buildIntercomArticleSourcePath({
-        helpCenterId,
-        articleId: article.id,
-        helpCenterName,
-        articleTitle: `${article.title}-${article.id}`,
-      });
-    }
-    usedArticleFilenames.add(sourcePath.slice(sourcePath.lastIndexOf("/") + 1));
-    sourcePathByArticleId.set(article.id, sourcePath);
-  }
+  const existingMappings = await db
+    .select({
+      articleId: schema.intercomArticleSyncStates.articleId,
+      sourcePath: schema.intercomArticleSyncStates.sourcePath,
+      status: schema.intercomArticleSyncStates.status,
+    })
+    .from(schema.intercomArticleSyncStates)
+    .where(
+      and(
+        eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
+        eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
+        eq(schema.intercomArticleSyncStates.projectId, projectId),
+        eq(schema.intercomArticleSyncStates.helpCenterId, helpCenterId),
+      ),
+    );
+  const sourcePathByArticleId = assignIntercomArticleSourcePaths({
+    helpCenterId,
+    helpCenterName,
+    articles,
+    existingMappings,
+  });
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;

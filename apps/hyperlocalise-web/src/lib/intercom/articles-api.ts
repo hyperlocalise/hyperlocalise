@@ -279,7 +279,7 @@ function readIntercomListPage<T>(page: IntercomSdkListPage<T> | readonly T[]): {
     return { items: page };
   }
   return {
-    items: page.data ?? [],
+    items: page.data ?? page.response?.data ?? [],
     pages: page.pages ?? page.response?.pages,
     getNextPage: page.getNextPage,
   };

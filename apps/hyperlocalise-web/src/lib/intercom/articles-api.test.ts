@@ -129,6 +129,23 @@ describe("listIntercomHelpCenters", () => {
     expect(nextCalls).toBe(0);
   });
 
+  it("reads items from page.response when top-level data is missing", async () => {
+    const client = {
+      helpCenters: {
+        list: async () => ({
+          response: {
+            data: intercomApiHelpCentersFixture,
+            pages: {},
+          },
+        }),
+      },
+    };
+
+    const centers = await listIntercomHelpCenters(client as never);
+
+    expect(centers.map((center) => center.id)).toEqual(["123", "456"]);
+  });
+
   it("follows Intercom pages.next and dedupes repeated ids", async () => {
     const client = {
       helpCenters: {

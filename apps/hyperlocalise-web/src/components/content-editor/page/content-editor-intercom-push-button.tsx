@@ -144,9 +144,7 @@ export function ContentEditorIntercomPushButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button type="button" size="sm" className="h-8 shrink-0" disabled={isPending} />
-        }
+        render={<Button type="button" size="sm" className="h-8 shrink-0" disabled={isPending} />}
       >
         {pushIcon}
         {pushLabel}

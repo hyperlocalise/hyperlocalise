@@ -44,6 +44,67 @@ export function buildIntercomArticleSourcePath(input: {
   return normalizeSourcePath(`intercom/${helpCenterSlug}/${articleSlug}.json`);
 }
 
+export type IntercomArticlePathAssignment = {
+  id: string;
+  title?: string | null;
+};
+
+export type IntercomPersistedArticlePath = {
+  articleId: string;
+  sourcePath: string;
+  status?: string | null;
+};
+
+function sourcePathFilename(sourcePath: string): string {
+  const separator = sourcePath.lastIndexOf("/");
+  return separator === -1 ? sourcePath : sourcePath.slice(separator + 1);
+}
+
+export function assignIntercomArticleSourcePaths(input: {
+  helpCenterId: string;
+  helpCenterName?: string | null;
+  articles: readonly IntercomArticlePathAssignment[];
+  existingMappings?: readonly IntercomPersistedArticlePath[];
+}): Map<string, string> {
+  const existingByArticleId = new Map(
+    (input.existingMappings ?? []).map((mapping) => [mapping.articleId, mapping.sourcePath]),
+  );
+  const usedFilenames = new Set(
+    (input.existingMappings ?? [])
+      .filter((mapping) => mapping.status !== "archived")
+      .map((mapping) => sourcePathFilename(mapping.sourcePath)),
+  );
+  const sourcePathByArticleId = new Map<string, string>();
+
+  for (const article of input.articles) {
+    const existingPath = existingByArticleId.get(article.id);
+    if (existingPath) {
+      usedFilenames.add(sourcePathFilename(existingPath));
+      sourcePathByArticleId.set(article.id, existingPath);
+      continue;
+    }
+
+    let sourcePath = buildIntercomArticleSourcePath({
+      helpCenterId: input.helpCenterId,
+      articleId: article.id,
+      helpCenterName: input.helpCenterName,
+      articleTitle: article.title,
+    });
+    if (usedFilenames.has(sourcePathFilename(sourcePath))) {
+      sourcePath = buildIntercomArticleSourcePath({
+        helpCenterId: input.helpCenterId,
+        articleId: article.id,
+        helpCenterName: input.helpCenterName,
+        articleTitle: `${article.title ?? ""}-${article.id}`,
+      });
+    }
+    usedFilenames.add(sourcePathFilename(sourcePath));
+    sourcePathByArticleId.set(article.id, sourcePath);
+  }
+
+  return sourcePathByArticleId;
+}
+
 export function serializeIntercomArticleJson(payload: IntercomArticleJsonPayload): string {
   return `${JSON.stringify(
     {

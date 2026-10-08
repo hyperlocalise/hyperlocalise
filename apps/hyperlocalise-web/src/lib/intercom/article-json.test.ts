@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   articleFieldsToJsonPayload,
+  assignIntercomArticleSourcePaths,
   collectApprovedIntercomArticleValues,
   buildIntercomArticleSourcePath,
   encodeIntercomLastPushRecord,
@@ -44,6 +45,54 @@ describe("intercom article json", () => {
         articleTitle: "Reset your password",
       }),
     ).toBe("intercom/customer-support/reset-your-password.json");
+  });
+
+  it("reuses a persisted source path for the same article", () => {
+    const paths = assignIntercomArticleSourcePaths({
+      helpCenterId: "123",
+      helpCenterName: "Customer Support",
+      articles: [{ id: "456", title: "Reset your password" }],
+      existingMappings: [
+        {
+          articleId: "456",
+          sourcePath: "intercom/customer-support/legacy-reset.json",
+          status: "import_failed",
+        },
+      ],
+    });
+
+    expect(paths.get("456")).toBe("intercom/customer-support/legacy-reset.json");
+  });
+
+  it("disambiguates a new article that collides with a persisted filename", () => {
+    const paths = assignIntercomArticleSourcePaths({
+      helpCenterId: "123",
+      helpCenterName: "Customer Support",
+      articles: [{ id: "789", title: "Getting started" }],
+      existingMappings: [
+        {
+          articleId: "456",
+          sourcePath: "intercom/customer-support/getting-started.json",
+          status: "active",
+        },
+      ],
+    });
+
+    expect(paths.get("789")).toBe("intercom/customer-support/getting-started-789.json");
+  });
+
+  it("disambiguates two new articles that slug to the same filename", () => {
+    const paths = assignIntercomArticleSourcePaths({
+      helpCenterId: "123",
+      helpCenterName: "Customer Support",
+      articles: [
+        { id: "111", title: "Getting started" },
+        { id: "222", title: "Getting started" },
+      ],
+    });
+
+    expect(paths.get("111")).toBe("intercom/customer-support/getting-started.json");
+    expect(paths.get("222")).toBe("intercom/customer-support/getting-started-222.json");
   });
 
   it("falls back to ids when names do not slug", () => {

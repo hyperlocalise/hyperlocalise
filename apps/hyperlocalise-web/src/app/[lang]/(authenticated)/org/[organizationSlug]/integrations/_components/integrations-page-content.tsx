@@ -825,16 +825,18 @@ export function IntegrationsPageContent({
         value={categoryFilter}
         onValueChange={(value) => setCategoryFilter(value as IntegrationCategoryFilter)}
       >
-        <TabsList className="flex h-auto! min-h-9 w-full max-w-full flex-wrap justify-start">
-          <TabsTrigger className="flex-none" value="all">
-            <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
-          </TabsTrigger>
-          {visibleCategoryIds.map((categoryId) => (
-            <TabsTrigger key={categoryId} className="flex-none" value={categoryId}>
-              <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+        <div className="min-w-0 max-w-full overflow-x-auto">
+          <TabsList className="w-max">
+            <TabsTrigger className="flex-none" value="all">
+              <FormattedMessage {...integrationsPageContentMessages.categoryFilterAll} />
             </TabsTrigger>
-          ))}
-        </TabsList>
+            {visibleCategoryIds.map((categoryId) => (
+              <TabsTrigger key={categoryId} className="flex-none" value={categoryId}>
+                <FormattedMessage {...INTEGRATION_CATEGORY_MESSAGES[categoryId]} />
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         <Rows ref={categoryListRef} spacing="3u">
           {showCategory("source-control") ? (
             <IntegrationCategorySection categoryId="source-control">

@@ -28,32 +28,32 @@ export const intercomConnectionPanelMessages = defineMessages({
   connectedDescription: {
     defaultMessage:
       "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
-    id: "kQ3mV8nRp1",
+    id: "kSpMqJFNPn",
     description: "Explanation of what a connected Intercom workspace can do",
   },
   tokenSuffix: {
     defaultMessage: "Token ending in {suffix}",
-    id: "bH5cW2sLa7",
+    id: "Wh+pyeiIA0",
     description: "Secondary Intercom connection detail showing the stored token suffix",
   },
   regionLabel: {
     defaultMessage: "Region · {region}",
-    id: "dN9fT4xUe2",
+    id: "vQARQEeGSN",
     description: "Intercom REST region shown in the connected manage panel",
   },
   helpCentersLabel: {
     defaultMessage: "Help Centers",
-    id: "gP6yR1jKc8",
+    id: "YXFxRGJgKh",
     description: "Heading above Help Centers on the connected Intercom panel",
   },
   noHelpCenters: {
     defaultMessage: "No Help Centers were found on this workspace.",
-    id: "mS2aL7vQd4",
+    id: "W/3qaSxy0d",
     description: "Empty state when a connected Intercom workspace has no Help Centers",
   },
   openAutomations: {
     defaultMessage: "Open automations",
-    id: "wE8hN5pTb0",
+    id: "i2gq9AbUIT",
     description: "Link from the Intercom connection panel to workspace automations",
   },
   disconnect: {
