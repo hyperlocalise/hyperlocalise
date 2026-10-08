@@ -34,6 +34,7 @@ const apiMocks = vi.hoisted(() => ({
   deleteAutomation: vi.fn(),
   listProjectFiles: vi.fn(),
   runSourceFiles: vi.fn(),
+  runAutomation: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -58,6 +59,9 @@ vi.mock("@/lib/api-client-instance", () => ({
               $delete: (...args: unknown[]) => apiMocks.deleteAutomation(...args),
               "source-files": {
                 $post: (...args: unknown[]) => apiMocks.runSourceFiles(...args),
+              },
+              runs: {
+                $post: (...args: unknown[]) => apiMocks.runAutomation(...args),
               },
             },
           },
@@ -435,5 +439,215 @@ describe("AutomationDetailPageContent discard changes", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
+  });
+});
+
+describe("AutomationDetailPageContent run with unsaved changes", () => {
+  const scheduledAutomation = createAutomationSummary({
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: { cadence: "weekly", hourUtc: 9, dayOfWeek: 1, timezone: "UTC" },
+    },
+  });
+  // A manual trigger cannot run GitHub sync workflows, so this one fails the form's own checks.
+  const invalidAutomation = createAutomationSummary({ triggerConfig: { mode: "manual" } });
+  const sourceUploadAutomation = createAutomationSummary({
+    triggerConfig: { mode: "source_upload" },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      createNativeTmsJob: {
+        enabled: true,
+        useProjectTargetLocales: true,
+        targetLocales: [],
+      },
+    },
+  });
+
+  function mockAutomation(record = scheduledAutomation) {
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: record, recentRuns: [] }),
+    });
+  }
+
+  function mockRunQueued() {
+    apiMocks.runAutomation.mockResolvedValue({ ok: true, status: 202, json: async () => ({}) });
+  }
+
+  afterEach(() => {
+    apiMocks.getAutomation.mockReset();
+    apiMocks.patchAutomation.mockReset();
+    apiMocks.listProjectFiles.mockReset();
+    apiMocks.runSourceFiles.mockReset();
+    apiMocks.runAutomation.mockReset();
+  });
+
+  it("runs at once when nothing is unsaved", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    mockRunQueued();
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+    expect(
+      screen.queryByRole("alertdialog", { name: "You have unsaved changes" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("asks before running and does nothing on cancel", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    mockRunQueued();
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    expect(apiMocks.runAutomation).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole("alertdialog", { name: "You have unsaved changes" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(apiMocks.runAutomation).not.toHaveBeenCalled();
+    expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+  });
+
+  it("saves first and queues the run once the save has gone through", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    mockRunQueued();
+    let finishSave: (response: unknown) => void = () => undefined;
+    apiMocks.patchAutomation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Save and run" }));
+
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
+    expect(apiMocks.patchAutomation.mock.calls[0]?.[0]).toMatchObject({
+      json: { name: "Renamed automation" },
+    });
+    expect(apiMocks.runAutomation).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Run now" })).toBeDisabled();
+
+    finishSave({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: { ...scheduledAutomation, name: "Renamed automation" } }),
+    });
+
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+  });
+
+  it("does not run when the save fails", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    mockRunQueued();
+    apiMocks.patchAutomation.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "internal_error" }),
+    });
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Save and run" }));
+
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Run now" })).toBeEnabled());
+    expect(apiMocks.runAutomation).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+  });
+
+  it("does not save or run when the changes fail the form's checks", async () => {
+    const user = userEvent.setup();
+    mockAutomation(invalidAutomation);
+    mockRunQueued();
+
+    renderPage(invalidAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Save and run" }));
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole("alertdialog", { name: "You have unsaved changes" }),
+      ).not.toBeInTheDocument(),
+    );
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Run now" })).toBeEnabled());
+    expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
+    expect(apiMocks.runAutomation).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+  });
+
+  it("discards the changes and runs the saved automation", async () => {
+    const user = userEvent.setup();
+    mockAutomation();
+    mockRunQueued();
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Discard changes and run" }));
+
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+    expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      scheduledAutomation.name,
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  });
+
+  it("opens the source file picker only after the save for a source-upload automation", async () => {
+    const user = userEvent.setup();
+    mockAutomation(sourceUploadAutomation);
+    apiMocks.listProjectFiles.mockResolvedValue({ files: [{ sourcePath: "locales/en.json" }] });
+    apiMocks.patchAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: sourceUploadAutomation }),
+    });
+
+    renderPage(sourceUploadAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    expect(screen.queryByRole("dialog", { name: "Select source files" })).not.toBeInTheDocument();
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Save and run" }));
+
+    expect(await screen.findByRole("dialog", { name: "Select source files" })).toBeInTheDocument();
+    expect(apiMocks.patchAutomation).toHaveBeenCalledOnce();
+    expect(apiMocks.runSourceFiles).not.toHaveBeenCalled();
   });
 });

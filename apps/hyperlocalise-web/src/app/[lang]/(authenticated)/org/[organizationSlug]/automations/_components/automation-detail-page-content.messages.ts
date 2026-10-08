@@ -56,6 +56,35 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "P5eC/nlEOZ",
     description: "Button to queue a manual automation run",
   },
+  runUnsavedTitle: {
+    defaultMessage: "You have unsaved changes",
+    id: "++7FbawqhB",
+    description:
+      "Title of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedDescription: {
+    defaultMessage:
+      "A run uses the automation as it was last saved. Save your changes to run with them, or discard them and run the saved automation.",
+    id: "zpXEO84HvX",
+    description:
+      "Body of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedCancel: {
+    defaultMessage: "Cancel",
+    id: "moIVxRz2ih",
+    description:
+      "Button that closes the unsaved changes run dialog without running or changing anything",
+  },
+  discardAndRun: {
+    defaultMessage: "Discard changes and run",
+    id: "loFFcMBn8p",
+    description: "Button that throws away the unsaved automation changes and then queues a run",
+  },
+  saveAndRun: {
+    defaultMessage: "Save and run",
+    id: "efAi5lrO4s",
+    description: "Button that saves the unsaved automation changes and then queues a run",
+  },
   selectSourceFiles: {
     defaultMessage: "Select source files to run this automation",
     id: "ngIYrv4Oy/",

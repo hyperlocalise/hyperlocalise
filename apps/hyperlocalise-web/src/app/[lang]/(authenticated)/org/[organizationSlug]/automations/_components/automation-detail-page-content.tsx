@@ -146,6 +146,7 @@ export function AutomationDetailPageContent({
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [runPromptOpen, setRunPromptOpen] = useState(false);
   const [sourceFileDialogOpen, setSourceFileDialogOpen] = useState(false);
   const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [sourceFileSearch, setSourceFileSearch] = useState("");
@@ -427,6 +428,14 @@ export function AutomationDetailPageContent({
     setErrors({});
   };
 
+  const startRun = () => {
+    if (showSourceFileRunButton) {
+      setSourceFileDialogOpen(true);
+      return;
+    }
+    runMutation.mutate();
+  };
+
   const editorActions = (
     <div className="flex gap-2">
       <Button
@@ -486,15 +495,17 @@ export function AutomationDetailPageContent({
             <Button
               variant="outline"
               onClick={() => {
-                if (showSourceFileRunButton) {
-                  setSourceFileDialogOpen(true);
+                // A run uses the saved automation, so unsaved changes are settled first.
+                if (hasChanges) {
+                  setRunPromptOpen(true);
                   return;
                 }
-                runMutation.mutate();
+                startRun();
               }}
               disabled={
                 runMutation.isPending ||
                 sourceFileRunMutation.isPending ||
+                writeInFlight ||
                 automation.status !== "active"
               }
             >
@@ -727,6 +738,43 @@ export function AutomationDetailPageContent({
               ) : (
                 <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
               )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={runPromptOpen} onOpenChange={setRunPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...automationDetailPageContentMessages.runUnsavedCancel} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setRunPromptOpen(false);
+                discardChanges();
+                startRun();
+              }}
+            >
+              <FormattedMessage {...automationDetailPageContentMessages.discardAndRun} />
+            </Button>
+            <Button
+              onClick={() => {
+                setRunPromptOpen(false);
+                // The run is queued only once the save has gone through.
+                saveMutation.mutate(undefined, { onSuccess: startRun });
+              }}
+            >
+              <FormattedMessage {...automationDetailPageContentMessages.saveAndRun} />
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
