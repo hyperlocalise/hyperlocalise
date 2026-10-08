@@ -22,6 +22,8 @@ import { GlossaryConceptDetail } from "./glossary-concept-detail";
 
 const mocks = vi.hoisted(() => ({
   createConcept: vi.fn(),
+  getConcept: vi.fn(),
+  getTermsPage: vi.fn(),
   routerPush: vi.fn(),
   routerReplace: vi.fn(),
 }));
@@ -60,7 +62,13 @@ vi.mock("@/lib/api-client-instance", () => ({
         ":organizationSlug": {
           glossaries: {
             ":glossaryId": {
-              concepts: { $post: mocks.createConcept },
+              concepts: {
+                $post: mocks.createConcept,
+                ":conceptId": {
+                  $get: mocks.getConcept,
+                  terms: { page: { $get: mocks.getTermsPage } },
+                },
+              },
             },
           },
         },
@@ -71,7 +79,7 @@ vi.mock("@/lib/api-client-instance", () => ({
 
 const GLOSSARY_HREF = "/org/acme/glossaries/glo_1";
 
-function renderNewConcept() {
+function renderConcept(conceptId: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -83,13 +91,60 @@ function renderNewConcept() {
         <GlossaryConceptDetail
           organizationSlug="acme"
           glossaryId="glo_1"
-          conceptId="new"
+          conceptId={conceptId}
           canManageGlossaries
         />
       </QueryClientProvider>
     </IntlProvider>,
   );
 }
+
+function renderNewConcept() {
+  return renderConcept("new");
+}
+
+function jsonResponse(body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+const savedTerm = {
+  id: "term_1",
+  glossaryId: "glo_1",
+  conceptId: "con_1",
+  locale: "en-US",
+  term: "checkout",
+  isPrimary: true,
+  description: "",
+  note: "",
+  partOfSpeech: "",
+  gender: null,
+  termType: null,
+  url: null,
+  status: "preferred",
+  caseSensitive: false,
+  forbidden: false,
+  provenance: "manual",
+  reviewStatus: "approved",
+  createdAt: "2026-07-20T10:15:00.000Z",
+  updatedAt: "2026-07-20T10:15:00.000Z",
+};
+
+const savedConcept = {
+  id: "con_1",
+  glossaryId: "glo_1",
+  primaryTerm: "checkout",
+  subject: "",
+  definition: "",
+  translatable: true,
+  note: "",
+  url: null,
+  createdAt: "2026-07-20T10:15:00.000Z",
+  updatedAt: "2026-07-20T10:15:00.000Z",
+  terms: [],
+};
 
 async function typeSourceTerm(term: string) {
   await userEvent.type(await screen.findByPlaceholderText("Term"), term);
@@ -163,5 +218,35 @@ describe("GlossaryConceptDetail leave guard", () => {
       });
     });
     expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("asks about a term being added to a saved concept once any of its fields is filled", async () => {
+    mocks.getConcept.mockImplementation(async () => jsonResponse({ concept: savedConcept }));
+    mocks.getTermsPage.mockImplementation(async () =>
+      jsonResponse({
+        terms: [savedTerm],
+        nextCursor: null,
+        total: 1,
+        pagination: { limit: 50, returned: 1, hasMore: false },
+      }),
+    );
+    window.history.replaceState(null, "", "/org/acme/glossaries/glo_1/concepts/con_1");
+    renderConcept("con_1");
+
+    // Once the saved term is listed, the button in its language's row opens an empty row for
+    // the new term.
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue("checkout").length).toBeGreaterThan(1);
+    });
+    const addTermButtons = screen.getAllByRole("button", { name: "Add term" });
+    await userEvent.click(addTermButtons[addTermButtons.length - 1]);
+    await userEvent.type(
+      await screen.findByPlaceholderText("Definition, context, or example sentence"),
+      "Used on the payment page",
+    );
+
+    // The term itself is still empty.
+    expect(fireEvent.click(screen.getByRole("link", { name: "Inbox" }))).toBe(false);
+    expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
   });
 });

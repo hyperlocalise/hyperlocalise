@@ -723,13 +723,14 @@ export function GlossaryConceptDetail({
   const isDirty =
     conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
   // `isDirty` is already true on a new concept, which opens with an empty source term row, and
-  // after an empty row is added. Leaving is only worth asking about once something is entered.
+  // after an empty row is added. Leaving is only worth asking about once something is entered,
+  // in any field of a row and not only its term.
   const hasUnsavedChanges =
     (isCreatingConcept
       ? !areConceptDraftsEqual(conceptDraft, emptyConceptDraft)
       : conceptIsDirty) ||
     termsAreDirty ||
-    newTermIsDirty ||
+    (newTermLocale !== null && !areTermDraftsEqual(newTermDraft, emptyTermDraft)) ||
     creatingTermDrafts.some((draft) => !areTermDraftsEqual(draft, emptyTermDraft));
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
