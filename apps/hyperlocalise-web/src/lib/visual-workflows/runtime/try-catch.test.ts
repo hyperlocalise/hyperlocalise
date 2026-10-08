@@ -112,6 +112,132 @@ describe("Try / Catch runtime", () => {
     });
   });
 
+  it("runs Finally before propagating a failure from Catch", async () => {
+    const executed: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition: definition(),
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        executed.push(node.id);
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        if (node.id === "work") {
+          return { ok: false, error: { code: "WORK_FAILED", message: "Work failed." } };
+        }
+        if (node.id === "catch") {
+          return { ok: false, error: { code: "CATCH_FAILED", message: "Catch failed." } };
+        }
+        return { ok: true, output: {} };
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      failedNodeId: "catch",
+      error: { code: "CATCH_FAILED" },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "work", "catch", "finally"]);
+  });
+
+  it("runs Finally before propagating a terminal result from Catch", async () => {
+    const input = definition();
+    input.nodes = input.nodes.map((node) =>
+      node.id === "catch"
+        ? {
+            id: "catch",
+            type: "flow.stop" as const,
+            config: { kind: "flow.stop" as const, outcome: "completed" as const },
+          }
+        : node,
+    );
+    const executed: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition: input,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        executed.push(node.id);
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        if (node.id === "work") {
+          return { ok: false, error: { code: "WORK_FAILED", message: "Work failed." } };
+        }
+        return { ok: true, output: {} };
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      terminal: { kind: "completed", nodeId: "catch" },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "work", "catch", "finally"]);
+  });
+
+  it("reports one-based retry attempts without incrementing them twice", async () => {
+    const input = definition();
+    input.nodes.splice(1, 0, {
+      id: "retry",
+      type: "logic.retry",
+      bodyNodeIds: ["boundary", "work", "catch", "finally"],
+      config: {
+        kind: "logic.retry",
+        maxAttempts: 2,
+        initialDelayMs: 0,
+        backoffMultiplier: 2,
+        jitter: false,
+        acknowledgeDuplicateRisk: true,
+      },
+    });
+    input.edges = input.edges
+      .filter((edge) => edge.id !== "start" && edge.id !== "success")
+      .concat(
+        {
+          id: "start",
+          source: "trigger",
+          target: "retry",
+          sourceHandle: null,
+          targetHandle: null,
+        },
+        {
+          id: "attempt",
+          source: "retry",
+          target: "boundary",
+          sourceHandle: "attempt",
+          targetHandle: null,
+        },
+        {
+          id: "retry-success",
+          source: "retry",
+          target: "success",
+          sourceHandle: "succeeded",
+          targetHandle: null,
+        },
+      );
+    let boundaryOutput: Record<string, unknown> | undefined;
+
+    const result = await runVisualWorkflowInterpreter({
+      definition: input,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        return node.id === "work"
+          ? { ok: false, error: { code: "WORK_FAILED", message: "Work failed." } }
+          : { ok: true, output: {} };
+      },
+      onNodeUpdate: (update) => {
+        if (update.nodeId === "boundary" && update.status === "succeeded") {
+          boundaryOutput = update.outputSnapshot;
+        }
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(boundaryOutput).toMatchObject({ attempt: { number: 1 } });
+  });
+
   it("does not expose secrets from protected error messages", async () => {
     const secret = "secret-token-that-must-not-leak";
     const { result } = await run({

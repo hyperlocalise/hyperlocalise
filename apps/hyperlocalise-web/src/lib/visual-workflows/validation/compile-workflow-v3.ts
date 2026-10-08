@@ -411,6 +411,12 @@ export function compileVisualWorkflowV3Definition(
 export function toVisualWorkflowExecutionDefinition(
   compiled: CompiledVisualWorkflowV3Definition,
 ): VisualWorkflowDefinition {
+  const tryCatchNodeIds = new Set(
+    compiled.definition.nodes
+      .filter((node) => node.type === "logic.try_catch")
+      .map((node) => node.id),
+  );
+
   return {
     schemaVersion: 2,
     name: compiled.definition.name,
@@ -434,7 +440,10 @@ export function toVisualWorkflowExecutionDefinition(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle: edge.sourcePortId === "success" ? null : edge.sourcePortId,
+      sourceHandle:
+        edge.sourcePortId === "success" && !tryCatchNodeIds.has(edge.source)
+          ? null
+          : edge.sourcePortId,
       targetHandle: edge.targetPortId === "input" ? null : edge.targetPortId,
     })),
     editor: compiled.definition.editor,

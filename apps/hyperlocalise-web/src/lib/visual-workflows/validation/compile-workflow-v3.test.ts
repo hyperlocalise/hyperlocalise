@@ -654,6 +654,32 @@ it("accepts stable Merge execution target ports", () => {
   expect(result.executionEdges).toEqual(input.edges);
 });
 
+it("preserves the Try / Catch Success execution handle", () => {
+  const input = definition([
+    {
+      id: "boundary-success",
+      kind: "execution",
+      source: "boundary",
+      target: "set",
+      sourcePortId: "success",
+      targetPortId: "input",
+    },
+  ]);
+  input.nodes[0] = {
+    id: "boundary",
+    type: "logic.try_catch",
+    config: { kind: "logic.try_catch" },
+  };
+  input.editor.positions.boundary = { x: 0, y: 0 };
+  delete input.editor.positions.trigger;
+
+  const executionDefinition = toVisualWorkflowExecutionDefinition(
+    compileVisualWorkflowV3Definition(input),
+  );
+
+  expect(executionDefinition.edges[0]?.sourceHandle).toBe("success");
+});
+
 it("rejects removed Merge execution target ports", () => {
   const input = definition([
     {

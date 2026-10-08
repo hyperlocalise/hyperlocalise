@@ -161,9 +161,24 @@ function sequenceHoldBlocksMerge(input: {
 }
 
 type SequenceHoldFrame = {
+  kind: "sequence" | "try_catch";
   heldEdges: CanonicalVisualWorkflowEdge[];
   activeReleasedEdge: CanonicalVisualWorkflowEdge | null;
+  deferredTerminal: boolean;
 };
+
+function resolveTryCatchAttemptMetadata(
+  definition: VisualWorkflowDefinition,
+  boundaryNodeId: string,
+  iteration: number | undefined,
+): Record<string, never> | { number: number } {
+  if (iteration === undefined) return {};
+
+  const belongsToRetry = definition.nodes.some(
+    (node) => node.type === "logic.retry" && node.bodyNodeIds?.includes(boundaryNodeId),
+  );
+  return { number: belongsToRetry ? iteration : iteration + 1 };
+}
 
 function collectReachableNodeIds(
   startNodeIds: readonly string[],
@@ -299,6 +314,13 @@ export async function runVisualWorkflowInterpreter(input: {
     // Nested Sequences each keep their own hold frame so an inner Sequence
     // cannot replace the outer Sequence's later outputs.
     const sequenceHoldStack: SequenceHoldFrame[] = [];
+    const deferredTryCatch = {
+      result: null as {
+        frame: SequenceHoldFrame;
+        nodeId: string;
+        error: Record<string, unknown>;
+      } | null,
+    };
     const incomingByNodeId = new Map<string, CanonicalVisualWorkflowEdge[]>();
     for (const edge of definition.edges) {
       if (!ids.has(edge.source) || !ids.has(edge.target)) continue;
@@ -353,6 +375,50 @@ export async function runVisualWorkflowInterpreter(input: {
       [...mergeResumes.values()].sort(
         (left, right) => Date.parse(left.wakeAt) - Date.parse(right.wakeAt),
       )[0] ?? null;
+    const deferTryCatchResultUntilFinally = (
+      nodeId: string,
+      error: Record<string, unknown>,
+    ): boolean => {
+      for (let index = sequenceHoldStack.length - 1; index >= 0; index--) {
+        const frame = sequenceHoldStack[index]!;
+        if (
+          frame.kind !== "try_catch" ||
+          frame.deferredTerminal ||
+          frame.activeReleasedEdge?.sourceHandle === "finally"
+        ) {
+          continue;
+        }
+
+        const finallyEdges = frame.heldEdges.filter((edge) => edge.sourceHandle === "finally");
+        if (finallyEdges.length === 0) return false;
+
+        for (const nestedFrame of sequenceHoldStack.splice(index + 1)) {
+          for (const heldEdge of nestedFrame.heldEdges) states.set(heldEdge.id, "skipped");
+        }
+        for (const heldEdge of frame.heldEdges) {
+          if (heldEdge.sourceHandle !== "finally") states.set(heldEdge.id, "skipped");
+        }
+
+        const [firstFinallyEdge, ...remainingFinallyEdges] = finallyEdges;
+        frame.activeReleasedEdge = firstFinallyEdge!;
+        frame.heldEdges = remainingFinallyEdges;
+        frame.deferredTerminal = true;
+        states.set(
+          firstFinallyEdge!.id,
+          selectedEdgeSettlement({
+            sourceHandle: firstFinallyEdge!.sourceHandle,
+            executionSucceeded: true,
+          }),
+        );
+        priorityNodeIds = collectSequencePriorityNodeIds(
+          [firstFinallyEdge!],
+          graph.outgoingByNodeId,
+        );
+        deferredTryCatch.result = { frame, nodeId, error };
+        return true;
+      }
+      return false;
+    };
     const releaseHeldSequenceEdges = () => {
       while (sequenceHoldStack.length > 0) {
         const frame = sequenceHoldStack[sequenceHoldStack.length - 1]!;
@@ -392,6 +458,12 @@ export async function runVisualWorkflowInterpreter(input: {
           ? input.mergeResume.mergeNodeId
           : null;
       releaseHeldSequenceEdges();
+      if (deferredTryCatch.result && !sequenceHoldStack.includes(deferredTryCatch.result.frame)) {
+        return {
+          nodeId: deferredTryCatch.result.nodeId,
+          error: deferredTryCatch.result.error,
+        };
+      }
       const prioritizedIds = priorityNodeIds.filter((id) => ids.has(id));
       priorityNodeIds = [];
 
@@ -662,7 +734,10 @@ export async function runVisualWorkflowInterpreter(input: {
           await emit(node, behavior === "stop" ? "failed" : "handled_error", iteration, {
             error: execution.error,
           });
-          if (behavior === "stop") return { nodeId: id, error: execution.error };
+          if (behavior === "stop") {
+            if (deferTryCatchResultUntilFinally(id, execution.error)) break;
+            return { nodeId: id, error: execution.error };
+          }
           if (scopeOptions?.failOnHandledErrors && behavior === "continue") {
             return { nodeId: id, error: execution.error };
           }
@@ -819,7 +894,7 @@ export async function runVisualWorkflowInterpreter(input: {
                   errorCode,
                   errorMessage: "The protected workflow region failed.",
                   failedNodeId: regionFailure.nodeId,
-                  attempt: iteration === undefined ? {} : { number: iteration + 1 },
+                  attempt: resolveTryCatchAttemptMetadata(definition, node.id, iteration),
                   boundaryStatus: "caught",
                 },
               };
@@ -841,16 +916,18 @@ export async function runVisualWorkflowInterpreter(input: {
             error: null,
           });
           if (node.config.kind === "flow.stop") {
-            return {
+            const terminalResult = {
               nodeId: id,
               error: {
                 code: "workflow_completed",
                 message: "Workflow completed by a Stop node.",
               },
             };
+            if (deferTryCatchResultUntilFinally(terminalResult.nodeId, terminalResult.error)) break;
+            return terminalResult;
           }
           if (node.config.kind === "flow.return") {
-            return {
+            const terminalResult = {
               nodeId: id,
               error: {
                 code: "workflow_returned",
@@ -858,6 +935,8 @@ export async function runVisualWorkflowInterpreter(input: {
                 outputs: execution.output.returnedOutputs ?? {},
               },
             };
+            if (deferTryCatchResultUntilFinally(terminalResult.nodeId, terminalResult.error)) break;
+            return terminalResult;
           }
         }
         const next =
@@ -911,8 +990,10 @@ export async function runVisualWorkflowInterpreter(input: {
         }
         if (holdsOrderedExits) {
           sequenceHoldStack.push({
+            kind: node.config.kind === "logic.try_catch" ? "try_catch" : "sequence",
             heldEdges: sequenceHeldEdges,
             activeReleasedEdge: sequenceReleaseEdge,
+            deferredTerminal: false,
           });
           priorityNodeIds = sequenceReleaseEdge
             ? collectSequencePriorityNodeIds([sequenceReleaseEdge], graph.outgoingByNodeId)
@@ -960,6 +1041,13 @@ export async function runVisualWorkflowInterpreter(input: {
           },
         };
       }
+    }
+    releaseHeldSequenceEdges();
+    if (deferredTryCatch.result && !sequenceHoldStack.includes(deferredTryCatch.result.frame)) {
+      return {
+        nodeId: deferredTryCatch.result.nodeId,
+        error: deferredTryCatch.result.error,
+      };
     }
     return null;
   };
