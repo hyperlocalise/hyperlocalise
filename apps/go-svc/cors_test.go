@@ -95,4 +95,13 @@ func TestCORSMiddleware(t *testing.T) {
 	handler.ServeHTTP(previewRec, preview)
 	require.Equal(t, http.StatusNoContent, previewRec.Code)
 	require.Equal(t, "https://preview.example", previewRec.Header().Get("Access-Control-Allow-Origin"))
+
+	pna := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:8080/v1/orgs/acme/projects", nil)
+	pna.Header.Set("Origin", "http://localhost:3000")
+	pna.Header.Set("Access-Control-Request-Method", "GET")
+	pna.Header.Set("Access-Control-Request-Private-Network", "true")
+	pnaRec := httptest.NewRecorder()
+	handler.ServeHTTP(pnaRec, pna)
+	require.Equal(t, http.StatusNoContent, pnaRec.Code)
+	require.Equal(t, "true", pnaRec.Header().Get("Access-Control-Allow-Private-Network"))
 }

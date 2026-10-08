@@ -153,25 +153,67 @@ IDs are emitted using Datadog's native trace context and are available to both O
 
 ## Local development
 
+### Dependencies
+
+From the **repository root** (not `apps/hyperlocalise-web`):
+
+```bash
+docker compose up -d
+(cd apps/hyperlocalise-web && vp run db:migrate)
+```
+
+Postgres and Valkey URLs match `docker-compose.yml`. go-svc fails at startup when `VALKEY_URL` is set but Valkey is unreachable.
+
+### Environment
+
+Copy the same `WORKOS_*` values as the web app (`WORKOS_COOKIE_PASSWORD`, `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`). Minimum local `.env` in `apps/go-svc/` (or export before `go run`):
+
+```bash
+WORKOS_COOKIE_PASSWORD='this-is-a-test-cookie-password-at-least-32-characters'
+WORKOS_API_KEY='sk_test_...'
+WORKOS_CLIENT_ID='client_...'
+DATABASE_URL='postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise'
+VALKEY_URL='redis://localhost:6379'
+GO_SVC_CORS_ORIGINS='http://localhost:3000'
+```
+
+Optional:
+
+```bash
+# Publishes glossary activity events and checks the queue in /health.
+ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
+# Enables asynchronous glossary import/export publishing and checks the queue in /health.
+GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
+# Accept Agent Registration JWTs on the public translation download.
+WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
+HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
+DATAFORSEO_API_KEY='...'   # Domains research routes
+```
+
+### Run
+
 From the repository root:
 
 ```bash
 # Build check (requires libhunspell-dev for spelling support)
 make check-build-go-svc-cgo
 
-# Run locally
-export WORKOS_COOKIE_PASSWORD='this-is-a-test-cookie-password-at-least-32-characters'
-export WORKOS_API_KEY='sk_test_...'
-export WORKOS_CLIENT_ID='client_...'
-# Optional: publishes glossary activity events and checks the queue in /health.
-export ACTIVITY_LOG_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../activity-log'
-# Optional: enables asynchronous glossary import/export publishing and checks the queue in /health.
-export GLOSSARY_INTERCHANGE_QUEUE_URL='https://sqs.us-east-1.amazonaws.com/.../glossary-interchange'
-# Optional: accept Agent Registration JWTs on the public translation download.
-export WORKOS_AUTHKIT_DOMAIN='your-app.authkit.app'
-export HYPERLOCALISE_PUBLIC_APP_URL='http://localhost:3000'
+set -a && source apps/go-svc/.env && set +a
 go run ./apps/go-svc
 ```
+
+Listens on `http://localhost:8080` by default (`PORT` overrides).
+
+### Web app
+
+In `apps/hyperlocalise-web/.env`:
+
+```bash
+GO_SVC_URL=http://127.0.0.1:8080
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080
+```
+
+Browser `GoSvcClient` calls go-svc directly with the WorkOS access token. Loopback origins are allowed; Chrome private-network preflights need `Access-Control-Allow-Private-Network` when the page is on `localhost:3000` and the API is on `127.0.0.1:8080`.
 
 Health check:
 
