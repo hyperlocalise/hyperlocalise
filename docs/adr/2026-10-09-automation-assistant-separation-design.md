@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted on 2026-10-09. Not built yet.
+Accepted on 2026-10-09. Built the same day on `feat/web-automations-assistant-2`; not yet checked in the real app.
 
 ## Context
 
@@ -26,7 +26,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - `interactions` gains the source `automation_assistant` and two nullable columns, the creating user's id and the automation's id. These rows get no inbox item, so the Inbox list and the existing visibility helper never see them. The tables are shared rather than new ones because they give message storage, parts and the streaming save for nothing; a test asserts that no conversation listing ever returns an assistant session.
 - Access is its own check: same organisation, operator role, author. No one else can read or continue a session.
 - One session per saved automation and author, resumed when that person opens the automation's page. Two operators working on one automation each have their own. A session for a new automation gets its automation id when Create succeeds; until then it is bound to nothing. Deleting an automation deletes its sessions.
-- An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server deletes unbound sessions after a day through an `expires_at` column, as the repository sandbox sessions are. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
+- An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server forgets unbound sessions after a day through an `expires_at` column, deleting the person's expired ones when they start the next. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
 - Message persistence and parts are reused as they are. The session's history comes from its own small loader: the newest fifty messages of the session, text only, the same cap the dock's loader uses. The shared loader is not used because it keeps the oldest fifty instead.
 - An assistant turn writes nothing to the workspace activity log. The assistant saves nothing, and the person's Save is logged already.
 
@@ -38,22 +38,22 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 ### Routes
 
-- Under the automations API: create a session (optional automation id, first message), stream a turn (message and page context), get the session for an automation, bind an automation id after Create.
+- Under the automations API: create a session (optional automation id), stream a turn (the chat transport's message shape and the page context), get the session for an automation or by id, bind an automation id after Create, and delete a session for Start over.
 - A session runs one turn at a time. The running turn is recorded on the row before any work starts; a second start answers 409 and the page shows the turn in progress.
-- The web channel's streaming helper is factored so both agents call it.
+- The turn runner is a copy of the web channel's streaming helper, cut down to what the assistant needs, so the dock's channel stays untouched.
 
 ### Panel
 
 - Mounted by the form editor and the visual editor, built from the existing composer and message list. Its own small store: session id, messages, stream status. No tabs, no local-storage restore, no reply started by a page load. A turn begins only when someone sends from that page.
-- A collapsible panel on the right of the editor, opened from a button in the editor's header, and a sheet from the right edge on narrow screens. Never floating and never bottom-right, so it cannot be taken for the dock.
+- A panel beside the editor on a wide screen and a sheet from the right edge on a narrow one. Never floating and never bottom-right, so it cannot be taken for the dock. Opening it folds the dock's panel away.
 - Titled "Automation assistant" with the automation's name, its own empty state ("Describe what this automation should do, or ask for a change"), its own avatar and name in replies.
-- The bridge, the summary and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each turn is one undo step.
+- The bridge, the summary and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each tool call that changed the form is one undo step, sealed off from the typing around it, and undoing one asks first; a turn with one call is one step.
 - Every change the assistant decides on lands in the form. What cannot be applied, a skill whose integration is not connected or whose trigger does not fit, is left out and the reply says so. Nothing is held back for the person to accept on the page.
-- Closed by default. A "Configure with agent" button in the header row of the instructions section, aligned to the right above the textarea, opens it; the visual editor has the same button in its chrome. The page opened from the home page's prompt box starts with the panel open.
-- A "Start over" action in the panel ends the session and begins a new one, so a session on a saved automation does not grow for the automation's lifetime.
+- Closed by default. A "Configure with agent" button in the header row of the instructions section, aligned to the right above the textarea, opens it. The visual editor's button waits for its tool. The page opened from the home page's prompt box starts with the panel open.
+- A "Start over" action in the panel deletes the session; the next message begins a new one. So a session on a saved automation does not grow for the automation's lifetime.
 - Leaving the page unmounts the panel. The turn finishes on the server and its reply is in the session when the person returns to that automation.
 - A tool output is applied by the tab whose panel ran the turn, as it streams. A page that resumes a session shows its history and applies nothing from it: the form is the saved automation as it is, and the reply text says what was done. A second tab on the same automation sees the running turn and waits.
-- The home page's prompt box creates the session and opens the new page with its id.
+- The home page's prompt box keeps the request in session storage and opens the new page, which creates the session on that first send once it knows its integrations. No session exists for a page the person never reaches, and a request older than five minutes is dropped.
 - The dock stays on automation pages, collapsed. Each surface hands off to the other in words: the localisation agent answers a setup request with a link to New automation, and the assistant answers a translation request by pointing at the dock.
 
 ### Page context per editor
@@ -89,6 +89,10 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - Moving the content editor's assistant, today the dock with a page context, to the same pattern.
 - The stop button, and duplicate turns in the dock.
 - The visual workflow tool itself; only where it plugs in.
+
+## Built
+
+Commits on the branch, in order: the sessions and migration; the proposal logic picked from the earlier branch and its assistant module trimmed of held-back and chat-target code; the agent package, turn runner and routes; the panel, provider, summary, home-page section and page wiring; the tests. Checked with `vp check --fix` and the automations, agents, routes, dock, inbox and undo-stack test suites. Not done: the visual editor's button and tool, the live eval, and a check in the real app.
 
 ## Validation
 
