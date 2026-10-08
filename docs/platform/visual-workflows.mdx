@@ -29,6 +29,18 @@ Retry bodies cannot nest another **Retry** or **For each**. When the body calls 
 
 Conditions use true/false connections. Switches use case/default connections. Action failures can stop, continue with a visible handled error, or select an error branch. A merge waits for all incoming connections to settle and runs if any is selected.
 
+## End the run on purpose
+
+Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow without running every downstream step.
+
+| Node | When to use it | Run outcome |
+| --- | --- | --- |
+| **Stop** | The workflow succeeded or should exit without treating the exit as an error | **Completed** marks the run successful. Optional reason text appears in run details. **Cancelled** ends the run as an intentional stop (for example nothing left to process). |
+| **Return** | A branch should exit early and expose structured values to callers | Declare up to 32 named outputs, then bind each output under **Inputs** (`value.<outputId>`). Run history stores the returned map by public output name. **Return** inside a **For each** body exits the whole workflow, not just the current item. |
+| **Fail** | A branch should stop with a stable, machine-readable error | Set an error code (uppercase letters, digits, underscores; for example `INVALID_ORDER`) and a short message (up to 500 characters). The run fails at that node with a controlled terminal error. |
+
+These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.
+
 ## Test, save, and publish
 
 Tests default to **mock** mode. Enter a trigger payload and optional per-action mock outputs. Mock execution follows the same bindings, branches, and loops without calling external services.
