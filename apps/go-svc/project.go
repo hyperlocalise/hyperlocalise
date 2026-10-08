@@ -56,12 +56,17 @@ func (a projectActor) canManageContentEditorBehavior() bool {
 type projectError struct {
 	status        int
 	code, message string
+	details       map[string]any
 }
 
 func (e *projectError) Error() string { return e.code }
 
 func projectFailure(status int, code, message string) error {
 	return &projectError{status: status, code: code, message: message}
+}
+
+func projectFailureDetails(status int, code, message string, details map[string]any) error {
+	return &projectError{status: status, code: code, message: message, details: details}
 }
 
 func projectNotFound() error {
@@ -88,10 +93,11 @@ func writeProjectError(w http.ResponseWriter, r *http.Request, phase string, err
 	} else {
 		logRequestFailure(r, "project_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	projectJSON(r.Context(), w, failure.status, map[string]string{
-		"error":   failure.code,
-		"message": failure.message,
-	})
+	body := map[string]any{"error": failure.code, "message": failure.message}
+	if len(failure.details) > 0 {
+		body["details"] = failure.details
+	}
+	projectJSON(r.Context(), w, failure.status, body)
 }
 
 func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
@@ -111,7 +117,12 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("PATCH "+project+"/content-editor-behavior", bindActor(api, (*projectAPI).updateContentEditorBehaviorHandler))
 	route("GET "+project+"/content-editor-behavior/preview", bindActor(api, (*projectAPI).contentEditorBehaviorPreviewHandler))
 	route("GET "+project+"/files", bindActor(api, (*projectAPI).filesHandler))
+	route("GET "+project+"/jobs", bindActor(api, (*projectAPI).projectJobsListHandler))
+	route("GET "+project+"/jobs/{jobId}", bindActor(api, (*projectAPI).projectJobDetailHandler))
+	route("GET "+project+"/jobs/{jobId}/status", bindActor(api, (*projectAPI).projectJobStatusHandler))
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
+	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {
