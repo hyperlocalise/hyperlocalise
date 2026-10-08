@@ -102,6 +102,27 @@ describe("composeIntercomArticleFromApprovedKeyedUnits", () => {
     ).toBeNull();
   });
 
+  it("ignores Intercom callout fence units when composing", () => {
+    const composed = composeIntercomArticleFromApprovedKeyedUnits({
+      sourceMarkdown: SOURCE_MARKDOWN,
+      units: [
+        {
+          key: "md.frontmatter/title",
+          sourceText: "Your first public article",
+          targetText: "Dein erster öffentlicher Artikel",
+        },
+        {
+          key: "md.Paragraph[4]/line[0]",
+          sourceText: ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+          targetText: ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+        },
+      ],
+    });
+
+    expect(composed?.title).toBe("Dein erster öffentlicher Artikel");
+    expect(composed?.body).toContain(':::callout backgroundColor="#feedaf80"');
+  });
+
   it("returns null when no visible keys are approved", () => {
     expect(
       composeIntercomArticleFromApprovedKeyedUnits({

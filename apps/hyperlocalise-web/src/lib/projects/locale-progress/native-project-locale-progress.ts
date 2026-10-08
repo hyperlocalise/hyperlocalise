@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { countSourceWords } from "@/lib/reporting/word-analysis";
@@ -76,6 +76,10 @@ export async function listNativeProjectLocaleProgress(input: {
           eq(schema.projectTranslationKeys.organizationId, input.organizationId),
           eq(schema.projectTranslationKeys.projectId, input.projectId),
           eq(schema.projectTranslationKeys.isHidden, false),
+          sql`(
+            trim(${schema.projectTranslationKeys.sourceText}) <> ':::'
+            and trim(${schema.projectTranslationKeys.sourceText}) not like ':::callout%'
+          )`,
         ),
       ),
     db
@@ -96,6 +100,10 @@ export async function listNativeProjectLocaleProgress(input: {
           eq(schema.projectTranslations.organizationId, input.organizationId),
           eq(schema.projectTranslations.projectId, input.projectId),
           eq(schema.projectTranslationKeys.isHidden, false),
+          sql`(
+            trim(${schema.projectTranslationKeys.sourceText}) <> ':::'
+            and trim(${schema.projectTranslationKeys.sourceText}) not like ':::callout%'
+          )`,
         ),
       ),
   ]);

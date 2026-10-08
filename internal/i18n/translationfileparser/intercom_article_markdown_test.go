@@ -86,3 +86,22 @@ func TestMarshalIntercomArticleBodyMarkdownKeepsIntercomSyntax(t *testing.T) {
 		t.Fatalf("marshal left unexpanded placeholders:\n%s", output)
 	}
 }
+
+func TestIntercomCalloutFenceNotInQueue(t *testing.T) {
+	entries, err := (MarkdownParser{}).Parse([]byte(intercomArticleBodyMarkdown))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := entries["md.Paragraph[4]/line[0]"]; ok {
+		t.Fatal(":::callout fence must not become md.Paragraph[4]/line[0]")
+	}
+	for key, value := range entries {
+		if strings.Contains(value, ":::") {
+			t.Fatalf("queue still has callout fence %s=%q", key, value)
+		}
+	}
+	body, ok := entries["md.Paragraph[4]/line[1]"]
+	if !ok || !strings.Contains(body, "For a public article to be enabled for Fin") {
+		t.Fatalf("expected callout body to stay translatable, got %q", body)
+	}
+}

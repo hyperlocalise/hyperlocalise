@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 
+import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
+
 import { parseIntercomArticleMarkdown, type IntercomArticleFields } from "./article-markdown";
 
 export const INTERCOM_ARTICLE_TITLE_KEY_ALIASES = [
@@ -54,7 +56,8 @@ export function composeIntercomArticleFromApprovedKeyedUnits(input: {
   sourceMarkdown: string;
   units: readonly IntercomApprovedKeyedUnit[];
 }): IntercomArticleFields | null {
-  const visibleUnits = input.units.filter((unit) => !unit.isHidden);
+  const units = input.units.filter((unit) => !isMarkdownCalloutFenceText(unit.sourceText));
+  const visibleUnits = units.filter((unit) => !unit.isHidden);
   if (
     visibleUnits.length === 0 ||
     visibleUnits.some((unit) => unit.targetText.trim().length === 0)
@@ -62,13 +65,13 @@ export function composeIntercomArticleFromApprovedKeyedUnits(input: {
     return null;
   }
 
-  const applied = applyApprovedKeyedUnitsToMarkdown(input.sourceMarkdown, input.units);
+  const applied = applyApprovedKeyedUnitsToMarkdown(input.sourceMarkdown, units);
   if (applied == null) {
     return null;
   }
 
   const parsed = parseIntercomArticleMarkdown(applied);
-  const byKey = Object.fromEntries(input.units.map((unit) => [unit.key, unit.targetText]));
+  const byKey = Object.fromEntries(units.map((unit) => [unit.key, unit.targetText]));
   const approvedTitle = readIntercomArticleFieldFromKeys(byKey, INTERCOM_ARTICLE_TITLE_KEY_ALIASES);
   const title = parsed.title.trim() || approvedTitle;
   const description =

@@ -16,6 +16,7 @@ import type {
   ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
 import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
+import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
 import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
@@ -273,32 +274,33 @@ export function projectFileCatToWorkspaceState(
 ): ContentEditorWorkspaceState {
   const fileContext = fileContextFor(contentEditorFile, sourceLocale);
   const segmentOffset = contentEditorFile.pagination?.offset ?? 0;
-  const segments: ContentEditorQueueSegment[] = contentEditorFile.segments.map(
-    (segment, index) => ({
-      id: segment.externalStringId,
-      index: segmentOffset + index + 1,
-      key: segment.key,
-      sourceText: segment.sourceText,
-      ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
-      ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
-      ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
-      ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
-      ...(segment.looksLikeImageUrl !== undefined
-        ? { looksLikeImageUrl: segment.looksLikeImageUrl }
-        : {}),
-      ...(segment.looksLikeVideoUrl !== undefined
-        ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
-        : {}),
-      ...(segment.isHidden ? { isHidden: true } : {}),
-      ...(segment.isLocked ? { isLocked: true } : {}),
-      ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
-      ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
-      ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
-      ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
-      ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
-      ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
-    }),
+  const visibleFileSegments = contentEditorFile.segments.filter(
+    (segment) => !isMarkdownCalloutFenceText(segment.sourceText),
   );
+  const segments: ContentEditorQueueSegment[] = visibleFileSegments.map((segment, index) => ({
+    id: segment.externalStringId,
+    index: segmentOffset + index + 1,
+    key: segment.key,
+    sourceText: segment.sourceText,
+    ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
+    ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
+    ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
+    ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
+    ...(segment.looksLikeImageUrl !== undefined
+      ? { looksLikeImageUrl: segment.looksLikeImageUrl }
+      : {}),
+    ...(segment.looksLikeVideoUrl !== undefined
+      ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
+      : {}),
+    ...(segment.isHidden ? { isHidden: true } : {}),
+    ...(segment.isLocked ? { isLocked: true } : {}),
+    ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
+    ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
+    ...(segment.occurrenceCount ? { occurrenceCount: segment.occurrenceCount } : {}),
+    ...(segment.groupStatus ? { groupStatus: segment.groupStatus } : {}),
+    ...(segment.divergentLocales?.length ? { divergentLocales: segment.divergentLocales } : {}),
+  }));
 
   return {
     fileContext,
@@ -308,7 +310,7 @@ export function projectFileCatToWorkspaceState(
     segmentFormatChecks: {},
     intelligence: intelligenceFor(contentEditorFile, intl),
     segmentIntelligence: Object.fromEntries(
-      contentEditorFile.segments.map((segment) => [
+      visibleFileSegments.map((segment) => [
         segment.externalStringId,
         segmentIntelligenceFor(contentEditorFile, segment, intl),
       ]),

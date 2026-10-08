@@ -3,7 +3,7 @@ title: "Localize Intercom Help Center articles"
 description: "Import Intercom articles into a native project, translate them in Jobs, and push approved drafts back to Intercom."
 ---
 
-Use a saved automation to import Intercom Help Center articles into a native project, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Intercom as drafts. Import never publishes to Intercom. Push is a separate action.
+Use a saved automation to import Intercom Help Center articles into a native project as markdown, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Intercom as drafts. Import never publishes to Intercom. **Push to Intercom as draft** is a separate action.
 
 ## Connect Intercom
 
@@ -34,11 +34,11 @@ After you select a Help Center, the editor lists that Help Center’s locale cod
    - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
 6. Save the automation.
 
-Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom** for write-back.
+Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom as draft** for write-back.
 
 ## Import articles
 
-**Run now** or wait for the schedule. Import writes one JSON source file per article at `intercom/{help-center-id}/{article-id}.json` with `title`, `description`, and `body`. Review those files in the project like other [JSON sources](/platform/projects/files).
+**Run now** or wait for the schedule. Import writes one markdown source file per article at `intercom/{help-center-slug}/{article-title-slug}.md`. The file has YAML `title` and `description` frontmatter and the Intercom article body as markdown. Review those files in the project like other [Markdown sources](/platform/projects/files). In the Content Editor, source and translation show the same markdown, including links as `[text](url)`.
 
 Without collection IDs, import includes articles in Help Center collections and standalone articles in that Help Center. With collection IDs, import includes only articles in those collections.
 
@@ -50,8 +50,8 @@ Import does not write translations to Intercom.
 
 ## Review and push drafts
 
-1. Translate and [approve](/platform/cat) the target locales in the project.
-2. In the Content editor header or on the automation, choose **Push to Intercom** when approved locales are ready and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
+1. Translate and [approve](/platform/cat) every visible string for a mapped locale, including the article title.
+2. In the Content editor header or on the automation, choose **Push to Intercom as draft** when at least one mapped locale is fully approved and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
 3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
 
 A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.
@@ -67,7 +67,7 @@ If a Help Center is missing, confirm the Intercom workspace, region, and that yo
 - Confirm Intercom is connected and the automation is **Active**.
 - Confirm the Help Center and region match the Intercom workspace.
 - Confirm project locales match the Help Center locale codes exactly.
-- If **Push to Intercom** is missing, approve at least one mapped locale, confirm you have permission to manage automations, and wait until any in-progress push finishes.
+- If **Push to Intercom as draft** is missing, approve every visible string for at least one mapped locale (including the title), confirm you have permission to manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed article or locale.
 
 See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

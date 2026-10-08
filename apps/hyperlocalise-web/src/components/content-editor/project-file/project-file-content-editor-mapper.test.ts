@@ -70,6 +70,37 @@ function contentEditorFile(
 }
 
 describe("projectFileCatToWorkspaceState", () => {
+  it("omits Intercom callout fence segments from the queue", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        sourcePath: "intercom/help/article.md",
+        filename: "article.md",
+        provider: null,
+        segments: [
+          {
+            externalStringId: "fence",
+            key: "md.Paragraph[4]/line[0]",
+            sourceText: ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+            context: null,
+            type: "text",
+          },
+          {
+            externalStringId: "body",
+            key: "md.Paragraph[4]/line[1]",
+            sourceText: "For a public article to be enabled for Fin",
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en",
+      testIntl,
+    );
+
+    expect(state.queueSegments.map((segment) => segment.id)).toEqual(["body"]);
+    expect(state.selectedSegmentId).toBe("body");
+  });
+
   it("maps CAT content into workspace state without eager format checks", () => {
     const state = projectFileCatToWorkspaceState(contentEditorFile(), "en-GB", testIntl);
 

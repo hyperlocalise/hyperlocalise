@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import { isMarkdownCalloutFenceText } from "@/lib/markdown/markdown-callout-fence";
 
 export type HlEntryRecord = {
   text: string;
@@ -69,7 +70,10 @@ export function entriesFromHlOutput(
       };
     })
     .filter(
-      (entry) => entry.key.length > 0 && (preserveEmptySourceText || entry.text.trim().length > 0),
+      (entry) =>
+        entry.key.length > 0 &&
+        (preserveEmptySourceText || entry.text.trim().length > 0) &&
+        !isMarkdownCalloutFenceText(entry.text),
     );
 }
 

@@ -53,6 +53,13 @@ function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
 }
 
+function excludeMarkdownCalloutFenceKeys() {
+  return sql`(
+    trim(${schema.projectTranslationKeys.sourceText}) <> ':::'
+    and trim(${schema.projectTranslationKeys.sourceText}) not like ':::callout%'
+  )`;
+}
+
 function translationKeysFileConditions(input: {
   organizationId: string;
   projectId: string;
@@ -62,6 +69,7 @@ function translationKeysFileConditions(input: {
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
     eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
@@ -69,6 +77,7 @@ function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
   return and(
     eq(schema.projectTranslationKeys.organizationId, input.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
+    excludeMarkdownCalloutFenceKeys(),
   );
 }
 
