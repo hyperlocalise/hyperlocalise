@@ -32,7 +32,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
-  return { ...actual, ensureAiFeaturesAllowed: vi.fn(async () => ({ ok: true, value: undefined })) };
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: vi.fn(async () => ({ ok: true, value: undefined })),
+  };
 });
 
 vi.mock("@/lib/providers/organization-language-model", () => ({
@@ -72,9 +75,11 @@ async function signIn(role: "admin" | "member" = "admin") {
   const [organization] = await db
     .select({ id: schema.organizations.id, slug: schema.organizations.slug })
     .from(schema.organizations)
-    .where(eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId))
+    .where(
+      eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+    )
     .limit(1);
-  return { identity, headers, organizationId: organization!.id, slug: organization!.slug };
+  return { identity, headers, organizationId: organization!.id, slug: organization!.slug! };
 }
 
 async function seedAutomation(input: { organizationId: string; userId: string }) {
@@ -92,8 +97,20 @@ async function seedAutomation(input: { organizationId: string; userId: string })
   return automation!.id;
 }
 
-const assistant = (slug: string) =>
-  client.api.orgs[":organizationSlug"].automations.assistant;
+const assistant = client.api.orgs[":organizationSlug"].automations.assistant;
+
+type SessionBody = {
+  session: { id: string; automationId: string | null; turnInProgress: boolean };
+};
+
+/** The body of a typed response, read past the status union the client gives it. */
+async function json<T>(response: { json: () => Promise<unknown> }): Promise<T> {
+  return (await response.json()) as T;
+}
+
+function userMessage(text: string) {
+  return [{ id: "msg-1", role: "user", parts: [{ type: "text", text }] }];
+}
 
 function pageContext(automationId: string | null = null) {
   return buildWorkspaceAutomationEditorContext({
@@ -113,7 +130,7 @@ describe("automation assistant sessions", () => {
   it("is for admins and localisation managers only", async () => {
     const { headers, slug } = await signIn("member");
 
-    const response = await assistant(slug).sessions.$post(
+    const response = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: {} },
       { headers },
     );
@@ -124,12 +141,12 @@ describe("automation assistant sessions", () => {
   it("makes a session that no conversation listing shows", async () => {
     const { headers, slug } = await signIn();
 
-    const created = await assistant(slug).sessions.$post(
+    const created = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: {} },
       { headers },
     );
     expect(created.status).toBe(201);
-    const { session } = await created.json();
+    const { session } = await json<SessionBody>(created);
     expect(session).toMatchObject({ automationId: null, turnInProgress: false });
 
     const inboxItems = await db
@@ -139,11 +156,11 @@ describe("automation assistant sessions", () => {
     expect(inboxItems).toEqual([]);
 
     const listed = await client.api.orgs[":organizationSlug"].conversations.$get(
-      { param: { organizationSlug: slug }, query: {} },
+      { param: { organizationSlug: slug }, query: { limit: "50" } },
       { headers },
     );
     expect(listed.status).toBe(200);
-    const body = await listed.json();
+    const body = await json<{ conversations: Array<{ id: string }> }>(listed);
     expect(body.conversations.map((conversation) => conversation.id)).not.toContain(session.id);
 
     const asConversation = await client.api.orgs[":organizationSlug"].conversations[
@@ -157,24 +174,24 @@ describe("automation assistant sessions", () => {
     const userId = await fixture.getLocalUserId(identity.user.workosUserId);
     const automationId = await seedAutomation({ organizationId, userId });
 
-    const none = await assistant(slug).sessions.$get(
+    const none = await assistant.sessions.$get(
       { param: { organizationSlug: slug }, query: { automationId } },
       { headers },
     );
     expect(await none.json()).toEqual({ session: null, messages: [] });
 
-    const created = await assistant(slug).sessions.$post(
+    const created = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: {} },
       { headers },
     );
-    const { session } = await created.json();
-    const bound = await assistant(slug).sessions[":sessionId"].$patch(
+    const { session } = await json<SessionBody>(created);
+    const bound = await assistant.sessions[":sessionId"].$patch(
       { param: { organizationSlug: slug, sessionId: session.id }, json: { automationId } },
       { headers },
     );
     expect(bound.status).toBe(200);
 
-    const resumed = await assistant(slug).sessions.$get(
+    const resumed = await assistant.sessions.$get(
       { param: { organizationSlug: slug }, query: { automationId } },
       { headers },
     );
@@ -182,12 +199,12 @@ describe("automation assistant sessions", () => {
 
     const colleague = fixture.createWorkosIdentityForOrganization(identity.organization, "admin");
     const colleagueHeaders = await fixture.authHeadersFor(colleague);
-    const theirs = await assistant(slug).sessions.$get(
+    const theirs = await assistant.sessions.$get(
       { param: { organizationSlug: slug }, query: { automationId } },
       { headers: colleagueHeaders },
     );
     expect(await theirs.json()).toEqual({ session: null, messages: [] });
-    const direct = await assistant(slug).sessions[":sessionId"].$get(
+    const direct = await assistant.sessions[":sessionId"].$get(
       { param: { organizationSlug: slug, sessionId: session.id } },
       { headers: colleagueHeaders },
     );
@@ -197,7 +214,7 @@ describe("automation assistant sessions", () => {
   it("refuses a session for an automation the workspace does not have", async () => {
     const { headers, slug } = await signIn();
 
-    const response = await assistant(slug).sessions.$post(
+    const response = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: { automationId: crypto.randomUUID() } },
       { headers },
     );
@@ -207,17 +224,17 @@ describe("automation assistant sessions", () => {
 
   it("runs one turn at a time, with the page as it is", async () => {
     const { headers, slug } = await signIn();
-    const created = await assistant(slug).sessions.$post(
+    const created = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: {} },
       { headers },
     );
-    const { session } = await created.json();
-    const turns = assistant(slug).sessions[":sessionId"].turns;
+    const { session } = await json<SessionBody>(created);
+    const turns = assistant.sessions[":sessionId"].turns;
 
     const badContext = await turns.$post(
       {
         param: { organizationSlug: slug, sessionId: session.id },
-        json: { text: "Post a weekly summary", pageContext: { kind: "nope" } },
+        json: { messages: userMessage("Post a weekly summary"), pageContext: { kind: "nope" } },
       },
       { headers },
     );
@@ -226,7 +243,7 @@ describe("automation assistant sessions", () => {
     const started = await turns.$post(
       {
         param: { organizationSlug: slug, sessionId: session.id },
-        json: { text: "Post a weekly summary", pageContext: pageContext() },
+        json: { messages: userMessage("Post a weekly summary"), pageContext: pageContext() },
       },
       { headers },
     );
@@ -243,7 +260,7 @@ describe("automation assistant sessions", () => {
     const again = await turns.$post(
       {
         param: { organizationSlug: slug, sessionId: session.id },
-        json: { text: "And email it", pageContext: pageContext() },
+        json: { messages: userMessage("And email it"), pageContext: pageContext() },
       },
       { headers },
     );
@@ -253,19 +270,19 @@ describe("automation assistant sessions", () => {
 
   it("is deleted on start over", async () => {
     const { headers, slug } = await signIn();
-    const created = await assistant(slug).sessions.$post(
+    const created = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: {} },
       { headers },
     );
-    const { session } = await created.json();
+    const { session } = await json<SessionBody>(created);
 
-    const deleted = await assistant(slug).sessions[":sessionId"].$delete(
+    const deleted = await assistant.sessions[":sessionId"].$delete(
       { param: { organizationSlug: slug, sessionId: session.id } },
       { headers },
     );
     expect(deleted.status).toBe(204);
 
-    const gone = await assistant(slug).sessions[":sessionId"].$get(
+    const gone = await assistant.sessions[":sessionId"].$get(
       { param: { organizationSlug: slug, sessionId: session.id } },
       { headers },
     );

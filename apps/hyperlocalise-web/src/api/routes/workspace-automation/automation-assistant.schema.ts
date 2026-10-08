@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { UIMessage } from "ai";
 import { z } from "zod";
 
 /** Longest message a person may send the assistant, the same as a chat message. */
@@ -31,11 +32,35 @@ export const bindAutomationAssistantSessionBodySchema = z.object({
   automationId: z.string().uuid(),
 });
 
+/**
+ * What the chat transport posts: the message being sent, in the UI message shape, and the page.
+ * Only the text parts of the last user message are read.
+ */
 export const automationAssistantTurnBodySchema = z.object({
-  text: z.string().trim().min(1).max(AUTOMATION_ASSISTANT_TEXT_MAX_CHARS),
+  messages: z
+    .array(
+      z.object({
+        role: z.string(),
+        parts: z.array(z.object({ type: z.string(), text: z.string().optional() })),
+      }),
+    )
+    .min(1),
   /** Checked against the editor context schema by the route; an unparseable one is refused. */
   pageContext: z.unknown(),
 });
+
+/** The text of the message being sent, or null when the transport sent none. */
+export function automationAssistantTurnText(
+  body: z.infer<typeof automationAssistantTurnBodySchema>,
+): string | null {
+  const last = body.messages.findLast((message) => message.role === "user");
+  const text = (last?.parts ?? [])
+    .filter((part) => part.type === "text")
+    .map((part) => part.text ?? "")
+    .join("")
+    .trim();
+  return text.length > 0 && text.length <= AUTOMATION_ASSISTANT_TEXT_MAX_CHARS ? text : null;
+}
 
 /** A session as the page reads it. */
 export type AutomationAssistantSessionResponse = {
@@ -54,7 +79,7 @@ export type AutomationAssistantMessageResponse = {
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
-  parts: unknown[] | null;
+  parts: UIMessage["parts"] | null;
   attachments: null;
   createdAt: string;
 };

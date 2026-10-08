@@ -105,6 +105,27 @@ export const automationsPageViewMessages = defineMessages({
     id: "+5c87/Ii+m",
     description: "Badge label when an automation is paused",
   },
+  newAutomationSectionTitle: {
+    defaultMessage: "New automation",
+    id: "aHvMV2aQQN",
+    description: "Heading of the section of the automations page where a new automation is started",
+  },
+  newAutomationSectionDescription: {
+    defaultMessage:
+      "Describe what you want done and the assistant sets it up for you. Nothing is saved until you create it.",
+    id: "sxoIk5o3gz",
+    description: "Text under the heading of the section where a new automation is started",
+  },
+  startFromScratch: {
+    defaultMessage: "Start from scratch",
+    id: "RuPE0YKwSS",
+    description: "Button that opens an empty automation editor without the assistant",
+  },
+  orPickTemplate: {
+    defaultMessage: "or pick a template",
+    id: "QiMU0qq2o+",
+    description: "Divider between the assistant prompt box and the list of automation templates",
+  },
   templatesTitle: {
     defaultMessage: "Templates",
     id: "EGX8+adWDn",

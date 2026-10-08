@@ -45,6 +45,7 @@ import {
   automationAssistantSessionParamsSchema,
   automationAssistantSessionQuerySchema,
   automationAssistantTurnBodySchema,
+  automationAssistantTurnText,
   bindAutomationAssistantSessionBodySchema,
   createAutomationAssistantSessionBodySchema,
   type AutomationAssistantMessageResponse,
@@ -222,6 +223,10 @@ export function createAutomationAssistantRoutes() {
       if (!session) {
         return notFoundResponse(c, "session_not_found");
       }
+      const text = automationAssistantTurnText(body);
+      if (!text) {
+        return badRequestResponse(c, "empty_message");
+      }
       const pageContext = workspaceAutomationEditorContextSchema.safeParse(body.pageContext);
       if (!pageContext.success || !isWorkspaceAutomationAssistantForm(pageContext.data.form)) {
         return badRequestResponse(c, "invalid_page_context");
@@ -242,7 +247,7 @@ export function createAutomationAssistantRoutes() {
           session,
           organizationId,
           userEmail: c.var.auth.user.email,
-          text: body.text,
+          text,
           pageContext: pageContext.data,
           languageModel,
         });

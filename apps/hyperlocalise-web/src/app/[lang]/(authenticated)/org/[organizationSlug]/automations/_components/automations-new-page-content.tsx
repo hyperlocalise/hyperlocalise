@@ -26,6 +26,7 @@ import {
   type WorkspaceAutomationFormChange,
 } from "@/lib/agents/workspace-automation-undo";
 import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { takeAutomationAssistantHandoff } from "@/lib/automation-assistant/handoff";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -37,6 +38,8 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { bindAssistantSession } from "./automation-assistant-api";
+import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
@@ -47,15 +50,26 @@ export function AutomationsNewPageContent({
   initialForm = createDefaultWorkspaceAutomationFormState(),
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
+  assistantEnabled = false,
+  startsFromTemplate = false,
 }: {
   organizationSlug: string;
   projectId?: string;
   initialForm?: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
+  assistantEnabled?: boolean;
+  /** A template was asked for by its link, so a request handed over from the list is dropped. */
+  startsFromTemplate?: boolean;
 }) {
   const intl = useIntl();
   const [startForm] = useState(initialForm);
+  const [assistantSessionId, setAssistantSessionId] = useState<string | null>(null);
+  const [assistantWorking, setAssistantWorking] = useState(false);
+  // The request typed on the automations page, taken once so a reload does not send it again.
+  const [assistantInitialPrompt] = useState(() =>
+    assistantEnabled && !startsFromTemplate ? takeAutomationAssistantHandoff() : null,
+  );
   const history = useUndoStack<
     WorkspaceAutomationFormState | null,
     WorkspaceAutomationFormChange | null
@@ -64,7 +78,7 @@ export function AutomationsNewPageContent({
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
-    workspaceAutomationFormHasChanges(form, startForm),
+    workspaceAutomationFormHasChanges(form, startForm) || assistantWorking,
   );
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   // The notice's action runs after later renders, so it reads the history as it is then.
@@ -80,7 +94,7 @@ export function AutomationsNewPageContent({
     setErrors({});
     notifyRedo(step, runUndo);
   };
-  const runUndo = () => {
+  const performUndo = () => {
     const step = historyRef.current.undoStep;
     if (!step) {
       return;
@@ -88,6 +102,14 @@ export function AutomationsNewPageContent({
     historyRef.current.undo();
     setErrors({});
     notifyUndo(step, runRedo);
+  };
+  const { requestUndo, undoConfirmDialog } = useAssistantUndoConfirm(performUndo);
+  const runUndo = () => requestUndo(historyRef.current.undoStep);
+  // A turn of the assistant's is one step, kept apart from the typing around it.
+  const applyAssistantChange = (next: WorkspaceAutomationFormState) => {
+    historyRef.current.seal();
+    historyRef.current.change(next, { origin: "assistant" });
+    historyRef.current.seal();
   };
 
   const createMutation = useMutation({
@@ -122,7 +144,13 @@ export function AutomationsNewPageContent({
 
       return response.json();
     },
-    onSuccess: (body) => {
+    onSuccess: async (body) => {
+      // The assistant's conversation follows the automation to its own page.
+      if (assistantSessionId) {
+        await bindAssistantSession(organizationSlug, assistantSessionId, body.automation.id).catch(
+          () => undefined,
+        );
+      }
       toast.success(intl.formatMessage(automationsNewPageContentMessages.createSuccess));
       leaveTo(`${automationsBasePath}/${body.automation.id}`);
     },
@@ -178,10 +206,16 @@ export function AutomationsNewPageContent({
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+        assistantEnabled={assistantEnabled}
+        assistantInitialPrompt={assistantInitialPrompt}
+        onAssistantChange={applyAssistantChange}
+        onAssistantSessionChange={setAssistantSessionId}
+        onAssistantWorkingChange={setAssistantWorking}
         onChange={history.change}
         actions={actions}
       />
       {leaveGuardDialog}
+      {undoConfirmDialog}
     </WorkspacePageShell>
   );
 }

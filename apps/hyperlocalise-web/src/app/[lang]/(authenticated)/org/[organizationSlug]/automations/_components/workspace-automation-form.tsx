@@ -158,6 +158,12 @@ import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationS
 
 import { RunHistoryTable } from "./workspace-automation-run-history";
 import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
+import {
+  AutomationAssistantLayout,
+  AutomationAssistantOpenButton,
+} from "./automation-assistant-panel";
+import { AutomationAssistantProvider } from "./automation-assistant-provider";
+import { AutomationAssistantSummary } from "./automation-assistant-summary";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -3077,6 +3083,8 @@ function ToolsSettings({
 
 export function WorkspaceAutomationEditor({
   actions,
+  assistantEnabled = false,
+  assistantInitialPrompt = null,
   automationId,
   canUpdateKnowledgeMemory = false,
   disabled,
@@ -3084,12 +3092,19 @@ export function WorkspaceAutomationEditor({
   form,
   knowledgeAvailable = false,
   mode,
+  onAssistantChange,
+  onAssistantSessionChange,
+  onAssistantWorkingChange,
   onChange,
   organizationSlug,
   runHistory,
   initialEditorTab,
 }: {
   actions?: ReactNode;
+  /** Offers the automation assistant beside the form. */
+  assistantEnabled?: boolean;
+  /** A request handed over from the automations page, which the assistant starts with. */
+  assistantInitialPrompt?: string | null;
   automationId?: string;
   canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
@@ -3097,6 +3112,12 @@ export function WorkspaceAutomationEditor({
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
+  /** Called with the form after each change the assistant makes; `onChange` when absent. */
+  onAssistantChange?: (next: WorkspaceAutomationFormState) => void;
+  /** Called when the assistant's session for this page starts or ends. */
+  onAssistantSessionChange?: (sessionId: string | null) => void;
+  /** Called when a turn of the assistant's starts or stops running. */
+  onAssistantWorkingChange?: (working: boolean) => void;
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
@@ -3459,7 +3480,20 @@ export function WorkspaceAutomationEditor({
     );
   };
 
-  return (
+  // The assistant waits for these before its first turn, so it knows what is connected.
+  const skillConnectionsSettled =
+    !projectsQuery.isPending &&
+    !githubInstallationQuery.isPending &&
+    !(githubConnected && repositoriesQuery.isPending) &&
+    !tmsProviderQuery.isPending &&
+    !(crowdinConnected && tmsLiveProjectsQuery.isPending) &&
+    !contentfulConnectionsQuery.isPending &&
+    !slackQuery.isPending &&
+    !resendPipesQuery.isPending &&
+    !sendgridPipesQuery.isPending &&
+    !intercomPipesQuery.isPending;
+
+  const editor = (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -3537,6 +3571,8 @@ export function WorkspaceAutomationEditor({
         <FieldError message={errors.form} />
       </section>
 
+      <AutomationAssistantSummary organizationSlug={organizationSlug} />
+
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as WorkspaceAutomationEditorTab)}
@@ -3569,15 +3605,18 @@ export function WorkspaceAutomationEditor({
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
             titleAside={
-              <SuggestionChips
-                disabled={disabled}
-                shownKeys={shownSuggestionKeys}
-                suggestions={suggestions}
-                onAdd={addSuggestion}
-                onDismiss={(suggestion) =>
-                  setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
-                }
-              />
+              <div className="flex items-center justify-end gap-2">
+                <SuggestionChips
+                  disabled={disabled}
+                  shownKeys={shownSuggestionKeys}
+                  suggestions={suggestions}
+                  onAdd={addSuggestion}
+                  onDismiss={(suggestion) =>
+                    setDismissedSuggestions((current) => new Set(current).add(suggestion.key))
+                  }
+                />
+                <AutomationAssistantOpenButton />
+              </div>
             }
           >
             <Textarea
@@ -3674,6 +3713,36 @@ export function WorkspaceAutomationEditor({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+
+  if (!assistantEnabled) {
+    return editor;
+  }
+
+  return (
+    <AutomationAssistantProvider
+      automationId={automationId}
+      connections={skillConnections}
+      connectionsSettled={skillConnectionsSettled}
+      contentfulConnectionIds={contentfulConnections.map((connection) => connection.id)}
+      crowdinProjectIds={collectCrowdinProjects(projectsQuery.data ?? [], crowdinLiveProjects).map(
+        (project) => project.id,
+      )}
+      form={form}
+      initialPrompt={assistantInitialPrompt}
+      mode={mode}
+      onChange={onAssistantChange ?? onChange}
+      onSessionChange={onAssistantSessionChange}
+      onWorkingChange={onAssistantWorkingChange}
+      organizationSlug={organizationSlug}
+      repositories={repositories.map((repository) => ({
+        id: repository.id,
+        name: repository.fullName,
+        selectable: repository.enabled && !repository.archived,
+      }))}
+    >
+      <AutomationAssistantLayout>{editor}</AutomationAssistantLayout>
+    </AutomationAssistantProvider>
   );
 }
 

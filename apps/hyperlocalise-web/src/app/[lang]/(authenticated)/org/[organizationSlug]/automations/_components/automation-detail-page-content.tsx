@@ -81,6 +81,7 @@ import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { useAssistantUndoConfirm } from "./automation-assistant-undo-confirm";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
@@ -104,12 +105,15 @@ function uniqueSourceFilesByPath(files: ReadonlyArray<{ sourcePath: string }>) {
 }
 
 export function AutomationDetailPageContent({
+  assistantEnabled = false,
   organizationSlug,
   projectId,
   automationId,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
+  /** Offers the automation assistant beside the form. */
+  assistantEnabled?: boolean;
   organizationSlug: string;
   projectId?: string;
   automationId: string;
@@ -177,7 +181,7 @@ export function AutomationDetailPageContent({
     setErrors({});
     notifyRedo(step, runUndo);
   };
-  const runUndo = () => {
+  const performUndo = () => {
     const step = historyRef.current.undoStep;
     if (!step) {
       return;
@@ -185,6 +189,15 @@ export function AutomationDetailPageContent({
     historyRef.current.undo();
     setErrors({});
     notifyUndo(step, runRedo);
+  };
+  const { requestUndo, undoConfirmDialog } = useAssistantUndoConfirm(performUndo);
+  const runUndo = () => requestUndo(historyRef.current.undoStep);
+  const [assistantWorking, setAssistantWorking] = useState(false);
+  // A turn of the assistant's is one step, kept apart from the typing around it.
+  const applyAssistantChange = (next: WorkspaceAutomationFormState) => {
+    historyRef.current.seal();
+    historyRef.current.change(next, { origin: "assistant" });
+    historyRef.current.seal();
   };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
@@ -477,7 +490,9 @@ export function AutomationDetailPageContent({
       form,
       createWorkspaceAutomationFormStateFromRecord(automation),
     );
-  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
+    hasUnsavedChanges || assistantWorking,
+  );
   const { rootRef } = useUndoShortcuts({
     enabled: !(saveMutation.isPending || deleteMutation.isPending),
     onUndo: runUndo,
@@ -659,6 +674,9 @@ export function AutomationDetailPageContent({
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+        assistantEnabled={assistantEnabled}
+        onAssistantChange={applyAssistantChange}
+        onAssistantWorkingChange={setAssistantWorking}
         onChange={history.change}
         runHistory={recentRuns}
         initialEditorTab={initialEditorTab}
@@ -916,6 +934,7 @@ export function AutomationDetailPageContent({
         </Button>
       </div>
       {leaveGuardDialog}
+      {undoConfirmDialog}
     </WorkspacePageShell>
   );
 }
