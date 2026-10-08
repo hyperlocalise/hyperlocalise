@@ -15,6 +15,7 @@ import type {
   ProjectFileContentEditorQueueFile,
   ProjectFileContentEditorTranslation,
 } from "@/api/routes/project/project.schema";
+import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
@@ -113,7 +114,8 @@ export function formatCheckForSegment(
 ): ContentEditorFormatCheck[] {
   const checks: ContentEditorFormatCheck[] = [];
   const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText);
-  const targetAnalysis = analyzeCatMessageFormat(value);
+  const recoveredValue = recoverMarkdownMarkupTokens(segment.sourceText, value) ?? value;
+  const targetAnalysis = analyzeCatMessageFormat(recoveredValue);
   const parityIssues = compareCatMessageFormats(sourceAnalysis, targetAnalysis);
 
   if (parityIssues.length === 0) {

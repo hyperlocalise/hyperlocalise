@@ -20,13 +20,12 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
-  collectApprovedIntercomArticleValues,
   encodeIntercomLastPushRecord,
   hashIntercomTranslationValues,
   mergeIntercomLocalePushPayload,
   parseIntercomLastPushRecord,
   shouldSkipUnchangedIntercomHash,
-} from "./article-json";
+} from "./article-markdown";
 import {
   createIntercomArticlesClient,
   getIntercomArticle,
@@ -244,19 +243,17 @@ export async function runPushIntercomTranslations(input: {
       }
 
       try {
-        const approved = collectApprovedIntercomArticleValues(
-          approvedByPathAndLocale.get(mapping.sourcePath)?.get(hlLocale) ?? {},
-        );
+        const approved = approvedByPathAndLocale.get(mapping.sourcePath)?.get(hlLocale);
         const remoteLocale =
           remoteArticle?.localeContent[intercomLocale] ??
           remoteArticle?.localeContent[normalizeIntercomLocaleTag(intercomLocale)] ??
           null;
         const values = mergeIntercomLocalePushPayload({
-          approved,
+          approved: approved ?? {},
           remote: remoteLocale,
         });
 
-        if (!values) {
+        if (!approved || !values) {
           articleSkipped += 1;
           continue;
         }

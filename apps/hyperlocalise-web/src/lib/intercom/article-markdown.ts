@@ -14,9 +14,7 @@ import { createHash } from "node:crypto";
 
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 
-export const INTERCOM_ARTICLE_JSON_KEYS = ["title", "description", "body"] as const;
-
-export type IntercomArticleJsonPayload = {
+export type IntercomArticleFields = {
   title: string;
   description: string;
   body: string;
@@ -113,7 +111,7 @@ export function assignIntercomArticleSourcePaths(input: {
 const INTERCOM_ARTICLE_FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const INTERCOM_ARTICLE_FRONTMATTER_FIELD_PATTERN = /^([A-Za-z0-9_-]+):\s*(.*)$/;
 
-export function serializeIntercomArticleMarkdown(payload: IntercomArticleJsonPayload): string {
+export function serializeIntercomArticleMarkdown(payload: IntercomArticleFields): string {
   const yaml = [
     `title: ${quoteIntercomYamlScalar(payload.title)}`,
     `description: ${quoteIntercomYamlScalar(payload.description)}`,
@@ -122,7 +120,7 @@ export function serializeIntercomArticleMarkdown(payload: IntercomArticleJsonPay
   return `---\n${yaml}\n---\n${body}`;
 }
 
-export function parseIntercomArticleMarkdown(markdown: string): IntercomArticleJsonPayload {
+export function parseIntercomArticleMarkdown(markdown: string): IntercomArticleFields {
   const match = INTERCOM_ARTICLE_FRONTMATTER_PATTERN.exec(markdown);
   if (!match) {
     return {
@@ -185,7 +183,7 @@ function unquoteIntercomYamlScalar(value: string) {
   return trimmed;
 }
 
-export function hashIntercomArticleContent(payload: IntercomArticleJsonPayload): string {
+export function hashIntercomArticleContent(payload: IntercomArticleFields): string {
   return hashIntercomTranslationValues(payload);
 }
 
@@ -234,23 +232,10 @@ export function parseIntercomLastPushRecord(value: string | undefined): {
   return { hash: value, pushedAtSeconds: null };
 }
 
-export function collectApprovedIntercomArticleValues(
-  prefilled: Record<string, string>,
-): Partial<IntercomArticleJsonPayload> {
-  const values: Partial<IntercomArticleJsonPayload> = {};
-  for (const key of INTERCOM_ARTICLE_JSON_KEYS) {
-    const translated = prefilled[key];
-    if (typeof translated === "string" && translated.trim().length > 0) {
-      values[key] = translated;
-    }
-  }
-  return values;
-}
-
 export function mergeIntercomLocalePushPayload(input: {
-  approved: Partial<IntercomArticleJsonPayload>;
-  remote?: Partial<IntercomArticleJsonPayload> | null;
-}): IntercomArticleJsonPayload | null {
+  approved: Partial<IntercomArticleFields>;
+  remote?: Partial<IntercomArticleFields> | null;
+}): IntercomArticleFields | null {
   if (Object.keys(input.approved).length === 0) {
     return null;
   }
@@ -268,11 +253,11 @@ export function mergeIntercomLocalePushPayload(input: {
   };
 }
 
-export function articleFieldsToJsonPayload(input: {
+export function toIntercomArticleFields(input: {
   title?: string | null;
   description?: string | null;
   body?: string | null;
-}): IntercomArticleJsonPayload {
+}): IntercomArticleFields {
   return {
     title: input.title?.trim() ?? "",
     description: input.description?.trim() ?? "",

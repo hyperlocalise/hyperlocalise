@@ -14,9 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { INTERCOM_ARTICLE_BODY_MARKDOWN } from "./intercom-article-markdown.fixture";
 import {
-  articleFieldsToJsonPayload,
   assignIntercomArticleSourcePaths,
-  collectApprovedIntercomArticleValues,
   buildIntercomArticleSourcePath,
   encodeIntercomLastPushRecord,
   hashIntercomArticleContent,
@@ -26,9 +24,10 @@ import {
   parseIntercomLastPushRecord,
   serializeIntercomArticleMarkdown,
   shouldSkipUnchangedIntercomHash,
-} from "./article-json";
+  toIntercomArticleFields,
+} from "./article-markdown";
 
-describe("intercom article json", () => {
+describe("intercom article markdown", () => {
   it("builds a stable source path under the help center", () => {
     expect(
       buildIntercomArticleSourcePath({
@@ -158,7 +157,7 @@ describe("intercom article json", () => {
   });
 
   it("hashes source and translation payloads the same way", () => {
-    const payload = articleFieldsToJsonPayload({
+    const payload = toIntercomArticleFields({
       title: "Hello",
       description: "Help",
       body: "Go to *Settings → Billing*.",
@@ -246,20 +245,6 @@ describe("intercom article json", () => {
     ).toEqual({
       title: "Hallo",
       description: "Hilfe",
-      body: "Neu",
-    });
-  });
-
-  it("collects only approved article fields and drops whitespace-only values", () => {
-    expect(
-      collectApprovedIntercomArticleValues({
-        title: "Hallo",
-        description: "   ",
-        body: "Neu",
-        extra: "ignored",
-      }),
-    ).toEqual({
-      title: "Hallo",
       body: "Neu",
     });
   });

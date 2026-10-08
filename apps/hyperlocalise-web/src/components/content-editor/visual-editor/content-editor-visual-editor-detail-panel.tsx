@@ -171,6 +171,7 @@ export function ContentEditorVisualEditorDetailPanel({
         <div className="space-y-5 px-4 py-4">
           <ContentEditorEditorSourceSection
             sourceText={segment.sourceText}
+            targetText={segment.targetText}
             sourceLocale={segment.sourceLocale}
             segmentKey={segment.key}
             sourcePath={segment.sourcePath}

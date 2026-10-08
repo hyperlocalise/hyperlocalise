@@ -30,7 +30,7 @@ import {
   buildIntercomArticleSourcePath,
   hashIntercomArticleContent,
   serializeIntercomArticleMarkdown,
-} from "./article-json";
+} from "./article-markdown";
 import {
   createIntercomArticlesClient,
   getIntercomArticle,

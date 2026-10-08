@@ -12,7 +12,7 @@
  */
 import type { IntercomClient } from "intercom-client";
 
-import { articleFieldsToJsonPayload } from "./article-json";
+import { toIntercomArticleFields } from "./article-markdown";
 import { createIntercomClient } from "./client";
 import type { IntercomRestEndpoint } from "./constants";
 import type {
@@ -625,7 +625,7 @@ export function intercomArticleToImportPayload(
   const isDefaultLocale = defaultLocale == null || defaultLocale === normalizedSource;
 
   if (isDefaultLocale) {
-    return articleFieldsToJsonPayload({
+    return toIntercomArticleFields({
       title: article.title,
       description: article.description,
       body: article.body,
@@ -635,7 +635,7 @@ export function intercomArticleToImportPayload(
   const localized =
     article.localeContent[sourceLocale] ?? article.localeContent[normalizedSource] ?? null;
   if (localized && (localized.title.trim().length > 0 || localized.body.trim().length > 0)) {
-    return articleFieldsToJsonPayload(localized);
+    return toIntercomArticleFields(localized);
   }
 
   throw new Error("intercom_source_locale_content_missing");
