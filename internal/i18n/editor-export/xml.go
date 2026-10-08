@@ -3,6 +3,7 @@ package editor_export
 import (
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 var internalSegmentPlaceholderPattern = regexp.MustCompile("\x1eHL[A-Z]+PH_[A-Z0-9_]+_\\d+\x1f")
@@ -36,7 +37,7 @@ func sanitizeInvalidXMLCharacters(value string) string {
 			break
 		}
 	}
-	if !hasInvalid {
+	if !hasInvalid && utf8.ValidString(value) {
 		return value
 	}
 
