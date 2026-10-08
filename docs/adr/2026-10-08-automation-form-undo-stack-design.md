@@ -35,7 +35,7 @@ One undo stack per page, holding whole snapshots of the form, with the page's ow
 - `src/lib/agents/workspace-automation-undo.ts` describes a change as the part of the form it touched, such as the name or the trigger, and gives typing in one text field its coalescing key. The form is nullable, because the saved page has none until its record loads.
 - Both pages replace their form state with the hook. The header gains Undo and Redo icon buttons with the step named in a tooltip. Each undo or redo raises one toast, replaced on the next press, naming the change with the way back as its action.
 - The saved page's "Discard changes" button asks first and is one step. "Run now" with unsaved changes asks to save and run, or discard and run. Save keeps the history, so an undo after it makes the form unsaved again.
-- The saved page rebuilds its form only when the saved configuration changes: not after a run, not when its own save returns (the record the save returned is compared), silently when the form is clean, and as a `system` step when someone else saved over unsaved edits.
+- The saved page rebuilds its form only when the saved configuration changes: not after a run, not when its own save returns (the record the save returned is compared), without a step when the form holds no unsaved edits (it still equals the configuration saved before), and as a `system` step when someone else saved over unsaved edits.
 - The stack is forgotten when the page unmounts or another automation loads.
 
 ## Consequences
@@ -57,10 +57,7 @@ One undo stack per page, holding whole snapshots of the form, with the page's ow
 - The assistant's step and its confirm prompt; `origin: "assistant"` and the wording are in place for it.
 - The visual workflow editor; it supplies its own description and equality over the saved definition.
 - Caret restore after undo, and scrolling or highlighting the changed field.
-
-## Not decided
-
-- Whether a save made elsewhere while the form is clean should be a step rather than a silent reload.
+- Editing the same automation in more than one tab or by more than one person at once. Ignored due to unlikeliness of scenario and difficulty of resolving.
 
 ## Validation
 

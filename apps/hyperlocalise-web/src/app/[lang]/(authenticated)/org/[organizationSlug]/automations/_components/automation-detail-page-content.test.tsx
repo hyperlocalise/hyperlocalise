@@ -816,6 +816,25 @@ describe("AutomationDetailPageContent undo", () => {
     );
   });
 
+  it("follows a change saved elsewhere without a step when nothing is unsaved", async () => {
+    apiMocks.getAutomation
+      .mockResolvedValueOnce(record())
+      .mockResolvedValue(record({ name: "Saved by a teammate" }));
+
+    const { queryClient } = renderPage(scheduledAutomation);
+
+    await screen.findByRole("button", { name: "Undo" });
+    await refetch(queryClient);
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+        "Saved by a teammate",
+      ),
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  });
+
   it("keeps the history across a save, so undo makes the form unsaved again", async () => {
     const user = userEvent.setup();
     apiMocks.getAutomation

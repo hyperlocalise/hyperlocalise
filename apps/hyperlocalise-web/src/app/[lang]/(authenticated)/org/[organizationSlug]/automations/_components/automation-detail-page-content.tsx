@@ -259,7 +259,8 @@ export function AutomationDetailPageContent({
       return;
     }
     const current = history.form;
-    if (!current || !workspaceAutomationFormHasChanges(current, saved)) {
+    // With nothing unsaved the form simply follows the record, and no step is made.
+    if (!current || !workspaceAutomationFormHasChanges(current, previous.saved)) {
       history.replace(saved);
       return;
     }
