@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { readApiError } from "@/lib/api-error";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import {
   getKnowledgeMemory,
   knowledgeMemoryQueryKey,
@@ -41,12 +42,18 @@ export function KnowledgeMemoryEditor({
   projectId,
   canUpdateKnowledgeMemory,
   initialDraftContent,
+  guardsLeaving = false,
 }: {
   organizationSlug: string;
   projectId?: string;
   canUpdateKnowledgeMemory: boolean;
   /** Applied once after the saved memory loads, when the draft differs. */
   initialDraftContent?: string;
+  /**
+   * Asks before the person leaves the page with unsaved changes. Off where the editor sits on a
+   * page that has a leave guard of its own, because only one can be active at a time.
+   */
+  guardsLeaving?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
@@ -183,6 +190,9 @@ export function KnowledgeMemoryEditor({
     canUpdateKnowledgeMemory,
     isSaving: saveKnowledgeMemory.isPending,
   });
+  const { leaveGuardDialog } = useUnsavedChangesLeaveGuard(
+    guardsLeaving && currentEditorState.hasChanges,
+  );
 
   return (
     <>
@@ -255,6 +265,8 @@ export function KnowledgeMemoryEditor({
           applyLoadedKnowledgeMemory(knowledgeMemory, etag);
         }}
       />
+
+      {leaveGuardDialog}
     </>
   );
 }

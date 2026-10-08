@@ -56,6 +56,35 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "P5eC/nlEOZ",
     description: "Button to queue a manual automation run",
   },
+  runUnsavedTitle: {
+    defaultMessage: "You have unsaved changes",
+    id: "++7FbawqhB",
+    description:
+      "Title of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedDescription: {
+    defaultMessage:
+      "A run uses the automation as it was last saved. Save your changes to run with them, or discard them and run the saved automation.",
+    id: "zpXEO84HvX",
+    description:
+      "Body of the dialog shown when a run is started while the automation has unsaved changes",
+  },
+  runUnsavedCancel: {
+    defaultMessage: "Cancel",
+    id: "moIVxRz2ih",
+    description:
+      "Button that closes the unsaved changes run dialog without running or changing anything",
+  },
+  discardAndRun: {
+    defaultMessage: "Discard changes and run",
+    id: "loFFcMBn8p",
+    description: "Button that throws away the unsaved automation changes and then queues a run",
+  },
+  saveAndRun: {
+    defaultMessage: "Save and run",
+    id: "efAi5lrO4s",
+    description: "Button that saves the unsaved automation changes and then queues a run",
+  },
   selectSourceFiles: {
     defaultMessage: "Select source files to run this automation",
     id: "ngIYrv4Oy/",
@@ -130,6 +159,32 @@ export const automationDetailPageContentMessages = defineMessages({
     defaultMessage: "Save changes",
     id: "F6jskX12It",
     description: "Button to save automation detail changes",
+  },
+  discardChanges: {
+    defaultMessage: "Discard changes",
+    id: "bYsksXFrGX",
+    description: "Button that throws away the unsaved changes to an automation",
+  },
+  discardTitle: {
+    defaultMessage: "Discard changes?",
+    id: "otc1s9Zhhk",
+    description: "Title of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardDescription: {
+    defaultMessage:
+      "The automation goes back to how it was last saved. Your unsaved changes will be lost.",
+    id: "UsLxkyzDYE",
+    description: "Body of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardCancel: {
+    defaultMessage: "Keep editing",
+    id: "aYK9Ws6gX4",
+    description: "Button that closes the discard changes dialog and keeps the unsaved changes",
+  },
+  discardConfirm: {
+    defaultMessage: "Discard changes",
+    id: "FKZ67TsL+4",
+    description: "Confirm button that throws away the unsaved changes to an automation",
   },
   backToAutomations: {
     defaultMessage: "Back to automations",
