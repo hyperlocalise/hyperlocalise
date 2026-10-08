@@ -15,6 +15,7 @@ import { IntercomClient, IntercomError } from "intercom-client";
 import { err, isOk, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
+  INTERCOM_API_VERSION,
   INTERCOM_REST_ENDPOINTS,
   INTERCOM_VALIDATE_TIMEOUT_MS,
   resolveIntercomRestBaseUrl,
@@ -39,6 +40,7 @@ export function createIntercomClient(input: {
   return new IntercomClient({
     token: input.accessToken.trim(),
     environment: resolveIntercomRestBaseUrl(input.restEndpoint),
+    headers: { "Intercom-Version": INTERCOM_API_VERSION },
   });
 }
 

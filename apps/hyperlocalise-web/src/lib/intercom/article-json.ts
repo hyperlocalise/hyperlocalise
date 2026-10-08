@@ -41,7 +41,11 @@ export function buildIntercomArticleSourcePath(input: {
   const articleId = input.articleId.trim();
   const helpCenterSlug = slugifyIntercomPathSegment(input.helpCenterName ?? "", helpCenterId);
   const articleSlug = slugifyIntercomPathSegment(input.articleTitle ?? "", articleId);
-  return normalizeSourcePath(`intercom/${helpCenterSlug}/${articleSlug}.json`);
+  return normalizeSourcePath(`intercom/${helpCenterSlug}/${articleSlug}.md`);
+}
+
+export function isLegacyIntercomJsonSourcePath(sourcePath: string): boolean {
+  return sourcePath.toLowerCase().endsWith(".json");
 }
 
 export type IntercomArticlePathAssignment = {
@@ -72,13 +76,14 @@ export function assignIntercomArticleSourcePaths(input: {
   const usedFilenames = new Set(
     (input.existingMappings ?? [])
       .filter((mapping) => mapping.status !== "archived")
+      .filter((mapping) => !isLegacyIntercomJsonSourcePath(mapping.sourcePath))
       .map((mapping) => sourcePathFilename(mapping.sourcePath)),
   );
   const sourcePathByArticleId = new Map<string, string>();
 
   for (const article of input.articles) {
     const existingPath = existingByArticleId.get(article.id);
-    if (existingPath) {
+    if (existingPath && !isLegacyIntercomJsonSourcePath(existingPath)) {
       usedFilenames.add(sourcePathFilename(existingPath));
       sourcePathByArticleId.set(article.id, existingPath);
       continue;
@@ -105,16 +110,79 @@ export function assignIntercomArticleSourcePaths(input: {
   return sourcePathByArticleId;
 }
 
-export function serializeIntercomArticleJson(payload: IntercomArticleJsonPayload): string {
-  return `${JSON.stringify(
-    {
-      title: payload.title,
-      description: payload.description,
-      body: payload.body,
-    },
-    null,
-    2,
-  )}\n`;
+const INTERCOM_ARTICLE_FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+const INTERCOM_ARTICLE_FRONTMATTER_FIELD_PATTERN = /^([A-Za-z0-9_-]+):\s*(.*)$/;
+
+export function serializeIntercomArticleMarkdown(payload: IntercomArticleJsonPayload): string {
+  const yaml = [
+    `title: ${quoteIntercomYamlScalar(payload.title)}`,
+    `description: ${quoteIntercomYamlScalar(payload.description)}`,
+  ].join("\n");
+  const body = payload.body.replace(/^\n+/, "");
+  return `---\n${yaml}\n---\n${body}`;
+}
+
+export function parseIntercomArticleMarkdown(markdown: string): IntercomArticleJsonPayload {
+  const match = INTERCOM_ARTICLE_FRONTMATTER_PATTERN.exec(markdown);
+  if (!match) {
+    return {
+      title: "",
+      description: "",
+      body: markdown,
+    };
+  }
+
+  const fields: Record<string, string> = {};
+  for (const line of (match[1] ?? "").split(/\r?\n/)) {
+    const field = INTERCOM_ARTICLE_FRONTMATTER_FIELD_PATTERN.exec(line);
+    if (!field || /^\s/.test(line)) {
+      continue;
+    }
+    const key = field[1] ?? "";
+    const value = unquoteIntercomYamlScalar((field[2] ?? "").trim());
+    if (key) {
+      fields[key] = value;
+    }
+  }
+
+  return {
+    title: fields.title?.trim() ?? "",
+    description: fields.description?.trim() ?? "",
+    body: markdown.slice(match[0].length),
+  };
+}
+
+function quoteIntercomYamlScalar(value: string) {
+  if (
+    value === "" ||
+    value !== value.trim() ||
+    /[\n\r\t:#{}[\],&*?|<>=!%@`]/.test(value) ||
+    /^(?:true|false|null|yes|no|on|off|~)$/i.test(value) ||
+    /^-?0\d/.test(value) ||
+    /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value)
+  ) {
+    return JSON.stringify(value);
+  }
+  return value;
+}
+
+function unquoteIntercomYamlScalar(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "string") {
+        return parsed;
+      }
+    } catch {
+      // YAML double-quoted scalars are JSON-like; keep the inner text.
+    }
+    return trimmed.slice(1, -1).replaceAll('\\"', '"');
+  }
+  if (trimmed.length >= 2 && trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).replaceAll("''", "'");
+  }
+  return trimmed;
 }
 
 export function hashIntercomArticleContent(payload: IntercomArticleJsonPayload): string {

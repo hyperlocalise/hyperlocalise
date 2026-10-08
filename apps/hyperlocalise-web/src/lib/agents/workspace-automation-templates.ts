@@ -110,7 +110,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "an Intercom Help Center localisation connector",
       capabilities: [
-        "Import changed public articles as JSON source files in the attached project",
+        "Import changed public articles as markdown source files in the attached project",
         "Open native translation jobs for mapped target locales after ingest",
         "Never push translations automatically on import — operators enqueue push separately",
       ],

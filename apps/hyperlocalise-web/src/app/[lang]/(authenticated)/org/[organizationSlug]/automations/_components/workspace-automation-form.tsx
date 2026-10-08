@@ -34,6 +34,7 @@ import {
   ListMagnifyingGlassIcon,
   MegaphoneIcon,
   TranslateIcon,
+  ArrowClockwiseIcon,
   type Icon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -103,6 +104,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
@@ -3092,6 +3094,8 @@ export function WorkspaceAutomationEditor({
   onChange,
   organizationSlug,
   runHistory,
+  runHistoryRefreshing,
+  onRefreshRunHistory,
   initialEditorTab,
 }: {
   actions?: ReactNode;
@@ -3103,8 +3107,10 @@ export function WorkspaceAutomationEditor({
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
   onChange: (next: WorkspaceAutomationFormState) => void;
+  onRefreshRunHistory?: () => void;
   organizationSlug: string;
   runHistory?: WorkspaceAutomationRunRecord[];
+  runHistoryRefreshing?: boolean;
   initialEditorTab?: WorkspaceAutomationEditorTab;
 }) {
   const intl = useIntl();
@@ -3638,7 +3644,21 @@ export function WorkspaceAutomationEditor({
         </TabsContent>
 
         {hasHistory ? (
-          <TabsContent value="history" className="mt-4">
+          <TabsContent value="history" className="mt-4 flex flex-col gap-3">
+            {onRefreshRunHistory ? (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={runHistoryRefreshing}
+                  onClick={onRefreshRunHistory}
+                >
+                  {runHistoryRefreshing ? <Spinner className="size-3.5" /> : <ArrowClockwiseIcon />}
+                  <FormattedMessage {...workspaceAutomationFormMessages.refreshRunHistory} />
+                </Button>
+              </div>
+            ) : null}
             <RunHistoryTable runs={runHistory ?? []} />
           </TabsContent>
         ) : null}

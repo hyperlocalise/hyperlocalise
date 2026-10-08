@@ -83,15 +83,24 @@ vi.mock("./workspace-automation-form", () => ({
     actions,
     form,
     onChange,
+    onRefreshRunHistory,
+    runHistoryRefreshing,
   }: {
     actions: ReactNode;
     form: WorkspaceAutomationFormState;
     onChange: (form: WorkspaceAutomationFormState) => void;
+    onRefreshRunHistory?: () => void;
+    runHistoryRefreshing?: boolean;
   }) => (
     <div>
       <button type="button" onClick={() => onChange({ ...form, name: "Renamed automation" })}>
         Dirty form
       </button>
+      {onRefreshRunHistory ? (
+        <button type="button" disabled={runHistoryRefreshing} onClick={onRefreshRunHistory}>
+          Refresh
+        </button>
+      ) : null}
       {actions}
     </div>
   ),
@@ -353,5 +362,26 @@ describe("AutomationDetailPageContent write locking", () => {
     expect(
       await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("AutomationDetailPageContent run history refresh", () => {
+  afterEach(() => {
+    apiMocks.getAutomation.mockReset();
+  });
+
+  it("reloads recent runs when refresh is clicked", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation, recentRuns: [] }),
+    });
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Refresh" }));
+
+    await vi.waitFor(() => expect(apiMocks.getAutomation).toHaveBeenCalledTimes(2));
   });
 });

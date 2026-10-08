@@ -76,6 +76,24 @@ function resolveIntercomFormLocales(input: {
   return sourceLocale ? [sourceLocale] : [];
 }
 
+function applyIntercomHelpCenter(
+  form: WorkspaceAutomationFormState,
+  center: IntercomHelpCenterSummary,
+): WorkspaceAutomationFormState {
+  const nextSourceLocale = center.defaultLocale?.trim() || form.intercomSourceLocale.trim() || "en";
+  return {
+    ...form,
+    intercomHelpCenterId: center.id,
+    intercomHelpCenterLocales: resolveIntercomFormLocales({
+      helpCenterLocales: center.locales ?? [],
+      collectionLocales: [],
+      sourceLocale: nextSourceLocale,
+    }),
+    intercomSourceLocale: nextSourceLocale,
+    intercomCollectionIds: [],
+  };
+}
+
 export function WorkspaceAutomationIntercomSettings({
   organizationSlug,
   form,
@@ -214,6 +232,17 @@ export function WorkspaceAutomationIntercomSettings({
   }, [connectedRestEndpoint, form, form.intercomRestEndpoint, onChange]);
 
   useEffect(() => {
+    if (!form.intercomEnabled || !intercomConnected || form.intercomHelpCenterId.trim()) {
+      return;
+    }
+    const firstHelpCenter = helpCenters[0];
+    if (!firstHelpCenter) {
+      return;
+    }
+    onChange(applyIntercomHelpCenter(form, firstHelpCenter));
+  }, [form, helpCenters, intercomConnected, onChange]);
+
+  useEffect(() => {
     if (!form.intercomHelpCenterId) {
       return;
     }
@@ -282,19 +311,10 @@ export function WorkspaceAutomationIntercomSettings({
                 return;
               }
               const center = helpCenters.find((item) => String(item.id) === String(helpCenterId));
-              const nextSourceLocale =
-                center?.defaultLocale?.trim() || form.intercomSourceLocale.trim() || "en";
-              onChange({
-                ...form,
-                intercomHelpCenterId: helpCenterId,
-                intercomHelpCenterLocales: resolveIntercomFormLocales({
-                  helpCenterLocales: center?.locales ?? [],
-                  collectionLocales: [],
-                  sourceLocale: nextSourceLocale,
-                }),
-                intercomSourceLocale: nextSourceLocale,
-                intercomCollectionIds: [],
-              });
+              if (!center) {
+                return;
+              }
+              onChange(applyIntercomHelpCenter(form, center));
             }}
             disabled={!intercomConnected || helpCenters.length === 0}
           >
@@ -322,11 +342,6 @@ export function WorkspaceAutomationIntercomSettings({
         )}
         {errors.intercomHelpCenterId ? (
           <p className="text-sm text-destructive">{errors.intercomHelpCenterId}</p>
-        ) : null}
-        {form.intercomHelpCenterLocales.length ? (
-          <p className="text-xs text-muted-foreground">
-            Locales: {form.intercomHelpCenterLocales.join(", ")}
-          </p>
         ) : null}
       </div>
 

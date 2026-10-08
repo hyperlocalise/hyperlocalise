@@ -29,7 +29,7 @@ import {
   assignIntercomArticleSourcePaths,
   buildIntercomArticleSourcePath,
   hashIntercomArticleContent,
-  serializeIntercomArticleJson,
+  serializeIntercomArticleMarkdown,
 } from "./article-json";
 import {
   createIntercomArticlesClient,
@@ -37,6 +37,7 @@ import {
   intercomArticleToImportPayload,
   listIntercomArticlesSince,
   listIntercomHelpCenters,
+  loadIntercomArticleForImport,
 } from "./articles-api";
 import { mapProjectLocalesToIntercom } from "./intercom-locale";
 import {
@@ -301,17 +302,22 @@ export async function runImportIntercomArticles(input: {
         .limit(1);
 
       try {
-        const payload = intercomArticleToImportPayload(article, sourceIntercomLocale);
+        const detailedArticle = await loadIntercomArticleForImport(client, article.id);
+        const payload = intercomArticleToImportPayload(detailedArticle, sourceIntercomLocale);
         const contentHash = hashIntercomArticleContent(payload);
 
-        if (existing?.sourceContentHash === contentHash && existing.status === "active") {
+        if (
+          existing?.sourceContentHash === contentHash &&
+          existing.status === "active" &&
+          existing.sourcePath === sourcePath
+        ) {
           return {
             outcome: "skipped" as const,
             articleId: article.id,
             updatedAt: article.updatedAt,
           };
         }
-        const jsonBytes = Buffer.from(serializeIntercomArticleJson(payload), "utf8");
+        const markdownBytes = Buffer.from(serializeIntercomArticleMarkdown(payload), "utf8");
         const upload = await uploadSourceFile({
           organizationId: input.organizationId,
           project,
@@ -321,8 +327,8 @@ export async function runImportIntercomArticles(input: {
           uploadSurface: "intercom_automation",
           file: {
             filename: sourcePath.slice(sourcePath.lastIndexOf("/") + 1),
-            contentType: "application/json",
-            content: jsonBytes,
+            contentType: "text/markdown",
+            content: markdownBytes,
           },
         });
 

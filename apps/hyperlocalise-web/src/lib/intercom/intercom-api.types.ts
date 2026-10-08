@@ -13,6 +13,9 @@
 
 /**
  * Intercom REST API 2.16 shapes we read from Help Center and Articles endpoints.
+ * Article `body` is HTML; `body_markdown` is markdown and mutually exclusive on write.
+ * Top-level title, description, body, and body_markdown are the default locale.
+ * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/articles/article
  * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/help-center/retrievehelpcenter
  * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/help-center/listallcollections
  * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/models/starting_after_paging
@@ -97,6 +100,7 @@ export type IntercomApiArticleContent = {
   title?: string;
   description?: string;
   body?: string;
+  body_markdown?: string | null;
   updated_at?: number;
   draft_updated_at?: number | null;
 };
@@ -111,6 +115,7 @@ export type IntercomApiArticle = {
   title?: string;
   description?: string;
   body?: string;
+  body_markdown?: string | null;
   state?: string;
   updated_at?: number;
   author_id?: number;

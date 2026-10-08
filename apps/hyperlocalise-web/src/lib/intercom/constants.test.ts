@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  INTERCOM_API_VERSION,
   INTERCOM_REST_ENDPOINTS,
   intercomRestEndpointLabel,
   isIntercomRestEndpoint,
@@ -20,6 +21,10 @@ import {
 } from "./constants";
 
 describe("intercom constants", () => {
+  it("pins the Article API version that exposes body_markdown", () => {
+    expect(INTERCOM_API_VERSION).toBe("2.16");
+  });
+
   it("exposes the three documented regional endpoints", () => {
     expect(INTERCOM_REST_ENDPOINTS).toEqual(["us", "eu", "au"]);
     expect(resolveIntercomRestBaseUrl("us")).toBe("https://api.intercom.io");

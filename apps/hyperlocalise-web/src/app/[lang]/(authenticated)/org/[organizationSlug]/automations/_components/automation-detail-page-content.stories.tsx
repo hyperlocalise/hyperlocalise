@@ -257,7 +257,7 @@ export const IntercomWeeklyImport: Story = {
     await expect(
       await canvas.findByText(intercomSupportHelpCenter.displayName),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("Locales: en, de, fr")).toBeInTheDocument();
+    await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
     await expect(
       canvas.queryByRole("button", { name: "Push to Intercom as draft" }),

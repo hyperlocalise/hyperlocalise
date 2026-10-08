@@ -543,6 +543,10 @@ export function AutomationDetailPageContent({
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         runHistory={recentRuns}
+        runHistoryRefreshing={automationQuery.isFetching && !automationQuery.isLoading}
+        onRefreshRunHistory={() => {
+          void automationQuery.refetch();
+        }}
         initialEditorTab={initialEditorTab}
         actions={editorActions}
       />

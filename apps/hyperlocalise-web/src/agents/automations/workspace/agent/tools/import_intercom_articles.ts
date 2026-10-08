@@ -25,7 +25,7 @@ import {
 export function createImportIntercomArticlesTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Import changed Intercom Help Center articles into the attached project as JSON source files, wait for ingest, and open native translation jobs when configured.",
+      "Import changed Intercom Help Center articles into the attached project as markdown source files, wait for ingest, and open native translation jobs when configured.",
     inputSchema: z.object({
       summary: z.string().optional().describe("Optional operator note for the run record."),
     }),

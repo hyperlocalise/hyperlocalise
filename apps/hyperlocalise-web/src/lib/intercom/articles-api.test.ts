@@ -29,11 +29,13 @@ import {
   listIntercomCollectionsForHelpCenter,
   localesFromIntercomCollections,
   listIntercomHelpCenters,
+  loadIntercomArticleForImport,
   mapIntercomArticleSummary,
   mapIntercomCollectionSummary,
   mapIntercomHelpCenterSummary,
   parseIntercomNumericId,
   resolveIntercomLocaleRemoteEditedAt,
+  updateIntercomArticleTranslatedContent,
 } from "./articles-api";
 
 function createArticleListPage(data: IntercomApiArticle[]) {
@@ -72,9 +74,11 @@ describe("mapIntercomArticleSummary", () => {
         de: 1672317851,
         fr: 1672317900,
       },
+      body: "Welcome to Acme. Create an account, invite your team, and send your first message.",
       localeContent: {
         de: {
           title: "Erste Schritte mit Acme",
+          body: "Willkommen bei Acme. Legen Sie ein Konto an, laden Sie Ihr Team ein und senden Sie Ihre erste Nachricht.",
         },
       },
     });
@@ -95,6 +99,35 @@ describe("mapIntercomArticleSummary", () => {
     });
 
     expect(summary.parentIds).toEqual([12]);
+  });
+
+  it("prefers body_markdown and falls back to HTML body", () => {
+    expect(
+      mapIntercomArticleSummary({
+        id: "1",
+        body: "<p>Html</p>",
+        body_markdown: "# Markdown",
+        translated_content: {
+          type: "article_translated_content",
+          de: {
+            type: "article_content",
+            body: "<p>Html</p>",
+            body_markdown: "Markdown",
+          },
+        },
+      }),
+    ).toMatchObject({
+      body: "# Markdown",
+      localeContent: { de: { body: "Markdown" } },
+    });
+
+    expect(
+      mapIntercomArticleSummary({
+        id: "1",
+        body: "<p>Html</p>",
+        body_markdown: "   ",
+      }).body,
+    ).toBe("<p>Html</p>");
   });
 });
 
@@ -449,7 +482,13 @@ describe("intercomArticleToImportPayload", () => {
     const article = mapIntercomArticleSummary(intercomApiArticlesListResponse.data[2]!);
 
     expect(intercomArticleToImportPayload(article, "de").title).toBe("Erste Schritte mit Acme");
+    expect(intercomArticleToImportPayload(article, "de").body).toBe(
+      "Willkommen bei Acme. Legen Sie ein Konto an, laden Sie Ihr Team ein und senden Sie Ihre erste Nachricht.",
+    );
     expect(intercomArticleToImportPayload(article, "en").title).toBe("Getting started with Acme");
+    expect(intercomArticleToImportPayload(article, "en").body).toBe(
+      "Welcome to Acme. Create an account, invite your team, and send your first message.",
+    );
   });
 
   it("fails when the configured source locale has no content", () => {
@@ -458,6 +497,33 @@ describe("intercomArticleToImportPayload", () => {
     expect(() => intercomArticleToImportPayload(article, "ja")).toThrow(
       "intercom_source_locale_content_missing",
     );
+  });
+
+  it("uses top-level body_markdown for the default locale instead of translated_content.en", () => {
+    const article = mapIntercomArticleSummary({
+      id: "6871119",
+      title: "Default language title",
+      description: "Default language description",
+      body: "Default language body in html",
+      body_markdown: "# Default language title\n\nDefault language body in markdown\n",
+      default_locale: "en",
+      translated_content: {
+        type: "article_translated_content",
+        en: {
+          type: "article_content",
+          title: "How to create a new article",
+          description: "This article will show you how to create a new article.",
+          body: "This is the body of the article.",
+          body_markdown: "# How to create a new article\n\nThis is the body of the article.\n",
+        },
+      },
+    });
+
+    expect(intercomArticleToImportPayload(article, "en")).toEqual({
+      title: "Default language title",
+      description: "Default language description",
+      body: "# Default language title\n\nDefault language body in markdown\n",
+    });
   });
 });
 
@@ -507,6 +573,74 @@ describe("getIntercomArticle", () => {
     };
 
     await expect(getIntercomArticle(client as never, "2048")).resolves.toBeNull();
+  });
+
+  it("loads GET /articles/{id} so import can read body_markdown omitted from list items", async () => {
+    const listed = mapIntercomArticleSummary({
+      id: "2048",
+      title: "Your first public article",
+      description: "Some resources to help you understand how Articles can be used",
+    });
+    expect(listed.body).toBe("");
+
+    const client = {
+      articles: {
+        find: async () => ({
+          id: "2048",
+          title: "Your first public article",
+          description: "Some resources to help you understand how Articles can be used",
+          body: "<p>Use articles to share help content.</p>",
+          body_markdown: "Use articles to share help content.",
+          default_locale: "en",
+        }),
+      },
+    };
+
+    const detailed = await loadIntercomArticleForImport(client as never, listed.id);
+    expect(intercomArticleToImportPayload(detailed, "en").body).toBe(
+      "Use articles to share help content.",
+    );
+  });
+});
+
+describe("updateIntercomArticleTranslatedContent", () => {
+  it("writes translated_content drafts with body_markdown", async () => {
+    const updates: unknown[] = [];
+    const client = {
+      articles: {
+        update: async (payload: unknown) => {
+          updates.push(payload);
+        },
+      },
+    };
+
+    await updateIntercomArticleTranslatedContent({
+      client: client as never,
+      articleId: "2048",
+      authorId: 19,
+      locale: "de",
+      title: "Hallo",
+      description: "Hilfe",
+      body: "Go to *Settings*.",
+    });
+
+    expect(updates).toEqual([
+      {
+        article_id: 2048,
+        translated_content: {
+          type: "article_translated_content",
+          de: {
+            type: "article_content",
+            title: "Hallo",
+            description: "Hilfe",
+            body_markdown: "Go to *Settings*.",
+            state: "draft",
+            author_id: 19,
+          },
+        },
+      },
+    ]);
+    expect(JSON.stringify(updates)).not.toContain('"body":');
   });
 });
 

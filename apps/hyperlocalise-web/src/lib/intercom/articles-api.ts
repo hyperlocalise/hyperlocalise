@@ -127,6 +127,16 @@ function readLocaleTimestampField(
   return locales;
 }
 
+function readIntercomArticleBody(content: {
+  body?: string | null;
+  body_markdown?: string | null;
+}): string {
+  if (typeof content.body_markdown === "string" && content.body_markdown.trim().length > 0) {
+    return content.body_markdown;
+  }
+  return content.body ?? "";
+}
+
 function readLocaleContent(
   value: IntercomApiArticleTranslatedContent | undefined,
 ): Record<string, IntercomLocaleContent> {
@@ -135,7 +145,7 @@ function readLocaleContent(
     locales[locale] = {
       title: content.title ?? "",
       description: content.description ?? "",
-      body: content.body ?? "",
+      body: readIntercomArticleBody(content),
     };
   }
   return locales;
@@ -157,7 +167,7 @@ export function mapIntercomArticleSummary(article: IntercomApiArticle): Intercom
     id: intercomIdString(article.id),
     title: article.title ?? "",
     description: article.description ?? "",
-    body: article.body ?? "",
+    body: readIntercomArticleBody(article),
     state: article.state ?? null,
     updatedAt: article.updated_at ?? null,
     authorId: article.author_id ?? null,
@@ -593,21 +603,27 @@ export async function getIntercomArticle(
   }
 }
 
+export async function loadIntercomArticleForImport(
+  client: IntercomClient,
+  articleId: string,
+): Promise<IntercomArticleSummary> {
+  const article = await getIntercomArticle(client, articleId);
+  if (!article) {
+    throw new Error("intercom_article_not_found");
+  }
+  return article;
+}
+
 export function intercomArticleToImportPayload(
   article: IntercomArticleSummary,
   sourceLocale: string,
 ) {
   const normalizedSource = normalizeIntercomLocaleTag(sourceLocale);
-  const localized =
-    article.localeContent[sourceLocale] ?? article.localeContent[normalizedSource] ?? null;
   const defaultLocale = article.defaultLocale
     ? normalizeIntercomLocaleTag(article.defaultLocale)
     : null;
   const isDefaultLocale = defaultLocale == null || defaultLocale === normalizedSource;
 
-  if (localized && (localized.title.trim().length > 0 || localized.body.trim().length > 0)) {
-    return articleFieldsToJsonPayload(localized);
-  }
   if (isDefaultLocale) {
     return articleFieldsToJsonPayload({
       title: article.title,
@@ -616,9 +632,16 @@ export function intercomArticleToImportPayload(
     });
   }
 
+  const localized =
+    article.localeContent[sourceLocale] ?? article.localeContent[normalizedSource] ?? null;
+  if (localized && (localized.title.trim().length > 0 || localized.body.trim().length > 0)) {
+    return articleFieldsToJsonPayload(localized);
+  }
+
   throw new Error("intercom_source_locale_content_missing");
 }
 
+/** Writes a draft locale via `body_markdown` only — mutually exclusive with HTML `body`. */
 export async function updateIntercomArticleTranslatedContent(input: {
   client: IntercomClient;
   articleId: string;
@@ -641,10 +664,10 @@ export async function updateIntercomArticleTranslatedContent(input: {
         type: "article_content",
         title: input.title,
         description: input.description,
-        body: input.body,
+        body_markdown: input.body,
         state: "draft",
         ...(input.authorId != null ? { author_id: input.authorId } : {}),
       },
     },
-  });
+  } as Parameters<IntercomClient["articles"]["update"]>[0]);
 }

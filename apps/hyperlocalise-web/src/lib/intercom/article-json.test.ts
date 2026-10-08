@@ -21,8 +21,9 @@ import {
   hashIntercomArticleContent,
   hashIntercomTranslationValues,
   mergeIntercomLocalePushPayload,
+  parseIntercomArticleMarkdown,
   parseIntercomLastPushRecord,
-  serializeIntercomArticleJson,
+  serializeIntercomArticleMarkdown,
   shouldSkipUnchangedIntercomHash,
 } from "./article-json";
 
@@ -33,7 +34,7 @@ describe("intercom article json", () => {
         helpCenterId: "123",
         articleId: "456",
       }),
-    ).toBe("intercom/123/456.json");
+    ).toBe("intercom/123/456.md");
   });
 
   it("slugs help center and article names when present", () => {
@@ -44,10 +45,27 @@ describe("intercom article json", () => {
         helpCenterName: "Customer Support",
         articleTitle: "Reset your password",
       }),
-    ).toBe("intercom/customer-support/reset-your-password.json");
+    ).toBe("intercom/customer-support/reset-your-password.md");
   });
 
-  it("reuses a persisted source path for the same article", () => {
+  it("reuses a persisted markdown source path for the same article", () => {
+    const paths = assignIntercomArticleSourcePaths({
+      helpCenterId: "123",
+      helpCenterName: "Customer Support",
+      articles: [{ id: "456", title: "Reset your password" }],
+      existingMappings: [
+        {
+          articleId: "456",
+          sourcePath: "intercom/customer-support/legacy-reset.md",
+          status: "import_failed",
+        },
+      ],
+    });
+
+    expect(paths.get("456")).toBe("intercom/customer-support/legacy-reset.md");
+  });
+
+  it("remaps a persisted JSON source path to markdown", () => {
     const paths = assignIntercomArticleSourcePaths({
       helpCenterId: "123",
       helpCenterName: "Customer Support",
@@ -61,7 +79,7 @@ describe("intercom article json", () => {
       ],
     });
 
-    expect(paths.get("456")).toBe("intercom/customer-support/legacy-reset.json");
+    expect(paths.get("456")).toBe("intercom/customer-support/reset-your-password.md");
   });
 
   it("disambiguates a new article that collides with a persisted filename", () => {
@@ -72,13 +90,13 @@ describe("intercom article json", () => {
       existingMappings: [
         {
           articleId: "456",
-          sourcePath: "intercom/customer-support/getting-started.json",
+          sourcePath: "intercom/customer-support/getting-started.md",
           status: "active",
         },
       ],
     });
 
-    expect(paths.get("789")).toBe("intercom/customer-support/getting-started-789.json");
+    expect(paths.get("789")).toBe("intercom/customer-support/getting-started-789.md");
   });
 
   it("disambiguates two new articles that slug to the same filename", () => {
@@ -91,8 +109,8 @@ describe("intercom article json", () => {
       ],
     });
 
-    expect(paths.get("111")).toBe("intercom/customer-support/getting-started.json");
-    expect(paths.get("222")).toBe("intercom/customer-support/getting-started-222.json");
+    expect(paths.get("111")).toBe("intercom/customer-support/getting-started.md");
+    expect(paths.get("222")).toBe("intercom/customer-support/getting-started-222.md");
   });
 
   it("falls back to ids when names do not slug", () => {
@@ -103,20 +121,38 @@ describe("intercom article json", () => {
         helpCenterName: "!!!",
         articleTitle: "   ",
       }),
-    ).toBe("intercom/123/456.json");
+    ).toBe("intercom/123/456.md");
   });
 
-  it("serializes only title, description, and body", () => {
-    const json = serializeIntercomArticleJson({
+  it("serializes title and description as frontmatter around the markdown body", () => {
+    const markdown = serializeIntercomArticleMarkdown({
       title: "Hello",
       description: "Help",
-      body: "<p>Body</p>",
+      body: "Go to *Settings → Billing*.",
     });
 
-    expect(JSON.parse(json)).toEqual({
+    expect(markdown).toBe("---\ntitle: Hello\ndescription: Help\n---\nGo to *Settings → Billing*.");
+    expect(parseIntercomArticleMarkdown(markdown)).toEqual({
       title: "Hello",
       description: "Help",
-      body: "<p>Body</p>",
+      body: "Go to *Settings → Billing*.",
+    });
+  });
+
+  it("quotes frontmatter values that contain YAML special characters", () => {
+    const markdown = serializeIntercomArticleMarkdown({
+      title: "Reset: password",
+      description: "",
+      body: "Use **Forgot password**.",
+    });
+
+    expect(markdown).toBe(
+      '---\ntitle: "Reset: password"\ndescription: ""\n---\nUse **Forgot password**.',
+    );
+    expect(parseIntercomArticleMarkdown(markdown)).toEqual({
+      title: "Reset: password",
+      description: "",
+      body: "Use **Forgot password**.",
     });
   });
 
@@ -124,7 +160,7 @@ describe("intercom article json", () => {
     const payload = articleFieldsToJsonPayload({
       title: "Hello",
       description: "Help",
-      body: "<p>Body</p>",
+      body: "Go to *Settings → Billing*.",
     });
 
     expect(hashIntercomArticleContent(payload)).toBe(hashIntercomTranslationValues(payload));
@@ -137,7 +173,7 @@ describe("intercom article json", () => {
     const hash = hashIntercomTranslationValues({
       title: "Hello",
       description: "Help",
-      body: "<p>Body</p>",
+      body: "Go to *Settings → Billing*.",
     });
 
     expect(parseIntercomLastPushRecord(hash)).toEqual({
@@ -154,7 +190,7 @@ describe("intercom article json", () => {
     const hash = hashIntercomTranslationValues({
       title: "Hello",
       description: "Help",
-      body: "<p>Body</p>",
+      body: "Go to *Settings → Billing*.",
     });
 
     expect(
@@ -177,18 +213,18 @@ describe("intercom article json", () => {
     expect(
       mergeIntercomLocalePushPayload({
         approved: { title: "Hallo" },
-        remote: { title: "Remote", description: "Hilfe", body: "<p>Alt</p>" },
+        remote: { title: "Remote", description: "Hilfe", body: "Alt" },
       }),
     ).toBeNull();
     expect(
       mergeIntercomLocalePushPayload({
-        approved: { title: "Hallo", body: "<p>Neu</p>" },
-        remote: { title: "Remote", description: "Hilfe", body: "<p>Alt</p>" },
+        approved: { title: "Hallo", body: "Neu" },
+        remote: { title: "Remote", description: "Hilfe", body: "Alt" },
       }),
     ).toEqual({
       title: "Hallo",
       description: "Hilfe",
-      body: "<p>Neu</p>",
+      body: "Neu",
     });
   });
 
@@ -197,12 +233,12 @@ describe("intercom article json", () => {
       collectApprovedIntercomArticleValues({
         title: "Hallo",
         description: "   ",
-        body: "<p>Neu</p>",
+        body: "Neu",
         extra: "ignored",
       }),
     ).toEqual({
       title: "Hallo",
-      body: "<p>Neu</p>",
+      body: "Neu",
     });
   });
 });

@@ -17,7 +17,7 @@ import type {
 
 /**
  * Fake Intercom REST payloads shaped like API 2.16:
- * https://developers.intercom.com/docs/references/rest-api/api.intercom.io/articles
+ * https://developers.intercom.com/docs/references/rest-api/api.intercom.io/articles/article
  */
 
 export type IntercomApiArticleContent = {

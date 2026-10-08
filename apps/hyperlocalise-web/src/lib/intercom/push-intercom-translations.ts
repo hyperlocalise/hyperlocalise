@@ -18,7 +18,6 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
-import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 
 import {
   collectApprovedIntercomArticleValues,
@@ -48,6 +47,7 @@ import {
   isIntercomSyncStaleConfigError,
 } from "./intercom-sync-scope";
 import { loadIntercomPipesAccessToken } from "./pipes";
+import { loadApprovedIntercomArticleValuesByPath } from "./push-eligibility";
 
 const logger = createLogger("push-intercom-translations");
 const PUSH_CONCURRENCY = 3;
@@ -164,6 +164,12 @@ export async function runPushIntercomTranslations(input: {
     projectId,
     helpCenterId,
   };
+  const approvedByPathAndLocale = await loadApprovedIntercomArticleValuesByPath({
+    organizationId: input.organizationId,
+    projectId,
+    sourcePaths: mappings.map((mapping) => mapping.sourcePath),
+    targetLocales: localeMapping.jobTargetLocales,
+  });
 
   await mapWithConcurrency(mappings, PUSH_CONCURRENCY, async (mapping) => {
     if (!intercomMappingMatchesTarget(mapping, currentTarget)) {
@@ -238,15 +244,9 @@ export async function runPushIntercomTranslations(input: {
       }
 
       try {
-        const prefilledResult = await loadProjectTranslationsAsPrefilledEntries({
-          organizationId: input.organizationId,
-          projectId,
-          sourcePath: mapping.sourcePath,
-          targetLocale: hlLocale,
-          readyTranslationsOnly: true,
-          approvedTranslationsOnly: true,
-        });
-        const approved = collectApprovedIntercomArticleValues(prefilledResult.prefilled);
+        const approved = collectApprovedIntercomArticleValues(
+          approvedByPathAndLocale.get(mapping.sourcePath)?.get(hlLocale) ?? {},
+        );
         const remoteLocale =
           remoteArticle?.localeContent[intercomLocale] ??
           remoteArticle?.localeContent[normalizeIntercomLocaleTag(intercomLocale)] ??

@@ -15,10 +15,14 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import { resolveIntercomRestEndpoint, validateIntercomAccessToken } from "./client";
+import { INTERCOM_API_VERSION } from "./constants";
 
 const mocks = vi.hoisted(() => {
   const identify = vi.fn();
-  const constructed: { environment: string }[] = [];
+  const constructed: {
+    environment: string;
+    headers?: Record<string, string>;
+  }[] = [];
   class IntercomError extends Error {
     statusCode: number;
 
@@ -32,7 +36,9 @@ const mocks = vi.hoisted(() => {
   class IntercomClient {
     admins = { identify };
 
-    constructor(public options: { token: string; environment: string }) {
+    constructor(
+      public options: { token: string; environment: string; headers?: Record<string, string> },
+    ) {
       constructed.push(options);
     }
   }
@@ -81,6 +87,10 @@ describe("intercom client", () => {
     expect(mocks.identify).toHaveBeenCalledOnce();
     expect(mocks.identify.mock.calls[0]?.[0]).toMatchObject({
       abortSignal: expect.any(AbortSignal),
+    });
+    expect(mocks.constructed[0]).toMatchObject({
+      environment: "https://api.eu.intercom.io",
+      headers: { "Intercom-Version": INTERCOM_API_VERSION },
     });
   });
 

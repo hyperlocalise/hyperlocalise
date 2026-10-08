@@ -22,6 +22,13 @@ export type IntercomRestEndpoint = (typeof INTERCOM_REST_ENDPOINTS)[number];
 /** Bound Intercom /me identity check before saving a connection. */
 export const INTERCOM_VALIDATE_TIMEOUT_MS = 30_000;
 
+/**
+ * REST API version required for Article `body_markdown`.
+ * intercom-client 7.0.3 defaults to 2.14 and has no typed 2.16 option.
+ * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/articles/article
+ */
+export const INTERCOM_API_VERSION = "2.16";
+
 const INTERCOM_REST_ENDPOINT_BASE_URLS: Record<IntercomRestEndpoint, string> = {
   us: "https://api.intercom.io",
   eu: "https://api.eu.intercom.io",

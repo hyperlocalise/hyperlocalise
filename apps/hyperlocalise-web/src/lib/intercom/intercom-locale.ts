@@ -13,11 +13,11 @@
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 
 /**
- * Intercom Articles API `translated_content` keys (REST 2.16 / 2.6 article model)
+ * Intercom Articles API `translated_content` keys (REST 2.16 article model)
  * mapped to the preferred Hyperlocalise project locale.
  *
+ * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/articles/article
  * @see https://developers.intercom.com/docs/references/rest-api/api.intercom.io/models/article_translated_content
- * @see https://developers.intercom.com/docs/references/2.6/rest-api/articles/the-article-model.md
  */
 export const INTERCOM_ARTICLE_LOCALE_TO_PROJECT = {
   ar: "ar-SA",
