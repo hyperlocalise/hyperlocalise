@@ -20,7 +20,7 @@ import {
   PlayIcon,
   FloppyDiskIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -60,6 +60,12 @@ import {
 } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { readApiResponseError } from "@/lib/api-error";
+import {
+  describeWorkspaceAutomationDiscard,
+  describeWorkspaceAutomationReload,
+  workspaceAutomationUndoStackOptions,
+  type WorkspaceAutomationFormChange,
+} from "@/lib/agents/workspace-automation-undo";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
   createWorkspaceAutomationFormStateFromRecord,
@@ -68,10 +74,14 @@ import {
   validateWorkspaceAutomationFormState,
   workspaceAutomationFormHasChanges,
   workspaceAutomationFormSupportsOnDemandRun,
+  type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
+import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -140,10 +150,43 @@ export function AutomationDetailPageContent({
     title: automationTitle,
     isLoading: automationQuery.isLoading && !automationTitle,
   });
-  const [form, setForm] = useState<ReturnType<
-    typeof createWorkspaceAutomationFormStateFromRecord
-  > | null>(null);
+  const history = useUndoStack<
+    WorkspaceAutomationFormState | null,
+    WorkspaceAutomationFormChange | null
+  >(null, workspaceAutomationUndoStackOptions);
+  const form = history.form;
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const rootRef = useRef<HTMLElement>(null);
+  const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
+  // The notice's action runs after later renders, so it reads the history as it is then.
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  // The saved configuration the form was last brought in line with, and the automation it was.
+  const previousSavedRef = useRef<{
+    automationId: string;
+    saved: WorkspaceAutomationFormState;
+  } | null>(null);
+  // What the latest save sent, so its own refetch is not taken for a change made elsewhere.
+  const submittedFormRef = useRef<WorkspaceAutomationFormState | null>(null);
+
+  const runRedo = () => {
+    const step = historyRef.current.redoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.redo();
+    setErrors({});
+    notifyRedo(step, runUndo);
+  };
+  const runUndo = () => {
+    const step = historyRef.current.undoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.undo();
+    setErrors({});
+    notifyUndo(step, runRedo);
+  };
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [runPromptOpen, setRunPromptOpen] = useState(false);
@@ -197,11 +240,50 @@ export function AutomationDetailPageContent({
     [sourceFilesQuery.data?.pages],
   );
 
+  // Brings the form in line with the record when the saved configuration itself changes. A run
+  // changes only the record's last-run fields, which the form does not hold, so edits survive it.
+  const syncFormWithRecord = useEffectEvent((record: NonNullable<typeof automation>) => {
+    const saved = createWorkspaceAutomationFormStateFromRecord(record);
+    const previous = previousSavedRef.current;
+    previousSavedRef.current = { automationId, saved };
+    if (!previous || previous.automationId !== automationId) {
+      history.reset(saved);
+      return;
+    }
+    if (!workspaceAutomationFormHasChanges(previous.saved, saved)) {
+      return;
+    }
+    const submitted = submittedFormRef.current;
+    if (submitted && !workspaceAutomationFormHasChanges(submitted, saved)) {
+      // This page's own save came back; edits made while it was on its way are kept.
+      submittedFormRef.current = null;
+      return;
+    }
+    const current = history.form;
+    if (!current || !workspaceAutomationFormHasChanges(current, saved)) {
+      history.replace(saved);
+      return;
+    }
+    // Someone else saved over unsaved edits; the edits are one undo away.
+    history.change(saved, {
+      origin: "system",
+      description: describeWorkspaceAutomationReload(current, saved),
+    });
+  });
   useEffect(() => {
     if (automation) {
-      setForm(createWorkspaceAutomationFormStateFromRecord(automation));
+      syncFormWithRecord(automation);
     }
   }, [automation]);
+  useEffect(
+    () => () => {
+      // Another automation's page starts with an empty history.
+      previousSavedRef.current = null;
+      submittedFormRef.current = null;
+      historyRef.current.reset(null);
+    },
+    [automationId],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -220,6 +302,7 @@ export function AutomationDetailPageContent({
           throw new Error("validation_failed");
         }
 
+        submittedFormRef.current = form;
         const payload = formStateToWorkspaceAutomationPayload(form);
         const response = await apiClient.api.orgs[":organizationSlug"].automations[
           ":automationId"
@@ -394,6 +477,13 @@ export function AutomationDetailPageContent({
       createWorkspaceAutomationFormStateFromRecord(automation),
     );
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
+  useUndoShortcuts({
+    rootRef,
+    enabled: !(saveMutation.isPending || deleteMutation.isPending),
+    onUndo: runUndo,
+    onRedo: runRedo,
+    onSeal: history.seal,
+  });
 
   if (automationQuery.isLoading || !form || !automation) {
     return (
@@ -424,7 +514,7 @@ export function AutomationDetailPageContent({
   const writeInFlight = saveInFlight || deleteInFlight;
 
   const discardChanges = () => {
-    setForm(savedForm);
+    history.change(savedForm, { description: describeWorkspaceAutomationDiscard(form, savedForm) });
     setErrors({});
   };
 
@@ -519,6 +609,15 @@ export function AutomationDetailPageContent({
           ) : null}
         </>
       ) : null}
+      <AutomationUndoRedoButtons
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
+        undoStep={history.undoStep}
+        redoStep={history.redoStep}
+        disabled={writeInFlight}
+        onUndo={runUndo}
+        onRedo={runRedo}
+      />
       <Button
         variant="outline"
         onClick={() => setDiscardDialogOpen(true)}
@@ -551,7 +650,7 @@ export function AutomationDetailPageContent({
   );
 
   return (
-    <WorkspacePageShell className="max-w-5xl">
+    <WorkspacePageShell ref={rootRef} className="max-w-5xl" data-undo-root="automation">
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
@@ -560,7 +659,7 @@ export function AutomationDetailPageContent({
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-        onChange={setForm}
+        onChange={history.change}
         runHistory={recentRuns}
         initialEditorTab={initialEditorTab}
         actions={editorActions}

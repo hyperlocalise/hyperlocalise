@@ -14,7 +14,7 @@
  */
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -27,6 +27,10 @@ import {
   AutomationDetailPageContent,
 } from "./automation-detail-page-content";
 import { createAutomationSummary } from "./automations.fixture";
+
+const toastMocks = vi.hoisted(() => ({ message: vi.fn(), success: vi.fn(), error: vi.fn() }));
+
+vi.mock("sonner", () => ({ toast: toastMocks }));
 
 const apiMocks = vi.hoisted(() => ({
   getAutomation: vi.fn(),
@@ -94,6 +98,11 @@ vi.mock("./workspace-automation-form", () => ({
   }) => (
     <div>
       <output aria-label="Form name">{form.name}</output>
+      <input
+        aria-label="Name"
+        value={form.name}
+        onChange={(event) => onChange({ ...form, name: event.target.value })}
+      />
       <button type="button" onClick={() => onChange({ ...form, name: "Renamed automation" })}>
         Dirty form
       </button>
@@ -111,7 +120,7 @@ function renderPage(automationRecord = automation) {
     },
   });
 
-  return render(
+  const view = render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
         <AppShellStoreProvider defaultNavigationGroups={[]}>
@@ -120,6 +129,7 @@ function renderPage(automationRecord = automation) {
       </QueryClientProvider>
     </IntlProvider>,
   );
+  return { ...view, queryClient };
 }
 
 function pendingResponse() {
@@ -649,5 +659,222 @@ describe("AutomationDetailPageContent run with unsaved changes", () => {
     expect(await screen.findByRole("dialog", { name: "Select source files" })).toBeInTheDocument();
     expect(apiMocks.patchAutomation).toHaveBeenCalledOnce();
     expect(apiMocks.runSourceFiles).not.toHaveBeenCalled();
+  });
+});
+
+describe("AutomationDetailPageContent undo", () => {
+  const scheduledAutomation = createAutomationSummary({
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: { cadence: "weekly", hourUtc: 9, dayOfWeek: 1, timezone: "UTC" },
+    },
+  });
+  const sourceUploadAutomation = createAutomationSummary({
+    triggerConfig: { mode: "source_upload" },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      createNativeTmsJob: { enabled: true, useProjectTargetLocales: true, targetLocales: [] },
+    },
+  });
+
+  function record(overrides: Partial<typeof scheduledAutomation> = {}) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: { ...scheduledAutomation, ...overrides }, recentRuns: [] }),
+    };
+  }
+
+  async function refetch(queryClient: QueryClient) {
+    const fetches = apiMocks.getAutomation.mock.calls.length;
+    await act(async () => {
+      await queryClient.refetchQueries({
+        queryKey: ["workspace-automation", "acme", scheduledAutomation.id],
+      });
+    });
+    await vi.waitFor(() => expect(apiMocks.getAutomation).toHaveBeenCalledTimes(fetches + 1));
+    // The query library tells its observers on a timer, so the page renders a moment later.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+  }
+
+  afterEach(() => {
+    apiMocks.getAutomation.mockReset();
+    apiMocks.patchAutomation.mockReset();
+    apiMocks.listProjectFiles.mockReset();
+    apiMocks.runAutomation.mockReset();
+    toastMocks.message.mockReset();
+  });
+
+  it("has nothing to undo once the record has loaded", async () => {
+    apiMocks.getAutomation.mockResolvedValue(record());
+
+    renderPage(scheduledAutomation);
+
+    expect(await screen.findByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+  });
+
+  it("undoes a discard, bringing the edits back and re-enabling Save", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue(record());
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
+    await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+        scheduledAutomation.name,
+      ),
+    );
+
+    await user.keyboard("{Control>}z{/Control}");
+
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    expect(toastMocks.message).toHaveBeenLastCalledWith(
+      "Undid discarding your changes",
+      expect.objectContaining({ id: "automation-undo" }),
+    );
+  });
+
+  it("undoes the discard made by Discard changes and run", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue(record());
+    apiMocks.runAutomation.mockResolvedValue({ ok: true, status: 202, json: async () => ({}) });
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(dialog).getByRole("button", { name: "Discard changes and run" }));
+    await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+  });
+
+  it("keeps edits and the history when a refetch changes only the run details", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation
+      .mockResolvedValueOnce(record())
+      .mockResolvedValue(
+        record({ lastRunAt: "2026-10-08T09:00:00.000Z", lastRunStatus: "succeeded" }),
+      );
+
+    const { queryClient } = renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await refetch(queryClient);
+
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+    await user.keyboard("{Control>}z{/Control}");
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      scheduledAutomation.name,
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+  });
+
+  it("records a change saved elsewhere as a step, so undo brings the edits back", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation
+      .mockResolvedValueOnce(record())
+      .mockResolvedValue(record({ name: "Saved by a teammate" }));
+
+    const { queryClient } = renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await refetch(queryClient);
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+        "Saved by a teammate",
+      ),
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+
+    await user.keyboard("{Control>}z{/Control}");
+
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    expect(toastMocks.message).toHaveBeenLastCalledWith(
+      "Undid the reload of the saved automation",
+      expect.anything(),
+    );
+  });
+
+  it("keeps the history across a save, so undo makes the form unsaved again", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation
+      .mockResolvedValueOnce(record())
+      .mockResolvedValue(record({ name: "Renamed automation" }));
+    apiMocks.patchAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: { ...scheduledAutomation, name: "Renamed automation" } }),
+    });
+
+    renderPage(scheduledAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+
+    await user.keyboard("{Control>}z{/Control}");
+
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      scheduledAutomation.name,
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  });
+
+  it("leaves the shortcut to the browser inside a dialog's text field", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
+    });
+    apiMocks.listProjectFiles.mockResolvedValue({ files: [{ sourcePath: "locales/en.json" }] });
+
+    renderPage(sourceUploadAutomation);
+
+    const name = await screen.findByRole("textbox", { name: "Name" });
+    await user.type(name, "!");
+    expect(name).toHaveValue(`${sourceUploadAutomation.name}!`);
+    await user.keyboard("{Control>}z{/Control}");
+    expect(name).toHaveValue(sourceUploadAutomation.name);
+    await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
+    expect(name).toHaveValue(`${sourceUploadAutomation.name}!`);
+
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const prompt = await screen.findByRole("alertdialog", { name: "You have unsaved changes" });
+    await user.click(within(prompt).getByRole("button", { name: "Cancel" }));
+    // The source-file picker opens only from a clean form; use its search box as the portal field.
+    await user.keyboard("{Control>}z{/Control}");
+    await user.click(screen.getByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("dialog", { name: "Select source files" });
+    await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
+    await user.type(within(dialog).getByRole("textbox", { name: "Search source files" }), "x");
+    await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
+
+    expect(name).toHaveValue(sourceUploadAutomation.name);
+    expect(screen.getByRole("button", { name: "Redo", hidden: true })).toBeEnabled();
   });
 });
