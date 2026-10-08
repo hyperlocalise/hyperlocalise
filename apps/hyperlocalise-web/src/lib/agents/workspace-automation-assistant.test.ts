@@ -18,6 +18,7 @@ import {
   buildWorkspaceAutomationAssistantInstructions,
   collectAutomationSetupChanges,
   describeWorkspaceAutomationTrigger,
+  summarizeAutomationSetupCall,
   updateWorkspaceAutomationSetup,
 } from "./workspace-automation-assistant";
 import {
@@ -427,6 +428,93 @@ describe("collectAutomationSetupChanges", () => {
         null,
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("summarizeAutomationSetupCall", () => {
+  const TYPE = "tool-update_automation_setup";
+
+  it("lists what a finished call did, with what it left out last and no instruction text", () => {
+    // Slack is not connected on this page, so its skill is asked for and left out.
+    const { output } = updateWorkspaceAutomationSetup(
+      editorContext(),
+      setupInput({
+        name: "Weekly digest",
+        instructions: "Keep it short.",
+        trigger: weeklySummary.trigger,
+        addSkillIds: ["post-to-slack", "research-web"],
+      }),
+    );
+
+    const summary = summarizeAutomationSetupCall({
+      type: TYPE,
+      toolCallId: "call_1",
+      state: "output-available",
+      output,
+    });
+
+    expect(summary).toEqual({
+      state: "done",
+      changes: [
+        { kind: "name", name: "Weekly digest" },
+        { kind: "instructions", cleared: false },
+        {
+          kind: "trigger",
+          trigger: {
+            mode: "scheduled",
+            cadence: "weekly",
+            hour: 9,
+            dayOfWeek: 1,
+            timeZone: "Australia/Sydney",
+          },
+        },
+        { kind: "skill_added", skillName: getWorkspaceAutomationSkill("research-web")!.name },
+        {
+          kind: "skill_not_added",
+          skillName: getWorkspaceAutomationSkill("post-to-slack")!.name,
+          reason: "needs_connection",
+          integrations: ["slack"],
+        },
+      ],
+    });
+    expect(JSON.stringify(summary)).not.toContain("Keep it short.");
+  });
+
+  it("is done with no changes for a call that changed nothing or was refused", () => {
+    const { output: unchanged } = updateWorkspaceAutomationSetup(editorContext(), setupInput());
+    const { output: refused } = updateWorkspaceAutomationSetup(null, setupInput());
+
+    for (const output of [unchanged, refused]) {
+      expect(
+        summarizeAutomationSetupCall({ type: TYPE, state: "output-available", output }),
+      ).toEqual({ state: "done", changes: [] });
+    }
+  });
+
+  it("tells a running call from a failed one, and keeps a call saved without its list", () => {
+    expect(summarizeAutomationSetupCall({ type: TYPE, state: "input-available" })).toEqual({
+      state: "running",
+    });
+    expect(summarizeAutomationSetupCall({ type: TYPE, state: "output-error" })).toEqual({
+      state: "failed",
+    });
+    expect(
+      summarizeAutomationSetupCall({ type: TYPE, state: "output-available", output: "nonsense" }),
+    ).toEqual({ state: "failed" });
+    expect(
+      summarizeAutomationSetupCall({
+        type: TYPE,
+        state: "output-available",
+        output: { applied: true, editorSessionId: "session-1" },
+      }),
+    ).toEqual({ state: "done", changes: null });
+  });
+
+  it("is nothing for a part of anything else", () => {
+    expect(summarizeAutomationSetupCall({ type: "text", text: "Done." })).toBeNull();
+    expect(
+      summarizeAutomationSetupCall({ type: "tool-search_web", state: "output-available" }),
+    ).toBeNull();
   });
 });
 

@@ -22,15 +22,19 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
-import { UPDATE_AUTOMATION_SETUP_TOOL_NAME } from "@/lib/agents/workspace-automation-assistant";
+import {
+  summarizeAutomationSetupCall,
+  type AutomationSetupCallSummary,
+} from "@/lib/agents/workspace-automation-assistant";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
 
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
+import { AutomationAssistantToolCall } from "./automation-assistant-tool-call";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
 import { useAutomationAssistant } from "./automation-assistant-provider";
 
-type Block = { kind: "text"; text: string } | { kind: "tool"; done: boolean };
+type Block = { kind: "text"; text: string } | { kind: "tool"; summary: AutomationSetupCallSummary };
 
 /** Text and setup-tool parts of a reply, in order, with everything else left out. */
 function toBlocks(parts: UIMessage["parts"]): Block[] {
@@ -45,11 +49,9 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
       }
       continue;
     }
-    const isSetupTool =
-      part.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
-      (part.type === "dynamic-tool" && part.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME);
-    if (isSetupTool) {
-      blocks.push({ kind: "tool", done: part.state === "output-available" });
+    const summary = summarizeAutomationSetupCall(part);
+    if (summary) {
+      blocks.push({ kind: "tool", summary });
     }
   }
   return blocks;
@@ -57,6 +59,9 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
 
 function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean }) {
   const blocks = toBlocks(parts);
+  const last = blocks.at(-1);
+  // A call that is still running says so itself; a second spinner under it would say it twice.
+  const showWorking = pending && !(last?.kind === "tool" && last.summary.state === "running");
   return (
     <div className="flex flex-col gap-2 text-sm leading-6">
       {blocks.map((block, index) =>
@@ -66,13 +71,10 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
             {block.text}
           </MessageResponse>
         ) : (
-          <TypographyMuted key={index} size="xsmall" className="flex items-center gap-1.5">
-            {block.done ? null : <Spinner className="size-3" />}
-            <FormattedMessage {...(block.done ? messages.toolUpdated : messages.toolUpdating)} />
-          </TypographyMuted>
+          <AutomationAssistantToolCall key={index} summary={block.summary} />
         ),
       )}
-      {pending ? (
+      {showWorking ? (
         <TypographyMuted size="xsmall" className="flex items-center gap-1.5">
           <Spinner className="size-3" />
           <FormattedMessage {...messages.working} />

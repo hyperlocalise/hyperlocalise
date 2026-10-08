@@ -91,6 +91,29 @@ export const triggerSummarySchema = z.union([
   }),
 ]) satisfies z.ZodType<WorkspaceAutomationTriggerSummary>;
 
+/**
+ * One thing a call of the tool did on the page, as the assistant's panel lists it. It carries
+ * short values only, never the instructions' text, and no wording: the panel words it.
+ */
+export const automationSetupChangeLineSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("name"), name: z.string() }),
+  z.object({ kind: z.literal("instructions"), cleared: z.boolean() }),
+  z.object({ kind: z.literal("trigger"), trigger: triggerSummarySchema }),
+  z.object({ kind: z.literal("skill_added"), skillName: z.string() }),
+  z.object({ kind: z.literal("skill_removed"), skillName: z.string() }),
+  z.object({
+    kind: z.literal("skill_not_added"),
+    skillName: z.string(),
+    reason: z.enum(["needs_connection", "wrong_trigger"]),
+    /** Integrations to connect before the skill can be attached. */
+    integrations: z.array(
+      z.enum(["github", "crowdin", "contentful", "intercom", "slack", "email"]),
+    ),
+  }),
+]);
+
+export type AutomationSetupChangeLine = z.infer<typeof automationSetupChangeLineSchema>;
+
 /** The part of the tool's output the setup page acts on. */
 export const automationSetupChangeSchema = z.object({
   applied: z.literal(true),
@@ -99,6 +122,96 @@ export const automationSetupChangeSchema = z.object({
 });
 
 export type AutomationSetupChange = z.infer<typeof automationSetupChangeSchema>;
+
+/** What a call did, in the order it did it, with what it left out last. */
+export function toAutomationSetupChangeLines(
+  items: readonly WorkspaceAutomationChangeItem[],
+): AutomationSetupChangeLine[] {
+  const done: AutomationSetupChangeLine[] = [];
+  const leftOut: AutomationSetupChangeLine[] = [];
+  for (const item of items) {
+    switch (item.kind) {
+      case "name":
+        done.push({ kind: "name", name: item.after });
+        break;
+      case "instructions":
+        done.push({ kind: "instructions", cleared: item.after.trim().length === 0 });
+        break;
+      case "trigger":
+        done.push({ kind: "trigger", trigger: item.after });
+        break;
+      case "skill_added":
+        if (item.status === "left_out") {
+          leftOut.push({
+            kind: "skill_not_added",
+            skillName: item.skillName,
+            reason: item.reason === "needs_connection" ? "needs_connection" : "wrong_trigger",
+            integrations: item.missingIntegrations ?? [],
+          });
+        } else {
+          done.push({ kind: "skill_added", skillName: item.skillName });
+        }
+        break;
+      case "skill_removed":
+        done.push({ kind: "skill_removed", skillName: item.skillName });
+        break;
+      default:
+        assertNever(item);
+    }
+  }
+  return [...done, ...leftOut];
+}
+
+/** What one call of the tool came to, as the panel shows it beside the reply. */
+export type AutomationSetupCallSummary =
+  | { state: "running" }
+  | { state: "failed" }
+  /** `changes` is null for a call saved before the tool listed what it did. */
+  | { state: "done"; changes: AutomationSetupChangeLine[] | null };
+
+const setupToolCallPartSchema = z.object({
+  type: z.string(),
+  toolName: z.string().optional(),
+  state: z.string(),
+  output: z.unknown().optional(),
+});
+
+const setupToolCallOutputSchema = z.object({
+  applied: z.boolean(),
+  changes: z.array(automationSetupChangeLineSchema).optional(),
+});
+
+/**
+ * Reads what a call of the tool came to from its part of a reply. Null for a part of anything
+ * else. A call that was refused, or that found nothing to change, is done with no changes.
+ */
+export function summarizeAutomationSetupCall(part: unknown): AutomationSetupCallSummary | null {
+  const parsed = setupToolCallPartSchema.safeParse(part);
+  if (!parsed.success) {
+    return null;
+  }
+  const isSetupTool =
+    parsed.data.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
+    (parsed.data.type === "dynamic-tool" &&
+      parsed.data.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME);
+  if (!isSetupTool) {
+    return null;
+  }
+  if (parsed.data.state === "output-error" || parsed.data.state === "output-denied") {
+    return { state: "failed" };
+  }
+  if (parsed.data.state !== "output-available") {
+    return { state: "running" };
+  }
+  const output = setupToolCallOutputSchema.safeParse(parsed.data.output);
+  if (!output.success) {
+    return { state: "failed" };
+  }
+  if (!output.data.applied) {
+    return { state: "done", changes: [] };
+  }
+  return { state: "done", changes: output.data.changes ?? null };
+}
 
 const setupToolPartSchema = z.object({
   type: z.string(),
@@ -151,6 +264,8 @@ export type UpdateAutomationSetupOutput =
       message: string;
     }
   | (AutomationSetupChange & {
+      /** What the call did, for the panel to list. The reply is written from `result`. */
+      changes: AutomationSetupChangeLine[];
       result: {
         /** False when the request left the page as it was. */
         changed: boolean;
@@ -456,6 +571,7 @@ export function updateWorkspaceAutomationSetup(
       applied: true,
       editorSessionId: context.editorSessionId,
       proposal,
+      changes: toAutomationSetupChangeLines(outcome.items),
       result: {
         changed: outcome.changed,
         name: outcome.name,

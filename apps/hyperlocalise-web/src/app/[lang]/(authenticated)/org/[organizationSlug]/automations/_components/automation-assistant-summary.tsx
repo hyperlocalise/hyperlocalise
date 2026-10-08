@@ -26,7 +26,10 @@ import { automationAssistantMessages as messages } from "./automation-assistant.
 import { useAutomationAssistant } from "./automation-assistant-provider";
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 
-const INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, MessageDescriptor> = {
+export const AUTOMATION_ASSISTANT_INTEGRATION_LABELS: Record<
+  WorkspaceAutomationSkillIntegration,
+  MessageDescriptor
+> = {
   github: workspaceAutomationFormMessages.skillIntegrationGithub,
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
@@ -74,7 +77,9 @@ export function AutomationAssistantSummary({ organizationSlug }: { organizationS
           <FormattedMessage
             {...messages.connectIntegration}
             values={{
-              integration: intl.formatMessage(INTEGRATION_LABELS[step.integration]),
+              integration: intl.formatMessage(
+                AUTOMATION_ASSISTANT_INTEGRATION_LABELS[step.integration],
+              ),
               link: (chunks) => (
                 <Link
                   href={`/org/${organizationSlug}/integrations`}

@@ -78,6 +78,69 @@ export const automationAssistantMessages = defineMessages({
     id: "vW7W3YnMj8",
     description: "Line in the assistant's reply where its tool changed the page",
   },
+  toolFailed: {
+    defaultMessage: "The setup could not be updated",
+    id: "yLrP3dBABI",
+    description: "Line in the assistant's reply for a change to the setup that failed",
+  },
+  toolNoChanges: {
+    defaultMessage: "No changes made to the setup",
+    id: "tbEhbMfWzX",
+    description: "Line in the assistant's reply for a step that left the setup as it was",
+  },
+  toolUpdatedCount: {
+    defaultMessage: "Updated the setup · {count, plural, one {# change} other {# changes}}",
+    id: "FnmoCyuAVI",
+    description:
+      "Line in the assistant's reply that opens to list what a step changed in the setup",
+  },
+  toolLineName: {
+    defaultMessage: "Name set to “{name}”",
+    id: "9/fFWZ/N5x",
+    description: "Listed change of the assistant: the automation was named",
+  },
+  toolLineInstructionsRewritten: {
+    defaultMessage: "Instructions rewritten",
+    id: "W2x+fZoaB/",
+    description: "Listed change of the assistant: the instructions were written or rewritten",
+  },
+  toolLineInstructionsCleared: {
+    defaultMessage: "Instructions cleared",
+    id: "rrcSt6OXke",
+    description: "Listed change of the assistant: the instructions were emptied",
+  },
+  toolLineTrigger: {
+    defaultMessage: "Trigger: {trigger}",
+    id: "B89dpJolat",
+    description:
+      "Listed change of the assistant: when the automation runs, such as 'On a schedule'",
+  },
+  toolLineTriggerBranches: {
+    defaultMessage: "{trigger} · {branches}",
+    id: "LactCqGkxG",
+    description:
+      "A GitHub trigger followed by the branches it watches, inside a listed change of the assistant",
+  },
+  toolLineSkillAdded: {
+    defaultMessage: "Added skill: {skill}",
+    id: "t1ZP8XrgYe",
+    description: "Listed change of the assistant: a skill was attached",
+  },
+  toolLineSkillRemoved: {
+    defaultMessage: "Removed skill: {skill}",
+    id: "RSk6GpbkWr",
+    description: "Listed change of the assistant: a skill was taken off",
+  },
+  toolLineSkillNeedsConnection: {
+    defaultMessage: "Not added: {skill}. Connect {integrations} first.",
+    id: "ZGAmtoXmfT",
+    description: "Listed step the assistant left out: a skill whose integration is not connected",
+  },
+  toolLineSkillWrongTrigger: {
+    defaultMessage: "Not added: {skill}. It cannot run on this trigger.",
+    id: "wRjR3Q5lZO",
+    description: "Listed step the assistant left out: a skill that does not work with the trigger",
+  },
   headerCreated: {
     defaultMessage: "The assistant set up this automation",
     id: "4XHdLftqfc",
