@@ -418,6 +418,39 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 
 **Errors:** Invalid list queries return `400 invalid_job_query` with `details.issues`. Missing or inaccessible projects/jobs return `404 project_not_found` or `404 job_not_found`. Invalid project IDs on detail/status routes return `job_not_found`. Responses set `Cache-Control: no-store`.
 
+## Conversation reads
+
+Read-only conversation and message endpoints are available under `/v1/orgs/{organizationSlug}`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/conversations` | List conversations with participant and last-message metadata |
+| GET | `/conversations/{conversationId}` | Conversation detail with all messages, oldest first |
+| GET | `/conversations/{conversationId}/messages` | The newest 50 messages, oldest first |
+| GET | `/conversations/{conversationId}/jobs` | Jobs linked to the conversation, newest first |
+
+**Access:**
+- Admins and localization managers can read every conversation in the organization.
+- Other roles can read conversations whose project belongs to one of their teams. Projects with no team count as the default team, and project source or active state does not matter.
+- They can also read `chat_ui` threads they authored, either with no project or on a live provider (`ext:`) project.
+- Conversations without an inbox item are hidden.
+
+**Lists:**
+- `status` (`active`/`archived`), `projectId`, `limit` (1–100, default 50), and `cursor`.
+- `cursor` is an ISO date. It returns conversations whose `lastMessageAt` is strictly earlier, at millisecond precision.
+- An unparseable cursor is ignored.
+
+**Messages:** Members who lack `ai_actions:run` only see the `text` and `source-*` parts of agent messages. `text` is rebuilt from the visible text parts. Parts whose `type` is not a string are dropped, and non-array `parts` are returned as `[]` with empty `text`. Agent messages stored without parts (Slack, GitHub, and email thread posts) keep their `text` unchanged. Attachments are returned as stored metadata; storage is never read.
+
+**Errors:**
+
+| Response | When |
+|----------|------|
+| `400 {"error":"invalid_query"}` | Invalid list query |
+| `404 {"error":"not_found"}` | Invalid or inaccessible conversation ID |
+
+Auth failures follow the standard service behavior.
+
 ## Content editor (CAT)
 
 Parallel native CAT API. Hono routes under `/api/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` remain the live browser path. go-svc exposes the same JSON contracts at `/api/go-svc/v1/orgs/{organizationSlug}/projects/{projectId}/files/detail/cat` for a later cutover. Auth matches dictionary routes. Native projects only; connected TMS CAT stays on Hono (`501 provider_cat_deferred`).

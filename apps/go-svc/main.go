@@ -108,6 +108,7 @@ func main() {
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
+	h.conversations = &conversationAPI{}
 	h.overview = &overviewAPI{}
 	h.publicTranslations = &publicTranslationsAPI{auth: newPublicAPIAuthFromEnv(nil, nil)}
 	h.publicJobs = &publicJobsAPI{auth: h.publicTranslations.auth}
@@ -166,6 +167,7 @@ func main() {
 		h.activityLogs.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
+		h.conversations.pool = traced
 		h.overview.pool = traced
 		h.publicTranslations.auth.pool = traced
 		h.workspace.pool = traced
@@ -222,6 +224,7 @@ func main() {
 	h.activityLogs.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
+	h.conversations.membership = membershipLookup
 	h.overview.membership = membershipLookup
 	h.overview.flags = h.workspace.flags
 	h.publicTranslations.auth.membership = membershipLookup
