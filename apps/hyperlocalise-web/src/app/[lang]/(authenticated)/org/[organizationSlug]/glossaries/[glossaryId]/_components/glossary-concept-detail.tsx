@@ -13,7 +13,6 @@
  * Version 2.0 or later.
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PlusIcon, CaretDownIcon, TrashIcon, FunnelIcon, LinkIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -76,6 +75,7 @@ import {
 import { ApiResponseError, readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
 import {
   glossaryTermStatusValues,
@@ -83,6 +83,7 @@ import {
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
 
+import { useUnsavedChangesLeaveGuard } from "../../../_components/unsaved-changes-leave-guard";
 import { availableConceptTermLocales } from "./available-concept-term-locales";
 import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
 import { sortConceptDetailTermGroups } from "./concept-detail-term-order";
@@ -284,7 +285,7 @@ export function GlossaryConceptDetail({
   canManageGlossaries: boolean;
 }) {
   const intl = useIntl();
-  const router = useRouter();
+  const router = useOrgRouter();
   const queryClient = useQueryClient();
   const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
   const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
@@ -632,7 +633,7 @@ export function GlossaryConceptDetail({
         Object.fromEntries(concept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
       );
       setDeletedTermIds(new Set());
-      if (created) router.replace(conceptHref(concept.id));
+      if (created) leaveTo(conceptHref(concept.id));
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
       setCreatingTermDrafts([]);
@@ -656,7 +657,7 @@ export function GlossaryConceptDetail({
     },
     onSuccess: async () => {
       await Promise.all([invalidateConcepts(), invalidateConceptDetail()]);
-      router.push(glossaryHref);
+      leaveTo(glossaryHref);
       toast.success(intl.formatMessage(messages.conceptDeleted));
     },
     onError: (error) => toast.error(error.message),
@@ -721,6 +722,16 @@ export function GlossaryConceptDetail({
   const newTermIsDirty = Boolean(newTermLocale && newTermDraft.term.trim());
   const isDirty =
     conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
+  // `isDirty` is already true on a new concept, which opens with an empty source term row, and
+  // after an empty row is added. Leaving is only worth asking about once something is entered.
+  const hasUnsavedChanges =
+    (isCreatingConcept
+      ? !areConceptDraftsEqual(conceptDraft, emptyConceptDraft)
+      : conceptIsDirty) ||
+    termsAreDirty ||
+    newTermIsDirty ||
+    creatingTermDrafts.some((draft) => !areTermDraftsEqual(draft, emptyTermDraft));
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   if (glossaryQuery.isLoading || (!isCreatingConcept && conceptQuery.isLoading))
     return <ConceptDetailSkeleton />;
@@ -1831,6 +1842,8 @@ export function GlossaryConceptDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {leaveGuardDialog}
     </main>
   );
 }
