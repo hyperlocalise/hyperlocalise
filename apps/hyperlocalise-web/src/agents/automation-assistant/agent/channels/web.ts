@@ -16,6 +16,11 @@ import { createUIMessageStream, createUIMessageStreamResponse, type UIMessage } 
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageSourceForAutomationEditorMode,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+import {
   addAutomationAssistantMessage,
   endAutomationAssistantTurn,
   loadAutomationAssistantModelMessages,
@@ -50,9 +55,9 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
 
 /**
  * Runs one turn of the automation assistant and streams it to the page. The person's message is
- * saved first, the turn is billed like a dock turn under its own surface, the reply is saved when
- * the stream ends, and the session's turn claim is released whatever happens. The caller claims
- * the turn before calling this.
+ * saved first and counted in product analytics, the turn is billed like a dock turn under its own
+ * surface, the reply is saved when the stream ends, and the session's turn claim is released
+ * whatever happens. The caller claims the turn before calling this.
  */
 export function createAutomationAssistantTurnResponse(input: {
   session: AutomationAssistantSession;
@@ -79,6 +84,12 @@ export function createAutomationAssistantTurnResponse(input: {
         sessionId: session.id,
         senderType: "user",
         text: input.text,
+      });
+      // Counted when the person's message is saved, as a conversation message is, whatever
+      // becomes of the reply.
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.automationAssistantMessageSent, {
+        status: "sent",
+        source: productUsageSourceForAutomationEditorMode(input.pageContext.mode),
       });
       await reserveAgentRuntimeUsage({
         organizationId: input.organizationId,

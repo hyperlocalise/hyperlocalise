@@ -72,7 +72,8 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - The page carries no suggestion state. A change is either in the form, and one undo away, or in the reply as something that was not done.
 - Gone from the earlier branch: the skill activation rule, the chat route's context resolver, the classifier skip, the dock's context sending and turn tracking, and the scan of saved replies that found a chat's automation.
 - Added: two tables, a second agent package and its routes. The conversation tables, their source list and the Inbox's client are unchanged.
-- The assistant's messages do not count as conversation messages in product analytics, and a later change to how conversations store messages does not reach the assistant.
+- The assistant's messages do not count as conversation messages in product analytics. Each message a person sends is counted as its own event, `automation_assistant_message_sent`, with whether it came from a new automation's page or a saved one's.
+- A later change to how conversations store messages does not reach the assistant.
 - Asking about an automation from the dock on another page is no longer possible. The agent could not act there anyway.
 - Whether dock chats should be visible to teammates is a separate decision and is not changed here.
 

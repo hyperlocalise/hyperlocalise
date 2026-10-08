@@ -58,6 +58,7 @@ export const PRODUCT_USAGE_ANALYTICS_EVENTS = {
   marketingCtaClick: "marketing_cta_click",
   conversationCreated: "conversation_created",
   conversationMessageSent: "conversation_message_sent",
+  automationAssistantMessageSent: "automation_assistant_message_sent",
   fileUploaded: "file_uploaded",
   jobCreated: "job_created",
   jobCancelled: "job_cancelled",
@@ -155,6 +156,13 @@ export function productUsageSourceForConversation(source: string): string {
   if (source === "email_agent") return "email";
   if (source === "github_agent") return "github";
   if (source === "slack_agent") return "slack";
+  return "other";
+}
+
+/** Where a message to the automation assistant was sent from: a new automation's page or a saved one's. */
+export function productUsageSourceForAutomationEditorMode(mode: string): string {
+  if (mode === "create") return "new_automation";
+  if (mode === "detail") return "saved_automation";
   return "other";
 }
 

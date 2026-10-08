@@ -15,9 +15,15 @@ import { MockLanguageModelV3, simulateReadableStream } from "ai/test";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { reserveAgentRuntimeUsageMock, trackSucceededAgentRuntimeUsageMock } = vi.hoisted(() => ({
-  reserveAgentRuntimeUsageMock: vi.fn(),
-  trackSucceededAgentRuntimeUsageMock: vi.fn(),
+const { analyticsTrackMock, reserveAgentRuntimeUsageMock, trackSucceededAgentRuntimeUsageMock } =
+  vi.hoisted(() => ({
+    analyticsTrackMock: vi.fn(),
+    reserveAgentRuntimeUsageMock: vi.fn(),
+    trackSucceededAgentRuntimeUsageMock: vi.fn(),
+  }));
+
+vi.mock("@/lib/analytics/server", () => ({
+  serverAnalytics: { track: analyticsTrackMock },
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
@@ -151,6 +157,10 @@ describe("createAutomationAssistantTurnResponse", () => {
       ]),
     );
 
+    expect(analyticsTrackMock.mock.calls).toEqual([
+      ["automation_assistant_message_sent", { status: "sent", source: "new_automation" }],
+    ]);
+
     // The session is not a conversation: nothing is written to the tables the Inbox reads, and
     // the usage record names the session in its dimensions instead of linking to a conversation.
     const conversations = await db
@@ -213,6 +223,8 @@ describe("createAutomationAssistantTurnResponse", () => {
       expect(after?.turnStartedAt).toBeNull();
     });
     const messages = await listAutomationAssistantMessages(session.id);
+    // The person's message was sent, so it is saved and counted even though no reply came.
+    expect(analyticsTrackMock).toHaveBeenCalledTimes(1);
     expect(messages.filter((message) => message.senderType === "user")).toHaveLength(1);
     expect(messages.some((message) => message.text.includes("I named it"))).toBe(false);
   });
