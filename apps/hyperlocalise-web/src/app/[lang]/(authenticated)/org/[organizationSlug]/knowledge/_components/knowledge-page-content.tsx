@@ -111,6 +111,7 @@ export function KnowledgePageContent({
             projectId={projectId}
             canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             initialDraftContent={draftSeed}
+            guardsLeaving
           />
         </div>
       ) : null}

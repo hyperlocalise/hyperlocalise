@@ -13,10 +13,10 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 
@@ -28,6 +28,8 @@ const apiMocks = vi.hoisted(() => ({
   restoreRevision: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  routerPush: vi.fn(),
+  routerReplace: vi.fn(),
 }));
 
 vi.mock("@/lib/api-client-instance", () => ({
@@ -50,6 +52,17 @@ vi.mock("@/lib/api-client-instance", () => ({
       },
     },
   },
+}));
+
+// Only the React build that Next bundles has this; the one the tests run on does not.
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  addTransitionType: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/org/test-org/knowledge",
+  useRouter: () => ({ push: apiMocks.routerPush, replace: apiMocks.routerReplace }),
 }));
 
 vi.mock("sonner", () => ({
@@ -136,7 +149,7 @@ function mockInitialLoad(etag = '"rev-1"') {
   );
 }
 
-function renderEditor() {
+function renderEditor({ guardsLeaving = false }: { guardsLeaving?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -144,7 +157,12 @@ function renderEditor() {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <KnowledgeMemoryEditor organizationSlug="test-org" canUpdateKnowledgeMemory />
+        <a href="/org/test-org/glossaries">Glossaries</a>
+        <KnowledgeMemoryEditor
+          organizationSlug="test-org"
+          canUpdateKnowledgeMemory
+          guardsLeaving={guardsLeaving}
+        />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -176,6 +194,73 @@ describe("KnowledgeMemoryEditor", () => {
     apiMocks.restoreRevision.mockReset();
     apiMocks.toastError.mockReset();
     apiMocks.toastSuccess.mockReset();
+    apiMocks.routerPush.mockReset();
+    apiMocks.routerReplace.mockReset();
+    window.history.replaceState(null, "", "/org/test-org/knowledge");
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("asks before leaving with an unsaved draft, and keeps the draft when told to stay", async () => {
+    mockInitialLoad();
+    renderEditor({ guardsLeaving: true });
+    const editor = await screen.findByRole("textbox", { name: "Global guidance" });
+
+    await userEvent.type(editor, "Draft guidance");
+    expect(fireEvent.click(screen.getByRole("link", { name: "Glossaries" }))).toBe(false);
+    expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(editor).toHaveValue("Draft guidance");
+    expect(apiMocks.routerReplace).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("link", { name: "Glossaries" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Leave without saving" }));
+    expect(apiMocks.routerReplace).toHaveBeenCalledWith("/org/test-org/glossaries", {
+      scroll: undefined,
+    });
+  });
+
+  it("does not interrupt leaving while nothing is typed", async () => {
+    mockInitialLoad();
+    renderEditor({ guardsLeaving: true });
+    await screen.findByRole("textbox", { name: "Global guidance" });
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Glossaries" }))).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("stops asking once the draft is saved", async () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    mockInitialLoad('"rev-1"');
+    apiMocks.saveKnowledgeMemory.mockResolvedValue(
+      jsonResponse({ knowledgeMemory: savedKnowledgeMemory }, { headers: { ETag: '"rev-2"' } }),
+    );
+    renderEditor({ guardsLeaving: true });
+
+    await editAndOpenSaveDialog("Updated guidance", "Clarify tone");
+    await userEvent.click(screen.getByRole("button", { name: "Save version" }));
+    await waitFor(() => {
+      expect(apiMocks.toastSuccess).toHaveBeenCalledWith("Committed version 2");
+    });
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Glossaries" }))).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("leaves the asking to the host page when it is not told to guard", async () => {
+    const pushState = vi.spyOn(window.history, "pushState");
+    mockInitialLoad();
+    renderEditor();
+    const editor = await screen.findByRole("textbox", { name: "Global guidance" });
+
+    await userEvent.type(editor, "Draft guidance");
+
+    expect(fireEvent.click(screen.getByRole("link", { name: "Glossaries" }))).toBe(true);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(pushState).not.toHaveBeenCalled();
   });
 
   it("saves edits with the loaded ETag and applies the committed response ETag", async () => {
