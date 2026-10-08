@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -348,6 +348,28 @@ Responses are wrapped in a `job` object. Timestamps use UTC ISO-8601 with millis
 | 503 | `public_api_unavailable` | Database is unavailable |
 
 Responses include `Cache-Control: no-store`.
+
+## Native job reads
+
+Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/api/go-svc/...` on the web host).
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/projects/{projectId}/jobs` | List project jobs |
+| GET | `/projects/{projectId}/jobs/{jobId}` | Get job details |
+| GET | `/projects/{projectId}/jobs/{jobId}/status` | Get job status |
+| GET | `/jobs` | List organization jobs |
+| GET | `/jobs/{jobId}` | Get native job details |
+
+**Access:** Admins and localization managers can read all organization jobs. Other roles are restricted to accessible project teams, with unassigned projects belonging to the default team. `relationship=assigned` allows organization-wide discovery of assigned jobs.
+
+**Filtering:** Lists support `kind`, `type`, `status`, `open`, `triage`, `relationship` (`assigned`/`created`), and `limit` (1–100, default 50). `triage` takes precedence over `open`, then `status`. Boolean query values use non-empty-string coercion (`open=false` evaluates to true). Results are ordered by `updated_at DESC, id DESC`, with status priority for triage. Pagination is limit-only.
+
+**Provider boundaries:** Project-scoped routes accept native projects only; external projects return `404 project_not_found`. Organization job lists include persisted provider mirrors, but `/jobs/{jobId}` returns `404 job_not_found` for mirrored jobs. No provider credentials or live integrations are accessed.
+
+**Responses:** Lists return `{jobs: [...]}`; details return `{job: {...}}`. Project-scoped details omit `projectName`; other records include it. Status responses contain job identifiers, kind, type, status, timestamps, and `lastError`. Timestamps use UTC ISO-8601 with milliseconds. Missing detail fields are `null`; source-file metadata is resolved from stored records.
+
+**Errors:** Invalid list queries return `400 invalid_job_query` with `details.issues`. Missing or inaccessible projects/jobs return `404 project_not_found` or `404 job_not_found`. Invalid project IDs on detail/status routes return `job_not_found`. Responses set `Cache-Control: no-store`.
 
 ## Content editor (CAT)
 
