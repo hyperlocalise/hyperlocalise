@@ -28,6 +28,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 			header.Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, If-None-Match, X-API-Key, X-Go-Svc-Research-Token")
 			header.Set("Access-Control-Expose-Headers", "Content-Disposition, Content-Type, ETag, X-Export-Extension")
 			header.Set("Access-Control-Max-Age", corsMaxAgeSeconds)
+			if strings.EqualFold(r.Header.Get("Access-Control-Request-Private-Network"), "true") {
+				header.Set("Access-Control-Allow-Private-Network", "true")
+			}
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
