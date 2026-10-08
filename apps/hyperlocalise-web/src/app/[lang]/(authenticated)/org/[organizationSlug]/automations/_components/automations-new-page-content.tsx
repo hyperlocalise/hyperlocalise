@@ -66,7 +66,6 @@ export function AutomationsNewPageContent({
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
     workspaceAutomationFormHasChanges(form, startForm),
   );
-  const rootRef = useRef<HTMLElement>(null);
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   // The notice's action runs after later renders, so it reads the history as it is then.
   const historyRef = useRef(history);
@@ -135,8 +134,7 @@ export function AutomationsNewPageContent({
     },
   });
 
-  useUndoShortcuts({
-    rootRef,
+  const { rootRef } = useUndoShortcuts({
     enabled: !createMutation.isPending,
     onUndo: runUndo,
     onRedo: runRedo,

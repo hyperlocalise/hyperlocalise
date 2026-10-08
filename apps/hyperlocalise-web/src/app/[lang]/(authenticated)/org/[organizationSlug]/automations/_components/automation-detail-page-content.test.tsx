@@ -844,6 +844,41 @@ describe("AutomationDetailPageContent undo", () => {
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
   });
 
+  it("keeps edits typed during a save whose stored values the server trimmed", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation
+      .mockResolvedValueOnce(record())
+      .mockResolvedValue(record({ name: "Trimmed" }));
+    let finishSave: (response: unknown) => void = () => undefined;
+    apiMocks.patchAutomation.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+
+    renderPage(scheduledAutomation);
+
+    const name = await screen.findByRole("textbox", { name: "Name" });
+    await user.clear(name);
+    await user.type(name, "Trimmed  ");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
+    await user.type(name, "!");
+
+    finishSave({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: { ...scheduledAutomation, name: "Trimmed" } }),
+    });
+    await vi.waitFor(() => expect(apiMocks.getAutomation).toHaveBeenCalledTimes(2));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
+    expect(name).toHaveValue("Trimmed  !");
+    expect(toastMocks.message).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  });
+
   it("leaves the shortcut to the browser inside a dialog's text field", async () => {
     const user = userEvent.setup();
     apiMocks.getAutomation.mockResolvedValue({

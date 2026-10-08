@@ -156,7 +156,6 @@ export function AutomationDetailPageContent({
   >(null, workspaceAutomationUndoStackOptions);
   const form = history.form;
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
-  const rootRef = useRef<HTMLElement>(null);
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   // The notice's action runs after later renders, so it reads the history as it is then.
   const historyRef = useRef(history);
@@ -166,7 +165,7 @@ export function AutomationDetailPageContent({
     automationId: string;
     saved: WorkspaceAutomationFormState;
   } | null>(null);
-  // What the latest save sent, so its own refetch is not taken for a change made elsewhere.
+  // What the latest save stored, so its own refetch is not taken for a change made elsewhere.
   const submittedFormRef = useRef<WorkspaceAutomationFormState | null>(null);
 
   const runRedo = () => {
@@ -302,7 +301,6 @@ export function AutomationDetailPageContent({
           throw new Error("validation_failed");
         }
 
-        submittedFormRef.current = form;
         const payload = formStateToWorkspaceAutomationPayload(form);
         const response = await apiClient.api.orgs[":organizationSlug"].automations[
           ":automationId"
@@ -326,7 +324,9 @@ export function AutomationDetailPageContent({
         }
       }
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      // The server trims and fills in fields, so the record it returns is what the refetch brings.
+      submittedFormRef.current = createWorkspaceAutomationFormStateFromRecord(saved.automation);
       toast.success(intl.formatMessage(automationDetailPageContentMessages.updateSuccess));
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, automationId],
@@ -477,8 +477,7 @@ export function AutomationDetailPageContent({
       createWorkspaceAutomationFormStateFromRecord(automation),
     );
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
-  useUndoShortcuts({
-    rootRef,
+  const { rootRef } = useUndoShortcuts({
     enabled: !(saveMutation.isPending || deleteMutation.isPending),
     onUndo: runUndo,
     onRedo: runRedo,

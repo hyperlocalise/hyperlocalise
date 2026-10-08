@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+
 /** Who made the change a step holds. */
 export type UndoOrigin = "user" | "assistant" | "system";
 
@@ -188,7 +190,7 @@ export function createUndoStackReducer<T, D>(options: UndoStackOptions<T, D>) {
       case "reset":
         return createUndoStackState(action.present);
       default:
-        return state;
+        return assertNever(action);
     }
   };
 }

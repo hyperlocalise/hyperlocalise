@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useRef } from "react";
+import { useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -21,22 +21,31 @@ import { isUndoShortcutTarget, useUndoShortcuts } from "./use-undo-shortcuts";
 
 function Page({
   enabled = true,
+  loading = false,
   onUndo,
   onRedo,
   onSeal,
 }: {
   enabled?: boolean;
+  /** Starts without the root, as a page does until its record has loaded. */
+  loading?: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onSeal?: () => void;
 }) {
-  const rootRef = useRef<HTMLElement>(null);
-  useUndoShortcuts({ rootRef, enabled, onUndo, onRedo, onSeal });
+  const { rootRef } = useUndoShortcuts({ enabled, onUndo, onRedo, onSeal });
+  const [loaded, setLoaded] = useState(!loading);
   return (
     <>
-      <main ref={rootRef}>
-        <input aria-label="Inside" />
-      </main>
+      {loaded ? (
+        <main ref={rootRef}>
+          <input aria-label="Inside" />
+        </main>
+      ) : (
+        <button type="button" onClick={() => setLoaded(true)}>
+          Load
+        </button>
+      )}
       <div>
         <input aria-label="Outside" />
       </div>
@@ -141,6 +150,21 @@ describe("useUndoShortcuts", () => {
       new InputEvent("beforeinput", { inputType: "insertText", bubbles: true, cancelable: true }),
     );
     expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it("listens on a root that mounts after the first render", async () => {
+    const user = userEvent.setup();
+    const { onUndo, onSeal } = renderPage({ loading: true });
+
+    await user.click(screen.getByRole("button", { name: "Load" }));
+    const inside = screen.getByRole("textbox", { name: "Inside" });
+    inside.dispatchEvent(
+      new InputEvent("beforeinput", { inputType: "historyUndo", bubbles: true, cancelable: true }),
+    );
+    fireEvent.focusOut(inside);
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(onSeal).toHaveBeenCalledTimes(1);
   });
 
   it("seals the current step when focus leaves a field in the root", () => {

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useEffectEvent, type RefObject } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { useIsMac } from "@/hooks/use-is-mac";
@@ -35,28 +35,29 @@ export function isUndoShortcutTarget(
 /**
  * Binds undo and redo to the keyboard for one root element: Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z
  * (also Ctrl+Y outside macOS), the browser's own undo from a menu or a shake, and the close of
- * a typing burst when focus leaves a field. Nothing outside the root is affected.
+ * a typing burst when focus leaves a field. Nothing outside the root is affected. The returned
+ * `rootRef` goes on the root element; a root that mounts later, once a record has loaded, is
+ * picked up when it does.
  */
 export function useUndoShortcuts({
-  rootRef,
   enabled = true,
   onUndo,
   onRedo,
   onSeal,
 }: {
-  rootRef: RefObject<HTMLElement | null>;
   enabled?: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onSeal?: () => void;
-}) {
+}): { rootRef: (element: HTMLElement | null) => void } {
   const isMac = useIsMac();
+  const [root, setRoot] = useState<HTMLElement | null>(null);
+  const rootRef = useCallback((element: HTMLElement | null) => setRoot(element), []);
   const undo = useEffectEvent(() => onUndo());
   const redo = useEffectEvent(() => onRedo());
   const seal = useEffectEvent(() => onSeal?.());
   // Checked before the key press is claimed, so a press in a portal is left to the browser.
-  const outsideRoot = (event: KeyboardEvent) =>
-    !isUndoShortcutTarget(event.target, rootRef.current);
+  const outsideRoot = (event: KeyboardEvent) => !isUndoShortcutTarget(event.target, root);
 
   // The listener stays attached while there is nothing to undo, so the browser's own undo never
   // comes back inside the form's fields.
@@ -70,7 +71,7 @@ export function useUndoShortcuts({
       preventDefault: true,
       ignoreEventWhen: outsideRoot,
     },
-    [enabled],
+    [enabled, root],
   );
 
   useHotkeys(
@@ -83,11 +84,10 @@ export function useUndoShortcuts({
       preventDefault: true,
       ignoreEventWhen: outsideRoot,
     },
-    [enabled, isMac],
+    [enabled, isMac, root],
   );
 
   useEffect(() => {
-    const root = rootRef.current;
     if (!root || !enabled) {
       return;
     }
@@ -110,5 +110,7 @@ export function useUndoShortcuts({
       root.removeEventListener("beforeinput", onBeforeInput);
       root.removeEventListener("focusout", onFocusOut);
     };
-  }, [rootRef, enabled]);
+  }, [root, enabled]);
+
+  return { rootRef };
 }

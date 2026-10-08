@@ -103,7 +103,6 @@ function WorkspaceAutomationUndoStory({
     WorkspaceAutomationFormChange | null
   >(initialForm, workspaceAutomationUndoStackOptions);
   const form = history.form ?? initialForm;
-  const rootRef = useRef<HTMLElement>(null);
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   const historyRef = useRef(history);
   historyRef.current = history;
@@ -121,7 +120,7 @@ function WorkspaceAutomationUndoStory({
       notifyUndo(step, runRedo);
     }
   };
-  useUndoShortcuts({ rootRef, onUndo: runUndo, onRedo: runRedo, onSeal: history.seal });
+  const { rootRef } = useUndoShortcuts({ onUndo: runUndo, onRedo: runRedo, onSeal: history.seal });
 
   return (
     <WorkspacePageShell ref={rootRef} className="max-w-5xl">
