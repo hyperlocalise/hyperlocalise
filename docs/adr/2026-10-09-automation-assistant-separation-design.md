@@ -27,7 +27,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - Access is its own check: same organisation, operator role, author. No one else can read or continue a session.
 - One session per saved automation, resumed when its page opens. A session for a new automation gets its automation id when Create succeeds; until then it is bound to nothing.
 - An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server deletes unbound sessions after a day through an `expires_at` column, as the repository sandbox sessions are. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
-- Message persistence, parts and the model-history loader are reused as they are.
+- Message persistence and parts are reused as they are. The session's history comes from its own small loader: the session's messages within a budget, newest kept, text only. The shared loader, which reads the oldest fifty messages of a conversation, is not used.
 
 ### Agent
 
@@ -45,7 +45,9 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - Mounted by the form editor and the visual editor, built from the existing composer and message list. Its own small store: session id, messages, stream status. No tabs, no local-storage restore, no reply started by a page load. A turn begins only when someone sends from that page.
 - A collapsible panel on the right of the editor, opened from a button in the editor's header, and a sheet from the right edge on narrow screens. Never floating and never bottom-right, so it cannot be taken for the dock.
 - Titled "Automation assistant" with the automation's name, its own empty state ("Describe what this automation should do, or ask for a change"), its own avatar and name in replies.
-- The bridge, the summary, the suggestions and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each turn is one undo step.
+- The bridge, the summary and the undo stack stay as built and read the panel's stream instead of the dock's snapshots. Each turn is one undo step.
+- Every change the assistant decides on lands in the form. What cannot be applied, a skill whose integration is not connected or whose trigger does not fit, is left out and the reply says so. Nothing is held back for the person to accept on the page.
+- Closed by default. A "Configure with agent" button in the header row of the instructions section, aligned to the right above the textarea, opens it; the visual editor has the same button in its chrome. The page opened from the home page's prompt box starts with the panel open.
 - Leaving the page unmounts the panel. The turn finishes on the server and its reply is in the session when the person returns to that automation.
 - The home page's prompt box creates the session and opens the new page with its id.
 - The dock stays on automation pages, collapsed. Each surface hands off to the other in words: the localisation agent answers a setup request with a link to New automation, and the assistant answers a translation request by pointing at the dock.
@@ -59,6 +61,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 - The localisation agent, the chat route, turn preparation, the skill registry, the web channel, the dock store and stream manager, and the message list are untouched. The pull request is automation-scoped.
 - The assistant never appears in the Inbox or the dock, and is private to its author, by construction.
+- The page carries no suggestion state. A change is either in the form, and one undo away, or in the reply as something that was not done.
 - Gone from the earlier branch: the skill activation rule, the chat route's context resolver, the classifier skip, the dock's context sending and turn tracking, and the scan of saved replies that found a chat's automation.
 - Added: one enum value and two columns, a second agent package, four routes.
 - Asking about an automation from the dock on another page is no longer possible. The agent could not act there anyway.
@@ -74,6 +77,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 ## Out of scope
 
 - Whether dock chats become visible to their author only.
+- Held-back suggestions, where the assistant offers a change on the page with Use it, Add it or Dismiss instead of making it: a skill that declares a risk, or a change that would drop a skill or switch off a tool the person set. Left out of this first iteration; the risky skill is applied like any other and named in the reply, and the editor's own confirmation for a risky skill added by hand is unchanged.
 - Moving the content editor's assistant, today the dock with a page context, to the same pattern.
 - The stop button, and duplicate turns in the dock.
 - The visual workflow tool itself; only where it plugs in.
@@ -81,9 +85,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 ## Not decided
 
 - Shared or separate tables. Shared means a source value and two columns on `interactions`, reusing message storage, parts, the streaming save and the model-history loader, with the visibility helper and every conversation listing made to exclude that source. Separate means `assistant_sessions` and `assistant_messages` with their own writer and loader, where nothing can leak by omission. Proposed: shared, with a test that no conversation listing ever returns an assistant session.
-- Whether the panel is open by default on a new automation.
 - Billing: proposed the same per-turn charge as a dock turn, counted under the `surface` dimension. The usage decision is still open.
-- Whether the first version shows held-back suggestions. A held-back suggestion is a change the assistant does not make itself but offers on the page with Use it, Add it or Dismiss: a skill that declares a risk, a change that would drop a skill or switch off a tool the person set, and a skill whose integration is not connected or whose trigger does not fit. The alternative is to apply what can be applied, leave the rest out, and say so in the reply. On hold.
 
 ## Validation
 
