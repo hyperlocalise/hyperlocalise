@@ -7,6 +7,14 @@ import (
 
 var internalSegmentPlaceholderPattern = regexp.MustCompile("\x1eHL[A-Z]+PH_[A-Z0-9_]+_\\d+\x1f")
 
+var xmlReplacer = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"\"", "&quot;",
+	"'", "&apos;",
+)
+
 func isInvalidXMLCharacter(r rune) bool {
 	if r == 0x9 || r == 0xA || r == 0xD {
 		return false
@@ -21,6 +29,17 @@ func sanitizeInvalidXMLCharacters(value string) string {
 	if value == "" {
 		return value
 	}
+	hasInvalid := false
+	for _, r := range value {
+		if isInvalidXMLCharacter(r) {
+			hasInvalid = true
+			break
+		}
+	}
+	if !hasInvalid {
+		return value
+	}
+
 	var builder strings.Builder
 	builder.Grow(len(value))
 	for _, r := range value {
@@ -42,12 +61,7 @@ func stripInternalSegmentPlaceholders(value string) string {
 func escapeXML(value string) string {
 	safe := stripInternalSegmentPlaceholders(value)
 	safe = sanitizeInvalidXMLCharacters(safe)
-	replacer := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-		"\"", "&quot;",
-		"'", "&apos;",
-	)
-	return replacer.Replace(safe)
+	// Performance optimization: xmlReplacer is pre-constructed at package level
+	// to avoid rebuilding the replacer trie on every invocation.
+	return xmlReplacer.Replace(safe)
 }
