@@ -89,6 +89,7 @@ vi.mock("./workspace-automation-form", () => ({
     onChange: (form: WorkspaceAutomationFormState) => void;
   }) => (
     <div>
+      <output aria-label="Form name">{form.name}</output>
       <button type="button" onClick={() => onChange({ ...form, name: "Renamed automation" })}>
         Dirty form
       </button>
@@ -353,5 +354,86 @@ describe("AutomationDetailPageContent write locking", () => {
     expect(
       await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("AutomationDetailPageContent discard changes", () => {
+  afterEach(() => {
+    apiMocks.getAutomation.mockReset();
+    apiMocks.patchAutomation.mockReset();
+  });
+
+  it("puts the form back to the saved automation after confirming", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation, recentRuns: [] }),
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: "Discard changes" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Dirty form" }));
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
+    await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole("alertdialog", { name: "Discard changes?" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(automation.name);
+    expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
+  });
+
+  it("keeps the changes when the dialog is dismissed", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation, recentRuns: [] }),
+    });
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Discard changes" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
+    await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
+
+    await vi.waitFor(() =>
+      expect(
+        screen.queryByRole("alertdialog", { name: "Discard changes?" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
+      "Renamed automation",
+    );
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  });
+
+  it("cannot be started while a save is in flight", async () => {
+    const user = userEvent.setup();
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation, recentRuns: [] }),
+    });
+    apiMocks.patchAutomation.mockImplementation(() => pendingResponse());
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
   });
 });

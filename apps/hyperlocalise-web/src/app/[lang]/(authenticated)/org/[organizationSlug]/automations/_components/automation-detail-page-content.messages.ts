@@ -131,6 +131,32 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "F6jskX12It",
     description: "Button to save automation detail changes",
   },
+  discardChanges: {
+    defaultMessage: "Discard changes",
+    id: "bYsksXFrGX",
+    description: "Button that throws away the unsaved changes to an automation",
+  },
+  discardTitle: {
+    defaultMessage: "Discard changes?",
+    id: "otc1s9Zhhk",
+    description: "Title of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardDescription: {
+    defaultMessage:
+      "The automation goes back to how it was last saved. Your unsaved changes will be lost.",
+    id: "UsLxkyzDYE",
+    description: "Body of the dialog that confirms throwing away unsaved automation changes",
+  },
+  discardCancel: {
+    defaultMessage: "Keep editing",
+    id: "aYK9Ws6gX4",
+    description: "Button that closes the discard changes dialog and keeps the unsaved changes",
+  },
+  discardConfirm: {
+    defaultMessage: "Discard changes",
+    id: "FKZ67TsL+4",
+    description: "Confirm button that throws away the unsaved changes to an automation",
+  },
   backToAutomations: {
     defaultMessage: "Back to automations",
     id: "aEJ2kyKHZN",

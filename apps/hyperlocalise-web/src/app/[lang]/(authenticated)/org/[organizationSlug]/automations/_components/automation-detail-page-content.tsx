@@ -14,7 +14,12 @@
  */
 import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { TrashIcon, PlayIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  TrashIcon,
+  PlayIcon,
+  FloppyDiskIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -140,6 +145,7 @@ export function AutomationDetailPageContent({
   > | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [sourceFileDialogOpen, setSourceFileDialogOpen] = useState(false);
   const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [sourceFileSearch, setSourceFileSearch] = useState("");
@@ -416,6 +422,11 @@ export function AutomationDetailPageContent({
   const deleteInFlight = deleteMutation.isPending;
   const writeInFlight = saveInFlight || deleteInFlight;
 
+  const discardChanges = () => {
+    setForm(savedForm);
+    setErrors({});
+  };
+
   const editorActions = (
     <div className="flex gap-2">
       <Button
@@ -497,6 +508,14 @@ export function AutomationDetailPageContent({
           ) : null}
         </>
       ) : null}
+      <Button
+        variant="outline"
+        onClick={() => setDiscardDialogOpen(true)}
+        disabled={writeInFlight || !hasChanges}
+      >
+        <ArrowCounterClockwiseIcon data-icon="inline-start" />
+        <FormattedMessage {...automationDetailPageContentMessages.discardChanges} />
+      </Button>
       <Button
         onClick={() => {
           if (deleteInFlight) {
@@ -708,6 +727,33 @@ export function AutomationDetailPageContent({
               ) : (
                 <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
               )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...automationDetailPageContentMessages.discardTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <FormattedMessage {...automationDetailPageContentMessages.discardDescription} />
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...automationDetailPageContentMessages.discardCancel} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                discardChanges();
+                setDiscardDialogOpen(false);
+              }}
+            >
+              <FormattedMessage {...automationDetailPageContentMessages.discardConfirm} />
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
