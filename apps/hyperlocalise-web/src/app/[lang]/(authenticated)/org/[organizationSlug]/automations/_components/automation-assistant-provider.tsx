@@ -87,10 +87,26 @@ function browserTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_TIME_ZONE;
 }
 
+/** The person's message as the panel shows it until the saved conversation is loaded. */
+function localMessage(text: string): AssistantMessage {
+  return {
+    id: `local-${crypto.randomUUID()}`,
+    conversationId: "",
+    senderType: "user",
+    senderEmail: null,
+    text,
+    parts: null,
+    attachments: null,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 /**
  * Holds one person's assistant session for the automation page and applies what the assistant
  * changes to the form. A saved automation's session is resumed when the page opens; a new
- * automation's session is made on the first message and thrown away with the page.
+ * automation's session is made on the first message and thrown away with the page. A request
+ * handed over from the automations page is shown, with the panel open and working, from the
+ * first render; its turn starts once the page knows what is connected.
  */
 export function AutomationAssistantProvider({
   automationId,
@@ -132,13 +148,19 @@ export function AutomationAssistantProvider({
   const chatDock = useOptionalAppShellStore()?.chatDock ?? null;
   const [editorSessionId] = useState(() => crypto.randomUUID());
   const [timeZone] = useState(browserTimeZone);
-  const [open, setOpenState] = useState(false);
+  const usable = isWorkspaceAutomationAssistantForm(form);
+  // The handed-over request as the panel shows it, or null when there is none to send.
+  const [handoff] = useState(() => {
+    const text = initialPrompt?.trim();
+    return text && usable ? localMessage(text) : null;
+  });
+  const [open, setOpenState] = useState(handoff !== null);
   const [status, setStatus] = useState<AutomationAssistantStatus>(
-    automationId ? "loading" : "idle",
+    handoff ? "streaming" : automationId ? "loading" : "idle",
   );
   const [error, setError] = useState<AutomationAssistantValue["error"]>(null);
   const [session, setSession] = useState<AssistantSession | null>(null);
-  const [messages, setMessages] = useState<AssistantMessage[]>([]);
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => (handoff ? [handoff] : []));
   const [streaming, setStreaming] = useState<UIMessage | null>(null);
   const [appliedCallCount, setAppliedCallCount] = useState(0);
   const [appliedChangeCount, setAppliedChangeCount] = useState(0);
@@ -146,10 +168,12 @@ export function AutomationAssistantProvider({
   // The form after the latest change by the assistant, until the page renders with it.
   const pendingForm = useRef<WorkspaceAutomationFormState | null>(null);
   const sessionRef = useRef<AssistantSession | null>(null);
+  // The session being made, so a turn that starts meanwhile waits for it and makes no second one.
+  const sessionCreation = useRef<Promise<AssistantSession> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const turnRunning = useRef(false);
   const handedOver = useRef(false);
 
-  const usable = isWorkspaceAutomationAssistantForm(form);
   const context = useMemo(
     () =>
       usable
@@ -269,40 +293,47 @@ export function AutomationAssistantProvider({
     }
   });
 
-  const send = useEffectEvent((text: string) => {
-    const trimmed = text.trim();
+  const ensureSession = useEffectEvent((): Promise<AssistantSession> => {
+    if (sessionRef.current) {
+      return Promise.resolve(sessionRef.current);
+    }
+    sessionCreation.current ??= createAssistantSession(organizationSlug, automationId ?? null)
+      .then((created) => {
+        notifySession(created);
+        return created;
+      })
+      .finally(() => {
+        sessionCreation.current = null;
+      });
+    return sessionCreation.current;
+  });
+
+  /** Runs one turn. `shown` is the person's message when the panel already shows it. */
+  const runTurn = useEffectEvent((text: string, shown: AssistantMessage | null) => {
     const current = contextRef.current;
-    if (!trimmed || !current || status === "streaming") {
+    if (!current || turnRunning.current) {
       return;
     }
+    turnRunning.current = true;
     setError(null);
     setStatus("streaming");
     setOpen(true);
+    if (!shown) {
+      setMessages((list) => [...list, localMessage(text)]);
+    }
     const controller = new AbortController();
     abortRef.current = controller;
 
     void (async () => {
       try {
-        let active = sessionRef.current;
-        if (!active) {
-          active = await createAssistantSession(organizationSlug, automationId ?? null);
-          notifySession(active);
+        const active = await ensureSession();
+        if (controller.signal.aborted) {
+          return;
         }
-        const sent: AssistantMessage = {
-          id: `local-${crypto.randomUUID()}`,
-          conversationId: active.id,
-          senderType: "user",
-          senderEmail: null,
-          text: trimmed,
-          parts: null,
-          attachments: null,
-          createdAt: new Date().toISOString(),
-        };
-        setMessages((list) => [...list, sent]);
         for await (const reply of streamAssistantTurn({
           organizationSlug,
           sessionId: active.id,
-          text: trimmed,
+          text,
           pageContext: current,
           signal: controller.signal,
         })) {
@@ -323,6 +354,7 @@ export function AutomationAssistantProvider({
         }
         setError(caught instanceof AssistantTurnInProgressError ? "turn_in_progress" : "failed");
       } finally {
+        turnRunning.current = false;
         if (!controller.signal.aborted) {
           setStreaming(null);
           setStatus("idle");
@@ -331,17 +363,40 @@ export function AutomationAssistantProvider({
     })();
   });
 
+  const send = useEffectEvent((text: string) => {
+    const trimmed = text.trim();
+    if (trimmed) {
+      runTurn(trimmed, null);
+    }
+  });
+
   // Leaving the page stops reading the reply; the turn itself finishes on the server.
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // A request handed over from the automations page goes once the page knows its integrations.
+  // The handed-over request's session is made while the page finds out what is connected, and
+  // its turn starts once that is known. Both wait one tick, which the cleanup cancels, so the
+  // mount, unmount, mount sequence React runs in development starts each of them once.
   useEffect(() => {
-    if (!initialPrompt || handedOver.current || !connectionsSettled || !context) {
+    if (!handoff || handedOver.current) {
       return;
     }
-    handedOver.current = true;
-    send(initialPrompt);
-  }, [connectionsSettled, context, initialPrompt]);
+    chatDock?.setPanelOpen(false);
+    const timer = window.setTimeout(() => {
+      void ensureSession().catch(() => undefined);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [chatDock, handoff]);
+
+  useEffect(() => {
+    if (!handoff || handedOver.current || !connectionsSettled || !context) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      handedOver.current = true;
+      runTurn(handoff.text, handoff);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [connectionsSettled, context, handoff]);
 
   const startOver = useEffectEvent(() => {
     abortRef.current?.abort();
@@ -351,6 +406,8 @@ export function AutomationAssistantProvider({
     setStreaming(null);
     setError(null);
     setStatus("idle");
+    turnRunning.current = false;
+    handedOver.current = true;
     appliedToolCallIds.current = new Set();
     if (ended) {
       void deleteAssistantSession(organizationSlug, ended.id).catch(() => undefined);

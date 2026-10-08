@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import type { UIMessage } from "ai";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -110,6 +110,7 @@ function Consumer() {
 
 function renderProvider(
   props: Partial<React.ComponentProps<typeof AutomationAssistantProvider>> = {},
+  options: { settled?: boolean; strict?: boolean } = {},
 ) {
   const changes: WorkspaceAutomationFormState[] = [];
   function Harness(harness: { connectionsSettled: boolean }) {
@@ -134,7 +135,9 @@ function renderProvider(
       </AutomationAssistantProvider>
     );
   }
-  const view = render(<Harness connectionsSettled />);
+  const view = render(<Harness connectionsSettled={options.settled ?? true} />, {
+    wrapper: options.strict ? StrictMode : undefined,
+  });
   return { ...view, changes, Harness };
 }
 
@@ -299,13 +302,24 @@ describe("AutomationAssistantProvider", () => {
     expect(screen.getByText("messages:")).toBeTruthy();
   });
 
-  it("sends a handed-over request once the integrations are known", async () => {
+  it("shows a handed-over request as working from the first render and sends it once the integrations are known", async () => {
     api.createAssistantSession.mockResolvedValue(session("sess-1"));
     api.streamAssistantTurn.mockImplementation(async function* () {});
     api.loadAssistantSession.mockResolvedValue({ session: session("sess-1"), messages: [] });
-    const { Harness, rerender } = renderProvider({ initialPrompt: "Post a weekly summary" });
-    rerender(<Harness connectionsSettled={false} />);
+    const { Harness, rerender } = renderProvider(
+      { initialPrompt: "Post a weekly summary" },
+      { settled: false },
+    );
 
+    // Before anything has loaded: the panel is open with the request in it, and it is working.
+    expect(screen.getByText(/status:streaming open:true/)).toBeTruthy();
+    expect(screen.getByText("messages:user")).toBeTruthy();
+    expect(api.setPanelOpen).toHaveBeenCalledWith(false);
+
+    // The session is made while the integrations load; the turn waits for them.
+    await waitFor(() => {
+      expect(api.createAssistantSession).toHaveBeenCalledTimes(1);
+    });
     expect(api.streamAssistantTurn).not.toHaveBeenCalled();
 
     rerender(<Harness connectionsSettled />);
@@ -316,6 +330,58 @@ describe("AutomationAssistantProvider", () => {
     expect(api.streamAssistantTurn).toHaveBeenCalledWith(
       expect.objectContaining({ text: "Post a weekly summary", sessionId: "sess-1" }),
     );
+    expect(api.createAssistantSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle/)).toBeTruthy();
+    });
+  });
+
+  it("sends a handed-over request once, and finishes, when development mounts the page twice", async () => {
+    api.createAssistantSession.mockResolvedValue(session("sess-1"));
+    api.streamAssistantTurn.mockImplementation(async function* (input: { signal?: AbortSignal }) {
+      // As the real request does: a turn whose page has already let go of it never starts.
+      if (input.signal?.aborted) {
+        throw new DOMException("aborted", "AbortError");
+      }
+      yield* [];
+    });
+    api.loadAssistantSession.mockResolvedValue({ session: session("sess-1"), messages: [] });
+
+    // The integrations are already known, as on a second visit, so nothing delays the send.
+    renderProvider({ initialPrompt: "Post a weekly summary" }, { strict: true });
+
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle/)).toBeTruthy();
+    });
+    expect(api.createAssistantSession).toHaveBeenCalledTimes(1);
+    expect(api.streamAssistantTurn).toHaveBeenCalledTimes(1);
+    expect(api.loadAssistantSession).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/error:none/)).toBeTruthy();
+  });
+
+  it("shows a typed message at once, before its session exists", async () => {
+    const user = userEvent.setup();
+    let finishCreating: (value: ReturnType<typeof session>) => void = () => {};
+    api.createAssistantSession.mockReturnValue(
+      new Promise((resolve) => {
+        finishCreating = resolve;
+      }),
+    );
+    api.streamAssistantTurn.mockImplementation(async function* () {});
+    api.loadAssistantSession.mockResolvedValue({ session: session("sess-1"), messages: [] });
+    renderProvider();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(screen.getByText(/status:streaming open:true/)).toBeTruthy();
+    expect(screen.getByText("messages:user")).toBeTruthy();
+    expect(api.streamAssistantTurn).not.toHaveBeenCalled();
+
+    finishCreating(session("sess-1"));
+
+    await waitFor(() => {
+      expect(api.streamAssistantTurn).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("says when a turn is already running", async () => {
