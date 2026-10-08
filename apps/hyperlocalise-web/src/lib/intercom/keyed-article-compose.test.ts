@@ -87,6 +87,28 @@ describe("composeIntercomArticleFromApprovedKeyedUnits", () => {
     expect(composed?.body).not.toContain("HLMDPH");
   });
 
+  it("keeps approved titles that contain JSON escape sequences", () => {
+    const composed = composeIntercomArticleFromApprovedKeyedUnits({
+      sourceMarkdown: SOURCE_MARKDOWN,
+      units: [
+        {
+          key: "md.frontmatter/title",
+          sourceText: "Your first public article",
+          targetText: String.raw`C:\temp`,
+        },
+        {
+          key: "md.frontmatter/description",
+          sourceText: "Some resources to help you understand how Articles can be used",
+          targetText: String.raw`Line 1\nLine 2`,
+        },
+      ],
+    });
+
+    expect(composed?.title).toBe(String.raw`C:\temp`);
+    expect(composed?.description).toBe(String.raw`Line 1\nLine 2`);
+    expect(composed?.body).toBe(INTERCOM_ARTICLE_BODY_MARKDOWN);
+  });
+
   it("returns null when the approved title key is missing", () => {
     expect(
       composeIntercomArticleFromApprovedKeyedUnits({

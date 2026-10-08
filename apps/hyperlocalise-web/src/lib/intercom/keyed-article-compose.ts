@@ -52,6 +52,13 @@ export function readIntercomArticleFieldFromKeys(
   return undefined;
 }
 
+function isIntercomFrontmatterFieldKey(key: string): boolean {
+  return (
+    (INTERCOM_ARTICLE_TITLE_KEY_ALIASES as readonly string[]).includes(key) ||
+    (INTERCOM_ARTICLE_DESCRIPTION_KEY_ALIASES as readonly string[]).includes(key)
+  );
+}
+
 export function composeIntercomArticleFromApprovedKeyedUnits(input: {
   sourceMarkdown: string;
   units: readonly IntercomApprovedKeyedUnit[];
@@ -67,19 +74,21 @@ export function composeIntercomArticleFromApprovedKeyedUnits(input: {
     return null;
   }
 
-  const applied = applyApprovedKeyedUnitsToMarkdown(input.sourceMarkdown, units);
+  const byKey = Object.fromEntries(units.map((unit) => [unit.key, unit.targetText]));
+  const approvedTitle = readIntercomArticleFieldFromKeys(byKey, INTERCOM_ARTICLE_TITLE_KEY_ALIASES);
+  const approvedDescription = readIntercomArticleFieldFromKeys(
+    byKey,
+    INTERCOM_ARTICLE_DESCRIPTION_KEY_ALIASES,
+  );
+  const bodyUnits = units.filter((unit) => !isIntercomFrontmatterFieldKey(unit.key));
+  const applied = applyApprovedKeyedUnitsToMarkdown(input.sourceMarkdown, bodyUnits);
   if (applied == null) {
     return null;
   }
 
   const parsed = parseIntercomArticleMarkdown(applied);
-  const byKey = Object.fromEntries(units.map((unit) => [unit.key, unit.targetText]));
-  const approvedTitle = readIntercomArticleFieldFromKeys(byKey, INTERCOM_ARTICLE_TITLE_KEY_ALIASES);
-  const title = parsed.title.trim() || approvedTitle;
-  const description =
-    parsed.description.trim() ||
-    readIntercomArticleFieldFromKeys(byKey, INTERCOM_ARTICLE_DESCRIPTION_KEY_ALIASES) ||
-    "";
+  const title = approvedTitle?.trim() || "";
+  const description = approvedDescription ?? parsed.description;
   const body = parsed.body;
   if (!approvedTitle || !title || !body.trim()) {
     return null;
