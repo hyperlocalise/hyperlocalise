@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -21,6 +21,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  workspaceAutomationUndoStackOptions,
+  type WorkspaceAutomationFormChange,
+} from "@/lib/agents/workspace-automation-undo";
+import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import {
   createDefaultWorkspaceAutomationFormState,
   formStateToWorkspaceAutomationPayload,
@@ -31,6 +37,7 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -49,12 +56,40 @@ export function AutomationsNewPageContent({
 }) {
   const intl = useIntl();
   const [startForm] = useState(initialForm);
-  const [form, setForm] = useState(startForm);
+  const history = useUndoStack<
+    WorkspaceAutomationFormState | null,
+    WorkspaceAutomationFormChange | null
+  >(startForm, workspaceAutomationUndoStackOptions);
+  const form = history.form ?? startForm;
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
     workspaceAutomationFormHasChanges(form, startForm),
   );
+  const rootRef = useRef<HTMLElement>(null);
+  const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
+  // The notice's action runs after later renders, so it reads the history as it is then.
+  const historyRef = useRef(history);
+  historyRef.current = history;
+
+  const runRedo = () => {
+    const step = historyRef.current.redoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.redo();
+    setErrors({});
+    notifyRedo(step, runUndo);
+  };
+  const runUndo = () => {
+    const step = historyRef.current.undoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.undo();
+    setErrors({});
+    notifyUndo(step, runRedo);
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -100,8 +135,25 @@ export function AutomationsNewPageContent({
     },
   });
 
+  useUndoShortcuts({
+    rootRef,
+    enabled: !createMutation.isPending,
+    onUndo: runUndo,
+    onRedo: runRedo,
+    onSeal: history.seal,
+  });
+
   const actions = (
     <>
+      <AutomationUndoRedoButtons
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
+        undoStep={history.undoStep}
+        redoStep={history.redoStep}
+        disabled={createMutation.isPending}
+        onUndo={runUndo}
+        onRedo={runRedo}
+      />
       <Button
         variant="outline"
         nativeButton={false}
@@ -120,7 +172,7 @@ export function AutomationsNewPageContent({
   );
 
   return (
-    <WorkspacePageShell className="max-w-5xl">
+    <WorkspacePageShell ref={rootRef} className="max-w-5xl" data-undo-root="automation">
       <WorkspaceAutomationEditor
         mode="create"
         organizationSlug={organizationSlug}
@@ -128,7 +180,7 @@ export function AutomationsNewPageContent({
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
-        onChange={setForm}
+        onChange={history.change}
         actions={actions}
       />
       {leaveGuardDialog}
