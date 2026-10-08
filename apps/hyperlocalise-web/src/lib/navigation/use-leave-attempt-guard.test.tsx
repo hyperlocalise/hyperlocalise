@@ -72,6 +72,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("getInternalNavigationHrefFromClick", () => {
@@ -194,6 +195,70 @@ describe("useLeaveAttemptGuard", () => {
     expect(onLeaveAttempt).toHaveBeenCalledTimes(2);
     expect(mocks.push).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("hands the address the page wrote while guarded to the entry underneath when its own entry goes", () => {
+    const base = "/org/acme/glossaries/glo_1";
+    // Stepping back lands on the entry from before the guard, which still has the old address.
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.history.replaceState(null, "", base);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    const onLeaveAttempt = vi.fn();
+    const view = render(<Page active onLeaveAttempt={onLeaveAttempt} />);
+
+    window.history.replaceState(null, "", `${base}?section=locales`);
+    view.rerender(<Page active={false} onLeaveAttempt={onLeaveAttempt} />);
+
+    expect(`${window.location.pathname}${window.location.search}`).toBe(`${base}?section=locales`);
+    expect(onLeaveAttempt).not.toHaveBeenCalled();
+  });
+
+  it("puts its entry back with the address the page wrote when the back button is used", () => {
+    const base = "/org/acme/glossaries/glo_1";
+    const onLeaveAttempt = vi.fn();
+    render(<Page active onLeaveAttempt={onLeaveAttempt} />);
+
+    // The page moved to another of its sections, which only the extra entry knows about. The
+    // back button then lands on the entry underneath, with the extra one still ahead of it.
+    const origin = window.location.origin;
+    vi.stubGlobal("navigation", {
+      currentEntry: { index: 3 },
+      entries: () => [
+        { url: `${origin}/org/acme/glossaries` },
+        { url: `${origin}/org/acme/inbox` },
+        { url: `${origin}/org/acme/glossaries` },
+        { url: `${origin}${base}` },
+        { url: `${origin}${base}?section=locales` },
+      ],
+    });
+    const pushState = vi.spyOn(window.history, "pushState");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(onLeaveAttempt).toHaveBeenCalledTimes(1);
+    expect(pushState).toHaveBeenCalledTimes(1);
+    expect(window.location.search).toBe("?section=locales");
+  });
+
+  it("puts its entry back with the current address when the entry ahead is another page", () => {
+    const origin = window.location.origin;
+    const onLeaveAttempt = vi.fn();
+    render(<Page active onLeaveAttempt={onLeaveAttempt} />);
+
+    vi.stubGlobal("navigation", {
+      currentEntry: { index: 0 },
+      entries: () => [
+        { url: `${origin}/org/acme/glossaries/glo_1` },
+        { url: `${origin}/org/acme/inbox` },
+      ],
+    });
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(window.location.pathname).toBe("/org/acme/glossaries/glo_1");
   });
 
   it("does not report navigation the page does itself", async () => {

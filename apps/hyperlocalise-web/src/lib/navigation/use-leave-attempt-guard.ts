@@ -74,6 +74,16 @@ function staysOnCurrentPage(href: string, currentHref: string): boolean {
   }
 }
 
+/** The address of the history entry after the current one, in browsers that can tell. */
+function forwardEntryHref(): string | null {
+  const navigation = window.navigation;
+  const index = navigation?.currentEntry?.index;
+  if (!navigation || index === undefined || index < 0) {
+    return null;
+  }
+  return navigation.entries()[index + 1]?.url ?? null;
+}
+
 /**
  * Tells the page when the person tries to leave it while `active`: on an in-app link, on
  * navigation through `useOrgRouter` (a breadcrumb menu, say) and on the browser's back button.
@@ -90,15 +100,17 @@ export function useLeaveAttemptGuard(
   const leaving = useRef(false);
   // An extra history entry for this page, so the back button lands here first and can be asked about.
   const historyGuardPushed = useRef(false);
-  // Set while the extra entry is being taken away, which the browser does a moment later.
-  const removingHistoryGuard = useRef(false);
+  // Set while the extra entry is being taken away, which the browser does a moment later. Holds
+  // the address the extra entry had: the page may have rewritten it there (a section or tab in
+  // the query, say), and the entry underneath still has the address from before.
+  const removingHistoryGuard = useRef<string | null>(null);
 
-  const pushHistoryGuard = () => {
+  const pushHistoryGuard = (href = window.location.href) => {
     // While the old entry is still on its way out, a new one waits for `onPopState`.
-    if (historyGuardPushed.current || removingHistoryGuard.current) {
+    if (historyGuardPushed.current || removingHistoryGuard.current !== null) {
       return;
     }
-    window.history.pushState({ unsavedChangesLeaveGuard: true }, "", window.location.href);
+    window.history.pushState({ unsavedChangesLeaveGuard: true }, "", href);
     historyGuardPushed.current = true;
   };
 
@@ -155,8 +167,12 @@ export function useLeaveAttemptGuard(
   });
 
   const onPopState = useEffectEvent(() => {
-    if (removingHistoryGuard.current) {
-      removingHistoryGuard.current = false;
+    const hrefToKeep = removingHistoryGuard.current;
+    if (hrefToKeep !== null) {
+      removingHistoryGuard.current = null;
+      if (window.location.href !== hrefToKeep) {
+        window.history.replaceState(null, "", hrefToKeep);
+      }
       // The guard came back on before the extra entry was gone, so it is needed again.
       if (active) {
         pushHistoryGuard();
@@ -171,8 +187,14 @@ export function useLeaveAttemptGuard(
       return;
     }
     // The back button took the extra entry. It is put back at once, so pressing back again
-    // before the page has answered cannot leave either.
-    pushHistoryGuard();
+    // before the page has answered cannot leave either, and with the address it had, which is
+    // the one of the entry just left.
+    const leftHref = forwardEntryHref();
+    pushHistoryGuard(
+      leftHref !== null && staysOnCurrentPage(leftHref, window.location.href)
+        ? leftHref
+        : undefined,
+    );
     requestLeave(() => {
       historyGuardPushed.current = false;
       // One step for the extra entry, one for this page.
@@ -185,7 +207,7 @@ export function useLeaveAttemptGuard(
       // Nothing left to protect, so the extra entry goes and the back button works as usual.
       if (historyGuardPushed.current && !leaving.current) {
         historyGuardPushed.current = false;
-        removingHistoryGuard.current = true;
+        removingHistoryGuard.current = window.location.href;
         window.history.back();
       }
       return;

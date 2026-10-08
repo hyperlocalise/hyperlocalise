@@ -590,6 +590,32 @@ describe("ProjectSettingsPageContent leave guard", () => {
     expect(await screen.findByText("Leave without saving?")).toBeInTheDocument();
   });
 
+  it("keeps the section in the address after the last unsaved section is saved", async () => {
+    const settingsPath = "/en/org/acme/projects/project_1/settings";
+    // Stepping back lands on the entry from before the edit, which has no section in it.
+    vi.spyOn(window.history, "back").mockImplementation(() => {
+      window.history.replaceState(null, "", settingsPath);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    const user = userEvent.setup();
+    updateMock.mockResolvedValue({ project: createProject({ descriptionValue: "Ops notes" }) });
+    renderSettings();
+
+    await user.type(await screen.findByLabelText("Description"), "Ops notes");
+    await openSection(user, "Locales");
+    await openSection(user, "General");
+    expect(window.location.search).toBe("?section=general");
+
+    await user.click(screen.getByRole("button", { name: "Save general settings" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save general settings" })).toBeDisabled();
+    });
+
+    expect(`${window.location.pathname}${window.location.search}`).toBe(
+      `${settingsPath}?section=general`,
+    );
+  });
+
   it("stops asking once the section is saved", async () => {
     vi.spyOn(window.history, "back").mockImplementation(() => {});
     const user = userEvent.setup();
