@@ -13,7 +13,6 @@ import (
 
 var (
 	storedFileIDPattern     = regexp.MustCompile(`(?i)^file_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	vercelBlobHostPattern   = regexp.MustCompile(`(?i)\.blob\.vercel-storage\.com/`)
 	storageKeyPrefixPattern = regexp.MustCompile(`(?:^|/)organizations/[^/]+/(?:projects/[^/]+|workspace)/files/[^/]+/`)
 	httpURLPrefixPattern    = regexp.MustCompile(`(?i)^https?://`)
 	leadingDotSlashPattern  = regexp.MustCompile(`^(?:\./)+`)
@@ -43,10 +42,23 @@ func isInternalStorageFilename(value string) bool {
 	if trimmed == "" {
 		return false
 	}
-	if isStoredFileID(trimmed) || vercelBlobHostPattern.MatchString(trimmed) || storageKeyPrefixPattern.MatchString(trimmed) {
+	if isStoredFileID(trimmed) || hasVercelBlobHost(trimmed) || storageKeyPrefixPattern.MatchString(trimmed) {
 		return true
 	}
 	return strings.HasPrefix(trimmed, "organizations/") && strings.Contains(trimmed, "/files/")
+}
+
+func hasVercelBlobHost(value string) bool {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Hostname() == "" {
+		return false
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https":
+	default:
+		return false
+	}
+	return strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".blob.vercel-storage.com")
 }
 
 func originalFilenameFromStoredName(filename string) string {

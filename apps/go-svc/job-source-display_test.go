@@ -46,10 +46,19 @@ func TestIsInternalStorageFilename(t *testing.T) {
 	require.True(t, isInternalStorageFilename(jobSourceStoredFileID))
 	require.True(t, isInternalStorageFilename("organizations/org_1/workspace/files/file_abc/messages.json"))
 	require.True(t, isInternalStorageFilename("https://x.blob.vercel-storage.com/a"))
+	require.True(t, isInternalStorageFilename("https://abc.public.blob.vercel-storage.com/organizations/org_1/workspace/files/file_abc/brief.docx"))
+	require.True(t, isInternalStorageFilename("https://ABC.blob.vercel-storage.com/a"))
+	require.True(t, isInternalStorageFilename("https://abc123.private.blob.vercel-storage.com/organizations/org_1/files/file_abc/brief.docx?sv=signed"))
 	require.True(t, isInternalStorageFilename("organizations/x/files/y"))
 	require.False(t, isInternalStorageFilename("messages.json"))
 	require.False(t, isInternalStorageFilename("locales/en.json"))
 	require.False(t, isInternalStorageFilename("  "))
+	require.False(t, isInternalStorageFilename("https://evil.example/.blob.vercel-storage.com/secret.json"))
+	require.False(t, isInternalStorageFilename("https://evil.example/?x=.blob.vercel-storage.com/"))
+	require.False(t, isInternalStorageFilename("https://user:.blob.vercel-storage.com/@evil.example/a"))
+	require.False(t, isInternalStorageFilename("https://abc.blob.vercel-storage.com.evil.example/a"))
+	require.False(t, isInternalStorageFilename("https://notblob.vercel-storage.com/a"))
+	require.False(t, isInternalStorageFilename("x.blob.vercel-storage.com/a"))
 }
 
 func TestNativeFileJobSourceDisplayFields(t *testing.T) {
@@ -60,6 +69,16 @@ func TestNativeFileJobSourceDisplayFields(t *testing.T) {
 	filename, sourcePath = displayValues(nativeFileJobSourceDisplayFields(jobSourceStoredFileID, "organizations/o/projects/p/files/f/x.json"))
 	require.Equal(t, "file", filename)
 	require.Equal(t, "file", sourcePath)
+
+	const blobURL = "https://abc.blob.vercel-storage.com/organizations/org_1/workspace/files/file_abc/brief.docx?sv=signed"
+	filename, sourcePath = displayValues(nativeFileJobSourceDisplayFields("brief.docx", blobURL))
+	require.Equal(t, "brief.docx", filename)
+	require.Equal(t, "brief.docx", sourcePath)
+
+	const lookalike = "https://evil.example/.blob.vercel-storage.com/secret.json"
+	filename, sourcePath = displayValues(nativeFileJobSourceDisplayFields("brief.docx", lookalike))
+	require.Equal(t, "brief.docx", filename)
+	require.Equal(t, lookalike, sourcePath)
 }
 
 func TestParseJobInputPayloadSource(t *testing.T) {
