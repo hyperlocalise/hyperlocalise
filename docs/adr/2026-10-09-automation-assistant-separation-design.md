@@ -23,18 +23,18 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 ### Sessions
 
-- `interactions` gains the source `automation_assistant` and two nullable columns, the creating user's id and the automation's id. These rows get no inbox item, so the Inbox list and the existing visibility helper never see them. The tables are shared rather than new ones because they give message storage, parts and the streaming save for nothing; a test asserts that no conversation listing ever returns an assistant session.
+- Sessions and their messages have their own tables, `automation_assistant_sessions` and `automation_assistant_messages`. A session row holds its organisation, its author, the automation it is about, when it expires and whether a turn is running; the author is required. Nothing is written to the conversation tables, so the Inbox list, the conversation routes and anything later built on conversations cannot return a session.
 - Access is its own check: same organisation, operator role, author. No one else can read or continue a session.
 - One session per saved automation and author, resumed when that person opens the automation's page. Two operators working on one automation each have their own. A session for a new automation gets its automation id when Create succeeds; until then it is bound to nothing. Deleting an automation deletes its sessions.
 - An unbound session is thrown away with the page: it is never resumed, a new page always starts a fresh one, and the server forgets unbound sessions after a day through an `expires_at` column, deleting the person's expired ones when they start the next. A turn still running when the page is left finishes into the abandoned session and is never shown; the unsaved setup it described is gone with the page anyway. No request is sent on unload, because none is reliable there.
-- Message persistence and parts are reused as they are. The session's history comes from its own small loader: the newest fifty messages of the session, text only, the same cap the dock's loader uses. The shared loader is not used because it keeps the oldest fifty instead.
+- A message is stored with its parts, so a resumed session can show what each turn changed. The session's history comes from its own small loader: the newest fifty messages of the session, text only, the same cap the dock's loader uses. The shared loader is not used because it keeps the oldest fifty instead.
 - An assistant turn writes nothing to the workspace activity log. The assistant saves nothing, and the person's Save is logged already.
 
 ### Agent
 
 - A package `src/agents/automation-assistant/agent/` with today's setup skill text as its instructions, the setup tool, project lookup, and later a visual workflow tool. No repository classifier, no sandbox, no subagents, no translation or web tools, a small step limit.
 - The same model resolver, so the gateway and customer keys apply.
-- Billing follows the dock. The same usage reservation gates each turn on the AI-features entitlement, draws one agent run and records the tokens, with its own operation key and a `surface` dimension so assistant turns can be counted apart. Every paying plan includes AI features; on a plan without them the panel shows the dock's Upgrade plan button in place of the composer.
+- Billing follows the dock. The same usage reservation gates each turn on the AI-features entitlement, draws one agent run and records the tokens, with its own operation key and a `surface` dimension so assistant turns can be counted apart. The usage record names the session in its dimensions; it has no conversation to link to. Every paying plan includes AI features; on a plan without them the panel shows the dock's Upgrade plan button in place of the composer.
 
 ### Routes
 
@@ -71,7 +71,8 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 - The assistant never appears in the Inbox or the dock, and is private to its author, by construction.
 - The page carries no suggestion state. A change is either in the form, and one undo away, or in the reply as something that was not done.
 - Gone from the earlier branch: the skill activation rule, the chat route's context resolver, the classifier skip, the dock's context sending and turn tracking, and the scan of saved replies that found a chat's automation.
-- Added: one enum value and two columns, a second agent package, four routes.
+- Added: two tables, a second agent package and its routes. The conversation tables, their source list and the Inbox's client are unchanged.
+- The assistant's messages do not count as conversation messages in product analytics, and a later change to how conversations store messages does not reach the assistant.
 - Asking about an automation from the dock on another page is no longer possible. The agent could not act there anyway.
 - Whether dock chats should be visible to teammates is a separate decision and is not changed here.
 
@@ -79,7 +80,7 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 - Keep the assistant a skill of the localisation agent, as built. It works, but the prompt grows with every page assistant, a reply can start from any page the dock restores on, sessions are team-visible, and the canvas would be a third context kind in the same prompt.
 - The assistant as a kind of dock tab. One chat UI, but the two premises stay side by side in one place, the dock still starts replies on load, and the tab is meaningless off the automation page.
-- Separate tables for sessions and messages. A cleaner schema, more code; the shared tables give persistence and history loading for nothing.
+- Sessions as rows of the conversation tables, with a new source, assistant-only columns and no inbox item. This was the first decision and was built first. It reused less than expected: the assistant has its own history loader, routes and turn runner, so the sharing came down to one insert helper and the usage record's link to the conversation. In return, privacy depended on every reader of those tables joining the inbox item or checking the source, four columns meant nothing to any other source, the author column took a name conversations may one day want for themselves, and the Inbox's client needed a filter for a source the server never sends it. Replaced with separate tables before anything was pushed.
 - Sessions that die with the page. Loses "continue tomorrow" and the record of what the assistant did; the web chat already persists its sessions.
 
 ## Out of scope
@@ -92,8 +93,8 @@ Give the assistant its own agent, its own sessions and its own panel inside the 
 
 ## Built
 
-Commits on the branch, in order: the sessions and migration; the proposal logic picked from the earlier branch and its assistant module trimmed of held-back and chat-target code; the agent package, turn runner and routes; the panel, provider, summary, home-page section and page wiring; the tests. Checked with `vp check --fix` and the automations, agents, routes, dock, inbox and undo-stack test suites. Not done: the visual editor's button and tool, the live eval, and a check in the real app.
+Commits on the branch, in order: the sessions and migration; the proposal logic picked from the earlier branch and its assistant module trimmed of held-back and chat-target code; the agent package, turn runner and routes; the panel, provider, summary, home-page section and page wiring; the tests; then the move of sessions and messages from the conversation tables to their own, with the migration regenerated in place and a test of the turn runner. Checked with `vp check --fix` and the automations, agents, routes, dock, inbox and undo-stack test suites. Not done: the visual editor's button and tool, the live eval, and a check in the real app.
 
 ## Validation
 
-Route tests cover access by role, author and organisation, one running turn, binding the automation id, and that no inbox item exists. Agent tests cover the tool set per editor context and the absence of the classifier and sandbox. Panel tests cover resuming a session by automation, a turn started only from the page, a reply that lands after the person left, and the hand-off links. The migration is applied to a database with existing conversations and the Inbox list is unchanged. In the real app: a new automation from the home page's prompt box, a saved automation edited and returned to later, two tabs on one automation, and the dock collapsed on the same page.
+Route tests cover access by role, author and organisation, one running turn, binding the automation id, and that a session is no conversation: no conversation row exists for it, no listing returns it and the conversation route answers 404 for its id. A turn runner test, with a scripted model, covers both sides of a turn being saved with the tool's output, one billed run that names the session, and the turn being released when the model fails. Agent tests cover the tool set per editor context and the absence of the classifier and sandbox. Panel tests cover resuming a session by automation, a turn started only from the page, a reply that lands after the person left, and the hand-off links. The migration only creates the two tables and changes no existing one. In the real app: a new automation from the home page's prompt box, a saved automation edited and returned to later, two tabs on one automation, and the dock collapsed on the same page.
