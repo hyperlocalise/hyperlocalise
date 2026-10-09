@@ -97,11 +97,12 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 - MDX `import` and `export` lines
 - JSX/MDX component tags and attribute values
 
-For HTML (`.html`), `run` translates text content inside block-level elements:
+For HTML (`.html`), `run` translates visible text nodes and keeps tags as structure:
 
-- `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim
-- inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) — tag markup is protected as placeholders and restored verbatim after translation, but the surrounding prose **is** translated
-- `<img alt="...">` — the `alt` attribute value is extracted as its own translation unit; the rest of the tag (src, class, etc.) is preserved verbatim
+- Keys are dotted tag paths (`html.body.h1`, `html.p`, `html.p.strong`, `html.p.strong.2`)
+- Inline tags (`<strong>`, `<em>`, `<a>`, and others) start a new path segment; the markup stays in the file
+- `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim, including `<title>`
+- `<img alt="...">` — the `alt` attribute value is extracted as `html.*.img.alt`; the rest of the tag is preserved verbatim
 - HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip
 - HTML comments are preserved verbatim
 
