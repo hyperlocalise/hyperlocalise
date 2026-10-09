@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -132,5 +132,22 @@ describe("useAssistantUndoSteps", () => {
     await user.click(screen.getByRole("button", { name: "Undo" }));
 
     expect(onConfirm).toHaveBeenCalledOnce();
+  });
+
+  it("undoes nothing when another step landed on top while it asked", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    const view = render(<Harness onConfirm={onConfirm} pending={step("assistant")} />);
+    await user.click(screen.getByRole("button", { name: "Undo now" }));
+    expect(screen.getByText("Undo the assistant's changes?")).toBeTruthy();
+
+    // A later turn of the assistant's lands while the question is open.
+    view.rerender(<Harness onConfirm={onConfirm} pending={{ ...step("assistant"), id: 2 }} />);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByText("Undo the assistant's changes?")).toBeNull();
+    });
   });
 });

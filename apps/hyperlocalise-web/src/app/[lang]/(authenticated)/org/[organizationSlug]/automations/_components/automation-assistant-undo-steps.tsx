@@ -52,7 +52,9 @@ export function useAssistantUndoSteps<TForm>(
   applyAssistantChange: (next: TForm) => void;
   undoConfirmDialog: ReactNode;
 } {
-  const [open, setOpen] = useState(false);
+  // The step the dialog asks about, by id: another change can land while it is open, and the
+  // answer is to the step that was asked about, not to whatever is on top by then.
+  const [asking, setAsking] = useState<number | null>(null);
 
   const runUndo = () => {
     const step = history.current.undoStep;
@@ -60,10 +62,18 @@ export function useAssistantUndoSteps<TForm>(
       return;
     }
     if (step.origin === "assistant") {
-      setOpen(true);
+      setAsking(step.id);
       return;
     }
     onUndo();
+  };
+
+  const confirmUndo = () => {
+    const step = history.current.undoStep;
+    setAsking(null);
+    if (step && step.id === asking) {
+      onUndo();
+    }
   };
 
   const applyAssistantChange = (next: TForm) => {
@@ -73,7 +83,14 @@ export function useAssistantUndoSteps<TForm>(
   };
 
   const undoConfirmDialog = (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog
+      open={asking !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setAsking(null);
+        }
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
@@ -87,12 +104,7 @@ export function useAssistantUndoSteps<TForm>(
           <AlertDialogCancel>
             <FormattedMessage {...messages.undoCancel} />
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              setOpen(false);
-              onUndo();
-            }}
-          >
+          <AlertDialogAction onClick={confirmUndo}>
             <FormattedMessage {...messages.undoConfirm} />
           </AlertDialogAction>
         </AlertDialogFooter>
