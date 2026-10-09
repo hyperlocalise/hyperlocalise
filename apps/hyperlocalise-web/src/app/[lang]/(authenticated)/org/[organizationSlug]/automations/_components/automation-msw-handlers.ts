@@ -210,6 +210,16 @@ export function createAutomationDetailMswHandlers(
       eligibleLocaleCount: number;
       mappedArticleCount: number;
       pushRunInProgress: boolean;
+      articles?: Array<{
+        articleId: string;
+        sourcePath: string;
+        status: "active" | "push_failed";
+        eligibleLocaleCount: number;
+        targetLocaleCount: number;
+        eligibleLocales: string[];
+        lastPushedAt: string | null;
+        lastError: string | null;
+      }>;
     } | null;
   },
 ) {

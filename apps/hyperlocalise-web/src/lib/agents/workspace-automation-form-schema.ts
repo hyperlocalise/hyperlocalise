@@ -107,6 +107,7 @@ const formStateShape = {
   intercomCollectionIds: textList,
   intercomIncludeDrafts: flag,
   intercomOverwriteIntercomDrafts: flag,
+  intercomExistingTranslationPolicy: z.enum(["seed_empty", "refresh_imported", "overwrite_all"]),
   webSearchEnabled: flag,
   webSearchProvider: workspaceAutomationWebSearchProviderSchema,
   // Listing every field here keeps the schema in step with the form: a field added to the form,

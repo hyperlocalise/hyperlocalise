@@ -22,7 +22,26 @@ export type ContentEditorIntercomPushCandidate = {
   name: string;
   eligibleLocaleCount: number;
   pushRunInProgress: boolean;
+  overwriteIntercomDrafts: boolean;
 };
+
+export type ContentEditorIntercomPushArticle = {
+  articleId: string;
+  sourcePath: string;
+  status: "active" | "push_failed";
+  eligibleLocaleCount: number;
+  targetLocaleCount: number;
+  eligibleLocales: string[];
+  lastPushedAt: string | null;
+  lastError: string | null;
+};
+
+export function contentEditorIntercomPushArticlesQueryKey(
+  organizationSlug: string,
+  automationId: string,
+) {
+  return ["content-editor-intercom-push-articles", organizationSlug, automationId] as const;
+}
 
 export function contentEditorIntercomPushQueryKey(organizationSlug: string, projectId: string) {
   return ["content-editor-intercom-push", organizationSlug, projectId] as const;
@@ -74,6 +93,7 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
           organizationSlug: input.organizationSlug,
           automationId: automation.id,
         },
+        query: {},
       });
       if (!response.ok) {
         return null;
@@ -88,9 +108,45 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
         name: automation.name,
         eligibleLocaleCount: intercomPush.eligibleLocaleCount,
         pushRunInProgress: intercomPush.pushRunInProgress,
+        overwriteIntercomDrafts: Boolean(automation.toolConfig.intercom?.overwriteIntercomDrafts),
       } satisfies ContentEditorIntercomPushCandidate;
     },
   );
 
   return details.filter((entry): entry is ContentEditorIntercomPushCandidate => entry != null);
+}
+
+export function intercomArticleTitleFromSourcePath(sourcePath: string): string {
+  const filename = sourcePath.split("/").pop() ?? sourcePath;
+  return filename.replace(/\.md$/i, "") || sourcePath;
+}
+
+export function defaultSelectedIntercomPushSourcePaths(
+  articles: readonly ContentEditorIntercomPushArticle[],
+  sourcePath: string | null | undefined,
+) {
+  if (!sourcePath || !articles.some((article) => article.sourcePath === sourcePath)) {
+    return [];
+  }
+  return [sourcePath];
+}
+
+export async function fetchContentEditorIntercomPushArticles(input: {
+  organizationSlug: string;
+  automationId: string;
+}): Promise<ContentEditorIntercomPushArticle[]> {
+  const response = await apiClient.api.orgs[":organizationSlug"].automations[":automationId"].$get({
+    param: {
+      organizationSlug: input.organizationSlug,
+      automationId: input.automationId,
+    },
+    query: {
+      includePushArticles: "true",
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load Intercom push articles");
+  }
+  const body = await response.json();
+  return body.intercomPush?.articles ?? [];
 }

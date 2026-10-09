@@ -30,18 +30,62 @@ import {
   shouldSkipUnchangedIntercomHash,
   type IntercomArticleFields,
 } from "./article-markdown";
-import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
+import {
+  buildIntercomArticleLocaleMapping,
+  mapProjectLocalesToIntercom,
+  normalizeIntercomLocaleTag,
+  unionIntercomLocales,
+} from "./intercom-locale";
 import { intercomMappingMatchesTarget } from "./intercom-sync-scope";
 import { composeIntercomArticleFromApprovedKeyedUnits } from "./keyed-article-compose";
+
+export function shouldPreferKeyedIntercomArticleOverVariant(input: {
+  variantApprovedAt: Date | null | undefined;
+  latestKeyedApprovedAt: Date | null | undefined;
+}): boolean {
+  if (!input.variantApprovedAt) {
+    return true;
+  }
+  if (!input.latestKeyedApprovedAt) {
+    return false;
+  }
+  return input.latestKeyedApprovedAt.getTime() > input.variantApprovedAt.getTime();
+}
 
 const APPROVED_VARIANT_READ_CONCURRENCY = 8;
 const APPROVED_KEYED_SOURCE_READ_CONCURRENCY = 8;
 const APPROVED_KEY_PAGE_SIZE = 2_000;
 
+export type IntercomPushArticle = {
+  articleId: string;
+  sourcePath: string;
+  status: "active" | "push_failed";
+  eligibleLocaleCount: number;
+  targetLocaleCount: number;
+  eligibleLocales: string[];
+  lastPushedAt: string | null;
+  lastError: string | null;
+};
+
 export type IntercomPushEligibility = {
   eligibleLocaleCount: number;
   mappedArticleCount: number;
+  articles: IntercomPushArticle[];
 };
+
+const EMPTY_INTERCOM_PUSH_ELIGIBILITY: IntercomPushEligibility = {
+  eligibleLocaleCount: 0,
+  mappedArticleCount: 0,
+  articles: [],
+};
+
+function intercomPushLastErrorMessage(lastError: Record<string, unknown> | null | undefined) {
+  if (!lastError) {
+    return null;
+  }
+  const message = lastError.message;
+  return typeof message === "string" && message.trim().length > 0 ? message : null;
+}
 
 export async function getIntercomPushEligibility(input: {
   organizationId: string;
@@ -55,7 +99,7 @@ export async function getIntercomPushEligibility(input: {
   const projectId = input.automation.projectId?.trim();
   const helpCenterId = intercom.helpCenterId?.trim();
   if (!projectId || !helpCenterId) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const [project] = await db
@@ -70,24 +114,28 @@ export async function getIntercomPushEligibility(input: {
     .limit(1);
 
   if (!project) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
 
-  const localeMapping = mapProjectLocalesToIntercom({
+  const localeMappingInput = {
     projectSourceLocale: project.sourceLocale ?? "en",
     projectTargetLocales: Array.isArray(project.targetLocales)
       ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
       : [],
-    intercomLocales: helpCenterLocales,
     configuredSourceLocale: intercom.sourceLocale,
     configuredTargetLocales: intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
+  };
+
+  const localeMapping = mapProjectLocalesToIntercom({
+    ...localeMappingInput,
+    intercomLocales: helpCenterLocales,
   });
 
   if (localeMapping.jobTargetLocales.length === 0) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const mappings = (
@@ -108,23 +156,35 @@ export async function getIntercomPushEligibility(input: {
     }),
   );
 
+  const approvedTargetLocales = unionIntercomLocales(
+    localeMapping.jobTargetLocales,
+    mappings.flatMap((mapping) => Object.keys(mapping.importedTranslationHashes ?? {})),
+  );
+
   const approvedByPathAndLocale = await loadApprovedIntercomArticleValuesByPath({
     organizationId: input.organizationId,
     projectId,
     sourcePaths: mappings.map((mapping) => mapping.sourcePath),
-    targetLocales: localeMapping.jobTargetLocales,
+    targetLocales: approvedTargetLocales,
   });
 
   let eligibleLocaleCount = 0;
   let mappedArticleCount = 0;
+  const articles: IntercomPushArticle[] = [];
 
   for (const mapping of mappings) {
-    let articleEligible = 0;
+    const eligibleLocales: string[] = [];
     const approvedByLocale = approvedByPathAndLocale.get(mapping.sourcePath);
+    const articleLocaleMapping = buildIntercomArticleLocaleMapping(
+      localeMappingInput,
+      helpCenterLocales,
+      mapping.articleLocaleContentKeys,
+    );
+    const targetLocaleCount = articleLocaleMapping.jobTargetLocales.length;
 
-    for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
-      const hlLocale = localeMapping.jobTargetLocales[index]!;
-      const intercomLocale = localeMapping.intercomTargetLocales[index]!;
+    for (let index = 0; index < articleLocaleMapping.jobTargetLocales.length; index += 1) {
+      const hlLocale = articleLocaleMapping.jobTargetLocales[index]!;
+      const intercomLocale = articleLocaleMapping.intercomTargetLocales[index]!;
       if (!intercomLocale) {
         continue;
       }
@@ -158,16 +218,27 @@ export async function getIntercomPushEligibility(input: {
         continue;
       }
 
-      articleEligible += 1;
+      eligibleLocales.push(hlLocale);
       eligibleLocaleCount += 1;
     }
 
-    if (articleEligible > 0) {
+    if (eligibleLocales.length > 0) {
       mappedArticleCount += 1;
     }
+
+    articles.push({
+      articleId: mapping.articleId,
+      sourcePath: mapping.sourcePath,
+      status: mapping.status === "push_failed" ? "push_failed" : "active",
+      eligibleLocaleCount: eligibleLocales.length,
+      targetLocaleCount,
+      eligibleLocales,
+      lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
+      lastError: intercomPushLastErrorMessage(mapping.lastError),
+    });
   }
 
-  return { eligibleLocaleCount, mappedArticleCount };
+  return { eligibleLocaleCount, mappedArticleCount, articles };
 }
 
 export async function loadApprovedIntercomArticleValuesByPath(input: {
@@ -186,6 +257,8 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
       sourcePath: schema.projectImageVariants.sourcePath,
       targetLocale: schema.projectImageVariants.targetLocale,
       storedFileId: schema.projectImageVariants.storedFileId,
+      provenance: schema.projectImageVariants.provenance,
+      reviewedAt: schema.projectImageVariants.reviewedAt,
     })
     .from(schema.projectImageVariants)
     .where(
@@ -228,12 +301,29 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
     }
   });
 
+  const variantMetaByPathAndLocale = new Map<
+    string,
+    Map<string, { provenance: string; reviewedAt: Date | null }>
+  >();
+  for (const variant of readableVariants) {
+    let localeMeta = variantMetaByPathAndLocale.get(variant.sourcePath);
+    if (!localeMeta) {
+      localeMeta = new Map();
+      variantMetaByPathAndLocale.set(variant.sourcePath, localeMeta);
+    }
+    localeMeta.set(variant.targetLocale, {
+      provenance: variant.provenance,
+      reviewedAt: variant.reviewedAt ?? null,
+    });
+  }
+
   await mergeApprovedKeyedIntercomArticleValues({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePaths: input.sourcePaths,
     targetLocales: input.targetLocales,
     valuesByPathAndLocale,
+    variantMetaByPathAndLocale,
   });
 
   return valuesByPathAndLocale;
@@ -245,12 +335,12 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
   sourcePaths: string[];
   targetLocales: string[];
   valuesByPathAndLocale: Map<string, Map<string, IntercomArticleFields>>;
+  variantMetaByPathAndLocale: Map<
+    string,
+    Map<string, { provenance: string; reviewedAt: Date | null }>
+  >;
 }) {
-  const missingPaths = input.sourcePaths.filter((sourcePath) => {
-    const approvedByLocale = input.valuesByPathAndLocale.get(sourcePath);
-    return input.targetLocales.some((locale) => !approvedByLocale?.has(locale));
-  });
-  if (missingPaths.length === 0) {
+  if (input.sourcePaths.length === 0) {
     return;
   }
 
@@ -267,7 +357,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
     const page = await translationService.listKeysForProject({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      sourcePaths: missingPaths,
+      sourcePaths: input.sourcePaths,
       limit: APPROVED_KEY_PAGE_SIZE,
       offset,
     });
@@ -329,9 +419,6 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
     );
 
     for (const [sourcePath, pathKeys] of keysByPath) {
-      if (input.valuesByPathAndLocale.get(sourcePath)?.has(targetLocale)) {
-        continue;
-      }
       const sourceMarkdown = sourceMarkdownByPath.get(sourcePath);
       if (!sourceMarkdown || pathKeys.length === 0) {
         continue;
@@ -344,6 +431,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
         isHidden: boolean;
       }> = [];
       let allVisibleApproved = true;
+      let latestKeyedApprovedAt: Date | null = null;
       for (const key of pathKeys) {
         if (isMarkdownCalloutFenceEntry(key.key, key.sourceText)) {
           continue;
@@ -364,6 +452,10 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
             targetText: approvedText,
             isHidden: key.isHidden,
           });
+          const approvedAt = translation?.updatedAt ?? null;
+          if (approvedAt && (!latestKeyedApprovedAt || approvedAt > latestKeyedApprovedAt)) {
+            latestKeyedApprovedAt = approvedAt;
+          }
         }
       }
       if (!allVisibleApproved) {
@@ -375,6 +467,18 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
         units,
       });
       if (!composed) {
+        continue;
+      }
+
+      const existingApproved = input.valuesByPathAndLocale.get(sourcePath)?.get(targetLocale);
+      const variantMeta = input.variantMetaByPathAndLocale.get(sourcePath)?.get(targetLocale);
+      if (
+        existingApproved &&
+        !shouldPreferKeyedIntercomArticleOverVariant({
+          variantApprovedAt: variantMeta?.reviewedAt,
+          latestKeyedApprovedAt,
+        })
+      ) {
         continue;
       }
 

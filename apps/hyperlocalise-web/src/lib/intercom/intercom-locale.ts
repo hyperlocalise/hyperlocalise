@@ -177,6 +177,21 @@ function uniqueNonEmptyLocales(values: readonly string[]): string[] {
   return locales;
 }
 
+export function unionIntercomLocales(...groups: Array<readonly string[] | undefined>): string[] {
+  return uniqueNonEmptyLocales(groups.flatMap((group) => group ?? []));
+}
+
+export function buildIntercomArticleLocaleMapping(
+  input: Omit<Parameters<typeof mapProjectLocalesToIntercom>[0], "intercomLocales">,
+  helpCenterLocales: readonly string[],
+  articleLocaleContentKeys?: readonly string[] | null,
+) {
+  return mapProjectLocalesToIntercom({
+    ...input,
+    intercomLocales: unionIntercomLocales(helpCenterLocales, articleLocaleContentKeys ?? []),
+  });
+}
+
 function findAvailableLocale(preferred: string, available: readonly string[]): string | null {
   const normalizedPreferred = normalizeIntercomLocaleTag(preferred);
   for (const locale of available) {
@@ -436,4 +451,98 @@ export function mapProjectLocalesToIntercom(input: {
     intercomTargetLocales,
     unmappedProjectTargets,
   };
+}
+
+export type IntercomLocaleContentFields = {
+  title: string;
+  description: string;
+  body: string;
+};
+
+export type IntercomTargetLocaleToImport = {
+  projectLocale: string;
+  intercomLocale: string;
+  fields: IntercomLocaleContentFields;
+};
+
+export function readIntercomLocaleContent(
+  localeContent: Record<string, IntercomLocaleContentFields>,
+  intercomLocale: string,
+): IntercomLocaleContentFields | null {
+  const exact =
+    localeContent[intercomLocale] ?? localeContent[normalizeIntercomLocaleTag(intercomLocale)];
+  if (exact) {
+    return exact;
+  }
+
+  const wanted = normalizeIntercomLocaleTag(intercomLocale).toLowerCase();
+  for (const [key, value] of Object.entries(localeContent)) {
+    if (normalizeIntercomLocaleTag(key).toLowerCase() === wanted) {
+      return value;
+    }
+  }
+  return null;
+}
+
+const EMPTY_HTML_ENTITY_PATTERN = /&nbsp;|&#160;|&#xA0;/gi;
+
+export function intercomCopyHasVisibleText(value: string): boolean {
+  const withoutTags = value.replace(/<[^>]*>/g, " ");
+  const withoutEntities = withoutTags.replace(EMPTY_HTML_ENTITY_PATTERN, " ");
+  return withoutEntities.replace(/\s+/g, " ").trim().length > 0;
+}
+
+export function isIntercomTargetContentImportable(
+  content: IntercomLocaleContentFields | null | undefined,
+): content is IntercomLocaleContentFields {
+  if (!content) {
+    return false;
+  }
+  return intercomCopyHasVisibleText(content.title) && intercomCopyHasVisibleText(content.body);
+}
+
+export function selectIntercomTargetLocalesToImport(input: {
+  localeMapping: {
+    sourceIntercomLocale: string | null;
+    jobTargetLocales: readonly string[];
+    intercomTargetLocales: readonly string[];
+  };
+  localeContent: Record<string, IntercomLocaleContentFields>;
+}): IntercomTargetLocaleToImport[] {
+  const sourceKey = input.localeMapping.sourceIntercomLocale
+    ? normalizeIntercomLocaleTag(input.localeMapping.sourceIntercomLocale)
+    : null;
+  const selected: IntercomTargetLocaleToImport[] = [];
+  const seenProject = new Set<string>();
+
+  for (let index = 0; index < input.localeMapping.jobTargetLocales.length; index += 1) {
+    const projectLocale = input.localeMapping.jobTargetLocales[index];
+    const intercomLocale = input.localeMapping.intercomTargetLocales[index];
+    if (!projectLocale || !intercomLocale) {
+      continue;
+    }
+    if (sourceKey && normalizeIntercomLocaleTag(intercomLocale) === sourceKey) {
+      continue;
+    }
+    const projectKey = normalizeIntercomLocaleTag(projectLocale).toLowerCase();
+    if (seenProject.has(projectKey)) {
+      continue;
+    }
+    const content = readIntercomLocaleContent(input.localeContent, intercomLocale);
+    if (!isIntercomTargetContentImportable(content)) {
+      continue;
+    }
+    seenProject.add(projectKey);
+    selected.push({
+      projectLocale,
+      intercomLocale,
+      fields: {
+        title: content.title.trim(),
+        description: content.description.trim(),
+        body: content.body,
+      },
+    });
+  }
+
+  return selected;
 }

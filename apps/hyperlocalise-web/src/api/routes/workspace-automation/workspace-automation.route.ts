@@ -55,6 +55,7 @@ import {
 import {
   getIntercomPushEligibility,
   isIntercomPushRunActive,
+  type IntercomPushArticle,
 } from "@/lib/intercom/push-eligibility";
 import {
   createWorkspaceAutomationKnowledgeFile,
@@ -77,6 +78,7 @@ import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automati
 import {
   createWorkspaceAutomationBodySchema,
   createWorkspaceAutomationRunBodySchema,
+  getWorkspaceAutomationQuerySchema,
   listWorkspaceAutomationRunsQuerySchema,
   listWorkspaceAutomationsQuerySchema,
   updateWorkspaceAutomationBodySchema,
@@ -106,6 +108,23 @@ const validateAutomationParams = validator("param", (value, c) => {
   }
   return parsed.data;
 });
+
+const validateGetAutomationQuery = validator("query", (value, c) => {
+  const parsed = getWorkspaceAutomationQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_query_params",
+      "Query parameters are invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+function readIncludePushArticlesQuery(value: string | undefined) {
+  return value === "true" || value === "1";
+}
 
 const validateCreateBody = validator("json", (value, c) => {
   const parsed = createWorkspaceAutomationBodySchema.safeParse(value);
@@ -538,8 +557,11 @@ export function createWorkspaceAutomationRoutes(
         return mapAutomationError(c, error);
       }
     })
-    .get("/:automationId", validateAutomationParams, async (c) => {
+    .get("/:automationId", validateAutomationParams, validateGetAutomationQuery, async (c) => {
       const params = c.req.valid("param");
+      const includePushArticles = readIncludePushArticlesQuery(
+        c.req.valid("query").includePushArticles,
+      );
       const organizationId = c.var.auth.organization.localOrganizationId;
       const automation = await getWorkspaceAutomationById({
         automationId: params.automationId,
@@ -560,6 +582,7 @@ export function createWorkspaceAutomationRoutes(
         eligibleLocaleCount: number;
         mappedArticleCount: number;
         pushRunInProgress: boolean;
+        articles?: IntercomPushArticle[];
       } | null = null;
       if (hasWorkspaceAutomationIntercomTool(automation.toolConfig)) {
         const eligibility = await getIntercomPushEligibility({
@@ -570,6 +593,7 @@ export function createWorkspaceAutomationRoutes(
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
           mappedArticleCount: eligibility?.mappedArticleCount ?? 0,
           pushRunInProgress: isIntercomPushRunActive(recentRuns),
+          ...(includePushArticles ? { articles: eligibility?.articles ?? [] } : {}),
         };
       }
 

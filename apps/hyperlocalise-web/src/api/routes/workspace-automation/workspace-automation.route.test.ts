@@ -261,7 +261,10 @@ describe("workspace automation routes", () => {
 
     const readResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
-    ].$get({ param: { organizationSlug, automationId: createdBody.automation.id } }, { headers });
+    ].$get(
+      { param: { organizationSlug, automationId: createdBody.automation.id }, query: {} },
+      { headers },
+    );
     expect(readResponse.status).toBe(200);
     await expect(readResponse.json()).resolves.toMatchObject({
       automation: { id: createdBody.automation.id },
@@ -387,7 +390,10 @@ describe("workspace automation routes", () => {
 
     const missingResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
-    ].$get({ param: { organizationSlug, automationId: crypto.randomUUID() } }, { headers });
+    ].$get(
+      { param: { organizationSlug, automationId: crypto.randomUUID() }, query: {} },
+      { headers },
+    );
 
     expect(missingResponse.status).toBe(404);
     await expect(missingResponse.json()).resolves.toMatchObject({

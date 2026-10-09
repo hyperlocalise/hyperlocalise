@@ -3,7 +3,7 @@ title: "Localize Intercom Help Center articles"
 description: "Import Intercom articles into a native project, translate them in Jobs, and push approved drafts back to Intercom."
 ---
 
-Use a saved automation to import Intercom Help Center articles into a native project as markdown, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Intercom as drafts. Import never publishes to Intercom. **Push to Intercom as draft** is a separate action.
+Use a saved automation to import Intercom Help Center articles into a native project as markdown, translate them in [Jobs](/platform/translation/jobs), then write approved translations back to Intercom as drafts. Import never publishes to Intercom. **Push to Intercom** is a separate action.
 
 ## Connect Intercom
 
@@ -30,11 +30,12 @@ After you select a Help Center, the editor lists that Help Center’s locale cod
    - **Help Center**
    - **Intercom source locale** (usually the Help Center default)
    - Optional **Collection IDs** to limit import to those collections
-   - **Include draft articles on import** only when unpublished source should enter the project
-   - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
+   - **Include draft articles on import** is on by default. Uncheck it to import published articles only
+   - **Existing Intercom translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
+   - **Overwrite Intercom drafts when remote target is newer** is on by default. Uncheck it to keep Intercom drafts that teammates edited after the last push
 6. Save the automation.
 
-Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom as draft** for write-back.
+Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom** for write-back.
 
 ## Import articles
 
@@ -42,16 +43,20 @@ Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **
 
 Without collection IDs, import includes articles in Help Center collections and standalone articles in that Help Center. With collection IDs, import includes only articles in those collections.
 
-A later import skips an article whose source has not changed. Periodic reconcile also picks up standalone articles that a collection filter would miss.
+A later import still checks mapped target locales when the English source has not changed. If Intercom already has a title and body for a mapped locale, import can seed that copy as an approved translation. Title-only locales and empty HTML stubs are not imported. **Only empty locales** never overwrites work already in Hyperlocalise.
 
-The run opens native translation jobs when that tool is enabled. Inspect **Run History** for imported, skipped, and failed articles.
+Import also reads locale keys on the article. A German slot still maps when the saved Help Center list omitted `de`.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Locales just imported from Intercom, locales already push-ready, and locales already on an open job for that file are left out. An unchanged source does not block that leftover job. If **Translate with agent** is enabled, that leftover job is assigned to the agent.
+
+Inspect **Run History** for imported, skipped, and failed articles, plus imported translations and jobs created.
 
 Import does not write translations to Intercom.
 
 ## Review and push drafts
 
 1. Translate and [approve](/platform/cat) every visible string for a mapped locale, including the article title.
-2. In the Content editor header or on the automation, choose **Push to Intercom as draft** when at least one mapped locale is fully approved and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
+2. In the Content editor header, choose **Push to Intercom** when at least one mapped locale is fully approved and no push is already running. Choose which mapped articles to write as Intercom drafts; the open file is selected by default. The dialog also shows the automation’s push policy for newer Intercom drafts. Hyperlocalise then opens the automation **Run History** tab so you can follow the push.
 3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
 
 A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.
@@ -67,7 +72,7 @@ If a Help Center is missing, confirm the Intercom workspace, region, and that yo
 - Confirm Intercom is connected and the automation is **Active**.
 - Confirm the Help Center and region match the Intercom workspace.
 - Confirm project locales map onto the Help Center locale codes (exact tags or the supported language-only aliases). Do not pair locked writing-system or regional variants.
-- If **Push to Intercom as draft** is missing, approve every visible string for at least one mapped locale (including the title), confirm you have permission to manage automations, and wait until any in-progress push finishes.
+- If **Push to Intercom** is missing, approve every visible string for at least one mapped locale (including the title), confirm you have permission to manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed article or locale.
 
 See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

@@ -19,6 +19,7 @@ import {
   encodeIntercomLastPushRecord,
   hashIntercomArticleContent,
   hashIntercomTranslationValues,
+  intercomArticleTitleFromSourcePath,
   mergeIntercomLocalePushPayload,
   parseIntercomArticleMarkdown,
   parseIntercomLastPushRecord,
@@ -35,6 +36,12 @@ describe("intercom article markdown", () => {
         articleId: "456",
       }),
     ).toBe("intercom/123/456.md");
+  });
+
+  it("derives a display title from the article source path", () => {
+    expect(
+      intercomArticleTitleFromSourcePath("intercom/customer-support/reset-your-password.md"),
+    ).toBe("reset-your-password");
   });
 
   it("slugs help center and article names when present", () => {

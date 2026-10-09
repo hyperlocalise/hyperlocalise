@@ -260,6 +260,7 @@ export const createIntercomAutomationRecord = () =>
         targetLocales: ["de", "fr"],
         includeDrafts: false,
         overwriteIntercomDrafts: false,
+        existingTranslationPolicy: "seed_empty",
         workosUserId: "user_001",
       },
     },
