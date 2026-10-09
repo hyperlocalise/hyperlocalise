@@ -230,7 +230,7 @@ describe("editVisualWorkflow", () => {
       editorSessionId: "editor-1",
       appliedToolCallIds: new Set(),
     });
-    expect(applied).toEqual([{ toolCallId: "call_1", made: 2 }]);
+    expect(applied).toEqual([{ toolCallId: "call_1", made: 3 }]);
     expect(toVisualWorkflowV3Definition(state)).toEqual(after?.definition);
   });
 

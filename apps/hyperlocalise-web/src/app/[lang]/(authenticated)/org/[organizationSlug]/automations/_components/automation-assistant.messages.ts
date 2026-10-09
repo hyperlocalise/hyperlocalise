@@ -327,6 +327,37 @@ export const automationAssistantMessages = defineMessages({
     description:
       "Line in the assistant's change list: an operation on the workflow was refused; {code} is the machine reason",
   },
+  toolUpdatedWorkflow: {
+    defaultMessage: "Updated the workflow",
+    id: "bXMU39hmQJ",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow that did not list its changes",
+  },
+  toolUpdatedWorkflowCount: {
+    defaultMessage: "Updated the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "UIxKl4gSfi",
+    description:
+      "Line in the assistant panel for a finished tool call on a visual workflow, which opens to list the changes",
+  },
+  toolNoChangesWorkflow: {
+    defaultMessage: "No changes made to the workflow",
+    id: "5NY8ijgpii",
+    description:
+      "Line in the assistant panel under a reply, or a tool call, that left the visual workflow as it was",
+  },
+  pageEditsCountWorkflow: {
+    defaultMessage: "You edited the workflow · {count, plural, one {# change} other {# changes}}",
+    id: "qwKm4yzub8",
+    description:
+      "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it",
+  },
+  changesOnCanvas: {
+    defaultMessage:
+      "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save.",
+    id: "bZKwFr1ByM",
+    description:
+      "Line at the end of the assistant panel while a visual workflow holds changes of the assistant that are not saved",
+  },
   pageEditWorkflowNameCleared: {
     defaultMessage: "Cleared the workflow's name",
     id: "VluH2EAHsX",

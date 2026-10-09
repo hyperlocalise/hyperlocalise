@@ -758,11 +758,15 @@ export function applyVisualWorkflowEditChanges(input: {
     ) {
       continue;
     }
+    const before = state;
     const result = applyVisualWorkflowEdits({ state, operations: change.operations });
     state = result.state;
+    // Counted as the panel lists them: a step added after another is a node and a connection.
     applied.push({
       toolCallId,
-      made: result.results.filter((entry) => entry.status === "applied").length,
+      made: toVisualWorkflowChangeLines(before, result.results).filter(
+        (line) => line.kind !== "rejected",
+      ).length,
     });
   }
   return { state, applied };

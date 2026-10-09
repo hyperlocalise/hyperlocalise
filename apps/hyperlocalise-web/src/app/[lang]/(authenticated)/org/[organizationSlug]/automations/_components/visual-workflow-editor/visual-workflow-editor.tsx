@@ -109,9 +109,14 @@ import {
   VisualWorkflowUndoRedoButtons,
   type VisualWorkflowUndoStep,
 } from "./visual-workflow-undo-buttons";
+import { AutomationAssistantSidePanel } from "../automation-assistant-panel";
+import { useAssistantUndoSteps } from "../automation-assistant-undo-steps";
+import { AutomationAssistantVisualWorkflowProvider } from "../automation-assistant-visual-workflow-provider";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
 const NO_FRESH_STEPS: ReadonlySet<string> = new Set();
+/** Below this much room the canvas would be too narrow beside the assistant, so it is a sheet. */
+const ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX = 1200;
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -132,6 +137,8 @@ export function VisualWorkflowEditor({
   statusUpdating = false,
   onDelete,
   isDeleting = false,
+  assistantEnabled = false,
+  projectName = null,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
   initialEdges?: VisualWorkflowRfEdge[];
@@ -156,6 +163,10 @@ export function VisualWorkflowEditor({
   statusUpdating?: boolean;
   onDelete?: () => void;
   isDeleting?: boolean;
+  /** Offers the automation assistant on a saved workflow, beside the canvas. */
+  assistantEnabled?: boolean;
+  /** Display name of the project the workflow is in, for the assistant. */
+  projectName?: string | null;
 }) {
   // Each step's own test data; kept out of the steps, so editing it is no undo step.
   const [testData, setTestData] = useState<VisualWorkflowTestData>({});
@@ -317,7 +328,7 @@ export function VisualWorkflowEditor({
     const text = direction === "undo" ? notice.undoTitle(step) : notice.redoTitle(step);
     setUndoAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
   }, []);
-  const runUndo = useCallback(() => {
+  const undoNow = useCallback(() => {
     const step = historyRef.current.undoStep;
     if (!step) {
       return;
@@ -335,6 +346,17 @@ export function VisualWorkflowEditor({
     restore(step.after);
     reportUndo(step, "redo");
   }, [reportUndo, restore]);
+  // The assistant's changes are steps of their own on the same stack, and undoing one asks first.
+  const assistantHistoryRef = useRef({
+    undoStep: history.undoStep,
+    seal: history.seal,
+    change: commit,
+  });
+  assistantHistoryRef.current = { undoStep: history.undoStep, seal: history.seal, change: commit };
+  const { runUndo, applyAssistantChange, undoConfirmDialog } = useAssistantUndoSteps(
+    assistantHistoryRef,
+    undoNow,
+  );
   undoActionsRef.current = { undo: runUndo, redo: runRedo };
   const { rootRef } = useUndoShortcuts({
     onUndo: runUndo,
@@ -934,7 +956,7 @@ export function VisualWorkflowEditor({
     [definition, onStatusChange, saveDisabled],
   );
 
-  return (
+  const editor = (
     <div
       ref={rootRef}
       className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
@@ -1127,9 +1149,33 @@ export function VisualWorkflowEditor({
               </>
             )}
           </VisualWorkflowEditorPanel>
+          <AutomationAssistantSidePanel minRowWidth={ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX} />
         </div>
       )}
     </div>
+  );
+
+  // The assistant needs a saved workflow to keep its session for.
+  if (!assistantEnabled || !organizationSlug || !visualWorkflowId) {
+    return (
+      <>
+        {editor}
+        {undoConfirmDialog}
+      </>
+    );
+  }
+  return (
+    <AutomationAssistantVisualWorkflowProvider
+      organizationSlug={organizationSlug}
+      visualWorkflowId={visualWorkflowId}
+      graph={history.form}
+      hasUnsavedChanges={hasUnsavedChanges}
+      onChange={applyAssistantChange}
+      projectName={projectName}
+    >
+      {editor}
+      {undoConfirmDialog}
+    </AutomationAssistantVisualWorkflowProvider>
   );
 }
 

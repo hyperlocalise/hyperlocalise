@@ -22,10 +22,7 @@ import type { WorkspaceAutomationSkillConnections } from "@/lib/agents/workspace
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import type { AutomationAssistantApi } from "./automation-assistant-api";
-import {
-  AutomationAssistantSessionProvider,
-  type AutomationAssistantMode,
-} from "./automation-assistant-session-provider";
+import { AutomationAssistantSessionProvider } from "./automation-assistant-session-provider";
 
 export {
   AutomationAssistantContext,
@@ -83,7 +80,7 @@ export function AutomationAssistantProvider({
   hasUnsavedChanges?: boolean;
   /** A request handed over from the automations page, sent once the page is ready. */
   initialPrompt?: string | null;
-  mode: AutomationAssistantMode;
+  mode: "create" | "detail";
   /** Called with the form after each of the assistant's changes. */
   onChange: (next: WorkspaceAutomationFormState) => void;
   /** Called when the session for this page starts or ends, with its id. */

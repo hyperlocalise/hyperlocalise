@@ -27,6 +27,7 @@ import type {
 import type { WorkspaceAutomationTriggerSummary } from "@/lib/agents/workspace-automation-proposal-form";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
+import { useAutomationAssistant } from "./automation-assistant-session-provider";
 import { AUTOMATION_ASSISTANT_INTEGRATION_LABELS } from "./automation-assistant-summary";
 import { visualWorkflowNodeTitleMessage } from "./visual-workflow-editor/visual-workflow-node-picker";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
@@ -195,6 +196,7 @@ function describeEdit(intl: IntlShape, edit: AutomationAssistantPageEdit): strin
  */
 export function AutomationAssistantPageEdits({ edits }: { edits: AutomationAssistantPageEdit[] }) {
   const intl = useIntl();
+  const onWorkflow = useAutomationAssistant()?.mode === "visual_workflow";
   if (edits.length === 0) {
     return null;
   }
@@ -204,7 +206,10 @@ export function AutomationAssistantPageEdits({ edits }: { edits: AutomationAssis
         className={`group ${ROW_CLASS} cursor-pointer rounded-sm text-end transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`}
       >
         <span>
-          <FormattedMessage {...messages.pageEditsCount} values={{ count: edits.length }} />
+          <FormattedMessage
+            {...(onWorkflow ? messages.pageEditsCountWorkflow : messages.pageEditsCount)}
+            values={{ count: edits.length }}
+          />
         </span>
         <CaretDownIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
@@ -238,6 +243,8 @@ export function AutomationAssistantToolCall({
   summary: AutomationAssistantCallSummary;
 }) {
   const intl = useIntl();
+  // The page's words for what the tool touched: the setup form or the workflow on the canvas.
+  const onWorkflow = useAutomationAssistant()?.mode === "visual_workflow";
 
   if (summary.state === "running") {
     return (
@@ -256,7 +263,7 @@ export function AutomationAssistantToolCall({
   if (summary.changes === null) {
     return (
       <Row icon={<CheckIcon className="size-3.5 shrink-0" />}>
-        <FormattedMessage {...messages.toolUpdated} />
+        <FormattedMessage {...(onWorkflow ? messages.toolUpdatedWorkflow : messages.toolUpdated)} />
       </Row>
     );
   }
@@ -266,9 +273,14 @@ export function AutomationAssistantToolCall({
   ).length;
   const title =
     made > 0 ? (
-      <FormattedMessage {...messages.toolUpdatedCount} values={{ count: made }} />
+      <FormattedMessage
+        {...(onWorkflow ? messages.toolUpdatedWorkflowCount : messages.toolUpdatedCount)}
+        values={{ count: made }}
+      />
     ) : (
-      <FormattedMessage {...messages.toolNoChanges} />
+      <FormattedMessage
+        {...(onWorkflow ? messages.toolNoChangesWorkflow : messages.toolNoChanges)}
+      />
     );
   if (summary.changes.length === 0) {
     return <Row>{title}</Row>;

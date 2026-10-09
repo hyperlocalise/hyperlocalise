@@ -63,8 +63,8 @@ const SERVER_API: AutomationAssistantApi = {
 
 export type AutomationAssistantStatus = "idle" | "loading" | "streaming";
 
-/** Which page of an automation the assistant is on, for wording and counting. */
-export type AutomationAssistantMode = "create" | "detail";
+/** Which page the assistant is on, for wording and counting. */
+export type AutomationAssistantMode = "create" | "detail" | "visual_workflow";
 
 /**
  * A message of the person's that got no reply. Refused ones were never saved: the session had a

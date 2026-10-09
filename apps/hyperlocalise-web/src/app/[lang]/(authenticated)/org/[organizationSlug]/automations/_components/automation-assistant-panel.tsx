@@ -73,6 +73,7 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
 }
 
 function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean }) {
+  const onWorkflow = useAutomationAssistant()?.mode === "visual_workflow";
   const blocks = toBlocks(parts);
   const last = blocks.at(-1);
   // A call that is still running says so itself; a second spinner under it would say it twice.
@@ -104,7 +105,9 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
       ) : null}
       {madeNoCall ? (
         <TypographyMuted size="xsmall">
-          <FormattedMessage {...messages.toolNoChanges} />
+          <FormattedMessage
+            {...(onWorkflow ? messages.toolNoChangesWorkflow : messages.toolNoChanges)}
+          />
         </TypographyMuted>
       ) : null}
     </div>
@@ -263,7 +266,9 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
               <FormattedMessage
                 {...(assistant.mode === "create"
                   ? messages.changesOnPageCreate
-                  : messages.changesOnPageSave)}
+                  : assistant.mode === "visual_workflow"
+                    ? messages.changesOnCanvas
+                    : messages.changesOnPageSave)}
               />
             </TypographyMuted>
           ) : null}
@@ -320,30 +325,30 @@ export const AUTOMATION_ASSISTANT_PAGE_CLASS =
   "-mx-4 -my-4 w-auto min-h-0 flex-1 gap-0 overflow-hidden sm:-mx-6 lg:-mx-8";
 
 /** Below this much room the form would be too narrow beside the panel, so the panel is a sheet. */
-const SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
+const FORM_SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
 
 /**
- * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
- * attached to the right edge at full height while it is open. Where the page has no room for
- * both, the panel is a sheet from the right edge. The page must carry
- * `AUTOMATION_ASSISTANT_PAGE_CLASS`.
+ * The assistant attached to the right edge of the row it is placed in, at full height while it
+ * is open. Where the row has less room than `minRowWidth`, the panel is a sheet from the right
+ * edge instead. Renders nothing where the assistant is not offered.
  */
-export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
+export function AutomationAssistantSidePanel({ minRowWidth }: { minRowWidth: number }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
-  const rowRef = useRef<HTMLDivElement>(null);
-  // Decided from the room the page really has, which the sidebar changes, not from the window.
+  // Always in the row, so the row can be measured whether or not the panel is shown.
+  const markerRef = useRef<HTMLSpanElement>(null);
+  // Decided from the room the row really has, which the sidebar changes, not from the window.
   const [roomBeside, setRoomBeside] = useState(true);
 
   useLayoutEffect(() => {
-    const row = rowRef.current;
+    const row = markerRef.current?.parentElement;
     if (!row) {
       return;
     }
     // A width of nothing means no layout has happened, as in a test; the default stands.
     const measure = () => {
       if (row.clientWidth > 0) {
-        setRoomBeside(row.clientWidth >= SIDE_BY_SIDE_MIN_WIDTH_PX);
+        setRoomBeside(row.clientWidth >= minRowWidth);
       }
     };
     measure();
@@ -353,14 +358,12 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
     const observer = new ResizeObserver(measure);
     observer.observe(row);
     return () => observer.disconnect();
-  }, []);
+  }, [minRowWidth]);
 
   const inSheet = !roomBeside;
   return (
-    <div ref={rowRef} className="flex min-h-0 flex-1">
-      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex max-w-5xl flex-col gap-4">{children}</div>
-      </div>
+    <>
+      <span ref={markerRef} hidden />
       {assistant?.open && !inSheet ? (
         <aside className="w-[380px] shrink-0 border-s border-border">
           <AutomationAssistantPanel className="rounded-none border-0" />
@@ -381,6 +384,23 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
           </SheetContent>
         </Sheet>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
+ * attached to the right edge at full height while it is open. Where the page has no room for
+ * both, the panel is a sheet from the right edge. The page must carry
+ * `AUTOMATION_ASSISTANT_PAGE_CLASS`.
+ */
+export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex max-w-5xl flex-col gap-4">{children}</div>
+      </div>
+      <AutomationAssistantSidePanel minRowWidth={FORM_SIDE_BY_SIDE_MIN_WIDTH_PX} />
     </div>
   );
 }
