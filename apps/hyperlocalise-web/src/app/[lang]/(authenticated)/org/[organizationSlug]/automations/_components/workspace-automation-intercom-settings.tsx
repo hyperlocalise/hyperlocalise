@@ -45,7 +45,17 @@ import type {
   IntercomHelpCenterSummary,
 } from "@/lib/intercom/articles-api";
 import { intercomRestEndpointLabel, isIntercomRestEndpoint } from "@/lib/intercom/constants";
+import type { IntercomExistingTranslationPolicy } from "@/lib/intercom/intercom-existing-translation-policy";
 import { resolveIntercomLocaleKey } from "@/lib/intercom/intercom-locale";
+
+const INTERCOM_EXISTING_TRANSLATION_POLICY_LABELS: Record<
+  IntercomExistingTranslationPolicy,
+  string
+> = {
+  seed_empty: "Only empty locales",
+  refresh_imported: "Refresh imported locales",
+  overwrite_all: "Overwrite all locales",
+};
 
 function uniqueLocales(values: Array<string | null | undefined>): string[] {
   const locales: string[] = [];
@@ -487,27 +497,20 @@ export function WorkspaceAutomationIntercomSettings({
           }}
         >
           <SelectTrigger id="intercom-existing-translation-policy" className="w-full">
-            <SelectValue />
+            <SelectValue>
+              {INTERCOM_EXISTING_TRANSLATION_POLICY_LABELS[form.intercomExistingTranslationPolicy]}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem
-              value="seed_empty"
-              label="Import only locales Hyperlocalise does not already have"
-            >
-              Import only locales Hyperlocalise does not already have
-            </SelectItem>
-            <SelectItem
-              value="refresh_imported"
-              label="Update locales that still have imported Intercom copy"
-            >
-              Update locales that still have imported Intercom copy
-            </SelectItem>
-            <SelectItem
-              value="overwrite_all"
-              label="Replace Hyperlocalise translations with Intercom copy"
-            >
-              Replace Hyperlocalise translations with Intercom copy
-            </SelectItem>
+            {(
+              Object.entries(INTERCOM_EXISTING_TRANSLATION_POLICY_LABELS) as Array<
+                [IntercomExistingTranslationPolicy, string]
+              >
+            ).map(([policy, label]) => (
+              <SelectItem key={policy} value={policy} label={label}>
+                {label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
@@ -523,7 +526,7 @@ export function WorkspaceAutomationIntercomSettings({
             onChange({ ...form, intercomOverwriteIntercomDrafts: checked === true })
           }
         />
-        Overwrite Intercom drafts when remote target is newer (when enabled)
+        Overwrite Intercom drafts when remote target is newer
       </label>
     </div>
   );

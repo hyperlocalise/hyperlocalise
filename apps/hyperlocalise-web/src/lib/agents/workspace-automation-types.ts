@@ -316,8 +316,8 @@ const intercomToolConfigSchema = z
     collectionIds: z.array(z.string().trim().min(1).max(64)).max(50).default([]),
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
-    includeDrafts: z.boolean().default(false),
-    overwriteIntercomDrafts: z.boolean().default(false),
+    includeDrafts: z.boolean().default(true),
+    overwriteIntercomDrafts: z.boolean().default(true),
     existingTranslationPolicy: z
       .enum(["seed_empty", "refresh_imported", "overwrite_all"])
       .default("seed_empty"),
@@ -329,8 +329,8 @@ const intercomToolConfigSchema = z
     collectionIds: [],
     sourceLocale: "en",
     targetLocales: [],
-    includeDrafts: false,
-    overwriteIntercomDrafts: false,
+    includeDrafts: true,
+    overwriteIntercomDrafts: true,
     existingTranslationPolicy: "seed_empty",
   });
 

@@ -20,7 +20,6 @@ import {
   PlayIcon,
   FloppyDiskIcon,
 } from "@phosphor-icons/react";
-import { siIntercom } from "simple-icons";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -53,14 +52,7 @@ import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-ap
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
-import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
-import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
-import { intercomPushUiMessages } from "@/lib/intercom/intercom-push-ui.messages";
-import {
-  buildAutomationsDetailHref,
-  parseWorkspaceAutomationEditorTab,
-} from "@/lib/navigation/workspace-automation-editor-tab";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { parseWorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { readApiResponseError } from "@/lib/api-error";
 import {
   describeWorkspaceAutomationDiscard,
@@ -119,7 +111,6 @@ export function AutomationDetailPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
-  const router = useOrgRouter();
   const searchParams = useSearchParams();
   const initialEditorTab = parseWorkspaceAutomationEditorTab(searchParams.get("tab")) ?? undefined;
   const queryClient = useQueryClient();
@@ -143,7 +134,6 @@ export function AutomationDetailPageContent({
 
   const automation = automationQuery.data?.automation;
   const recentRuns = automationQuery.data?.recentRuns ?? [];
-  const intercomPush = automationQuery.data?.intercomPush ?? null;
   const automationTitle = automation?.name.trim();
 
   useAppShellBreadcrumbAppend({
@@ -346,35 +336,6 @@ export function AutomationDetailPageContent({
     },
   });
 
-  const navigateToIntercomPushRunHistory = () => {
-    router.push(
-      buildAutomationsDetailHref(organizationSlug, {
-        automationId,
-        projectId,
-        tab: "history",
-      }),
-    );
-  };
-
-  const pushApprovedMutation = useMutation({
-    mutationFn: async () => {
-      if (!automation) {
-        throw new Error("missing_automation");
-      }
-      return queueIntercomPushRun({ organizationSlug, automationId });
-    },
-    onSuccess: () => {
-      toast.success(intl.formatMessage(intercomPushUiMessages.pushQueued));
-      void queryClient.invalidateQueries({
-        queryKey: ["workspace-automation", organizationSlug, automationId],
-      });
-      navigateToIntercomPushRunHistory();
-    },
-    onError: () => {
-      toast.error(intl.formatMessage(intercomPushUiMessages.pushFailed));
-    },
-  });
-
   const runMutation = useMutation({
     mutationFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].automations[
@@ -506,11 +467,6 @@ export function AutomationDetailPageContent({
       workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode));
   const showSourceFileRunButton =
     form.triggerMode === "source_upload" && savedForm.triggerMode === "source_upload";
-  const showIntercomPushButton =
-    form.intercomEnabled &&
-    !hasChanges &&
-    (intercomPush?.eligibleLocaleCount ?? 0) > 0 &&
-    !intercomPush?.pushRunInProgress;
   const saveInFlight = saveMutation.isPending;
   const deleteInFlight = deleteMutation.isPending;
   const writeInFlight = saveInFlight || deleteInFlight;
@@ -567,58 +523,31 @@ export function AutomationDetailPageContent({
             <FormattedMessage {...automationDetailPageContentMessages.openChat} />
           </Button>
         </>
-      ) : showRunButton || showSourceFileRunButton || showIntercomPushButton ? (
-        <>
-          {showIntercomPushButton ? (
-            <Button
-              onClick={() => pushApprovedMutation.mutate()}
-              disabled={
-                pushApprovedMutation.isPending ||
-                intercomPush?.pushRunInProgress ||
-                automation.status !== "active"
-              }
-            >
-              {pushApprovedMutation.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <SimpleBrandIcon
-                  icon={siIntercom}
-                  colored={false}
-                  className="size-4"
-                  data-icon="inline-start"
-                  opacity={1}
-                />
-              )}
-              <FormattedMessage {...intercomPushUiMessages.pushButton} />
-            </Button>
-          ) : null}
-          {showRunButton || showSourceFileRunButton ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                // A run uses the saved automation, so unsaved changes are settled first.
-                if (hasChanges) {
-                  setRunPromptOpen(true);
-                  return;
-                }
-                startRun();
-              }}
-              disabled={
-                runMutation.isPending ||
-                sourceFileRunMutation.isPending ||
-                writeInFlight ||
-                automation.status !== "active"
-              }
-            >
-              {runMutation.isPending || sourceFileRunMutation.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PlayIcon data-icon="inline-start" />
-              )}
-              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
-            </Button>
-          ) : null}
-        </>
+      ) : showRunButton || showSourceFileRunButton ? (
+        <Button
+          variant="outline"
+          onClick={() => {
+            // A run uses the saved automation, so unsaved changes are settled first.
+            if (hasChanges) {
+              setRunPromptOpen(true);
+              return;
+            }
+            startRun();
+          }}
+          disabled={
+            runMutation.isPending ||
+            sourceFileRunMutation.isPending ||
+            writeInFlight ||
+            automation.status !== "active"
+          }
+        >
+          {runMutation.isPending || sourceFileRunMutation.isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <PlayIcon data-icon="inline-start" />
+          )}
+          <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+        </Button>
       ) : null}
       <AutomationUndoRedoButtons
         canUndo={history.canUndo}

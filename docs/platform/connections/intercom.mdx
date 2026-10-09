@@ -30,9 +30,9 @@ After you select a Help Center, the editor lists that Help Center’s locale cod
    - **Help Center**
    - **Intercom source locale** (usually the Help Center default)
    - Optional **Collection IDs** to limit import to those collections
-   - **Include draft articles on import** only when unpublished source should enter the project
+   - **Include draft articles on import** is on by default. Uncheck it to import published articles only
    - **Existing Intercom translations** to control how Intercom target copy enters Hyperlocalise. The default imports only locales the project does not already have. You can also refresh import-only copy when Intercom changed, or replace Hyperlocalise translations with the current Intercom copy
-   - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
+   - **Overwrite Intercom drafts when remote target is newer** is on by default. Uncheck it to keep Intercom drafts that teammates edited after the last push
 6. Save the automation.
 
 Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Intercom as draft** for write-back.
@@ -52,7 +52,7 @@ Import does not write translations to Intercom.
 ## Review and push drafts
 
 1. Translate and [approve](/platform/cat) every visible string for a mapped locale, including the article title.
-2. In the Content editor header or on the automation, choose **Push to Intercom as draft** when at least one mapped locale is fully approved and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
+2. In the Content editor header, choose **Push to Intercom as draft** when at least one mapped locale is fully approved and no push is already running. Hyperlocalise opens the automation **Run History** tab so you can follow the push.
 3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
 
 A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.

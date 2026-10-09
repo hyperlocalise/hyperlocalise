@@ -259,6 +259,8 @@ describe("workspace automation view model", () => {
       assignTranslateWithAgentEnabled: true,
     });
     expect(form?.skillIds).toEqual(["translate-intercom-articles"]);
+    expect(form?.intercomIncludeDrafts).toBe(true);
+    expect(form?.intercomOverwriteIntercomDrafts).toBe(true);
     expect(form?.intercomExistingTranslationPolicy).toBe("seed_empty");
     expect(
       workspaceAutomationFormCanActivate({
