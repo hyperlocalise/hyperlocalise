@@ -172,6 +172,40 @@ describe("importIntercomTargetTranslations", () => {
     );
   });
 
+  it("skips unfinished keyed work but still seeds empty placeholder locales", async () => {
+    const extractEntries = vi.fn(async () => {
+      return new Map([
+        ["de-DE", { "md.frontmatter/title": "Hallo", "md.paragraph/0": "Willkommen" }],
+      ]);
+    });
+    const result = await importIntercomTargetTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "intercom/help/getting-started.md",
+      localeMapping,
+      localeContent,
+      policy: "seed_empty",
+      extractEntries,
+      loadPresence: async () =>
+        new Map([
+          ["de-DE", emptyPresence()],
+          [
+            "fr-FR",
+            {
+              pushReady: false,
+              hasExistingTranslation: true,
+              importProvenanceOnly: false,
+              contentHash: null,
+            },
+          ],
+        ]),
+    });
+
+    expect(result.importedLocales).toEqual(["de-DE"]);
+    expect(result.skippedLocales).toEqual(["fr-FR"]);
+    expect(extractEntries).toHaveBeenCalledOnce();
+  });
+
   it("does not import incomplete Intercom target copy", async () => {
     const result = await importIntercomTargetTranslations({
       organizationId: "org_1",

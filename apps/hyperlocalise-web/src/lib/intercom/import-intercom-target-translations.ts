@@ -326,6 +326,7 @@ export async function loadIntercomLocaleTranslationPresence(input: {
       targetLocale: schema.projectImageVariants.targetLocale,
       status: schema.projectImageVariants.status,
       provenance: schema.projectImageVariants.provenance,
+      storedFileId: schema.projectImageVariants.storedFileId,
     })
     .from(schema.projectImageVariants)
     .where(
@@ -405,7 +406,11 @@ export async function loadIntercomLocaleTranslationPresence(input: {
 
     presenceByLocale.set(targetLocale, {
       pushReady: approved != null,
-      hasExistingTranslation: variant != null || keyedTranslationLocales.has(targetLocale),
+      hasExistingTranslation:
+        (variant != null &&
+          typeof variant.storedFileId === "string" &&
+          variant.storedFileId.length > 0) ||
+        keyedTranslationLocales.has(targetLocale),
       importProvenanceOnly:
         provenances.size > 0 && [...provenances].every((value) => value === "import"),
       contentHash:

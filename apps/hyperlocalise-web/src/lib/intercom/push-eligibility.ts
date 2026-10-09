@@ -244,6 +244,8 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
       sourcePath: schema.projectImageVariants.sourcePath,
       targetLocale: schema.projectImageVariants.targetLocale,
       storedFileId: schema.projectImageVariants.storedFileId,
+      provenance: schema.projectImageVariants.provenance,
+      updatedAt: schema.projectImageVariants.updatedAt,
     })
     .from(schema.projectImageVariants)
     .where(
@@ -286,12 +288,29 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
     }
   });
 
+  const variantMetaByPathAndLocale = new Map<
+    string,
+    Map<string, { provenance: string; updatedAt: Date | null }>
+  >();
+  for (const variant of readableVariants) {
+    let localeMeta = variantMetaByPathAndLocale.get(variant.sourcePath);
+    if (!localeMeta) {
+      localeMeta = new Map();
+      variantMetaByPathAndLocale.set(variant.sourcePath, localeMeta);
+    }
+    localeMeta.set(variant.targetLocale, {
+      provenance: variant.provenance,
+      updatedAt: variant.updatedAt ?? null,
+    });
+  }
+
   await mergeApprovedKeyedIntercomArticleValues({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePaths: input.sourcePaths,
     targetLocales: input.targetLocales,
     valuesByPathAndLocale,
+    variantMetaByPathAndLocale,
   });
 
   return valuesByPathAndLocale;
@@ -303,6 +322,10 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
   sourcePaths: string[];
   targetLocales: string[];
   valuesByPathAndLocale: Map<string, Map<string, IntercomArticleFields>>;
+  variantMetaByPathAndLocale: Map<
+    string,
+    Map<string, { provenance: string; updatedAt: Date | null }>
+  >;
 }) {
   if (input.sourcePaths.length === 0) {
     return;
@@ -426,6 +449,12 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
         units,
       });
       if (!composed) {
+        continue;
+      }
+
+      const existingApproved = input.valuesByPathAndLocale.get(sourcePath)?.get(targetLocale);
+      const variantMeta = input.variantMetaByPathAndLocale.get(sourcePath)?.get(targetLocale);
+      if (existingApproved && variantMeta?.provenance !== "import") {
         continue;
       }
 

@@ -337,14 +337,23 @@ export function markdownSpansFromEditorDoc(
     spans.push({ type: "link", label, href, image });
   }
 
-  function walk(node: MarkdownEditorDoc, paragraphIndex: number) {
+  function walk(
+    node: MarkdownEditorDoc,
+    paragraphIndex: number,
+    inheritedLink: { href: string; image: boolean } | null = null,
+  ) {
     if (node.type === "hardBreak") {
-      appendText("\n");
+      const link = linkMarkFromNode(node) ?? inheritedLink;
+      if (link) {
+        appendLink("\n", link.href, link.image);
+      } else {
+        appendText("\n");
+      }
       return;
     }
 
     if (node.type === "text") {
-      const link = linkMarkFromNode(node);
+      const link = linkMarkFromNode(node) ?? inheritedLink;
       const text = node.text ?? "";
       if (link) {
         appendLink(text, link.href, link.image);
@@ -358,8 +367,9 @@ export function markdownSpansFromEditorDoc(
     if (node.type === "paragraph" && paragraphIndex > 0) {
       appendText("\n");
     }
+    const nodeLink = linkMarkFromNode(node) ?? inheritedLink;
     children.forEach((child, index) => {
-      walk(child, node.type === "doc" ? index : paragraphIndex);
+      walk(child, node.type === "doc" ? index : paragraphIndex, nodeLink);
     });
   }
 

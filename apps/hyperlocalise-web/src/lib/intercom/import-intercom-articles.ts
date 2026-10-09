@@ -370,13 +370,12 @@ export async function runImportIntercomArticles(input: {
         );
         const payload = intercomArticleToImportPayload(detailedArticle, sourceIntercomLocale);
         const contentHash = hashIntercomArticleContent(payload);
-        const sourceUnchanged =
-          existing?.sourceContentHash === contentHash &&
-          existing.status === "active" &&
-          existing.sourcePath === sourcePath;
+        const sourceContentUnchanged =
+          existing?.sourceContentHash === contentHash && existing.sourcePath === sourcePath;
+        const sourceUnchanged = sourceContentUnchanged && existing.status === "active";
 
         let sourceFileId: string | null = null;
-        if (!sourceUnchanged) {
+        if (!sourceContentUnchanged) {
           const markdownBytes = Buffer.from(serializeIntercomArticleMarkdown(payload), "utf8");
           const upload = await uploadSourceFile({
             organizationId: input.organizationId,
@@ -495,7 +494,7 @@ export async function runImportIntercomArticles(input: {
           mappedJobTargetLocales: articleLocaleMapping.jobTargetLocales,
           importedProjectLocales: translationResult.importedLocales,
           pushReadyProjectLocales: translationResult.pushReadyLocales,
-          sourceUnchanged,
+          sourceUnchanged: sourceContentUnchanged,
           sourceFileId,
           openJobs,
         });

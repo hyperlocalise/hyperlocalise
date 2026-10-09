@@ -200,6 +200,32 @@ describe("serializeMarkdownEditorDoc", () => {
       }),
     ).toBe("Line one\nLine two");
   });
+
+  it("keeps a hard break inside a single link label", () => {
+    expect(
+      serializeMarkdownEditorDoc({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              {
+                type: "text",
+                text: "Help",
+                marks: [{ type: "link", attrs: { href: HELP_CENTER_URL } }],
+              },
+              { type: "hardBreak", marks: [{ type: "link", attrs: { href: HELP_CENTER_URL } }] },
+              {
+                type: "text",
+                text: "Center",
+                marks: [{ type: "link", attrs: { href: HELP_CENTER_URL } }],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(`[Help\nCenter](${HELP_CENTER_URL})`);
+  });
 });
 
 describe("isStructuralMarkdownMarkupToken", () => {
