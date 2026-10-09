@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -295,7 +296,7 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 }
 
 func xmlEscape(s string) string {
-	if !strings.ContainsAny(s, "<>&'\"\r") {
+	if isXMLPlainText(s) {
 		return s
 	}
 	var b strings.Builder
@@ -303,6 +304,51 @@ func xmlEscape(s string) string {
 		return s
 	}
 	return b.String()
+}
+
+// isXMLPlainText reports whether s can be copied into TBX without escaping.
+// Markup characters and code points outside the XML 1.0 Char production
+// (including invalid UTF-8) take the xml.EscapeText path so illegal
+// controls become U+FFFD.
+func isXMLPlainText(s string) bool {
+	if strings.ContainsAny(s, "<>&'\"\r") {
+		return false
+	}
+	for i := 0; i < len(s); {
+		size := xmlCharSize(s, i)
+		if size <= 0 {
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
+func xmlCharSize(s string, i int) int {
+	c := s[i]
+	if c < utf8.RuneSelf {
+		if c == '\t' || c == '\n' || c >= 0x20 {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(s[i:])
+	if r == utf8.RuneError && size == 1 {
+		return 0
+	}
+	if !isXMLCharacterRange(r) {
+		return 0
+	}
+	return size
+}
+
+func isXMLCharacterRange(r rune) bool {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		r >= 0x20 && r <= 0xD7FF ||
+		r >= 0xE000 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0x10FFFF
 }
 
 func serializeGlossaryXLSX(concepts []glossaryExportConcept) ([]byte, error) {
