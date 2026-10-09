@@ -38,6 +38,45 @@ function node(
 }
 
 describe("getVisualWorkflowDataPorts", () => {
+  it("exposes typed optional Try / Catch error outputs", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("boundary", "logic.try_catch"),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "errorCode",
+        label: "errorCode",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "errorMessage",
+        label: "errorMessage",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "failedNodeId",
+        label: "failedNodeId",
+        type: "string",
+        optional: true,
+        connectionCount: 0,
+      },
+      {
+        id: "attempt",
+        label: "attempt",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
   it("returns typed contract inputs and outputs", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("request", "action.http"),

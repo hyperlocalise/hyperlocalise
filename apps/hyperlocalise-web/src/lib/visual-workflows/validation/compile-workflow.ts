@@ -164,6 +164,43 @@ export function compileWorkflowIssues(
       add("non_idempotent_retry", node.id);
     }
   }
+  const tryCatchRegions = definition.nodes
+    .filter((node) => node.type === "logic.try_catch")
+    .map((node) => ({ node, body: new Set(node.bodyNodeIds ?? []) }));
+  for (const { node, body } of tryCatchRegions) {
+    if (!body.size || body.has(node.id) || body.size !== (node.bodyNodeIds ?? []).length) {
+      add("invalid_try_catch_region", node.id);
+    }
+    for (const id of body) {
+      if (!nodes.has(id) || !workflowAncestors(definition, id).has(node.id)) {
+        add("invalid_try_catch_region", id);
+      }
+    }
+    for (const edge of definition.edges) {
+      if (edge.source === node.id && (edge.sourceHandle === "try") !== body.has(edge.target)) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+      if (body.has(edge.target) && !body.has(edge.source) && edge.source !== node.id) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+      if (body.has(edge.source) && !body.has(edge.target)) {
+        add("invalid_try_catch_region", undefined, edge.id);
+      }
+    }
+  }
+  for (const [index, left] of tryCatchRegions.entries()) {
+    for (const right of tryCatchRegions.slice(index + 1)) {
+      const intersects = [...left.body].some((id) => right.body.has(id));
+      if (!intersects) continue;
+      const leftContainsRight =
+        left.body.size > right.body.size && [...right.body].every((id) => left.body.has(id));
+      const rightContainsLeft =
+        right.body.size > left.body.size && [...left.body].every((id) => right.body.has(id));
+      if (!leftContainsRight && !rightContainsLeft) {
+        add("overlapping_try_catch_region", right.node.id);
+      }
+    }
+  }
   const checkReference = (
     node: CanonicalVisualWorkflowNode,
     binding: Extract<WorkflowBinding, { kind: "reference" }>,
@@ -305,6 +342,7 @@ export function compileWorkflowIssues(
     if (
       node.type !== "logic.for_each" &&
       node.type !== "logic.retry" &&
+      node.type !== "logic.try_catch" &&
       (node.bodyNodeIds || node.collect)
     )
       add("invalid_loop", node.id);

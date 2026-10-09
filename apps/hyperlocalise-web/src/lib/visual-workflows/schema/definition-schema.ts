@@ -67,6 +67,7 @@ const visualCatalogTypeSchema = z.enum([
   "flow.fail",
   "logic.merge",
   "logic.sequence",
+  "logic.try_catch",
 ]);
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
@@ -361,6 +362,7 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
         }
       }),
   }),
+  z.object({ kind: z.literal("logic.try_catch") }),
 ]);
 
 export const workflowBindingSchema = z.intersection(

@@ -590,6 +590,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "4cYBnVImbP",
     description: "Sequence node picker hint",
   },
+  nodeTryCatch: {
+    defaultMessage: "Try / Catch",
+    id: "F5g64/zxdN",
+    description: "Visual workflow Try / Catch node title",
+  },
+  nodeTryCatchHint: {
+    defaultMessage: "Handle failures from a bounded execution region",
+    id: "X5HXzEgA4e",
+    description: "Visual workflow Try / Catch node picker hint",
+  },
   sequenceOutputs: {
     defaultMessage: "Execution outputs",
     id: "y+ijUpauzH",
@@ -754,6 +764,36 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Exhausted",
     id: "gJ4nnkkpNU",
     description: "Retry exhaustion exit",
+  },
+  tryHandle: {
+    defaultMessage: "Try",
+    id: "rpDF9CZYBO",
+    description: "Try / Catch protected region connection",
+  },
+  successHandle: {
+    defaultMessage: "Success",
+    id: "J3yZ0R6Av/",
+    description: "Try / Catch success exit",
+  },
+  catchHandle: {
+    defaultMessage: "Catch",
+    id: "RwXMampnc5",
+    description: "Try / Catch handled failure exit",
+  },
+  finallyHandle: {
+    defaultMessage: "Finally",
+    id: "0T2mAMiIVh",
+    description: "Try / Catch final exit",
+  },
+  invalidTryCatchRegion: {
+    defaultMessage: "Connect a valid, bounded Try region.",
+    id: "HafJerv4wF",
+    description: "Validation issue for an invalid Try / Catch region",
+  },
+  overlappingTryCatchRegion: {
+    defaultMessage: "Try / Catch regions cannot overlap ambiguously.",
+    id: "aB/GAdDVH3",
+    description: "Validation issue for overlapping Try / Catch regions",
   },
   retryMaxAttempts: {
     defaultMessage: "Max attempts",

@@ -20,7 +20,10 @@ import type {
   VisualWorkflowV3Definition,
 } from "./types";
 import { VISUAL_WORKFLOW_SCHEMA_VERSION } from "./types";
-import { computeForEachBodyNodeIds } from "../editor/for-each-body-membership";
+import {
+  computeForEachBodyNodeIds,
+  computeTryCatchBodyNodeIds,
+} from "../editor/for-each-body-membership";
 
 const ENABLED_TYPES = new Set<VisualCatalogType>([
   "trigger.manual",
@@ -42,23 +45,28 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "flow.fail",
   "logic.merge",
   "logic.sequence",
+  "logic.try_catch",
 ]);
 
 function deriveFlowBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
 ): VisualWorkflowRfNode[] {
-  return nodes.map((node) =>
-    node.data.catalogType === "logic.for_each"
+  return nodes.map((node) => {
+    const compute =
+      node.data.catalogType === "logic.for_each"
+        ? computeForEachBodyNodeIds
+        : node.data.catalogType === "logic.try_catch"
+          ? computeTryCatchBodyNodeIds
+          : null;
+
+    return compute
       ? {
           ...node,
-          data: {
-            ...node.data,
-            bodyNodeIds: computeForEachBodyNodeIds(node.id, edges),
-          },
+          data: { ...node.data, bodyNodeIds: compute(node.id, edges) },
         }
-      : node,
-  );
+      : node;
+  });
 }
 
 export function toVisualWorkflowDefinition(

@@ -317,6 +317,31 @@ describe("applyVisualWorkflowGraphConnection", () => {
     expect(restored.nodes.find((entry) => entry.id === "loop")?.data.bodyNodeIds).toEqual(["body"]);
   });
 
+  it("tracks Try body membership without claiming exit branches", () => {
+    const nodes = [
+      node("trigger", "trigger.manual"),
+      node("boundary", "logic.try_catch"),
+      node("work", "logic.set"),
+      node("caught", "logic.set"),
+    ];
+    const withTry = applyVisualWorkflowGraphConnection(nodes, [], {
+      source: "boundary",
+      target: "work",
+      sourceHandle: "try",
+      targetHandle: "input",
+    });
+    const withCatch = applyVisualWorkflowGraphConnection(withTry.nodes, withTry.edges, {
+      source: "boundary",
+      target: "caught",
+      sourceHandle: "catch",
+      targetHandle: "input",
+    });
+
+    expect(withCatch.nodes.find((entry) => entry.id === "boundary")?.data.bodyNodeIds).toEqual([
+      "work",
+    ]);
+  });
+
   it("does not commit an invalid reconnection", () => {
     const nodes = [
       node("trigger", "trigger.manual"),

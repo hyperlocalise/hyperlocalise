@@ -23,6 +23,7 @@ import {
   visualWorkflowMergeDraft,
   visualWorkflowSequenceDraft,
   visualWorkflowTerminalNodesDraft,
+  visualWorkflowTryCatchDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -511,5 +512,68 @@ export const TerminalNodes: Story = {
       canvas.getByRole("combobox", { name: "Returned output 1 type" }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add returned output" })).toBeEnabled();
+  },
+};
+
+export const TryCatchNode: Story = {
+  name: "Try / Catch focused node",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Focused error-boundary example showing every execution handle and typed error output.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowTryCatchDraft.name,
+    initialNodes: visualWorkflowTryCatchDraft.nodes,
+    initialEdges: visualWorkflowTryCatchDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByLabelText("Try", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Success")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Catch")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Finally")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: errorCode, string, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: errorMessage, string, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: failedNodeId, string, optional"),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: attempt, object, optional"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
+  },
+};
+
+export const TryCatchEditorNarrow: Story = {
+  name: "Try / Catch editor — narrow viewport",
+  parameters: {
+    viewport: { defaultViewport: "mobile1" },
+  },
+  args: {
+    initialName: visualWorkflowTryCatchDraft.name,
+    initialNodes: visualWorkflowTryCatchDraft.nodes.map((node) =>
+      node.id === "boundary"
+        ? { ...node, data: { ...node.data, runStatus: "handled_error" as const } }
+        : node,
+    ),
+    initialEdges: visualWorkflowTryCatchDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByText("Handled error", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Add node from Catch" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Add node from Finally" })).toBeEnabled();
   },
 };

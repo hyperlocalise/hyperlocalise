@@ -162,6 +162,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: PathIcon,
   },
+  {
+    type: "logic.try_catch",
+    category: "flow",
+    enabled: true,
+    icon: GitBranchIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -287,6 +293,8 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
           { id: createSequenceOutputId(), label: "Output 2" },
         ],
       };
+    case "logic.try_catch":
+      return { kind: "logic.try_catch" };
     default:
       return assertNever(type);
   }
@@ -326,6 +334,9 @@ export function getVisualNodeDimensions(
   if (type === "logic.sequence") {
     const outputCount = config?.kind === "logic.sequence" ? config.outputs.length : 2;
     return { width: 280, height: Math.max(140, 56 + outputCount * 32) };
+  }
+  if (type === "logic.try_catch") {
+    return { width: 280, height: 156 };
   }
   return { width: 280, height: 104 };
 }
@@ -394,6 +405,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return `${config.inputs.length} inputs · ${config.mode.replace("_", " ")}`;
     case "logic.sequence":
       return config.outputs.length === 1 ? "1 output" : `${config.outputs.length} outputs`;
+    case "logic.try_catch":
+      return "Try / Catch boundary";
     default:
       return assertNever(config);
   }

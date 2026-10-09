@@ -1811,6 +1811,10 @@ function issueMessage(
       return messages.nonIdempotentRetry;
     case "invalid_retry_policy":
       return messages.invalidRetryPolicy;
+    case "invalid_try_catch_region":
+      return messages.invalidTryCatchRegion;
+    case "overlapping_try_catch_region":
+      return messages.overlappingTryCatchRegion;
     default:
       return messages.invalidNodeConfig;
   }

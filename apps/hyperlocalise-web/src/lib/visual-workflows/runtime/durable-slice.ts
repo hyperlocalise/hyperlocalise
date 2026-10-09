@@ -42,7 +42,15 @@ import { parseWaitResumeState } from "./wait-schedule";
 import { parseMergeResumeState } from "./merge-timeout";
 import { resolveActiveWaitConditionProbeNodeIds } from "./wait-condition-probes";
 import { createSerialAsyncQueue } from "./serial-async-queue";
-import { shouldReuseDurableExecution } from "./durable-execution-reuse";
+import {
+  shouldReuseDurableExecution,
+  shouldReuseTryCatchBodyFailure,
+} from "./durable-execution-reuse";
+import {
+  computeTryCatchBodyNodeIdsFromV3Edges,
+  computeTryCatchCatchNodeIdsFromV3Edges,
+  computeTryCatchSuccessNodeIdsFromV3Edges,
+} from "../editor/for-each-body-membership";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -65,6 +73,18 @@ export async function executeDurableWorkflowSlice(input: {
     .orderBy(asc(schema.visualWorkflowNodeRuns.attempt));
   const key = (id: string, iteration = -1) => JSON.stringify([id, iteration]);
   const retryBodyNodeIds = collectRetryBodyNodeIds(input.definition);
+  // Catch and Success failures may be held while Finally suspends. Reuse those
+  // persisted failures on the next slice so the action is not executed again
+  // and the original terminal result is not lost.
+  const reusableTryCatchFailureNodeIds = new Set(
+    input.definition.nodes
+      .filter((node) => node.type === "logic.try_catch")
+      .flatMap((node) => [
+        ...computeTryCatchBodyNodeIdsFromV3Edges(node.id, input.definition.edges),
+        ...computeTryCatchCatchNodeIdsFromV3Edges(node.id, input.definition.edges),
+        ...computeTryCatchSuccessNodeIdsFromV3Edges(node.id, input.definition.edges),
+      ]),
+  );
   const retryBackoff = parseRetryResumeState(input.payload.retryBackoff);
   const waitResume = parseWaitResumeState(input.payload.waitResume);
   const mergeResume = parseMergeResumeState(input.payload.mergeResume);
@@ -97,7 +117,14 @@ export async function executeDurableWorkflowSlice(input: {
       const execution = decryptWorkflowPayload(
         record.encryptedOutput,
       ) as VisualWorkflowNodeExecutionResult;
-      if (!shouldReuseDurableExecution(record.status, execution)) return [];
+      if (
+        !shouldReuseDurableExecution(record.status, execution) &&
+        !(
+          reusableTryCatchFailureNodeIds.has(record.nodeId) &&
+          shouldReuseTryCatchBodyFailure(record.status, execution)
+        )
+      )
+        return [];
 
       return [[key(record.nodeId, record.iteration), execution] as const];
     }),
@@ -370,13 +397,14 @@ export async function executeDurableWorkflowSlice(input: {
         }
         const execution = pending.get(id);
         const interpreterExecution =
-          !execution &&
-          (update.nodeType === "flow.wait" || update.nodeType === "logic.merge") &&
+          (update.nodeType === "flow.wait" ||
+            update.nodeType === "logic.merge" ||
+            update.nodeType === "logic.try_catch") &&
           update.status === "succeeded" &&
           update.outputSnapshot
             ? ({ ok: true, output: update.outputSnapshot } as VisualWorkflowNodeExecutionResult)
             : null;
-        const recorded = execution ?? interpreterExecution;
+        const recorded = interpreterExecution ?? execution;
         await upsertVisualWorkflowNodeRun({
           leaseToken: input.leaseToken,
           runId: input.run.id,
