@@ -21,7 +21,15 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
-import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import {
+  isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
+  rewriteHashedHtmlSegmentKeys,
+} from "@/lib/projects/files/html-ingest-entries";
 import { NativeContentEditorCommentService } from "@/lib/projects/content-editor/native-content-editor-comment-service";
 import {
   CAT_ALL_FILES_FILENAME,
@@ -877,8 +885,46 @@ export class NativeContentEditorService extends ProjectServiceBase {
       pagination: input.pagination,
       ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
       ...(input.documentView ? { documentView: input.documentView } : {}),
-      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
+      segments: (await this.rewriteHtmlCatKeys(input.input, input.visibleKeys)).map((key) =>
+        mapTextSegment(key),
+      ),
     };
+  }
+
+  private async rewriteHtmlCatKeys<T extends { key: string; sourceText: string }>(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    keys: T[],
+  ): Promise<T[]> {
+    const needsRewrite =
+      isHtmlTranslationSourcePath(input.sourcePath) &&
+      keys.some((key) => isHashedHtmlEntryKey(key.key));
+    if (!needsRewrite) {
+      return keys;
+    }
+    const version = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
+    });
+    if (!version?.storedFileId) {
+      return keys;
+    }
+    try {
+      const stored = await getStoredFileContent({
+        fileId: version.storedFileId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+      const rewritten = rewriteHashedHtmlSegmentKeys(stored.content.toString("utf8"), keys);
+      return keys.map((key, index) => ({ ...key, key: rewritten[index] ?? key.key }));
+    } catch {
+      return keys;
+    }
   }
 
   private async resolveLottieSourceUrl(input: {

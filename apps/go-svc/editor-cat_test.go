@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -514,6 +515,31 @@ func TestEditorCatQueueHTMLKeysAndDocumentView(t *testing.T) {
 	require.Equal(t, "html.p[0]", body.ContentEditorQueue.Segments[0].Key)
 	require.NotNil(t, body.ContentEditorQueue.DocumentView)
 	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+}
+
+func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {
+	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
+	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
+	require.NotEmpty(t, mapping)
+	var hashedH1, hashedP string
+	for legacy, pathKey := range mapping {
+		switch pathKey {
+		case "html.body.h1":
+			hashedH1 = legacy
+		case "html.body.p":
+			hashedP = legacy
+		}
+	}
+	require.NotEmpty(t, hashedH1)
+	require.NotEmpty(t, hashedP)
+
+	segments := []editorCatSegment{
+		{Key: hashedH1, SourceText: "Welcome"},
+		{Key: hashedP, SourceText: "Hello world."},
+	}
+	rewriteHashedHTMLSegmentKeys(content, segments)
+	require.Equal(t, "html.body.h1", segments[0].Key)
+	require.Equal(t, "html.body.p", segments[1].Key)
 }
 
 func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {

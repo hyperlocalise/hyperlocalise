@@ -127,6 +127,24 @@ describe("sourceFileIngestWorkflow documents", () => {
     expect(mocks.ensureVideoVariantsForSourceFileStep).not.toHaveBeenCalled();
   });
 
+  it("passes HTML source text so ingest can assign tag-path keys", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.parseHlEntriesStep.mockResolvedValue([
+      { key: "html.body.p", text: "Hello", context: null, type: "string" },
+    ]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "pages/home.html" }),
+    ).resolves.toEqual({
+      status: "ingested",
+      importedKeyCount: 1,
+    });
+    expect(mocks.parseHlEntriesStep).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ sourcePath: "pages/home.html", sourceContent: "{}" }),
+    );
+  });
+
   it("does not extract keys for binary image files", async () => {
     mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
     await expect(sourceFileIngestWorkflow({ ...event, sourcePath: "hero.png" })).resolves.toEqual({

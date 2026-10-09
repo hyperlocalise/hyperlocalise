@@ -1,12 +1,13 @@
 package translationfileparser
 
 // HTML file parser: extracts translatable text from open/close tag content.
-// Inline tags within a text segment are replaced with sentinel placeholders
-// so that the LLM translates clean prose while the markup is restored on marshal.
+// Block and inline tags join the dotted path (html.p, html.p.strong, html.p.strong.2).
+// Markup is emitted as literals between text nodes so marshal can restore it.
 
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"regexp"
 	"strconv"
@@ -26,7 +27,7 @@ func (p HTMLParser) Parse(content []byte) (map[string]string, error) {
 }
 
 // htmlPart is a segment of an HTML document: either a non-translatable literal
-// or a translatable chunk whose inline tags have been replaced with placeholders.
+// or a translatable text node. Residual raw markup in a text node is placeholdered.
 type htmlPart struct {
 	literal      string
 	key          string
@@ -53,7 +54,8 @@ type HTMLRenderDiagnostics struct {
 }
 
 // htmlBlockElements flush the accumulated inline buffer when their start or end
-// tag is encountered. Text directly inside these elements is a translation unit.
+// tag is encountered in fold-inline mode (Liquid). Native HTML splits on inline
+// tags too, so this set is unused there.
 var htmlBlockElements = map[string]bool{
 	"address": true, "article": true, "aside": true, "blockquote": true,
 	"caption": true, "dd": true, "details": true, "dialog": true,
@@ -142,11 +144,20 @@ func rawHTMLSyntaxStartCount(s string) int {
 }
 
 // htmlStructuralElements are container tags that are always emitted as
-// literals rather than buffered as inline content. This prevents </body>,
-// </html>, etc. from being wrapped in a translation unit when orphaned inline
-// content appears directly before them.
+// literals rather than buffered as inline content in fold-inline mode.
 var htmlStructuralElements = map[string]bool{
 	"html": true, "body": true, "template": true, "colgroup": true,
+}
+
+// htmlVoidElements never enter the tag-path stack. Their markup stays literal.
+var htmlVoidElements = map[string]bool{
+	"area": true, "base": true, "br": true, "col": true, "embed": true,
+	"hr": true, "img": true, "input": true, "link": true, "meta": true,
+	"param": true, "source": true, "track": true, "wbr": true,
+}
+
+func htmlPushesPath(tag string) bool {
+	return !htmlSkipElements[tag] && !htmlVoidElements[tag]
 }
 
 // htmlVoidTranslatableAttrs maps void element names to their translatable
@@ -190,6 +201,14 @@ func splitVoidAttrTag(raw, attrName string) (prefix, rawVal, suffix string, ok b
 // returning the document, a map of key → source (with placeholders), and any
 // non-EOF tokenizer error.
 func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) {
+	return parseHTMLDocumentWithOptions(content, false)
+}
+
+func parseHTMLDocumentFoldingInline(content []byte) (htmlDocument, map[string]string, error) {
+	return parseHTMLDocumentWithOptions(content, true)
+}
+
+func parseHTMLDocumentWithOptions(content []byte, foldInline bool) (htmlDocument, map[string]string, error) {
 	// BOLT OPTIMIZATION: Heuristic capacity hints to minimize re-allocations.
 	doc := htmlDocument{
 		parts:       make([]htmlPart, 0, len(content)/128),
@@ -308,42 +327,53 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		case html.StartTagToken:
 			raw := string(rawBytes)
 			tn, _ := z.TagName()
-			if htmlSkipElements[string(tn)] {
+			tag := string(tn)
+			if htmlSkipElements[tag] {
 				flushBuffer()
 				skipDepth++
 				appendLiteral(raw)
-			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
+			} else if foldInline && (htmlBlockElements[tag] || htmlStructuralElements[tag]) {
 				flushBuffer()
 				appendLiteral(raw)
-				pushTag(string(tn))
-			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, string(tn), attrName)
-			} else {
-				// Inline element: accumulate into the text buffer.
+				pushTag(tag)
+			} else if attrName, isVoid := htmlVoidTranslatableAttrs[tag]; isVoid {
+				handleVoidTranslatable(raw, tag, attrName)
+			} else if foldInline {
 				buffer.WriteString(raw)
+			} else {
+				flushBuffer()
+				appendLiteral(raw)
+				if htmlPushesPath(tag) {
+					pushTag(tag)
+				}
 			}
 
 		case html.EndTagToken:
 			raw := string(rawBytes)
 			tn, _ := z.TagName()
-			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
-				flushBuffer()
-				popTag(string(tn))
-				appendLiteral(raw)
-			} else {
+			tag := string(tn)
+			if foldInline && !htmlBlockElements[tag] && !htmlStructuralElements[tag] {
 				buffer.WriteString(raw)
+			} else {
+				flushBuffer()
+				popTag(tag)
+				appendLiteral(raw)
 			}
 
 		case html.SelfClosingTagToken:
 			raw := string(rawBytes)
 			tn, _ := z.TagName()
-			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
+			tag := string(tn)
+			if foldInline && (htmlBlockElements[tag] || htmlStructuralElements[tag]) {
 				flushBuffer()
 				appendLiteral(raw)
-			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, string(tn), attrName)
-			} else {
+			} else if attrName, isVoid := htmlVoidTranslatableAttrs[tag]; isVoid {
+				handleVoidTranslatable(raw, tag, attrName)
+			} else if foldInline {
 				buffer.WriteString(raw)
+			} else {
+				flushBuffer()
+				appendLiteral(raw)
 			}
 		}
 	}
@@ -514,7 +544,57 @@ func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values
 	return sourceDoc.render(merged)
 }
 
+func expandLegacyHTMLValues(doc htmlDocument, values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return values
+	}
+	merged := make(map[string]string, len(values))
+	for key, value := range values {
+		merged[key] = value
+	}
+	occurrences := make(map[string]int)
+	for _, part := range doc.parts {
+		if part.key == "" {
+			continue
+		}
+		legacy := htmlSegmentKey(part.source, occurrences)
+		if _, ok := merged[part.key]; ok {
+			continue
+		}
+		if value, ok := values[legacy]; ok {
+			merged[part.key] = value
+		}
+	}
+	return merged
+}
+
+func htmlSegmentKey(segment string, occurrences map[string]int) string {
+	sum := sha256.Sum256([]byte(segment))
+	hash := hex.EncodeToString(sum[:])[:16]
+	count := occurrences[hash]
+	occurrences[hash] = count + 1
+	if count == 0 {
+		return "html." + hash
+	}
+	return "html." + hash + "." + strconv.Itoa(count+1)
+}
+
+// LegacyHTMLKeyToPathKey maps pre-path-key hashes (html.<16 hex>) onto html.body.p keys.
+func LegacyHTMLKeyToPathKey(content []byte) map[string]string {
+	doc, _, _ := parseHTMLDocument(content)
+	occurrences := make(map[string]int)
+	out := make(map[string]string)
+	for _, part := range doc.parts {
+		if part.key == "" {
+			continue
+		}
+		out[htmlSegmentKey(part.source, occurrences)] = part.key
+	}
+	return out
+}
+
 func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagnostics) {
+	values = expandLegacyHTMLValues(d, values)
 	var diags HTMLRenderDiagnostics
 	var b strings.Builder
 	// BOLT OPTIMIZATION: hint builder capacity to minimize re-allocations.

@@ -175,7 +175,10 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
     const extractedEntries = await extractSourceIngestEntriesStep(sandboxId, inputFilename, {
       srx: srxSandbox.srxFlag,
     });
-    const entries = await parseHlEntriesStep(extractedEntries);
+    const entries = await parseHlEntriesStep(extractedEntries, {
+      sourcePath: event.sourcePath,
+      sourceContent: content,
+    });
 
     const reconciliation = await reconcileSourceFileTranslationKeysStep({
       organizationId: event.organizationId,
