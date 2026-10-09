@@ -137,7 +137,9 @@ export function WorkspaceAutomationIntercomSettings({
           </Select>
         )}
         {errors.intercomHelpCenterId ? (
-          <p className="text-sm text-destructive">{errors.intercomHelpCenterId}</p>
+          <p data-slot="field-error" className="text-sm text-destructive">
+            {errors.intercomHelpCenterId}
+          </p>
         ) : null}
         {selectedHelpCenter?.locales.length ? (
           <p className="text-xs text-muted-foreground">

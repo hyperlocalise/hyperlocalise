@@ -172,6 +172,7 @@ import {
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
+import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
 
@@ -298,7 +299,11 @@ function FieldError({ message }: { message?: string }) {
     return null;
   }
 
-  return <p className="text-xs text-destructive">{message}</p>;
+  return (
+    <p data-slot="field-error" className="text-xs text-destructive">
+      {message}
+    </p>
+  );
 }
 
 function EditorSection({
@@ -3145,6 +3150,7 @@ export function WorkspaceAutomationEditor({
       setActiveTab(initialEditorTab);
     }
   }, [initialEditorTab]);
+  const editorRef = useScrollToFirstFieldError(errors, activeTab, setActiveTab);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -3507,7 +3513,7 @@ export function WorkspaceAutomationEditor({
     !intercomPipesQuery.isPending;
 
   const editor = (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <section className="flex flex-col gap-3">
         {/* The actions drop under the name when both do not fit, as with the assistant open. */}
         <div className="flex flex-wrap items-start justify-between gap-3">
