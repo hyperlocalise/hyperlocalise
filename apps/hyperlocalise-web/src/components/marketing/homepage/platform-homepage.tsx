@@ -29,7 +29,12 @@ import { homepageMessages as m } from "./homepage.messages";
 import { AgentChannelPreview } from "./agent-channel-preview";
 import { McpClientLogos } from "./mcp-client-logos";
 import { ConnectedCampaign } from "./connected-campaign";
-import { hasProductPreviewVideoUrl, PRODUCT_PREVIEW_VIDEO_URL, PRODUCTS } from "./product-preview";
+import {
+  hasProductPreviewVideoUrl,
+  PRODUCT_PREVIEW_VIDEO_URL,
+  ProductPreviewVideo,
+  PRODUCTS,
+} from "./product-preview";
 import {
   BLUSH_MESH_GRADIENT_SRC,
   LAVENDER_MESH_GRADIENT_SRC,
@@ -176,22 +181,6 @@ function CustomerLogos({ onDark }: { onDark?: boolean }) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function ProductPreviewVideo({ src }: { src: string }) {
-  const intl = useIntl();
-  return (
-    <div className="mx-auto mt-12 max-w-5xl rounded-2xl bg-white/10 p-2 sm:mt-16 sm:p-3">
-      <video
-        className="aspect-video w-full rounded-xl border border-white/15 bg-black/25"
-        src={src}
-        controls
-        playsInline
-        preload="metadata"
-        aria-label={intl.formatMessage(m.preview)}
-      />
     </div>
   );
 }
