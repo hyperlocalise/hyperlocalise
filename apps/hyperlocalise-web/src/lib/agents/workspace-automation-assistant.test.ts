@@ -387,7 +387,8 @@ describe("describeAutomationSetupPage", () => {
 
     const fresh = describeAutomationSetupPage(editorContext());
     expect(fresh).toContain("- Switched on (Active)");
-    expect(fresh).toContain("- Project: (none chosen)");
+    // Not a bare "none chosen", which the assistant reads as something the person must fix.
+    expect(fresh).toContain("- Project: none chosen, which is fine unless");
   });
 
   it("lists tools the person switched on by hand", () => {

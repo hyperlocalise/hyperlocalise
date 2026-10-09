@@ -838,7 +838,9 @@ export function updateWorkspaceAutomationSetup(
 /** The project the automation is in, as far as the page told us. */
 function describeProject(context: WorkspaceAutomationEditorContext): string {
   if (!context.form.projectId.trim()) {
-    return "(none chosen)";
+    // Said this way because a bare "none chosen" reads as something missing, and the assistant
+    // then asks for a project the setup does not need.
+    return "none chosen, which is fine unless the list of what is still needed asks for one";
   }
   return context.projectName ? JSON.stringify(context.projectName) : "one is chosen";
 }
