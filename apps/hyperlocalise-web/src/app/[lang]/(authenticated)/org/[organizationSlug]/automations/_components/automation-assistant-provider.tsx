@@ -51,11 +51,21 @@ import {
   findAssistantSession,
   loadAssistantSession,
   streamAssistantTurn,
+  type AutomationAssistantApi,
   type AssistantMessage,
   type AssistantSession,
 } from "./automation-assistant-api";
 
 const FALLBACK_TIME_ZONE = "UTC";
+
+// Each call is looked up when it is made, so a page test can stub the module with less.
+const SERVER_API: AutomationAssistantApi = {
+  createAssistantSession: (...args) => createAssistantSession(...args),
+  findAssistantSession: (...args) => findAssistantSession(...args),
+  loadAssistantSession: (...args) => loadAssistantSession(...args),
+  deleteAssistantSession: (...args) => deleteAssistantSession(...args),
+  streamAssistantTurn: (...args) => streamAssistantTurn(...args),
+};
 
 export type AutomationAssistantStatus = "idle" | "loading" | "streaming";
 
@@ -127,6 +137,7 @@ function localMessage(text: string): AssistantMessage {
  * first render; its turn starts once the page knows what is connected.
  */
 export function AutomationAssistantProvider({
+  api = SERVER_API,
   automationId,
   children,
   connections,
@@ -144,6 +155,8 @@ export function AutomationAssistantProvider({
   projectName,
   repositories,
 }: {
+  /** The calls for the session and its turns, in place of the server's. Must not change. */
+  api?: AutomationAssistantApi;
   /** The saved automation the page shows. Absent while a new one is being set up. */
   automationId?: string;
   children?: ReactNode;
@@ -257,7 +270,8 @@ export function AutomationAssistantProvider({
       return;
     }
     let ignore = false;
-    findAssistantSession(organizationSlug, automationId)
+    api
+      .findAssistantSession(organizationSlug, automationId)
       .then((found) => {
         // A turn that started meanwhile is ahead of this, and loads the session when it ends.
         if (ignore || turnRunning.current) {
@@ -277,7 +291,7 @@ export function AutomationAssistantProvider({
     return () => {
       ignore = true;
     };
-  }, [automationId, organizationSlug]);
+  }, [api, automationId, organizationSlug]);
 
   // Saving, discarding or undoing everything leaves nothing of the assistant's to call unsaved.
   useEffect(() => {
@@ -361,7 +375,7 @@ export function AutomationAssistantProvider({
       return Promise.resolve(sessionRef.current);
     }
     sessionCreation.current ??= (sessionEnding.current ?? Promise.resolve())
-      .then(() => createAssistantSession(organizationSlug, automationId ?? null))
+      .then(() => api.createAssistantSession(organizationSlug, automationId ?? null))
       .then((created) => {
         notifySession(created);
         return created;
@@ -399,7 +413,7 @@ export function AutomationAssistantProvider({
         if (controller.signal.aborted) {
           return;
         }
-        for await (const reply of streamAssistantTurn({
+        for await (const reply of api.streamAssistantTurn({
           organizationSlug,
           sessionId: active.id,
           text,
@@ -426,7 +440,7 @@ export function AutomationAssistantProvider({
           setStreaming(reply);
           applyStreamedChanges(reply);
         }
-        const saved = await loadAssistantSession(organizationSlug, active.id);
+        const saved = await api.loadAssistantSession(organizationSlug, active.id);
         if (!controller.signal.aborted && saved) {
           setMessages(saved.messages);
           notifySession(saved.session);
@@ -502,7 +516,8 @@ export function AutomationAssistantProvider({
     handedOver.current = true;
     appliedToolCallIds.current = new Set();
     if (ended) {
-      const ending = deleteAssistantSession(organizationSlug, ended.id)
+      const ending = api
+        .deleteAssistantSession(organizationSlug, ended.id)
         .catch(() => undefined)
         .finally(() => {
           if (sessionEnding.current === ending) {

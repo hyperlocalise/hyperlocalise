@@ -159,3 +159,15 @@ export async function* streamAssistantTurn(input: {
     terminateOnError: true,
   });
 }
+
+/**
+ * The server calls the assistant's panel makes for its session and its turns. A page passes none
+ * and gets the ones above; a story passes its own, so the panel runs with no server behind it.
+ */
+export type AutomationAssistantApi = {
+  createAssistantSession: typeof createAssistantSession;
+  findAssistantSession: typeof findAssistantSession;
+  loadAssistantSession: typeof loadAssistantSession;
+  deleteAssistantSession: typeof deleteAssistantSession;
+  streamAssistantTurn: typeof streamAssistantTurn;
+};

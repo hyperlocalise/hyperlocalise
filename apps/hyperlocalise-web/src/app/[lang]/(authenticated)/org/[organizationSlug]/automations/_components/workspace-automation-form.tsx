@@ -165,6 +165,7 @@ import {
   AutomationAssistantLayout,
   AutomationAssistantOpenButton,
 } from "./automation-assistant-panel";
+import type { AutomationAssistantApi } from "./automation-assistant-api";
 import { AutomationAssistantProvider } from "./automation-assistant-provider";
 import { AutomationAssistantSummary } from "./automation-assistant-summary";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
@@ -3102,6 +3103,7 @@ function ToolsSettings({
 
 export function WorkspaceAutomationEditor({
   actions,
+  assistantApi,
   assistantEnabled = false,
   assistantHasUnsavedChanges,
   assistantInitialPrompt = null,
@@ -3124,6 +3126,8 @@ export function WorkspaceAutomationEditor({
   initialEditorTab,
 }: {
   actions?: ReactNode;
+  /** The assistant's calls in place of the server's, for a story. */
+  assistantApi?: AutomationAssistantApi;
   /** Offers the automation assistant beside the form. */
   assistantEnabled?: boolean;
   /** Whether the page holds anything unsaved, so the assistant stops calling saved changes unsaved. */
@@ -3774,6 +3778,7 @@ export function WorkspaceAutomationEditor({
 
   return (
     <AutomationAssistantProvider
+      api={assistantApi}
       automationId={automationId}
       connections={skillConnections}
       connectionsSettled={skillConnectionsSettled}
