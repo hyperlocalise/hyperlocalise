@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -237,7 +238,13 @@ func stringOrEmpty(v *string) string {
 }
 
 func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([]byte, error) {
+	termCount := 0
+	for _, c := range concepts {
+		termCount += len(c.Terms)
+	}
 	var b strings.Builder
+	b.Grow(len(concepts)*250 + termCount*150 + 300)
+
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<tbx xmlns="urn:iso:std:iso:30042:ed-2" style="dca" type="TBX-Basic" xml:lang="`)
 	b.WriteString(xmlEscape(g.SourceLocale))
@@ -260,13 +267,14 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 			b.WriteString(xmlEscape(concept.Definition))
 			b.WriteString(`</descrip>` + "\n")
 		}
-		byLocale := map[string][]glossaryExportTerm{}
-		order := []string{}
+		byLocale := make(map[string][]glossaryExportTerm, len(concept.Terms))
+		order := make([]string, 0, len(concept.Terms))
 		for _, term := range concept.Terms {
-			if _, ok := byLocale[term.Locale]; !ok {
+			terms, ok := byLocale[term.Locale]
+			if !ok {
 				order = append(order, term.Locale)
 			}
-			byLocale[term.Locale] = append(byLocale[term.Locale], term)
+			byLocale[term.Locale] = append(terms, term)
 		}
 		for _, locale := range order {
 			b.WriteString(`      <langSec xml:lang="`)
@@ -288,11 +296,59 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 }
 
 func xmlEscape(s string) string {
+	if isXMLPlainText(s) {
+		return s
+	}
 	var b strings.Builder
 	if err := xml.EscapeText(&b, []byte(s)); err != nil {
 		return s
 	}
 	return b.String()
+}
+
+// isXMLPlainText reports whether s can be copied into TBX without escaping.
+// Markup characters and code points outside the XML 1.0 Char production
+// (including invalid UTF-8) take the xml.EscapeText path so illegal
+// controls become U+FFFD.
+func isXMLPlainText(s string) bool {
+	if strings.ContainsAny(s, "<>&'\"\r") {
+		return false
+	}
+	for i := 0; i < len(s); {
+		size := xmlCharSize(s, i)
+		if size <= 0 {
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
+func xmlCharSize(s string, i int) int {
+	c := s[i]
+	if c < utf8.RuneSelf {
+		if c == '\t' || c == '\n' || c >= 0x20 {
+			return 1
+		}
+		return 0
+	}
+	r, size := utf8.DecodeRuneInString(s[i:])
+	if r == utf8.RuneError && size == 1 {
+		return 0
+	}
+	if !isXMLCharacterRange(r) {
+		return 0
+	}
+	return size
+}
+
+func isXMLCharacterRange(r rune) bool {
+	return r == 0x09 ||
+		r == 0x0A ||
+		r == 0x0D ||
+		r >= 0x20 && r <= 0xD7FF ||
+		r >= 0xE000 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0x10FFFF
 }
 
 func serializeGlossaryXLSX(concepts []glossaryExportConcept) ([]byte, error) {

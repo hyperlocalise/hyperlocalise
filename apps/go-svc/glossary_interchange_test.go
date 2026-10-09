@@ -76,6 +76,53 @@ func TestParseGlossaryTBXInvalid(t *testing.T) {
 	require.Equal(t, "invalid_tbx", diagnostics[0].Code)
 }
 
+func TestXMLEscapeSanitizesIllegalCharacters(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "plain", in: "Checkout", want: "Checkout"},
+		{name: "ampersand", in: "A & B", want: "A &amp; B"},
+		{name: "lt", in: "a<b", want: "a&lt;b"},
+		{name: "quotes", in: `"it's"`, want: "&#34;it&#39;s&#34;"},
+		{name: "cr", in: "a\rb", want: "a&#xD;b"},
+		{name: "control", in: "Te\x01rm", want: "Te\uFFFDrm"},
+		{name: "nul", in: "a\x00b", want: "a\uFFFDb"},
+		{name: "invalid utf8", in: "a\xffb", want: "a\uFFFDb"},
+		{name: "noncharacter", in: "a\uFFFEb", want: "a\uFFFDb"},
+		{name: "unicode", in: "café 日本語", want: "café 日本語"},
+		{name: "tab and newline", in: "a\tb\nc", want: "a\tb\nc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, xmlEscape(tt.in))
+		})
+	}
+}
+
+func TestSerializeGlossaryTBXSanitizesIllegalXMLCharacters(t *testing.T) {
+	g := glossaryRecord{ID: testGlossaryID, Name: "Product\x01terms", SourceLocale: "en-US"}
+	concepts := []glossaryExportConcept{{
+		ID: "c1", Subject: "Sub\x01ject", Definition: "Def\x01inition",
+		Terms: []glossaryExportTerm{{
+			ID: "t1", Locale: "en-US", Term: "Te\x01rm",
+		}},
+	}}
+	body, err := serializeGlossaryTBX(g, concepts)
+	require.NoError(t, err)
+	tbx := string(body)
+	require.NotContains(t, tbx, "\x01")
+	require.Contains(t, tbx, "Product\uFFFDterms")
+	require.Contains(t, tbx, "Sub\uFFFDject")
+	require.Contains(t, tbx, "Def\uFFFDinition")
+	require.Contains(t, tbx, "Te\uFFFDrm")
+	parsed, diagnostics := parseGlossaryTBX(tbx)
+	require.Empty(t, diagnostics)
+	require.Len(t, parsed, 1)
+	require.Equal(t, "Te\uFFFDrm", parsed[0].Terms[0].Term)
+}
+
 func TestSerializeGlossaryFormatsRoundTrip(t *testing.T) {
 	concepts := sampleGlossaryExportConcepts(3)
 	g := glossaryRecord{ID: testGlossaryID, Name: "Product terms", SourceLocale: "en-US"}
