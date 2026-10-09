@@ -35,6 +35,7 @@ import {
   endAutomationAssistantTurn,
   findAutomationAssistantLastTurnId,
   findAutomationAssistantSessionForAutomation,
+  findAutomationAssistantSessionForVisualWorkflow,
   getAutomationAssistantSession,
   listAutomationAssistantMessages,
   type AutomationAssistantMessage,
@@ -86,6 +87,7 @@ function toSessionResponse(
   return {
     id: session.id,
     automationId: session.automationId,
+    visualWorkflowId: session.visualWorkflowId,
     title: session.title,
     turnInProgress: session.turnStartedAt !== null,
     createdAt: session.createdAt.toISOString(),
@@ -124,6 +126,20 @@ async function automationExists(organizationId: string, automationId: string) {
   return automation !== undefined;
 }
 
+async function visualWorkflowExists(organizationId: string, visualWorkflowId: string) {
+  const [workflow] = await db
+    .select({ id: schema.visualWorkflows.id })
+    .from(schema.visualWorkflows)
+    .where(
+      and(
+        eq(schema.visualWorkflows.id, visualWorkflowId),
+        eq(schema.visualWorkflows.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+  return workflow !== undefined;
+}
+
 /**
  * The automation assistant's sessions: private to the person who opened them, bound to one
  * automation or to one unsaved draft, never listed in the Inbox. Operators only.
@@ -143,20 +159,31 @@ export function createAutomationAssistantRoutes() {
       if (body.automationId && !(await automationExists(organizationId, body.automationId))) {
         return notFoundResponse(c, "automation_not_found");
       }
+      if (
+        body.visualWorkflowId &&
+        !(await visualWorkflowExists(organizationId, body.visualWorkflowId))
+      ) {
+        return notFoundResponse(c, "visual_workflow_not_found");
+      }
       const session = await createAutomationAssistantSession({
         organizationId,
         userId: c.var.auth.user.localUserId,
         automationId: body.automationId ?? null,
+        visualWorkflowId: body.visualWorkflowId ?? null,
       });
       return c.json({ session: toSessionResponse(session) }, 201);
     })
     .get("/sessions", validateSessionQuery, async (c) => {
-      const { automationId } = c.req.valid("query");
-      const session = await findAutomationAssistantSessionForAutomation({
+      const { automationId, visualWorkflowId } = c.req.valid("query");
+      const scope = {
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
-        automationId,
-      });
+      };
+      const session = automationId
+        ? await findAutomationAssistantSessionForAutomation({ ...scope, automationId })
+        : visualWorkflowId
+          ? await findAutomationAssistantSessionForVisualWorkflow({ ...scope, visualWorkflowId })
+          : null;
       if (!session) {
         return c.json({ session: null, messages: [] }, 200);
       }
@@ -243,9 +270,16 @@ export function createAutomationAssistantRoutes() {
       ) {
         return badRequestResponse(c, "invalid_page_context");
       }
-      const pageAutomationId =
-        pageContext.data.kind === "automation-editor" ? pageContext.data.automationId : null;
-      if (session.automationId && pageAutomationId !== session.automationId) {
+      // A session is about one saved thing; a page for anything else is refused.
+      const page = pageContext.data;
+      const pageAutomationId = page.kind === "automation-editor" ? page.automationId : null;
+      const pageVisualWorkflowId =
+        page.kind === "visual-workflow-editor" ? page.visualWorkflowId : null;
+      if (
+        (session.automationId && pageAutomationId !== session.automationId) ||
+        (session.visualWorkflowId && pageVisualWorkflowId !== session.visualWorkflowId) ||
+        (page.kind === "visual-workflow-editor" && !session.visualWorkflowId)
+      ) {
         return badRequestResponse(c, "page_context_mismatch");
       }
       const aiFeaturesRejection = await rejectIfAiFeaturesUnavailable(c, organizationId);

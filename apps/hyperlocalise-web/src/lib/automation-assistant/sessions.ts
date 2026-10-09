@@ -36,6 +36,7 @@ export type AutomationAssistantSession = {
   organizationId: string;
   createdByUserId: string;
   automationId: string | null;
+  visualWorkflowId: string | null;
   title: string;
   turnStartedAt: Date | null;
   createdAt: Date;
@@ -60,6 +61,7 @@ function toSession(row: typeof sessions.$inferSelect): AutomationAssistantSessio
     organizationId: row.organizationId,
     createdByUserId: row.createdByUserId,
     automationId: row.automationId,
+    visualWorkflowId: row.visualWorkflowId,
     title: row.title,
     turnStartedAt: row.turnStartedAt,
     createdAt: row.createdAt,
@@ -88,19 +90,22 @@ function isUniqueViolation(error: unknown) {
 }
 
 /**
- * Makes a session for the person. One bound to an automation lives with it; one for a new
- * automation is kept for a day, so a turn still running when its page is left can finish. The
- * person's own sessions whose day is up are deleted first, so nothing sweeps them later.
+ * Makes a session for the person. One bound to an automation or a visual workflow lives with it;
+ * one for a new automation is kept for a day, so a turn still running when its page is left can
+ * finish. The person's own sessions whose day is up are deleted first, so nothing sweeps them
+ * later.
  *
- * A person has one session per saved automation: when they already have one, as when two tabs
- * on the automation each ask for the first, that one is returned and none is made.
+ * A person has one session per saved automation or workflow: when they already have one, as
+ * when two tabs on the automation each ask for the first, that one is returned and none is made.
  */
 export async function createAutomationAssistantSession(input: {
   organizationId: string;
   userId: string;
   automationId?: string | null;
+  visualWorkflowId?: string | null;
   firstMessageText?: string;
 }): Promise<AutomationAssistantSession> {
+  const bound = Boolean(input.automationId || input.visualWorkflowId);
   await db
     .delete(sessions)
     .where(and(eq(sessions.createdByUserId, input.userId), lt(sessions.expiresAt, new Date())));
@@ -115,14 +120,14 @@ export async function createAutomationAssistantSession(input: {
         title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
         createdByUserId: input.userId,
         automationId: input.automationId ?? null,
-        expiresAt: input.automationId
-          ? null
-          : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
+        visualWorkflowId: input.visualWorkflowId ?? null,
+        expiresAt: bound ? null : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
         lastMessageAt: now,
         createdAt: now,
         updatedAt: now,
       })
-      .onConflictDoNothing({ target: [sessions.automationId, sessions.createdByUserId] })
+      // Either unique index: one per automation and author, one per workflow and author.
+      .onConflictDoNothing()
       .returning();
     if (row) {
       return toSession(row);
@@ -133,7 +138,13 @@ export async function createAutomationAssistantSession(input: {
           userId: input.userId,
           automationId: input.automationId,
         })
-      : null;
+      : input.visualWorkflowId
+        ? await findAutomationAssistantSessionForVisualWorkflow({
+            organizationId: input.organizationId,
+            userId: input.userId,
+            visualWorkflowId: input.visualWorkflowId,
+          })
+        : null;
     if (existing) {
       return existing;
     }
@@ -164,6 +175,21 @@ export async function findAutomationAssistantSessionForAutomation(input: {
     .select()
     .from(sessions)
     .where(and(eq(sessions.automationId, input.automationId), ownedBy(input)))
+    .orderBy(desc(sessions.createdAt))
+    .limit(1);
+  return row ? toSession(row) : null;
+}
+
+/** The person's session about a saved visual workflow, which its editor resumes. */
+export async function findAutomationAssistantSessionForVisualWorkflow(input: {
+  organizationId: string;
+  userId: string;
+  visualWorkflowId: string;
+}): Promise<AutomationAssistantSession | null> {
+  const [row] = await db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.visualWorkflowId, input.visualWorkflowId), ownedBy(input)))
     .orderBy(desc(sessions.createdAt))
     .limit(1);
   return row ? toSession(row) : null;
