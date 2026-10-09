@@ -42,15 +42,20 @@ export const intercomPushUiMessages = defineMessages({
       "Choose which mapped articles to write as Intercom drafts. This does not publish.",
     description: "Description of the Intercom article picker dialog",
   },
+  pushPolicyLabel: {
+    id: "SOxLTVdmv8",
+    defaultMessage: "Push policy",
+    description: "Label for the selected automation Intercom push overwrite rule",
+  },
   pushPolicyOverwrite: {
-    id: "c/e9jfMcqG",
-    defaultMessage: "Push policy: overwrite Intercom drafts when the remote target is newer.",
+    id: "qyF0LHVADJ",
+    defaultMessage: "Overwrite Intercom drafts when the remote target is newer.",
     description: "Explains the selected automation overwrites newer Intercom drafts on push",
   },
   pushPolicyKeepRemote: {
-    id: "wJlGt5jSNb",
+    id: "GGSImhEeDv",
     defaultMessage:
-      "Push policy: keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
+      "Keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
     description:
       "Explains the selected automation keeps newer Intercom drafts and skips unchanged locales",
   },

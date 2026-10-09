@@ -139,13 +139,19 @@ export function ContentEditorIntercomPushDialog({
             <FormattedMessage {...messages.selectArticlesTitle} />
           </DialogTitle>
           <DialogDescription>
-            <FormattedMessage {...messages.selectArticlesDescription} />{" "}
+            <FormattedMessage {...messages.selectArticlesDescription} />
+          </DialogDescription>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              <FormattedMessage {...messages.pushPolicyLabel} />
+            </span>
+            {": "}
             <FormattedMessage
               {...(selectedAutomation?.overwriteIntercomDrafts
                 ? messages.pushPolicyOverwrite
                 : messages.pushPolicyKeepRemote)}
             />
-          </DialogDescription>
+          </p>
         </DialogHeader>
         {candidates.length > 1 ? (
           <div className="flex flex-col gap-2">

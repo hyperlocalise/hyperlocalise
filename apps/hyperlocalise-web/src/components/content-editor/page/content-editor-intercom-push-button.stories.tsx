@@ -101,7 +101,13 @@ export const DefaultsToOpenArticle: Story = {
     const dialogCanvas = within(dialog);
     await expect(
       dialogCanvas.getByText(
-        "Choose which mapped articles to write as Intercom drafts. This does not publish. Push policy: keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
+        "Choose which mapped articles to write as Intercom drafts. This does not publish.",
+      ),
+    ).toBeVisible();
+    await expect(dialogCanvas.getByText("Push policy")).toBeVisible();
+    await expect(
+      dialogCanvas.getByText(
+        "Keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
       ),
     ).toBeVisible();
     const openArticle = await dialogCanvas.findByRole("checkbox", {
