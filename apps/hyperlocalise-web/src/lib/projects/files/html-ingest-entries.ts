@@ -236,10 +236,11 @@ export function htmlCliPrefillsFromPathEntries(
     if (!source || !target) {
       continue;
     }
+    const legacy = legacyHtmlSegmentKey(source.text, occurrences);
     if (!source.pathKeys.every((key) => pathEntries[key]?.trim())) {
       continue;
     }
-    out[legacyHtmlSegmentKey(source.text, occurrences)] = target.text;
+    out[legacy] = target.text;
   }
   return out;
 }

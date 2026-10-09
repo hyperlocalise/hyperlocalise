@@ -98,6 +98,7 @@ export function ContentEditorHtmlEditorPane({
   const readyRef = useRef(false);
   const bodyRef = useRef(body);
   const baselineRef = useRef(baseline);
+  const sentSnapshotsRef = useRef(new Set<string>());
   targetSrcRef.current = targetSrc;
   bodyRef.current = body;
   baselineRef.current = baseline;
@@ -112,6 +113,7 @@ export function ContentEditorHtmlEditorPane({
       if (cancelled) return;
       openedKeyRef.current = documentKey;
       readyRef.current = false;
+      sentSnapshotsRef.current.clear();
       setLoad({ status: "loading" });
       setBaseline(null);
       setRestoreSaveError(false);
@@ -164,7 +166,12 @@ export function ContentEditorHtmlEditorPane({
       if (cancelled || target.status !== "ok") {
         return;
       }
-      if (target.text === bodyRef.current || target.text === baselineRef.current) {
+      if (
+        target.text === bodyRef.current ||
+        target.text === baselineRef.current ||
+        sentSnapshotsRef.current.has(target.text)
+      ) {
+        sentSnapshotsRef.current.delete(target.text);
         setBaseline(target.text);
         return;
       }
@@ -178,7 +185,13 @@ export function ContentEditorHtmlEditorPane({
 
   const save = useCallback(
     async (text: string) => {
-      await onSave?.(new File([text], filename, { type: "text/html" }));
+      sentSnapshotsRef.current.add(text);
+      try {
+        await onSave?.(new File([text], filename, { type: "text/html" }));
+      } catch (error) {
+        sentSnapshotsRef.current.delete(text);
+        throw error;
+      }
     },
     [filename, onSave],
   );

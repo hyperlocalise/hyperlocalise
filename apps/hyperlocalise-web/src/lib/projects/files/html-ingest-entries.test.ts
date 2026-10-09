@@ -145,6 +145,16 @@ describe("htmlCliPrefillsFromPathEntries", () => {
       }),
     ).toEqual({});
   });
+
+  it("keeps occurrence suffixes when only a later duplicate block is prefilled", () => {
+    const html = "<p>Same</p><div>Same</div>";
+    const occurrences = new Map<string, number>();
+    const first = legacyHtmlSegmentKey("Same", occurrences);
+    const second = legacyHtmlSegmentKey("Same", occurrences);
+    const prefills = htmlCliPrefillsFromPathEntries(html, { "html.div": "Même" });
+    expect(prefills[first]).toBeUndefined();
+    expect(prefills[second]).toBe("Même");
+  });
 });
 
 describe("utf8FromStoredFileContent", () => {

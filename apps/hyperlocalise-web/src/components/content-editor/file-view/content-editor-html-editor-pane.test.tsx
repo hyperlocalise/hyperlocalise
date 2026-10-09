@@ -135,4 +135,64 @@ describe("ContentEditorHtmlEditorPane", () => {
       expect(screen.getByTitle("Translated (fr)")).toHaveAttribute("srcdoc", "<p>Bonjour</p>");
     });
   });
+
+  it("keeps newer edits when an in-flight save refreshes targetSrc", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("saved")) {
+        return new Response("<p>Saved</p>");
+      }
+      return new Response("<p>Hello</p>");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    const { rerender } = render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-4:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={onSave}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const editor = screen.getByLabelText("Translated (fr)");
+    await user.clear(editor);
+    await user.paste("<p>Saved</p>");
+    editor.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "s", metaKey: true, ctrlKey: true, bubbles: true }),
+    );
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+    await user.clear(editor);
+    await user.paste("<p>Saved and more</p>");
+
+    rerender(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-4:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/saved.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={onSave}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([input]) => String(input).includes("saved"))).toBe(true);
+    });
+    expect(screen.getByLabelText("Translated (fr)")).toHaveValue("<p>Saved and more</p>");
+  });
 });
