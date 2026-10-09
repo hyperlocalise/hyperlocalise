@@ -56,6 +56,10 @@ import {
   type ProjectFileContentEditorQueuePage,
   type ProjectFileContentEditorQueuePageParam,
 } from "./project-file-content-editor-api";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 
 type ContentEditorFilePagination = NonNullable<
   ProjectFileContentEditorResponse["contentEditorFile"]["pagination"]
@@ -255,6 +259,15 @@ export function useContentEditorSegmentQuery(input: {
       }
 
       return previousData;
+    },
+    refetchInterval: (query) => {
+      const page = query.state.data?.pages[0];
+      if (!page) {
+        return false;
+      }
+      return isSourceFileIngestInProgress(page.ingestState)
+        ? sourceFileIngestPollIntervalMs
+        : false;
     },
     gcTime: CAT_CACHE_GC_TIME,
     maxPages:

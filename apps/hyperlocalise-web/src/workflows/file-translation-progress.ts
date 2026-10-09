@@ -68,6 +68,29 @@ export function collectCompletedTranslationPageEntries(input: {
   return collected;
 }
 
+/** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
+ * lock and a re-extracted target file never share keys. Collect only path keys
+ * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
+export function collectHtmlTranslationPageEntries(input: {
+  sourceEntries: Record<string, string>;
+  extracted: Record<string, string>;
+  confirmed: Record<string, string>;
+  completedPathKeys: readonly string[];
+}): Record<string, string> {
+  const allowed = new Set(input.completedPathKeys);
+  const collected: Record<string, string> = {};
+  for (const [key, sourceText] of Object.entries(input.sourceEntries)) {
+    if (!sourceText?.trim() || key in input.confirmed || !allowed.has(key)) {
+      continue;
+    }
+    const value = input.extracted[key];
+    if (value?.trim()) {
+      collected[key] = value;
+    }
+  }
+  return collected;
+}
+
 export function completedFileTranslationKeys(lock: unknown, outputFilename: string): string[] {
   const parsed = lockSchema.parse(lock);
   const entries = Object.entries(parsed.run_completed ?? {}).find(
@@ -87,11 +110,41 @@ export async function collectFileTranslationPageStep(input: {
   "use step";
   const { readTranslatedFile, extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
+  const {
+    extractHtmlIngestEntries,
+    htmlCompletedPathKeysFromLock,
+    isHtmlTranslationSourcePath,
+    utf8FromStoredFileContent,
+  } = await import("@/lib/projects/files/html-ingest-entries");
+  const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
   const lock: unknown = JSON.parse(
-    (await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json")).toString("utf8"),
+    utf8FromStoredFileContent(
+      await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
+    ),
   );
+  const sourceHtml = htmlSource
+    ? utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, input.inputFilename))
+    : "";
   const delta: Record<string, Record<string, string>> = {};
   for (const [locale, filename] of Object.entries(input.outputFilenames)) {
+    if (htmlSource || isHtmlTranslationSourcePath(filename)) {
+      const extracted = extractHtmlIngestEntries(
+        utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, filename)),
+      );
+      const collected = collectHtmlTranslationPageEntries({
+        sourceEntries: input.sourceEntries,
+        extracted,
+        confirmed: input.confirmed[locale] ?? {},
+        completedPathKeys: htmlCompletedPathKeysFromLock(
+          sourceHtml,
+          completedFileTranslationKeys(lock, filename),
+        ),
+      });
+      if (Object.keys(collected).length > 0) {
+        delta[locale] = collected;
+      }
+      continue;
+    }
     const keys = [
       ...new Set([
         ...completedFileTranslationKeys(lock, filename),

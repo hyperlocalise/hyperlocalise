@@ -175,6 +175,14 @@ export const projectsResponseSchema = z.object({
   projects: z.array(projectRecordSchema),
 });
 
+export const sourceFileIngestStateSchema = z.enum([
+  "pending",
+  "ingesting",
+  "ingested",
+  "skipped",
+  "failed",
+]);
+
 export const projectFileRecordSchema = z.object({
   origin: z.enum(["repository", "provider", "combined"]).default("repository"),
   sourcePath: z.string(),
@@ -186,6 +194,8 @@ export const projectFileRecordSchema = z.object({
   metadata: z.record(z.string(), z.unknown()),
   filename: z.string(),
   byteSize: z.number().nullable(),
+  ingestState: sourceFileIngestStateSchema.optional(),
+  ingestError: z.string().nullable().optional(),
   provider: z
     .object({
       kind: z.string(),
@@ -527,6 +537,8 @@ export const projectFileVersionRecordSchema = z.object({
   sha256: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   content: projectFileContentSchema.nullable(),
+  ingestState: sourceFileIngestStateSchema.optional(),
+  ingestError: z.string().nullable().optional(),
 });
 
 export const projectFileOutputRecordSchema = z.object({
@@ -905,7 +917,7 @@ export const projectFileCatResponseSchema = z.object({
     /** Stored source animation for Lottie files, used for the translated preview. */
     lottieSourceUrl: z.string().optional(),
     /**
-     * Native markdown/MDX/AsciiDoc files can list string keys and still open file view.
+     * Native HTML/markdown/MDX/AsciiDoc files can list string keys and still open file view.
      * File view uses this overlay instead of the selected key.
      */
     documentView: z
@@ -916,6 +928,8 @@ export const projectFileCatResponseSchema = z.object({
         imageVariantId: z.string().nullable().optional(),
       })
       .optional(),
+    ingestState: sourceFileIngestStateSchema.optional(),
+    ingestError: z.string().nullable().optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

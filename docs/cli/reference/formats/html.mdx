@@ -1,10 +1,12 @@
 ---
 title: "Translate HTML files with Hyperlocalise"
 sidebarTitle: "HTML"
-description: "Translate visible HTML text while protecting inline markup."
+description: "Translate visible HTML text with tag-path keys such as html.p and html.p.strong."
 ---
 
-HTML combines visible page content with markup. Hyperlocalise translates supported text while protecting document structure. Review the rendered page as well as the text diff.
+HTML combines visible page content with markup. Hyperlocalise translates text
+nodes and keeps tags as structure. Review the rendered page as well as the text
+diff.
 
 Supported extensions: `.html`, `.htm`.
 
@@ -59,13 +61,21 @@ configured target path and updates the lockfile.
 
 ## Behavior and limitations
 
-- Extracts visible element text with stable `html.*` segment keys.
+- Keys are dotted tag paths, like markdown slots: `html.body.h1`, `html.p`,
+  `html.p.strong`, `html.p.strong.2`, `html.body.img.alt`. The first occurrence
+  of a path has no suffix.
 
-- Inline tags are protected during translation and restored during writeback.
+- Inline tags start a new segment. For
+  `<p>Open <strong>your project</strong> to get started.</p>` the keys are
+  `html.p` (`Open `), `html.p.strong` (`your project`), and `html.p.2`
+  (` to get started.`). Punctuation-only text is skipped. Tags stay in the
+  file around those text nodes.
 
-- `script`, `style`, and `head` content are excluded. Comments and whitespace-only text are preserved.
+- `script`, `style`, `pre`, and `head` content are excluded, including
+  `<title>`. Comments and whitespace-only text are preserved.
 
-- Translates element text; do not assume every attribute is a translatable field. Review the rendered result.
+- `<img alt="...">` is extracted as `html.*.img.alt`. Do not assume every
+  attribute is translatable. Review the rendered result.
 
 ## Next steps
 

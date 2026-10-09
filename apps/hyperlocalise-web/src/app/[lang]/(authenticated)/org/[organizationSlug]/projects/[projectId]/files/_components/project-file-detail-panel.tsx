@@ -32,8 +32,13 @@ import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 import { formatBytes } from "./project-files-shared";
 import { projectFileDetailPanelMessages as messages } from "./project-file-detail-panel.messages";
+import { SourceFileIngestStatus } from "./source-file-ingest-status";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
 import { ImportTranslationsDialog } from "./import-translations-dialog";
 import {
@@ -121,6 +126,11 @@ export function ProjectFileDetailPanel({
       encodedJobId,
     ),
     enabled: Boolean(sourcePath),
+    refetchInterval: (query) => {
+      const latestVersion = query.state.data?.versions[0];
+      const ingestState = latestVersion?.ingestState ?? file?.ingestState;
+      return isSourceFileIngestInProgress(ingestState) ? sourceFileIngestPollIntervalMs : false;
+    },
     queryFn: async () => {
       if (encodedJobId) {
         const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
@@ -269,6 +279,8 @@ export function ProjectFileDetailPanelView({
   const latestVersion = detail?.versions[0];
   const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
   const provider = file.provider;
+  const ingestState = latestVersion?.ingestState ?? file.ingestState;
+  const ingestError = latestVersion?.ingestError ?? file.ingestError;
 
   const jobsByLocale = detail?.jobsByLocale ?? [];
   const orderedJobsByLocale = highlightLocale
@@ -338,6 +350,9 @@ export function ProjectFileDetailPanelView({
           <TypographyP className="font-mono" size="xsmall" tone="subtle">
             <FormattedMessage {...messages.hash} values={{ hash: latestVersion.sourceHash }} />
           </TypographyP>
+        ) : null}
+        {!provider ? (
+          <SourceFileIngestStatus ingestState={ingestState} ingestError={ingestError} />
         ) : null}
         {provider ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">

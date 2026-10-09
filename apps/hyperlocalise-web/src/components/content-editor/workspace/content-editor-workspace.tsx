@@ -273,6 +273,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          ingestState={store.fileContext.ingestState}
+          ingestError={store.fileContext.ingestError}
         />
       </ContentEditorPanelErrorBoundary>
     );
@@ -724,7 +726,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           onRegenerate={
             (capabilities.viewerId === "image" ||
               capabilities.viewerId === "video" ||
-              capabilities.viewerId === "markdown") &&
+              capabilities.viewerId === "markdown" ||
+              capabilities.viewerId === "html") &&
             editing.onRegenerateImage
               ? (input) => editing.onRegenerateImage?.(fileViewSegment.id, input)
               : undefined
@@ -868,6 +871,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          ingestState={store.fileContext.ingestState}
+          ingestError={store.fileContext.ingestError}
         />
       </ContentEditorPanelErrorBoundary>
     );

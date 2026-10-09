@@ -21,7 +21,15 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
-import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import {
+  isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
+  rewriteHashedHtmlSegmentKeys,
+} from "@/lib/projects/files/html-ingest-entries";
 import { NativeContentEditorCommentService } from "@/lib/projects/content-editor/native-content-editor-comment-service";
 import {
   CAT_ALL_FILES_FILENAME,
@@ -251,27 +259,36 @@ export class NativeContentEditorService extends ProjectServiceBase {
     };
 
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
-      return this.buildImageCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildImageCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedVideoTranslationFileFormat(input.sourcePath)) {
-      return this.buildVideoCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildVideoCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
-      return this.buildOfficeCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildOfficeCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
@@ -293,30 +310,36 @@ export class NativeContentEditorService extends ProjectServiceBase {
       });
 
       if (isDocument && keys.length === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-        return this.buildDocumentCatFileResponse({
+        return this.withSourceIngest(
           input,
-          sourceFileId: sourceFile.id,
-          ...wholeFileFilter,
-        });
+          await this.buildDocumentCatFileResponse({
+            input,
+            sourceFileId: sourceFile.id,
+            ...wholeFileFilter,
+          }),
+        );
       }
 
       const truncated = keys.length > legacyNativeContentEditorSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeContentEditorSegmentLimit) : keys;
 
-      return this.buildCatFileResponse({
+      return this.withSourceIngest(
         input,
-        visibleKeys,
-        truncated,
-        pagination: undefined,
-        documentView: isDocument
-          ? publicDocumentView(
-              await this.loadDocumentView({
-                input,
-                sourceFileId: sourceFile.id,
-              }),
-            )
-          : undefined,
-      });
+        await this.buildCatFileResponse({
+          input,
+          visibleKeys,
+          truncated,
+          pagination: undefined,
+          documentView: isDocument
+            ? publicDocumentView(
+                await this.loadDocumentView({
+                  input,
+                  sourceFileId: sourceFile.id,
+                }),
+              )
+            : undefined,
+        }),
+      );
     }
 
     const [totalCount, keys] = await Promise.all([
@@ -353,27 +376,58 @@ export class NativeContentEditorService extends ProjectServiceBase {
     });
 
     if (isDocument && totalCount === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-      return this.buildDocumentCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildDocumentCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    return this.buildCatFileResponse({
+    return this.withSourceIngest(
       input,
-      visibleKeys: keys,
-      truncated: pagination.hasMore,
-      pagination,
-      documentView: isDocument
-        ? publicDocumentView(
-            await this.loadDocumentView({
-              input,
-              sourceFileId: sourceFile.id,
-            }),
-          )
-        : undefined,
+      await this.buildCatFileResponse({
+        input,
+        visibleKeys: keys,
+        truncated: pagination.hasMore,
+        pagination,
+        documentView: isDocument
+          ? publicDocumentView(
+              await this.loadDocumentView({
+                input,
+                sourceFileId: sourceFile.id,
+              }),
+            )
+          : undefined,
+      }),
+    );
+  }
+
+  private async withSourceIngest(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    file: ProjectFileContentEditorQueueFile,
+  ): Promise<ProjectFileContentEditorQueueFile> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
     });
+    if (!latestVersion) {
+      return file;
+    }
+
+    return {
+      ...file,
+      ingestState: latestVersion.ingestState,
+      ...(latestVersion.ingestError ? { ingestError: latestVersion.ingestError } : {}),
+    };
   }
 
   private async buildImageCatFileResponse(input: {
@@ -831,8 +885,46 @@ export class NativeContentEditorService extends ProjectServiceBase {
       pagination: input.pagination,
       ...(lottieSourceUrl ? { lottieSourceUrl } : {}),
       ...(input.documentView ? { documentView: input.documentView } : {}),
-      segments: input.visibleKeys.map((key) => mapTextSegment(key)),
+      segments: (await this.rewriteHtmlCatKeys(input.input, input.visibleKeys)).map((key) =>
+        mapTextSegment(key),
+      ),
     };
+  }
+
+  private async rewriteHtmlCatKeys<T extends { key: string; sourceText: string }>(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    keys: T[],
+  ): Promise<T[]> {
+    const needsRewrite =
+      isHtmlTranslationSourcePath(input.sourcePath) &&
+      keys.some((key) => isHashedHtmlEntryKey(key.key));
+    if (!needsRewrite) {
+      return keys;
+    }
+    const version = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
+    });
+    if (!version?.storedFileId) {
+      return keys;
+    }
+    try {
+      const stored = await getStoredFileContent({
+        fileId: version.storedFileId,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+      const rewritten = rewriteHashedHtmlSegmentKeys(stored.content.toString("utf8"), keys);
+      return keys.map((key, index) => ({ ...key, key: rewritten[index] ?? key.key }));
+    } catch {
+      return keys;
+    }
   }
 
   private async resolveLottieSourceUrl(input: {

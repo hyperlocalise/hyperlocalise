@@ -124,12 +124,12 @@
 ### HTML
 
 - Extracts text content from elements bounded by open/close tags (e.g. `<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.).
-- Keys are stable SHA-256 hashes of the segment source: `html.a1b2c3d4e5f6g7h8`.
-- Inline tags within a translatable segment (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) are replaced with sentinel placeholders so the LLM translates clean prose; placeholders are restored on marshal.
-- `<script>`, `<style>`, and `<head>` content is never extracted.
+- Keys are dotted tag paths, like markdown slot keys: `html.body.h1`, `html.p`, `html.p.strong`, `html.p.strong.2`, `html.body.img.alt`.
+- Inline tags (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) join the path and flush the current text node. Markup is a literal between segments. `MarshalHTML` writes those literals back around the translated text.
+- `<script>`, `<style>`, `<pre>`, and `<head>` content is never extracted, including `<title>`.
 - HTML comments and whitespace-only text nodes are emitted verbatim.
 - HTML entities (`&amp;`, `&lt;`, `&#39;`, etc.) are preserved as-is through the translation round-trip.
-- `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold, substituting translated values and restoring all inline-tag placeholders.
+- `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold and substituting translated text nodes. Legacy hashed keys (`html.<16 hex>`) are accepted on writeback.
 
 ### Liquid
 

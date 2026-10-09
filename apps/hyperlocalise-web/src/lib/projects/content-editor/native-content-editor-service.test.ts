@@ -525,6 +525,104 @@ describe("NativeContentEditorService.getCatFile", () => {
     expect(result?.documentView).toBeUndefined();
   });
 
+  it("returns ingested HTML keys plus a document view overlay", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_html",
+        key: "html.p[0]",
+        sourceText: "Hello",
+        context: null,
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_html",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_html",
+      storedFileId: "stored_target_html",
+      status: "needs_review",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "pages/formatting-test.html",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_html",
+      key: "html.p[0]",
+      sourceText: "Hello",
+    });
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_html",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_html",
+      imageVariantId: "variant_html",
+    });
+  });
+
+  it("returns a synthetic document segment and ingest state when HTML has no keys", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_html",
+      ingestState: "failed",
+      ingestError: "sandbox install failed",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "pages/formatting-test.html",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "file_1",
+      key: "pages/formatting-test.html",
+      sourceText: "pages/formatting-test.html",
+      contentKind: "document",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_html",
+    });
+    expect(result?.documentView).toBeUndefined();
+    expect(result?.ingestState).toBe("failed");
+    expect(result?.ingestError).toBe("sandbox install failed");
+  });
+
+  it("returns pending ingest state on the HTML document fallback", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_html",
+      ingestState: "pending",
+      ingestError: null,
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "pages/formatting-test.html",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]?.contentKind).toBe("document");
+    expect(result?.ingestState).toBe("pending");
+    expect(result?.ingestError).toBeUndefined();
+  });
+
   it("marks image URL keys with contentKind and looksLikeImageUrl", async () => {
     listKeysForFile.mockResolvedValue([
       {

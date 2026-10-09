@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { SourceFileIngestState } from "@/lib/projects/files/source-file-ingest-state";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
 
 export type ContentEditorContentKind =
@@ -122,6 +123,8 @@ export interface ContentEditorFileContext {
     targetAssetUrl?: string | null;
     imageVariantId?: string | null;
   };
+  ingestState?: SourceFileIngestState;
+  ingestError?: string | null;
 }
 
 export interface ContentEditorSegment {

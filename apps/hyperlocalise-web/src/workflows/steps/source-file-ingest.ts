@@ -114,10 +114,18 @@ export async function writeSourceFileSegmentationSrxStep(
 
 export async function parseHlEntriesStep(
   extractedEntries: HlEntriesPayload,
+  options?: { sourcePath?: string; sourceContent?: unknown },
 ): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { entriesFromHlOutput } = await import("@/lib/projects/files/source-file-ingest");
-  return entriesFromHlOutput(extractedEntries, true);
+  const { applyHtmlIngestEntryKeys, utf8FromStoredFileContent } =
+    await import("@/lib/projects/files/html-ingest-entries");
+  const sourceText = utf8FromStoredFileContent(options?.sourceContent);
+  const payload =
+    options?.sourcePath && sourceText
+      ? applyHtmlIngestEntryKeys(options.sourcePath, sourceText, extractedEntries)
+      : extractedEntries;
+  return entriesFromHlOutput(payload, true);
 }
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {

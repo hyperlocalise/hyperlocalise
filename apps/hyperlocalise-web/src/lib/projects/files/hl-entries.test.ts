@@ -150,6 +150,21 @@ describe("entriesFromHlOutput", () => {
     ]);
   });
 
+  it("preserves HTML inline placeholders through JSON", () => {
+    const sourceText =
+      "This paragraph has \u001eHLHTPH_AABBCCDDEEFF_0\u001fbold text\u001eHLHTPH_AABBCCDDEEFF_1\u001f.";
+    const payload = parseHlEntriesJson(JSON.parse(JSON.stringify({ "html.p[0]": sourceText })));
+
+    expect(entriesFromHlOutput(payload)).toEqual([
+      {
+        key: "html.p[0]",
+        text: sourceText,
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
   it("truncates fractional maxLength values from hl entries output", () => {
     expect(
       entriesFromHlOutput({

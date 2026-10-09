@@ -152,6 +152,73 @@ describe("projectFileCatToWorkspaceState", () => {
     });
   });
 
+  it("maps native HTML documentView into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        documentView: {
+          externalStringId: "file_html",
+          sourceAssetUrl: "/source.html",
+          targetAssetUrl: "/target.html",
+          imageVariantId: "variant_html",
+        },
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.documentView).toEqual({
+      externalStringId: "file_html",
+      sourceAssetUrl: "/source.html",
+      targetAssetUrl: "/target.html",
+      imageVariantId: "variant_html",
+    });
+  });
+
+  it("maps source-file ingest state into file context", () => {
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        ingestState: "failed",
+        ingestError: "sandbox install failed",
+        segments: [],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.fileContext.ingestState).toBe("failed");
+    expect(state.fileContext.ingestError).toBe("sandbox install failed");
+    expect(state.queueSegments).toEqual([]);
+  });
+
+  it("keeps HTML inline placeholders on mapped queue segments", () => {
+    const sourceText =
+      "This paragraph has \u001eHLHTPH_AABBCCDDEEFF_0\u001fbold text\u001eHLHTPH_AABBCCDDEEFF_1\u001f.";
+    const state = projectFileCatToWorkspaceState(
+      contentEditorFile({
+        provider: null,
+        sourcePath: "pages/formatting-test.html",
+        filename: "formatting-test.html",
+        segments: [
+          {
+            externalStringId: "html_p",
+            key: "html.p[0]",
+            sourceText,
+            context: null,
+            type: "text",
+          },
+        ],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.queueSegments[0]?.sourceText).toBe(sourceText);
+  });
+
   it("maps the project team name into file context", () => {
     const state = projectFileCatToWorkspaceState(
       contentEditorFile({

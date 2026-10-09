@@ -398,6 +398,7 @@ async function runTranslationStep(
     getSandboxTranslationEnv,
     isSandboxDisconnectError,
     readSandboxCliTokenUsage,
+    readTranslatedFile,
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
@@ -436,8 +437,16 @@ async function runTranslationStep(
   );
   if (localesWithPrefill.length > 0) {
     const nested: Record<string, Record<string, string>> = {};
+    const {
+      htmlCliPrefillsFromPathEntries,
+      isHtmlTranslationSourcePath,
+      utf8FromStoredFileContent,
+    } = await import("@/lib/projects/files/html-ingest-entries");
+    const sourceHtml = isHtmlTranslationSourcePath(inputFile)
+      ? utf8FromStoredFileContent(await readTranslatedFile(sandboxId, inputFile))
+      : "";
     for (const [locale, entries] of localesWithPrefill) {
-      nested[locale] = entries;
+      nested[locale] = sourceHtml ? htmlCliPrefillsFromPathEntries(sourceHtml, entries) : entries;
     }
     const prefilledPath = "/tmp/prefilled-by-locale.json";
     await writeFileToSandbox(sandboxId, prefilledPath, Buffer.from(JSON.stringify(nested), "utf8"));
@@ -523,7 +532,7 @@ async function extractEntriesStep(
   "use step";
   // Use extractSandboxEntries so UTF-8 entries are read via binary file IO,
   // not sandbox stdout string capture (which can turn multi-byte chars into �).
-  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
+  const { extractSandboxEntries, readTranslatedFile } = await import("@/lib/translation/sandbox");
   const result = await extractSandboxEntries(sandboxId, path, {
     sourcePath: options?.sourcePath,
   });
@@ -531,6 +540,12 @@ async function extractEntriesStep(
     throw new Error(
       `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
     );
+  }
+  const { applyHtmlIngestEntryKeys, isHtmlTranslationSourcePath, utf8FromStoredFileContent } =
+    await import("@/lib/projects/files/html-ingest-entries");
+  if (isHtmlTranslationSourcePath(path)) {
+    const sourceText = utf8FromStoredFileContent(await readTranslatedFile(sandboxId, path));
+    return hlEntriesPayloadToStringMap(applyHtmlIngestEntryKeys(path, sourceText, result.entries));
   }
   return hlEntriesPayloadToStringMap(result.entries);
 }

@@ -222,6 +222,36 @@ describe("ContentEditorFileViewPanel", () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
+  it("renders the HTML file preview in file view", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<table><tr><td>Cell</td></tr></table>")),
+    );
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorFileViewPanel
+          segment={imageSegment({
+            contentKind: "document",
+            sourcePath: "pages/home.html",
+            key: "pages/home.html",
+          })}
+          viewerId="html"
+          filename="home.html"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    expect(await screen.findByTitle("Translated (de)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByTitle("Source (en)")).toHaveAttribute(
+      "srcdoc",
+      "<table><tr><td>Cell</td></tr></table>",
+    );
+    expect(screen.getByRole("button", { name: /Close comparison/i })).toBeInTheDocument();
+  });
+
   it("closes comparison when entering a markdown viewer without a saved preference", () => {
     window.localStorage.removeItem("content-editor-file-view:source-pane:v1");
     vi.stubGlobal(

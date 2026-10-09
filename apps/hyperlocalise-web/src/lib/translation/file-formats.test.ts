@@ -159,18 +159,23 @@ describe("translation file formats", () => {
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
   });
 
-  it("treats markdown, mdx, and asciidoc as whole-file documents, not binary", () => {
+  it("treats html, markdown, mdx, and asciidoc as whole-file documents, not binary", () => {
+    expect(inferSupportedDocumentTranslationFileFormat("page.html")).toBe("html");
+    expect(inferSupportedDocumentTranslationFileFormat("page.htm")).toBe("html");
     expect(inferSupportedDocumentTranslationFileFormat("readme.md")).toBe("markdown");
     expect(inferSupportedDocumentTranslationFileFormat("page.mdx")).toBe("mdx");
     expect(inferSupportedDocumentTranslationFileFormat("guide.adoc")).toBe("asciidoc");
+    expect(isDocumentTranslationFileFormat("html")).toBe(true);
     expect(isDocumentTranslationFileFormat("markdown")).toBe(true);
     expect(isDocumentTranslationFileFormat("mdx")).toBe(true);
     expect(isDocumentTranslationFileFormat("asciidoc")).toBe(true);
     expect(isDocumentTranslationFileFormat("json")).toBe(false);
+    expect(isWholeFileTranslationFileFormat("html")).toBe(true);
     expect(isWholeFileTranslationFileFormat("markdown")).toBe(true);
     expect(isWholeFileTranslationFileFormat("mdx")).toBe(true);
     expect(isWholeFileTranslationFileFormat("asciidoc")).toBe(true);
     expect(isWholeFileTranslationFileFormat("json")).toBe(false);
+    expect(isBinaryTranslationFileFormat("html")).toBe(false);
     expect(isBinaryTranslationFileFormat("markdown")).toBe(false);
     expect(isBinaryTranslationFileFormat("mdx")).toBe(false);
     expect(isBinaryTranslationFileFormat("asciidoc")).toBe(false);

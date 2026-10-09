@@ -129,6 +129,12 @@ export const contentEditorFileViewMessages = defineMessages({
     description:
       "Placeholder for AI prompt when generating a translated Markdown/MDX document in CAT file view",
   },
+  generatePromptPlaceholderHtml: {
+    defaultMessage: "e.g. Keep product names in English and preserve HTML structure.",
+    id: "D9fXWFcqNL",
+    description:
+      "Placeholder for AI prompt when generating a translated HTML document in CAT file view",
+  },
   generatePromptPlaceholderDocx: {
     defaultMessage: "e.g. Preserve heading styles and leave company names untranslated.",
     id: "IbH+KBJEVh",
@@ -266,6 +272,8 @@ export function contentEditorFileGeneratePromptPlaceholderMessage(
       return contentEditorFileViewMessages.generatePromptPlaceholderVideo;
     case "markdown":
       return contentEditorFileViewMessages.generatePromptPlaceholderDocument;
+    case "html":
+      return contentEditorFileViewMessages.generatePromptPlaceholderHtml;
     case "docx":
       return contentEditorFileViewMessages.generatePromptPlaceholderDocx;
     case "xlsx":
