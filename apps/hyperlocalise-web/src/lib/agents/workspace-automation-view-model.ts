@@ -123,6 +123,7 @@ export type WorkspaceAutomationFormState = {
   intercomCollectionIds: string[];
   intercomIncludeDrafts: boolean;
   intercomOverwriteIntercomDrafts: boolean;
+  intercomExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   crowdinEnabled: boolean;
   crowdinProjectId: string;
   webSearchEnabled: boolean;
@@ -347,8 +348,9 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     intercomSourceLocale: "en",
     intercomTargetLocales: [],
     intercomCollectionIds: [],
-    intercomIncludeDrafts: false,
-    intercomOverwriteIntercomDrafts: false,
+    intercomIncludeDrafts: true,
+    intercomOverwriteIntercomDrafts: true,
+    intercomExistingTranslationPolicy: "seed_empty",
     crowdinEnabled: false,
     crowdinProjectId: "",
     webSearchEnabled: false,
@@ -469,6 +471,11 @@ export function createWorkspaceAutomationFormStateFromRecord(
     intercomCollectionIds: intercom?.collectionIds ? [...intercom.collectionIds] : [],
     intercomIncludeDrafts: Boolean(intercom?.includeDrafts),
     intercomOverwriteIntercomDrafts: Boolean(intercom?.overwriteIntercomDrafts),
+    intercomExistingTranslationPolicy:
+      intercom?.existingTranslationPolicy === "refresh_imported" ||
+      intercom?.existingTranslationPolicy === "overwrite_all"
+        ? intercom.existingTranslationPolicy
+        : "seed_empty",
     crowdinEnabled: Boolean(crowdin?.enabled),
     crowdinProjectId: crowdin?.projectId ?? "",
     webSearchEnabled: Boolean(webSearch?.enabled),
@@ -702,6 +709,7 @@ export function formStateToWorkspaceAutomationPayload(
             targetLocales: form.intercomTargetLocales,
             includeDrafts: form.intercomIncludeDrafts,
             overwriteIntercomDrafts: form.intercomOverwriteIntercomDrafts,
+            existingTranslationPolicy: form.intercomExistingTranslationPolicy,
           },
         }
       : {}),

@@ -715,6 +715,46 @@ describe("ContentEditorSideBySideRow", () => {
     expect(screen.queryByText(/ICU structure/i)).not.toBeInTheDocument();
   });
 
+  it("omits structural markdown tokens from the required-token strip", async () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const md2 = "\u001eHLMDPH_AAAAAAAAAAAA_2\u001f";
+    const md3 = "\u001eHLMDPH_BBBBBBBBBBBB_3\u001f";
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      key: "md.List[0]/ListItem[2]/Paragraph[0]/line[0]",
+      sourceText: `${md0}Customize your Help Center${md1} or use ${md2}Multi Help Center${md3}`,
+      targetText:
+        "[Hilfe-Center](https://www.intercom.com/help/en/articles/56644) oder [Multi](https://www.intercom.com/help/en/articles/8170953)",
+    };
+
+    renderRow({ segment });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Hilfe-Center" })).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Required tokens")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+  });
+
+  it("still shows ICU required tokens on markdown rows", async () => {
+    const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      key: "md.Paragraph[0]/line[0]",
+      sourceText: "Hello {name}, see [docs](https://example.com/docs)",
+      targetText: "Hallo {name}, siehe [docs](https://example.com/docs)",
+    };
+
+    renderRow({ segment });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "{name}" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "MD#0" })).not.toBeInTheDocument();
+  });
+
   it("shows required tokens and ICU structure for focused ICU rows", () => {
     const state = createContentEditorWorkspaceState({ selectedSegmentId: "seg-02" });
     const segment = {

@@ -689,6 +689,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
             translationKeyId: schema.projectTranslations.translationKeyId,
             text: schema.projectTranslations.text,
             status: schema.projectTranslations.status,
+            updatedAt: schema.projectTranslations.updatedAt,
           })
           .from(schema.projectTranslations)
           .where(

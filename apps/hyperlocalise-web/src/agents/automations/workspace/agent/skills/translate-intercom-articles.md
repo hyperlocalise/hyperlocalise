@@ -11,6 +11,9 @@ Import changed Help Center articles into the attached native project and open tr
 
 - Import runs on schedule or when an operator clicks **Run now**.
 - Write one markdown source file per article at `intercom/{help-center-slug}/{article-title-slug}.md` with YAML `title` and `description` frontmatter and the Intercom `body_markdown` as the document body.
+- When a mapped target locale already has Intercom `translated_content` with a title and body, import that copy into Hyperlocalise as an approved translation. Title-only locales and empty HTML stubs are not imported. The default only fills empty locales.
+- Also map locale keys present on the article, so a target such as `de` still pairs when the saved Help Center list omitted it.
+- Open jobs only for locales that still need translation, including when the source hash is unchanged. Skip locales that were just imported, are already push-ready, or are already on an open job for that file. Assign **Translate with agent** to that leftover job when the tool is enabled.
 - Map project locales onto Help Center locales by exact tag first, then language-only aliases such as `en` ↔ `en-US` when only one regional form is present. Do not map across locked pairs (`en-US` ↛ `en-GB`, `zh-CN` ↛ `zh-TW`, `pt-BR` ↛ `pt`, `de` ↛ `de-form`).
 - Do not push translations to Intercom during import.
-- Operators enqueue **Push to Intercom as draft** separately. That action writes Intercom `translated_content` drafts. It does not publish.
+- Operators enqueue **Push to Intercom** separately. That action writes Intercom `translated_content` drafts. It does not publish.
