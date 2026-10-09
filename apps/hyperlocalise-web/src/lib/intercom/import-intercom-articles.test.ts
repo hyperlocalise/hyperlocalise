@@ -44,4 +44,21 @@ describe("intercomArticleImportOutcome", () => {
       }),
     ).toBe("imported");
   });
+
+  it("counts translation write failures as failed", () => {
+    expect(
+      intercomArticleImportOutcome({
+        sourceUnchanged: true,
+        translationsImported: 0,
+        translationsFailed: 2,
+      }),
+    ).toBe("failed");
+    expect(
+      intercomArticleImportOutcome({
+        sourceUnchanged: false,
+        translationsImported: 1,
+        translationsFailed: 1,
+      }),
+    ).toBe("failed");
+  });
 });

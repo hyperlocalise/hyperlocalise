@@ -21,24 +21,51 @@ describe("decideIntercomExistingTranslationAction", () => {
     expect(
       decideIntercomExistingTranslationAction({
         policy: "seed_empty",
-        presence: { pushReady: false, importProvenanceOnly: false, contentHash: null },
+        presence: {
+          pushReady: false,
+          hasExistingTranslation: false,
+          importProvenanceOnly: false,
+          contentHash: null,
+        },
         incomingHash,
       }),
     ).toBe("import");
     expect(
       decideIntercomExistingTranslationAction({
         policy: "seed_empty",
-        presence: { pushReady: true, importProvenanceOnly: true, contentHash: "old" },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: true,
+          contentHash: "old",
+        },
         incomingHash,
       }),
     ).toBe("skip");
   });
 
-  it("never clobbers human or job approvals under seed_empty", () => {
+  it("never clobbers unfinished or human work under seed_empty", () => {
     expect(
       decideIntercomExistingTranslationAction({
         policy: "seed_empty",
-        presence: { pushReady: true, importProvenanceOnly: false, contentHash: "human" },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: "human",
+        },
+        incomingHash,
+      }),
+    ).toBe("skip");
+    expect(
+      decideIntercomExistingTranslationAction({
+        policy: "seed_empty",
+        presence: {
+          pushReady: false,
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: null,
+        },
         incomingHash,
       }),
     ).toBe("skip");
@@ -48,28 +75,48 @@ describe("decideIntercomExistingTranslationAction", () => {
     expect(
       decideIntercomExistingTranslationAction({
         policy: "refresh_imported",
-        presence: { pushReady: true, importProvenanceOnly: true, contentHash: "old" },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: true,
+          contentHash: "old",
+        },
         incomingHash,
       }),
     ).toBe("import");
     expect(
       decideIntercomExistingTranslationAction({
         policy: "refresh_imported",
-        presence: { pushReady: true, importProvenanceOnly: true, contentHash: incomingHash },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: true,
+          contentHash: incomingHash,
+        },
         incomingHash,
       }),
     ).toBe("skip");
     expect(
       decideIntercomExistingTranslationAction({
         policy: "refresh_imported",
-        presence: { pushReady: true, importProvenanceOnly: false, contentHash: "old" },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: "old",
+        },
         incomingHash,
       }),
     ).toBe("skip");
     expect(
       decideIntercomExistingTranslationAction({
         policy: "refresh_imported",
-        presence: { pushReady: false, importProvenanceOnly: false, contentHash: null },
+        presence: {
+          pushReady: false,
+          hasExistingTranslation: false,
+          importProvenanceOnly: false,
+          contentHash: null,
+        },
         incomingHash,
       }),
     ).toBe("import");
@@ -79,7 +126,12 @@ describe("decideIntercomExistingTranslationAction", () => {
     expect(
       decideIntercomExistingTranslationAction({
         policy: "overwrite_all",
-        presence: { pushReady: true, importProvenanceOnly: false, contentHash: "human" },
+        presence: {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: "human",
+        },
         incomingHash,
       }),
     ).toBe("import");

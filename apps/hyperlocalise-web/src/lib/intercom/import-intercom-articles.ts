@@ -49,7 +49,7 @@ import {
   type IntercomOpenFileTranslationJob,
 } from "./import-intercom-jobs";
 import { importIntercomTargetTranslations } from "./import-intercom-target-translations";
-import { mapProjectLocalesToIntercom, unionIntercomLocales } from "./intercom-locale";
+import { buildIntercomArticleLocaleMapping, mapProjectLocalesToIntercom } from "./intercom-locale";
 import {
   assertLiveIntercomAutomationConfigVersion,
   withCurrentIntercomAutomationConfig,
@@ -73,8 +73,11 @@ export function intercomArticleImportOutcome(input: {
   sourceUnchanged: boolean;
   translationsImported: number;
   translationsFailed: number;
-}): "imported" | "skipped" {
-  if (input.sourceUnchanged && input.translationsImported === 0 && input.translationsFailed === 0) {
+}): "imported" | "skipped" | "failed" {
+  if (input.translationsFailed > 0) {
+    return "failed";
+  }
+  if (input.sourceUnchanged && input.translationsImported === 0) {
     return "skipped";
   }
   return "imported";
@@ -359,13 +362,12 @@ export async function runImportIntercomArticles(input: {
 
       try {
         const detailedArticle = await loadIntercomArticleForImport(client, article.id);
-        const articleLocaleMapping = mapProjectLocalesToIntercom({
-          ...localeMappingInput,
-          intercomLocales: unionIntercomLocales(
-            helpCenterLocales,
-            Object.keys(detailedArticle.localeContent),
-          ),
-        });
+        const articleLocaleContentKeys = Object.keys(detailedArticle.localeContent);
+        const articleLocaleMapping = buildIntercomArticleLocaleMapping(
+          localeMappingInput,
+          helpCenterLocales,
+          articleLocaleContentKeys,
+        );
         const payload = intercomArticleToImportPayload(detailedArticle, sourceIntercomLocale);
         const contentHash = hashIntercomArticleContent(payload);
         const sourceUnchanged =
@@ -446,11 +448,20 @@ export async function runImportIntercomArticles(input: {
           organizationId: input.organizationId,
           projectId,
           sourcePath,
+          articleId: article.id,
           localeMapping: articleLocaleMapping,
           localeContent: detailedArticle.localeContent,
           policy:
             intercom.existingTranslationPolicy ?? DEFAULT_INTERCOM_EXISTING_TRANSLATION_POLICY,
           storedImportedHashes: existing?.importedTranslationHashes ?? {},
+          assertConfigStillCurrent: () =>
+            assertLiveIntercomAutomationConfigVersion(db, {
+              organizationId: input.organizationId,
+              automationId: input.automation.id,
+              configVersion: input.automation.configVersion,
+              scopeKey: importScopeKey,
+              staleErrorCode: INTERCOM_IMPORT_STALE_CONFIG,
+            }),
         });
 
         const didImportTranslations = translationResult.importedLocales.length > 0;
@@ -469,6 +480,7 @@ export async function runImportIntercomArticles(input: {
               lastError: null,
               lastImportedAt: new Date(),
               importedTranslationHashes: translationResult.importedTranslationHashes,
+              articleLocaleContentKeys,
               client: tx,
             }),
           );
@@ -483,6 +495,7 @@ export async function runImportIntercomArticles(input: {
           mappedJobTargetLocales: articleLocaleMapping.jobTargetLocales,
           importedProjectLocales: translationResult.importedLocales,
           pushReadyProjectLocales: translationResult.pushReadyLocales,
+          sourceUnchanged,
           sourceFileId,
           openJobs,
         });
@@ -712,6 +725,7 @@ async function upsertSyncState(input: {
   lastError: Record<string, unknown> | null;
   lastImportedAt?: Date;
   importedTranslationHashes?: Record<string, string>;
+  articleLocaleContentKeys?: string[];
   client: DatabaseClient;
 }) {
   await input.client
@@ -731,6 +745,7 @@ async function upsertSyncState(input: {
       lastError: input.lastError,
       lastImportedAt: input.lastImportedAt ?? null,
       importedTranslationHashes: input.importedTranslationHashes ?? {},
+      articleLocaleContentKeys: input.articleLocaleContentKeys ?? [],
     })
     .onConflictDoUpdate({
       target: [
@@ -749,6 +764,7 @@ async function upsertSyncState(input: {
         lastError: input.lastError,
         lastImportedAt: input.lastImportedAt ?? undefined,
         importedTranslationHashes: input.importedTranslationHashes ?? undefined,
+        articleLocaleContentKeys: input.articleLocaleContentKeys ?? undefined,
         updatedAt: new Date(),
       },
     });

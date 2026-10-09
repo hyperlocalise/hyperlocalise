@@ -72,6 +72,7 @@ export function resolveIntercomImportJobTargetLocales(input: {
   mappedJobTargetLocales: readonly string[];
   importedProjectLocales: readonly string[];
   pushReadyProjectLocales: readonly string[];
+  sourceUnchanged?: boolean;
   sourceFileId: string | null;
   openJobs: readonly IntercomOpenFileTranslationJob[];
 }): string[] {
@@ -92,6 +93,7 @@ export function resolveIntercomImportJobTargetLocales(input: {
     jobTargetLocales: configuredJobLocales,
     importedProjectLocales: input.importedProjectLocales,
     pushReadyProjectLocales: input.pushReadyProjectLocales,
+    sourceUnchanged: input.sourceUnchanged,
   });
 
   return leftoverIntercomJobLocalesNotCoveredByOpenJobs({

@@ -181,6 +181,17 @@ export function unionIntercomLocales(...groups: Array<readonly string[] | undefi
   return uniqueNonEmptyLocales(groups.flatMap((group) => group ?? []));
 }
 
+export function buildIntercomArticleLocaleMapping(
+  input: Omit<Parameters<typeof mapProjectLocalesToIntercom>[0], "intercomLocales">,
+  helpCenterLocales: readonly string[],
+  articleLocaleContentKeys?: readonly string[] | null,
+) {
+  return mapProjectLocalesToIntercom({
+    ...input,
+    intercomLocales: unionIntercomLocales(helpCenterLocales, articleLocaleContentKeys ?? []),
+  });
+}
+
 function findAvailableLocale(preferred: string, available: readonly string[]): string | null {
   const normalizedPreferred = normalizeIntercomLocaleTag(preferred);
   for (const locale of available) {

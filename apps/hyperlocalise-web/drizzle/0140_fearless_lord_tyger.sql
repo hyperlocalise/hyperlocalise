@@ -1,1 +1,0 @@
-ALTER TABLE "intercom_article_sync_states" ADD COLUMN "imported_translation_hashes" jsonb DEFAULT '{}'::jsonb NOT NULL;

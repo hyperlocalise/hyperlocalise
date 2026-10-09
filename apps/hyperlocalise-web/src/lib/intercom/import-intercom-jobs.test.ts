@@ -46,10 +46,27 @@ describe("resolveIntercomImportJobTargetLocales", () => {
         mappedJobTargetLocales,
         importedProjectLocales: [],
         pushReadyProjectLocales: ["fr-FR"],
+        sourceUnchanged: true,
         sourceFileId: "file_existing",
         openJobs: [],
       }),
     ).toEqual(["de-DE"]);
+  });
+
+  it("reopens push-ready locales for jobs when the English source changed", () => {
+    expect(
+      resolveIntercomImportJobTargetLocales({
+        createJobEnabled: true,
+        useProjectTargetLocales: true,
+        configuredTargetLocales: [],
+        mappedJobTargetLocales,
+        importedProjectLocales: [],
+        pushReadyProjectLocales: ["fr-FR"],
+        sourceUnchanged: false,
+        sourceFileId: "file_existing",
+        openJobs: [],
+      }),
+    ).toEqual(["de-DE", "fr-FR"]);
   });
 
   it("does not open another job when an open job already covers German", () => {

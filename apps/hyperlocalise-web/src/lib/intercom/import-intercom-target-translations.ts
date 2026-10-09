@@ -99,11 +99,13 @@ export function remainingIntercomJobTargetLocales(input: {
   jobTargetLocales: readonly string[];
   importedProjectLocales: readonly string[];
   pushReadyProjectLocales: readonly string[];
+  sourceUnchanged?: boolean;
 }): string[] {
   const covered = new Set(
-    [...input.importedProjectLocales, ...input.pushReadyProjectLocales].map((locale) =>
-      normalizeIntercomLocaleTag(locale).toLowerCase(),
-    ),
+    [
+      ...input.importedProjectLocales,
+      ...(input.sourceUnchanged !== false ? input.pushReadyProjectLocales : []),
+    ].map((locale) => normalizeIntercomLocaleTag(locale).toLowerCase()),
   );
   return input.jobTargetLocales.filter(
     (locale) => !covered.has(normalizeIntercomLocaleTag(locale).toLowerCase()),
@@ -114,6 +116,7 @@ export async function importIntercomTargetTranslations(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
+  articleId?: string;
   localeMapping: {
     sourceIntercomLocale: string | null;
     jobTargetLocales: readonly string[];
@@ -124,6 +127,7 @@ export async function importIntercomTargetTranslations(input: {
   storedImportedHashes?: Record<string, string> | null;
   extractEntries?: ExtractIntercomTargetEntries;
   loadPresence?: typeof loadIntercomLocaleTranslationPresence;
+  assertConfigStillCurrent?: () => Promise<void>;
 }): Promise<ImportIntercomTargetTranslationsResult> {
   const candidates = selectIntercomTargetLocalesToImport({
     localeMapping: input.localeMapping,
@@ -152,6 +156,7 @@ export async function importIntercomTargetTranslations(input: {
       policy: input.policy,
       presence: presenceByLocale.get(candidate.projectLocale) ?? {
         pushReady: false,
+        hasExistingTranslation: false,
         importProvenanceOnly: false,
         contentHash: null,
       },
@@ -182,6 +187,7 @@ export async function importIntercomTargetTranslations(input: {
   const extractEntries = input.extractEntries ?? extractIntercomTargetEntriesWithSandbox;
   let entriesByLocale = new Map<string, Record<string, string>>();
   try {
+    await input.assertConfigStillCurrent?.();
     entriesByLocale = await extractEntries(
       toImport.map((locale) => ({
         projectLocale: locale.projectLocale,
@@ -192,7 +198,8 @@ export async function importIntercomTargetTranslations(input: {
     logger.warn(
       {
         projectId: input.projectId,
-        sourcePath: input.sourcePath,
+        articleId: input.articleId,
+        repositorySourceFileId: sourceVersion?.repositorySourceFileId ?? null,
         error: error instanceof Error ? error.message : String(error),
       },
       "intercom target entry extract failed",
@@ -208,6 +215,7 @@ export async function importIntercomTargetTranslations(input: {
 
   for (const candidate of toImport) {
     try {
+      await input.assertConfigStillCurrent?.();
       await writeImportedIntercomTargetLocale({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -225,7 +233,8 @@ export async function importIntercomTargetTranslations(input: {
       logger.warn(
         {
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          articleId: input.articleId,
+          repositorySourceFileId: sourceVersion?.repositorySourceFileId ?? null,
           targetLocale: candidate.projectLocale,
           error: error instanceof Error ? error.message : String(error),
         },
@@ -341,6 +350,7 @@ export async function loadIntercomLocaleTranslationPresence(input: {
     .limit(1);
 
   const keyedProvenances = new Map<string, Set<string>>();
+  const keyedTranslationLocales = new Set<string>();
   if (sourceFile) {
     const keys = await db
       .select({ id: schema.projectTranslationKeys.id })
@@ -356,6 +366,7 @@ export async function loadIntercomLocaleTranslationPresence(input: {
         .select({
           targetLocale: schema.projectTranslations.targetLocale,
           provenance: schema.projectTranslations.provenance,
+          status: schema.projectTranslations.status,
         })
         .from(schema.projectTranslations)
         .where(
@@ -367,10 +378,13 @@ export async function loadIntercomLocaleTranslationPresence(input: {
               keys.map((key) => key.id),
             ),
             inArray(schema.projectTranslations.targetLocale, [...input.targetLocales]),
-            eq(schema.projectTranslations.status, "approved"),
           ),
         );
       for (const translation of translations) {
+        keyedTranslationLocales.add(translation.targetLocale);
+        if (translation.status !== "approved") {
+          continue;
+        }
         const set = keyedProvenances.get(translation.targetLocale) ?? new Set<string>();
         set.add(translation.provenance);
         keyedProvenances.set(translation.targetLocale, set);
@@ -391,6 +405,7 @@ export async function loadIntercomLocaleTranslationPresence(input: {
 
     presenceByLocale.set(targetLocale, {
       pushReady: approved != null,
+      hasExistingTranslation: variant != null || keyedTranslationLocales.has(targetLocale),
       importProvenanceOnly:
         provenances.size > 0 && [...provenances].every((value) => value === "import"),
       contentHash:

@@ -34,6 +34,7 @@ export function isIntercomExistingTranslationPolicy(
 
 export type IntercomLocaleTranslationPresence = {
   pushReady: boolean;
+  hasExistingTranslation: boolean;
   importProvenanceOnly: boolean;
   contentHash: string | null;
 };
@@ -48,11 +49,15 @@ export function decideIntercomExistingTranslationAction(input: {
   }
 
   if (input.policy === "seed_empty") {
-    return input.presence.pushReady ? "skip" : "import";
+    return input.presence.hasExistingTranslation ? "skip" : "import";
   }
 
-  if (!input.presence.pushReady) {
+  if (!input.presence.hasExistingTranslation) {
     return "import";
+  }
+
+  if (!input.presence.importProvenanceOnly) {
+    return "skip";
   }
 
   if (

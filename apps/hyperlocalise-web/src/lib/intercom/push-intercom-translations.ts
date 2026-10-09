@@ -32,7 +32,12 @@ import {
   resolveIntercomLocaleRemoteEditedAt,
   updateIntercomArticleTranslatedContent,
 } from "./articles-api";
-import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
+import {
+  buildIntercomArticleLocaleMapping,
+  mapProjectLocalesToIntercom,
+  normalizeIntercomLocaleTag,
+  unionIntercomLocales,
+} from "./intercom-locale";
 import {
   assertLiveIntercomAutomationConfigVersion,
   loadLiveIntercomPushSettings,
@@ -155,14 +160,18 @@ export async function runPushIntercomTranslations(input: {
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
 
-  const localeMapping = mapProjectLocalesToIntercom({
+  const localeMappingInput = {
     projectSourceLocale: project.sourceLocale ?? "en",
     projectTargetLocales: Array.isArray(project.targetLocales)
       ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
       : [],
-    intercomLocales: helpCenterLocales,
     configuredSourceLocale: intercom.sourceLocale,
     configuredTargetLocales: intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
+  };
+
+  const localeMapping = mapProjectLocalesToIntercom({
+    ...localeMappingInput,
+    intercomLocales: helpCenterLocales,
   });
 
   const client = createIntercomArticlesClient({
@@ -192,11 +201,16 @@ export async function runPushIntercomTranslations(input: {
     projectId,
     helpCenterId,
   };
+  const approvedTargetLocales = unionIntercomLocales(
+    localeMapping.jobTargetLocales,
+    mappings.flatMap((mapping) => Object.keys(mapping.importedTranslationHashes ?? {})),
+  );
+
   const approvedByPathAndLocale = await loadApprovedIntercomArticleValuesByPath({
     organizationId: input.organizationId,
     projectId,
     sourcePaths: mappings.map((mapping) => mapping.sourcePath),
-    targetLocales: localeMapping.jobTargetLocales,
+    targetLocales: approvedTargetLocales,
   });
 
   await mapWithConcurrency(mappings, PUSH_CONCURRENCY, async (mapping) => {
@@ -263,9 +277,18 @@ export async function runPushIntercomTranslations(input: {
     let articleSkipped = 0;
     let articleFailed = 0;
 
-    for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
-      const hlLocale = localeMapping.jobTargetLocales[index]!;
-      const intercomLocale = localeMapping.intercomTargetLocales[index]!;
+    const articleLocaleMapping = buildIntercomArticleLocaleMapping(
+      localeMappingInput,
+      helpCenterLocales,
+      unionIntercomLocales(
+        mapping.articleLocaleContentKeys,
+        Object.keys(remoteArticle?.localeContent ?? {}),
+      ),
+    );
+
+    for (let index = 0; index < articleLocaleMapping.jobTargetLocales.length; index += 1) {
+      const hlLocale = articleLocaleMapping.jobTargetLocales[index]!;
+      const intercomLocale = articleLocaleMapping.intercomTargetLocales[index]!;
       if (!intercomLocale) {
         articleSkipped += 1;
         continue;

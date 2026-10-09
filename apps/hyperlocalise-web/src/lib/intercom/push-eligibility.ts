@@ -30,7 +30,12 @@ import {
   shouldSkipUnchangedIntercomHash,
   type IntercomArticleFields,
 } from "./article-markdown";
-import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
+import {
+  buildIntercomArticleLocaleMapping,
+  mapProjectLocalesToIntercom,
+  normalizeIntercomLocaleTag,
+  unionIntercomLocales,
+} from "./intercom-locale";
 import { intercomMappingMatchesTarget } from "./intercom-sync-scope";
 import { composeIntercomArticleFromApprovedKeyedUnits } from "./keyed-article-compose";
 
@@ -102,14 +107,18 @@ export async function getIntercomPushEligibility(input: {
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
 
-  const localeMapping = mapProjectLocalesToIntercom({
+  const localeMappingInput = {
     projectSourceLocale: project.sourceLocale ?? "en",
     projectTargetLocales: Array.isArray(project.targetLocales)
       ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
       : [],
-    intercomLocales: helpCenterLocales,
     configuredSourceLocale: intercom.sourceLocale,
     configuredTargetLocales: intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
+  };
+
+  const localeMapping = mapProjectLocalesToIntercom({
+    ...localeMappingInput,
+    intercomLocales: helpCenterLocales,
   });
 
   if (localeMapping.jobTargetLocales.length === 0) {
@@ -134,25 +143,35 @@ export async function getIntercomPushEligibility(input: {
     }),
   );
 
+  const approvedTargetLocales = unionIntercomLocales(
+    localeMapping.jobTargetLocales,
+    mappings.flatMap((mapping) => Object.keys(mapping.importedTranslationHashes ?? {})),
+  );
+
   const approvedByPathAndLocale = await loadApprovedIntercomArticleValuesByPath({
     organizationId: input.organizationId,
     projectId,
     sourcePaths: mappings.map((mapping) => mapping.sourcePath),
-    targetLocales: localeMapping.jobTargetLocales,
+    targetLocales: approvedTargetLocales,
   });
 
   let eligibleLocaleCount = 0;
   let mappedArticleCount = 0;
   const articles: IntercomPushArticle[] = [];
-  const targetLocaleCount = localeMapping.jobTargetLocales.length;
 
   for (const mapping of mappings) {
     const eligibleLocales: string[] = [];
     const approvedByLocale = approvedByPathAndLocale.get(mapping.sourcePath);
+    const articleLocaleMapping = buildIntercomArticleLocaleMapping(
+      localeMappingInput,
+      helpCenterLocales,
+      mapping.articleLocaleContentKeys,
+    );
+    const targetLocaleCount = articleLocaleMapping.jobTargetLocales.length;
 
-    for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
-      const hlLocale = localeMapping.jobTargetLocales[index]!;
-      const intercomLocale = localeMapping.intercomTargetLocales[index]!;
+    for (let index = 0; index < articleLocaleMapping.jobTargetLocales.length; index += 1) {
+      const hlLocale = articleLocaleMapping.jobTargetLocales[index]!;
+      const intercomLocale = articleLocaleMapping.intercomTargetLocales[index]!;
       if (!intercomLocale) {
         continue;
       }
@@ -285,11 +304,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
   targetLocales: string[];
   valuesByPathAndLocale: Map<string, Map<string, IntercomArticleFields>>;
 }) {
-  const missingPaths = input.sourcePaths.filter((sourcePath) => {
-    const approvedByLocale = input.valuesByPathAndLocale.get(sourcePath);
-    return input.targetLocales.some((locale) => !approvedByLocale?.has(locale));
-  });
-  if (missingPaths.length === 0) {
+  if (input.sourcePaths.length === 0) {
     return;
   }
 
@@ -306,7 +321,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
     const page = await translationService.listKeysForProject({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      sourcePaths: missingPaths,
+      sourcePaths: input.sourcePaths,
       limit: APPROVED_KEY_PAGE_SIZE,
       offset,
     });
@@ -368,9 +383,6 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
     );
 
     for (const [sourcePath, pathKeys] of keysByPath) {
-      if (input.valuesByPathAndLocale.get(sourcePath)?.has(targetLocale)) {
-        continue;
-      }
       const sourceMarkdown = sourceMarkdownByPath.get(sourcePath);
       if (!sourceMarkdown || pathKeys.length === 0) {
         continue;

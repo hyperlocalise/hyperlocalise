@@ -182,6 +182,24 @@ describe("serializeMarkdownEditorDoc", () => {
       `[Customize your Help Center](${HELP_CENTER_URL})`,
     );
   });
+
+  it("serializes hard breaks as newlines", () => {
+    expect(
+      serializeMarkdownEditorDoc({
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "Line one" },
+              { type: "hardBreak" },
+              { type: "text", text: "Line two" },
+            ],
+          },
+        ],
+      }),
+    ).toBe("Line one\nLine two");
+  });
 });
 
 describe("isStructuralMarkdownMarkupToken", () => {

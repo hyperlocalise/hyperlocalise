@@ -1,5 +1,5 @@
 {
-  "id": "8e997672-6ce2-4731-8349-af5d6820178d",
+  "id": "10f0f23d-58a7-4f10-ae79-b88ab0f21fa2",
   "prevId": "4ad7fbe9-a8c9-42f4-919c-4fb7ed477332",
   "version": "7",
   "dialect": "postgresql",
@@ -12859,6 +12859,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "article_locale_content_keys": {
+          "name": "article_locale_content_keys",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "status": {
           "name": "status",

@@ -64,7 +64,12 @@ const localeContent = {
 };
 
 function emptyPresence(): IntercomLocaleTranslationPresence {
-  return { pushReady: false, importProvenanceOnly: false, contentHash: null };
+  return {
+    pushReady: false,
+    hasExistingTranslation: false,
+    importProvenanceOnly: false,
+    contentHash: null,
+  };
 }
 
 describe("remainingIntercomJobTargetLocales", () => {
@@ -87,6 +92,17 @@ describe("remainingIntercomJobTargetLocales", () => {
       }),
     ).toEqual(["de-DE"]);
   });
+
+  it("includes push-ready locales when the source changed", () => {
+    expect(
+      remainingIntercomJobTargetLocales({
+        jobTargetLocales: ["de-DE", "fr-FR"],
+        importedProjectLocales: [],
+        pushReadyProjectLocales: ["fr-FR"],
+        sourceUnchanged: false,
+      }),
+    ).toEqual(["de-DE", "fr-FR"]);
+  });
 });
 
 describe("importIntercomTargetTranslations", () => {
@@ -105,7 +121,15 @@ describe("importIntercomTargetTranslations", () => {
     });
     const presence = new Map<string, IntercomLocaleTranslationPresence>([
       ["de-DE", emptyPresence()],
-      ["fr-FR", { pushReady: true, importProvenanceOnly: false, contentHash: "human" }],
+      [
+        "fr-FR",
+        {
+          pushReady: true,
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: "human",
+        },
+      ],
     ]);
 
     const result = await importIntercomTargetTranslations({

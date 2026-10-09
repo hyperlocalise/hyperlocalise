@@ -338,6 +338,11 @@ export function markdownSpansFromEditorDoc(
   }
 
   function walk(node: MarkdownEditorDoc, paragraphIndex: number) {
+    if (node.type === "hardBreak") {
+      appendText("\n");
+      return;
+    }
+
     if (node.type === "text") {
       const link = linkMarkFromNode(node);
       const text = node.text ?? "";

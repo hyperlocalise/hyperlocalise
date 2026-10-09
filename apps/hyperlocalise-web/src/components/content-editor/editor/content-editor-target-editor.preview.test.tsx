@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
@@ -136,9 +137,10 @@ describe("ContentEditorTargetEditor markdown display", () => {
 
   it("writes recovered sentinels when a markdown heading is edited", async () => {
     const onChange = vi.fn();
+    const sourceText = `Use Articles to power Fin AI Agent and Fin AI Copilot ${md0}`;
     renderWithContentEditorProviders(
       <ContentEditorTargetEditor
-        sourceText={`Use Articles to power Fin AI Agent and Fin AI Copilot ${md0}`}
+        sourceText={sourceText}
         value="Nutzen Sie Articles als Grundlage {#h_8b76258d80}"
         onChange={onChange}
       />,
@@ -150,8 +152,17 @@ describe("ContentEditorTargetEditor markdown display", () => {
       return node as HTMLElement;
     });
 
-    editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: "!" }));
-    // Focus + persist path is covered by display helper; assert the editor stayed clean.
-    expect(editor.textContent).not.toContain("#h_8b76258d80");
+    const user = userEvent.setup();
+    await user.click(editor);
+    await user.type(editor, "!");
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    const lastValue = onChange.mock.calls.at(-1)?.[0] as string;
+    expect(lastValue).toMatch(/^Nutzen Sie Articles als Grundlage!/);
+    expect(lastValue).toContain(md0);
+    expect(lastValue).not.toContain("#h_8b76258d80");
   });
 });
