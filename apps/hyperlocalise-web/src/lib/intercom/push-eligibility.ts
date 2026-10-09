@@ -40,16 +40,16 @@ import { intercomMappingMatchesTarget } from "./intercom-sync-scope";
 import { composeIntercomArticleFromApprovedKeyedUnits } from "./keyed-article-compose";
 
 export function shouldPreferKeyedIntercomArticleOverVariant(input: {
-  variantUpdatedAt: Date | null | undefined;
+  variantApprovedAt: Date | null | undefined;
   latestKeyedApprovedAt: Date | null | undefined;
 }): boolean {
-  if (!input.variantUpdatedAt) {
+  if (!input.variantApprovedAt) {
     return true;
   }
   if (!input.latestKeyedApprovedAt) {
     return false;
   }
-  return input.latestKeyedApprovedAt.getTime() > input.variantUpdatedAt.getTime();
+  return input.latestKeyedApprovedAt.getTime() > input.variantApprovedAt.getTime();
 }
 
 const APPROVED_VARIANT_READ_CONCURRENCY = 8;
@@ -258,7 +258,7 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
       targetLocale: schema.projectImageVariants.targetLocale,
       storedFileId: schema.projectImageVariants.storedFileId,
       provenance: schema.projectImageVariants.provenance,
-      updatedAt: schema.projectImageVariants.updatedAt,
+      reviewedAt: schema.projectImageVariants.reviewedAt,
     })
     .from(schema.projectImageVariants)
     .where(
@@ -303,7 +303,7 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
 
   const variantMetaByPathAndLocale = new Map<
     string,
-    Map<string, { provenance: string; updatedAt: Date | null }>
+    Map<string, { provenance: string; reviewedAt: Date | null }>
   >();
   for (const variant of readableVariants) {
     let localeMeta = variantMetaByPathAndLocale.get(variant.sourcePath);
@@ -313,7 +313,7 @@ export async function loadApprovedIntercomArticleValuesByPath(input: {
     }
     localeMeta.set(variant.targetLocale, {
       provenance: variant.provenance,
-      updatedAt: variant.updatedAt ?? null,
+      reviewedAt: variant.reviewedAt ?? null,
     });
   }
 
@@ -337,7 +337,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
   valuesByPathAndLocale: Map<string, Map<string, IntercomArticleFields>>;
   variantMetaByPathAndLocale: Map<
     string,
-    Map<string, { provenance: string; updatedAt: Date | null }>
+    Map<string, { provenance: string; reviewedAt: Date | null }>
   >;
 }) {
   if (input.sourcePaths.length === 0) {
@@ -475,7 +475,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
       if (
         existingApproved &&
         !shouldPreferKeyedIntercomArticleOverVariant({
-          variantUpdatedAt: variantMeta?.updatedAt,
+          variantApprovedAt: variantMeta?.reviewedAt,
           latestKeyedApprovedAt,
         })
       ) {

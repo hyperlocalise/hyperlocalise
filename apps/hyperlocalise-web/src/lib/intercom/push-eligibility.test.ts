@@ -21,7 +21,7 @@ describe("shouldPreferKeyedIntercomArticleOverVariant", () => {
   it("prefers later CAT approvals over an earlier uploaded file", () => {
     expect(
       shouldPreferKeyedIntercomArticleOverVariant({
-        variantUpdatedAt: new Date("2026-10-01T00:00:00.000Z"),
+        variantApprovedAt: new Date("2026-10-01T00:00:00.000Z"),
         latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
       }),
     ).toBe(true);
@@ -30,7 +30,7 @@ describe("shouldPreferKeyedIntercomArticleOverVariant", () => {
   it("keeps a later approved file over older keyed text", () => {
     expect(
       shouldPreferKeyedIntercomArticleOverVariant({
-        variantUpdatedAt: new Date("2026-10-03T00:00:00.000Z"),
+        variantApprovedAt: new Date("2026-10-03T00:00:00.000Z"),
         latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
       }),
     ).toBe(false);
@@ -39,7 +39,7 @@ describe("shouldPreferKeyedIntercomArticleOverVariant", () => {
   it("uses keyed text when no approved file exists", () => {
     expect(
       shouldPreferKeyedIntercomArticleOverVariant({
-        variantUpdatedAt: null,
+        variantApprovedAt: null,
         latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
       }),
     ).toBe(true);
