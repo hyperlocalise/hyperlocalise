@@ -117,6 +117,31 @@ describe("collectHtmlTranslationPageEntries", () => {
     });
   });
 
+  it("does not attach a later paragraph's lock to the first sibling path", () => {
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: {
+          "html.p": "Welcome",
+          "html.p.2": "Click ",
+          "html.p.strong": "here",
+          "html.p.3": " now.",
+        },
+        extracted: {
+          "html.p": "Welcome",
+          "html.p.2": "Cliquez ",
+          "html.p.strong": "ici",
+          "html.p.3": " maintenant.",
+        },
+        confirmed: {},
+        completedPathKeys: ["html.p.2", "html.p.strong", "html.p.3"],
+      }),
+    ).toEqual({
+      "html.p.2": "Cliquez ",
+      "html.p.strong": "ici",
+      "html.p.3": " maintenant.",
+    });
+  });
+
   it("skips blank source text, whitespace-only extracts, and empty lock completions", () => {
     expect(
       collectHtmlTranslationPageEntries({

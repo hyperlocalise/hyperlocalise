@@ -287,18 +287,41 @@ export function extractHtmlIngestEntriesInOrder(
 }
 
 function extractFoldedHtmlUnits(html: string): FoldedHtmlUnit[] {
+  const splitEntries = extractHtmlIngestEntriesInOrder(html);
   const units: FoldedHtmlUnit[] = [];
+  let splitIndex = 0;
+
+  const takeSplitKeys = (pieceCount: number, expectedTexts: readonly string[]): string[] => {
+    const slice = splitEntries.slice(splitIndex, splitIndex + pieceCount);
+    splitIndex += slice.length;
+    if (
+      slice.length !== pieceCount ||
+      expectedTexts.some((text, index) => slice[index]?.text !== text)
+    ) {
+      return [];
+    }
+    return slice.map((entry) => entry.key);
+  };
+
   walkHtmlDocument(html, {
     foldInline: true,
     onText(key, text, raw, stack) {
+      const pieces = splitEntriesForFoldedRaw(stack, raw);
       units.push({
         text,
         blockKey: key,
-        pathKeys: pathKeysForFoldedRaw(stack, raw),
+        pathKeys: takeSplitKeys(
+          pieces.length,
+          pieces.map((piece) => piece.text),
+        ),
       });
     },
     onVoidAttr(key, text) {
-      units.push({ text, blockKey: key, pathKeys: [key] });
+      units.push({
+        text,
+        blockKey: key,
+        pathKeys: takeSplitKeys(1, [text]),
+      });
     },
   });
   return units;
@@ -330,13 +353,13 @@ function legacyHtmlKeyToPathKey(html: string): Map<string, string> {
   return mapping;
 }
 
-function pathKeysForFoldedRaw(stack: readonly string[], raw: string): string[] {
+function splitEntriesForFoldedRaw(stack: readonly string[], raw: string): HtmlIngestEntry[] {
   const open = stack.map((tag) => `<${tag}>`).join("");
   const close = [...stack]
     .reverse()
     .map((tag) => `</${tag}>`)
     .join("");
-  return extractHtmlIngestEntriesInOrder(`${open}${raw}${close}`).map((entry) => entry.key);
+  return extractHtmlIngestEntriesInOrder(`${open}${raw}${close}`);
 }
 
 function walkHtmlDocument(
