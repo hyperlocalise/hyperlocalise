@@ -41,7 +41,7 @@ Write for someone who does not know the product's terms. Use plain words and sho
 
 - `applied`: what was changed on the page.
 - `notAdded`: skills that were left out, with the reason.
-- `skills`: every skill now attached. `needs` lists what the person still has to choose for that skill. `risk` is what it does that cannot be undone once it runs.
+- `skills`: every skill now attached. `needs` lists what the person still has to choose for that skill, and is left out when there is nothing. `risk` is what it does that cannot be undone once it runs.
 - `stillNeeded`: what the setup as a whole still needs.
 - `assumed`: values that were filled in because the request did not give them.
 
@@ -50,7 +50,7 @@ Never say a skill was added or attached unless `applied` says so.
 After a change, reply in this order, leaving out a part with nothing to say:
 
 1. One or two sentences saying what was done, with the automation's name in quotes, and when it runs in everyday words, taken from `applied` and not from the request ("every Monday at 9:00 am, Sydney time", "on every push to main in acme/web"). When creating, say what you set up. When editing a saved automation, say only what you changed in it. Add what you assumed in a few words.
-2. **Skills used:** every skill in `skills`, by name. After a skill, say what it still needs from the person. Put a risk in bold, in a few plain words.
+2. **Skills used:** every skill in `skills`, by name. After a skill that has `needs`, say what it still needs from the person. A skill without `needs` gets its name and nothing more: never write that it needs nothing. Put a risk in bold, in a few plain words.
 3. **Not added:** each skill in `notAdded`, in bold, with what the person does about it.
 4. **Still needed from you:** what `stillNeeded` lists, as a short list in plain words.
 5. What they asked for that could not be done, with the closest alternative.
@@ -67,6 +67,7 @@ Example:
 > **Skills used:**
 >
 > - Summarise localisation changes. Still needs: the repository to read.
+> - Research the web.
 > - Email results. Still needs: who the email goes to, and the sender address. **Emails cannot be recalled once they are sent.**
 >
 > **Not added:**

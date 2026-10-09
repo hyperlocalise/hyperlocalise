@@ -251,8 +251,8 @@ export type AutomationSetupSkillReport = {
   id: string;
   name: string;
   status: "added" | "already_attached";
-  /** Settings of this skill the person still has to choose on the page. */
-  needs: string[];
+  /** Settings of this skill the person still has to choose on the page. Absent when there are none. */
+  needs?: string[];
   /** What the skill does that cannot be undone. */
   risk?: string;
 };
@@ -475,16 +475,20 @@ function reportAttachedSkills(
       item.kind === "skill_added" && item.status === "applied" ? [item.skillId] : [],
     ),
   );
-  return resolveWorkspaceAutomationSkills(form.skillIds).map((skill) => ({
-    id: skill.id,
-    name: skill.name,
-    status: addedSkillIds.has(skill.id) ? "added" : "already_attached",
-    needs: steps
+  return resolveWorkspaceAutomationSkills(form.skillIds).map((skill) => {
+    const needs = steps
       .filter(isSkillFieldStep)
       .filter((step) => step.skillIds.includes(skill.id))
-      .map((step) => step.message),
-    ...(skill.risk ? { risk: skill.risk } : {}),
-  }));
+      .map((step) => step.message);
+    return {
+      id: skill.id,
+      name: skill.name,
+      status: addedSkillIds.has(skill.id) ? ("added" as const) : ("already_attached" as const),
+      // An empty list reads to the model as something to report, so it is left out.
+      ...(needs.length > 0 ? { needs } : {}),
+      ...(skill.risk ? { risk: skill.risk } : {}),
+    };
+  });
 }
 
 function skillName(skillId: string | undefined): string {

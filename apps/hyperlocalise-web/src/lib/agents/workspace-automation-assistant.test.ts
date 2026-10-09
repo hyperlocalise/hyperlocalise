@@ -117,7 +117,6 @@ describe("updateWorkspaceAutomationSetup", () => {
             id: "summarize-localisation-changes",
             name: "Summarise localisation changes",
             status: "added",
-            needs: [],
           },
           { id: "email-results", status: "added", risk: expect.any(String) },
         ],
@@ -128,6 +127,16 @@ describe("updateWorkspaceAutomationSetup", () => {
         saveButton: "Create automation",
       },
     });
+  });
+
+  it("says nothing about needs for a skill that needs nothing, so the reply has nothing to repeat", () => {
+    const { output } = updateWorkspaceAutomationSetup(
+      editorContext(),
+      setupInput({ addSkillIds: ["research-web"] }),
+    );
+
+    expect(output).toMatchObject({ result: { skills: [{ id: "research-web" }] } });
+    expect(output.applied && output.result.skills[0]).not.toHaveProperty("needs");
   });
 
   it("lists what each attached skill still needs apart from what the setup needs", () => {
