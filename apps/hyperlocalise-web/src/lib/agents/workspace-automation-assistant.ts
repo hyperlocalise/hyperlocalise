@@ -596,6 +596,14 @@ export function updateWorkspaceAutomationSetup(
   };
 }
 
+/** The project the automation is in, as far as the page told us. */
+function describeProject(context: WorkspaceAutomationEditorContext): string {
+  if (!context.form.projectId.trim()) {
+    return "(none chosen)";
+  }
+  return context.projectName ? JSON.stringify(context.projectName) : "one is chosen";
+}
+
 /** Tools switched on by hand that no attached skill accounts for. */
 function listManualTools(form: WorkspaceAutomationFormState): string[] {
   const skillTools = new Set(listWorkspaceAutomationSkillTools(form.skillIds));
@@ -730,6 +738,10 @@ export function buildWorkspaceAutomationAssistantInstructions(
     "  (hour is on a 24-hour clock in timeZone; dayOfWeek 0 is Sunday, 1 is Monday)",
     `- Repository: ${repositoryName(context, form) ?? "(none chosen)"}`,
     `- The person's time zone: ${context.timeZone}`,
+    "",
+    "Set by the person in the row under the automation's name, which you cannot change:",
+    `- Switched ${form.status === "active" ? "on (Active)" : "off (Paused)"}`,
+    `- Project: ${describeProject(context)}`,
     "",
     "Skills attached:",
     listOrNone(attached.map((skill) => `${skill.name} (id: ${skill.id})`)),

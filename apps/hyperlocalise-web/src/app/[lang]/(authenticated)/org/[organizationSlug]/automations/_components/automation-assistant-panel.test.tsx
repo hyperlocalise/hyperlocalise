@@ -120,6 +120,90 @@ describe("AutomationAssistantPanel", () => {
   });
 });
 
+describe("what the panel says a turn did", () => {
+  function show(value: AutomationAssistantValue) {
+    return render(
+      <IntlProvider locale="en">
+        <AutomationAssistantContext.Provider value={value}>
+          <AutomationAssistantPanel />
+        </AutomationAssistantContext.Provider>
+      </IntlProvider>,
+    );
+  }
+
+  const reply = (parts: UIMessage["parts"] | null, text = "") => ({
+    id: "m1",
+    conversationId: "s1",
+    senderType: "agent" as const,
+    senderEmail: null,
+    text,
+    parts,
+    attachments: null,
+    createdAt: "2026-10-09T00:00:00.000Z",
+  });
+
+  it("says nothing changed under a finished reply that never called the tool, whatever the reply claims", () => {
+    show(
+      assistant({
+        messages: [reply([{ type: "text", text: "I have removed the skills." }])],
+      }),
+    );
+
+    expect(screen.getByText("I have removed the skills.")).toBeTruthy();
+    expect(screen.getByText("No changes made to the setup")).toBeTruthy();
+    expect(screen.queryByText(/changes are on the page/)).toBeNull();
+  });
+
+  it("does not say so while the reply is still being written", () => {
+    showStreaming([{ type: "text", text: "Let me" }] as UIMessage["parts"]);
+
+    expect(screen.queryByText("No changes made to the setup")).toBeNull();
+  });
+
+  it("leaves it to the call's own line when the tool was called", () => {
+    show(
+      assistant({
+        messages: [
+          reply([
+            {
+              type: TOOL,
+              toolCallId: "call_1",
+              state: "output-available",
+              input: {},
+              output: { applied: true, changes: [{ kind: "name", name: "Weekly digest" }] },
+            },
+            { type: "text", text: "Named it." },
+          ] as UIMessage["parts"]),
+        ],
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Updated the setup · 1 change" })).toBeTruthy();
+    expect(screen.queryByText("No changes made to the setup")).toBeNull();
+  });
+
+  it("says the changes are on the page and unsaved only while the page counts some", () => {
+    const { unmount } = show(assistant({ mode: "detail", appliedCallCount: 1 }));
+    expect(
+      screen.getByText(
+        "The assistant’s changes are on the page. Undo takes them back. Nothing is saved until you click Save.",
+      ),
+    ).toBeTruthy();
+    unmount();
+
+    const created = show(assistant({ mode: "create", appliedCallCount: 2 }));
+    expect(screen.getByText(/Nothing is saved until you click Create automation\./)).toBeTruthy();
+    created.unmount();
+
+    const saved = show(assistant({ appliedCallCount: 0 }));
+    expect(screen.queryByText(/changes are on the page/)).toBeNull();
+    saved.unmount();
+
+    show(assistant({ appliedCallCount: 1, working: true, status: "streaming" }));
+    expect(screen.queryByText(/changes are on the page/)).toBeNull();
+  });
+});
+
 describe("AutomationAssistantLayout", () => {
   it("opens the panel beside the form from the form's own button, and closes it from there too", async () => {
     const setOpen = vi.fn();

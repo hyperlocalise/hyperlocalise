@@ -142,6 +142,20 @@ export const automationAssistantMessages = defineMessages({
     id: "wRjR3Q5lZO",
     description: "Listed step the assistant left out: a skill that does not work with the trigger",
   },
+  changesOnPageSave: {
+    defaultMessage:
+      "The assistant’s changes are on the page. Undo takes them back. Nothing is saved until you click Save.",
+    id: "H7rlNVsswT",
+    description:
+      "Line at the end of the assistant panel while a saved automation holds changes of the assistant that are not saved",
+  },
+  changesOnPageCreate: {
+    defaultMessage:
+      "The assistant’s changes are on the page. Undo takes them back. Nothing is saved until you click Create automation.",
+    id: "5tjJj0rNcN",
+    description:
+      "Line at the end of the assistant panel while a new automation holds changes of the assistant that are not saved",
+  },
   headerCreated: {
     defaultMessage: "The assistant set up this automation",
     id: "4XHdLftqfc",

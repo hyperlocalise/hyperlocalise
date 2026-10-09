@@ -345,6 +345,29 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
     expect(instructions).toContain('The save button is called "Create automation".');
   });
 
+  it("says whether it is switched on and which project it is in, and nothing about models", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      status: "paused" as const,
+      projectId: "project-1",
+    };
+
+    const named = buildWorkspaceAutomationAssistantInstructions(
+      editorContext({ form, projectName: "Automated one" }),
+    );
+    expect(named).toContain("- Switched off (Paused)");
+    expect(named).toContain('- Project: "Automated one"');
+    // The assistant is told no model, so it has none to show or to get wrong.
+    expect(named).not.toMatch(/anthropic\/|openai\/|google\/|GPT|Claude|Gemini/);
+
+    const unnamed = buildWorkspaceAutomationAssistantInstructions(editorContext({ form }));
+    expect(unnamed).toContain("- Project: one is chosen");
+
+    const fresh = buildWorkspaceAutomationAssistantInstructions(editorContext());
+    expect(fresh).toContain("- Switched on (Active)");
+    expect(fresh).toContain("- Project: (none chosen)");
+  });
+
   it("lists tools the person switched on by hand", () => {
     const instructions = buildWorkspaceAutomationAssistantInstructions(
       editorContext({

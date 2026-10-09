@@ -52,6 +52,15 @@ describe("createAutomationAssistantAgent", () => {
     expect(instructions).toContain("### Skills you can attach");
     expect(instructions).toContain("id: summarize-localisation-changes");
     expect(instructions).not.toContain("Which automation");
+    // The page says whether the setup changed and that it is unsaved; the reply must not.
+    expect(instructions).toContain(
+      "Never say something was changed, added, removed, set or done unless the tool result of this turn lists it",
+    );
+    expect(instructions).toContain("Switch the automation on or off");
+    expect(instructions).toContain(
+      "Say that you cannot set it and that the person picks it themselves",
+    );
+    expect(instructions).not.toContain("A last line saying the changes are on the page");
   });
 });
 

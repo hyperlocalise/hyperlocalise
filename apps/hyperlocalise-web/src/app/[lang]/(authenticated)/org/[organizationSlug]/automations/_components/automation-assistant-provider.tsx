@@ -127,6 +127,7 @@ export function AutomationAssistantProvider({
   onSessionChange,
   onWorkingChange,
   organizationSlug,
+  projectName,
   repositories,
 }: {
   /** The saved automation the page shows. Absent while a new one is being set up. */
@@ -152,6 +153,8 @@ export function AutomationAssistantProvider({
   onSessionChange?: (sessionId: string | null) => void;
   onWorkingChange?: (working: boolean) => void;
   organizationSlug: string;
+  /** Display name of the project the automation is in, when the page knows it. */
+  projectName?: string | null;
   /** Connected repositories. Only a selectable one can be offered as the default. */
   repositories: ReadonlyArray<{ id: string; name: string; selectable: boolean }>;
 }) {
@@ -197,6 +200,7 @@ export function AutomationAssistantProvider({
             repositories,
             crowdinProjectIds,
             contentfulConnectionIds,
+            projectName,
           })
         : null,
     [
@@ -204,6 +208,7 @@ export function AutomationAssistantProvider({
       connections,
       contentfulConnectionIds,
       crowdinProjectIds,
+      projectName,
       editorSessionId,
       form,
       mode,

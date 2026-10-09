@@ -62,6 +62,9 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
   const last = blocks.at(-1);
   // A call that is still running says so itself; a second spinner under it would say it twice.
   const showWorking = pending && !(last?.kind === "tool" && last.summary.state === "running");
+  // The page, not the reply's own words, says whether the setup was touched. A reply with a call
+  // says so on the call's line; a finished reply with none says so here.
+  const madeNoCall = !pending && !blocks.some((block) => block.kind === "tool");
   return (
     <div className="flex flex-col gap-2 text-sm leading-6">
       {blocks.map((block, index) =>
@@ -82,6 +85,11 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
         <TypographyMuted size="xsmall" className="flex items-center gap-1.5">
           <Spinner className="size-3" />
           <FormattedMessage {...messages.working} />
+        </TypographyMuted>
+      ) : null}
+      {madeNoCall ? (
+        <TypographyMuted size="xsmall">
+          <FormattedMessage {...messages.toolNoChanges} />
         </TypographyMuted>
       ) : null}
     </div>
@@ -178,6 +186,16 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           <Reply parts={assistant.streaming.parts} pending />
         ) : assistant.working ? (
           <Reply parts={[]} pending />
+        ) : null}
+        {/* Counted by the page from what it applied, so it is there only while it is true. */}
+        {assistant.appliedCallCount > 0 && !assistant.working ? (
+          <TypographyMuted size="xsmall" className="border-t border-border pt-3">
+            <FormattedMessage
+              {...(assistant.mode === "create"
+                ? messages.changesOnPageCreate
+                : messages.changesOnPageSave)}
+            />
+          </TypographyMuted>
         ) : null}
       </div>
       <footer className="flex flex-col gap-2 border-t border-border p-3">

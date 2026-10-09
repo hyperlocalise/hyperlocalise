@@ -57,6 +57,8 @@ export const workspaceAutomationEditorContextSchema = z.object({
   /** Settings to prefill because the workspace has exactly one choice. */
   defaults: defaultsSchema,
   timeZone: z.string().min(1).max(MAX_TIME_ZONE_CHARS),
+  /** Display name of the project the automation is in, when the page knows it. */
+  projectName: z.string().min(1).max(MAX_NAME_CHARS).nullable().optional(),
   /** Display names for the repositories the form or the defaults refer to. */
   repositories: z
     .array(z.object({ id, name: z.string().min(1).max(MAX_NAME_CHARS) }))
@@ -88,6 +90,8 @@ export function buildWorkspaceAutomationEditorContext(input: {
   repositories: ReadonlyArray<{ id: string; name: string; selectable: boolean }>;
   crowdinProjectIds: readonly string[];
   contentfulConnectionIds: readonly string[];
+  /** Display name of the project the automation is in, when the page knows it. */
+  projectName?: string | null;
 }): WorkspaceAutomationEditorContext {
   const defaultRepositoryId = onlyChoice(
     input.repositories
@@ -111,6 +115,7 @@ export function buildWorkspaceAutomationEditorContext(input: {
       contentfulConnectionId: onlyChoice(input.contentfulConnectionIds),
     },
     timeZone: input.timeZone,
+    projectName: input.projectName?.trim() || null,
     repositories: input.repositories
       .filter((repository) => namedRepositoryIds.has(repository.id))
       .map((repository) => ({ id: repository.id, name: repository.name })),

@@ -3758,6 +3758,9 @@ export function WorkspaceAutomationEditor({
       onSessionChange={onAssistantSessionChange}
       onWorkingChange={onAssistantWorkingChange}
       organizationSlug={organizationSlug}
+      projectName={
+        (projectsQuery.data ?? []).find((project) => project.id === form.projectId)?.name ?? null
+      }
       repositories={repositories.map((repository) => ({
         id: repository.id,
         name: repository.fullName,
