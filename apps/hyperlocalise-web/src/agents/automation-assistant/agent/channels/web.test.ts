@@ -38,6 +38,10 @@ import { UPDATE_AUTOMATION_SETUP_TOOL_NAME } from "@/lib/agents/workspace-automa
 import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import { createDefaultWorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
+  readAutomationSetupPageEdits,
+  readAutomationSetupSnapshot,
+} from "@/lib/agents/workspace-automation-assistant";
+import {
   beginAutomationAssistantTurn,
   createAutomationAssistantSession,
   getAutomationAssistantSession,
@@ -205,6 +209,54 @@ describe("createAutomationAssistantTurnResponse", () => {
       const after = await getAutomationAssistantSession({ ...scope, sessionId: session.id });
       expect(after?.turnStartedAt).toBeNull();
     });
+  });
+
+  it("records what the person changed on the page since the last turn, and tells the model", async () => {
+    const { user, organization } = await fixture.createLocalWorkosIdentity();
+    const scope = { organizationId: organization.id, userId: user.id };
+    const session = await createAutomationAssistantSession(scope);
+    const turn = async (model: MockLanguageModelV3) => {
+      expect(await beginAutomationAssistantTurn(session.id)).toBe(true);
+      const response = createAutomationAssistantTurnResponse({
+        session,
+        organizationId: organization.id,
+        text: "Call it Weekly digest",
+        // Both turns come from a page with no name: the person discarded the first turn's rename.
+        pageContext: pageContext(),
+        languageModel: { model, source: "gateway", modelId: "mock" },
+      });
+      await response.text();
+      await vi.waitFor(async () => {
+        const after = await getAutomationAssistantSession({ ...scope, sessionId: session.id });
+        expect(after?.turnStartedAt).toBeNull();
+      });
+    };
+
+    await turn(modelThatNamesTheAutomation());
+    const second = modelThatNamesTheAutomation();
+    await turn(second);
+
+    const messages = await listAutomationAssistantMessages(session.id);
+    expect(messages.map((message) => message.senderType)).toEqual([
+      "user",
+      "agent",
+      "user",
+      "agent",
+    ]);
+    // The first reply kept the form its turn left, with the new name.
+    expect(readAutomationSetupSnapshot(messages[1]!.parts)).toMatchObject({
+      name: "Weekly digest",
+    });
+    // Nothing had changed before the first message. Before the second, the name was gone again.
+    expect(readAutomationSetupPageEdits(messages[0]!.parts)).toEqual([]);
+    expect(readAutomationSetupPageEdits(messages[2]!.parts)).toEqual([{ kind: "name", name: "" }]);
+
+    const newest = JSON.stringify(second.doStreamCalls[0]!.prompt.at(-1));
+    expect(newest).toContain("[Page record, written by the page");
+    expect(newest).toContain("the name was cleared");
+    expect(newest).toContain("- Name: (none yet)");
+    // The saved form is for the server's comparison only and never reaches the model.
+    expect(JSON.stringify(second.doStreamCalls[0]!.prompt)).not.toContain("data-setup-after");
   });
 
   it("releases the turn and saves no reply when the model fails", async () => {

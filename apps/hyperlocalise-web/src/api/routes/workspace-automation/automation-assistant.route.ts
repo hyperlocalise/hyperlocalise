@@ -23,6 +23,7 @@ import {
   notFoundResponse,
 } from "@/api/response.schema";
 import { createAutomationAssistantTurnResponse } from "@/agents/automation-assistant/agent/channels/web";
+import { AUTOMATION_SETUP_SNAPSHOT_PART } from "@/lib/agents/workspace-automation-assistant";
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { workspaceAutomationEditorContextSchema } from "@/lib/agents/workspace-automation-editor-context";
 import { isWorkspaceAutomationAssistantForm } from "@/lib/agents/workspace-automation-proposal-form";
@@ -99,7 +100,9 @@ function toMessageResponse(
     senderType: message.senderType,
     senderEmail: null,
     text: message.text,
-    parts: message.parts,
+    // The form a turn left is kept for the server to compare the next turn's page with. The
+    // page has the form itself and no use for a copy on every reply.
+    parts: message.parts?.filter((part) => part.type !== AUTOMATION_SETUP_SNAPSHOT_PART) ?? null,
     attachments: null,
     createdAt: message.createdAt.toISOString(),
   };

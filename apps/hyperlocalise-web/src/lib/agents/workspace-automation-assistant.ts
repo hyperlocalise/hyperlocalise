@@ -15,6 +15,7 @@ import { z } from "zod";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { WorkspaceAutomationEditorContext } from "./workspace-automation-editor-context";
+import { workspaceAutomationFormStateSchema } from "./workspace-automation-form-schema";
 import {
   normalizeWorkspaceAutomationProposal,
   WORKSPACE_AUTOMATION_PROPOSAL_TRIGGER_MODES,
@@ -230,6 +231,160 @@ const historyOutputSchema = z.object({
     notAdded: z.array(z.string()),
   }),
 });
+
+/** The part of a saved reply that holds the form as the turn left it. Never sent to the model. */
+export const AUTOMATION_SETUP_SNAPSHOT_PART = "data-setup-after";
+/** The part of a saved message of the person's that says what they changed on the page first. */
+export const AUTOMATION_SETUP_PAGE_EDITS_PART = "data-page-edits";
+
+/**
+ * One thing the person changed on the page themselves between two turns, by typing, by Undo or
+ * by Discard changes. The same shapes as a call's change lines where they overlap, so the panel
+ * words both the same way.
+ */
+export const automationSetupPageEditSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("name"), name: z.string() }),
+  z.object({ kind: z.literal("instructions"), cleared: z.boolean() }),
+  z.object({ kind: z.literal("trigger"), trigger: triggerSummarySchema }),
+  z.object({ kind: z.literal("skill_added"), skillName: z.string() }),
+  z.object({ kind: z.literal("skill_removed"), skillName: z.string() }),
+  z.object({ kind: z.literal("status"), active: z.boolean() }),
+  /** A setting the assistant cannot set, such as the repository, the channel or the project. */
+  z.object({ kind: z.literal("other") }),
+]);
+
+export type AutomationSetupPageEdit = z.infer<typeof automationSetupPageEditSchema>;
+
+const TRIGGER_FIELDS = [
+  "triggerMode",
+  "scheduledCadence",
+  "scheduledHourUtc",
+  "scheduledDayOfWeek",
+  "scheduledTimezone",
+  "githubEvents",
+  "pushBranches",
+] as const satisfies ReadonlyArray<keyof WorkspaceAutomationFormState>;
+
+/**
+ * What differs between the form as the assistant's last turn left it and the form the person
+ * sends their next message from. Whatever differs, the person did: nothing else writes to the
+ * page between turns. Attaching or removing a skill, or choosing another kind of trigger,
+ * switches tools on and off with it, so "other settings" is reported only when neither happened.
+ */
+export function listAutomationSetupPageEdits(
+  before: WorkspaceAutomationFormState,
+  after: WorkspaceAutomationFormState,
+): AutomationSetupPageEdit[] {
+  const edits: AutomationSetupPageEdit[] = [];
+  if (before.name.trim() !== after.name.trim()) {
+    edits.push({ kind: "name", name: after.name.trim() });
+  }
+  if (before.instructions.trim() !== after.instructions.trim()) {
+    edits.push({ kind: "instructions", cleared: after.instructions.trim().length === 0 });
+  }
+  const trigger = summarizeWorkspaceAutomationFormTrigger(after);
+  if (JSON.stringify(summarizeWorkspaceAutomationFormTrigger(before)) !== JSON.stringify(trigger)) {
+    edits.push({ kind: "trigger", trigger });
+  }
+  const added = after.skillIds.filter((skillId) => !before.skillIds.includes(skillId));
+  const removed = before.skillIds.filter((skillId) => !after.skillIds.includes(skillId));
+  for (const skillId of added) {
+    edits.push({ kind: "skill_added", skillName: skillName(skillId) });
+  }
+  for (const skillId of removed) {
+    edits.push({ kind: "skill_removed", skillName: skillName(skillId) });
+  }
+  if (before.status !== after.status) {
+    edits.push({ kind: "status", active: after.status === "active" });
+  }
+
+  // A form read back from a saved reply has its fields in another order, so the rest is compared
+  // field by field in a fixed order.
+  const compared = new Set<string>([
+    "name",
+    "instructions",
+    "skillIds",
+    "status",
+    ...TRIGGER_FIELDS,
+  ]);
+  const rest = (form: WorkspaceAutomationFormState) =>
+    JSON.stringify(
+      Object.entries(form)
+        .filter(([field]) => !compared.has(field))
+        .toSorted(([left], [right]) => left.localeCompare(right)),
+    );
+  if (
+    added.length === 0 &&
+    removed.length === 0 &&
+    before.triggerMode === after.triggerMode &&
+    rest(before) !== rest(after)
+  ) {
+    edits.push({ kind: "other" });
+  }
+  return edits;
+}
+
+function describePageEdit(edit: AutomationSetupPageEdit): string {
+  switch (edit.kind) {
+    case "name":
+      return edit.name ? `the name is now "${edit.name}"` : "the name was cleared";
+    case "instructions":
+      return edit.cleared ? "the instructions were cleared" : "the instructions were rewritten";
+    case "trigger":
+      return `it now runs ${describeWorkspaceAutomationTrigger(edit.trigger)}`;
+    case "skill_added":
+      return `"${edit.skillName}" was added`;
+    case "skill_removed":
+      return `"${edit.skillName}" was removed`;
+    case "status":
+      return edit.active ? "it was switched on" : "it was switched off";
+    case "other":
+      return "other settings were changed";
+    default:
+      return assertNever(edit);
+  }
+}
+
+/**
+ * The page's record, for the model, of what the person changed themselves before sending a
+ * message. Unlike a snapshot of the page it stays true, so it is kept in the history: it is what
+ * tells a later turn that a change an earlier turn made is no longer there.
+ */
+export function describeAutomationSetupPageEdits(
+  edits: readonly AutomationSetupPageEdit[],
+): string {
+  return `[Page record, written by the page: since your last turn the person changed the page themselves, by hand or with Undo or Discard changes: ${edits.map(describePageEdit).join("; ")}. Your earlier turns describe the page as it was before that.]`;
+}
+
+function readDataPart(parts: readonly unknown[] | null | undefined, type: string): unknown {
+  for (const part of parts ?? []) {
+    const parsed = z.object({ type: z.literal(type), data: z.unknown() }).safeParse(part);
+    if (parsed.success) {
+      return parsed.data.data;
+    }
+  }
+  return undefined;
+}
+
+/** The form as a saved reply's turn left it, or null when the reply holds none. */
+export function readAutomationSetupSnapshot(
+  parts: readonly unknown[] | null | undefined,
+): WorkspaceAutomationFormState | null {
+  const parsed = z
+    .object({ form: workspaceAutomationFormStateSchema })
+    .safeParse(readDataPart(parts, AUTOMATION_SETUP_SNAPSHOT_PART));
+  return parsed.success ? parsed.data.form : null;
+}
+
+/** What the person changed on the page before sending a saved message, or nothing. */
+export function readAutomationSetupPageEdits(
+  parts: readonly unknown[] | null | undefined,
+): AutomationSetupPageEdit[] {
+  const parsed = z
+    .object({ edits: z.array(automationSetupPageEditSchema) })
+    .safeParse(readDataPart(parts, AUTOMATION_SETUP_PAGE_EDITS_PART));
+  return parsed.success ? parsed.data.edits : [];
+}
 
 /**
  * What the page adds, in the model's history, to a past reply that changed nothing. The panel

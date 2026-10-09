@@ -19,7 +19,6 @@ import {
   describeAutomationSetupCatalogue,
   UPDATE_AUTOMATION_SETUP_TOOL_NAME,
 } from "@/lib/agents/workspace-automation-assistant";
-import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 
 import {
   createUpdateAutomationSetupTool,
@@ -47,10 +46,11 @@ export function buildAutomationAssistantInstructions(): string {
  * setup tool and nothing else: no repository, no translation, no web, no subagents.
  */
 export function createAutomationAssistantAgent(input: {
-  context: WorkspaceAutomationEditorContext;
+  /** The page as the turn knows it. The tool rewrites it, so the caller can read the form the turn left. */
+  toolContext: AutomationAssistantToolContext;
   model?: LanguageModel;
 }) {
-  const toolContext: AutomationAssistantToolContext = { automationEditor: input.context };
+  const { toolContext } = input;
   return new ToolLoopAgent({
     model: input.model ?? getHyperlocaliseAgentModel(),
     instructions: buildAutomationAssistantInstructions(),

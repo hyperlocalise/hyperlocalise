@@ -19,7 +19,12 @@ import {
 } from "ai";
 
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
-import { describeAutomationSetupPage } from "@/lib/agents/workspace-automation-assistant";
+import {
+  AUTOMATION_SETUP_PAGE_EDITS_PART,
+  AUTOMATION_SETUP_SNAPSHOT_PART,
+  describeAutomationSetupPage,
+  listAutomationSetupPageEdits,
+} from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
@@ -29,6 +34,7 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import {
   addAutomationAssistantMessage,
   endAutomationAssistantTurn,
+  findAutomationAssistantFormAfterLastTurn,
   loadAutomationAssistantModelMessages,
   type AutomationAssistantSession,
 } from "@/lib/automation-assistant/sessions";
@@ -42,6 +48,7 @@ import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 import { createAutomationAssistantAgent } from "../agent";
+import type { AutomationAssistantToolContext } from "../tools/update_automation_setup";
 
 export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
 const STREAM_ERROR_MESSAGE = "Sorry, something went wrong while the assistant was working.";
@@ -104,13 +111,30 @@ export function createAutomationAssistantTurnResponse(input: {
   };
   let shouldTrackUsage = false;
   let agentTokenUsagePromise: Promise<AiTokenUsage | null> | null = null;
+  // The tool rewrites this as it works, so after the turn it holds the form the turn left.
+  const toolContext: AutomationAssistantToolContext = { automationEditor: input.pageContext };
 
   const stream = createUIMessageStream<InboxChatUIMessage>({
     execute: async ({ writer }) => {
+      // Whatever differs between the form the last turn left and the page this message comes
+      // from, the person changed themselves. It is saved with their message, so every later turn
+      // knows a change an earlier turn made may no longer be there.
+      const formAfterLastTurn = await findAutomationAssistantFormAfterLastTurn(session.id);
+      const pageEdits = formAfterLastTurn
+        ? listAutomationSetupPageEdits(formAfterLastTurn, input.pageContext.form)
+        : [];
       await addAutomationAssistantMessage({
         sessionId: session.id,
         senderType: "user",
         text: input.text,
+        ...(pageEdits.length > 0
+          ? {
+              parts: [
+                { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits: pageEdits } },
+                { type: "text", text: input.text },
+              ],
+            }
+          : {}),
       });
       // Counted when the person's message is saved, as a conversation message is, whatever
       // becomes of the reply.
@@ -132,7 +156,7 @@ export function createAutomationAssistantTurnResponse(input: {
         input.pageContext,
       );
       const agent = createAutomationAssistantAgent({
-        context: input.pageContext,
+        toolContext,
         model: input.languageModel.model,
       });
       const result = await agent.stream({ messages });
@@ -149,7 +173,14 @@ export function createAutomationAssistantTurnResponse(input: {
               sessionId: session.id,
               senderType: "agent",
               text: text || "(no response)",
-              parts: parts.length > 0 ? parts : [{ type: "text", text: text || "(no response)" }],
+              parts: [
+                ...(parts.length > 0 ? parts : [{ type: "text" as const, text: "(no response)" }]),
+                // The form as this turn left it, for the next turn to compare the page with.
+                {
+                  type: AUTOMATION_SETUP_SNAPSHOT_PART,
+                  data: { form: toolContext.automationEditor.form },
+                },
+              ],
             });
           }
         }

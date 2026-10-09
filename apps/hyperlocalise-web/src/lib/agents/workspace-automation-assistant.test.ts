@@ -15,8 +15,14 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   applyAutomationSetupChanges,
   automationSetupChangeSchema,
+  AUTOMATION_SETUP_PAGE_EDITS_PART,
+  AUTOMATION_SETUP_SNAPSHOT_PART,
   describeAutomationSetupCatalogue,
   describeAutomationSetupPage,
+  describeAutomationSetupPageEdits,
+  listAutomationSetupPageEdits,
+  readAutomationSetupPageEdits,
+  readAutomationSetupSnapshot,
   collectAutomationSetupChanges,
   describeWorkspaceAutomationTrigger,
   summarizeAutomationSetupCall,
@@ -412,6 +418,89 @@ describe("describeAutomationSetupPage", () => {
     expect(describeAutomationSetupPage(editorContext({ mode: "detail" }))).toContain(
       'The save button is called "Save".',
     );
+  });
+});
+
+describe("listAutomationSetupPageEdits", () => {
+  const base = createDefaultWorkspaceAutomationFormState();
+
+  it("is empty when the page is as the last turn left it", () => {
+    expect(listAutomationSetupPageEdits(base, { ...base })).toEqual([]);
+  });
+
+  it("says a rename the assistant made is gone when the person discards it", () => {
+    // The assistant renamed it; the person pressed Discard changes; the page shows the old name.
+    const afterTheTurn = { ...base, name: "Competitor watch" };
+    const pageNow = { ...base, name: "Competitor news brief" };
+
+    const edits = listAutomationSetupPageEdits(afterTheTurn, pageNow);
+
+    expect(edits).toEqual([{ kind: "name", name: "Competitor news brief" }]);
+    expect(describeAutomationSetupPageEdits(edits)).toContain(
+      'the person changed the page themselves, by hand or with Undo or Discard changes: the name is now "Competitor news brief".',
+    );
+  });
+
+  it("names each kind of thing the person changed", () => {
+    const { context } = updateWorkspaceAutomationSetup(
+      editorContext(),
+      setupInput({ addSkillIds: ["research-web"] }),
+    );
+    const before = context!.form;
+    const after = {
+      ...before,
+      instructions: "Keep it short.",
+      status: "paused" as const,
+      triggerMode: "scheduled" as const,
+      scheduledCadence: "hourly" as const,
+      skillIds: [],
+    };
+
+    expect(listAutomationSetupPageEdits(before, after)).toEqual([
+      { kind: "instructions", cleared: false },
+      { kind: "trigger", trigger: { mode: "scheduled", cadence: "hourly", timeZone: "UTC" } },
+      { kind: "skill_removed", skillName: getWorkspaceAutomationSkill("research-web")!.name },
+      { kind: "status", active: false },
+    ]);
+  });
+
+  it("says other settings changed for one the assistant cannot set, such as the project", () => {
+    expect(listAutomationSetupPageEdits(base, { ...base, projectId: "project-1" })).toEqual([
+      { kind: "other" },
+    ]);
+  });
+
+  it("does not count the tools a skill switches on as other settings", () => {
+    const { context } = updateWorkspaceAutomationSetup(
+      editorContext(),
+      setupInput({ addSkillIds: ["research-web"] }),
+    );
+
+    expect(listAutomationSetupPageEdits(base, context!.form)).toEqual([
+      { kind: "skill_added", skillName: getWorkspaceAutomationSkill("research-web")!.name },
+    ]);
+  });
+
+  it("sees no change in a form that only comes back with its fields in another order", () => {
+    const reordered = Object.fromEntries(Object.entries(base).toReversed()) as typeof base;
+
+    expect(listAutomationSetupPageEdits(base, reordered)).toEqual([]);
+  });
+
+  it("is read back from saved parts, and anything malformed reads as nothing", () => {
+    const edits = [{ kind: "name" as const, name: "Weekly digest" }];
+    expect(
+      readAutomationSetupPageEdits([{ type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits } }]),
+    ).toEqual(edits);
+    expect(readAutomationSetupPageEdits([{ type: "text", text: "hello" }])).toEqual([]);
+    expect(readAutomationSetupPageEdits(null)).toEqual([]);
+
+    expect(
+      readAutomationSetupSnapshot([{ type: AUTOMATION_SETUP_SNAPSHOT_PART, data: { form: base } }]),
+    ).toEqual(base);
+    expect(
+      readAutomationSetupSnapshot([{ type: AUTOMATION_SETUP_SNAPSHOT_PART, data: { form: {} } }]),
+    ).toBeNull();
   });
 });
 

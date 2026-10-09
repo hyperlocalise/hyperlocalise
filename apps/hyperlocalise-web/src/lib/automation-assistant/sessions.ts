@@ -13,7 +13,13 @@
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
 
-import { toAutomationSetupHistoryParts } from "@/lib/agents/workspace-automation-assistant";
+import {
+  describeAutomationSetupPageEdits,
+  readAutomationSetupPageEdits,
+  readAutomationSetupSnapshot,
+  toAutomationSetupHistoryParts,
+} from "@/lib/agents/workspace-automation-assistant";
+import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { db, schema } from "@/lib/database/client";
 
 /** How long a session bound to no automation is kept once its page is gone. */
@@ -203,6 +209,32 @@ export async function addAutomationAssistantMessage(input: {
     .where(eq(sessions.id, input.sessionId));
 }
 
+/** How many of the newest replies are searched for the form the last turn left. */
+const SNAPSHOT_LOOKBACK_REPLIES = 5;
+
+/**
+ * The form as the assistant's last finished turn left it, or null when no turn has recorded one.
+ * The next turn compares it with the page it is sent from, to learn what the person changed
+ * themselves in between.
+ */
+export async function findAutomationAssistantFormAfterLastTurn(
+  sessionId: string,
+): Promise<WorkspaceAutomationFormState | null> {
+  const rows = await db
+    .select({ parts: messages.parts })
+    .from(messages)
+    .where(and(eq(messages.sessionId, sessionId), eq(messages.senderType, "agent")))
+    .orderBy(desc(messages.createdAt))
+    .limit(SNAPSHOT_LOOKBACK_REPLIES);
+  for (const row of rows) {
+    const form = readAutomationSetupSnapshot(row.parts);
+    if (form) {
+      return form;
+    }
+  }
+  return null;
+}
+
 /** Every message of the session, oldest first, for the panel. */
 export async function listAutomationAssistantMessages(
   sessionId: string,
@@ -216,9 +248,10 @@ export async function listAutomationAssistantMessages(
 }
 
 /**
- * The newest messages of the session as the model sees them, oldest first: what was said, and
- * each finished call of the setup tool with what it did. A reply that made no call shows none,
- * so the model can tell a change that was made from one that was only described.
+ * The newest messages of the session as the model sees them, oldest first: what was said, each
+ * finished call of the setup tool with what it did, and what the person changed on the page
+ * themselves between turns. A reply that made no call shows none, so the model can tell a change
+ * that was made from one that was only described.
  */
 export async function loadAutomationAssistantModelMessages(
   sessionId: string,
@@ -236,7 +269,15 @@ export async function loadAutomationAssistantModelMessages(
 
   const history = rows.toReversed().flatMap((row): Array<Omit<UIMessage, "id">> => {
     if (row.senderType === "user") {
-      return row.text.trim() ? [{ role: "user", parts: [{ type: "text", text: row.text }] }] : [];
+      if (!row.text.trim()) {
+        return [];
+      }
+      // What the person changed on the page before sending this is part of what happened, and
+      // stays true, so the model is shown it with the message every time.
+      const edits = readAutomationSetupPageEdits(row.parts);
+      const text =
+        edits.length > 0 ? `${describeAutomationSetupPageEdits(edits)}\n\n${row.text}` : row.text;
+      return [{ role: "user", parts: [{ type: "text", text }] }];
     }
     const parts = toAutomationSetupHistoryParts(
       row.parts ?? [{ type: "text", text: row.text }],
