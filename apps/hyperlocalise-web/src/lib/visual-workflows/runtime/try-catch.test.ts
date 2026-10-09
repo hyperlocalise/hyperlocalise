@@ -140,6 +140,117 @@ describe("Try / Catch runtime", () => {
     expect(executed).toEqual(["trigger", "boundary", "work", "catch", "finally"]);
   });
 
+  it("runs Finally before propagating a failure from Success", async () => {
+    const executed: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition: definition(),
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        executed.push(node.id);
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        if (node.id === "success") {
+          return { ok: false, error: { code: "SUCCESS_FAILED", message: "Success failed." } };
+        }
+        return { ok: true, output: {} };
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      failedNodeId: "success",
+      error: { code: "SUCCESS_FAILED" },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "work", "success", "finally"]);
+  });
+
+  it("runs Finally before propagating a terminal result from Try", async () => {
+    const input = definition();
+    input.nodes = input.nodes.map((node) =>
+      node.id === "work"
+        ? {
+            id: "work",
+            type: "flow.return" as const,
+            config: {
+              kind: "flow.return" as const,
+              outputs: [{ id: "result", name: "result", type: "string" as const }],
+            },
+          }
+        : node,
+    );
+    const executed: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition: input,
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        executed.push(node.id);
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        if (node.id === "work") {
+          return { ok: true, output: { returnedOutputs: { result: "done" } } };
+        }
+        return { ok: true, output: {} };
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      terminal: { kind: "returned", nodeId: "work", outputs: { result: "done" } },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "work", "finally"]);
+  });
+
+  it("runs Finally before propagating a terminal failure from Try", async () => {
+    const { executed, result } = await run({
+      ok: false,
+      error: { code: "PAYMENT_DECLINED", message: "The payment was declined.", terminal: true },
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      failedNodeId: "work",
+      error: { code: "PAYMENT_DECLINED", terminal: true },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "work", "finally"]);
+  });
+
+  it("resumes a terminated boundary through Finally without Success or Catch", async () => {
+    const executed: string[] = [];
+    const result = await runVisualWorkflowInterpreter({
+      definition: definition(),
+      organizationId: "00000000-0000-4000-8000-000000000001",
+      executeNode: async ({ node }) => {
+        executed.push(node.id);
+        if (node.type === "trigger.manual") {
+          return { ok: true, output: { triggeredAt: "2026-10-08T00:00:00.000Z" } };
+        }
+        if (node.type === "logic.try_catch") {
+          return {
+            ok: true,
+            output: {
+              boundaryStatus: "terminated",
+              terminalNodeId: "work",
+              terminalError: {
+                code: "workflow_returned",
+                message: "Workflow completed with returned outputs.",
+                outputs: { result: "done" },
+              },
+            },
+          };
+        }
+        return { ok: true, output: {} };
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      terminal: { kind: "returned", nodeId: "work", outputs: { result: "done" } },
+    });
+    expect(executed).toEqual(["trigger", "boundary", "finally"]);
+  });
+
   it("runs Finally before propagating a terminal result from Catch", async () => {
     const input = definition();
     input.nodes = input.nodes.map((node) =>

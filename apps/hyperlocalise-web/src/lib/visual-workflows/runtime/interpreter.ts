@@ -180,6 +180,33 @@ function resolveTryCatchAttemptMetadata(
   return { number: belongsToRetry ? iteration : iteration + 1 };
 }
 
+type TryCatchDeferredResult = {
+  nodeId: string;
+  error: Record<string, unknown>;
+};
+
+function readTerminatedTryCatchResult(
+  output: Record<string, unknown>,
+): TryCatchDeferredResult | null {
+  if (output.boundaryStatus !== "terminated") return null;
+  if (typeof output.terminalNodeId !== "string" || output.terminalNodeId.length === 0) {
+    return null;
+  }
+  if (!output.terminalError || typeof output.terminalError !== "object") return null;
+  return {
+    nodeId: output.terminalNodeId,
+    error: output.terminalError as Record<string, unknown>,
+  };
+}
+
+function buildTerminatedTryCatchOutput(result: TryCatchDeferredResult): Record<string, unknown> {
+  return {
+    boundaryStatus: "terminated",
+    terminalNodeId: result.nodeId,
+    terminalError: result.error,
+  };
+}
+
 function collectReachableNodeIds(
   startNodeIds: readonly string[],
   outgoingByNodeId: ReadonlyMap<string, readonly CanonicalVisualWorkflowEdge[]>,
@@ -682,6 +709,7 @@ export async function runVisualWorkflowInterpreter(input: {
         }
         let retryExitHandle: "succeeded" | "exhausted" | null = null;
         let tryCatchExitHandles: Array<"success" | "catch" | "finally"> | null = null;
+        let pendingTryCatchTerminal: TryCatchDeferredResult | null = null;
         if (execution.ok && node.type !== "logic.for_each" && node.type !== "logic.retry") {
           for (const field of getWorkflowOutputFields(node)) {
             const value = readWorkflowPath(execution.output, field.path.split("."));
@@ -853,20 +881,26 @@ export async function runVisualWorkflowInterpreter(input: {
                 .filter((edge) => edge.sourceHandle === "try")
                 .map((edge) => edge.target),
             );
+            const tryCatchOutput = execution.ok ? execution.output : {};
             const cachedBoundaryStatus =
-              execution.output.boundaryStatus === "succeeded" ||
-              execution.output.boundaryStatus === "caught"
-                ? execution.output.boundaryStatus
+              tryCatchOutput.boundaryStatus === "succeeded" ||
+              tryCatchOutput.boundaryStatus === "caught"
+                ? tryCatchOutput.boundaryStatus
                 : null;
-            const regionFailure = cachedBoundaryStatus
-              ? null
-              : await runScope(body, starts, iteration, { failOnHandledErrors: true });
+            const cachedTerminated = readTerminatedTryCatchResult(tryCatchOutput);
+            const regionFailure =
+              cachedBoundaryStatus || cachedTerminated
+                ? null
+                : await runScope(body, starts, iteration, { failOnHandledErrors: true });
 
             if (cachedBoundaryStatus) {
               tryCatchExitHandles = [
                 cachedBoundaryStatus === "caught" ? "catch" : "success",
                 "finally",
               ];
+            } else if (cachedTerminated) {
+              tryCatchExitHandles = ["finally"];
+              pendingTryCatchTerminal = cachedTerminated;
             } else if (regionFailure) {
               const errorCode =
                 typeof regionFailure.error.code === "string"
@@ -880,25 +914,35 @@ export async function runVisualWorkflowInterpreter(input: {
                   "retry_backoff",
                   "wait_suspended",
                   "merge_suspended",
-                  "workflow_completed",
-                  "workflow_returned",
-                ].includes(errorCode) ||
-                regionFailure.error.terminal === true
+                ].includes(errorCode)
               ) {
                 return regionFailure;
               }
 
-              execution = {
-                ok: true,
-                output: {
-                  errorCode,
-                  errorMessage: "The protected workflow region failed.",
-                  failedNodeId: regionFailure.nodeId,
-                  attempt: resolveTryCatchAttemptMetadata(definition, node.id, iteration),
-                  boundaryStatus: "caught",
-                },
-              };
-              tryCatchExitHandles = ["catch", "finally"];
+              const isTerminal =
+                ["workflow_completed", "workflow_returned"].includes(errorCode) ||
+                regionFailure.error.terminal === true;
+
+              if (isTerminal) {
+                pendingTryCatchTerminal = regionFailure;
+                execution = {
+                  ok: true,
+                  output: buildTerminatedTryCatchOutput(regionFailure),
+                };
+                tryCatchExitHandles = ["finally"];
+              } else {
+                execution = {
+                  ok: true,
+                  output: {
+                    errorCode,
+                    errorMessage: "The protected workflow region failed.",
+                    failedNodeId: regionFailure.nodeId,
+                    attempt: resolveTryCatchAttemptMetadata(definition, node.id, iteration),
+                    boundaryStatus: "caught",
+                  },
+                };
+                tryCatchExitHandles = ["catch", "finally"];
+              }
             } else {
               execution = { ok: true, output: { boundaryStatus: "succeeded" } };
               tryCatchExitHandles = ["success", "finally"];
@@ -989,12 +1033,20 @@ export async function runVisualWorkflowInterpreter(input: {
           if (target?.config.kind === "logic.merge") armMergeTimeout(target);
         }
         if (holdsOrderedExits) {
-          sequenceHoldStack.push({
+          const frame: SequenceHoldFrame = {
             kind: node.config.kind === "logic.try_catch" ? "try_catch" : "sequence",
             heldEdges: sequenceHeldEdges,
             activeReleasedEdge: sequenceReleaseEdge,
-            deferredTerminal: false,
-          });
+            deferredTerminal: pendingTryCatchTerminal != null,
+          };
+          sequenceHoldStack.push(frame);
+          if (pendingTryCatchTerminal) {
+            deferredTryCatch.result = {
+              frame,
+              nodeId: pendingTryCatchTerminal.nodeId,
+              error: pendingTryCatchTerminal.error,
+            };
+          }
           priorityNodeIds = sequenceReleaseEdge
             ? collectSequencePriorityNodeIds([sequenceReleaseEdge], graph.outgoingByNodeId)
             : [];
