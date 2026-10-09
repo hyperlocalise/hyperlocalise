@@ -228,6 +228,7 @@ export function JobContentEditorPageContent({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canManageAutomations={canManageAutomations}
+      sourcePath={sourcePath}
       pageNavigationGuardRef={pageNavigationGuardRef}
     />
   ) : null;

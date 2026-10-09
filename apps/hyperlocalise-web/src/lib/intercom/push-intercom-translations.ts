@@ -58,9 +58,35 @@ export type PushIntercomTranslationsResult = {
   articlesProcessed: number;
 };
 
+export function readIntercomPushSourcePaths(
+  inputSnapshot: Record<string, unknown> | null | undefined,
+): string[] | undefined {
+  const raw = inputSnapshot?.sourcePaths;
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  return raw.filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
+export function selectIntercomPushMappings<T extends { sourcePath: string }>(
+  mappings: T[],
+  sourcePaths?: readonly string[],
+): T[] {
+  if (!sourcePaths) {
+    return mappings;
+  }
+  const selectedSourcePaths = new Set(
+    sourcePaths.filter((sourcePath) => sourcePath.trim().length > 0),
+  );
+  return mappings.filter((mapping) => selectedSourcePaths.has(mapping.sourcePath));
+}
+
 export async function runPushIntercomTranslations(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
+  sourcePaths?: string[];
 }): Promise<PushIntercomTranslationsResult> {
   const intercom = input.automation.toolConfig.intercom;
   if (!intercom?.enabled || !intercom.workosUserId) {
@@ -144,16 +170,19 @@ export async function runPushIntercomTranslations(input: {
     restEndpoint: intercom.restEndpoint,
   });
 
-  const mappings = await db
-    .select()
-    .from(schema.intercomArticleSyncStates)
-    .where(
-      and(
-        eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
-        eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
-        inArray(schema.intercomArticleSyncStates.status, ["active", "push_failed"]),
+  const mappings = selectIntercomPushMappings(
+    await db
+      .select()
+      .from(schema.intercomArticleSyncStates)
+      .where(
+        and(
+          eq(schema.intercomArticleSyncStates.organizationId, input.organizationId),
+          eq(schema.intercomArticleSyncStates.automationId, input.automation.id),
+          inArray(schema.intercomArticleSyncStates.status, ["active", "push_failed"]),
+        ),
       ),
-    );
+    input.sourcePaths,
+  );
 
   let pushedLocales = 0;
   let skippedLocales = 0;

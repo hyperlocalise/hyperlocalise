@@ -124,6 +124,7 @@ export function AutomationDetailPageContent({
         ":automationId"
       ].$get({
         param: { organizationSlug, automationId },
+        query: {},
       });
       if (response.status !== 200) {
         throw new Error("Failed to load automation");

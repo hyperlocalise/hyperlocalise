@@ -177,6 +177,10 @@ function uniqueNonEmptyLocales(values: readonly string[]): string[] {
   return locales;
 }
 
+export function unionIntercomLocales(...groups: Array<readonly string[] | undefined>): string[] {
+  return uniqueNonEmptyLocales(groups.flatMap((group) => group ?? []));
+}
+
 function findAvailableLocale(preferred: string, available: readonly string[]): string | null {
   const normalizedPreferred = normalizeIntercomLocaleTag(preferred);
   for (const locale of available) {
@@ -469,13 +473,21 @@ export function readIntercomLocaleContent(
   return null;
 }
 
+const EMPTY_HTML_ENTITY_PATTERN = /&nbsp;|&#160;|&#xA0;/gi;
+
+export function intercomCopyHasVisibleText(value: string): boolean {
+  const withoutTags = value.replace(/<[^>]*>/g, " ");
+  const withoutEntities = withoutTags.replace(EMPTY_HTML_ENTITY_PATTERN, " ");
+  return withoutEntities.replace(/\s+/g, " ").trim().length > 0;
+}
+
 export function isIntercomTargetContentImportable(
   content: IntercomLocaleContentFields | null | undefined,
 ): content is IntercomLocaleContentFields {
   if (!content) {
     return false;
   }
-  return content.title.trim().length > 0 && content.body.trim().length > 0;
+  return intercomCopyHasVisibleText(content.title) && intercomCopyHasVisibleText(content.body);
 }
 
 export function selectIntercomTargetLocalesToImport(input: {

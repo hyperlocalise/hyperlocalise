@@ -38,10 +38,36 @@ const APPROVED_VARIANT_READ_CONCURRENCY = 8;
 const APPROVED_KEYED_SOURCE_READ_CONCURRENCY = 8;
 const APPROVED_KEY_PAGE_SIZE = 2_000;
 
+export type IntercomPushArticle = {
+  articleId: string;
+  sourcePath: string;
+  status: "active" | "push_failed";
+  eligibleLocaleCount: number;
+  targetLocaleCount: number;
+  eligibleLocales: string[];
+  lastPushedAt: string | null;
+  lastError: string | null;
+};
+
 export type IntercomPushEligibility = {
   eligibleLocaleCount: number;
   mappedArticleCount: number;
+  articles: IntercomPushArticle[];
 };
+
+const EMPTY_INTERCOM_PUSH_ELIGIBILITY: IntercomPushEligibility = {
+  eligibleLocaleCount: 0,
+  mappedArticleCount: 0,
+  articles: [],
+};
+
+function intercomPushLastErrorMessage(lastError: Record<string, unknown> | null | undefined) {
+  if (!lastError) {
+    return null;
+  }
+  const message = lastError.message;
+  return typeof message === "string" && message.trim().length > 0 ? message : null;
+}
 
 export async function getIntercomPushEligibility(input: {
   organizationId: string;
@@ -55,7 +81,7 @@ export async function getIntercomPushEligibility(input: {
   const projectId = input.automation.projectId?.trim();
   const helpCenterId = intercom.helpCenterId?.trim();
   if (!projectId || !helpCenterId) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const [project] = await db
@@ -70,7 +96,7 @@ export async function getIntercomPushEligibility(input: {
     .limit(1);
 
   if (!project) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const helpCenterLocales =
@@ -87,7 +113,7 @@ export async function getIntercomPushEligibility(input: {
   });
 
   if (localeMapping.jobTargetLocales.length === 0) {
-    return { eligibleLocaleCount: 0, mappedArticleCount: 0 };
+    return EMPTY_INTERCOM_PUSH_ELIGIBILITY;
   }
 
   const mappings = (
@@ -117,9 +143,11 @@ export async function getIntercomPushEligibility(input: {
 
   let eligibleLocaleCount = 0;
   let mappedArticleCount = 0;
+  const articles: IntercomPushArticle[] = [];
+  const targetLocaleCount = localeMapping.jobTargetLocales.length;
 
   for (const mapping of mappings) {
-    let articleEligible = 0;
+    const eligibleLocales: string[] = [];
     const approvedByLocale = approvedByPathAndLocale.get(mapping.sourcePath);
 
     for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
@@ -158,16 +186,27 @@ export async function getIntercomPushEligibility(input: {
         continue;
       }
 
-      articleEligible += 1;
+      eligibleLocales.push(hlLocale);
       eligibleLocaleCount += 1;
     }
 
-    if (articleEligible > 0) {
+    if (eligibleLocales.length > 0) {
       mappedArticleCount += 1;
     }
+
+    articles.push({
+      articleId: mapping.articleId,
+      sourcePath: mapping.sourcePath,
+      status: mapping.status === "push_failed" ? "push_failed" : "active",
+      eligibleLocaleCount: eligibleLocales.length,
+      targetLocaleCount,
+      eligibleLocales,
+      lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
+      lastError: intercomPushLastErrorMessage(mapping.lastError),
+    });
   }
 
-  return { eligibleLocaleCount, mappedArticleCount };
+  return { eligibleLocaleCount, mappedArticleCount, articles };
 }
 
 export async function loadApprovedIntercomArticleValuesByPath(input: {

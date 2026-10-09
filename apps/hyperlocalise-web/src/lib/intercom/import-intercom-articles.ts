@@ -18,6 +18,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
+import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import {
   createFileTranslationJob,
@@ -41,10 +42,14 @@ import {
 } from "./articles-api";
 import { DEFAULT_INTERCOM_EXISTING_TRANSLATION_POLICY } from "./intercom-existing-translation-policy";
 import {
-  importIntercomTargetTranslations,
-  remainingIntercomJobTargetLocales,
-} from "./import-intercom-target-translations";
-import { mapProjectLocalesToIntercom } from "./intercom-locale";
+  INTERCOM_IMPORT_OPEN_JOB_STATUSES,
+  readFileTranslationJobSourceFileId,
+  readFileTranslationJobTargetLocales,
+  resolveIntercomImportJobTargetLocales,
+  type IntercomOpenFileTranslationJob,
+} from "./import-intercom-jobs";
+import { importIntercomTargetTranslations } from "./import-intercom-target-translations";
+import { mapProjectLocalesToIntercom, unionIntercomLocales } from "./intercom-locale";
 import {
   assertLiveIntercomAutomationConfigVersion,
   withCurrentIntercomAutomationConfig,
@@ -73,6 +78,30 @@ export function intercomArticleImportOutcome(input: {
     return "skipped";
   }
   return "imported";
+}
+
+async function loadOpenIntercomFileTranslationJobs(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<IntercomOpenFileTranslationJob[]> {
+  const rows = await db
+    .select({
+      inputPayload: schema.jobs.inputPayload,
+    })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.organizationId, input.organizationId),
+        eq(schema.jobs.projectId, input.projectId),
+        eq(schema.jobs.kind, "translation"),
+        inArray(schema.jobs.status, [...INTERCOM_IMPORT_OPEN_JOB_STATUSES]),
+      ),
+    );
+
+  return rows.map((row) => ({
+    sourceFileId: readFileTranslationJobSourceFileId(row.inputPayload),
+    targetLocales: readFileTranslationJobTargetLocales(row.inputPayload),
+  }));
 }
 
 export type ImportIntercomArticlesResult = {
@@ -278,21 +307,30 @@ export async function runImportIntercomArticles(input: {
 
   const helpCenterLocales =
     intercom.helpCenterLocales.length > 0 ? intercom.helpCenterLocales : intercom.targetLocales;
-
-  const localeMapping = mapProjectLocalesToIntercom({
+  const projectTargetLocales = Array.isArray(project.targetLocales)
+    ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+    : [];
+  const localeMappingInput = {
     projectSourceLocale: project.sourceLocale ?? "en",
-    projectTargetLocales: Array.isArray(project.targetLocales)
-      ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
-      : [],
-    intercomLocales: helpCenterLocales,
+    projectTargetLocales,
     configuredSourceLocale: intercom.sourceLocale,
     configuredTargetLocales: intercom.targetLocales.length > 0 ? intercom.targetLocales : undefined,
+  };
+
+  const localeMapping = mapProjectLocalesToIntercom({
+    ...localeMappingInput,
+    intercomLocales: helpCenterLocales,
   });
 
   const sourceIntercomLocale = localeMapping.sourceIntercomLocale;
   if (!sourceIntercomLocale) {
     throw new Error("intercom_source_locale_unmapped");
   }
+
+  const openJobs = await loadOpenIntercomFileTranslationJobs({
+    organizationId: input.organizationId,
+    projectId,
+  });
 
   const perArticleResults = await mapWithConcurrency(
     articles,
@@ -321,6 +359,13 @@ export async function runImportIntercomArticles(input: {
 
       try {
         const detailedArticle = await loadIntercomArticleForImport(client, article.id);
+        const articleLocaleMapping = mapProjectLocalesToIntercom({
+          ...localeMappingInput,
+          intercomLocales: unionIntercomLocales(
+            helpCenterLocales,
+            Object.keys(detailedArticle.localeContent),
+          ),
+        });
         const payload = intercomArticleToImportPayload(detailedArticle, sourceIntercomLocale);
         const contentHash = hashIntercomArticleContent(payload);
         const sourceUnchanged =
@@ -388,11 +433,20 @@ export async function runImportIntercomArticles(input: {
           }
         }
 
+        if (!sourceFileId) {
+          const existingVersion = await getLatestRepositorySourceFileVersion({
+            organizationId: input.organizationId,
+            projectId,
+            sourcePath,
+          });
+          sourceFileId = existingVersion?.storedFileId ?? null;
+        }
+
         const translationResult = await importIntercomTargetTranslations({
           organizationId: input.organizationId,
           projectId,
           sourcePath,
-          localeMapping,
+          localeMapping: articleLocaleMapping,
           localeContent: detailedArticle.localeContent,
           policy:
             intercom.existingTranslationPolicy ?? DEFAULT_INTERCOM_EXISTING_TRANSLATION_POLICY,
@@ -422,47 +476,41 @@ export async function runImportIntercomArticles(input: {
 
         let jobId: string | null = null;
         const createJobConfig = input.automation.toolConfig.createNativeTmsJob;
-        if (
-          !sourceUnchanged &&
-          sourceFileId &&
-          createJobConfig?.enabled &&
-          localeMapping.jobTargetLocales.length > 0
-        ) {
-          const configuredJobLocales = createJobConfig.useProjectTargetLocales
-            ? localeMapping.jobTargetLocales
-            : createJobConfig.targetLocales.filter((locale) =>
-                localeMapping.jobTargetLocales.includes(locale),
-              );
-          const jobTargetLocales = remainingIntercomJobTargetLocales({
-            jobTargetLocales: configuredJobLocales,
-            importedProjectLocales: translationResult.importedLocales,
-            pushReadyProjectLocales: translationResult.pushReadyLocales,
+        const jobTargetLocales = resolveIntercomImportJobTargetLocales({
+          createJobEnabled: Boolean(createJobConfig?.enabled),
+          useProjectTargetLocales: createJobConfig?.useProjectTargetLocales ?? true,
+          configuredTargetLocales: createJobConfig?.targetLocales ?? [],
+          mappedJobTargetLocales: articleLocaleMapping.jobTargetLocales,
+          importedProjectLocales: translationResult.importedLocales,
+          pushReadyProjectLocales: translationResult.pushReadyLocales,
+          sourceFileId,
+          openJobs,
+        });
+
+        if (sourceFileId && jobTargetLocales.length > 0) {
+          const jobResult = await createFileTranslationJob({
+            organizationId: input.organizationId,
+            projectId,
+            sourceFileId,
+            sourceLocale: project.sourceLocale?.trim() || "en",
+            targetLocales: jobTargetLocales,
           });
 
-          if (jobTargetLocales.length > 0) {
-            const jobResult = await createFileTranslationJob({
+          if (!jobResult.ok) {
+            throw new Error(jobResult.code);
+          }
+
+          jobId = jobResult.jobId;
+          openJobs.push({ sourceFileId, targetLocales: jobTargetLocales });
+
+          if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
+            const enqueueResult = await enqueueExistingFileTranslationJob({
               organizationId: input.organizationId,
-              projectId,
-              sourceFileId,
-              sourceLocale: project.sourceLocale?.trim() || "en",
-              targetLocales: jobTargetLocales,
+              jobId: jobResult.jobId,
+              jobQueue,
             });
-
-            if (!jobResult.ok) {
-              throw new Error(jobResult.code);
-            }
-
-            jobId = jobResult.jobId;
-
-            if (input.automation.toolConfig.assignTranslateWithAgent?.enabled) {
-              const enqueueResult = await enqueueExistingFileTranslationJob({
-                organizationId: input.organizationId,
-                jobId: jobResult.jobId,
-                jobQueue,
-              });
-              if (!enqueueResult.ok) {
-                throw new Error(enqueueResult.code);
-              }
+            if (!enqueueResult.ok) {
+              throw new Error(enqueueResult.code);
             }
           }
         }
@@ -539,12 +587,12 @@ export async function runImportIntercomArticles(input: {
     translationsImported += result.translationsImported;
     translationsSkipped += result.translationsSkipped;
     translationsFailed += result.translationsFailed;
+    if (result.jobId) {
+      jobsCreated += 1;
+      jobIds.push(result.jobId);
+    }
     if (result.outcome === "imported") {
       imported += 1;
-      if (result.jobId) {
-        jobsCreated += 1;
-        jobIds.push(result.jobId);
-      }
     } else if (result.outcome === "skipped") {
       skipped += 1;
     } else {

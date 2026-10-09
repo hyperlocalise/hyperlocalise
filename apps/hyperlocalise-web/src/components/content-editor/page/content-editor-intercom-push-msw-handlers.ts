@@ -15,12 +15,49 @@ import { http, HttpResponse } from "msw";
 import { createIntercomAutomationRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automation-editor.fixture";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
+import type { ContentEditorIntercomPushArticle } from "./content-editor-intercom-push-queries";
+
+export const contentEditorIntercomPushStoryArticles: ContentEditorIntercomPushArticle[] = [
+  {
+    articleId: "17431620",
+    sourcePath: "intercom/customer-support/reset-your-password.md",
+    status: "active",
+    eligibleLocaleCount: 2,
+    targetLocaleCount: 2,
+    eligibleLocales: ["de", "fr"],
+    lastPushedAt: null,
+    lastError: null,
+  },
+  {
+    articleId: "17431621",
+    sourcePath: "intercom/customer-support/getting-started.md",
+    status: "active",
+    eligibleLocaleCount: 0,
+    targetLocaleCount: 2,
+    eligibleLocales: [],
+    lastPushedAt: null,
+    lastError: null,
+  },
+  {
+    articleId: "17431622",
+    sourcePath: "intercom/customer-support/billing.md",
+    status: "push_failed",
+    eligibleLocaleCount: 1,
+    targetLocaleCount: 2,
+    eligibleLocales: ["de"],
+    lastPushedAt: "2026-10-01T12:00:00.000Z",
+    lastError: "Intercom timed out",
+  },
+];
+
 export function createContentEditorIntercomPushMswHandlers(input?: {
   projectId?: string;
   eligibleLocaleCount?: number;
   mappedArticleCount?: number;
   pushRunInProgress?: boolean;
   extraAutomations?: WorkspaceAutomationRecord[];
+  articles?: ContentEditorIntercomPushArticle[];
+  onQueue?: (body: { inputSnapshot?: Record<string, unknown> }) => void;
 }) {
   const projectId = input?.projectId ?? "story";
   const primary = {
@@ -28,10 +65,12 @@ export function createContentEditorIntercomPushMswHandlers(input?: {
     projectId,
   };
   const automations = [primary, ...(input?.extraAutomations ?? [])];
+  const articles = input?.articles ?? contentEditorIntercomPushStoryArticles;
   const intercomPush = {
     eligibleLocaleCount: input?.eligibleLocaleCount ?? 2,
-    mappedArticleCount: input?.mappedArticleCount ?? 3,
+    mappedArticleCount: input?.mappedArticleCount ?? articles.length,
     pushRunInProgress: input?.pushRunInProgress ?? false,
+    articles,
   };
 
   return [
@@ -50,8 +89,10 @@ export function createContentEditorIntercomPushMswHandlers(input?: {
       }
       return HttpResponse.json({ automation, recentRuns: [], intercomPush });
     }),
-    http.post("/api/orgs/:organizationSlug/automations/:automationId/runs", () =>
-      HttpResponse.json(
+    http.post("/api/orgs/:organizationSlug/automations/:automationId/runs", async ({ request }) => {
+      const body = (await request.json()) as { inputSnapshot?: Record<string, unknown> };
+      input?.onQueue?.(body);
+      return HttpResponse.json(
         {
           automationRun: {
             id: "run_intercom_push_story",
@@ -62,7 +103,7 @@ export function createContentEditorIntercomPushMswHandlers(input?: {
           dispatch: { outcome: "enqueued", inserted: true },
         },
         { status: 202 },
-      ),
-    ),
+      );
+    }),
   ];
 }

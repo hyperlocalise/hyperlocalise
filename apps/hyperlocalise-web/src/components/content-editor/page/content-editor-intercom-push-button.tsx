@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretDownIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { siIntercom } from "simple-icons";
 import { useIntl } from "react-intl";
@@ -20,12 +20,6 @@ import { toast } from "sonner";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import {
   attemptCatPageNavigation,
@@ -34,29 +28,34 @@ import {
 import { queueIntercomPushRun } from "@/lib/intercom/queue-intercom-push-run";
 import { buildAutomationsDetailHref } from "@/lib/navigation/workspace-automation-editor-tab";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
+import { isContentEditorAllFilesSourcePath } from "@/lib/projects/content-editor-all-files";
 
+import { ContentEditorIntercomPushDialog } from "./content-editor-intercom-push-dialog";
 import { contentEditorIntercomPushButtonMessages as messages } from "./content-editor-intercom-push-button.messages";
 import {
   contentEditorIntercomPushQueryKey,
   fetchContentEditorIntercomPushCandidates,
   invalidateContentEditorIntercomPushQueries,
-  type ContentEditorIntercomPushCandidate,
 } from "./content-editor-intercom-push-queries";
 
 export function ContentEditorIntercomPushButton({
   organizationSlug,
   projectId,
   canManageAutomations,
+  sourcePath = null,
   pageNavigationGuardRef,
 }: {
   organizationSlug: string;
   projectId: string;
   canManageAutomations: boolean;
+  sourcePath?: string | null;
   pageNavigationGuardRef?: ContentEditorPageNavigationGuardRef;
 }) {
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
 
   const candidatesQuery = useQuery({
     queryKey: contentEditorIntercomPushQueryKey(organizationSlug, projectId),
@@ -83,6 +82,7 @@ export function ContentEditorIntercomPushButton({
     mutationFn: queueIntercomPushRun,
     onSuccess: (_data, variables) => {
       toast.success(intl.formatMessage(messages.pushQueued));
+      setDialogOpen(false);
       invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, variables.automationId],
@@ -120,70 +120,33 @@ export function ContentEditorIntercomPushButton({
     />
   );
 
-  if (candidates.length === 1) {
-    const candidate = candidates[0]!;
-    return (
+  return (
+    <>
       <Button
         type="button"
         size="sm"
         className="h-8 shrink-0"
         disabled={isPending}
-        onClick={() =>
-          pushMutation.mutate({
-            organizationSlug,
-            automationId: candidate.automationId,
-          })
-        }
+        onClick={() => setDialogOpen(true)}
       >
         {pushIcon}
         {pushLabel}
       </Button>
-    );
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button type="button" size="sm" className="h-8 shrink-0" disabled={isPending} />}
-      >
-        {pushIcon}
-        {pushLabel}
-        <CaretDownIcon data-icon="inline-end" className="size-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {candidates.map((candidate) => (
-          <IntercomPushMenuItem
-            key={candidate.automationId}
-            candidate={candidate}
-            disabled={isPending}
-            onSelect={() =>
-              pushMutation.mutate({
-                organizationSlug,
-                automationId: candidate.automationId,
-              })
-            }
-          />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function IntercomPushMenuItem({
-  candidate,
-  disabled,
-  onSelect,
-}: {
-  candidate: ContentEditorIntercomPushCandidate;
-  disabled: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <DropdownMenuItem disabled={disabled} onClick={onSelect}>
-      <span className="min-w-0 truncate">{candidate.name}</span>
-      <span className="ms-auto ps-2 text-xs tabular-nums text-muted-foreground">
-        {candidate.eligibleLocaleCount}
-      </span>
-    </DropdownMenuItem>
+      <ContentEditorIntercomPushDialog
+        open={dialogOpen}
+        organizationSlug={organizationSlug}
+        sourcePath={openSourcePath}
+        candidates={candidates}
+        pending={isPending}
+        onOpenChange={setDialogOpen}
+        onConfirm={(input) =>
+          pushMutation.mutate({
+            organizationSlug,
+            automationId: input.automationId,
+            sourcePaths: input.sourcePaths,
+          })
+        }
+      />
+    </>
   );
 }

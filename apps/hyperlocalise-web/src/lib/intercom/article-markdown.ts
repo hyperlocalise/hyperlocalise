@@ -42,6 +42,11 @@ export function buildIntercomArticleSourcePath(input: {
   return normalizeSourcePath(`intercom/${helpCenterSlug}/${articleSlug}.md`);
 }
 
+export function intercomArticleTitleFromSourcePath(sourcePath: string): string {
+  const filename = sourcePath.split("/").pop() ?? sourcePath;
+  return filename.replace(/\.md$/i, "") || sourcePath;
+}
+
 export function isLegacyIntercomJsonSourcePath(sourcePath: string): boolean {
   return sourcePath.toLowerCase().endsWith(".json");
 }

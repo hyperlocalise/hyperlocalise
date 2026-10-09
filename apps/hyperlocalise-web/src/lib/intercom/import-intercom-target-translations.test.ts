@@ -77,6 +77,16 @@ describe("remainingIntercomJobTargetLocales", () => {
       }),
     ).toEqual(["ja-JP"]);
   });
+
+  it("keeps empty German after French Intercom copy is imported", () => {
+    expect(
+      remainingIntercomJobTargetLocales({
+        jobTargetLocales: ["de-DE", "fr-FR"],
+        importedProjectLocales: ["fr-FR"],
+        pushReadyProjectLocales: ["fr-FR"],
+      }),
+    ).toEqual(["de-DE"]);
+  });
 });
 
 describe("importIntercomTargetTranslations", () => {
@@ -145,7 +155,7 @@ describe("importIntercomTargetTranslations", () => {
       sourcePath: "intercom/help/getting-started.md",
       localeMapping,
       localeContent: {
-        de: { title: "Hallo", description: "", body: "" },
+        de: { title: "Hallo", description: "", body: "<p></p>" },
         fr: { title: "", description: "", body: "Bienvenue" },
       },
       policy: "seed_empty",

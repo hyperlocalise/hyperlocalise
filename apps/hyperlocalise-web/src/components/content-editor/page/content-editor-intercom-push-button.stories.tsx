@@ -11,16 +11,27 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { createIntercomAutomationRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automation-editor.fixture";
 
 import { ContentEditorIntercomPushButton } from "./content-editor-intercom-push-button";
-import { createContentEditorIntercomPushMswHandlers } from "./content-editor-intercom-push-msw-handlers";
+import {
+  contentEditorIntercomPushStoryArticles,
+  createContentEditorIntercomPushMswHandlers,
+} from "./content-editor-intercom-push-msw-handlers";
+
+const openArticlePath = contentEditorIntercomPushStoryArticles[0]!.sourcePath;
 
 const meta = {
   title: "CAT/Intercom push",
   component: ContentEditorIntercomPushButton,
+  args: {
+    organizationSlug: "story",
+    projectId: "story",
+    canManageAutomations: true,
+    sourcePath: openArticlePath,
+  },
   parameters: {
     layout: "centered",
     nextjs: {
@@ -36,11 +47,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const HiddenWhenNotEligible: Story = {
-  args: {
-    organizationSlug: "story",
-    projectId: "story",
-    canManageAutomations: true,
-  },
   parameters: {
     msw: {
       handlers: createContentEditorIntercomPushMswHandlers({
@@ -50,16 +56,11 @@ export const HiddenWhenNotEligible: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole("button", { name: "Push to Intercom as draft" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Push to Intercom" })).toBeNull();
   },
 };
 
 export const SingleAutomationEnabled: Story = {
-  args: {
-    organizationSlug: "story",
-    projectId: "story",
-    canManageAutomations: true,
-  },
   parameters: {
     msw: {
       handlers: createContentEditorIntercomPushMswHandlers(),
@@ -67,16 +68,11 @@ export const SingleAutomationEnabled: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Push to Intercom as draft" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
   },
 };
 
 export const HiddenWhilePushInProgress: Story = {
-  args: {
-    organizationSlug: "story",
-    projectId: "story",
-    canManageAutomations: true,
-  },
   parameters: {
     msw: {
       handlers: createContentEditorIntercomPushMswHandlers({
@@ -86,16 +82,41 @@ export const HiddenWhilePushInProgress: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole("button", { name: "Push to Intercom as draft" })).toBeNull();
+    await expect(canvas.queryByRole("button", { name: "Push to Intercom" })).toBeNull();
   },
 };
 
-export const MultipleAutomationsMenu: Story = {
-  args: {
-    organizationSlug: "story",
-    projectId: "story",
-    canManageAutomations: true,
+export const DefaultsToOpenArticle: Story = {
+  parameters: {
+    msw: {
+      handlers: createContentEditorIntercomPushMswHandlers(),
+    },
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom" }));
+    const dialog = await within(document.body).findByRole("dialog", {
+      name: "Push to Intercom",
+    });
+    const dialogCanvas = within(dialog);
+    await expect(
+      dialogCanvas.getByText(
+        "Choose which mapped articles to write as Intercom drafts. This does not publish. Push policy: keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
+      ),
+    ).toBeVisible();
+    const openArticle = await dialogCanvas.findByRole("checkbox", {
+      name: /reset-your-password/i,
+    });
+    await expect(openArticle).toBeChecked();
+    await expect(
+      dialogCanvas.getByRole("checkbox", { name: /getting-started/i }),
+    ).not.toBeChecked();
+    await expect(dialogCanvas.getByRole("checkbox", { name: /billing/i })).not.toBeChecked();
+    await expect(dialogCanvas.getByRole("button", { name: "Push 1 article" })).toBeEnabled();
+  },
+};
+
+export const MultipleAutomationsPicker: Story = {
   parameters: {
     msw: {
       handlers: createContentEditorIntercomPushMswHandlers({
@@ -112,10 +133,46 @@ export const MultipleAutomationsMenu: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom as draft" }));
-    await expect(
-      canvas.getByRole("menuitem", { name: /Translate Intercom Help Center articles/ }),
-    ).toBeVisible();
-    await expect(canvas.getByRole("menuitem", { name: /EU Help Center sync/ })).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom" }));
+    const dialog = await within(document.body).findByRole("dialog", {
+      name: "Push to Intercom",
+    });
+    await expect(within(dialog).getByLabelText("Automation")).toBeVisible();
+    await expect(within(dialog).getByText("Translate Intercom Help Center articles")).toBeVisible();
+  },
+};
+
+const queuedPushBodies: Array<{ inputSnapshot?: Record<string, unknown> }> = [];
+
+export const ConfirmQueuesSelectedArticles: Story = {
+  parameters: {
+    msw: {
+      handlers: createContentEditorIntercomPushMswHandlers({
+        onQueue: (body) => {
+          queuedPushBodies.push(body);
+        },
+      }),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    queuedPushBodies.length = 0;
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Push to Intercom" }));
+    const dialog = await within(document.body).findByRole("dialog", {
+      name: "Push to Intercom",
+    });
+    const dialogCanvas = within(dialog);
+    await dialogCanvas.findByRole("checkbox", { name: /reset-your-password/i });
+    await userEvent.click(dialogCanvas.getByRole("checkbox", { name: /getting-started/i }));
+    await userEvent.click(dialogCanvas.getByRole("button", { name: "Push 2 articles" }));
+    await waitFor(() => {
+      void expect(queuedPushBodies[0]?.inputSnapshot).toEqual({
+        operation: "push_approved",
+        sourcePaths: [
+          "intercom/customer-support/reset-your-password.md",
+          "intercom/customer-support/getting-started.md",
+        ],
+      });
+    });
   },
 };
