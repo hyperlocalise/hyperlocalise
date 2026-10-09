@@ -47,6 +47,8 @@ export const automationAssistantTurnBodySchema = z.object({
     .min(1),
   /** Checked against the editor context schema by the route; an unparseable one is refused. */
   pageContext: z.unknown(),
+  /** The session's latest turn as the page knows it; absent or null when it knows of none. */
+  lastTurnId: z.string().uuid().nullish(),
 });
 
 /** The text of the message being sent, or null when the transport sent none. */

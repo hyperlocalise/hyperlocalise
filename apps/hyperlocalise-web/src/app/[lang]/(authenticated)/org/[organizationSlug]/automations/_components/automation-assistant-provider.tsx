@@ -31,6 +31,7 @@ import {
   applyAutomationSetupChanges,
   AUTOMATION_SETUP_PAGE_EDITS_PART,
   collectAutomationSetupChanges,
+  readAutomationAssistantTurnId,
   readAutomationSetupPageEdits,
 } from "@/lib/agents/workspace-automation-assistant";
 import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
@@ -43,6 +44,7 @@ import type { WorkspaceAutomationSkillConnections } from "@/lib/agents/workspace
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import {
+  AssistantSessionOutOfDateError,
   AssistantTurnInProgressError,
   createAssistantSession,
   deleteAssistantSession,
@@ -57,6 +59,15 @@ const FALLBACK_TIME_ZONE = "UTC";
 
 export type AutomationAssistantStatus = "idle" | "loading" | "streaming";
 
+/**
+ * A message of the person's that got no reply. Refused ones were never saved: the session had a
+ * turn running, or has had one this page has not seen, which only loading the page again mends.
+ */
+export type AutomationAssistantFailure = {
+  messageId: string;
+  reason: "turn_in_progress" | "out_of_date" | "failed";
+};
+
 export type AutomationAssistantValue = {
   mode: "create" | "detail";
   automationName: string;
@@ -65,8 +76,8 @@ export type AutomationAssistantValue = {
   status: AutomationAssistantStatus;
   /** A turn is running for this page. */
   working: boolean;
-  /** What went wrong with the last request, or null. */
-  error: "turn_in_progress" | "failed" | null;
+  /** The message the last request failed for and why, or null. */
+  failure: AutomationAssistantFailure | null;
   session: AssistantSession | null;
   messages: AssistantMessage[];
   /** The reply as it streams, or null between turns. */
@@ -173,7 +184,7 @@ export function AutomationAssistantProvider({
   const [status, setStatus] = useState<AutomationAssistantStatus>(
     handoff ? "streaming" : automationId ? "loading" : "idle",
   );
-  const [error, setError] = useState<AutomationAssistantValue["error"]>(null);
+  const [failure, setFailure] = useState<AutomationAssistantFailure | null>(null);
   const [session, setSession] = useState<AssistantSession | null>(null);
   const [messages, setMessages] = useState<AssistantMessage[]>(() => (handoff ? [handoff] : []));
   const [streaming, setStreaming] = useState<UIMessage | null>(null);
@@ -183,6 +194,9 @@ export function AutomationAssistantProvider({
   // The form after the latest change by the assistant, until the page renders with it.
   const pendingForm = useRef<WorkspaceAutomationFormState | null>(null);
   const sessionRef = useRef<AssistantSession | null>(null);
+  // The session's latest turn as this page has seen it: the one it loaded, then each it ran. The
+  // server refuses a message sent with any other, which is how a turn run in another tab shows.
+  const lastTurnId = useRef<string | null>(null);
   // The session being made, so a turn that starts meanwhile waits for it and makes no second one.
   const sessionCreation = useRef<Promise<AssistantSession> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -244,6 +258,8 @@ export function AutomationAssistantProvider({
           return;
         }
         notifySession(found.session);
+        lastTurnId.current =
+          found.messages.findLast((message) => message.senderType === "user")?.id ?? null;
         setMessages(found.messages);
         setStatus("idle");
       })
@@ -356,13 +372,16 @@ export function AutomationAssistantProvider({
       return;
     }
     turnRunning.current = true;
-    setError(null);
+    // A refused message was never saved, so it goes when the next one is sent.
+    const refusedId = failure && failure.reason !== "failed" ? failure.messageId : null;
+    setFailure(null);
     setStatus("streaming");
     setOpen(true);
     const local = shown ?? localMessage(text);
-    if (!shown) {
-      setMessages((list) => [...list, local]);
-    }
+    setMessages((list) => {
+      const kept = refusedId ? list.filter((message) => message.id !== refusedId) : list;
+      return shown ? kept : [...kept, local];
+    });
     let editsShown = false;
     const controller = new AbortController();
     abortRef.current = controller;
@@ -378,11 +397,13 @@ export function AutomationAssistantProvider({
           sessionId: active.id,
           text,
           pageContext: current,
+          lastTurnId: lastTurnId.current,
           signal: controller.signal,
         })) {
           if (controller.signal.aborted) {
             return;
           }
+          lastTurnId.current = readAutomationAssistantTurnId(reply.parts) ?? lastTurnId.current;
           // The turn says first what the person changed on the page since the last one. It
           // goes above their message at once, as it will be when the saved turn is loaded.
           const edits = editsShown ? [] : readAutomationSetupPageEdits(reply.parts);
@@ -407,7 +428,15 @@ export function AutomationAssistantProvider({
         if (controller.signal.aborted) {
           return;
         }
-        setError(caught instanceof AssistantTurnInProgressError ? "turn_in_progress" : "failed");
+        setFailure({
+          messageId: local.id,
+          reason:
+            caught instanceof AssistantTurnInProgressError
+              ? "turn_in_progress"
+              : caught instanceof AssistantSessionOutOfDateError
+                ? "out_of_date"
+                : "failed",
+        });
       } finally {
         turnRunning.current = false;
         if (!controller.signal.aborted) {
@@ -459,8 +488,9 @@ export function AutomationAssistantProvider({
     notifySession(null);
     setMessages([]);
     setStreaming(null);
-    setError(null);
+    setFailure(null);
     setStatus("idle");
+    lastTurnId.current = null;
     turnRunning.current = false;
     handedOver.current = true;
     appliedToolCallIds.current = new Set();
@@ -477,7 +507,7 @@ export function AutomationAssistantProvider({
       setOpen,
       status,
       working: status === "streaming",
-      error,
+      failure,
       session,
       messages,
       streaming,
@@ -492,7 +522,7 @@ export function AutomationAssistantProvider({
       appliedCallCount,
       appliedChangeCount,
       connections,
-      error,
+      failure,
       form,
       hasUnsavedChanges,
       messages,

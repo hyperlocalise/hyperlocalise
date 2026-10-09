@@ -107,6 +107,14 @@ export class AssistantTurnInProgressError extends Error {
   }
 }
 
+/** Thrown when the session has had a turn this page has not seen, run from another tab. */
+export class AssistantSessionOutOfDateError extends Error {
+  constructor() {
+    super("session_out_of_date");
+    this.name = "AssistantSessionOutOfDateError";
+  }
+}
+
 /**
  * Sends one message and yields the assistant's reply as it grows, in the UI message shape the
  * page applies tool outputs from. Uses the chat transport, so the stream is read the way the
@@ -117,6 +125,8 @@ export async function* streamAssistantTurn(input: {
   sessionId: string;
   text: string;
   pageContext: WorkspaceAutomationEditorContext;
+  /** The session's latest turn as this page knows it, which the server checks. */
+  lastTurnId: string | null;
   signal?: AbortSignal;
 }): AsyncGenerator<UIMessage> {
   const transport = new DefaultChatTransport({
@@ -132,11 +142,14 @@ export async function* streamAssistantTurn(input: {
         { id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text: input.text }] },
       ],
       trigger: "submit-message",
-      body: { pageContext: input.pageContext },
+      body: { pageContext: input.pageContext, lastTurnId: input.lastTurnId },
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("turn_in_progress")) {
       throw new AssistantTurnInProgressError();
+    }
+    if (error instanceof Error && error.message.includes("session_out_of_date")) {
+      throw new AssistantSessionOutOfDateError();
     }
     throw error;
   }

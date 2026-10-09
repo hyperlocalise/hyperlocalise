@@ -46,7 +46,7 @@ function assistant(overrides: Partial<AutomationAssistantValue> = {}): Automatio
     setOpen: () => undefined,
     status: "idle",
     working: false,
-    error: null,
+    failure: null,
     session: null,
     messages: [],
     streaming: null,
@@ -199,6 +199,24 @@ describe("what the panel says a turn did", () => {
 
     expect(screen.getByRole("button", { name: "You edited the setup · 1 change" })).toBeTruthy();
     expect(screen.getByText("Rename it again")).toBeTruthy();
+  });
+
+  it("puts what went wrong under the message it went wrong for", () => {
+    const sent = { ...reply(null), senderType: "user" as const };
+    show(
+      assistant({
+        messages: [
+          { ...sent, id: "m1", text: "Make it weekly" },
+          { ...sent, id: "m2", text: "And email it" },
+        ],
+        failure: { messageId: "m2", reason: "out_of_date" },
+      }),
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain("carried on in another tab or window");
+    expect(alert.parentElement?.textContent).toContain("And email it");
+    expect(alert.parentElement?.textContent).not.toContain("Make it weekly");
   });
 
   it("says the changes are on the page and unsaved only while the page counts some", () => {

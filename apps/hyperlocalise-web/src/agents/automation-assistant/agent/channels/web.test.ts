@@ -163,6 +163,8 @@ describe("createAutomationAssistantTurnResponse", () => {
       { senderType: "user", text: "Call it Weekly digest", parts: null },
       { senderType: "agent", text: "I named it Weekly digest." },
     ]);
+    // The stream names the turn by the saved message, so the page knows the session's latest.
+    expect(streamed).toContain(`"type":"data-turn","data":{"id":"${messages[0]!.id}"}`);
     expect(messages[1]!.parts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

@@ -33,6 +33,7 @@ import {
   createAutomationAssistantSession,
   deleteAutomationAssistantSession,
   endAutomationAssistantTurn,
+  findAutomationAssistantLastTurnId,
   findAutomationAssistantSessionForAutomation,
   getAutomationAssistantSession,
   listAutomationAssistantMessages,
@@ -245,6 +246,11 @@ export function createAutomationAssistantRoutes() {
         return conflictResponse(c, "turn_in_progress");
       }
       try {
+        // Checked under the claim, so no turn can start between the check and this one.
+        if ((await findAutomationAssistantLastTurnId(session.id)) !== (body.lastTurnId ?? null)) {
+          await endAutomationAssistantTurn(session.id);
+          return conflictResponse(c, "session_out_of_date");
+        }
         const languageModel = await resolveHyperlocaliseAgentLanguageModel({ organizationId });
         return createAutomationAssistantTurnResponse({
           session,

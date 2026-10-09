@@ -20,6 +20,7 @@ import {
 
 import type { InboxChatDataTypes } from "@/lib/agent-contracts/inbox-chat-message";
 import {
+  AUTOMATION_ASSISTANT_TURN_PART,
   AUTOMATION_SETUP_PAGE_EDITS_PART,
   AUTOMATION_SETUP_SNAPSHOT_PART,
   describeAutomationSetupPage,
@@ -53,10 +54,16 @@ import type { AutomationAssistantToolContext } from "../tools/update_automation_
 
 export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
 
-/** What the assistant's stream carries beside the reply: progress, and the person's page edits. */
+/**
+ * What the assistant's stream carries beside the reply: progress, the person's page edits, and
+ * the turn's id.
+ */
 type AutomationAssistantUIMessage = UIMessage<
   never,
-  InboxChatDataTypes & { "page-edits": { edits: AutomationSetupPageEdit[] } }
+  InboxChatDataTypes & {
+    "page-edits": { edits: AutomationSetupPageEdit[] };
+    turn: { id: string };
+  }
 >;
 const STREAM_ERROR_MESSAGE = "Sorry, something went wrong while the assistant was working.";
 
@@ -130,7 +137,7 @@ export function createAutomationAssistantTurnResponse(input: {
       const pageEdits = formAfterLastTurn
         ? listAutomationSetupPageEdits(formAfterLastTurn, input.pageContext.form)
         : [];
-      await addAutomationAssistantMessage({
+      const turnId = await addAutomationAssistantMessage({
         sessionId: session.id,
         senderType: "user",
         text: input.text,
@@ -143,6 +150,9 @@ export function createAutomationAssistantTurnResponse(input: {
             }
           : {}),
       });
+      // Sent before anything can fail, so the page that ran this turn knows it as the session's
+      // latest even when no reply follows.
+      writer.write({ type: AUTOMATION_ASSISTANT_TURN_PART, data: { id: turnId } });
       // Counted when the person's message is saved, as a conversation message is, whatever
       // becomes of the reply.
       serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.automationAssistantMessageSent, {

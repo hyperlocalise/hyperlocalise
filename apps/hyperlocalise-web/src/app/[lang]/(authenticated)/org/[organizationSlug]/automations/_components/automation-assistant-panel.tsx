@@ -36,7 +36,16 @@ import {
   AutomationAssistantToolCall,
 } from "./automation-assistant-tool-call";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
-import { useAutomationAssistant } from "./automation-assistant-provider";
+import {
+  useAutomationAssistant,
+  type AutomationAssistantFailure,
+} from "./automation-assistant-provider";
+
+const FAILURE_MESSAGES = {
+  turn_in_progress: messages.turnInProgress,
+  out_of_date: messages.sessionOutOfDate,
+  failed: messages.errorGeneric,
+} satisfies Record<AutomationAssistantFailure["reason"], unknown>;
 
 type Block = { kind: "text"; text: string } | { kind: "tool"; summary: AutomationSetupCallSummary };
 
@@ -178,6 +187,11 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
               <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
                 {message.text}
               </div>
+              {assistant.failure?.messageId === message.id ? (
+                <p role="alert" className="max-w-[85%] text-end text-xs text-destructive">
+                  <FormattedMessage {...FAILURE_MESSAGES[assistant.failure.reason]} />
+                </p>
+              ) : null}
             </div>
           ) : (
             <Reply
@@ -204,15 +218,6 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
         ) : null}
       </div>
       <footer className="flex flex-col gap-2 border-t border-border p-3">
-        {assistant.error ? (
-          <p className="px-1 text-xs text-destructive">
-            <FormattedMessage
-              {...(assistant.error === "turn_in_progress"
-                ? messages.turnInProgress
-                : messages.errorGeneric)}
-            />
-          </p>
-        ) : null}
         <AutomationAssistantPrompt
           aiFeaturesStatus={aiFeatures.status}
           onSubmitPrompt={assistant.send}

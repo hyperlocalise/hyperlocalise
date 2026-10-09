@@ -30,7 +30,7 @@ function show(overrides: Partial<AutomationAssistantValue>) {
     setOpen: () => undefined,
     status: "idle",
     working: false,
-    error: null,
+    failure: null,
     session: null,
     messages: [],
     streaming: null,

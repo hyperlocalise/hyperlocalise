@@ -55,6 +55,7 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type { AppType } from "@/api/typed-app";
 import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import { createDefaultWorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+import { addAutomationAssistantMessage } from "@/lib/automation-assistant/sessions";
 import { db, schema } from "@/lib/database/client";
 
 const client = testClient<AppType>(createApp());
@@ -265,6 +266,48 @@ describe("automation assistant sessions", () => {
       { headers },
     );
     expect(again.status).toBe(409);
+    expect(turnResponseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a message from a page that has not seen the session's latest turn, and frees the session", async () => {
+    const { headers, slug } = await signIn();
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    const { session } = await json<SessionBody>(created);
+    const turns = assistant.sessions[":sessionId"].turns;
+    const send = (lastTurnId?: string | null) =>
+      turns.$post(
+        {
+          param: { organizationSlug: slug, sessionId: session.id },
+          json: { messages: userMessage("And email it"), pageContext: pageContext(), lastTurnId },
+        },
+        { headers },
+      );
+    // A turn another tab ran, start to finish, after this page loaded the session.
+    const latest = await addAutomationAssistantMessage({
+      sessionId: session.id,
+      senderType: "user",
+      text: "Make it daily",
+    });
+    await addAutomationAssistantMessage({
+      sessionId: session.id,
+      senderType: "agent",
+      text: "Done.",
+    });
+
+    for (const stale of [undefined, null, crypto.randomUUID()]) {
+      const refused = await send(stale);
+      expect(refused.status).toBe(409);
+      expect(await json<{ error: string }>(refused)).toMatchObject({
+        error: "session_out_of_date",
+      });
+    }
+    expect(turnResponseMock).not.toHaveBeenCalled();
+
+    // The refusals held no claim on the session, so the page that has seen the turn gets through.
+    expect((await send(latest)).status).toBe(200);
     expect(turnResponseMock).toHaveBeenCalledTimes(1);
   });
 

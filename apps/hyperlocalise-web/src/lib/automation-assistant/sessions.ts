@@ -188,25 +188,44 @@ function toMessage(row: typeof messages.$inferSelect): AutomationAssistantMessag
   };
 }
 
-/** Saves one message of the session and moves the session's last-message time on. */
+/** Saves one message of the session, moves the session's last-message time on, returns its id. */
 export async function addAutomationAssistantMessage(input: {
   sessionId: string;
   senderType: AutomationAssistantMessage["senderType"];
   text: string;
   parts?: UIMessage["parts"] | null;
-}): Promise<void> {
+}): Promise<string> {
   const now = new Date();
-  await db.insert(messages).values({
-    sessionId: input.sessionId,
-    senderType: input.senderType,
-    text: input.text,
-    parts: input.parts ?? null,
-    createdAt: now,
-  });
+  const [saved] = await db
+    .insert(messages)
+    .values({
+      sessionId: input.sessionId,
+      senderType: input.senderType,
+      text: input.text,
+      parts: input.parts ?? null,
+      createdAt: now,
+    })
+    .returning({ id: messages.id });
   await db
     .update(sessions)
     .set({ lastMessageAt: now, updatedAt: now })
     .where(eq(sessions.id, input.sessionId));
+  return saved.id;
+}
+
+/**
+ * The id of the person's newest message in the session, which names the session's latest turn,
+ * or null before the first. A page sends the one it knows with each message, so a page that has
+ * not seen the latest turn, because another tab ran it, is told so instead of answered.
+ */
+export async function findAutomationAssistantLastTurnId(sessionId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.sessionId, sessionId), eq(messages.senderType, "user")))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+  return row?.id ?? null;
 }
 
 /** How many of the newest replies are searched for the form the last turn left. */

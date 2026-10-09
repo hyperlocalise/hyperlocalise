@@ -236,6 +236,8 @@ const historyOutputSchema = z.object({
 export const AUTOMATION_SETUP_SNAPSHOT_PART = "data-setup-after";
 /** The part of a saved message of the person's that says what they changed on the page first. */
 export const AUTOMATION_SETUP_PAGE_EDITS_PART = "data-page-edits";
+/** The part of a turn's stream that names the turn, by the id of the person's saved message. */
+export const AUTOMATION_ASSISTANT_TURN_PART = "data-turn";
 
 /**
  * One thing the person changed on the page themselves between two turns, by typing, by Undo or
@@ -384,6 +386,16 @@ export function readAutomationSetupPageEdits(
     .object({ edits: z.array(automationSetupPageEditSchema) })
     .safeParse(readDataPart(parts, AUTOMATION_SETUP_PAGE_EDITS_PART));
   return parsed.success ? parsed.data.edits : [];
+}
+
+/** The id of the turn a stream belongs to, or null until the stream has named it. */
+export function readAutomationAssistantTurnId(
+  parts: readonly unknown[] | null | undefined,
+): string | null {
+  const parsed = z
+    .object({ id: z.string() })
+    .safeParse(readDataPart(parts, AUTOMATION_ASSISTANT_TURN_PART));
+  return parsed.success ? parsed.data.id : null;
 }
 
 /**

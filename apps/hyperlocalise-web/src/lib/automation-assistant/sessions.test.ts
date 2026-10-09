@@ -25,6 +25,7 @@ import {
   createAutomationAssistantSession,
   deleteAutomationAssistantSession,
   endAutomationAssistantTurn,
+  findAutomationAssistantLastTurnId,
   findAutomationAssistantSessionForAutomation,
   getAutomationAssistantSession,
   listAutomationAssistantMessages,
@@ -190,6 +191,28 @@ describe("automation assistant sessions", () => {
     ]);
     const after = await getAutomationAssistantSession({ ...scope, sessionId: session.id });
     expect(after!.lastMessageAt.getTime()).toBeGreaterThan(Date.now() - 30_000);
+  });
+
+  it("names the latest turn by the person's newest message", async () => {
+    const scope = await person();
+    const session = await createAutomationAssistantSession(scope);
+    expect(await findAutomationAssistantLastTurnId(session.id)).toBeNull();
+
+    const base = Date.now() - 10_000;
+    const [first, second, reply] = await db
+      .insert(schema.automationAssistantMessages)
+      .values(
+        (["user", "user", "agent"] as const).map((senderType, index) => ({
+          sessionId: session.id,
+          senderType,
+          text: `message ${index}`,
+          createdAt: new Date(base + index * 1000),
+        })),
+      )
+      .returning({ id: schema.automationAssistantMessages.id });
+
+    expect(await findAutomationAssistantLastTurnId(session.id)).toBe(second!.id);
+    expect([first!.id, reply!.id]).not.toContain(second!.id);
   });
 
   it("lists every message for the page and the newest fifty, oldest first, for the model", async () => {

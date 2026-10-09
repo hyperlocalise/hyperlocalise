@@ -29,7 +29,10 @@ import {
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 
-import { AssistantTurnInProgressError } from "./automation-assistant-api";
+import {
+  AssistantSessionOutOfDateError,
+  AssistantTurnInProgressError,
+} from "./automation-assistant-api";
 import {
   AutomationAssistantProvider,
   useAutomationAssistant,
@@ -103,7 +106,8 @@ function Consumer() {
   }
   return (
     <div>
-      <p>{`status:${assistant.status} open:${assistant.open} calls:${assistant.appliedCallCount} changes:${assistant.appliedChangeCount} error:${assistant.error ?? "none"}`}</p>
+      <p>{`status:${assistant.status} open:${assistant.open} calls:${assistant.appliedCallCount} changes:${assistant.appliedChangeCount} failure:${assistant.failure?.reason ?? "none"}`}</p>
+      <p>{`failed:${assistant.messages.findIndex((message) => message.id === assistant.failure?.messageId)}`}</p>
       <p>{`messages:${assistant.messages.map((message) => message.senderType).join(",")}`}</p>
       <p>{`edits:${assistant.messages.map((message) => readAutomationSetupPageEdits(message.parts).length).join(",")}`}</p>
       <button type="button" onClick={() => assistant.send("Post a weekly summary")}>
@@ -474,7 +478,7 @@ describe("AutomationAssistantProvider", () => {
     expect(api.createAssistantSession).toHaveBeenCalledTimes(1);
     expect(api.streamAssistantTurn).toHaveBeenCalledTimes(1);
     expect(api.loadAssistantSession).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/error:none/)).toBeTruthy();
+    expect(screen.getByText(/failure:none/)).toBeTruthy();
   });
 
   it("shows a typed message at once, before its session exists", async () => {
@@ -514,8 +518,83 @@ describe("AutomationAssistantProvider", () => {
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/error:turn_in_progress/)).toBeTruthy();
+      expect(screen.getByText(/failure:turn_in_progress/)).toBeTruthy();
     });
     expect(screen.getByText(/status:idle/)).toBeTruthy();
+    expect(screen.getByText("failed:0")).toBeTruthy();
+  });
+
+  it("sends the latest turn it has seen: the one it loaded, then the one it ran", async () => {
+    const user = userEvent.setup();
+    const saved = (id: string) => ({
+      id,
+      conversationId: "sess-2",
+      senderType: "user" as const,
+      senderEmail: null,
+      text: "Make it weekly",
+      parts: null,
+      attachments: null,
+      createdAt: "",
+    });
+    api.findAssistantSession.mockResolvedValue({
+      session: session("sess-2", "automation-a"),
+      messages: [saved("turn-1")],
+    });
+    api.streamAssistantTurn.mockImplementation(async function* () {
+      yield {
+        id: "stream-1",
+        role: "assistant",
+        parts: [{ type: "data-turn", data: { id: "turn-2" } }],
+      };
+    });
+    // The saved conversation holds a turn another tab ran meanwhile, which this page never saw.
+    api.loadAssistantSession.mockResolvedValue({
+      session: session("sess-2", "automation-a"),
+      messages: [saved("turn-1"), saved("turn-2"), saved("turn-3")],
+    });
+    renderProvider({ automationId: "automation-a", mode: "detail" });
+    await waitFor(() => {
+      expect(screen.getByText("messages:user")).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(screen.getByText("messages:user,user,user")).toBeTruthy();
+    });
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(api.streamAssistantTurn).toHaveBeenCalledTimes(2);
+    });
+
+    expect(api.streamAssistantTurn.mock.calls.map(([input]) => input.lastTurnId)).toEqual([
+      "turn-1",
+      "turn-2",
+    ]);
+  });
+
+  it("says on the message when the conversation has carried on in another tab, and drops a refused message when the next is sent", async () => {
+    const user = userEvent.setup();
+    api.createAssistantSession.mockResolvedValue(session("sess-1"));
+    api.streamAssistantTurn.mockImplementation(async function* () {
+      yield* [];
+      throw new AssistantSessionOutOfDateError();
+    });
+    renderProvider();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle .*failure:out_of_date/)).toBeTruthy();
+    });
+    expect(screen.getByText("messages:user")).toBeTruthy();
+    expect(screen.getByText("failed:0")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(api.streamAssistantTurn).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle .*failure:out_of_date/)).toBeTruthy();
+    });
+    expect(screen.getByText("messages:user")).toBeTruthy();
   });
 });

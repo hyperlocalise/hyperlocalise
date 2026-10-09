@@ -61,13 +61,21 @@ export const automationAssistantMessages = defineMessages({
   },
   turnInProgress: {
     defaultMessage: "The assistant is still working on an earlier request. Wait for it to finish.",
-    id: "xT0Si3J+mJ",
-    description: "Error in the assistant panel when a turn is already running for this session",
+    id: "7zAhPmoyO3",
+    description:
+      "Error under a message in the assistant panel when a turn is already running for this session",
+  },
+  sessionOutOfDate: {
+    defaultMessage:
+      "Not sent. This conversation has carried on in another tab or window. Reload the page to continue here.",
+    id: "iIr+QqXvyb",
+    description:
+      "Error under a message in the assistant panel when the conversation has had a turn this page has not seen",
   },
   errorGeneric: {
     defaultMessage: "The assistant could not reply. Try again.",
-    id: "b53e4dZaWV",
-    description: "Error in the assistant panel when a turn fails",
+    id: "mJZ5RsrKnR",
+    description: "Error under a message in the assistant panel when its turn fails",
   },
   toolUpdating: {
     defaultMessage: "Updating the setup\u2026",
