@@ -31,6 +31,7 @@ After you select a Help Center, the editor lists that Help Center’s locale cod
    - **Intercom source locale** (usually the Help Center default)
    - Optional **Collection IDs** to limit import to those collections
    - **Include draft articles on import** only when unpublished source should enter the project
+   - **Existing Intercom translations** to control how Intercom target copy enters Hyperlocalise. The default imports only locales the project does not already have. You can also refresh import-only copy when Intercom changed, or replace Hyperlocalise translations with the current Intercom copy
    - **Overwrite Intercom drafts when remote target is newer** only when a later push should replace Intercom drafts that teammates edited after the last push
 6. Save the automation.
 
@@ -42,9 +43,9 @@ Intercom is not a trigger type. Use a schedule or **Run now** for import. Use **
 
 Without collection IDs, import includes articles in Help Center collections and standalone articles in that Help Center. With collection IDs, import includes only articles in those collections.
 
-A later import skips an article whose source has not changed. Periodic reconcile also picks up standalone articles that a collection filter would miss.
+A later import skips an article whose source has not changed, then still checks mapped target locales. If Intercom already has a title and body for a mapped locale, import can seed that copy into Hyperlocalise as an approved translation. The default never overwrites translations already in Hyperlocalise.
 
-The run opens native translation jobs when that tool is enabled. Inspect **Run History** for imported, skipped, and failed articles.
+The run opens native translation jobs when that tool is enabled, and only for locales that still need translation. Inspect **Run History** for imported, skipped, and failed articles, plus imported translations.
 
 Import does not write translations to Intercom.
 

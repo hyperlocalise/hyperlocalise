@@ -94,6 +94,10 @@ export const intercomArticleSyncStates = pgTable(
       .$type<Record<string, string>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    importedTranslationHashes: jsonb("imported_translation_hashes")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     status: text("status")
       .$type<"active" | "archived" | "import_failed" | "push_failed">()
       .notNull()

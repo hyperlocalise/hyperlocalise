@@ -437,3 +437,89 @@ export function mapProjectLocalesToIntercom(input: {
     unmappedProjectTargets,
   };
 }
+
+export type IntercomLocaleContentFields = {
+  title: string;
+  description: string;
+  body: string;
+};
+
+export type IntercomTargetLocaleToImport = {
+  projectLocale: string;
+  intercomLocale: string;
+  fields: IntercomLocaleContentFields;
+};
+
+export function readIntercomLocaleContent(
+  localeContent: Record<string, IntercomLocaleContentFields>,
+  intercomLocale: string,
+): IntercomLocaleContentFields | null {
+  const exact =
+    localeContent[intercomLocale] ?? localeContent[normalizeIntercomLocaleTag(intercomLocale)];
+  if (exact) {
+    return exact;
+  }
+
+  const wanted = normalizeIntercomLocaleTag(intercomLocale).toLowerCase();
+  for (const [key, value] of Object.entries(localeContent)) {
+    if (normalizeIntercomLocaleTag(key).toLowerCase() === wanted) {
+      return value;
+    }
+  }
+  return null;
+}
+
+export function isIntercomTargetContentImportable(
+  content: IntercomLocaleContentFields | null | undefined,
+): content is IntercomLocaleContentFields {
+  if (!content) {
+    return false;
+  }
+  return content.title.trim().length > 0 && content.body.trim().length > 0;
+}
+
+export function selectIntercomTargetLocalesToImport(input: {
+  localeMapping: {
+    sourceIntercomLocale: string | null;
+    jobTargetLocales: readonly string[];
+    intercomTargetLocales: readonly string[];
+  };
+  localeContent: Record<string, IntercomLocaleContentFields>;
+}): IntercomTargetLocaleToImport[] {
+  const sourceKey = input.localeMapping.sourceIntercomLocale
+    ? normalizeIntercomLocaleTag(input.localeMapping.sourceIntercomLocale)
+    : null;
+  const selected: IntercomTargetLocaleToImport[] = [];
+  const seenProject = new Set<string>();
+
+  for (let index = 0; index < input.localeMapping.jobTargetLocales.length; index += 1) {
+    const projectLocale = input.localeMapping.jobTargetLocales[index];
+    const intercomLocale = input.localeMapping.intercomTargetLocales[index];
+    if (!projectLocale || !intercomLocale) {
+      continue;
+    }
+    if (sourceKey && normalizeIntercomLocaleTag(intercomLocale) === sourceKey) {
+      continue;
+    }
+    const projectKey = normalizeIntercomLocaleTag(projectLocale).toLowerCase();
+    if (seenProject.has(projectKey)) {
+      continue;
+    }
+    const content = readIntercomLocaleContent(input.localeContent, intercomLocale);
+    if (!isIntercomTargetContentImportable(content)) {
+      continue;
+    }
+    seenProject.add(projectKey);
+    selected.push({
+      projectLocale,
+      intercomLocale,
+      fields: {
+        title: content.title.trim(),
+        description: content.description.trim(),
+        body: content.body,
+      },
+    });
+  }
+
+  return selected;
+}

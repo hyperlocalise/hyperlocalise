@@ -318,6 +318,9 @@ const intercomToolConfigSchema = z
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
     includeDrafts: z.boolean().default(false),
     overwriteIntercomDrafts: z.boolean().default(false),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
   })
   .default({
     enabled: false,
@@ -328,6 +331,7 @@ const intercomToolConfigSchema = z
     targetLocales: [],
     includeDrafts: false,
     overwriteIntercomDrafts: false,
+    existingTranslationPolicy: "seed_empty",
   });
 
 const crowdinToolConfigSchema = z

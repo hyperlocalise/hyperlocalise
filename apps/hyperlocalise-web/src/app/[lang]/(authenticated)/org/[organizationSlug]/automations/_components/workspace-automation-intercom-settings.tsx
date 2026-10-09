@@ -471,6 +471,51 @@ export function WorkspaceAutomationIntercomSettings({
         Include draft articles on import
       </label>
 
+      <div className="space-y-2">
+        <Label htmlFor="intercom-existing-translation-policy">Existing Intercom translations</Label>
+        <Select
+          value={form.intercomExistingTranslationPolicy}
+          onValueChange={(policy) => {
+            if (
+              policy !== "seed_empty" &&
+              policy !== "refresh_imported" &&
+              policy !== "overwrite_all"
+            ) {
+              return;
+            }
+            onChange({ ...form, intercomExistingTranslationPolicy: policy });
+          }}
+        >
+          <SelectTrigger id="intercom-existing-translation-policy" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              value="seed_empty"
+              label="Import only locales Hyperlocalise does not already have"
+            >
+              Import only locales Hyperlocalise does not already have
+            </SelectItem>
+            <SelectItem
+              value="refresh_imported"
+              label="Update locales that still have imported Intercom copy"
+            >
+              Update locales that still have imported Intercom copy
+            </SelectItem>
+            <SelectItem
+              value="overwrite_all"
+              label="Replace Hyperlocalise translations with Intercom copy"
+            >
+              Replace Hyperlocalise translations with Intercom copy
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          When an Intercom article already has a translation, import it into the project. The
+          default never overwrites work already in Hyperlocalise.
+        </p>
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <Checkbox
           checked={form.intercomOverwriteIntercomDrafts}

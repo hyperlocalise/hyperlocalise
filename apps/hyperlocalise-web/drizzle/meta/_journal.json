@@ -981,6 +981,13 @@
       "when": 1791355420177,
       "tag": "0139_bumpy_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1791513541142,
+      "tag": "0140_fearless_lord_tyger",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
   mapProjectLocalesToIntercom,
   resolveIntercomLocaleKey,
   resolveProjectLocaleKey,
+  selectIntercomTargetLocalesToImport,
 } from "./intercom-locale";
 
 describe("resolveIntercomLocaleKey", () => {
@@ -184,5 +185,74 @@ describe("mapProjectLocalesToIntercom", () => {
 
     expect(result.sourceIntercomLocale).toBeNull();
     expect(result.jobTargetLocales).toEqual([]);
+  });
+});
+
+describe("selectIntercomTargetLocalesToImport", () => {
+  const localeMapping = {
+    sourceIntercomLocale: "en",
+    jobTargetLocales: ["de-DE", "fr-FR", "ja-JP"],
+    intercomTargetLocales: ["de", "fr", "ja"],
+  };
+
+  it("imports mapped locales that have a title and body", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping,
+        localeContent: {
+          de: { title: "Hallo", description: "", body: "Willkommen" },
+          fr: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+        },
+      }),
+    ).toEqual([
+      {
+        projectLocale: "de-DE",
+        intercomLocale: "de",
+        fields: { title: "Hallo", description: "", body: "Willkommen" },
+      },
+      {
+        projectLocale: "fr-FR",
+        intercomLocale: "fr",
+        fields: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+      },
+    ]);
+  });
+
+  it("looks up translated_content by normalized Intercom locale tags", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping: {
+          sourceIntercomLocale: "en",
+          jobTargetLocales: ["en-GB"],
+          intercomTargetLocales: ["en-GB"],
+        },
+        localeContent: {
+          "en-gb": { title: "Hello", description: "", body: "Welcome" },
+        },
+      }),
+    ).toEqual([
+      {
+        projectLocale: "en-GB",
+        intercomLocale: "en-GB",
+        fields: { title: "Hello", description: "", body: "Welcome" },
+      },
+    ]);
+  });
+
+  it("skips the source locale, unmapped locales, and incomplete copy", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping: {
+          sourceIntercomLocale: "en",
+          jobTargetLocales: ["de-DE", "fr-FR"],
+          intercomTargetLocales: ["en", "fr"],
+        },
+        localeContent: {
+          en: { title: "Hello", description: "", body: "Source" },
+          ja: { title: "こんにちは", description: "", body: "本文" },
+          fr: { title: "Bonjour", description: "", body: "" },
+        },
+      }),
+    ).toEqual([]);
   });
 });
