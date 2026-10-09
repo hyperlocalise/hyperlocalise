@@ -21,6 +21,7 @@ import {
 } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { db, schema } from "@/lib/database/client";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 /** How long a session bound to no automation is kept once its page is gone. */
 export const AUTOMATION_ASSISTANT_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -75,10 +76,24 @@ function ownedBy(input: { organizationId: string; userId: string }) {
   )!;
 }
 
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
 /**
  * Makes a session for the person. One bound to an automation lives with it; one for a new
  * automation is kept for a day, so a turn still running when its page is left can finish. The
  * person's own sessions whose day is up are deleted first, so nothing sweeps them later.
+ *
+ * A person has one session per saved automation: when they already have one, as when two tabs
+ * on the automation each ask for the first, that one is returned and none is made.
  */
 export async function createAutomationAssistantSession(input: {
   organizationId: string;
@@ -89,26 +104,41 @@ export async function createAutomationAssistantSession(input: {
   await db
     .delete(sessions)
     .where(and(eq(sessions.createdByUserId, input.userId), lt(sessions.expiresAt, new Date())));
-  const now = new Date();
-  const [row] = await db
-    .insert(sessions)
-    .values({
-      organizationId: input.organizationId,
-      title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
-      createdByUserId: input.userId,
-      automationId: input.automationId ?? null,
-      expiresAt: input.automationId
-        ? null
-        : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
-      lastMessageAt: now,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  if (!row) {
-    throw new Error("The automation assistant session could not be created.");
+  // Tried twice: the session that was in the way can be deleted, by Start over in another tab,
+  // before it is read.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const now = new Date();
+    const [row] = await db
+      .insert(sessions)
+      .values({
+        organizationId: input.organizationId,
+        title: (input.firstMessageText?.trim() || "Automation assistant").slice(0, TITLE_CHARS),
+        createdByUserId: input.userId,
+        automationId: input.automationId ?? null,
+        expiresAt: input.automationId
+          ? null
+          : new Date(now.getTime() + AUTOMATION_ASSISTANT_SESSION_TTL_MS),
+        lastMessageAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing({ target: [sessions.automationId, sessions.createdByUserId] })
+      .returning();
+    if (row) {
+      return toSession(row);
+    }
+    const existing = input.automationId
+      ? await findAutomationAssistantSessionForAutomation({
+          organizationId: input.organizationId,
+          userId: input.userId,
+          automationId: input.automationId,
+        })
+      : null;
+    if (existing) {
+      return existing;
+    }
   }
-  return toSession(row);
+  throw new Error("The automation assistant session could not be created.");
 }
 
 export async function getAutomationAssistantSession(input: {
@@ -124,7 +154,7 @@ export async function getAutomationAssistantSession(input: {
   return row ? toSession(row) : null;
 }
 
-/** The person's newest session about a saved automation, which its page resumes. */
+/** The person's session about a saved automation, which its page resumes. */
 export async function findAutomationAssistantSessionForAutomation(input: {
   organizationId: string;
   userId: string;
@@ -139,15 +169,39 @@ export async function findAutomationAssistantSessionForAutomation(input: {
   return row ? toSession(row) : null;
 }
 
-/** Ties a session for a new automation to the automation it was saved as. */
+export type AutomationAssistantSessionBindError =
+  /** The session belongs to another automation, or is gone. */
+  | { code: "session_already_bound" }
+  /** The person already has a session for the automation, so this one stays unbound. */
+  | { code: "automation_session_exists" };
+
+/**
+ * Ties a session for a new automation to the automation it was saved as. It is one statement, so
+ * of two bindings at once one wins: a session is never moved to a second automation, and the
+ * person never gets a second session for one automation.
+ */
 export async function bindAutomationAssistantSession(input: {
   sessionId: string;
   automationId: string;
-}): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ automationId: input.automationId, expiresAt: null, updatedAt: new Date() })
-    .where(eq(sessions.id, input.sessionId));
+}): Promise<Result<void, AutomationAssistantSessionBindError>> {
+  try {
+    const bound = await db
+      .update(sessions)
+      .set({ automationId: input.automationId, expiresAt: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(sessions.id, input.sessionId),
+          or(isNull(sessions.automationId), eq(sessions.automationId, input.automationId)),
+        ),
+      )
+      .returning({ id: sessions.id });
+    return bound.length === 1 ? ok(undefined) : err({ code: "session_already_bound" });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return err({ code: "automation_session_exists" });
+    }
+    throw error;
+  }
 }
 
 export async function deleteAutomationAssistantSession(sessionId: string): Promise<void> {

@@ -212,6 +212,34 @@ describe("automation assistant sessions", () => {
     expect(direct.status).toBe(404);
   });
 
+  it("gives the person the session they already have for an automation, and binds no second one to it", async () => {
+    const { headers, identity, organizationId, slug } = await signIn();
+    const userId = await fixture.getLocalUserId(identity.user.workosUserId);
+    const automationId = await seedAutomation({ organizationId, userId });
+    const start = (body: { automationId?: string }) =>
+      assistant.sessions.$post({ param: { organizationSlug: slug }, json: body }, { headers });
+
+    const [first, second] = await Promise.all([start({ automationId }), start({ automationId })]);
+    expect([first.status, second.status]).toEqual([201, 201]);
+    const one = (await json<SessionBody>(first)).session;
+    expect((await json<SessionBody>(second)).session.id).toBe(one.id);
+
+    const draft = (await json<SessionBody>(await start({}))).session;
+    const bound = await assistant.sessions[":sessionId"].$patch(
+      { param: { organizationSlug: slug, sessionId: draft.id }, json: { automationId } },
+      { headers },
+    );
+    expect(bound.status).toBe(409);
+    expect(await json<{ error: string }>(bound)).toMatchObject({
+      error: "automation_session_exists",
+    });
+    const resumed = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { automationId } },
+      { headers },
+    );
+    expect(await resumed.json()).toMatchObject({ session: { id: one.id } });
+  });
+
   it("refuses a session for an automation the workspace does not have", async () => {
     const { headers, slug } = await signIn();
 

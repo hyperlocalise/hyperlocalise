@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import type { UIMessage } from "ai";
 
@@ -49,7 +49,9 @@ export const automationAssistantSessions = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    index("idx_automation_assistant_sessions_automation_author").on(
+    // One session per saved automation and author. Unbound sessions hold no automation id, and
+    // rows without one never collide.
+    uniqueIndex("idx_automation_assistant_sessions_automation_author").on(
       table.automationId,
       table.createdByUserId,
     ),

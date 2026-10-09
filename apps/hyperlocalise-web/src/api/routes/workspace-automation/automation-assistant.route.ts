@@ -41,6 +41,7 @@ import {
   type AutomationAssistantSession,
 } from "@/lib/automation-assistant/sessions";
 import { db, schema } from "@/lib/database/client";
+import { isErr } from "@/lib/primitives/result/results";
 import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 import {
@@ -199,7 +200,10 @@ export function createAutomationAssistantRoutes() {
       if (!(await automationExists(organizationId, automationId))) {
         return notFoundResponse(c, "automation_not_found");
       }
-      await bindAutomationAssistantSession({ sessionId, automationId });
+      const bound = await bindAutomationAssistantSession({ sessionId, automationId });
+      if (isErr(bound)) {
+        return conflictResponse(c, bound.error.code);
+      }
       return c.json({ session: toSessionResponse({ ...session, automationId }) }, 200);
     })
     .delete("/sessions/:sessionId", validateSessionParams, async (c) => {

@@ -16,6 +16,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
+import { isErr } from "@/lib/primitives/result/results";
 
 import {
   AUTOMATION_ASSISTANT_HISTORY_MESSAGES,
@@ -45,6 +46,10 @@ afterEach(async () => {
 async function person() {
   const { user, organization } = await fixture.createLocalWorkosIdentity();
   return { userId: user.id, organizationId: organization.id };
+}
+
+function outcome(result: Awaited<ReturnType<typeof bindAutomationAssistantSession>>) {
+  return isErr(result) ? result.error.code : "bound";
 }
 
 async function automationFor(scope: { organizationId: string; userId: string }) {
@@ -121,6 +126,67 @@ describe("automation assistant sessions", () => {
       .from(schema.automationAssistantSessions)
       .where(eq(schema.automationAssistantSessions.id, unbound.id));
     expect(row?.expiresAt).toBeNull();
+  });
+
+  it("keeps one session per saved automation and author, however many ask for the first at once", async () => {
+    const scope = await person();
+    const colleague = { ...(await person()), organizationId: scope.organizationId };
+    const automationId = await automationFor(scope);
+
+    // Two tabs on the automation, neither of which found a session when it loaded.
+    const made = await Promise.all(
+      Array.from({ length: 4 }, () => createAutomationAssistantSession({ ...scope, automationId })),
+    );
+    expect(new Set(made.map((session) => session.id)).size).toBe(1);
+    expect((await createAutomationAssistantSession({ ...scope, automationId })).id).toBe(
+      made[0]!.id,
+    );
+
+    const theirs = await createAutomationAssistantSession({ ...colleague, automationId });
+    expect(theirs.id).not.toBe(made[0]!.id);
+    // A new automation's sessions are bound to nothing, and a person may have several.
+    const drafts = await Promise.all([
+      createAutomationAssistantSession(scope),
+      createAutomationAssistantSession(scope),
+    ]);
+    expect(drafts[0].id).not.toBe(drafts[1].id);
+  });
+
+  it("binds a session once, and not to an automation the person already has a session for", async () => {
+    const scope = await person();
+    const automationId = await automationFor(scope);
+    const otherAutomationId = await automationFor(scope);
+    const [first, second] = await Promise.all([
+      createAutomationAssistantSession(scope),
+      createAutomationAssistantSession(scope),
+    ]);
+
+    // Both drafts are bound to the one automation at once, and one of them gets it.
+    const outcomes = await Promise.all(
+      [first, second].map(async (session) =>
+        outcome(await bindAutomationAssistantSession({ sessionId: session.id, automationId })),
+      ),
+    );
+    expect(outcomes.toSorted((a, b) => a.localeCompare(b))).toEqual([
+      "automation_session_exists",
+      "bound",
+    ]);
+    const winner = outcomes[0] === "bound" ? first : second;
+    const kept = await findAutomationAssistantSessionForAutomation({ ...scope, automationId });
+    expect(kept?.id).toBe(winner.id);
+
+    // Binding it again to its own automation changes nothing; another automation is refused.
+    expect(
+      outcome(await bindAutomationAssistantSession({ sessionId: winner.id, automationId })),
+    ).toBe("bound");
+    expect(
+      outcome(
+        await bindAutomationAssistantSession({
+          sessionId: winner.id,
+          automationId: otherAutomationId,
+        }),
+      ),
+    ).toBe("session_already_bound");
   });
 
   it("goes with its automation when the automation is deleted", async () => {
