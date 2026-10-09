@@ -401,18 +401,18 @@ describe("describeAutomationSetupPage", () => {
     expect(instructions).toContain("- Semrush");
   });
 
-  it("shows the person's instructions as data and cuts long ones", () => {
+  it("shows the person's instructions as data, whole however long they are", () => {
+    // As long as instructions can be saved, so a rewrite never starts from part of the text.
+    const text = `${"Keep it short. ".repeat(1300)}Sign off as the docs team.`;
     const instructions = describeAutomationSetupPage(
       editorContext({
-        form: {
-          ...createDefaultWorkspaceAutomationFormState(),
-          instructions: "Keep it short. ".repeat(400),
-        },
+        form: { ...createDefaultWorkspaceAutomationFormState(), instructions: text },
       }),
     );
 
-    expect(instructions).toContain("<automation_instructions>\nKeep it short.");
-    expect(instructions).toContain("[truncated]\n</automation_instructions>");
+    expect(instructions).toContain(
+      `<automation_instructions>\n${text}\n</automation_instructions>`,
+    );
   });
 
   it("says a saved automation is open when editing one", () => {
