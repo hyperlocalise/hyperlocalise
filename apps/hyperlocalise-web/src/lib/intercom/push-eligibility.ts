@@ -39,6 +39,19 @@ import {
 import { intercomMappingMatchesTarget } from "./intercom-sync-scope";
 import { composeIntercomArticleFromApprovedKeyedUnits } from "./keyed-article-compose";
 
+export function shouldPreferKeyedIntercomArticleOverVariant(input: {
+  variantUpdatedAt: Date | null | undefined;
+  latestKeyedApprovedAt: Date | null | undefined;
+}): boolean {
+  if (!input.variantUpdatedAt) {
+    return true;
+  }
+  if (!input.latestKeyedApprovedAt) {
+    return false;
+  }
+  return input.latestKeyedApprovedAt.getTime() > input.variantUpdatedAt.getTime();
+}
+
 const APPROVED_VARIANT_READ_CONCURRENCY = 8;
 const APPROVED_KEYED_SOURCE_READ_CONCURRENCY = 8;
 const APPROVED_KEY_PAGE_SIZE = 2_000;
@@ -418,6 +431,7 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
         isHidden: boolean;
       }> = [];
       let allVisibleApproved = true;
+      let latestKeyedApprovedAt: Date | null = null;
       for (const key of pathKeys) {
         if (isMarkdownCalloutFenceEntry(key.key, key.sourceText)) {
           continue;
@@ -438,6 +452,10 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
             targetText: approvedText,
             isHidden: key.isHidden,
           });
+          const approvedAt = translation?.updatedAt ?? null;
+          if (approvedAt && (!latestKeyedApprovedAt || approvedAt > latestKeyedApprovedAt)) {
+            latestKeyedApprovedAt = approvedAt;
+          }
         }
       }
       if (!allVisibleApproved) {
@@ -454,7 +472,13 @@ async function mergeApprovedKeyedIntercomArticleValues(input: {
 
       const existingApproved = input.valuesByPathAndLocale.get(sourcePath)?.get(targetLocale);
       const variantMeta = input.variantMetaByPathAndLocale.get(sourcePath)?.get(targetLocale);
-      if (existingApproved && variantMeta?.provenance !== "import") {
+      if (
+        existingApproved &&
+        !shouldPreferKeyedIntercomArticleOverVariant({
+          variantUpdatedAt: variantMeta?.updatedAt,
+          latestKeyedApprovedAt,
+        })
+      ) {
         continue;
       }
 

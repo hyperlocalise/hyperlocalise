@@ -12,7 +12,39 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isIntercomPushRunActive } from "./push-eligibility";
+import {
+  isIntercomPushRunActive,
+  shouldPreferKeyedIntercomArticleOverVariant,
+} from "./push-eligibility";
+
+describe("shouldPreferKeyedIntercomArticleOverVariant", () => {
+  it("prefers later CAT approvals over an earlier uploaded file", () => {
+    expect(
+      shouldPreferKeyedIntercomArticleOverVariant({
+        variantUpdatedAt: new Date("2026-10-01T00:00:00.000Z"),
+        latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a later approved file over older keyed text", () => {
+    expect(
+      shouldPreferKeyedIntercomArticleOverVariant({
+        variantUpdatedAt: new Date("2026-10-03T00:00:00.000Z"),
+        latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
+      }),
+    ).toBe(false);
+  });
+
+  it("uses keyed text when no approved file exists", () => {
+    expect(
+      shouldPreferKeyedIntercomArticleOverVariant({
+        variantUpdatedAt: null,
+        latestKeyedApprovedAt: new Date("2026-10-02T00:00:00.000Z"),
+      }),
+    ).toBe(true);
+  });
+});
 
 describe("isIntercomPushRunActive", () => {
   it("is true only for queued or running push_approved runs", () => {

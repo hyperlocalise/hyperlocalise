@@ -12,7 +12,51 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { intercomArticleImportOutcome } from "./import-intercom-articles";
+import {
+  intercomArticleImportOutcome,
+  resolveIntercomSourceIngestAction,
+} from "./import-intercom-articles";
+
+describe("resolveIntercomSourceIngestAction", () => {
+  it("reuses an ingested source only when the content hash still matches", () => {
+    expect(
+      resolveIntercomSourceIngestAction({
+        sourceContentUnchanged: true,
+        latestIngestState: "ingested",
+      }),
+    ).toBe("reuse");
+    expect(
+      resolveIntercomSourceIngestAction({
+        sourceContentUnchanged: false,
+        latestIngestState: "ingested",
+      }),
+    ).toBe("upload");
+  });
+
+  it("waits for a pending ingest instead of marking a failed import active", () => {
+    expect(
+      resolveIntercomSourceIngestAction({
+        sourceContentUnchanged: true,
+        latestIngestState: "pending",
+      }),
+    ).toBe("wait");
+  });
+
+  it("re-uploads after a failed ingest so the next import retries", () => {
+    expect(
+      resolveIntercomSourceIngestAction({
+        sourceContentUnchanged: true,
+        latestIngestState: "failed",
+      }),
+    ).toBe("upload");
+    expect(
+      resolveIntercomSourceIngestAction({
+        sourceContentUnchanged: true,
+        latestIngestState: null,
+      }),
+    ).toBe("upload");
+  });
+});
 
 describe("intercomArticleImportOutcome", () => {
   it("skips only when the source is unchanged and no target locales were written", () => {

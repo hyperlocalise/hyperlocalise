@@ -69,6 +69,23 @@ const ARTICLE_IMPORT_CONCURRENCY = 3;
 const RECONCILE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 const jobQueue = createTranslationJobEventQueue();
 
+export function resolveIntercomSourceIngestAction(input: {
+  sourceContentUnchanged: boolean;
+  latestIngestState: string | null | undefined;
+}): "reuse" | "wait" | "upload" {
+  if (input.sourceContentUnchanged && input.latestIngestState === "ingested") {
+    return "reuse";
+  }
+  if (
+    input.sourceContentUnchanged &&
+    input.latestIngestState != null &&
+    input.latestIngestState !== "failed"
+  ) {
+    return "wait";
+  }
+  return "upload";
+}
+
 export function intercomArticleImportOutcome(input: {
   sourceUnchanged: boolean;
   translationsImported: number;
@@ -375,7 +392,50 @@ export async function runImportIntercomArticles(input: {
         const sourceUnchanged = sourceContentUnchanged && existing.status === "active";
 
         let sourceFileId: string | null = null;
-        if (!sourceContentUnchanged) {
+        const latestVersion = await getLatestRepositorySourceFileVersion({
+          organizationId: input.organizationId,
+          projectId,
+          sourcePath,
+        });
+        const sourceIngestAction = resolveIntercomSourceIngestAction({
+          sourceContentUnchanged,
+          latestIngestState: latestVersion?.ingestState,
+        });
+        if (sourceIngestAction === "reuse") {
+          sourceFileId = latestVersion?.storedFileId ?? null;
+        } else if (sourceIngestAction === "wait" && latestVersion) {
+          sourceFileId = latestVersion.storedFileId ?? null;
+          const ingestOutcome = await waitForSourceFileVersionIngest({
+            organizationId: input.organizationId,
+            sourceFileVersionId: latestVersion.id,
+          });
+          if (ingestOutcome !== "ingested") {
+            await writeIfCurrent((tx) =>
+              upsertSyncState({
+                organizationId: input.organizationId,
+                automationId: input.automation.id,
+                projectId,
+                helpCenterId,
+                article,
+                sourcePath,
+                contentHash,
+                sourceLocale: sourceIntercomLocale,
+                status: "import_failed",
+                lastError: { ingestOutcome },
+                importedTranslationHashes: existing?.importedTranslationHashes ?? {},
+                client: tx,
+              }),
+            );
+            return {
+              outcome: "failed" as const,
+              articleId: article.id,
+              updatedAt: article.updatedAt,
+              translationsImported: 0,
+              translationsSkipped: 0,
+              translationsFailed: 0,
+            };
+          }
+        } else {
           const markdownBytes = Buffer.from(serializeIntercomArticleMarkdown(payload), "utf8");
           const upload = await uploadSourceFile({
             organizationId: input.organizationId,
