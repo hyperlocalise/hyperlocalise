@@ -84,4 +84,14 @@ describe("AutomationAssistantSummary", () => {
     expect(screen.getByText(DONE)).toBeTruthy();
     expect(screen.queryByText(WORKING)).toBeNull();
   });
+
+  it("says a Contentful trigger still needs the Contentful skill", () => {
+    show({
+      appliedCallCount: 1,
+      appliedChangeCount: 1,
+      steps: [{ kind: "contentful_tool_for_contentful_trigger" }],
+    });
+
+    expect(screen.getByText("Add a skill that translates Contentful entries.")).toBeTruthy();
+  });
 });

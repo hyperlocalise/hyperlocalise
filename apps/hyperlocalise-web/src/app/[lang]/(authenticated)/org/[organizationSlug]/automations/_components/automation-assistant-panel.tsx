@@ -109,24 +109,72 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
   );
 }
 
+/** How far from the bottom the person can be and still be following the reply. */
+const STICK_TO_BOTTOM_PX = 48;
+
+export function streamingReplySize(parts: UIMessage["parts"] | undefined): number {
+  if (!parts) {
+    return 0;
+  }
+  return parts.reduce((size, part) => {
+    if (part.type === "text") {
+      return size + part.text.length;
+    }
+    return size + 1;
+  }, 0);
+}
+
+export function isScrolledToBottom(
+  list: Pick<HTMLElement, "clientHeight" | "scrollHeight" | "scrollTop">,
+) {
+  return list.scrollHeight - list.scrollTop - list.clientHeight <= STICK_TO_BOTTOM_PX;
+}
+
 /** The assistant's conversation for this page: its messages, the reply as it streams, a box to write in. */
 export function AutomationAssistantPanel({ className }: { className?: string }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
   const aiFeatures = useAiFeaturesAccess();
   const listRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const messageCount = assistant?.messages.length ?? 0;
-  const streamingLength = assistant?.streaming?.parts.length ?? 0;
+  const streamingSize = streamingReplySize(assistant?.streaming?.parts);
 
   const working = assistant?.working ?? false;
 
   // Only the panel's own list moves; scrolling an element into view would move the page too.
+  // Streamed words grow inside one text part, so we follow the reply's size, not its part count.
+  // Leave the list where it is if the person has scrolled back to read earlier messages.
   useEffect(() => {
     const list = listRef.current;
-    if (list) {
-      list.scrollTop = list.scrollHeight;
+    const content = contentRef.current;
+    if (!list || !content) {
+      return;
     }
-  }, [messageCount, streamingLength, working]);
+
+    const onScroll = () => {
+      stickToBottomRef.current = isScrolledToBottom(list);
+    };
+    list.addEventListener("scroll", onScroll, { passive: true });
+
+    const follow = () => {
+      if (stickToBottomRef.current) {
+        list.scrollTop = list.scrollHeight;
+      }
+    };
+    follow();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => list.removeEventListener("scroll", onScroll);
+    }
+    const observer = new ResizeObserver(follow);
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+      list.removeEventListener("scroll", onScroll);
+    };
+  }, [messageCount, streamingSize, working]);
 
   if (!assistant) {
     return null;
@@ -174,48 +222,50 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           <XIcon />
         </Button>
       </header>
-      <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
-        {assistant.messages.length === 0 && !assistant.streaming ? (
-          <TypographyMuted className="text-sm">
-            <FormattedMessage {...messages.empty} />
-          </TypographyMuted>
-        ) : null}
-        {assistant.messages.map((message) =>
-          message.senderType === "user" ? (
-            <div key={message.id} className="flex flex-col items-end gap-1.5">
-              <AutomationAssistantPageEdits edits={readAutomationSetupPageEdits(message.parts)} />
-              <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
-                {message.text}
+      <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
+        <div ref={contentRef} className="flex flex-col gap-5">
+          {assistant.messages.length === 0 && !assistant.streaming ? (
+            <TypographyMuted className="text-sm">
+              <FormattedMessage {...messages.empty} />
+            </TypographyMuted>
+          ) : null}
+          {assistant.messages.map((message) =>
+            message.senderType === "user" ? (
+              <div key={message.id} className="flex flex-col items-end gap-1.5">
+                <AutomationAssistantPageEdits edits={readAutomationSetupPageEdits(message.parts)} />
+                <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
+                  {message.text}
+                </div>
+                {assistant.failure?.messageId === message.id ? (
+                  <p role="alert" className="max-w-[85%] text-end text-xs text-destructive">
+                    <FormattedMessage {...FAILURE_MESSAGES[assistant.failure.reason]} />
+                  </p>
+                ) : null}
               </div>
-              {assistant.failure?.messageId === message.id ? (
-                <p role="alert" className="max-w-[85%] text-end text-xs text-destructive">
-                  <FormattedMessage {...FAILURE_MESSAGES[assistant.failure.reason]} />
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <Reply
-              key={message.id}
-              parts={message.parts ?? [{ type: "text", text: message.text }]}
-              pending={false}
-            />
-          ),
-        )}
-        {assistant.streaming ? (
-          <Reply parts={assistant.streaming.parts} pending />
-        ) : assistant.working ? (
-          <Reply parts={[]} pending />
-        ) : null}
-        {/* Counted by the page from what it applied, so it is there only while it is true. */}
-        {assistant.appliedCallCount > 0 && !assistant.working ? (
-          <TypographyMuted size="xsmall" className="border-t border-border pt-3">
-            <FormattedMessage
-              {...(assistant.mode === "create"
-                ? messages.changesOnPageCreate
-                : messages.changesOnPageSave)}
-            />
-          </TypographyMuted>
-        ) : null}
+            ) : (
+              <Reply
+                key={message.id}
+                parts={message.parts ?? [{ type: "text", text: message.text }]}
+                pending={false}
+              />
+            ),
+          )}
+          {assistant.streaming ? (
+            <Reply parts={assistant.streaming.parts} pending />
+          ) : assistant.working ? (
+            <Reply parts={[]} pending />
+          ) : null}
+          {/* Counted by the page from what it applied, so it is there only while it is true. */}
+          {assistant.appliedCallCount > 0 && !assistant.working ? (
+            <TypographyMuted size="xsmall" className="border-t border-border pt-3">
+              <FormattedMessage
+                {...(assistant.mode === "create"
+                  ? messages.changesOnPageCreate
+                  : messages.changesOnPageSave)}
+              />
+            </TypographyMuted>
+          ) : null}
+        </div>
       </div>
       <footer className="flex flex-col gap-2 border-t border-border p-3">
         <AutomationAssistantPrompt

@@ -22,6 +22,8 @@ import {
   AutomationAssistantLayout,
   AutomationAssistantOpenButton,
   AutomationAssistantPanel,
+  isScrolledToBottom,
+  streamingReplySize,
 } from "./automation-assistant-panel";
 import {
   AutomationAssistantContext,
@@ -124,6 +126,23 @@ describe("AutomationAssistantPanel", () => {
     expect(screen.getByRole("button", { name: "Updated the setup · 1 change" })).toBeTruthy();
     expect(screen.getByText("Working…")).toBeTruthy();
     expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+
+  it("treats growing text in the same part as a larger reply", () => {
+    const started = [{ type: "text" as const, text: "Let me" }];
+    const grown = [{ type: "text" as const, text: "Let me set this up for Contentful." }];
+
+    expect(streamingReplySize(started)).toBeLessThan(streamingReplySize(grown));
+    expect(streamingReplySize(started)).not.toBe(streamingReplySize(grown));
+  });
+
+  it("leaves the list where it is once the person has scrolled back", () => {
+    expect(
+      isScrolledToBottom({ scrollTop: 0, scrollHeight: 800, clientHeight: 200 }),
+    ).toBe(false);
+    expect(
+      isScrolledToBottom({ scrollTop: 560, scrollHeight: 800, clientHeight: 200 }),
+    ).toBe(true);
   });
 });
 

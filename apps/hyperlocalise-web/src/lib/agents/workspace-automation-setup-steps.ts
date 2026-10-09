@@ -39,9 +39,10 @@ export type WorkspaceAutomationSetupStep =
       /** Attached skills whose tools own the field. Absent for a field of the setup as a whole. */
       skillIds?: string[];
     }
-  | { kind: "repository_for_github_trigger" }
-  /** Advice only: the setup can be saved, but its runs would have nothing to send. */
-  | { kind: "nothing_to_deliver" };
+    | { kind: "repository_for_github_trigger" }
+    | { kind: "contentful_tool_for_contentful_trigger" }
+    /** Advice only: the setup can be saved, but its runs would have nothing to send. */
+    | { kind: "nothing_to_deliver" };
 
 export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   WorkspaceAutomationSkillIntegration,
@@ -95,6 +96,11 @@ export function listWorkspaceAutomationSetupSteps(input: {
     steps.push({ kind: "repository_for_github_trigger" });
   }
 
+  // Contentful events select only automations with an enabled Contentful tool and connection.
+  if (form.kind !== "content_sync" && form.triggerMode === "contentful" && !form.contentfulEnabled) {
+    steps.push({ kind: "contentful_tool_for_contentful_trigger" });
+  }
+
   if (hasNothingToDeliver(form)) {
     steps.push({ kind: "nothing_to_deliver" });
   }
@@ -132,6 +138,8 @@ export function describeWorkspaceAutomationSetupStep(step: WorkspaceAutomationSe
       return step.message;
     case "repository_for_github_trigger":
       return "Add a skill that reads the repository or comments on pull requests. A GitHub trigger does not run without one.";
+    case "contentful_tool_for_contentful_trigger":
+      return "Add a skill that translates Contentful entries. A Contentful trigger does not run without one.";
     case "nothing_to_deliver":
       return "Nothing produces a result to send yet. Add a skill that reviews, summarises or researches something, or write instructions.";
     default:

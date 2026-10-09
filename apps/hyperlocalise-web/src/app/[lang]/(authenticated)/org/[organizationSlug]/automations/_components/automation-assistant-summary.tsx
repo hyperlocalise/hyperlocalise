@@ -45,6 +45,7 @@ function setupStepKey(step: WorkspaceAutomationSetupStep): string {
     case "field":
       return `field:${step.field}`;
     case "repository_for_github_trigger":
+    case "contentful_tool_for_contentful_trigger":
     case "nothing_to_deliver":
       return step.kind;
     default:
@@ -98,6 +99,8 @@ export function AutomationAssistantSummary({ organizationSlug }: { organizationS
         return step.message;
       case "repository_for_github_trigger":
         return <FormattedMessage {...messages.repositoryForGithubTrigger} />;
+      case "contentful_tool_for_contentful_trigger":
+        return <FormattedMessage {...messages.contentfulToolForContentfulTrigger} />;
       case "nothing_to_deliver":
         return <FormattedMessage {...messages.nothingToDeliver} />;
       default:

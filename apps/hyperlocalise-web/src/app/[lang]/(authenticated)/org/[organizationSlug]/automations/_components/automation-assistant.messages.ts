@@ -254,6 +254,11 @@ export const automationAssistantMessages = defineMessages({
     id: "sAqhqYjNht",
     description: "A still-needed step: the GitHub trigger has no repository",
   },
+  contentfulToolForContentfulTrigger: {
+    defaultMessage: "Add a skill that translates Contentful entries.",
+    id: "contentfulToolForContentfulTrigger",
+    description: "A still-needed step: the Contentful trigger has no Contentful tool",
+  },
   nothingToDeliver: {
     defaultMessage:
       "Nothing produces a result yet. Add a skill that checks, summarises or researches something, or write instructions.",

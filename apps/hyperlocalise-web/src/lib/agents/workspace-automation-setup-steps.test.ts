@@ -159,6 +159,26 @@ describe("listWorkspaceAutomationSetupSteps", () => {
     expect(listWorkspaceAutomationSetupSteps({ form: withSkill })).toEqual([]);
   });
 
+  it("says a Contentful trigger needs a skill that enables the Contentful tool", () => {
+    const withoutSkill = namedForm({
+      triggerMode: "contentful",
+      instructions: "Translate new entries.",
+    });
+    const withSkill = {
+      ...addSkillToWorkspaceAutomationForm(
+        namedForm({ triggerMode: "contentful" }),
+        "translate-contentful-entries",
+        { contentfulConnectionId: "conn-1" },
+      ),
+      contentfulTargetLocales: ["fr"],
+    };
+
+    expect(listWorkspaceAutomationSetupSteps({ form: withoutSkill })).toEqual([
+      { kind: "contentful_tool_for_contentful_trigger" },
+    ]);
+    expect(listWorkspaceAutomationSetupSteps({ form: withSkill })).toEqual([]);
+  });
+
   it("says a schedule needs something to run", () => {
     const form = addSkillToWorkspaceAutomationForm(
       namedForm({ triggerMode: "scheduled", slackChannelId: "C0123456789" }),
@@ -208,5 +228,11 @@ describe("describeWorkspaceAutomationSetupStep", () => {
     expect(
       describeWorkspaceAutomationSetupStep({ kind: "repository_for_github_trigger" }),
     ).toContain("A GitHub trigger does not run without one.");
+  });
+
+  it("explains what a Contentful trigger is missing", () => {
+    expect(
+      describeWorkspaceAutomationSetupStep({ kind: "contentful_tool_for_contentful_trigger" }),
+    ).toContain("A Contentful trigger does not run without one.");
   });
 });
