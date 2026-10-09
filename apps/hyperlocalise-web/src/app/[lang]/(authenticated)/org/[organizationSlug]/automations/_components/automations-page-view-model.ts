@@ -52,7 +52,10 @@ export function resolveAutomationPageStats(automations: WorkspaceAutomationRecor
   };
 }
 
-export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationTemplate[]) {
+export function resolveSortedAutomationTemplates(
+  templates: WorkspaceAutomationTemplate[],
+  options: { usableFirst?: boolean } = {},
+) {
   const categoryOrder = WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.map((category) => category.id);
 
   return listWorkspaceAutomationTemplates(undefined, templates).toSorted((left, right) => {
@@ -60,6 +63,9 @@ export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationT
     const rightIndex = categoryOrder.indexOf(right.category);
     if (leftIndex !== rightIndex) {
       return leftIndex - rightIndex;
+    }
+    if (options.usableFirst && left.activatable !== right.activatable) {
+      return left.activatable ? -1 : 1;
     }
 
     return left.name.localeCompare(right.name);

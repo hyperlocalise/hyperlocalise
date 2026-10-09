@@ -1,0 +1,362 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import "dotenv/config";
+import { eq } from "drizzle-orm";
+import { testClient } from "hono/testing";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+const { resolveApiAuthContextFromSessionMock, turnResponseMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  turnResponseMock: vi.fn(() => new Response("stream", { status: 200 })),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return { ...actual, resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock };
+});
+
+vi.mock("@/lib/billing/ai-features", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/ai-features")>();
+  return {
+    ...actual,
+    ensureAiFeaturesAllowed: vi.fn(async () => ({ ok: true, value: undefined })),
+  };
+});
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: vi.fn(async () => ({
+    model: "openai/gpt-6-luna",
+    source: "gateway",
+    modelId: "openai/gpt-6-luna",
+  })),
+}));
+
+vi.mock("@/agents/automation-assistant/agent/channels/web", () => ({
+  createAutomationAssistantTurnResponse: turnResponseMock,
+}));
+
+import { createApp } from "@/api/app";
+import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import type { AppType } from "@/api/typed-app";
+import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
+import { createDefaultWorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+import { addAutomationAssistantMessage } from "@/lib/automation-assistant/sessions";
+import { db, schema } from "@/lib/database/client";
+
+const client = testClient<AppType>(createApp());
+const fixture = createAuthTestFixture();
+
+beforeAll(async () => {
+  await db.$client.query("select 1");
+});
+
+afterEach(async () => {
+  vi.clearAllMocks();
+  await fixture.cleanup();
+});
+
+async function signIn(role: "admin" | "member" = "admin") {
+  const identity = fixture.createWorkosIdentityWithRole(role);
+  const headers = await fixture.authHeadersFor(identity);
+  const [organization] = await db
+    .select({ id: schema.organizations.id, slug: schema.organizations.slug })
+    .from(schema.organizations)
+    .where(
+      eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+    )
+    .limit(1);
+  return { identity, headers, organizationId: organization!.id, slug: organization!.slug! };
+}
+
+async function seedAutomation(input: { organizationId: string; userId: string }) {
+  const [automation] = await db
+    .insert(schema.workspaceAutomations)
+    .values({
+      organizationId: input.organizationId,
+      authorUserId: input.userId,
+      name: "Weekly digest",
+      instructions: "",
+      triggerConfig: { mode: "manual" },
+      toolConfig: {},
+    })
+    .returning({ id: schema.workspaceAutomations.id });
+  return automation!.id;
+}
+
+const assistant = client.api.orgs[":organizationSlug"].automations.assistant;
+
+type SessionBody = {
+  session: { id: string; automationId: string | null; turnInProgress: boolean };
+};
+
+/** The body of a typed response, read past the status union the client gives it. */
+async function json<T>(response: { json: () => Promise<unknown> }): Promise<T> {
+  return (await response.json()) as T;
+}
+
+function userMessage(text: string) {
+  return [{ id: "msg-1", role: "user", parts: [{ type: "text", text }] }];
+}
+
+function pageContext(automationId: string | null = null) {
+  return buildWorkspaceAutomationEditorContext({
+    editorSessionId: "editor-1",
+    mode: automationId ? "detail" : "create",
+    automationId,
+    form: createDefaultWorkspaceAutomationFormState(),
+    connections: { slack: true },
+    timeZone: "Australia/Sydney",
+    repositories: [],
+    crowdinProjectIds: [],
+    contentfulConnectionIds: [],
+  });
+}
+
+describe("automation assistant sessions", () => {
+  it("is for admins and localisation managers only", async () => {
+    const { headers, slug } = await signIn("member");
+
+    const response = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("makes a session that no conversation listing shows", async () => {
+    const { headers, slug } = await signIn();
+
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    expect(created.status).toBe(201);
+    const { session } = await json<SessionBody>(created);
+    expect(session).toMatchObject({ automationId: null, turnInProgress: false });
+
+    const conversations = await db
+      .select({ id: schema.interactions.id })
+      .from(schema.interactions)
+      .where(eq(schema.interactions.id, session.id));
+    expect(conversations).toEqual([]);
+
+    const listed = await client.api.orgs[":organizationSlug"].conversations.$get(
+      { param: { organizationSlug: slug }, query: { limit: "50" } },
+      { headers },
+    );
+    expect(listed.status).toBe(200);
+    const body = await json<{ conversations: Array<{ id: string }> }>(listed);
+    expect(body.conversations.map((conversation) => conversation.id)).not.toContain(session.id);
+
+    const asConversation = await client.api.orgs[":organizationSlug"].conversations[
+      ":conversationId"
+    ].$get({ param: { organizationSlug: slug, conversationId: session.id } }, { headers });
+    expect(asConversation.status).toBe(404);
+  });
+
+  it("resumes the author's own session for an automation once it is bound", async () => {
+    const { headers, identity, organizationId, slug } = await signIn();
+    const userId = await fixture.getLocalUserId(identity.user.workosUserId);
+    const automationId = await seedAutomation({ organizationId, userId });
+
+    const none = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { automationId } },
+      { headers },
+    );
+    expect(await none.json()).toEqual({ session: null, messages: [] });
+
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    const { session } = await json<SessionBody>(created);
+    const bound = await assistant.sessions[":sessionId"].$patch(
+      { param: { organizationSlug: slug, sessionId: session.id }, json: { automationId } },
+      { headers },
+    );
+    expect(bound.status).toBe(200);
+
+    const resumed = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { automationId } },
+      { headers },
+    );
+    expect(await resumed.json()).toMatchObject({ session: { id: session.id, automationId } });
+
+    const colleague = fixture.createWorkosIdentityForOrganization(identity.organization, "admin");
+    const colleagueHeaders = await fixture.authHeadersFor(colleague);
+    const theirs = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { automationId } },
+      { headers: colleagueHeaders },
+    );
+    expect(await theirs.json()).toEqual({ session: null, messages: [] });
+    const direct = await assistant.sessions[":sessionId"].$get(
+      { param: { organizationSlug: slug, sessionId: session.id } },
+      { headers: colleagueHeaders },
+    );
+    expect(direct.status).toBe(404);
+  });
+
+  it("gives the person the session they already have for an automation, and binds no second one to it", async () => {
+    const { headers, identity, organizationId, slug } = await signIn();
+    const userId = await fixture.getLocalUserId(identity.user.workosUserId);
+    const automationId = await seedAutomation({ organizationId, userId });
+    const start = (body: { automationId?: string }) =>
+      assistant.sessions.$post({ param: { organizationSlug: slug }, json: body }, { headers });
+
+    const [first, second] = await Promise.all([start({ automationId }), start({ automationId })]);
+    expect([first.status, second.status]).toEqual([201, 201]);
+    const one = (await json<SessionBody>(first)).session;
+    expect((await json<SessionBody>(second)).session.id).toBe(one.id);
+
+    const draft = (await json<SessionBody>(await start({}))).session;
+    const bound = await assistant.sessions[":sessionId"].$patch(
+      { param: { organizationSlug: slug, sessionId: draft.id }, json: { automationId } },
+      { headers },
+    );
+    expect(bound.status).toBe(409);
+    expect(await json<{ error: string }>(bound)).toMatchObject({
+      error: "automation_session_exists",
+    });
+    const resumed = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { automationId } },
+      { headers },
+    );
+    expect(await resumed.json()).toMatchObject({ session: { id: one.id } });
+  });
+
+  it("refuses a session for an automation the workspace does not have", async () => {
+    const { headers, slug } = await signIn();
+
+    const response = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: { automationId: crypto.randomUUID() } },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("runs one turn at a time, with the page as it is", async () => {
+    const { headers, slug } = await signIn();
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    const { session } = await json<SessionBody>(created);
+    const turns = assistant.sessions[":sessionId"].turns;
+
+    const badContext = await turns.$post(
+      {
+        param: { organizationSlug: slug, sessionId: session.id },
+        json: { messages: userMessage("Post a weekly summary"), pageContext: { kind: "nope" } },
+      },
+      { headers },
+    );
+    expect(badContext.status).toBe(400);
+
+    const started = await turns.$post(
+      {
+        param: { organizationSlug: slug, sessionId: session.id },
+        json: { messages: userMessage("Post a weekly summary"), pageContext: pageContext() },
+      },
+      { headers },
+    );
+    expect(started.status).toBe(200);
+    expect(turnResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: expect.objectContaining({ id: session.id }),
+        text: "Post a weekly summary",
+        pageContext: expect.objectContaining({ editorSessionId: "editor-1" }),
+      }),
+    );
+
+    // The mocked turn never ends, so the claim stays and a second start is refused.
+    const again = await turns.$post(
+      {
+        param: { organizationSlug: slug, sessionId: session.id },
+        json: { messages: userMessage("And email it"), pageContext: pageContext() },
+      },
+      { headers },
+    );
+    expect(again.status).toBe(409);
+    expect(turnResponseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a message from a page that has not seen the session's latest turn, and frees the session", async () => {
+    const { headers, slug } = await signIn();
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    const { session } = await json<SessionBody>(created);
+    const turns = assistant.sessions[":sessionId"].turns;
+    const send = (lastTurnId?: string | null) =>
+      turns.$post(
+        {
+          param: { organizationSlug: slug, sessionId: session.id },
+          json: { messages: userMessage("And email it"), pageContext: pageContext(), lastTurnId },
+        },
+        { headers },
+      );
+    // A turn another tab ran, start to finish, after this page loaded the session.
+    const latest = await addAutomationAssistantMessage({
+      sessionId: session.id,
+      senderType: "user",
+      text: "Make it daily",
+    });
+    await addAutomationAssistantMessage({
+      sessionId: session.id,
+      senderType: "agent",
+      text: "Done.",
+    });
+
+    for (const stale of [undefined, null, crypto.randomUUID()]) {
+      const refused = await send(stale);
+      expect(refused.status).toBe(409);
+      expect(await json<{ error: string }>(refused)).toMatchObject({
+        error: "session_out_of_date",
+      });
+    }
+    expect(turnResponseMock).not.toHaveBeenCalled();
+
+    // The refusals held no claim on the session, so the page that has seen the turn gets through.
+    expect((await send(latest)).status).toBe(200);
+    expect(turnResponseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("is deleted on start over", async () => {
+    const { headers, slug } = await signIn();
+    const created = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: {} },
+      { headers },
+    );
+    const { session } = await json<SessionBody>(created);
+
+    const deleted = await assistant.sessions[":sessionId"].$delete(
+      { param: { organizationSlug: slug, sessionId: session.id } },
+      { headers },
+    );
+    expect(deleted.status).toBe(204);
+
+    const gone = await assistant.sessions[":sessionId"].$get(
+      { param: { organizationSlug: slug, sessionId: session.id } },
+      { headers },
+    );
+    expect(gone.status).toBe(404);
+  });
+});

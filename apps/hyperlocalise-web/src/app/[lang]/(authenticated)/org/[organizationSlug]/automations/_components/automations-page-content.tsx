@@ -12,18 +12,24 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { observer } from "mobx-react-lite";
 import Link from "next/link";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
+import { stashAutomationAssistantHandoff } from "@/lib/automation-assistant/handoff";
+import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
+import { useOrgRouter } from "@/lib/navigation/use-org-router";
 
 import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
 
 import { createAutomationsApi } from "./automations-api";
-import { AutomationsPageView } from "./automations-page-view";
+import { AUTOMATIONS_ACTION_LINK_BUTTON_PROPS, AutomationsPageView } from "./automations-page-view";
 import { githubAutoReviewCardMessages } from "./github-auto-review-card.messages";
 
 const automationsApi = createAutomationsApi(apiClient);
@@ -57,28 +63,34 @@ function renderProductionActionLink({
     <Button
       nativeButton={false}
       render={<Link href={href} />}
-      {...(kind === "template" ? { size: "sm" as const, className: "rounded-full" } : {})}
+      {...AUTOMATIONS_ACTION_LINK_BUTTON_PROPS[kind]}
     >
       {children}
     </Button>
   );
 }
 
-export function AutomationsPageContent({
+export const AutomationsPageContent = observer(function AutomationsPageContent({
   organizationSlug,
   projectId,
   templates,
+  assistantEnabled = false,
   visualWorkflowsEnabled = false,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
   projectId?: string;
   templates: WorkspaceAutomationTemplate[];
+  assistantEnabled?: boolean;
   visualWorkflowsEnabled?: boolean;
   automationsApi?: typeof automationsApi;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const router = useOrgRouter();
+  const aiFeaturesAccess = useAiFeaturesAccess();
+  const [handoffPending, setHandoffPending] = useState(false);
+
   const automationsQuery = useQuery({
     queryKey: automationsQueryKey(organizationSlug, projectId),
     queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug, { projectId }),
@@ -111,6 +123,20 @@ export function AutomationsPageContent({
       projectId={projectId}
       automations={automationsQuery.data ?? []}
       templates={templates}
+      assistant={
+        assistantEnabled
+          ? {
+              aiFeaturesStatus: aiFeaturesAccess.status,
+              pending: handoffPending,
+              // The setup page opens with the assistant, which starts with this request.
+              onSubmitPrompt: (text) => {
+                stashAutomationAssistantHandoff(text);
+                setHandoffPending(true);
+                router.push(`${buildAutomationsPath(organizationSlug, { projectId })}/new`);
+              },
+            }
+          : undefined
+      }
       isLoading={automationsQuery.isLoading}
       error={automationsQuery.error}
       autoReview={autoReviewQuery.data}
@@ -125,4 +151,4 @@ export function AutomationsPageContent({
       visualWorkflowsEnabled={visualWorkflowsEnabled}
     />
   );
-}
+});

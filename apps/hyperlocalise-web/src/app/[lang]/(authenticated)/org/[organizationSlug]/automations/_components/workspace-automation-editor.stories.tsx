@@ -205,8 +205,9 @@ type Story = StoryObj<typeof meta>;
 export const CreateEmpty: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Untitled automation")).toBeInTheDocument();
-    await expect(canvas.getByRole("tab", { name: "Settings" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("tab", { name: "Run History" })).not.toBeInTheDocument();
+    // A new automation has settings only, so no tabs are offered.
+    await expect(canvas.queryByRole("tablist")).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Trigger" })).toBeInTheDocument();
     await expect(
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();

@@ -31,6 +31,7 @@ export * from "./schema/canva";
 export * from "./schema/crowdin-app";
 export * from "./schema/jobs";
 export * from "./schema/agents";
+export * from "./schema/automation-assistant";
 export * from "./schema/visual-workflows";
 export * from "./schema/visual-workflow-runs";
 export * from "./schema/visual-workflow-infrastructure";

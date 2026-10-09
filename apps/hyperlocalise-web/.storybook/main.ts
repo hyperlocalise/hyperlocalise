@@ -29,8 +29,8 @@ const config: StorybookConfig = {
     const existingAlias = viteConfig.resolve.alias;
 
     if (Array.isArray(existingAlias)) {
+      // Ahead of the app's own aliases: the first match wins, and "@" matches every app path.
       viteConfig.resolve.alias = [
-        ...existingAlias,
         {
           find: "@workos-inc/authkit-nextjs/components",
           replacement: authkitComponentsMock,
@@ -55,11 +55,10 @@ const config: StorybookConfig = {
           find: "@formkit/auto-animate/react",
           replacement: autoAnimateReactMock,
         },
+        ...existingAlias,
       ];
     } else {
       viteConfig.resolve.alias = Object.assign(
-        {},
-        existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
         {
           "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
           "@workos-inc/widgets/styles.css": emptyCssMock,
@@ -68,6 +67,7 @@ const config: StorybookConfig = {
           "@/lib/billing/use-ai-features-access": aiFeaturesAccessMock,
           "@formkit/auto-animate/react": autoAnimateReactMock,
         },
+        existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
       );
     }
 

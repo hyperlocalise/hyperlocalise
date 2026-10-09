@@ -35,12 +35,9 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 import { enqueueAutomationRunStartedActivity } from "@/lib/activity-log/job-automation-events";
 import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
 
-import {
-  hasWorkspaceAutomationGithubAgentTool,
-  hasWorkspaceAutomationGithubWorkflow,
-} from "./workspace-automation-github-mapping";
-import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
+import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
+import { hasWorkspaceAutomationScheduledWorkflow } from "./workspace-automation-scheduled-workflow";
 import {
   validateWorkspaceAutomationSkills,
   type WorkspaceAutomationSkillValidationCode,
@@ -63,10 +60,8 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
-  hasWorkspaceAutomationCrowdinTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
-  hasWorkspaceAutomationWebSearchTool,
   hoistLegacyWorkspaceAutomationProjectId,
   isContentSyncAutomation,
   normalizeRepositoryTarget,
@@ -256,15 +251,7 @@ function validateWorkspaceAutomationConfig(input: {
 
   if (
     input.triggerConfig.mode === "scheduled" &&
-    !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
-    !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
-    !hasWorkspaceAutomationGitlabAgentTool(input.toolConfig) &&
-    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
-    !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
-    !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
-    !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
-    !hasWorkspaceAutomationWebSearchTool(input.toolConfig) &&
-    !hasWorkspaceAutomationCrowdinTool(input.toolConfig)
+    !hasWorkspaceAutomationScheduledWorkflow(input.toolConfig)
   ) {
     return err({
       code: "scheduled_workflow_required",

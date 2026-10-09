@@ -351,7 +351,9 @@ export function WorkspaceAutomationIntercomSettings({
           </Select>
         )}
         {errors.intercomHelpCenterId ? (
-          <p className="text-sm text-destructive">{errors.intercomHelpCenterId}</p>
+          <p data-slot="field-error" className="text-sm text-destructive">
+            {errors.intercomHelpCenterId}
+          </p>
         ) : null}
       </div>
 
@@ -387,7 +389,9 @@ export function WorkspaceAutomationIntercomSettings({
           </SelectContent>
         </Select>
         {errors.intercomSourceLocale ? (
-          <p className="text-sm text-destructive">{errors.intercomSourceLocale}</p>
+          <p data-slot="field-error" className="text-sm text-destructive">
+            {errors.intercomSourceLocale}
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">
             The Help Center language for original article copy. It must be the same language as the

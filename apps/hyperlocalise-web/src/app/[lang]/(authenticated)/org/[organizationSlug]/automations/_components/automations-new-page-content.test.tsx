@@ -12,14 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+import { stashAutomationAssistantHandoff } from "@/lib/automation-assistant/handoff";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -29,6 +30,11 @@ import {
 import { AutomationsNewPageContent } from "./automations-new-page-content";
 
 const toastMocks = vi.hoisted(() => ({ message: vi.fn(), success: vi.fn(), error: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({ createAutomation: vi.fn(), bindAssistantSession: vi.fn() }));
+
+vi.mock("./automation-assistant-api", () => ({
+  bindAssistantSession: apiMocks.bindAssistantSession,
+}));
 
 vi.mock("sonner", () => ({ toast: toastMocks }));
 
@@ -43,20 +49,40 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: { api: { orgs: { ":organizationSlug": { automations: { $post: vi.fn() } } } } },
+  apiClient: {
+    api: { orgs: { ":organizationSlug": { automations: { $post: apiMocks.createAutomation } } } },
+  },
 }));
 
 vi.mock("./workspace-automation-form", () => ({
   WorkspaceAutomationEditor: ({
     actions,
+    assistantEnabled,
+    assistantInitialPrompt,
     form,
+    onAssistantChange,
+    onAssistantSessionChange,
     onChange,
   }: {
     actions: ReactNode;
+    assistantEnabled?: boolean;
+    assistantInitialPrompt?: string | null;
     form: WorkspaceAutomationFormState;
+    onAssistantChange?: (form: WorkspaceAutomationFormState) => void;
+    onAssistantSessionChange?: (sessionId: string | null) => void;
     onChange: (form: WorkspaceAutomationFormState) => void;
   }) => (
     <div>
+      <p>{assistantEnabled ? `assistant:${assistantInitialPrompt ?? "none"}` : "no assistant"}</p>
+      <button type="button" onClick={() => onAssistantSessionChange?.("sess-1")}>
+        Pretend session
+      </button>
+      <button
+        type="button"
+        onClick={() => onAssistantChange?.({ ...form, name: "By the assistant" })}
+      >
+        Assistant change
+      </button>
       <input
         aria-label="Name"
         value={form.name}
@@ -76,7 +102,7 @@ vi.mock("./workspace-automation-form", () => ({
   ),
 }));
 
-function renderPage() {
+function renderPage(props: Partial<ComponentProps<typeof AutomationsNewPageContent>> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <IntlProvider locale="en" messages={{}}>
@@ -86,6 +112,7 @@ function renderPage() {
             <AutomationsNewPageContent
               organizationSlug="acme"
               initialForm={{ ...createDefaultWorkspaceAutomationFormState(), name: "Start" }}
+              {...props}
             />
           </AppShellStoreProvider>
         </TooltipProvider>
@@ -159,5 +186,80 @@ describe("AutomationsNewPageContent undo", () => {
     options.action.onClick();
 
     expect(await screen.findByRole("status", { name: "Status" })).toHaveTextContent("paused");
+  });
+});
+
+describe("AutomationsNewPageContent assistant", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("starts the assistant with the request handed over from the automations page, once", () => {
+    stashAutomationAssistantHandoff("Post a weekly summary");
+
+    const first = renderPage({ assistantEnabled: true });
+    expect(screen.getByText("assistant:Post a weekly summary")).toBeTruthy();
+    first.unmount();
+
+    renderPage({ assistantEnabled: true });
+    expect(screen.getByText("assistant:none")).toBeTruthy();
+  });
+
+  it("drops the handed-over request when a template was opened instead", () => {
+    stashAutomationAssistantHandoff("Post a weekly summary");
+
+    const template = renderPage({ assistantEnabled: true, startsFromTemplate: true });
+    expect(screen.getByText("assistant:none")).toBeTruthy();
+    template.unmount();
+
+    // Dropped for good: a page opened from scratch afterwards does not send it either.
+    renderPage({ assistantEnabled: true });
+    expect(screen.getByText("assistant:none")).toBeTruthy();
+  });
+
+  it("keeps the assistant's conversation with the automation once it is created", async () => {
+    const user = userEvent.setup();
+    apiMocks.createAutomation.mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ automation: { id: "auto-1" } }),
+    });
+    apiMocks.bindAssistantSession.mockResolvedValue(undefined);
+    renderPage({
+      assistantEnabled: true,
+      initialForm: {
+        ...createDefaultWorkspaceAutomationFormState(),
+        name: "Start",
+        instructions: "Post a note.",
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Pretend session" }));
+    await user.click(screen.getByRole("button", { name: "Create automation" }));
+
+    await waitFor(() => {
+      expect(apiMocks.bindAssistantSession).toHaveBeenCalledWith("acme", "sess-1", "auto-1");
+    });
+  });
+
+  it("asks before undoing a change of the assistant's", async () => {
+    const user = userEvent.setup();
+    renderPage({ assistantEnabled: true });
+
+    await user.click(screen.getByRole("button", { name: "Assistant change" }));
+    expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Name" }).value).toBe(
+      "By the assistant",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Undo the assistant's changes?")).toBeTruthy();
+
+    await user.click(within(dialog).getByRole("button", { name: "Undo" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLInputElement>("textbox", { name: "Name" }).value).toBe("Start");
+    });
   });
 });

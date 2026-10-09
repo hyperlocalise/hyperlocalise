@@ -75,6 +75,8 @@ import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
+import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
@@ -98,12 +100,15 @@ function uniqueSourceFilesByPath(files: ReadonlyArray<{ sourcePath: string }>) {
 }
 
 export function AutomationDetailPageContent({
+  assistantEnabled = false,
   organizationSlug,
   projectId,
   automationId,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
+  /** Offers the automation assistant beside the form. */
+  assistantEnabled?: boolean;
   organizationSlug: string;
   projectId?: string;
   automationId: string;
@@ -170,7 +175,7 @@ export function AutomationDetailPageContent({
     setErrors({});
     notifyRedo(step, runUndo);
   };
-  const runUndo = () => {
+  const performUndo = () => {
     const step = historyRef.current.undoStep;
     if (!step) {
       return;
@@ -179,6 +184,11 @@ export function AutomationDetailPageContent({
     setErrors({});
     notifyUndo(step, runRedo);
   };
+  const { runUndo, applyAssistantChange, undoConfirmDialog } = useAssistantUndoSteps(
+    historyRef,
+    performUndo,
+  );
+  const [assistantWorking, setAssistantWorking] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [runPromptOpen, setRunPromptOpen] = useState(false);
@@ -441,7 +451,9 @@ export function AutomationDetailPageContent({
       form,
       createWorkspaceAutomationFormStateFromRecord(automation),
     );
-  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
+    hasUnsavedChanges || assistantWorking,
+  );
   const { rootRef } = useUndoShortcuts({
     enabled: !(saveMutation.isPending || deleteMutation.isPending),
     onUndo: runUndo,
@@ -485,8 +497,9 @@ export function AutomationDetailPageContent({
     runMutation.mutate();
   };
 
+  // Loose, not in a row of their own, so the editor's action row can wrap them on a narrow screen.
   const editorActions = (
-    <div className="flex gap-2">
+    <>
       <Button
         variant="outline"
         onClick={() => {
@@ -587,11 +600,16 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
         )}
       </Button>
-    </div>
+    </>
   );
 
   return (
-    <WorkspacePageShell ref={rootRef} className="max-w-5xl" data-undo-root="automation">
+    <WorkspacePageShell
+      ref={rootRef}
+      // With the assistant offered the page is two panes that fill the app's content area.
+      className={assistantEnabled ? AUTOMATION_ASSISTANT_PAGE_CLASS : "max-w-5xl"}
+      data-undo-root="automation"
+    >
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
@@ -600,6 +618,21 @@ export function AutomationDetailPageContent({
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
+        assistantEnabled={assistantEnabled}
+        assistantHasUnsavedChanges={hasChanges}
+        footer={
+          <div className="pt-4">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
+            >
+              <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
+            </Button>
+          </div>
+        }
+        onAssistantChange={applyAssistantChange}
+        onAssistantWorkingChange={setAssistantWorking}
         onChange={history.change}
         runHistory={recentRuns}
         runHistoryRefreshing={automationQuery.isFetching && !automationQuery.isLoading}
@@ -851,16 +884,8 @@ export function AutomationDetailPageContent({
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="pt-4">
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<OrgNavLink href={`/org/${organizationSlug}/automations`} />}
-        >
-          <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
-        </Button>
-      </div>
       {leaveGuardDialog}
+      {undoConfirmDialog}
     </WorkspacePageShell>
   );
 }

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
 import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import { getMergedWorkspaceAutomationTemplates } from "@/lib/agents/workspace-automation-templates.server";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
@@ -52,11 +53,13 @@ async function AutomationsPageLoader({
   }
 
   const templates = getMergedWorkspaceAutomationTemplates();
+  const assistantEnabled = await canUseWorkspaceAutomationAssistant(auth);
 
   return (
     <AutomationsPageContent
       organizationSlug={organizationSlug}
       templates={templates}
+      assistantEnabled={assistantEnabled}
       visualWorkflowsEnabled={visualWorkflowsEnabled}
     />
   );

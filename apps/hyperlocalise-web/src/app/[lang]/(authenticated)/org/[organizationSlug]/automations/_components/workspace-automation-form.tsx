@@ -161,6 +161,13 @@ import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationS
 
 import { RunHistoryTable } from "./workspace-automation-run-history";
 import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
+import {
+  AutomationAssistantLayout,
+  AutomationAssistantOpenButton,
+} from "./automation-assistant-panel";
+import type { AutomationAssistantApi } from "./automation-assistant-api";
+import { AutomationAssistantProvider } from "./automation-assistant-provider";
+import { AutomationAssistantSummary } from "./automation-assistant-summary";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -169,6 +176,7 @@ import {
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
+import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
 const api = createApiClient();
 
@@ -295,27 +303,38 @@ function FieldError({ message }: { message?: string }) {
     return null;
   }
 
-  return <p className="text-xs text-destructive">{message}</p>;
+  return (
+    <p data-slot="field-error" className="text-xs text-destructive">
+      {message}
+    </p>
+  );
 }
 
 function EditorSection({
   title,
   titleAside,
+  titleEnd,
   children,
 }: {
   title: string;
+  /** Shown after the title, wrapping onto further lines when it is long. */
   titleAside?: ReactNode;
+  /** Kept at the right end of the title's own line, whatever wraps beside it. */
+  titleEnd?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {titleAside === undefined ? (
+      {titleAside === undefined && titleEnd === undefined ? (
         <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
       ) : (
-        // As tall as a suggestion chip, so the content below stays put when one appears.
-        <div className="flex min-h-7.5 flex-wrap items-center gap-x-3 gap-y-2 px-2">
-          <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
-          {titleAside}
+        <div className="flex items-start gap-x-3 px-2">
+          {/* As tall as a suggestion chip, so the content below stays put when one appears. */}
+          <div className="flex min-h-7.5 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+            <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
+            {titleAside}
+          </div>
+          {titleEnd ? <div className="flex h-7.5 shrink-0 items-center">{titleEnd}</div> : null}
         </div>
       )}
       {children}
@@ -3084,13 +3103,21 @@ function ToolsSettings({
 
 export function WorkspaceAutomationEditor({
   actions,
+  assistantApi,
+  assistantEnabled = false,
+  assistantHasUnsavedChanges,
+  assistantInitialPrompt = null,
   automationId,
   canUpdateKnowledgeMemory = false,
   disabled,
   errors,
+  footer,
   form,
   knowledgeAvailable = false,
   mode,
+  onAssistantChange,
+  onAssistantSessionChange,
+  onAssistantWorkingChange,
   onChange,
   organizationSlug,
   runHistory,
@@ -3099,13 +3126,29 @@ export function WorkspaceAutomationEditor({
   initialEditorTab,
 }: {
   actions?: ReactNode;
+  /** The assistant's calls in place of the server's, for a story. */
+  assistantApi?: AutomationAssistantApi;
+  /** Offers the automation assistant beside the form. */
+  assistantEnabled?: boolean;
+  /** Whether the page holds anything unsaved, so the assistant stops calling saved changes unsaved. */
+  assistantHasUnsavedChanges?: boolean;
+  /** A request handed over from the automations page, which the assistant starts with. */
+  assistantInitialPrompt?: string | null;
   automationId?: string;
   canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
+  /** Shown under the editor, in the same scrolling pane when the assistant is offered. */
+  footer?: ReactNode;
   form: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
+  /** Called with the form after each change the assistant makes; `onChange` when absent. */
+  onAssistantChange?: (next: WorkspaceAutomationFormState) => void;
+  /** Called when the assistant's session for this page starts or ends. */
+  onAssistantSessionChange?: (sessionId: string | null) => void;
+  /** Called when a turn of the assistant's starts or stops running. */
+  onAssistantWorkingChange?: (working: boolean) => void;
   onChange: (next: WorkspaceAutomationFormState) => void;
   onRefreshRunHistory?: () => void;
   organizationSlug: string;
@@ -3122,6 +3165,7 @@ export function WorkspaceAutomationEditor({
       setActiveTab(initialEditorTab);
     }
   }, [initialEditorTab]);
+  const editorRef = useScrollToFirstFieldError(errors, activeTab, setActiveTab);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -3470,11 +3514,25 @@ export function WorkspaceAutomationEditor({
     );
   };
 
-  return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+  // The assistant waits for these before its first turn, so it knows what is connected.
+  const skillConnectionsSettled =
+    !projectsQuery.isPending &&
+    !githubInstallationQuery.isPending &&
+    !(githubConnected && repositoriesQuery.isPending) &&
+    !tmsProviderQuery.isPending &&
+    !(crowdinConnected && tmsLiveProjectsQuery.isPending) &&
+    !contentfulConnectionsQuery.isPending &&
+    !slackQuery.isPending &&
+    !resendPipesQuery.isPending &&
+    !sendgridPipesQuery.isPending &&
+    !intercomPipesQuery.isPending;
+
+  const editor = (
+    <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1">
+        {/* The actions drop under the name when both do not fit, as with the assistant open. */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-64 flex-1">
             <Label htmlFor="automation-name" className="sr-only">
               <FormattedMessage {...workspaceAutomationFormMessages.automationNameLabel} />
             </Label>
@@ -3491,7 +3549,7 @@ export function WorkspaceAutomationEditor({
             <FieldError message={errors.name} />
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>
           ) : null}
         </div>
 
@@ -3548,22 +3606,28 @@ export function WorkspaceAutomationEditor({
         <FieldError message={errors.form} />
       </section>
 
+      <AutomationAssistantSummary organizationSlug={organizationSlug} />
+
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as WorkspaceAutomationEditorTab)}
       >
-        <TabsList>
-          <TabsTrigger value="settings">
-            <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-          </TabsTrigger>
-          {hasHistory ? (
+        {/* A new automation has settings only, and one tab is no choice to offer. */}
+        {hasHistory ? (
+          <TabsList>
+            <TabsTrigger value="settings">
+              <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+            </TabsTrigger>
             <TabsTrigger value="history">
               <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
             </TabsTrigger>
-          ) : null}
-        </TabsList>
+          </TabsList>
+        ) : null}
 
-        <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
+        <TabsContent
+          value="settings"
+          className={cn("flex flex-col gap-6", hasHistory ? "mt-4" : undefined)}
+        >
           <TriggerSettings
             automationId={automationId}
             contentfulConnected={contentfulConnected}
@@ -3590,6 +3654,8 @@ export function WorkspaceAutomationEditor({
                 }
               />
             }
+            // Above the right edge of the text box it helps to fill in.
+            titleEnd={assistantEnabled ? <AutomationAssistantOpenButton /> : undefined}
           >
             <Textarea
               id="automation-instructions"
@@ -3699,6 +3765,49 @@ export function WorkspaceAutomationEditor({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+
+  if (!assistantEnabled) {
+    return (
+      <>
+        {editor}
+        {footer}
+      </>
+    );
+  }
+
+  return (
+    <AutomationAssistantProvider
+      api={assistantApi}
+      automationId={automationId}
+      connections={skillConnections}
+      connectionsSettled={skillConnectionsSettled}
+      contentfulConnectionIds={contentfulConnections.map((connection) => connection.id)}
+      crowdinProjectIds={collectCrowdinProjects(projectsQuery.data ?? [], crowdinLiveProjects).map(
+        (project) => project.id,
+      )}
+      form={form}
+      hasUnsavedChanges={assistantHasUnsavedChanges}
+      initialPrompt={assistantInitialPrompt}
+      mode={mode}
+      onChange={onAssistantChange ?? onChange}
+      onSessionChange={onAssistantSessionChange}
+      onWorkingChange={onAssistantWorkingChange}
+      organizationSlug={organizationSlug}
+      projectName={
+        (projectsQuery.data ?? []).find((project) => project.id === form.projectId)?.name ?? null
+      }
+      repositories={repositories.map((repository) => ({
+        id: repository.id,
+        name: repository.fullName,
+        selectable: repository.enabled && !repository.archived,
+      }))}
+    >
+      <AutomationAssistantLayout>
+        {editor}
+        {footer}
+      </AutomationAssistantLayout>
+    </AutomationAssistantProvider>
   );
 }
 

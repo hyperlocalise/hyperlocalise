@@ -121,7 +121,11 @@ function FieldError({ message }: { message?: string }) {
     return null;
   }
 
-  return <p className="text-xs text-destructive">{message}</p>;
+  return (
+    <p data-slot="field-error" className="text-xs text-destructive">
+      {message}
+    </p>
+  );
 }
 
 function Prose({ children }: { children: ReactNode }) {
