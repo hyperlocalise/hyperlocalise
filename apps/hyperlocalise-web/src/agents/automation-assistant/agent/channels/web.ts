@@ -11,9 +11,15 @@
  * Version 2.0 or later.
  */
 import { randomUUID } from "node:crypto";
-import { createUIMessageStream, createUIMessageStreamResponse, type UIMessage } from "ai";
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type ModelMessage,
+  type UIMessage,
+} from "ai";
 
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
+import { describeAutomationSetupPageNow } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
@@ -51,6 +57,26 @@ function textFromParts(parts: UIMessage["parts"]) {
 
 function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
   return parts.filter((part) => !part.type.startsWith("data-"));
+}
+
+/**
+ * Puts the page as it stands beside the person's newest message, the last thing the model reads.
+ * It is added for this turn only and never saved, so it cannot go stale in the history.
+ */
+function withPageNow(
+  messages: ModelMessage[],
+  pageContext: WorkspaceAutomationEditorContext,
+): ModelMessage[] {
+  const last = messages.at(-1);
+  if (last?.role !== "user") {
+    return messages;
+  }
+  const pageNow = { type: "text" as const, text: describeAutomationSetupPageNow(pageContext) };
+  const content =
+    typeof last.content === "string"
+      ? [{ type: "text" as const, text: last.content }, pageNow]
+      : [...last.content, pageNow];
+  return [...messages.slice(0, -1), { ...last, content }];
 }
 
 /**
@@ -100,7 +126,10 @@ export function createAutomationAssistantTurnResponse(input: {
       shouldTrackUsage = true;
 
       writer.write({ type: "data-status", id: "prep", data: { message: "Thinking…" } });
-      const messages = await loadAutomationAssistantModelMessages(session.id);
+      const messages = withPageNow(
+        await loadAutomationAssistantModelMessages(session.id),
+        input.pageContext,
+      );
       const agent = createAutomationAssistantAgent({
         context: input.pageContext,
         model: input.languageModel.model,

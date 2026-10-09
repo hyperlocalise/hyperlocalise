@@ -11,8 +11,9 @@
  * Version 2.0 or later.
  */
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
-import type { ModelMessage, UIMessage } from "ai";
+import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
 
+import { toAutomationSetupHistoryParts } from "@/lib/agents/workspace-automation-assistant";
 import { db, schema } from "@/lib/database/client";
 
 /** How long a session bound to no automation is kept once its page is gone. */
@@ -215,8 +216,9 @@ export async function listAutomationAssistantMessages(
 }
 
 /**
- * The newest messages of the session as the model sees them, oldest first. Text only: the tool's
- * work is on the page, which every turn receives as it is, and the reply says what it did.
+ * The newest messages of the session as the model sees them, oldest first: what was said, and
+ * each finished call of the setup tool with what it did. A reply that made no call shows none,
+ * so the model can tell a change that was made from one that was only described.
  */
 export async function loadAutomationAssistantModelMessages(
   sessionId: string,
@@ -225,16 +227,22 @@ export async function loadAutomationAssistantModelMessages(
     .select({
       senderType: messages.senderType,
       text: messages.text,
+      parts: messages.parts,
     })
     .from(messages)
     .where(eq(messages.sessionId, sessionId))
     .orderBy(desc(messages.createdAt))
     .limit(AUTOMATION_ASSISTANT_HISTORY_MESSAGES);
-  return rows
-    .toReversed()
-    .filter((row) => row.text.trim().length > 0)
-    .map((row) => ({
-      role: row.senderType === "user" ? ("user" as const) : ("assistant" as const),
-      content: row.text,
-    }));
+
+  const history = rows.toReversed().flatMap((row): Array<Omit<UIMessage, "id">> => {
+    if (row.senderType === "user") {
+      return row.text.trim() ? [{ role: "user", parts: [{ type: "text", text: row.text }] }] : [];
+    }
+    const parts = toAutomationSetupHistoryParts(
+      row.parts ?? [{ type: "text", text: row.text }],
+    ) as UIMessage["parts"];
+    return parts.some((part) => part.type !== "step-start") ? [{ role: "assistant", parts }] : [];
+  });
+  // A call left unfinished has no result to pair it with, and a provider refuses one without.
+  return convertToModelMessages(history, { ignoreIncompleteToolCalls: true });
 }

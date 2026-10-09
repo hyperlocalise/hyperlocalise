@@ -130,20 +130,27 @@ describe("createAutomationAssistantTurnResponse", () => {
     const session = await createAutomationAssistantSession(scope);
     expect(await beginAutomationAssistantTurn(session.id)).toBe(true);
 
+    const model = modelThatNamesTheAutomation();
     const response = createAutomationAssistantTurnResponse({
       session,
       organizationId: organization.id,
       text: "Call it Weekly digest",
       pageContext: pageContext(),
-      languageModel: { model: modelThatNamesTheAutomation(), source: "gateway", modelId: "mock" },
+      languageModel: { model, source: "gateway", modelId: "mock" },
     });
     const streamed = await response.text();
 
     expect(streamed).toContain("I named it Weekly digest.");
+    // The page as it stands goes beside the request, the last thing the model reads, and is not
+    // saved with the message.
+    const sent = JSON.stringify(model.doStreamCalls[0]!.prompt.at(-1));
+    expect(sent).toContain("Call it Weekly digest");
+    expect(sent).toContain("[Page now, whatever earlier turns say: name (none);");
     await vi.waitFor(() => expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledTimes(1));
 
     const messages = await listAutomationAssistantMessages(session.id);
     expect(messages).toMatchObject([
+      // No "[Page now" line was saved with it.
       { senderType: "user", text: "Call it Weekly digest", parts: null },
       { senderType: "agent", text: "I named it Weekly digest." },
     ]);

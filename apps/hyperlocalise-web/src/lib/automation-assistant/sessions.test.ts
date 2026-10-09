@@ -215,11 +215,130 @@ describe("automation assistant sessions", () => {
 
     const history = await loadAutomationAssistantModelMessages(session.id);
     expect(history).toHaveLength(AUTOMATION_ASSISTANT_HISTORY_MESSAGES);
-    expect(history[0]).toEqual({ role: "user", content: "message 2" });
-    expect(history.at(-1)).toEqual({
-      role: "assistant",
-      content: `message ${AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 1}`,
+    expect(history[0]).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "message 2" }],
     });
+    expect(history.at(-1)).toMatchObject({
+      role: "assistant",
+      // These replies called no tool, so each ends with the page's record that nothing changed.
+      content: [
+        { type: "text", text: `message ${AUTOMATION_ASSISTANT_HISTORY_MESSAGES + 1}` },
+        { type: "text", text: expect.stringContaining("Page record") },
+      ],
+    });
+  });
+
+  it("shows the model each past call of the setup tool with what it did, and no call for a reply that only said so", async () => {
+    const scope = await person();
+    const session = await createAutomationAssistantSession(scope);
+    const start = Date.now() - 100_000;
+    const call = (toolCallId: string, state: string, output?: unknown) => ({
+      type: "tool-update_automation_setup",
+      toolCallId,
+      state,
+      input: { name: "Competitor watch" },
+      ...(output === undefined ? {} : { output }),
+    });
+    const turns = [
+      { senderType: "user" as const, text: "Rename it to Competitor watch", parts: null },
+      {
+        senderType: "agent" as const,
+        text: "I've renamed it.",
+        parts: [
+          { type: "step-start" },
+          { type: "reasoning", text: "They want a new name." },
+          call("call_1", "output-available", {
+            applied: true,
+            editorSessionId: "editor-1",
+            proposal: { name: "Competitor watch" },
+            changes: [{ kind: "name", name: "Competitor watch" }],
+            result: {
+              changed: true,
+              applied: ['The name is now "Competitor watch".'],
+              notAdded: [],
+              skills: [{ id: "research-web", name: "Research the web" }],
+              stillNeeded: ["Choose a Hyperlocalise project."],
+            },
+          }),
+          { type: "step-start" },
+          { type: "text", text: "I've renamed it." },
+        ],
+      },
+      { senderType: "user" as const, text: "Rename it to Competitor watch", parts: null },
+      {
+        senderType: "agent" as const,
+        text: "I've renamed it.",
+        parts: [
+          { type: "step-start" },
+          // A call the turn never finished has no result, so it is not shown at all.
+          call("call_2", "input-available"),
+          { type: "text", text: "I've renamed it." },
+        ],
+      },
+    ];
+    await db.insert(schema.automationAssistantMessages).values(
+      turns.map((turn, index) => ({
+        sessionId: session.id,
+        senderType: turn.senderType,
+        text: turn.text,
+        parts: turn.parts as never,
+        createdAt: new Date(start + index * 1000),
+      })),
+    );
+
+    const history = await loadAutomationAssistantModelMessages(session.id);
+
+    expect(history.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+      "tool",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(history[1]).toMatchObject({
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call_1",
+          toolName: "update_automation_setup",
+          input: { name: "Competitor watch" },
+        },
+      ],
+    });
+    expect(history[2]).toMatchObject({
+      content: [
+        {
+          type: "tool-result",
+          toolCallId: "call_1",
+          output: {
+            type: "json",
+            value: {
+              changed: true,
+              applied: ['The name is now "Competitor watch".'],
+              notAdded: [],
+            },
+          },
+        },
+      ],
+    });
+    // The page as it then was is left out: the prompt's page section says what it holds now.
+    const shown = JSON.stringify(history);
+    expect(shown).not.toContain("stillNeeded");
+    expect(shown).not.toContain("proposal");
+    expect(shown).not.toContain("They want a new name.");
+    // The second reply said the same words and made no call. The model sees that, and the page's
+    // record that nothing changed, so the reply is not taken at its word.
+    expect(history[5]).toMatchObject({
+      content: [
+        { type: "text", text: "I've renamed it." },
+        { type: "text", text: expect.stringContaining("this turn made no change to the setup") },
+      ],
+    });
+    // A turn that did change the setup carries no such record.
+    expect(JSON.stringify(history.slice(0, 4))).not.toContain("Page record");
+    expect(shown).not.toContain("call_2");
   });
 
   it("is deleted on start over", async () => {

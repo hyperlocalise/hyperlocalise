@@ -213,6 +213,109 @@ export function summarizeAutomationSetupCall(part: unknown): AutomationSetupCall
   return { state: "done", changes: output.data.changes ?? null };
 }
 
+const historyToolPartSchema = z.object({
+  type: z.string(),
+  toolName: z.string().optional(),
+  state: z.literal("output-available"),
+  toolCallId: z.string().min(1),
+  input: z.unknown(),
+  output: z.unknown(),
+});
+
+const historyOutputSchema = z.object({
+  applied: z.literal(true),
+  result: z.object({
+    changed: z.boolean(),
+    applied: z.array(z.string()),
+    notAdded: z.array(z.string()),
+  }),
+});
+
+/**
+ * The page as it stands, in one line, to go beside the person's newest message. The prompt's page
+ * section says the same at length, but it sits before the whole conversation; a model that has
+ * just read "I renamed it" in an earlier turn takes that over a section it read long before. A
+ * change made earlier may since have been undone or discarded, and this line is what says so.
+ */
+export function describeAutomationSetupPageNow(context: WorkspaceAutomationEditorContext): string {
+  const { form } = context;
+  const skills = resolveWorkspaceAutomationSkills(form.skillIds).map((skill) => skill.name);
+  return [
+    "[Page now, whatever earlier turns say:",
+    `name ${form.name.trim() ? JSON.stringify(form.name.trim()) : "(none)"};`,
+    `runs ${describeWorkspaceAutomationTrigger(summarizeWorkspaceAutomationFormTrigger(form))};`,
+    `skills: ${skills.length > 0 ? skills.join(", ") : "(none)"};`,
+    `switched ${form.status === "active" ? "on" : "off"}.`,
+    "Judge the request against this.]",
+  ].join(" ");
+}
+
+/**
+ * What the page adds, in the model's history, to a past reply that changed nothing. The panel
+ * shows the person the same verdict under that reply.
+ */
+export const AUTOMATION_SETUP_NO_CHANGE_RECORD =
+  "[Page record, not part of the reply: this turn made no change to the setup. Whatever the reply above says was changed, added, removed or set was not.]";
+
+/**
+ * A past reply as the model is shown it in later turns: its text, and each finished call of the
+ * setup tool with what the call did. The model has to see the calls: shown only the words of its
+ * earlier replies, it takes saying "I've renamed it" for the way a rename is made and stops
+ * calling the tool. The rest of a call's output described the page as it then was, which the
+ * page section of the prompt now says better, so it is left out. Unfinished calls, reasoning and
+ * every other kind of part are dropped. A reply whose turn changed nothing ends with the page's
+ * record of that, so a reply that wrongly claimed a change is not taken at its word later.
+ */
+export function toAutomationSetupHistoryParts(parts: readonly unknown[]): unknown[] {
+  const kept: unknown[] = [];
+  let changed = false;
+  for (const part of parts) {
+    const plain = z.object({ type: z.string(), text: z.string().optional() }).safeParse(part);
+    if (!plain.success) {
+      continue;
+    }
+    if (plain.data.type === "step-start") {
+      kept.push({ type: "step-start" });
+      continue;
+    }
+    if (plain.data.type === "text") {
+      if (plain.data.text?.trim()) {
+        kept.push({ type: "text", text: plain.data.text });
+      }
+      continue;
+    }
+    const call = historyToolPartSchema.safeParse(part);
+    const isSetupTool =
+      call.success &&
+      (call.data.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
+        (call.data.type === "dynamic-tool" &&
+          call.data.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME));
+    if (!call.success || !isSetupTool) {
+      continue;
+    }
+    const output = historyOutputSchema.safeParse(call.data.output);
+    changed ||= output.success && output.data.result.changed;
+    kept.push({
+      type: call.data.type,
+      ...(call.data.toolName ? { toolName: call.data.toolName } : {}),
+      toolCallId: call.data.toolCallId,
+      state: "output-available",
+      input: call.data.input,
+      output: output.success
+        ? {
+            changed: output.data.result.changed,
+            applied: output.data.result.applied,
+            notAdded: output.data.result.notAdded,
+          }
+        : { changed: false, applied: [], notAdded: [] },
+    });
+  }
+  if (!changed && kept.some((part) => (part as { type: string }).type !== "step-start")) {
+    kept.push({ type: "text", text: AUTOMATION_SETUP_NO_CHANGE_RECORD });
+  }
+  return kept;
+}
+
 const setupToolPartSchema = z.object({
   type: z.string(),
   toolName: z.string().optional(),
