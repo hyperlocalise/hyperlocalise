@@ -174,6 +174,38 @@ describe("ContentEditorWorkspaceContainer UI", () => {
     expect(screen.getByText("No segments in queue.")).toBeInTheDocument();
   });
 
+  it("shows extracting copy while source-file ingest is still pending", () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorWorkspaceState({
+          segments: [],
+          selectedSegmentId: "",
+          fileContext: { ingestState: "pending" },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Extracting segments…")).toBeInTheDocument();
+    expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();
+  });
+
+  it("shows ingest errors instead of an empty queue", () => {
+    renderCatWorkspace(
+      <ContentEditorWorkspaceContainer
+        initialState={createContentEditorWorkspaceState({
+          segments: [],
+          selectedSegmentId: "",
+          fileContext: { ingestState: "failed", ingestError: "sandbox install failed" },
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Segment extraction failed: sandbox install failed"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No segments in queue.")).not.toBeInTheDocument();
+  });
+
   it("shows translation-view skeleton without queue skeleton while a file loads", () => {
     renderCatWorkspace(
       <ContentEditorWorkspaceContainer

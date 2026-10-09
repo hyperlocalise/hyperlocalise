@@ -124,7 +124,7 @@
 ### HTML
 
 - Extracts text content from elements bounded by open/close tags (e.g. `<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.).
-- Keys are stable SHA-256 hashes of the segment source: `html.a1b2c3d4e5f6g7h8`.
+- Keys are dotted tag paths, like markdown slot keys: `html.body.h1`, `html.body.p.2`, `html.body.img.alt`.
 - Inline tags within a translatable segment (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) are replaced with sentinel placeholders so the LLM translates clean prose; placeholders are restored on marshal.
 - `<script>`, `<style>`, and `<head>` content is never extracted.
 - HTML comments and whitespace-only text nodes are emitted verbatim.

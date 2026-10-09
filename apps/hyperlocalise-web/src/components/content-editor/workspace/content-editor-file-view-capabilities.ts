@@ -22,7 +22,14 @@ import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-
 
 export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
 
-export type ContentEditorFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx" | "markdown";
+export type ContentEditorFileViewerId =
+  | "image"
+  | "video"
+  | "docx"
+  | "xlsx"
+  | "pptx"
+  | "markdown"
+  | "html";
 
 export type ContentEditorFileViewCapabilities = {
   family: ContentEditorFileViewFamily;
@@ -144,7 +151,8 @@ export function resolveCatFileViewCapabilities(input: {
       family: "document",
       availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
       defaultView: "file",
-      viewerId: "markdown",
+      viewerId:
+        inferSupportedDocumentTranslationFileFormat(sourcePath) === "html" ? "html" : "markdown",
     };
   }
 
@@ -186,7 +194,7 @@ export function isCatDocumentFileViewSegmentId(
   return documentView != null && documentView.externalStringId === segmentId;
 }
 
-/** File view for native markdown should edit the stored document, not the selected key. */
+/** File view for native documents should edit the stored file, not the selected key. */
 export function overlayCatDocumentFileViewSegment<
   T extends {
     id: string;

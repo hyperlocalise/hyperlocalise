@@ -7,7 +7,6 @@ package translationfileparser
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"io"
 	"regexp"
 	"strconv"
@@ -202,10 +201,21 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 	z := html.NewTokenizer(bytes.NewReader(content))
 
 	skipDepth := 0
+	var stack []string
 	var buffer strings.Builder
 
 	appendLiteral := func(s string) {
 		doc.parts = append(doc.parts, htmlPart{literal: s})
+	}
+
+	pushTag := func(tag string) {
+		stack = append(stack, tag)
+	}
+
+	popTag := func(tag string) {
+		if len(stack) > 0 && stack[len(stack)-1] == tag {
+			stack = stack[:len(stack)-1]
+		}
 	}
 
 	flushBuffer := func() {
@@ -224,7 +234,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			appendLiteral(raw)
 			return
 		}
-		key := htmlSegmentKey(placeholdered, occurrences)
+		key := htmlSlotKey(htmlPathFromStack(stack), occurrences)
 		entries[key] = placeholdered
 		doc.parts = append(doc.parts, htmlPart{
 			key:               key,
@@ -234,12 +244,12 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		})
 	}
 
-	handleVoidTranslatable := func(raw, attrName string) {
+	handleVoidTranslatable := func(raw, tag, attrName string) {
 		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
 		decoded := html.UnescapeString(rawVal)
 		if found && isTranslatableChunk(decoded) {
 			flushBuffer()
-			key := htmlSegmentKey(decoded, occurrences)
+			key := htmlSlotKey(htmlPathFromStack(stack, tag, attrName), occurrences)
 			entries[key] = decoded
 			doc.parts = append(doc.parts, htmlPart{
 				key:               key,
@@ -305,8 +315,9 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
+				pushTag(string(tn))
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, attrName)
+				handleVoidTranslatable(raw, string(tn), attrName)
 			} else {
 				// Inline element: accumulate into the text buffer.
 				buffer.WriteString(raw)
@@ -317,6 +328,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
+				popTag(string(tn))
 				appendLiteral(raw)
 			} else {
 				buffer.WriteString(raw)
@@ -329,7 +341,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 				flushBuffer()
 				appendLiteral(raw)
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, attrName)
+				handleVoidTranslatable(raw, string(tn), attrName)
 			} else {
 				buffer.WriteString(raw)
 			}
@@ -390,26 +402,37 @@ func protectHTMLInlineSyntax(segment string) (string, map[string]string, string,
 	return rendered.String(), placeholders, plain.String(), false
 }
 
-// htmlSegmentKey generates a stable SHA-256-based key for a translatable segment.
-// Duplicate content gets a numeric suffix: html.abc123def456, html.abc123def456.2, …
-// Suffix numbering mirrors markdownSegmentKey: the first occurrence has no suffix,
-// the second gets .2, the third .3, etc. (there is no .1).
-func htmlSegmentKey(segment string, occurrences map[string]int) string {
-	sum := sha256.Sum256([]byte(segment))
-	// BOLT OPTIMIZATION: Format the 16-hex-char digest into a stack buffer to bypass
-	// hex.EncodeToString heap allocations.
-	var hexBuf [16]byte
-	hex.Encode(hexBuf[:], sum[:8])
-
-	count := occurrences[string(hexBuf[:])]
-	if count == 0 {
-		key := "html." + string(hexBuf[:])
-		// Store a sliced view of key into the map so map storage reuses key's string buffer.
-		occurrences[key[5:]] = 1
-		return key
+// htmlPathFromStack builds a dotted tag path for CAT keys, omitting a leading
+// html element so keys read html.body.p rather than html.html.body.p.
+func htmlPathFromStack(stack []string, extra ...string) string {
+	tags := stack
+	if len(tags) > 0 && tags[0] == "html" {
+		tags = tags[1:]
 	}
-	occurrences[string(hexBuf[:])] = count + 1
-	return "html." + string(hexBuf[:]) + "." + strconv.Itoa(count+1)
+	if len(extra) > 0 {
+		copied := make([]string, 0, len(tags)+len(extra))
+		copied = append(copied, tags...)
+		copied = append(copied, extra...)
+		tags = copied
+	}
+	if len(tags) == 0 {
+		return "text"
+	}
+	return strings.Join(tags, ".")
+}
+
+// htmlSlotKey assigns html.<path>, then html.<path>.2, html.<path>.3, …
+// Suffix numbering mirrors markdownSlotKey: the first occurrence has no suffix.
+func htmlSlotKey(path string, occurrences map[string]int) string {
+	if path == "" {
+		path = "text"
+	}
+	count := occurrences[path]
+	occurrences[path] = count + 1
+	if count == 0 {
+		return "html." + path
+	}
+	return "html." + path + "." + strconv.Itoa(count+1)
 }
 
 // expandHTMLPlaceholders replaces sentinel tokens in rendered with their original

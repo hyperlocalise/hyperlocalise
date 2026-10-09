@@ -208,12 +208,17 @@ export function isBinaryTranslationFileFormat(
   );
 }
 
-export const supportedDocumentTranslationFileFormats = ["markdown", "mdx", "asciidoc"] as const;
+export const supportedDocumentTranslationFileFormats = [
+  "html",
+  "markdown",
+  "mdx",
+  "asciidoc",
+] as const;
 
 export type SupportedDocumentTranslationFileFormat =
   (typeof supportedDocumentTranslationFileFormats)[number];
 
-/** Markdown/MDX/AsciiDoc documents stored and edited as whole files, not CAT string keys. */
+/** HTML/Markdown/MDX/AsciiDoc documents stored and edited as whole files, with optional CAT keys. */
 export function isDocumentTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is SupportedDocumentTranslationFileFormat {

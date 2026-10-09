@@ -264,6 +264,8 @@ function fileContextFor(
       ? { lottieSourceUrl: contentEditorFile.lottieSourceUrl }
       : {}),
     ...(contentEditorFile.documentView ? { documentView: contentEditorFile.documentView } : {}),
+    ...(contentEditorFile.ingestState ? { ingestState: contentEditorFile.ingestState } : {}),
+    ...(contentEditorFile.ingestError ? { ingestError: contentEditorFile.ingestError } : {}),
   };
 }
 

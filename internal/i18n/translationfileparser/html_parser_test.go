@@ -5,6 +5,43 @@ import (
 	"testing"
 )
 
+func TestHTMLParserSegmentKeysUseTagPath(t *testing.T) {
+	content := []byte(`<html><head><title>Page Title</title></head><body>
+<h1>Welcome</h1>
+<p>First</p>
+<p>Second</p>
+<img alt="A red cat">
+<table><tr><th>Name</th><td>Value</td></tr></table>
+</body></html>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	want := map[string]string{
+		"html.body.h1":          "Welcome",
+		"html.body.p":           "First",
+		"html.body.p.2":         "Second",
+		"html.body.img.alt":     "A red cat",
+		"html.body.table.tr.th": "Name",
+		"html.body.table.tr.td": "Value",
+	}
+	if _, ok := got["html.head.title"]; ok {
+		t.Fatal("head/title must stay untranslated")
+	}
+	for key, text := range want {
+		if got[key] != text {
+			t.Fatalf("key %q: got %q, want %q (entries=%v)", key, got[key], text, got)
+		}
+	}
+	for key := range got {
+		if strings.HasPrefix(key, "html.") && len(key) == 5+16 && !strings.Contains(key[5:], ".") {
+			t.Fatalf("expected tag-path keys, still hashed: %q", key)
+		}
+	}
+}
+
 func TestHTMLParserParseExtractsBlockTextContent(t *testing.T) {
 	content := []byte(`<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>`)
 
@@ -329,6 +366,51 @@ func TestHTMLParserParseFixture(t *testing.T) {
 	// Body text must be present.
 	if !strings.Contains(combined, "Welcome") {
 		t.Fatalf("expected heading text in entries, got %q", combined)
+	}
+}
+
+func TestHTMLParserParseFormattingFixtureExtractsTablesAndLists(t *testing.T) {
+	content := readFixture(t, "tests/html/formatting-test.html")
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	if len(got) != 30 {
+		t.Fatalf("expected 30 entries from formatting fixture, got %d: %v", len(got), got)
+	}
+
+	combined := strings.Join(mapValues(got), "\n")
+	for _, want := range []string{
+		"HTML Formatting Test",
+		"Feature",
+		"Complete",
+		"Nested bullet item A",
+		"bold text",
+		"Note:",
+	} {
+		if !strings.Contains(combined, want) {
+			t.Fatalf("expected %q in entries, got %q", want, combined)
+		}
+	}
+	if strings.Contains(combined, "HTML Table and List Test") {
+		t.Fatalf("expected head/title content excluded, got %q", combined)
+	}
+	if strings.Contains(combined, "font-family") {
+		t.Fatalf("expected style content excluded, got %q", combined)
+	}
+	if !strings.Contains(combined, "\x1e") {
+		t.Fatalf("expected inline-tag placeholders in entries, got %q", combined)
+	}
+	if got["html.body.h1"] != "HTML Formatting Test" {
+		t.Fatalf("expected html.body.h1 heading, got %q", got["html.body.h1"])
+	}
+	if _, ok := got["html.body.table.thead.tr.th"]; !ok {
+		t.Fatalf("expected table header path key, got %v", got)
+	}
+	if _, ok := got["html.body.ul.li.ul.li"]; !ok {
+		t.Fatalf("expected nested list path key, got %v", got)
 	}
 }
 

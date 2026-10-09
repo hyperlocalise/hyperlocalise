@@ -72,6 +72,8 @@ type editorCatQueueFile struct {
 	TeamName                  *string                    `json:"teamName,omitempty"`
 	ProjectTeamSlug           *string                    `json:"projectTeamSlug,omitempty"`
 	DocumentView              *editorCatDocumentView     `json:"documentView,omitempty"`
+	IngestState               *string                    `json:"ingestState,omitempty"`
+	IngestError               *string                    `json:"ingestError,omitempty"`
 	Segments                  []editorCatSegment         `json:"segments"`
 	Pagination                *editorCatPagination       `json:"pagination,omitempty"`
 }
@@ -695,6 +697,9 @@ func editorCatMetadataContentKind(raw []byte) string {
 }
 
 func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor, project editorCatProject, queue editorCatQueueFile) (editorCatQueueFile, error) {
+	if err := api.attachSourceIngest(r, actor, project, &queue); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	if err := api.attachLocks(r, actor, project, &queue); err != nil {
 		return editorCatQueueFile{}, err
 	}
@@ -713,6 +718,29 @@ func (api *editorCatAPI) withQueueContext(r *http.Request, actor editorCatActor,
 	queue.TeamName = project.TeamName
 	queue.ProjectTeamSlug = project.TeamSlug
 	return queue, nil
+}
+
+func (api *editorCatAPI) attachSourceIngest(r *http.Request, actor editorCatActor, project editorCatProject, queue *editorCatQueueFile) error {
+	if isEditorCatAllFiles(queue.SourcePath) {
+		return nil
+	}
+	var state string
+	var ingestError *string
+	err := api.pool.QueryRow(r.Context(), `
+        select v.ingest_state, v.ingest_error
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc, v.id desc
+        limit 1`, actor.organizationID, project.ID, queue.SourcePath).Scan(&state, &ingestError)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	queue.IngestState = &state
+	queue.IngestError = ingestError
+	return nil
 }
 
 func (api *editorCatAPI) attachLocks(r *http.Request, actor editorCatActor, project editorCatProject, queue *editorCatQueueFile) error {

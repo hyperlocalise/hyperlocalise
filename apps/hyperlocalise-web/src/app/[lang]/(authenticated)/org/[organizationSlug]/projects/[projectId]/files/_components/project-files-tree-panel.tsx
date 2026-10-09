@@ -28,6 +28,10 @@ import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
+import {
+  isSourceFileIngestInProgress,
+  sourceFileIngestPollIntervalMs,
+} from "@/lib/projects/files/source-file-ingest-state";
 
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
@@ -280,6 +284,12 @@ export function ProjectFilesTreePanel({
         loadFailedMessage,
       ),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
+    refetchInterval: (query) => {
+      const files = query.state.data ?? [];
+      return files.some((file) => isSourceFileIngestInProgress(file.ingestState))
+        ? sourceFileIngestPollIntervalMs
+        : false;
+    },
   });
 
   const fetchedFiles = filesQuery.data ?? [];

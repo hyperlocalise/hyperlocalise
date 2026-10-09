@@ -251,27 +251,36 @@ export class NativeContentEditorService extends ProjectServiceBase {
     };
 
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
-      return this.buildImageCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildImageCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedVideoTranslationFileFormat(input.sourcePath)) {
-      return this.buildVideoCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildVideoCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
-      return this.buildOfficeCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildOfficeCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
@@ -293,30 +302,36 @@ export class NativeContentEditorService extends ProjectServiceBase {
       });
 
       if (isDocument && keys.length === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-        return this.buildDocumentCatFileResponse({
+        return this.withSourceIngest(
           input,
-          sourceFileId: sourceFile.id,
-          ...wholeFileFilter,
-        });
+          await this.buildDocumentCatFileResponse({
+            input,
+            sourceFileId: sourceFile.id,
+            ...wholeFileFilter,
+          }),
+        );
       }
 
       const truncated = keys.length > legacyNativeContentEditorSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeContentEditorSegmentLimit) : keys;
 
-      return this.buildCatFileResponse({
+      return this.withSourceIngest(
         input,
-        visibleKeys,
-        truncated,
-        pagination: undefined,
-        documentView: isDocument
-          ? publicDocumentView(
-              await this.loadDocumentView({
-                input,
-                sourceFileId: sourceFile.id,
-              }),
-            )
-          : undefined,
-      });
+        await this.buildCatFileResponse({
+          input,
+          visibleKeys,
+          truncated,
+          pagination: undefined,
+          documentView: isDocument
+            ? publicDocumentView(
+                await this.loadDocumentView({
+                  input,
+                  sourceFileId: sourceFile.id,
+                }),
+              )
+            : undefined,
+        }),
+      );
     }
 
     const [totalCount, keys] = await Promise.all([
@@ -353,27 +368,58 @@ export class NativeContentEditorService extends ProjectServiceBase {
     });
 
     if (isDocument && totalCount === 0 && isUnfilteredCatKeyQuery(paginationInput)) {
-      return this.buildDocumentCatFileResponse({
+      return this.withSourceIngest(
         input,
-        sourceFileId: sourceFile.id,
-        ...wholeFileFilter,
-      });
+        await this.buildDocumentCatFileResponse({
+          input,
+          sourceFileId: sourceFile.id,
+          ...wholeFileFilter,
+        }),
+      );
     }
 
-    return this.buildCatFileResponse({
+    return this.withSourceIngest(
       input,
-      visibleKeys: keys,
-      truncated: pagination.hasMore,
-      pagination,
-      documentView: isDocument
-        ? publicDocumentView(
-            await this.loadDocumentView({
-              input,
-              sourceFileId: sourceFile.id,
-            }),
-          )
-        : undefined,
+      await this.buildCatFileResponse({
+        input,
+        visibleKeys: keys,
+        truncated: pagination.hasMore,
+        pagination,
+        documentView: isDocument
+          ? publicDocumentView(
+              await this.loadDocumentView({
+                input,
+                sourceFileId: sourceFile.id,
+              }),
+            )
+          : undefined,
+      }),
+    );
+  }
+
+  private async withSourceIngest(
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+    },
+    file: ProjectFileContentEditorQueueFile,
+  ): Promise<ProjectFileContentEditorQueueFile> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      db: this.database,
     });
+    if (!latestVersion) {
+      return file;
+    }
+
+    return {
+      ...file,
+      ingestState: latestVersion.ingestState,
+      ...(latestVersion.ingestError ? { ingestError: latestVersion.ingestError } : {}),
+    };
   }
 
   private async buildImageCatFileResponse(input: {
