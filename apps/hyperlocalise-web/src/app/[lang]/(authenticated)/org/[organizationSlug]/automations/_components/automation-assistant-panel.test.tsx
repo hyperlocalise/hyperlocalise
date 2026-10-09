@@ -33,9 +33,13 @@ vi.mock("@/lib/billing/use-ai-features-access", () => ({
 }));
 
 vi.mock("./automation-assistant-prompt", () => ({
-  AutomationAssistantPrompt: ({ organizationSlug }: { organizationSlug: string }) => (
-    <p>{`prompt for ${organizationSlug}`}</p>
-  ),
+  AutomationAssistantPrompt: ({
+    organizationSlug,
+    pending,
+  }: {
+    organizationSlug: string;
+    pending?: boolean;
+  }) => <p>{`prompt for ${organizationSlug}${pending ? " (closed)" : ""}`}</p>,
 }));
 
 const TOOL = "tool-update_automation_setup";
@@ -208,6 +212,15 @@ describe("what the panel says a turn did", () => {
     show(assistant({ organizationSlug: "acme" }));
 
     expect(screen.getByText("prompt for acme")).toBeTruthy();
+  });
+
+  it("takes no message while a saved automation's conversation loads or a turn runs", () => {
+    const { unmount } = show(assistant({ status: "loading" }));
+    expect(screen.getByText("prompt for acme (closed)")).toBeTruthy();
+    unmount();
+
+    show(assistant({ status: "streaming", working: true }));
+    expect(screen.getByText("prompt for acme (closed)")).toBeTruthy();
   });
 
   it("puts what went wrong under the message it went wrong for", () => {

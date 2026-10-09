@@ -250,7 +250,8 @@ export function AutomationAssistantProvider({
     onSessionChange?.(next?.id ?? null);
   });
 
-  // A saved automation's page resumes the person's session for it, showing its history only.
+  // A saved automation's page resumes the person's session for it, showing its history only. The
+  // panel takes no message until this is done, since a message needs the latest turn it holds.
   useEffect(() => {
     if (!automationId) {
       return;
@@ -258,7 +259,8 @@ export function AutomationAssistantProvider({
     let ignore = false;
     findAssistantSession(organizationSlug, automationId)
       .then((found) => {
-        if (ignore) {
+        // A turn that started meanwhile is ahead of this, and loads the session when it ends.
+        if (ignore || turnRunning.current) {
           return;
         }
         notifySession(found.session);
@@ -268,7 +270,7 @@ export function AutomationAssistantProvider({
         setStatus("idle");
       })
       .catch(() => {
-        if (!ignore) {
+        if (!ignore && !turnRunning.current) {
           setStatus("idle");
         }
       });

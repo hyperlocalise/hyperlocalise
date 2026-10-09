@@ -222,7 +222,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           aiFeaturesStatus={aiFeatures.status}
           onSubmitPrompt={assistant.send}
           organizationSlug={assistant.organizationSlug}
-          pending={assistant.working}
+          pending={assistant.status !== "idle"}
           label={intl.formatMessage(messages.composerLabel)}
           placeholder={intl.formatMessage(messages.composerPlaceholder)}
           submitLabel={intl.formatMessage(messages.composerSend)}
