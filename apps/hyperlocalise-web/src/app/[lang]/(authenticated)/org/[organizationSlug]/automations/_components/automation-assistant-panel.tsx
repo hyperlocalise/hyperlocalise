@@ -18,6 +18,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MessageResponse } from "@/components/ai-elements/message";
+import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
@@ -205,47 +206,57 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
   );
 }
 
-/** Opens the assistant beside the form. Renders nothing where the assistant is not offered. */
-export function AutomationAssistantOpenButton() {
-  const assistant = useAutomationAssistant();
-  if (!assistant) {
-    return null;
-  }
+const TOP_BAR_TOGGLE_ID = "automation-assistant";
+
+/** The assistant's one opener: a button in the app's top bar that opens and closes the panel. */
+function AutomationAssistantToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const intl = useIntl();
   return (
     <Button
       type="button"
       variant="outline"
-      size="xs"
-      aria-pressed={assistant.open}
-      onClick={() => assistant.setOpen(!assistant.open)}
+      size="sm"
+      aria-label={intl.formatMessage(messages.toggle)}
+      aria-pressed={open}
+      className={open ? "bg-muted text-foreground" : undefined}
+      onClick={onToggle}
     >
       <SparkleIcon />
-      <FormattedMessage {...messages.openButton} />
+      {/* The icon alone where the top bar is short of room. */}
+      <span className="hidden sm:inline">
+        <FormattedMessage {...messages.toggle} />
+      </span>
     </Button>
   );
 }
 
 /**
- * The widest an automation page gets with the assistant offered: the form's own width, the gap
- * and the panel. A page passes this to its shell in place of the form's width alone.
+ * What an automation page gives its shell when the assistant is offered: the page fills the
+ * app's content area edge to edge and does not scroll, so the form and the panel can each be a
+ * pane of their own. It undoes the content area's padding, which the form's pane puts back.
  */
-export const AUTOMATION_ASSISTANT_PAGE_WIDTH_CLASS = "max-w-[89.25rem]";
+export const AUTOMATION_ASSISTANT_PAGE_CLASS =
+  "-mx-4 -my-4 w-auto min-h-0 flex-1 gap-0 overflow-hidden sm:-mx-6 lg:-mx-8";
 
 /** Below this much room the form would be too narrow beside the panel, so the panel is a sheet. */
-const SIDE_BY_SIDE_MIN_WIDTH_PX = 920;
+const SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
 
 /**
- * Puts the panel beside the editor on a wide screen and in a sheet from the right edge on a
- * narrow one. Never floating, so it cannot be taken for the chat dock. The form keeps the width
- * it has without the assistant; the panel fills the height between the app's header and footer.
+ * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
+ * attached to the right edge at full height. Where the page has no room for both, the panel is a
+ * sheet from the right edge. The page must carry `AUTOMATION_ASSISTANT_PAGE_CLASS`. Also puts the
+ * assistant's toggle in the app's top bar while the page is open.
  */
 export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
+  const headerActions = useOptionalAppShellStore()?.headerActions ?? null;
   const rowRef = useRef<HTMLDivElement>(null);
   // Decided from the room the page really has, which the sidebar changes, not from the window.
   const [roomBeside, setRoomBeside] = useState(true);
   const offered = assistant !== null;
+  const open = assistant?.open ?? false;
+  const setOpen = assistant?.setOpen;
 
   useLayoutEffect(() => {
     const row = rowRef.current;
@@ -265,21 +276,41 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
     const observer = new ResizeObserver(measure);
     observer.observe(row);
     return () => observer.disconnect();
-  }, [offered]);
+  }, []);
 
-  if (!assistant) {
-    return children;
-  }
+  // The top bar draws what is registered with it, so the button is registered again whenever
+  // what it shows changes.
+  useEffect(() => {
+    if (!headerActions || !setOpen) {
+      return;
+    }
+    headerActions.register({
+      id: TOP_BAR_TOGGLE_ID,
+      order: 0,
+      visible: true,
+      render: () => <AutomationAssistantToggle open={open} onToggle={() => setOpen(!open)} />,
+    });
+  }, [headerActions, open, setOpen]);
+
+  useEffect(() => {
+    if (!headerActions || !offered) {
+      return;
+    }
+    return () => headerActions.unregister(TOP_BAR_TOGGLE_ID);
+  }, [headerActions, offered]);
+
   const inSheet = !roomBeside;
   return (
-    <div ref={rowRef} className="flex w-full gap-6">
-      <div className="min-w-0 max-w-5xl flex-1">{children}</div>
-      {assistant.open && !inSheet ? (
-        <aside className="sticky top-4 h-[calc(var(--app-shell-content-height,100svh)-3rem)] w-[380px] shrink-0 self-start">
-          <AutomationAssistantPanel />
+    <div ref={rowRef} className="flex min-h-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex max-w-5xl flex-col gap-4">{children}</div>
+      </div>
+      {assistant?.open && !inSheet ? (
+        <aside className="w-[380px] shrink-0 border-s border-border">
+          <AutomationAssistantPanel className="rounded-none border-0" />
         </aside>
       ) : null}
-      {inSheet ? (
+      {assistant && inSheet ? (
         <Sheet open={assistant.open} onOpenChange={assistant.setOpen}>
           {/* The panel has its own close button. */}
           <SheetContent

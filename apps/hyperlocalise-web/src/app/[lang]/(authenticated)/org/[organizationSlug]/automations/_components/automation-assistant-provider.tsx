@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import type { UIMessage } from "ai";
+import { reaction } from "mobx";
 import {
   createContext,
   useCallback,
@@ -256,6 +257,22 @@ export function AutomationAssistantProvider({
       setAppliedChangeCount(0);
     }
   }, [hasUnsavedChanges]);
+
+  // One chat at a time, the other way round too: a chat opened in the dock floats over the
+  // corner the panel is in, so the panel closes. Its session stays as it is.
+  useEffect(() => {
+    if (!chatDock) {
+      return;
+    }
+    return reaction(
+      () => chatDock.panelOpen,
+      (dockOpen) => {
+        if (dockOpen) {
+          setOpenState(false);
+        }
+      },
+    );
+  }, [chatDock]);
 
   const notifyWorking = useEffectEvent((working: boolean) => onWorkingChange?.(working));
   useEffect(() => {
