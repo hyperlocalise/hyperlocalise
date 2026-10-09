@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,6 +149,41 @@ func TestEditorCatQueueNative(t *testing.T) {
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
 	require.Equal(t, "hello", body.ContentEditorQueue.Segments[0].Key)
 	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+}
+
+func TestEditorCatQueueReturnsSourceIngestForEmptyHTML(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "pages/formatting-test.html")
+	storedFileID := uuid.NewString()
+	_, err := scope.Pool.Exec(t.Context(), `
+        insert into stored_files (
+            id, organization_id, project_id, role, source_kind,
+            storage_provider, storage_key, storage_url, filename, content_type, byte_size, sha256
+        ) values ($1, $2, $3, 'source', 'repository_file', 'test', $1, $1, 'formatting-test.html', 'text/html', 10, 'deadbeef')`,
+		storedFileID, scope.OrganizationID, scope.ProjectID)
+	require.NoError(t, err)
+	_, err = scope.Pool.Exec(t.Context(), `
+        insert into repository_source_file_versions (
+            id, repository_source_file_id, organization_id, project_id, source_path, stored_file_id, ingest_state, ingest_error
+        ) values ($1, $2, $3, $4, 'pages/formatting-test.html', $5, 'failed', 'sandbox install failed')`,
+		uuid.NewString(), fileID, scope.OrganizationID, scope.ProjectID, storedFileID)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/formatting-test.html&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "pages/formatting-test.html", body.ContentEditorQueue.SourcePath)
+	require.Len(t, body.ContentEditorQueue.Segments, 1)
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "document", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+	require.NotNil(t, body.ContentEditorQueue.IngestState)
+	require.Equal(t, "failed", *body.ContentEditorQueue.IngestState)
+	require.NotNil(t, body.ContentEditorQueue.IngestError)
+	require.Equal(t, "sandbox install failed", *body.ContentEditorQueue.IngestError)
 }
 
 func TestEditorCatQueueOmitsIntercomCalloutFences(t *testing.T) {
@@ -330,6 +366,8 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.Equal(t, editorCatKindOffice, editorCatSourceKind("brief.docx"))
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("readme.md"))
 	require.Equal(t, editorCatKindDocument, editorCatSourceKind("guide.adoc"))
+	require.Equal(t, editorCatKindDocument, editorCatSourceKind("page.html"))
+	require.Equal(t, editorCatKindDocument, editorCatSourceKind("page.htm"))
 	require.Equal(t, editorCatKindText, editorCatSourceKind("locales/en.json"))
 	require.True(t, looksLikeEditorCatImageURL("https://cdn.example.com/a.png"))
 	require.False(t, looksLikeEditorCatImageURL("HTTP://example.com/image.png"))
@@ -340,6 +378,8 @@ func TestEditorCatWholeFileKind(t *testing.T) {
 	require.True(t, isEditorCatBinaryWholeFile("hero.png"))
 	require.False(t, isEditorCatBinaryWholeFile("readme.md"))
 	require.True(t, isEditorCatDocument("readme.md"))
+	require.True(t, isEditorCatDocument("page.html"))
+	require.False(t, isEditorCatBinaryWholeFile("page.html"))
 	require.Equal(t, editorCatKindText, editorCatTargetKind("readme.md", testEditorCatKeyID))
 	require.Equal(t, editorCatKindDocument, editorCatTargetKind("readme.md", "binary:readme.md"))
 	require.Equal(t, testEditorCatSourceFileID, binaryEditorCatStringID(testEditorCatSourceFileID, "hero.png"))
@@ -458,6 +498,48 @@ func TestEditorCatWholeFileMatchesAdvanced(t *testing.T) {
 	require.True(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-01", AddedTo: "2026-03-02"}))
 	require.False(t, editorCatWholeFileMatchesAdvanced(image, &editorCatAdvancedFilter{AddedFrom: "2026-03-03"}))
 	require.False(t, editorCatWholeFileMatchesAdvanced(editorCatWholeFileSubject{contentKind: "image_file"}, &editorCatAdvancedFilter{AddedFrom: "2026-03-01"}))
+}
+
+func TestEditorCatQueueHTMLKeysAndDocumentView(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "pages/formatting-test.html")
+	keyID := mustEditorCatKey(t, scope, fileID, "html.p[0]", "Hello")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=pages/formatting-test.html&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "pages/formatting-test.html", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "html.p[0]", body.ContentEditorQueue.Segments[0].Key)
+	require.NotNil(t, body.ContentEditorQueue.DocumentView)
+	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+}
+
+func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {
+	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
+	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
+	require.NotEmpty(t, mapping)
+	var hashedH1, hashedP string
+	for legacy, pathKey := range mapping {
+		switch pathKey {
+		case "html.body.h1":
+			hashedH1 = legacy
+		case "html.body.p":
+			hashedP = legacy
+		}
+	}
+	require.NotEmpty(t, hashedH1)
+	require.NotEmpty(t, hashedP)
+
+	segments := []editorCatSegment{
+		{Key: hashedH1, SourceText: "Welcome"},
+		{Key: hashedP, SourceText: "Hello world."},
+	}
+	rewriteHashedHTMLSegmentKeys(content, segments)
+	require.Equal(t, "html.body.h1", segments[0].Key)
+	require.Equal(t, "html.body.p", segments[1].Key)
 }
 
 func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {

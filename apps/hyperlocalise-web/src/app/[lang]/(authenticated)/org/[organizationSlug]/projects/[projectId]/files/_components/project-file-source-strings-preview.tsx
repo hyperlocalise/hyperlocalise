@@ -17,16 +17,22 @@ import { FormattedMessage, useIntl } from "react-intl";
 import type { ProjectSourceStringsPreview } from "@/api/routes/project/project.schema";
 import { ContentEditorMessagePreview } from "@/components/content-editor/editor/content-editor-target-editor";
 import { TypographyP } from "@/components/ui/typography";
+import type { SourceFileIngestState } from "@/lib/projects/files/source-file-ingest-state";
 
 import { projectFileSourceStringsPreviewMessages as messages } from "./project-file-source-strings-preview.messages";
+import { SourceFileIngestStatus } from "./source-file-ingest-status";
 
 export function ProjectFileSourceStringsPreview({
   sourceStrings,
+  ingestState,
+  ingestError,
 }: {
-  sourceStrings: ProjectSourceStringsPreview;
+  sourceStrings?: ProjectSourceStringsPreview | null;
+  ingestState?: SourceFileIngestState | null;
+  ingestError?: string | null;
 }) {
-  if (sourceStrings.entries.length === 0) {
-    return null;
+  if (!sourceStrings || sourceStrings.entries.length === 0) {
+    return <SourceFileIngestStatus ingestState={ingestState} ingestError={ingestError} />;
   }
 
   return <SourceStringsTable preview={sourceStrings} />;

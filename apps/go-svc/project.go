@@ -389,6 +389,7 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 		ranked as (
 			select v.id as version_id, v.source_path, v.source_hash, v.commit_sha,
 				v.workflow_run_id, v.created_at as uploaded_at, v.stored_file_id,
+				v.ingest_state, v.ingest_error,
 				f.metadata, f.filename, f.byte_size,
 				row_number() over (
 					partition by v.source_path
@@ -448,6 +449,8 @@ func (api *projectAPI) files(ctx context.Context, actor projectActor, projectID 
 						'metadata', s.metadata,
 						'filename', s.filename,
 						'byteSize', s.byte_size,
+						'ingestState', s.ingest_state,
+						'ingestError', s.ingest_error,
 						'provider', null,
 						'latestJob', case when j.id is null then null else jsonb_build_object(
 							'id', j.id,

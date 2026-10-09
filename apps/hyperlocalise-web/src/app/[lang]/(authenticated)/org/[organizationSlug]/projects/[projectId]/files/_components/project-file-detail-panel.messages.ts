@@ -116,4 +116,19 @@ export const projectFileDetailPanelMessages = defineMessages({
     id: "lEAnS9LFlv",
     description: "Section heading for jobs grouped by locale in the file detail panel",
   },
+  extractingSegments: {
+    defaultMessage: "Extracting segments…",
+    id: "sHVjRcdIVt",
+    description: "Hint on a selected file while source-file ingest is still extracting keys",
+  },
+  ingestFailed: {
+    defaultMessage: "Segment extraction failed.",
+    id: "q7UyxwQjuG",
+    description: "Hint on a selected file when source-file ingest failed without a stored error",
+  },
+  ingestFailedWithReason: {
+    defaultMessage: "Segment extraction failed: {error}",
+    id: "t3YSvLpH4S",
+    description: "Hint on a selected file when source-file ingest failed with a stored error",
+  },
 });

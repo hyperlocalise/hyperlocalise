@@ -97,6 +97,10 @@ import {
   CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT,
   ContentEditorDocumentEditorPane,
 } from "./content-editor-document-editor-pane";
+import {
+  CONTENT_EDITOR_HTML_FILE_UPLOAD_ACCEPT,
+  ContentEditorHtmlEditorPane,
+} from "./content-editor-html-editor-pane";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
@@ -178,13 +182,14 @@ export function ContentEditorFileViewPanel({
   const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
+  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
   const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
-    readCatFileViewSourcePaneVisible(viewerId !== "markdown"),
+    readCatFileViewSourcePaneVisible(!isDocumentViewer),
   );
   const [sourcePaneViewerId, setSourcePaneViewerId] = useState(viewerId);
   if (sourcePaneViewerId !== viewerId) {
     setSourcePaneViewerId(viewerId);
-    setSourcePaneVisible(readCatFileViewSourcePaneVisible(viewerId !== "markdown"));
+    setSourcePaneVisible(readCatFileViewSourcePaneVisible(!isDocumentViewer));
   }
   const agentBadges = [
     intelligence?.locationBreadcrumb,
@@ -216,7 +221,9 @@ export function ContentEditorFileViewPanel({
         ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
         : viewerId === "markdown"
           ? CONTENT_EDITOR_DOCUMENT_FILE_UPLOAD_ACCEPT
-          : contentEditorOfficeUploadAccept(viewerId);
+          : viewerId === "html"
+            ? CONTENT_EDITOR_HTML_FILE_UPLOAD_ACCEPT
+            : contentEditorOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const assetFormatLabel = viewerId
     ? viewerId.toUpperCase()
@@ -225,7 +232,6 @@ export function ContentEditorFileViewPanel({
       : "ASSET";
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
   const isMediaViewer = viewerId === "image" || viewerId === "video";
-  const isDocumentViewer = viewerId === "markdown";
 
   const sourceSrc =
     isMediaViewer || officeKind || isDocumentViewer ? (segment.sourceAssetUrl ?? null) : null;
@@ -546,6 +552,22 @@ export function ContentEditorFileViewPanel({
           actions={hasTargetFileActions ? targetFileActions : null}
           onDirtyChange={setVideoDirty}
           onRegenerate={onRegenerate}
+        />
+      ) : viewerId === "html" ? (
+        <ContentEditorHtmlEditorPane
+          key={segment.id}
+          documentKey={`${segment.id}:${segment.targetLocale}`}
+          sourceSrc={sourceSrc}
+          targetSrc={targetSrc}
+          filename={displayName}
+          sourceLocale={segment.sourceLocale}
+          targetLocale={segment.targetLocale}
+          isLoading={isSegmentTargetLoading}
+          canEdit={canEdit}
+          splitView={sourcePaneVisible}
+          onSave={onUpload}
+          saveActionsContainer={saveActionsContainer}
+          onReviewBlockedChange={setDocumentReviewBlocked}
         />
       ) : isDocumentViewer ? (
         <ContentEditorDocumentEditorPane

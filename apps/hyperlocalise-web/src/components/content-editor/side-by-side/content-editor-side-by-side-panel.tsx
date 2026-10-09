@@ -22,14 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
+import { resolveContentEditorQueueEmptyCopy } from "@/components/content-editor/queue/content-editor-queue-empty-copy";
 import { ContentEditorQueueSkeletonList } from "@/components/content-editor/queue/content-editor-queue-skeleton-list";
 import type { ContentEditorQueueFilter } from "@/components/content-editor/queue/content-editor-queue-filter";
 import type { ContentEditorQueuePagination } from "@/components/content-editor/queue/content-editor-queue-panel";
 import {
   contentEditorQueuePanelMessages,
   contentEditorSideBySidePanelMessages,
-  contentEditorWorkspaceMessages,
 } from "@/components/content-editor/shared/content-editor.messages";
+import { isSourceFileIngestInProgress } from "@/lib/projects/files/source-file-ingest-state";
 import type {
   ContentEditorFormatCheck,
   ContentEditorSegment,
@@ -340,11 +341,18 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   const loadedCount = segments.length;
   const hasActiveFilter = queueFilter !== "all";
   const hasSearch = search.trim().length > 0;
-  const emptyMessage = hasSearch
-    ? contentEditorQueuePanelMessages.emptySearchResults
-    : hasActiveFilter
-      ? contentEditorQueuePanelMessages.emptyFilterResults
-      : contentEditorWorkspaceMessages.emptyQueue;
+  const fileContext = store.fileContext;
+  const emptyCopy = resolveContentEditorQueueEmptyCopy({
+    hasSearch,
+    hasActiveFilter,
+    ingestState: fileContext.ingestState,
+    ingestError: fileContext.ingestError,
+  });
+  const showExtractingSpinner =
+    segments.length === 0 &&
+    !hasSearch &&
+    !hasActiveFilter &&
+    isSourceFileIngestInProgress(fileContext.ingestState);
 
   const focusedIndex = useMemo(
     () => segments.findIndex((segment) => segment.id === focusedSegmentId),
@@ -355,8 +363,6 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
       ? (segments[focusedIndex]?.index ?? focusedIndex + 1)
       : (pagination?.offset ?? 0) + 1;
   const totalSegments = pagination?.totalCount ?? (hasMoreQueue ? null : segments.length);
-  const fileContext = store.fileContext;
-
   return (
     <ContentEditorSideBySideResizableLayout
       className={cn("bg-background", className)}
@@ -380,8 +386,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
             {isTranslationViewLoading && segments.length === 0 ? (
               <ContentEditorQueueSkeletonList className="px-4 py-3" />
             ) : segments.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
-                <FormattedMessage {...emptyMessage} />
+              <div className="flex flex-1 items-center justify-center gap-2 px-4 py-8 text-sm text-muted-foreground">
+                {showExtractingSpinner ? <Spinner /> : null}
+                <FormattedMessage {...emptyCopy.message} values={emptyCopy.values} />
               </div>
             ) : (
               <ContentEditorSideBySideVirtualList

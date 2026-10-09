@@ -157,7 +157,14 @@ describe("cat-file-view-capabilities", () => {
     ).toBe("office");
   });
 
-  it("defaults native markdown, mdx, and asciidoc to document view and also offers segment views", () => {
+  it("defaults native html, markdown, mdx, and asciidoc to document view and also offers segment views", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "pages/home.html" })).toEqual({
+      family: "document",
+      availableViews: ["comfortable", "side-by-side", "file"],
+      defaultView: "file",
+      viewerId: "html",
+    });
+    expect(resolveCatFileViewCapabilities({ sourcePath: "pages/home.htm" }).viewerId).toBe("html");
     expect(resolveCatFileViewCapabilities({ sourcePath: "docs/intro.md" })).toEqual({
       family: "document",
       availableViews: ["comfortable", "side-by-side", "file"],
@@ -213,6 +220,17 @@ describe("cat-file-view-capabilities", () => {
         providerKind: "smartling",
       }).family,
     ).toBe("text");
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "pages/home.html",
+        providerKind: "crowdin",
+      }),
+    ).toEqual({
+      family: "text",
+      availableViews: ["comfortable", "side-by-side"],
+      defaultView: "side-by-side",
+      viewerId: null,
+    });
   });
 
   it("clamps disallowed modes to the family default", () => {
@@ -281,6 +299,35 @@ describe("cat-file-view-capabilities", () => {
     });
     expect(isCatDocumentFileViewSegmentId(overlay.id, { externalStringId: "file_1" })).toBe(true);
     expect(isCatDocumentFileViewSegmentId("key-uuid", { externalStringId: "file_1" })).toBe(false);
+  });
+
+  it("overlays native HTML file view onto the stored document, not the selected key", () => {
+    const overlay = overlayCatDocumentFileViewSegment(
+      {
+        id: "key-html",
+        key: "html.p[0]",
+        sourceText: "Hello",
+        targetText: "Bonjour",
+        sourcePath: "pages/home.html",
+      },
+      {
+        sourcePath: "pages/home.html",
+        documentView: {
+          externalStringId: "file_html",
+          sourceAssetUrl: "/source.html",
+          targetAssetUrl: "/target.html",
+          imageVariantId: "variant_html",
+        },
+      },
+    );
+
+    expect(overlay).toMatchObject({
+      id: "file_html",
+      key: "pages/home.html",
+      contentKind: "document",
+      sourceAssetUrl: "/source.html",
+      targetAssetUrl: "/target.html",
+    });
   });
 
   it("keeps an already file-backed document segment unchanged", () => {

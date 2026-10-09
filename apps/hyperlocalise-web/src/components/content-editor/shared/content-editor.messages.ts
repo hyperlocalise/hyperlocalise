@@ -20,6 +20,21 @@ export const contentEditorWorkspaceMessages = defineMessages({
     id: "WrdM0sMy06",
     description: "Empty state when the CAT translation queue has no segments",
   },
+  extractingSegments: {
+    defaultMessage: "Extracting segments…",
+    id: "LSOvRPa3l7",
+    description: "Empty CAT queue while source-file ingest is still extracting keys",
+  },
+  ingestFailed: {
+    defaultMessage: "Segment extraction failed.",
+    id: "UmTWkWzuia",
+    description: "Empty CAT queue when source-file ingest failed without a stored error",
+  },
+  ingestFailedWithReason: {
+    defaultMessage: "Segment extraction failed: {error}",
+    id: "mmKO3H+Z1c",
+    description: "Empty CAT queue when source-file ingest failed with a stored error",
+  },
   tabEdit: {
     defaultMessage: "Edit",
     id: "HrB9mIwARt",
