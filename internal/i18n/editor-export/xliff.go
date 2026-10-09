@@ -23,7 +23,7 @@ func SerializeXLIFF(rows []Row) []byte {
 	}
 
 	var doc strings.Builder
-	doc.Grow(300 + len(rows)*250)
+	doc.Grow(XMLDocumentOverheadBytes + len(rows)*XMLTranslationUnitBytes)
 
 	doc.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
 	doc.WriteString("<xliff version=\"1.2\" xmlns=\"urn:oasis:names:tc:xliff:document:1.2\">\n")

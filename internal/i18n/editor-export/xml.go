@@ -6,6 +6,16 @@ import (
 	"unicode/utf8"
 )
 
+const (
+	// XMLDocumentOverheadBytes covers the XML declaration, format wrappers,
+	// and closing tags in TMX and XLIFF documents.
+	XMLDocumentOverheadBytes = 300
+
+	// XMLTranslationUnitBytes covers one unit's tags plus typical key,
+	// locale, source, and target text.
+	XMLTranslationUnitBytes = 250
+)
+
 var internalSegmentPlaceholderPattern = regexp.MustCompile("\x1eHL[A-Z]+PH_[A-Z0-9_]+_\\d+\x1f")
 
 var xmlReplacer = strings.NewReplacer(
