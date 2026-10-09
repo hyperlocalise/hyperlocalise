@@ -122,6 +122,36 @@ describe("htmlCompletedPathKeysFromLock", () => {
     const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
     expect(htmlCompletedPathKeysFromLock(html, [hash])).toEqual(["html.p", "html.p.strong"]);
   });
+
+  it("keeps later sibling path suffixes when a later paragraph has inline tags", () => {
+    const html = "<p>Welcome</p><p>Click <strong>here</strong> now.</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const occurrences = new Map<string, number>();
+    const firstHash = legacyHtmlSegmentKey(folded["html.p"] ?? "", occurrences);
+    const secondHash = legacyHtmlSegmentKey(folded["html.p.2"] ?? "", occurrences);
+
+    expect(htmlCompletedPathKeysFromLock(html, [firstHash])).toEqual(["html.p"]);
+    expect(htmlCompletedPathKeysFromLock(html, [secondHash])).toEqual([
+      "html.p.2",
+      "html.p.strong",
+      "html.p.3",
+    ]);
+    expect(htmlCompletedPathKeysFromLock(html, [firstHash, secondHash])).toEqual([
+      "html.p",
+      "html.p.2",
+      "html.p.strong",
+      "html.p.3",
+    ]);
+  });
+
+  it("does not treat an earlier sibling leftover as a completed path", () => {
+    const html = "<p>Welcome</p><p>Click <strong>here</strong> now.</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const occurrences = new Map<string, number>();
+    legacyHtmlSegmentKey(folded["html.p"] ?? "", occurrences);
+    const secondHash = legacyHtmlSegmentKey(folded["html.p.2"] ?? "", occurrences);
+    expect(htmlCompletedPathKeysFromLock(html, [secondHash])).not.toContain("html.p");
+  });
 });
 
 describe("htmlCliPrefillsFromPathEntries", () => {
