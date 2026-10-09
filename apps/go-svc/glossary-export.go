@@ -237,7 +237,13 @@ func stringOrEmpty(v *string) string {
 }
 
 func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([]byte, error) {
+	termCount := 0
+	for _, c := range concepts {
+		termCount += len(c.Terms)
+	}
 	var b strings.Builder
+	b.Grow(len(concepts)*250 + termCount*150 + 300)
+
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<tbx xmlns="urn:iso:std:iso:30042:ed-2" style="dca" type="TBX-Basic" xml:lang="`)
 	b.WriteString(xmlEscape(g.SourceLocale))
@@ -260,13 +266,14 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 			b.WriteString(xmlEscape(concept.Definition))
 			b.WriteString(`</descrip>` + "\n")
 		}
-		byLocale := map[string][]glossaryExportTerm{}
-		order := []string{}
+		byLocale := make(map[string][]glossaryExportTerm, len(concept.Terms))
+		order := make([]string, 0, len(concept.Terms))
 		for _, term := range concept.Terms {
-			if _, ok := byLocale[term.Locale]; !ok {
+			terms, ok := byLocale[term.Locale]
+			if !ok {
 				order = append(order, term.Locale)
 			}
-			byLocale[term.Locale] = append(byLocale[term.Locale], term)
+			byLocale[term.Locale] = append(terms, term)
 		}
 		for _, locale := range order {
 			b.WriteString(`      <langSec xml:lang="`)
@@ -288,6 +295,9 @@ func serializeGlossaryTBX(g glossaryRecord, concepts []glossaryExportConcept) ([
 }
 
 func xmlEscape(s string) string {
+	if !strings.ContainsAny(s, "<>&'\"\r") {
+		return s
+	}
 	var b strings.Builder
 	if err := xml.EscapeText(&b, []byte(s)); err != nil {
 		return s
