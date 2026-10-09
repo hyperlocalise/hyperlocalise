@@ -69,6 +69,7 @@ export type AutomationAssistantFailure = {
 };
 
 export type AutomationAssistantValue = {
+  organizationSlug: string;
   mode: "create" | "detail";
   automationName: string;
   open: boolean;
@@ -501,6 +502,7 @@ export function AutomationAssistantProvider({
 
   const value = useMemo<AutomationAssistantValue>(
     () => ({
+      organizationSlug,
       mode,
       automationName: form.name,
       open,
@@ -528,6 +530,7 @@ export function AutomationAssistantProvider({
       messages,
       mode,
       open,
+      organizationSlug,
       session,
       setOpen,
       status,

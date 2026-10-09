@@ -33,13 +33,16 @@ vi.mock("@/lib/billing/use-ai-features-access", () => ({
 }));
 
 vi.mock("./automation-assistant-prompt", () => ({
-  AutomationAssistantPrompt: () => null,
+  AutomationAssistantPrompt: ({ organizationSlug }: { organizationSlug: string }) => (
+    <p>{`prompt for ${organizationSlug}`}</p>
+  ),
 }));
 
 const TOOL = "tool-update_automation_setup";
 
 function assistant(overrides: Partial<AutomationAssistantValue> = {}): AutomationAssistantValue {
   return {
+    organizationSlug: "acme",
     mode: "detail",
     automationName: "Weekly digest",
     open: true,
@@ -199,6 +202,12 @@ describe("what the panel says a turn did", () => {
 
     expect(screen.getByRole("button", { name: "You edited the setup · 1 change" })).toBeTruthy();
     expect(screen.getByText("Rename it again")).toBeTruthy();
+  });
+
+  it("gives the message box the workspace, which its upgrade link is built from", () => {
+    show(assistant({ organizationSlug: "acme" }));
+
+    expect(screen.getByText("prompt for acme")).toBeTruthy();
   });
 
   it("puts what went wrong under the message it went wrong for", () => {

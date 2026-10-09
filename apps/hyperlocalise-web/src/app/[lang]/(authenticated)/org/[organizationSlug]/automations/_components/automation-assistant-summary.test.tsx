@@ -24,6 +24,7 @@ import { AutomationAssistantSummary } from "./automation-assistant-summary";
 
 function show(overrides: Partial<AutomationAssistantValue>) {
   const value: AutomationAssistantValue = {
+    organizationSlug: "acme",
     mode: "create",
     automationName: "Weekly digest",
     open: true,
