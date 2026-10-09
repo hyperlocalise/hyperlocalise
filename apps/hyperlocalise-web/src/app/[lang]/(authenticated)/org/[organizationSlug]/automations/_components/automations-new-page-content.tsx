@@ -67,10 +67,12 @@ export function AutomationsNewPageContent({
   const [startForm] = useState(initialForm);
   const [assistantSessionId, setAssistantSessionId] = useState<string | null>(null);
   const [assistantWorking, setAssistantWorking] = useState(false);
-  // The request typed on the automations page, taken once so a reload does not send it again.
-  const [assistantInitialPrompt] = useState(() =>
-    assistantEnabled && !startsFromTemplate ? takeAutomationAssistantHandoff() : null,
-  );
+  // The request typed on the automations page, taken once so a reload does not send it again. It
+  // is taken even when this page drops it, so that it cannot reach a page opened later.
+  const [assistantInitialPrompt] = useState(() => {
+    const handoff = takeAutomationAssistantHandoff();
+    return assistantEnabled && !startsFromTemplate ? handoff : null;
+  });
   const history = useUndoStack<
     WorkspaceAutomationFormState | null,
     WorkspaceAutomationFormChange | null

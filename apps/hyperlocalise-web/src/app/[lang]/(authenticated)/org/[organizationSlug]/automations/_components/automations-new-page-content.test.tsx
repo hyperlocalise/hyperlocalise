@@ -208,8 +208,12 @@ describe("AutomationsNewPageContent assistant", () => {
   it("drops the handed-over request when a template was opened instead", () => {
     stashAutomationAssistantHandoff("Post a weekly summary");
 
-    renderPage({ assistantEnabled: true, startsFromTemplate: true });
+    const template = renderPage({ assistantEnabled: true, startsFromTemplate: true });
+    expect(screen.getByText("assistant:none")).toBeTruthy();
+    template.unmount();
 
+    // Dropped for good: a page opened from scratch afterwards does not send it either.
+    renderPage({ assistantEnabled: true });
     expect(screen.getByText("assistant:none")).toBeTruthy();
   });
 
