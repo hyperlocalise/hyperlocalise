@@ -54,9 +54,9 @@ describe("getYouTubeVideoId", () => {
 });
 
 describe("getYouTubeEmbedSrc", () => {
-  it("builds a privacy-enhanced embed for the homepage hero url", () => {
+  it("builds a YouTube embed for the homepage hero url", () => {
     expect(getYouTubeEmbedSrc(PRODUCT_PREVIEW_VIDEO_URL)).toBe(
-      "https://www.youtube-nocookie.com/embed/wjDelLf57OM",
+      "https://www.youtube.com/embed/wjDelLf57OM",
     );
   });
 });
@@ -71,7 +71,7 @@ describe("ProductPreviewVideo", () => {
 
     const frame = screen.getByTitle("Illustrative product preview");
     expect(frame).toBeInTheDocument();
-    expect(frame).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/wjDelLf57OM");
+    expect(frame).toHaveAttribute("src", "https://www.youtube.com/embed/wjDelLf57OM");
     expect(screen.queryByRole("video")).not.toBeInTheDocument();
   });
 
