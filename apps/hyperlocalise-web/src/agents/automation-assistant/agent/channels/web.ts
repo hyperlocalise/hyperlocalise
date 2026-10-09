@@ -50,7 +50,7 @@ import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 import { createAutomationAssistantAgent } from "../agent";
-import type { AutomationAssistantToolContext } from "../tools/update_automation_setup";
+import type { AutomationAssistantToolContext } from "../tools/update-automation-setup";
 
 export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
 

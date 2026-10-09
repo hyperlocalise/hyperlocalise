@@ -16,7 +16,7 @@ import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-au
 import { createDefaultWorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import { buildAutomationAssistantInstructions, createAutomationAssistantAgent } from "./agent";
-import { createUpdateAutomationSetupTool } from "./tools/update_automation_setup";
+import { createUpdateAutomationSetupTool } from "./tools/update-automation-setup";
 
 vi.mock("@/lib/agent-runtime/loops/model", () => ({
   getHyperlocaliseAgentModel: () => "openai/gpt-6-luna",

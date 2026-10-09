@@ -23,7 +23,7 @@ import {
 import {
   createUpdateAutomationSetupTool,
   type AutomationAssistantToolContext,
-} from "./tools/update_automation_setup";
+} from "./tools/update-automation-setup";
 
 export const automationAssistantAgentId = "automation-assistant";
 /** A turn reads the page, calls the setup tool once or twice, and writes the reply. */
