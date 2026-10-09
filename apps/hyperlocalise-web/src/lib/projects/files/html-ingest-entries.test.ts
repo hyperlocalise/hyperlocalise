@@ -22,7 +22,10 @@ import {
   htmlCliPrefillsFromPathEntries,
   htmlCompletedPathKeysFromLock,
   isHashedHtmlEntryKey,
+  isHtmlTranslationSourcePath,
   legacyHtmlSegmentKey,
+  rewriteHashedHtmlSegmentKey,
+  rewriteHashedHtmlSegmentKeys,
   utf8FromStoredFileContent,
 } from "./html-ingest-entries";
 
@@ -113,6 +116,34 @@ describe("extractHtmlIngestEntries", () => {
     expect(got["html.p"]).toContain("world");
     expect(got["html.p"]).not.toContain("<strong>");
   });
+
+  it("skips pre, script, style, and punctuation-only chunks", () => {
+    const got = extractHtmlIngestEntries(
+      "<p>Keep</p><pre>code</pre><style>p{}</style><script>x</script><p>!!!</p><p>After</p>",
+    );
+    expect(got).toEqual({
+      "html.p": "Keep",
+      "html.p.2": "After",
+    });
+  });
+});
+
+describe("html key shape helpers", () => {
+  it("recognizes HTML source paths including .htm", () => {
+    expect(isHtmlTranslationSourcePath("pages/home.html")).toBe(true);
+    expect(isHtmlTranslationSourcePath("pages/home.HTM")).toBe(true);
+    expect(isHtmlTranslationSourcePath("locales/en.json")).toBe(false);
+  });
+
+  it("matches hashed keys including occurrence and SRX suffixes", () => {
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef.2")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef#srx.0")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.0123456789abcdef.2#srx.1")).toBe(true);
+    expect(isHashedHtmlEntryKey("html.p")).toBe(false);
+    expect(isHashedHtmlEntryKey("html.body.p")).toBe(false);
+    expect(isHashedHtmlEntryKey("html.0123456789abcde")).toBe(false);
+  });
 });
 
 describe("htmlCompletedPathKeysFromLock", () => {
@@ -151,6 +182,15 @@ describe("htmlCompletedPathKeysFromLock", () => {
     legacyHtmlSegmentKey(folded["html.p"] ?? "", occurrences);
     const secondHash = legacyHtmlSegmentKey(folded["html.p.2"] ?? "", occurrences);
     expect(htmlCompletedPathKeysFromLock(html, [secondHash])).not.toContain("html.p");
+  });
+
+  it("strips #srx suffixes and occurrence suffixes before mapping", () => {
+    const html = "<p>Same</p><div>Same</div>";
+    const occurrences = new Map<string, number>();
+    const first = legacyHtmlSegmentKey("Same", occurrences);
+    const second = legacyHtmlSegmentKey("Same", occurrences);
+    expect(htmlCompletedPathKeysFromLock(html, [`${first}#srx.0`])).toEqual(["html.p"]);
+    expect(htmlCompletedPathKeysFromLock(html, [second])).toEqual(["html.div"]);
   });
 });
 
@@ -195,6 +235,14 @@ describe("utf8FromStoredFileContent", () => {
     );
     expect(utf8FromStoredFileContent({ type: "Buffer", data: [60, 112, 62] })).toBe("<p>");
   });
+
+  it("decodes ArrayBuffer views and drops unknown payloads", () => {
+    const bytes = new TextEncoder().encode("<p>Hi</p>");
+    expect(utf8FromStoredFileContent(bytes.buffer)).toBe("<p>Hi</p>");
+    expect(utf8FromStoredFileContent(new DataView(bytes.buffer))).toBe("<p>Hi</p>");
+    expect(utf8FromStoredFileContent({ not: "bytes" })).toBe("");
+    expect(utf8FromStoredFileContent(null)).toBe("");
+  });
 });
 
 describe("applyHtmlIngestEntryKeys", () => {
@@ -218,5 +266,78 @@ describe("applyHtmlIngestEntryKeys", () => {
     expect(applyHtmlIngestEntryKeys("locales/en.json", "{}", { "hello.title": "Hi" })).toEqual({
       "hello.title": "Hi",
     });
+  });
+
+  it("leaves the payload unchanged when source text is empty or has no extractable keys", () => {
+    expect(applyHtmlIngestEntryKeys("pages/home.html", "", { "html.p": "Hi" })).toEqual({
+      "html.p": "Hi",
+    });
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", "<html></html>", { "html.p": "Hi" }),
+    ).toEqual({ "html.p": "Hi" });
+  });
+
+  it("returns extracted source text for hashed keys without SRX, not payload translations", () => {
+    const html = "<html><body><p>Hello world.</p></body></html>";
+    const hashed = legacyHtmlSegmentKey("Hello world.", new Map());
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", html, {
+        [hashed]: "Bonjour le monde.",
+      }),
+    ).toEqual({
+      "html.body.p": "Hello world.",
+    });
+  });
+
+  it("remaps hashed SRX payload keys onto tag paths and keeps translated values", () => {
+    const html = "<html><body><p>Hello world.</p></body></html>";
+    const hashed = legacyHtmlSegmentKey("Hello world.", new Map());
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", html, {
+        [`${hashed}#srx.0`]: "Bonjour",
+        [`${hashed}#srx.1`]: "le monde.",
+        leftover: "keep",
+      }),
+    ).toEqual({
+      "html.body.p#srx.0": "Bonjour",
+      "html.body.p#srx.1": "le monde.",
+      leftover: "keep",
+    });
+  });
+
+  it("keeps unmatched hashed SRX keys so a missing mapping cannot drop translations", () => {
+    const unknown = "html.0123456789abcdef#srx.0";
+    expect(
+      applyHtmlIngestEntryKeys("pages/home.html", "<html><body><p>Hello world.</p></body></html>", {
+        [unknown]: "Bonjour",
+      }),
+    ).toEqual({
+      [unknown]: "Bonjour",
+    });
+  });
+});
+
+describe("rewriteHashedHtmlSegmentKeys", () => {
+  it("rewrites a hashed key by stored hash or source text fallback", () => {
+    const html = "<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>";
+    const hashedTitle = legacyHtmlSegmentKey("Welcome", new Map());
+    expect(rewriteHashedHtmlSegmentKey(html, hashedTitle, "Welcome")).toBe("html.body.h1");
+    expect(rewriteHashedHtmlSegmentKey(html, "html.deadbeefdeadbeef", "Hello world.")).toBe(
+      "html.body.p",
+    );
+    expect(rewriteHashedHtmlSegmentKey(html, "html.deadbeefdeadbeef", "Missing")).toBe(
+      "html.deadbeefdeadbeef",
+    );
+  });
+
+  it("does not assign the same path key to two hashed segments", () => {
+    const html = "<p>Hello</p>";
+    const hashed = legacyHtmlSegmentKey("Hello", new Map());
+    expect(
+      rewriteHashedHtmlSegmentKeys(html, [
+        { key: hashed, sourceText: "Hello" },
+        { key: "html.deadbeefdeadbeef", sourceText: "Hello" },
+      ]),
+    ).toEqual(["html.p", "html.deadbeefdeadbeef"]);
   });
 });

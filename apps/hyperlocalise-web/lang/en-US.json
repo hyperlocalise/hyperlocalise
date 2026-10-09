@@ -135,10 +135,6 @@
     "defaultMessage": "A growth lead shares a launch brief in Slack with positioning, audience segments, and legal disclaimers. Hyperlocalise structures the campaign for localisation, applies brand glossary and tone rules, generates adapted drafts for each locale, routes them through marketing and legal review, syncs approved copy to the CMS and ad platforms, and flags any locale where messaging has drifted from the approved source.",
     "description": "Scenario narrative for the marketing-localisation use case"
   },
-  "+8igDOrn5C": {
-    "defaultMessage": "No Intercom connections yet.",
-    "description": "Empty state when no Intercom connections exist"
-  },
   "+BP6ejutVt": {
     "defaultMessage": "No Overview snapshot yet. Refresh to capture this market.",
     "description": "Overview has no cached provider snapshot"
@@ -146,10 +142,6 @@
   "+BzVn5MdKT": {
     "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped.",
     "description": "Body when Crowdin project is not linked in Hyperlocalise"
-  },
-  "+CvStp9tzG": {
-    "defaultMessage": "Intercom connection deleted.",
-    "description": "Toast when Intercom connection is deleted"
   },
   "+Dso3VFqcL": {
     "defaultMessage": "A few things\nyou might ask.",
@@ -1427,10 +1419,6 @@
     "defaultMessage": "Explore the studio",
     "description": "Anchor link from the Content Studio hero to the studio preview"
   },
-  "0czRTKBGYl": {
-    "defaultMessage": "Delete",
-    "description": "Delete Intercom connection button"
-  },
   "0d2hyvxzDu": {
     "defaultMessage": "Target locale",
     "description": "Label for the optional TMX export target locale"
@@ -1638,6 +1626,10 @@
   "1/qid1Sj8f": {
     "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
     "description": "Slack integration description before OAuth connection"
+  },
+  "107KQh5TEf": {
+    "defaultMessage": "{ready} of {total} locales ready",
+    "description": "How many mapped locales are ready to push for one article"
   },
   "118lC+/u/6": {
     "defaultMessage": "Member added to team",
@@ -2891,10 +2883,6 @@
     "defaultMessage": "Languages",
     "description": "Label for the languages filter"
   },
-  "3Z+3pA/kaR": {
-    "defaultMessage": "Save",
-    "description": "Save Intercom connection button"
-  },
   "3ZQsOW/pnR": {
     "defaultMessage": "Search timezones…",
     "description": "Placeholder for the automation timezone search input"
@@ -3899,10 +3887,6 @@
     "defaultMessage": "Failed to approve video",
     "description": "Fallback error when approving a video translation fails"
   },
-  "5Mjf4nqDKl": {
-    "defaultMessage": "{region} · token ending in {suffix}",
-    "description": "Hint that an Intercom access token is stored, with region"
-  },
   "5N7UDRdane": {
     "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations.",
     "description": "Description for the Semrush integrations row"
@@ -4142,6 +4126,10 @@
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
+  },
+  "5pV4YpFmRv": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Intercom automation to push with"
   },
   "5pj50ZtP7a": {
     "defaultMessage": "No scan yet. Run a QA check to list translation issues.",
@@ -4994,6 +4982,10 @@
   "7XjHYDDsku": {
     "defaultMessage": "Provider",
     "description": "Badge for a provider-managed translation memory"
+  },
+  "7Y3h+066TE": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Intercom article in the push dialog"
   },
   "7YA8COINzJ": {
     "defaultMessage": "Project {projectId}",
@@ -5867,6 +5859,10 @@
     "defaultMessage": "Could not copy link",
     "description": "Toast when copying a link to a string fails"
   },
+  "9B07etsjy7": {
+    "defaultMessage": "Push to Intercom",
+    "description": "Button that opens the dialog to write approved Help Center translations to Intercom"
+  },
   "9C8qy32ZkS": {
     "defaultMessage": "Hyperlab",
     "description": "Marketing homepage hyperlab"
@@ -6618,6 +6614,10 @@
   "AVpQwXJaXX": {
     "defaultMessage": "Create a key and send it to whoever plugs Hyperlab into your website.",
     "description": "Home card body for API keys"
+  },
+  "AW2iTpnW/h": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect button label while Intercom is being disconnected"
   },
   "AWCVIFfr/k": {
     "defaultMessage": "Enter a whole number from 1 to 100,000.",
@@ -7591,6 +7591,10 @@
     "defaultMessage": "Capture goals, audience, and messaging",
     "description": "Workflow step 1 description for the marketing-localisation use case"
   },
+  "CIOYgjMx73": {
+    "defaultMessage": "Push to Intercom",
+    "description": "Title of the Content editor dialog for choosing Intercom articles to push"
+  },
   "CIhbMSiEM0": {
     "defaultMessage": "Add a workspace memory. Upload a TMX or CSV file now, or add entries after creation.",
     "description": "Description of the create translation memory dialog"
@@ -7891,10 +7895,6 @@
     "defaultMessage": "Send a transactional email through Resend or SendGrid.",
     "description": "Catalog description for the notify email action node"
   },
-  "Csa9NF0Qo2": {
-    "defaultMessage": "Create an access token in the Intercom Developer Hub for your workspace.",
-    "description": "Help text for where to find an Intercom access token"
-  },
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch",
     "description": "Placeholder for the project name field"
@@ -8054,6 +8054,10 @@
   "D8eMH5CIKZ": {
     "defaultMessage": "Unable to add the concept to the glossary",
     "description": "Fallback error when CAT add-to-glossary fails"
+  },
+  "D9fXWFcqNL": {
+    "defaultMessage": "e.g. Keep product names in English and preserve HTML structure.",
+    "description": "Placeholder for AI prompt when generating a translated HTML document in CAT file view"
   },
   "D9igbLAS2O": {
     "defaultMessage": "Admins can connect",
@@ -8423,10 +8427,6 @@
     "defaultMessage": "Suggested copy",
     "description": "Suggested copy section in brand chat answer"
   },
-  "Dsh7E+5ifE": {
-    "defaultMessage": "US (api.intercom.io)",
-    "description": "US Intercom REST endpoint option label"
-  },
   "Dt8QOAfnsv": {
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect an AI Engine provider"
@@ -8534,10 +8534,6 @@
   "E0iZCqdGpv": {
     "defaultMessage": "Member Role Changed",
     "description": "Activity log event type label for member role changes"
-  },
-  "E0jx/ueMaN": {
-    "defaultMessage": "Add connection",
-    "description": "Button to add a new Intercom connection"
   },
   "E0kqf33f8D": {
     "defaultMessage": "Connect Contentful in <link>Integrations</link> to use this tool.",
@@ -9699,6 +9695,10 @@
     "defaultMessage": "Preview could not be loaded.",
     "description": "Empty state when the Lottie animation preview fails to load"
   },
+  "GGSImhEeDv": {
+    "defaultMessage": "Keep Intercom drafts that teammates edited after the last push. Unchanged approved text is skipped.",
+    "description": "Explains the selected automation keeps newer Intercom drafts and skips unchanged locales"
+  },
   "GIB7hmrXGj": {
     "defaultMessage": "Pending",
     "description": "Verification status"
@@ -10451,6 +10451,10 @@
     "defaultMessage": "Term status",
     "description": "Label for the term status filter"
   },
+  "Hq4FCIyo0o": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Intercom article picker"
+  },
   "HqRsGE2RWy": {
     "defaultMessage": "Audiences",
     "description": "Audiences list page title"
@@ -10519,6 +10523,10 @@
     "defaultMessage": "Status",
     "description": "Label above the jobs status filter"
   },
+  "Hy5b7zz39q": {
+    "defaultMessage": "No mapped articles",
+    "description": "Empty state when an Intercom automation has no mapped articles"
+  },
   "HylAKoKZ92": {
     "defaultMessage": "Europe",
     "description": "Region heading in the language picker grid"
@@ -10558,6 +10566,10 @@
   "I28Vekk8WA": {
     "defaultMessage": "Last synced {when}",
     "description": "Last sync timestamp on project overview ship section"
+  },
+  "I2X0NI6aJ0": {
+    "defaultMessage": "Search articles",
+    "description": "Accessible label for the Intercom article search field"
   },
   "I2nwB3YC98": {
     "defaultMessage": "Link URL",
@@ -11258,10 +11270,6 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub",
     "description": "Marketing footer resource link label"
-  },
-  "JRTnSLtq//": {
-    "defaultMessage": "Intercom",
-    "description": "Name shown for the Intercom integrations row"
   },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
@@ -12007,10 +12015,6 @@
     "defaultMessage": "Select",
     "description": "Label for the toggle that shows bulk-selection checkboxes in the CAT queue list"
   },
-  "LBBqTZQKA3": {
-    "defaultMessage": "Connect an Intercom access token for Help Center content.",
-    "description": "Description for the Intercom integrations row"
-  },
   "LC2bgUm6Db": {
     "defaultMessage": "Active",
     "description": "Membership status label for an active workspace member"
@@ -12183,6 +12187,10 @@
     "defaultMessage": "Break rules",
     "description": "Subheading for individual SRX rules"
   },
+  "LSOvRPa3l7": {
+    "defaultMessage": "Extracting segments…",
+    "description": "Empty CAT queue while source-file ingest is still extracting keys"
+  },
   "LSs2GWeMba": {
     "defaultMessage": "Live Google results in {market}. Your domain is highlighted when it appears.",
     "description": "SERP sheet description"
@@ -12259,6 +12267,10 @@
     "defaultMessage": "Start a localisation request",
     "description": "Inbox list row preview for a dedicated new localisation request chat"
   },
+  "LewgKQxaFX": {
+    "defaultMessage": "Failed to disconnect Intercom.",
+    "description": "Toast when Intercom disconnect fails"
+  },
   "LezQD0Jh9+": {
     "defaultMessage": "We'll email you an invite to a shared channel with Hyperlocalise.",
     "description": "Overview Slack Connect card description before the first invite"
@@ -12278,6 +12290,10 @@
   "LguOyBNnte": {
     "defaultMessage": "Guideline sources",
     "description": "Accessible label for the Guidelines source tabs"
+  },
+  "Lgxc1efd+d": {
+    "defaultMessage": "Search articles",
+    "description": "Placeholder for filtering mapped Intercom articles"
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack",
@@ -12898,10 +12914,6 @@
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet",
     "description": "Empty state title when the workspace has no glossaries"
-  },
-  "Mojh5Scg1j": {
-    "defaultMessage": "Choose the region where your Intercom workspace is hosted.",
-    "description": "Help text for Intercom regional REST endpoint select"
   },
   "Mpg1bKhmu2": {
     "defaultMessage": "Approval status",
@@ -14315,6 +14327,10 @@
     "defaultMessage": "Note",
     "description": "Label for concept notes"
   },
+  "POgqFuVLk+": {
+    "defaultMessage": "Failed to start the Intercom connection.",
+    "description": "Toast when the Intercom WorkOS authorize URL cannot be created"
+  },
   "POwFafn88U": {
     "defaultMessage": "A Contentful entry is published",
     "description": "Trigger option: runs start when Contentful sends an entry publish webhook"
@@ -14803,10 +14819,6 @@
     "defaultMessage": "Active",
     "description": "Inbox conversation status badge when the conversation is active"
   },
-  "QNpNdcu+Mx": {
-    "defaultMessage": "Australia (api.au.intercom.io)",
-    "description": "Australia Intercom REST endpoint option label"
-  },
   "QO4Q6r8vEP": {
     "defaultMessage": "Compare search volume and intent across locales.",
     "description": "Search tool description in SEO agent setup mock"
@@ -14946,10 +14958,6 @@
   "Qfog4jJ47y": {
     "defaultMessage": "Visual workflows",
     "description": "App shell breadcrumb title for the visual workflows page"
-  },
-  "Qg9jUhHjfz": {
-    "defaultMessage": "Enabled",
-    "description": "Badge shown when an Intercom connection is enabled"
   },
   "QgcgQchgyn": {
     "defaultMessage": "Placeholder",
@@ -15635,10 +15643,6 @@
     "defaultMessage": "Chain of Thought",
     "description": "Default header label for the chain-of-thought collapsible section"
   },
-  "S0eNIe6iwe": {
-    "defaultMessage": "Intercom connection saved.",
-    "description": "Toast when Intercom connection is saved"
-  },
   "S1WdU+6z/U": {
     "defaultMessage": "This file is larger than the {maxMegabytes, number} MB import limit. Split the memory into smaller TMX files.",
     "description": "Error when a translation memory import file exceeds the documented size limit"
@@ -15698,6 +15702,10 @@
   "S9c8QG8bF2": {
     "defaultMessage": "View jobs",
     "description": "Link from overview activity to the jobs page"
+  },
+  "SALsrEbsZU": {
+    "defaultMessage": "Connected",
+    "description": "Status title shown in the Intercom manage panel when connected"
   },
   "SAjiqcjzOx": {
     "defaultMessage": "Reconnect Slack",
@@ -15794,6 +15802,10 @@
   "SO48T+V4po": {
     "defaultMessage": "Localize campaigns, journeys, and in-app messages in Iterable.",
     "description": "Iterable integration description on the integrations page"
+  },
+  "SOxLTVdmv8": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Intercom push overwrite rule"
   },
   "SP5RujLemP": {
     "defaultMessage": "Localized image generation and regeneration for campaign assets.",
@@ -16018,6 +16030,10 @@
   "SpUDjYg0OG": {
     "defaultMessage": "Select a text element to jump to its reference frame.",
     "description": "Video refinement workspace: timelineHint"
+  },
+  "Sq+eRlJZgQ": {
+    "defaultMessage": "Loading articles",
+    "description": "Shown while mapped Intercom articles load"
   },
   "Sqn6+LQmY6": {
     "defaultMessage": "Target ID",
@@ -17083,6 +17099,10 @@
     "defaultMessage": "Intent",
     "description": "Keyword research column for intent"
   },
+  "UmTWkWzuia": {
+    "defaultMessage": "Segment extraction failed.",
+    "description": "Empty CAT queue when source-file ingest failed without a stored error"
+  },
   "Un7mRcQrna": {
     "defaultMessage": "From hreflang to locale coverage",
     "description": "Supporting line for the Domains localisation solution panel"
@@ -17731,6 +17751,10 @@
     "defaultMessage": "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
     "description": "Workflow section description for the localisation-quality-monitoring use case"
   },
+  "W/3qaSxy0d": {
+    "defaultMessage": "No Help Centers were found on this workspace.",
+    "description": "Empty state when a connected Intercom workspace has no Help Centers"
+  },
   "W/GIC1a+rE": {
     "defaultMessage": "Remove skill {name}",
     "description": "Accessible label for the button that detaches a skill from the automation"
@@ -18007,6 +18031,10 @@
     "defaultMessage": "Import report",
     "description": "Translation memory import report page title"
   },
+  "Wh+pyeiIA0": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Secondary Intercom connection detail showing the stored token suffix"
+  },
   "Wh0P2263Np": {
     "defaultMessage": "{current} of {total}",
     "description": "Message branch pager showing the current branch index and total branches"
@@ -18074,6 +18102,10 @@
   "Wn4fduQvy1": {
     "defaultMessage": "Partially successful",
     "description": "Partially successful translation memory import status"
+  },
+  "WnA8ZhP3C6": {
+    "defaultMessage": "Refresh",
+    "description": "Button to reload the automation run history list"
   },
   "WnNUs2UJBw": {
     "defaultMessage": "Loading activity…",
@@ -18247,6 +18279,10 @@
     "defaultMessage": "No recent activity yet.",
     "description": "Empty state for overview activity"
   },
+  "X4e5FCrkXH": {
+    "defaultMessage": "Intercom disconnected.",
+    "description": "Toast after Intercom is disconnected"
+  },
   "X4qUUPKAse": {
     "defaultMessage": "Cancel",
     "description": "Button to cancel creating a new automation"
@@ -18278,6 +18314,10 @@
   "X8XWn3q89C": {
     "defaultMessage": "Content Editor failed to load",
     "description": "Error boundary title when the full Content Editor crashes"
+  },
+  "X8lZ4XnxIR": {
+    "defaultMessage": "Choose which mapped articles to write as Intercom drafts. This does not publish.",
+    "description": "Description of the Intercom article picker dialog"
   },
   "X9+GfdK3RZ": {
     "defaultMessage": "Scope",
@@ -18987,6 +19027,10 @@
     "defaultMessage": "Target, split, and ship without another vendor",
     "description": "Feature teaser early access title for Hyperlab"
   },
+  "YXFxRGJgKh": {
+    "defaultMessage": "Help Centers",
+    "description": "Heading above Help Centers on the connected Intercom panel"
+  },
   "YXXKbKuK0y": {
     "defaultMessage": "Gender",
     "description": "Label for term gender metadata"
@@ -19511,10 +19555,6 @@
     "defaultMessage": "Research markets",
     "description": "Stepper label"
   },
-  "ZZsyqRkYsB": {
-    "defaultMessage": "Display name",
-    "description": "Label for Intercom display name field"
-  },
   "Zb2NG5FzSq": {
     "defaultMessage": "Add entry",
     "description": "Button to add a new translation memory entry"
@@ -19915,10 +19955,6 @@
     "defaultMessage": "Back to automations",
     "description": "Link back to the workspace automations list"
   },
-  "aEn/VDi+Yp": {
-    "defaultMessage": "Enter an Intercom access token.",
-    "description": "Validation error when Intercom access token is missing on create"
-  },
   "aFBvwlBhSp": {
     "defaultMessage": "Collapse Sidebar",
     "description": "Label and tooltip when the sidebar is expanded and can be collapsed"
@@ -20130,6 +20166,10 @@
   "aggh0s0fXQ": {
     "defaultMessage": "Show all",
     "description": "CAT queue filter option showing every segment in file order"
+  },
+  "ahBN6E+7kk": {
+    "defaultMessage": "Could not load articles",
+    "description": "Error when mapped Intercom articles fail to load"
   },
   "ajjoHt03BE": {
     "defaultMessage": "Save {providerName}",
@@ -20951,10 +20991,6 @@
     "defaultMessage": "API key",
     "description": "Label for Zernio API key field"
   },
-  "cEmBHtXwxM": {
-    "defaultMessage": "Push to Intercom",
-    "description": "Button to queue writing approved Help Center translations to Intercom as drafts (not published)"
-  },
   "cF190Fnmgc": {
     "defaultMessage": "Payload",
     "description": "Audit detail label for the safe activity payload"
@@ -21318,10 +21354,6 @@
   "cwqeMFXYQC": {
     "defaultMessage": "Pass",
     "description": "Status badge for a passed localisation audit criterion"
-  },
-  "cx00LgHL3+": {
-    "defaultMessage": "REST endpoint",
-    "description": "Label for Intercom regional REST endpoint select"
   },
   "cx3+OxbAb3": {
     "defaultMessage": "Download filtered view…",
@@ -22086,10 +22118,6 @@
   "e9TsGisohb": {
     "defaultMessage": "Connect first",
     "description": "Badge when a tool requires connecting an integration first"
-  },
-  "e9lzOZ7/lz": {
-    "defaultMessage": "Failed to save Intercom connection.",
-    "description": "Error when Intercom connection save fails"
   },
   "eAP4Lzg+22": {
     "defaultMessage": "Team glossary",
@@ -23267,6 +23295,10 @@
     "defaultMessage": "View all posts",
     "description": "Link to the marketing blog index from the homepage recent posts section"
   },
+  "gJQpfiFRZW": {
+    "defaultMessage": "Push {count, plural, one {# article} other {# articles}}",
+    "description": "Confirm pushing the selected Intercom articles as drafts"
+  },
   "gKJKlsBj8H": {
     "defaultMessage": "Give this version a short name, then attach the site changes it should show.",
     "description": "Dialog description for adding a variant"
@@ -23438,10 +23470,6 @@
   "gbgp71RdPY": {
     "defaultMessage": "Reset search",
     "description": "Keyword research screen: resetSearch"
-  },
-  "gbtHgYP/IG": {
-    "defaultMessage": "Failed to delete Intercom connection.",
-    "description": "Error when Intercom connection delete fails"
   },
   "gcoMjtaFWO": {
     "defaultMessage": "ICU structure",
@@ -24239,6 +24267,10 @@
     "defaultMessage": "Failed to load project files",
     "description": "Fallback API error when the project files list fails to load"
   },
+  "i2gq9AbUIT": {
+    "defaultMessage": "Open automations",
+    "description": "Link from the Intercom connection panel to workspace automations"
+  },
   "i5+63y5ddc": {
     "defaultMessage": "Diagnostics",
     "description": "Glossary interchange diagnostics heading"
@@ -24806,6 +24838,10 @@
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the add team member dialog footer"
+  },
+  "j6Y+3NEXmn": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Intercom push for this article failed"
   },
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}",
@@ -25523,6 +25559,10 @@
     "defaultMessage": "No runs yet.",
     "description": "Empty state when an automation has no run history"
   },
+  "kSpMqJFNPn": {
+    "defaultMessage": "Import Help Center articles into a native project, then push approved translations back as Intercom drafts.",
+    "description": "Explanation of what a connected Intercom workspace can do"
+  },
   "kUl1Jpz/6B": {
     "defaultMessage": "Download",
     "description": "Button label to download the filtered CAT queue view"
@@ -26199,6 +26239,10 @@
     "defaultMessage": "Discard changes and run",
     "description": "Button that throws away the unsaved automation changes and then queues a run"
   },
+  "lp9t4iDpCF": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Intercom article selection"
+  },
   "lpIsUoLsfZ": {
     "defaultMessage": "{count} preview rows",
     "description": "Badge showing how many preview rows are shown while mapping"
@@ -26379,10 +26423,6 @@
     "defaultMessage": "Resources",
     "description": "Marketing footer column title"
   },
-  "mBNLdtt327": {
-    "defaultMessage": "Cancel",
-    "description": "Cancel adding Intercom connection"
-  },
   "mBQ9xkM/3m": {
     "defaultMessage": "Edit in settings",
     "description": "Link to project settings from style guide tab"
@@ -26531,10 +26571,6 @@
     "defaultMessage": "@hyperlocalise review",
     "description": "Automations mock UI tool label for the mention review command"
   },
-  "mObQkKgd8s": {
-    "defaultMessage": "Failed to load Intercom connections.",
-    "description": "Error when Intercom connections cannot be loaded"
-  },
   "mP2HNF+0n+": {
     "defaultMessage": "Resend",
     "description": "Resend integration name on the integrations page"
@@ -26546,10 +26582,6 @@
   "mQ36/6Ov5o": {
     "defaultMessage": "This is the snippet Google would show. Missing descriptions and mixed languages are the usual reason a market never shows up.",
     "description": "Body for the Domains search snippet section"
-  },
-  "mQ8WJAG0a1": {
-    "defaultMessage": "Intercom push queued",
-    "description": "Toast after an Intercom push automation run is queued"
   },
   "mRVnNMtRYk": {
     "defaultMessage": "Merge exact source-text duplicates into one string when the Content Editor refreshes. Translate it once to update every copy.",
@@ -26742,6 +26774,10 @@
   "mmB/r+ohDb": {
     "defaultMessage": "Some segments have unsaved edits. Leave without saving?",
     "description": "Body when leaving the CAT workspace with unsaved target text"
+  },
+  "mmKO3H+Z1c": {
+    "defaultMessage": "Segment extraction failed: {error}",
+    "description": "Empty CAT queue when source-file ingest failed with a stored error"
   },
   "mmfrG6qsJL": {
     "defaultMessage": "Assign to project",
@@ -27791,6 +27827,10 @@
     "defaultMessage": "{count, plural, =0 {Create issues} one {Create # issue} other {Create # issues}}",
     "description": "Create issues from selected QA findings"
   },
+  "odqLHGre3m": {
+    "defaultMessage": "Unable to load the Intercom connection right now.",
+    "description": "Intercom integration row description when connection status fails to load"
+  },
   "oeVZ6ETPjK": {
     "defaultMessage": "Select a member",
     "description": "Placeholder for the member select"
@@ -27910,10 +27950,6 @@
   "opXLqo3spW": {
     "defaultMessage": "Built for quality at scale",
     "description": "Capabilities section title for the localisation-quality-monitoring use case"
-  },
-  "or2nJ8Fbp+": {
-    "defaultMessage": "Europe (api.eu.intercom.io)",
-    "description": "Europe Intercom REST endpoint option label"
   },
   "or4mLWN3nr": {
     "defaultMessage": "Search: {value}",
@@ -28711,6 +28747,10 @@
     "defaultMessage": "Type",
     "description": "Label for the term type filter"
   },
+  "q7UyxwQjuG": {
+    "defaultMessage": "Segment extraction failed.",
+    "description": "Hint on a selected file when source-file ingest failed without a stored error"
+  },
   "q7oSHUgy5r": {
     "defaultMessage": "{total, plural, one {# matching entry} other {# matching entries}}",
     "description": "Live status announcing how many translation memory entries match the query"
@@ -28850,6 +28890,10 @@
   "qJTopaPNOi": {
     "defaultMessage": "Unable to delete entry",
     "description": "Fallback error when deleting a translation memory entry fails"
+  },
+  "qK3w0ogzWz": {
+    "defaultMessage": "No matching articles",
+    "description": "Empty state when article search matches nothing"
   },
   "qLDfc32277": {
     "defaultMessage": "Prompt explorer",
@@ -29150,6 +29194,10 @@
   "qyAeUOVpZe": {
     "defaultMessage": "Czech (Czechia)",
     "description": "Display name for BCP-47 locale cs-CZ"
+  },
+  "qyF0LHVADJ": {
+    "defaultMessage": "Overwrite Intercom drafts when the remote target is newer.",
+    "description": "Explains the selected automation overwrites newer Intercom drafts on push"
   },
   "qySc0NPK9C": {
     "defaultMessage": "Connect",
@@ -29839,6 +29887,10 @@
     "defaultMessage": "Editor",
     "description": "Top chrome tab for the visual workflow canvas"
   },
+  "sHVjRcdIVt": {
+    "defaultMessage": "Extracting segments…",
+    "description": "Hint on a selected file while source-file ingest is still extracting keys"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
@@ -30198,6 +30250,10 @@
   "t3TQLj1rWb": {
     "defaultMessage": "Open in Search Console",
     "description": "Link to the Google Search Console inspection result"
+  },
+  "t3YSvLpH4S": {
+    "defaultMessage": "Segment extraction failed: {error}",
+    "description": "Hint on a selected file when source-file ingest failed with a stored error"
   },
   "t3wety2JiY": {
     "defaultMessage": "General question",
@@ -31319,6 +31375,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel adding Zernio connection"
   },
+  "vAl33la+cf": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to disconnect Intercom"
+  },
   "vAwILOzBUa": {
     "defaultMessage": "Get started with Hyperlocalise today",
     "description": "Headline for the bottom CTA on integration pages"
@@ -31426,6 +31486,10 @@
   "vNt29KgOjZ": {
     "defaultMessage": "Project assigned",
     "description": "Toast after a project is assigned to a translation memory"
+  },
+  "vQARQEeGSN": {
+    "defaultMessage": "Region · {region}",
+    "description": "Intercom REST region shown in the connected manage panel"
   },
   "vQWLTNVn0m": {
     "defaultMessage": "Connect Search Console",
@@ -32363,10 +32427,6 @@
     "defaultMessage": "Chinese (Hong Kong SAR China)",
     "description": "Display name for BCP-47 locale zh-HK"
   },
-  "x/Kqcar7eA": {
-    "defaultMessage": "Access token",
-    "description": "Label for Intercom access token field"
-  },
   "x/f6L/kjpD": {
     "defaultMessage": "You create the workflow once: where work starts, how it gets written, how it gets checked, where it goes live. Slack, Notion, Canva, Contentful, GitHub, Crowdin, and the rest plug into those steps. Then every campaign can follow the same path in every language.",
     "description": "Details section summary for the agents automation product page"
@@ -32734,6 +32794,10 @@
   "xcHOCv8Mg0": {
     "defaultMessage": "Filename",
     "description": "Import filename field label"
+  },
+  "xcQJbr6uuQ": {
+    "defaultMessage": "Intercom drafts queued",
+    "description": "Toast after an Intercom draft push automation run is queued"
   },
   "xcixo4Kx+Z": {
     "defaultMessage": "Strikethrough",

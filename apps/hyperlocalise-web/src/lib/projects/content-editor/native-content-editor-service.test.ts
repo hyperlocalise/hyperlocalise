@@ -14,6 +14,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { legacyHtmlSegmentKey } from "@/lib/projects/files/html-ingest-entries";
+
 import { NativeContentEditorCommentService } from "./native-content-editor-comment-service";
 import {
   fileBackedCatSegmentIds,
@@ -22,12 +24,14 @@ import {
 } from "./native-content-editor-service";
 
 const getLatestRepositorySourceFileVersion = vi.fn();
+const getStoredFileContent = vi.fn();
 const getImageVariant = vi.fn();
 const getVideoVariant = vi.fn();
 
 vi.mock("@/lib/file-storage/records", () => ({
   getLatestRepositorySourceFileVersion: (...args: unknown[]) =>
     getLatestRepositorySourceFileVersion(...args),
+  getStoredFileContent: (...args: unknown[]) => getStoredFileContent(...args),
 }));
 
 vi.mock("@/lib/projects/files/image-variant-service", () => ({
@@ -81,6 +85,7 @@ describe("NativeContentEditorService.getCatFile", () => {
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
     getLatestRepositorySourceFileVersion.mockResolvedValue(null);
+    getStoredFileContent.mockReset();
     getImageVariant.mockResolvedValue(null);
     getVideoVariant.mockResolvedValue(null);
     countKeysForFile.mockImplementation(async (input) => {
@@ -598,6 +603,81 @@ describe("NativeContentEditorService.getCatFile", () => {
     expect(result?.documentView).toBeUndefined();
     expect(result?.ingestState).toBe("failed");
     expect(result?.ingestError).toBe("sandbox install failed");
+  });
+
+  it("rewrites hashed HTML CAT keys from stored source bytes", async () => {
+    const html = "<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>";
+    const hashedTitle = legacyHtmlSegmentKey("Welcome", new Map());
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_html",
+        key: hashedTitle,
+        sourceText: "Welcome",
+        context: null,
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_html",
+    });
+    getStoredFileContent.mockResolvedValue({
+      content: { toString: () => html },
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "pages/home.html",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      fileId: "stored_source_html",
+      organizationId: "org_1",
+      projectId: "project_1",
+    });
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_html",
+      key: "html.body.h1",
+      sourceText: "Welcome",
+    });
+  });
+
+  it("keeps hashed HTML CAT keys when stored source cannot be loaded", async () => {
+    const hashedTitle = legacyHtmlSegmentKey("Welcome", new Map());
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_html",
+        key: hashedTitle,
+        sourceText: "Welcome",
+        context: null,
+        type: "string",
+        maxLength: null,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_html",
+    });
+    getStoredFileContent.mockRejectedValue(new Error("object store unavailable"));
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "pages/home.html",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments[0]).toMatchObject({
+      key: hashedTitle,
+      sourceText: "Welcome",
+    });
   });
 
   it("returns pending ingest state on the HTML document fallback", async () => {
