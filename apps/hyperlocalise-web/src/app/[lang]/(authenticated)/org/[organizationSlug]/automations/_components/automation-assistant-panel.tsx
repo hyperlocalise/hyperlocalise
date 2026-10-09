@@ -206,23 +206,25 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
 }
 
 /**
- * The panel folded away: a narrow strip down the page's right edge that says what it is and
- * opens the panel. It stays where the panel was, so opening and closing happen in one place.
+ * Opens and closes the assistant from the form. In the primary colour, so that the one control
+ * for a whole conversation is not missed among the section labels. Renders nothing where the
+ * assistant is not offered.
  */
-function AutomationAssistantStrip({ working, onOpen }: { working: boolean; onOpen: () => void }) {
+export function AutomationAssistantOpenButton() {
+  const assistant = useAutomationAssistant();
+  if (!assistant) {
+    return null;
+  }
   return (
-    <button
+    <Button
       type="button"
-      aria-expanded={false}
-      className="flex h-full w-11 cursor-pointer flex-col items-center gap-3 py-4 text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-      onClick={onOpen}
+      size="xs"
+      aria-pressed={assistant.open}
+      onClick={() => assistant.setOpen(!assistant.open)}
     >
-      {/* A turn that is still running shows here while the panel is folded away. */}
-      {working ? <Spinner className="size-4" /> : <SparkleIcon className="size-4 shrink-0" />}
-      <span className="text-sm font-medium [writing-mode:vertical-rl]">
-        <FormattedMessage {...messages.strip} />
-      </span>
-    </button>
+      <SparkleIcon />
+      <FormattedMessage {...messages.openButton} />
+    </Button>
   );
 }
 
@@ -239,9 +241,9 @@ const SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
 
 /**
  * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
- * attached to the right edge at full height. Closed, the assistant is a narrow strip there that
- * opens it. Where the page has no room for the form and the open panel, the strip opens the
- * panel as a sheet from the right edge. The page must carry `AUTOMATION_ASSISTANT_PAGE_CLASS`.
+ * attached to the right edge at full height while it is open. Where the page has no room for
+ * both, the panel is a sheet from the right edge. The page must carry
+ * `AUTOMATION_ASSISTANT_PAGE_CLASS`.
  */
 export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
   const intl = useIntl();
@@ -271,22 +273,14 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
   }, []);
 
   const inSheet = !roomBeside;
-  const openBeside = assistant !== null && assistant.open && !inSheet;
   return (
     <div ref={rowRef} className="flex min-h-0 flex-1">
       <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex max-w-5xl flex-col gap-4">{children}</div>
       </div>
-      {assistant ? (
-        <aside className={cn("shrink-0 border-s border-border", openBeside ? "w-[380px]" : "")}>
-          {openBeside ? (
-            <AutomationAssistantPanel className="rounded-none border-0" />
-          ) : (
-            <AutomationAssistantStrip
-              working={assistant.working}
-              onOpen={() => assistant.setOpen(true)}
-            />
-          )}
+      {assistant?.open && !inSheet ? (
+        <aside className="w-[380px] shrink-0 border-s border-border">
+          <AutomationAssistantPanel className="rounded-none border-0" />
         </aside>
       ) : null}
       {assistant && inSheet ? (

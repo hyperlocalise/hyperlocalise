@@ -158,7 +158,10 @@ import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationS
 
 import { RunHistoryTable } from "./workspace-automation-run-history";
 import type { ContentfulConnectionOption } from "./workspace-automation-contentful-trigger";
-import { AutomationAssistantLayout } from "./automation-assistant-panel";
+import {
+  AutomationAssistantLayout,
+  AutomationAssistantOpenButton,
+} from "./automation-assistant-panel";
 import { AutomationAssistantProvider } from "./automation-assistant-provider";
 import { AutomationAssistantSummary } from "./automation-assistant-summary";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
@@ -301,16 +304,19 @@ function FieldError({ message }: { message?: string }) {
 function EditorSection({
   title,
   titleAside,
+  titleEnd,
   children,
 }: {
   title: string;
   /** Shown after the title, wrapping onto further lines when it is long. */
   titleAside?: ReactNode;
+  /** Kept at the right end of the title's own line, whatever wraps beside it. */
+  titleEnd?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2">
-      {titleAside === undefined ? (
+      {titleAside === undefined && titleEnd === undefined ? (
         <h2 className="px-2 text-xs font-medium text-muted-foreground">{title}</h2>
       ) : (
         <div className="flex items-start gap-x-3 px-2">
@@ -319,6 +325,7 @@ function EditorSection({
             <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
             {titleAside}
           </div>
+          {titleEnd ? <div className="flex h-7.5 shrink-0 items-center">{titleEnd}</div> : null}
         </div>
       )}
       {children}
@@ -3627,6 +3634,7 @@ export function WorkspaceAutomationEditor({
               />
             }
             // Above the right edge of the text box it helps to fill in.
+            titleEnd={assistantEnabled ? <AutomationAssistantOpenButton /> : undefined}
           >
             <Textarea
               id="automation-instructions"

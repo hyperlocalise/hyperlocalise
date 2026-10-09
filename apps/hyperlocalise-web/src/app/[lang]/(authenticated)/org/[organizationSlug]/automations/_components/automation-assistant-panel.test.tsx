@@ -18,7 +18,11 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { AutomationAssistantLayout, AutomationAssistantPanel } from "./automation-assistant-panel";
+import {
+  AutomationAssistantLayout,
+  AutomationAssistantOpenButton,
+  AutomationAssistantPanel,
+} from "./automation-assistant-panel";
 import {
   AutomationAssistantContext,
   type AutomationAssistantValue,
@@ -77,6 +81,7 @@ function page(value: AutomationAssistantValue | null) {
       <AutomationAssistantContext.Provider value={value}>
         <AutomationAssistantLayout>
           <p>the form</p>
+          <AutomationAssistantOpenButton />
         </AutomationAssistantLayout>
       </AutomationAssistantContext.Provider>
     </IntlProvider>
@@ -116,17 +121,16 @@ describe("AutomationAssistantPanel", () => {
 });
 
 describe("AutomationAssistantLayout", () => {
-  it("folds the assistant to a strip on the page's edge, which opens the panel in its place", async () => {
+  it("opens the panel beside the form from the form's own button, and closes it from there too", async () => {
     const setOpen = vi.fn();
     const view = render(page(assistant({ open: false, setOpen })));
 
     expect(screen.getByText("the form")).toBeTruthy();
-    const edge = screen.getByRole("complementary");
-    const strip = within(edge).getByRole("button", { name: "Assistant" });
-    expect(strip.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("region", { name: "Automation assistant" })).toBeNull();
+    expect(screen.queryByRole("complementary")).toBeNull();
+    const closed = screen.getByRole("button", { name: "Configure with assistant" });
+    expect(closed.getAttribute("aria-pressed")).toBe("false");
 
-    await userEvent.click(strip);
+    await userEvent.click(closed);
     expect(setOpen).toHaveBeenCalledWith(true);
 
     view.rerender(page(assistant({ open: true, setOpen })));
@@ -135,19 +139,18 @@ describe("AutomationAssistantLayout", () => {
         name: "Automation assistant",
       }),
     ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Assistant" })).toBeNull();
+    const opened = screen.getByRole("button", { name: "Configure with assistant" });
+    expect(opened.getAttribute("aria-pressed")).toBe("true");
+
+    await userEvent.click(opened);
+    expect(setOpen).toHaveBeenLastCalledWith(false);
   });
 
-  it("shows in the strip that a turn is still running", () => {
-    render(page(assistant({ open: false, working: true, status: "streaming" })));
-
-    expect(within(screen.getByRole("complementary")).getByRole("status")).toBeTruthy();
-  });
-
-  it("shows the form and no strip for an automation the assistant is not offered on", () => {
+  it("shows the form and no button for an automation the assistant is not offered on", () => {
     render(page(null));
 
     expect(screen.getByText("the form")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Configure with assistant" })).toBeNull();
     expect(screen.queryByRole("complementary")).toBeNull();
   });
 });
