@@ -941,3 +941,43 @@ func TestMarshalHTMLAcceptsLegacyHashedKeys(t *testing.T) {
 		t.Fatalf("expected legacy hashed values applied, got %q", string(output))
 	}
 }
+
+func TestLegacyHTMLKeyToPathKeyHashesFoldedPlaceholderedParagraph(t *testing.T) {
+	content := []byte("<p>Hello <strong>world</strong>!</p>")
+	got := LegacyHTMLKeyToPathKey(content)
+	if len(got) != 1 {
+		t.Fatalf("expected one folded hash, got %v", got)
+	}
+	for legacy, path := range got {
+		if !strings.HasPrefix(legacy, "html.") || len(legacy) != 5+16 {
+			t.Fatalf("expected hashed legacy key, got %q -> %q", legacy, path)
+		}
+		if path != "html.p" {
+			t.Fatalf("expected folded hash to map to html.p, got %q", path)
+		}
+	}
+}
+
+func TestMarshalHTMLAcceptsLegacyHashedKeysForInlineTags(t *testing.T) {
+	template := []byte("<p>Hello <strong>world</strong>!</p>")
+	doc, _, err := parseHTMLDocumentFoldingInline(template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	occurrences := map[string]int{}
+	values := map[string]string{}
+	for _, part := range doc.parts {
+		if part.key == "" {
+			continue
+		}
+		values[htmlSegmentKey(part.source, occurrences)] = strings.Replace(part.source, "Hello", "Bonjour", 1)
+	}
+
+	output, diags := MarshalHTML(template, values)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(output), "Bonjour") || !strings.Contains(string(output), "<strong>world</strong>") {
+		t.Fatalf("expected folded legacy values applied, got %q", string(output))
+	}
+}

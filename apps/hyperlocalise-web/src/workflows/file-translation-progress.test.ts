@@ -67,6 +67,7 @@ describe("collectHtmlTranslationPageEntries", () => {
           "html.143b270a32602d41": "ignored hashed key",
         },
         confirmed: {},
+        completedPathKeys: ["html.p", "html.p.strong", "html.p.strong.2"],
       }),
     ).toEqual({
       "html.p": "Cette page teste ",
@@ -87,8 +88,31 @@ describe("collectHtmlTranslationPageEntries", () => {
           "html.p.strong": "les tableaux",
         },
         confirmed: { "html.p": "Cette page teste " },
+        completedPathKeys: ["html.p", "html.p.strong"],
       }),
     ).toEqual({
+      "html.p.strong": "les tableaux",
+    });
+  });
+
+  it("ignores source fallbacks that the lock did not complete", () => {
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: {
+          "html.p": "This page tests ",
+          "html.p.strong": "tables",
+          "html.body.p": "English leftover",
+        },
+        extracted: {
+          "html.p": "Cette page teste ",
+          "html.p.strong": "les tableaux",
+          "html.body.p": "English leftover",
+        },
+        confirmed: {},
+        completedPathKeys: ["html.p", "html.p.strong"],
+      }),
+    ).toEqual({
+      "html.p": "Cette page teste ",
       "html.p.strong": "les tableaux",
     });
   });

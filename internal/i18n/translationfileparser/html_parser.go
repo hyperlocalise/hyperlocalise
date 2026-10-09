@@ -489,10 +489,28 @@ func expandHTMLPlaceholders(rendered string, placeholders map[string]string) str
 	return strings.NewReplacer(oldnew...).Replace(rendered)
 }
 
+var hashedHTMLValueKey = regexp.MustCompile(`^html\.[0-9a-f]{16}(?:\.\d+)?(?:#srx\.\d+)?$`)
+
+func htmlValuesUsePathKeys(values map[string]string) bool {
+	for key := range values {
+		if strings.HasPrefix(key, "html.") && !hashedHTMLValueKey.MatchString(key) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseHTMLDocumentForValues(template []byte, values map[string]string) (htmlDocument, map[string]string, error) {
+	if htmlValuesUsePathKeys(values) {
+		return parseHTMLDocument(template)
+	}
+	return parseHTMLDocumentFoldingInline(template)
+}
+
 // MarshalHTML reconstructs template with translated values applied.
 // Keys missing from values fall back to source text and are recorded in diagnostics.
 func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
-	doc, _, _ := parseHTMLDocument(template)
+	doc, _, _ := parseHTMLDocumentForValues(template, values)
 	return doc.render(values)
 }
 
@@ -509,8 +527,8 @@ func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderD
 // in the source, the fallback may associate the wrong target translation with some
 // segments. Affected segments beyond the end of targetParts fall back to source text.
 func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
-	sourceDoc, _, _ := parseHTMLDocument(sourceTemplate)
-	targetDoc, _, _ := parseHTMLDocument(targetTemplate)
+	sourceDoc, _, _ := parseHTMLDocumentForValues(sourceTemplate, values)
+	targetDoc, _, _ := parseHTMLDocumentForValues(targetTemplate, values)
 
 	// Collect target translatable parts in document order.
 	targetParts := make([]htmlPart, 0)
@@ -579,9 +597,10 @@ func htmlSegmentKey(segment string, occurrences map[string]int) string {
 	return "html." + hash + "." + strconv.Itoa(count+1)
 }
 
-// LegacyHTMLKeyToPathKey maps pre-path-key hashes (html.<16 hex>) onto html.body.p keys.
+// LegacyHTMLKeyToPathKey maps pre-path-key hashes (html.<16 hex>) onto fold-inline
+// block paths. CLI 1.13.3 hashed placeholdered paragraphs, not split text nodes.
 func LegacyHTMLKeyToPathKey(content []byte) map[string]string {
-	doc, _, _ := parseHTMLDocument(content)
+	doc, _, _ := parseHTMLDocumentFoldingInline(content)
 	occurrences := make(map[string]int)
 	out := make(map[string]string)
 	for _, part := range doc.parts {

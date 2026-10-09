@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -87,5 +87,52 @@ describe("ContentEditorHtmlEditorPane", () => {
     await user.paste("<p>Bonjour</p>");
     expect(editor).toHaveValue("<p>Bonjour</p>");
     expect(onReviewBlockedChange).toHaveBeenCalledWith(true);
+  });
+
+  it("reloads the target when an external targetSrc change arrives", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("source")) {
+        return new Response("<p>Hello</p>");
+      }
+      if (url.includes("generated")) {
+        return new Response("<p>Bonjour</p>");
+      }
+      return new Response("<p>Hello</p>");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { rerender } = render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-3:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    expect(screen.getByTitle("Translated (fr)")).toHaveAttribute("srcdoc", "<p>Hello</p>");
+
+    rerender(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-3:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/generated.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTitle("Translated (fr)")).toHaveAttribute("srcdoc", "<p>Bonjour</p>");
+    });
   });
 });

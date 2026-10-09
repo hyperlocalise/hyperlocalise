@@ -398,6 +398,7 @@ async function runTranslationStep(
     getSandboxTranslationEnv,
     isSandboxDisconnectError,
     readSandboxCliTokenUsage,
+    readTranslatedFile,
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
@@ -436,8 +437,16 @@ async function runTranslationStep(
   );
   if (localesWithPrefill.length > 0) {
     const nested: Record<string, Record<string, string>> = {};
+    const {
+      htmlCliPrefillsFromPathEntries,
+      isHtmlTranslationSourcePath,
+      utf8FromStoredFileContent,
+    } = await import("@/lib/projects/files/html-ingest-entries");
+    const sourceHtml = isHtmlTranslationSourcePath(inputFile)
+      ? utf8FromStoredFileContent(await readTranslatedFile(sandboxId, inputFile))
+      : "";
     for (const [locale, entries] of localesWithPrefill) {
-      nested[locale] = entries;
+      nested[locale] = sourceHtml ? htmlCliPrefillsFromPathEntries(sourceHtml, entries) : entries;
     }
     const prefilledPath = "/tmp/prefilled-by-locale.json";
     await writeFileToSandbox(sandboxId, prefilledPath, Buffer.from(JSON.stringify(nested), "utf8"));

@@ -19,6 +19,8 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   applyHtmlIngestEntryKeys,
   extractHtmlIngestEntries,
+  htmlCliPrefillsFromPathEntries,
+  htmlCompletedPathKeysFromLock,
   isHashedHtmlEntryKey,
   legacyHtmlSegmentKey,
   utf8FromStoredFileContent,
@@ -84,6 +86,64 @@ describe("extractHtmlIngestEntries", () => {
     expect(got["html.p.strong.2"]).toContain("bullet lists");
     expect(got["html.p.2"]).toContain("numbered lists, and basic HTML styling.");
     expect(got["html.p"]).not.toContain("<strong>");
+  });
+
+  it("keeps paragraphs after a script that contains comparisons", () => {
+    const got = extractHtmlIngestEntries(
+      "<p>Before</p><script>if (a < b) { return a; }</script><p>After</p>",
+    );
+    expect(got).toMatchObject({
+      "html.p": "Before",
+      "html.p.2": "After",
+    });
+  });
+
+  it("decodes named and numeric alt entities", () => {
+    expect(extractHtmlIngestEntries(`<img alt="caf&eacute; &#233;">`)["html.img.alt"]).toBe(
+      "café é",
+    );
+  });
+
+  it("folds inline tags when requested", () => {
+    const got = extractHtmlIngestEntries("<p>Hello <strong>world</strong>!</p>", {
+      foldInline: true,
+    });
+    expect(Object.keys(got)).toEqual(["html.p"]);
+    expect(got["html.p"]).toContain("Hello ");
+    expect(got["html.p"]).toContain("world");
+    expect(got["html.p"]).not.toContain("<strong>");
+  });
+});
+
+describe("htmlCompletedPathKeysFromLock", () => {
+  it("maps a folded CLI hash onto split path keys", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    expect(htmlCompletedPathKeysFromLock(html, [hash])).toEqual(["html.p", "html.p.strong"]);
+  });
+});
+
+describe("htmlCliPrefillsFromPathEntries", () => {
+  it("converts complete path-key prefills into a folded CLI hash", () => {
+    const html = "<p>Hello <strong>world</strong>!</p>";
+    const folded = extractHtmlIngestEntries(html, { foldInline: true });
+    const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());
+    const prefills = htmlCliPrefillsFromPathEntries(html, {
+      "html.p": "Bonjour ",
+      "html.p.strong": "monde",
+    });
+    expect(Object.keys(prefills)).toEqual([hash]);
+    expect(prefills[hash]).toContain("Bonjour ");
+    expect(prefills[hash]).toContain("monde");
+  });
+
+  it("omits a folded unit when any child path key is missing", () => {
+    expect(
+      htmlCliPrefillsFromPathEntries("<p>Hello <strong>world</strong>!</p>", {
+        "html.p.strong": "monde",
+      }),
+    ).toEqual({});
   });
 });
 

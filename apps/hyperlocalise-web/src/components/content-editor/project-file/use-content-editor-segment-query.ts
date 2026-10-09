@@ -262,7 +262,7 @@ export function useContentEditorSegmentQuery(input: {
     },
     refetchInterval: (query) => {
       const page = query.state.data?.pages[0];
-      if (!page || page.segments.length > 0) {
+      if (!page) {
         return false;
       }
       return isSourceFileIngestInProgress(page.ingestState)

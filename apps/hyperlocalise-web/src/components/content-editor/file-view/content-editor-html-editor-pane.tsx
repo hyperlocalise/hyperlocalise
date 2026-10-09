@@ -95,7 +95,12 @@ export function ContentEditorHtmlEditorPane({
   const targetSrcRef = useRef(targetSrc);
   const saveNowRef = useRef(async () => {});
   const openedKeyRef = useRef<string | null>(null);
+  const readyRef = useRef(false);
+  const bodyRef = useRef(body);
+  const baselineRef = useRef(baseline);
   targetSrcRef.current = targetSrc;
+  bodyRef.current = body;
+  baselineRef.current = baseline;
 
   useEffect(() => {
     if (isLoading) return;
@@ -106,6 +111,7 @@ export function ContentEditorHtmlEditorPane({
       }
       if (cancelled) return;
       openedKeyRef.current = documentKey;
+      readyRef.current = false;
       setLoad({ status: "loading" });
       setBaseline(null);
       setRestoreSaveError(false);
@@ -138,14 +144,37 @@ export function ContentEditorHtmlEditorPane({
         setBody(serverText);
         setBaseline(serverText);
       }
+      readyRef.current = true;
       setLoad({ status: "ready", sourceText: source.text });
     })();
     return () => {
       cancelled = true;
     };
-    // Reload only when another document opens, not when our own save bumps the URL.
+    // Own-save URL bumps are handled below so generate/upload still reloads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentKey, isLoading, sourceSrc]);
+
+  useEffect(() => {
+    if (isLoading || !readyRef.current) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const target = await loadDocumentText(targetSrc);
+      if (cancelled || target.status !== "ok") {
+        return;
+      }
+      if (target.text === bodyRef.current || target.text === baselineRef.current) {
+        setBaseline(target.text);
+        return;
+      }
+      setBody(target.text);
+      setBaseline(target.text);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [targetSrc, isLoading]);
 
   const save = useCallback(
     async (text: string) => {

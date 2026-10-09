@@ -69,15 +69,18 @@ export function collectCompletedTranslationPageEntries(input: {
 }
 
 /** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
- * lock and a re-extracted target file never share keys. Match source paths. */
+ * lock and a re-extracted target file never share keys. Collect only path keys
+ * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
 export function collectHtmlTranslationPageEntries(input: {
   sourceEntries: Record<string, string>;
   extracted: Record<string, string>;
   confirmed: Record<string, string>;
+  completedPathKeys: readonly string[];
 }): Record<string, string> {
+  const allowed = new Set(input.completedPathKeys);
   const collected: Record<string, string> = {};
   for (const [key, sourceText] of Object.entries(input.sourceEntries)) {
-    if (!sourceText?.trim() || key in input.confirmed) {
+    if (!sourceText?.trim() || key in input.confirmed || !allowed.has(key)) {
       continue;
     }
     const value = input.extracted[key];
@@ -107,16 +110,21 @@ export async function collectFileTranslationPageStep(input: {
   "use step";
   const { readTranslatedFile, extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
-  const { extractHtmlIngestEntries, isHtmlTranslationSourcePath, utf8FromStoredFileContent } =
-    await import("@/lib/projects/files/html-ingest-entries");
+  const {
+    extractHtmlIngestEntries,
+    htmlCompletedPathKeysFromLock,
+    isHtmlTranslationSourcePath,
+    utf8FromStoredFileContent,
+  } = await import("@/lib/projects/files/html-ingest-entries");
   const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
-  const lock: unknown = htmlSource
-    ? null
-    : JSON.parse(
-        utf8FromStoredFileContent(
-          await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
-        ),
-      );
+  const lock: unknown = JSON.parse(
+    utf8FromStoredFileContent(
+      await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
+    ),
+  );
+  const sourceHtml = htmlSource
+    ? utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, input.inputFilename))
+    : "";
   const delta: Record<string, Record<string, string>> = {};
   for (const [locale, filename] of Object.entries(input.outputFilenames)) {
     if (htmlSource || isHtmlTranslationSourcePath(filename)) {
@@ -127,6 +135,10 @@ export async function collectFileTranslationPageStep(input: {
         sourceEntries: input.sourceEntries,
         extracted,
         confirmed: input.confirmed[locale] ?? {},
+        completedPathKeys: htmlCompletedPathKeysFromLock(
+          sourceHtml,
+          completedFileTranslationKeys(lock, filename),
+        ),
       });
       if (Object.keys(collected).length > 0) {
         delta[locale] = collected;

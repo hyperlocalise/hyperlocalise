@@ -23,6 +23,53 @@ const VOID_ATTR_DOUBLE_QUOTE = /[\s]alt\s*=\s*"([^"]*)"/i;
 const VOID_ATTR_SINGLE_QUOTE = /[\s]alt\s*=\s*'([^']*)'/i;
 
 const HTML_SKIP_ELEMENTS = new Set(["head", "script", "style", "pre"]);
+const HTML_RAW_TEXT_ELEMENTS = new Set(["script", "style", "pre", "textarea", "title"]);
+const HTML_BLOCK_ELEMENTS = new Set([
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "caption",
+  "dd",
+  "details",
+  "dialog",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "hgroup",
+  "li",
+  "main",
+  "nav",
+  "ol",
+  "p",
+  "section",
+  "summary",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+  "label",
+  "button",
+  "legend",
+  "option",
+]);
+const HTML_STRUCTURAL_ELEMENTS = new Set(["html", "body", "template", "colgroup"]);
 const HTML_VOID_ELEMENTS = new Set([
   "area",
   "base",
@@ -83,9 +130,12 @@ export function isHashedHtmlEntryKey(key: string): boolean {
   return HASHED_HTML_KEY.test(key);
 }
 
-export function extractHtmlIngestEntries(html: string): Record<string, string> {
+export function extractHtmlIngestEntries(
+  html: string,
+  options?: { foldInline?: boolean },
+): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const entry of extractHtmlIngestEntriesInOrder(html)) {
+  for (const entry of extractHtmlIngestEntriesInOrder(html, options)) {
     out[entry.key] = entry.text;
   }
   return out;
@@ -139,6 +189,61 @@ export function rewriteHashedHtmlSegmentKeys(
   });
 }
 
+export function legacyHtmlHashToPathKeys(html: string): Map<string, string[]> {
+  const mapping = new Map<string, string[]>();
+  const occurrences = new Map<string, number>();
+  for (const unit of extractFoldedHtmlUnits(html)) {
+    const legacy = legacyHtmlSegmentKey(unit.text, occurrences);
+    mapping.set(legacy, unit.pathKeys);
+  }
+  return mapping;
+}
+
+export function htmlCompletedPathKeysFromLock(
+  html: string,
+  completedLegacyKeys: readonly string[],
+): string[] {
+  const hashToPaths = legacyHtmlHashToPathKeys(html);
+  const out = new Set<string>();
+  for (const key of completedLegacyKeys) {
+    const match = HASHED_HTML_KEY.exec(key);
+    const base = match ? `html.${match[1]}${match[2] ? `.${match[2]}` : ""}` : key;
+    for (const pathKey of hashToPaths.get(base) ?? []) {
+      out.add(pathKey);
+    }
+  }
+  return [...out];
+}
+
+export function htmlCliPrefillsFromPathEntries(
+  html: string,
+  pathEntries: Record<string, string>,
+): Record<string, string> {
+  if (Object.keys(pathEntries).length === 0) {
+    return {};
+  }
+  const rewritten = rewriteHtmlIngestTexts(html, pathEntries);
+  const sourceUnits = extractFoldedHtmlUnits(html);
+  const targetUnits = extractFoldedHtmlUnits(rewritten);
+  if (sourceUnits.length !== targetUnits.length) {
+    return {};
+  }
+  const occurrences = new Map<string, number>();
+  const out: Record<string, string> = {};
+  for (let index = 0; index < sourceUnits.length; index += 1) {
+    const source = sourceUnits[index];
+    const target = targetUnits[index];
+    if (!source || !target) {
+      continue;
+    }
+    if (!source.pathKeys.every((key) => pathEntries[key]?.trim())) {
+      continue;
+    }
+    out[legacyHtmlSegmentKey(source.text, occurrences)] = target.text;
+  }
+  return out;
+}
+
 function remapHashedHtmlPayload(html: string, payload: HlEntriesPayload): HlEntriesPayload {
   const legacyToPath = legacyHtmlKeyToPathKey(html);
 
@@ -160,43 +265,138 @@ function remapHashedHtmlPayload(html: string, payload: HlEntriesPayload): HlEntr
   return out;
 }
 
-export function extractHtmlIngestEntriesInOrder(html: string): HtmlIngestEntry[] {
+type FoldedHtmlUnit = {
+  text: string;
+  blockKey: string;
+  pathKeys: string[];
+};
+
+export function extractHtmlIngestEntriesInOrder(
+  html: string,
+  options?: { foldInline?: boolean },
+): HtmlIngestEntry[] {
   const entries: HtmlIngestEntry[] = [];
+  walkHtmlDocument(html, {
+    foldInline: options?.foldInline === true,
+    onText(key, text) {
+      entries.push({ key, text });
+    },
+  });
+  return entries;
+}
+
+function extractFoldedHtmlUnits(html: string): FoldedHtmlUnit[] {
+  const units: FoldedHtmlUnit[] = [];
+  walkHtmlDocument(html, {
+    foldInline: true,
+    onText(key, text, raw, stack) {
+      units.push({
+        text,
+        blockKey: key,
+        pathKeys: pathKeysForFoldedRaw(stack, raw),
+      });
+    },
+    onVoidAttr(key, text) {
+      units.push({ text, blockKey: key, pathKeys: [key] });
+    },
+  });
+  return units;
+}
+
+function rewriteHtmlIngestTexts(html: string, translations: Record<string, string>): string {
+  let out = "";
+  walkHtmlDocument(html, {
+    onLiteral(raw) {
+      out += raw;
+    },
+    onText(key, _text, raw) {
+      out += translations[key] ?? raw;
+    },
+    onVoidAttr(key, _text, raw, attrName) {
+      const next = translations[key];
+      out += next === undefined ? raw : replaceVoidAttrValue(raw, attrName, next);
+    },
+  });
+  return out;
+}
+
+function legacyHtmlKeyToPathKey(html: string): Map<string, string> {
+  const mapping = new Map<string, string>();
+  const occurrences = new Map<string, number>();
+  for (const unit of extractFoldedHtmlUnits(html)) {
+    mapping.set(legacyHtmlSegmentKey(unit.text, occurrences), unit.blockKey);
+  }
+  return mapping;
+}
+
+function pathKeysForFoldedRaw(stack: readonly string[], raw: string): string[] {
+  const open = stack.map((tag) => `<${tag}>`).join("");
+  const close = [...stack]
+    .reverse()
+    .map((tag) => `</${tag}>`)
+    .join("");
+  return extractHtmlIngestEntriesInOrder(`${open}${raw}${close}`).map((entry) => entry.key);
+}
+
+function walkHtmlDocument(
+  html: string,
+  handlers: {
+    foldInline?: boolean;
+    onLiteral?: (raw: string) => void;
+    onText?: (key: string, text: string, raw: string, stack: readonly string[]) => void;
+    onVoidAttr?: (key: string, text: string, raw: string, attrName: string) => void;
+  },
+) {
+  const foldInline = handlers.foldInline === true;
   const occurrences = new Map<string, number>();
   const stack: string[] = [];
   let buffer = "";
   let skipDepth = 0;
 
-  const appendEntry = (text: string, extra: string[] = []) => {
-    const key = htmlSlotKey(htmlPathFromStack(stack, extra), occurrences);
-    entries.push({ key, text });
+  const emitLiteral = (raw: string) => {
+    handlers.onLiteral?.(raw);
   };
 
   const flushBuffer = () => {
     const raw = buffer;
     buffer = "";
-    if (raw === "" || isAllHTMLWhitespace(raw)) {
+    if (raw === "") {
+      return;
+    }
+    if (isAllHTMLWhitespace(raw)) {
+      emitLiteral(raw);
       return;
     }
     const { placeholdered, plainText } = protectHTMLInlineSyntax(raw);
     if (!isTranslatableChunk(plainText)) {
+      emitLiteral(raw);
       return;
     }
-    appendEntry(placeholdered);
+    const key = htmlSlotKey(htmlPathFromStack(stack), occurrences);
+    handlers.onText?.(key, placeholdered, raw, stack);
   };
 
   const handleVoidTranslatable = (raw: string, tag: string, attrName: string) => {
     const split = splitVoidAttrTag(raw, attrName);
-    if (split && isTranslatableChunk(unescapeHtml(split.rawVal))) {
+    const decoded = split ? unescapeHtml(split.rawVal) : "";
+    if (split && isTranslatableChunk(decoded)) {
       flushBuffer();
-      appendEntry(unescapeHtml(split.rawVal), [tag, attrName]);
+      const key = htmlSlotKey(htmlPathFromStack(stack, [tag, attrName]), occurrences);
+      handlers.onVoidAttr?.(key, decoded, raw, attrName);
+      if (!handlers.onVoidAttr) {
+        handlers.onText?.(key, decoded, decoded, stack);
+      }
       return;
     }
     buffer += raw;
   };
 
+  const isFoldBoundary = (tag: string) =>
+    HTML_BLOCK_ELEMENTS.has(tag) || HTML_STRUCTURAL_ELEMENTS.has(tag);
+
   for (const token of tokenizeHtml(html)) {
     if (skipDepth > 0) {
+      emitLiteral(token.raw);
       if (token.kind === "end" && HTML_SKIP_ELEMENTS.has(token.name)) {
         skipDepth -= 1;
       } else if (token.kind === "start" && HTML_SKIP_ELEMENTS.has(token.name)) {
@@ -212,46 +412,56 @@ export function extractHtmlIngestEntriesInOrder(html: string): HtmlIngestEntry[]
       case "comment":
       case "doctype":
         flushBuffer();
+        emitLiteral(token.raw);
         break;
       case "start":
         if (HTML_SKIP_ELEMENTS.has(token.name)) {
           flushBuffer();
           skipDepth += 1;
+          emitLiteral(token.raw);
+        } else if (foldInline && isFoldBoundary(token.name)) {
+          flushBuffer();
+          emitLiteral(token.raw);
+          stack.push(token.name);
         } else if (HTML_VOID_TRANSLATABLE_ATTRS[token.name]) {
           handleVoidTranslatable(token.raw, token.name, HTML_VOID_TRANSLATABLE_ATTRS[token.name]);
+        } else if (foldInline) {
+          buffer += token.raw;
         } else {
           flushBuffer();
+          emitLiteral(token.raw);
           if (htmlPushesPath(token.name)) {
             stack.push(token.name);
           }
         }
         break;
       case "end":
+        if (foldInline && !isFoldBoundary(token.name)) {
+          buffer += token.raw;
+          break;
+        }
         flushBuffer();
         if (stack.at(-1) === token.name) {
           stack.pop();
         }
+        emitLiteral(token.raw);
         break;
       case "selfClosing":
-        if (HTML_VOID_TRANSLATABLE_ATTRS[token.name]) {
+        if (foldInline && isFoldBoundary(token.name)) {
+          flushBuffer();
+          emitLiteral(token.raw);
+        } else if (HTML_VOID_TRANSLATABLE_ATTRS[token.name]) {
           handleVoidTranslatable(token.raw, token.name, HTML_VOID_TRANSLATABLE_ATTRS[token.name]);
+        } else if (foldInline) {
+          buffer += token.raw;
         } else {
           flushBuffer();
+          emitLiteral(token.raw);
         }
         break;
     }
   }
   flushBuffer();
-  return entries;
-}
-
-function legacyHtmlKeyToPathKey(html: string): Map<string, string> {
-  const mapping = new Map<string, string>();
-  const occurrences = new Map<string, number>();
-  for (const entry of extractHtmlIngestEntriesInOrder(html)) {
-    mapping.set(legacyHtmlSegmentKey(entry.text, occurrences), entry.key);
-  }
-  return mapping;
 }
 
 export function legacyHtmlSegmentKey(segment: string, occurrences: Map<string, number>): string {
@@ -322,13 +532,154 @@ function protectHTMLInlineSyntax(segment: string): { placeholdered: string; plai
   return { placeholdered: rendered, plainText: plain };
 }
 
+const HTML_NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: "\u00a0",
+  iexcl: "¡",
+  cent: "¢",
+  pound: "£",
+  curren: "¤",
+  yen: "¥",
+  brvbar: "¦",
+  sect: "§",
+  uml: "¨",
+  copy: "©",
+  ordf: "ª",
+  laquo: "«",
+  not: "¬",
+  shy: "\u00ad",
+  reg: "®",
+  macr: "¯",
+  deg: "°",
+  plusmn: "±",
+  sup2: "²",
+  sup3: "³",
+  acute: "´",
+  micro: "µ",
+  para: "¶",
+  middot: "·",
+  cedil: "¸",
+  sup1: "¹",
+  ordm: "º",
+  raquo: "»",
+  frac14: "¼",
+  frac12: "½",
+  frac34: "¾",
+  iquest: "¿",
+  Agrave: "À",
+  Aacute: "Á",
+  Acirc: "Â",
+  Atilde: "Ã",
+  Auml: "Ä",
+  Aring: "Å",
+  AElig: "Æ",
+  Ccedil: "Ç",
+  Egrave: "È",
+  Eacute: "É",
+  Ecirc: "Ê",
+  Euml: "Ë",
+  Igrave: "Ì",
+  Iacute: "Í",
+  Icirc: "Î",
+  Iuml: "Ï",
+  ETH: "Ð",
+  Ntilde: "Ñ",
+  Ograve: "Ò",
+  Oacute: "Ó",
+  Ocirc: "Ô",
+  Otilde: "Õ",
+  Ouml: "Ö",
+  times: "×",
+  Oslash: "Ø",
+  Ugrave: "Ù",
+  Uacute: "Ú",
+  Ucirc: "Û",
+  Uuml: "Ü",
+  Yacute: "Ý",
+  THORN: "Þ",
+  szlig: "ß",
+  agrave: "à",
+  aacute: "á",
+  acirc: "â",
+  atilde: "ã",
+  auml: "ä",
+  aring: "å",
+  aelig: "æ",
+  ccedil: "ç",
+  egrave: "è",
+  eacute: "é",
+  ecirc: "ê",
+  euml: "ë",
+  igrave: "ì",
+  iacute: "í",
+  icirc: "î",
+  iuml: "ï",
+  eth: "ð",
+  ntilde: "ñ",
+  ograve: "ò",
+  oacute: "ó",
+  ocirc: "ô",
+  otilde: "õ",
+  ouml: "ö",
+  divide: "÷",
+  oslash: "ø",
+  ugrave: "ù",
+  uacute: "ú",
+  ucirc: "û",
+  uuml: "ü",
+  yacute: "ý",
+  thorn: "þ",
+  yuml: "ÿ",
+  ndash: "–",
+  mdash: "—",
+  hellip: "…",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  euro: "€",
+  trade: "™",
+};
+
 function unescapeHtml(value: string): string {
-  return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0*39;|&apos;/g, "'")
-    .replace(/&amp;/g, "&");
+  return value.replace(
+    /&(#x[0-9a-fA-F]+|#\d+|[A-Za-z][A-Za-z0-9]+);/g,
+    (matched, entity: string) => {
+      if (entity.startsWith("#")) {
+        const code =
+          entity[1] === "x" || entity[1] === "X"
+            ? Number.parseInt(entity.slice(2), 16)
+            : Number.parseInt(entity.slice(1), 10);
+        if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) {
+          return matched;
+        }
+        return String.fromCodePoint(code);
+      }
+      return HTML_NAMED_ENTITIES[entity] ?? matched;
+    },
+  );
+}
+
+function replaceVoidAttrValue(raw: string, attrName: string, value: string): string {
+  const escaped = value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+  if (VOID_ATTR_DOUBLE_QUOTE.test(raw)) {
+    return raw.replace(VOID_ATTR_DOUBLE_QUOTE, ` ${attrName}="${escaped}"`);
+  }
+  if (VOID_ATTR_SINGLE_QUOTE.test(raw)) {
+    return raw.replace(
+      VOID_ATTR_SINGLE_QUOTE,
+      ` ${attrName}='${escaped.replaceAll("'", "&#39;")}'`,
+    );
+  }
+  return raw;
 }
 
 function splitVoidAttrTag(raw: string, attrName: string): { rawVal: string } | null {
@@ -380,30 +731,48 @@ function tokenizeHtml(html: string): HtmlToken[] {
 
     HTML_TAG_PATTERN.lastIndex = lt;
     const match = HTML_TAG_PATTERN.exec(html);
-    if (!match || match.index !== lt) {
-      const end = html.indexOf(">", lt + 1);
-      const close = end < 0 ? html.length : end + 1;
-      const raw = html.slice(lt, close);
-      const token = tagTokenFromRaw(raw);
-      if (token) {
-        tokens.push(token);
-      } else {
-        tokens.push({ kind: "text", raw });
-      }
-      index = close;
-      continue;
-    }
-
-    const raw = match[0];
-    const token = tagTokenFromRaw(raw);
-    if (token) {
-      tokens.push(token);
-    } else {
-      tokens.push({ kind: "text", raw });
-    }
-    index = lt + raw.length;
+    const raw =
+      match && match.index === lt
+        ? match[0]
+        : html.slice(
+            lt,
+            (() => {
+              const end = html.indexOf(">", lt + 1);
+              return end < 0 ? html.length : end + 1;
+            })(),
+          );
+    index = pushHtmlTagToken(tokens, html, raw, lt);
   }
   return tokens;
+}
+
+function pushHtmlTagToken(tokens: HtmlToken[], html: string, raw: string, lt: number): number {
+  const token = tagTokenFromRaw(raw);
+  if (token) {
+    tokens.push(token);
+  } else {
+    tokens.push({ kind: "text", raw });
+  }
+  let index = lt + raw.length;
+  if (token?.kind === "start" && HTML_RAW_TEXT_ELEMENTS.has(token.name)) {
+    const close = findRawTextClose(html, index, token.name);
+    if (close.start > index) {
+      tokens.push({ kind: "text", raw: html.slice(index, close.start) });
+    }
+    if (close.end > close.start) {
+      tokens.push({ kind: "end", name: token.name, raw: html.slice(close.start, close.end) });
+    }
+    index = close.end;
+  }
+  return index;
+}
+
+function findRawTextClose(html: string, from: number, tag: string): { start: number; end: number } {
+  const match = new RegExp(`</${tag}\\s*>`, "i").exec(html.slice(from));
+  if (!match) {
+    return { start: html.length, end: html.length };
+  }
+  return { start: from + match.index, end: from + match.index + match[0].length };
 }
 
 function tagTokenFromRaw(raw: string): HtmlToken | null {
