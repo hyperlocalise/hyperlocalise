@@ -25,10 +25,10 @@ import {
   type AutomationAssistantToolContext,
 } from "./tools/update-automation-setup";
 
-export const automationAssistantAgentId = "automation-assistant";
+export const AUTOMATION_ASSISTANT_AGENT_ID = "automation-assistant";
 /** A turn reads the page, calls the setup tool once or twice, and writes the reply. */
-export const automationAssistantStepLimit = 6;
-export const automationAssistantMaxOutputTokens = 4_000;
+export const AUTOMATION_ASSISTANT_STEP_LIMIT = 6;
+export const AUTOMATION_ASSISTANT_MAX_OUTPUT_TOKENS = 4_000;
 
 /**
  * The agent's own instructions followed by what it can set. Nothing in it depends on the page or
@@ -36,7 +36,7 @@ export const automationAssistantMaxOutputTokens = 4_000;
  */
 export function buildAutomationAssistantInstructions(): string {
   return composeInstructions({
-    agentId: automationAssistantAgentId,
+    agentId: AUTOMATION_ASSISTANT_AGENT_ID,
     dynamicSections: [describeAutomationSetupCatalogue()],
   });
 }
@@ -57,8 +57,8 @@ export function createAutomationAssistantAgent(input: {
     tools: {
       [UPDATE_AUTOMATION_SETUP_TOOL_NAME]: createUpdateAutomationSetupTool(toolContext),
     },
-    maxOutputTokens: automationAssistantMaxOutputTokens,
+    maxOutputTokens: AUTOMATION_ASSISTANT_MAX_OUTPUT_TOKENS,
     timeout: DEFAULT_AGENT_TIMEOUT,
-    stopWhen: isStepCount(automationAssistantStepLimit),
+    stopWhen: isStepCount(AUTOMATION_ASSISTANT_STEP_LIMIT),
   });
 }
