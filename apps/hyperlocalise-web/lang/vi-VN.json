@@ -2,6 +2,9 @@
   "++6KcoXi6F": {
     "defaultMessage": "Yêu cầu dùng thử: Tự động hóa"
   },
+  "++7FbawqhB": {
+    "defaultMessage": "Bạn có các thay đổi chưa được lưu."
+  },
   "++FVhiWhMw": {
     "defaultMessage": "Không có mô tả"
   },
@@ -1445,6 +1448,9 @@
   "1/qid1Sj8f": {
     "defaultMessage": "Kết nối không gian làm việc Slack để Hyperlocalise có thể phản hồi khi được nhắc đến trong các kênh hoặc nhận tin nhắn trực tiếp."
   },
+  "107KQh5TEf": {
+    "defaultMessage": "{ready} trong số {total} ngôn ngữ đã sẵn sàng"
+  },
   "10wFUk/dew": {
     "defaultMessage": "Quản lý việc hủy gói đăng ký của không gian làm việc này."
   },
@@ -1639,6 +1645,9 @@
   },
   "1X7DOlRyIy": {
     "defaultMessage": "Đã sửa và commit vào nhánh này."
+  },
+  "1X8nJDwVgi": {
+    "defaultMessage": "Đã tải lại quy trình tự động hóa đã lưu một lần nữa."
   },
   "1XJEkWqFT6": {
     "defaultMessage": "Đã hết thời gian chờ."
@@ -2438,6 +2447,9 @@
   "3BQQgDQPHy": {
     "defaultMessage": "Không thể tải thông tin xác thực của nhà cung cấp ({status})"
   },
+  "3BSMwKRrgT": {
+    "defaultMessage": "Hoàn tác thay đổi gần nhất"
+  },
   "3BtQulEZ6Y": {
     "defaultMessage": "Kết nối khóa Gemini và dùng Flash để xử lý một danh sách dài các chuỗi. Google tính phí cho mức sử dụng này. Phí này không trừ vào hạn mức tín dụng AI hàng tháng của bạn."
   },
@@ -2515,6 +2527,9 @@
   },
   "3MzWPxEFTr": {
     "defaultMessage": "Mở hướng dẫn kiểu dáng"
+  },
+  "3NiEPa2gwT": {
+    "defaultMessage": "dự án"
   },
   "3NyprC4I6O": {
     "defaultMessage": "Mở rộng ý tưởng"
@@ -2698,6 +2713,9 @@
   },
   "3ql4zcu6fu": {
     "defaultMessage": "{count, plural, one {Đã chọn # vấn đề} other {Đã chọn # vấn đề}}"
+  },
+  "3qpgjnvOwr": {
+    "defaultMessage": "Đã làm lại các thay đổi đối với {target}"
   },
   "3qpoJUP9OU": {
     "defaultMessage": "Dự án"
@@ -2951,6 +2969,9 @@
   "4HQ7im6sof": {
     "defaultMessage": "Chỉ xem trước. Các thay đổi chỉ có hiệu lực cho đến khi bạn tải lại trang và sẽ không được lưu vào không gian làm việc của bạn."
   },
+  "4HX2beF1U5": {
+    "defaultMessage": "trình kích hoạt"
+  },
   "4HbZHDcqLo": {
     "defaultMessage": "Starting…"
   },
@@ -3086,11 +3107,17 @@
   "4YZHJp3TTf": {
     "defaultMessage": "Reports"
   },
+  "4YpYvVky/W": {
+    "defaultMessage": "Đã áp dụng lại các thay đổi của bạn lên quy trình tự động hóa sau khi tải lại."
+  },
   "4aTkFyER33": {
     "defaultMessage": "Tìm kiếm văn bản nguồn hoặc văn bản đích"
   },
   "4aYY8lTBYg": {
     "defaultMessage": "Công việc dịch thuật bắt đầu quá muộn trong chu kỳ phát hành, vì vậy các ngôn ngữ địa phương làm chậm việc ra mắt hoặc được phát hành với các phần còn thiếu."
+  },
+  "4b19ahKIvn": {
+    "defaultMessage": "Làm lại thay đổi gần nhất"
   },
   "4b7EZj4onr": {
     "defaultMessage": "Claude Sonnet 5"
@@ -3328,6 +3355,9 @@
   },
   "57UDNEMoCB": {
     "defaultMessage": "Note"
+  },
+  "584/OLp2LZ": {
+    "defaultMessage": "các công cụ"
   },
   "58A3bF+CPb": {
     "defaultMessage": "Chấp nhận các mục đã chọn"
@@ -3581,6 +3611,9 @@
   "5jQYM3pK9b": {
     "defaultMessage": "Định nghĩa"
   },
+  "5jQpxYwr3e": {
+    "defaultMessage": "các hướng dẫn"
+  },
   "5jQwn2vYQM": {
     "defaultMessage": "Chưa có cột tùy chỉnh nào."
   },
@@ -3622,6 +3655,9 @@
   },
   "5orwY/wNVx": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "5pV4YpFmRv": {
+    "defaultMessage": "Automation"
   },
   "5pj50ZtP7a": {
     "defaultMessage": "Chưa có bản quét nào. Hãy chạy kiểm tra QA để liệt kê các vấn đề dịch thuật."
@@ -4070,6 +4106,9 @@
   "6vcGtoPKc6": {
     "defaultMessage": "ID người dùng của người tạo"
   },
+  "6wG7FdCwWe": {
+    "defaultMessage": "Hoàn tác các thay đổi đối với {target}"
+  },
   "6x6KaRjdJB": {
     "defaultMessage": "Ghi chú về phạm vi dự án, bản phát hành hoặc quyền sở hữu"
   },
@@ -4366,6 +4405,9 @@
   },
   "7XjHYDDsku": {
     "defaultMessage": "Nhà cung cấp"
+  },
+  "7Y3h+066TE": {
+    "defaultMessage": "Chọn tất cả"
   },
   "7YA8COINzJ": {
     "defaultMessage": "Dự án {projectId}"
@@ -5132,6 +5174,9 @@
   "99UKjV7Fo4": {
     "defaultMessage": "Giữ cho dự án này được phát hành đúng hạn mà không cần phải theo sát các quy trình bàn giao thủ công."
   },
+  "9B07etsjy7": {
+    "defaultMessage": "Đẩy lên Intercom"
+  },
   "9ByCGUY81m": {
     "defaultMessage": "<label>URL của không gian làm việc </label><path>/org/{slug}</path>"
   },
@@ -5774,6 +5819,9 @@
   "AVpvSFVkzQ": {
     "defaultMessage": "(no memory selected)"
   },
+  "AW2iTpnW/h": {
+    "defaultMessage": "Đang ngắt kết nối…"
+  },
   "AWCVIFfr/k": {
     "defaultMessage": "Nhập một số nguyên từ 1 đến 100.000."
   },
@@ -6016,6 +6064,9 @@
   },
   "B8yt0IjyM2": {
     "defaultMessage": "Hãy thử tải lại hoạt động nhập và xuất gần đây nhất."
+  },
+  "B8zWPVBH7U": {
+    "defaultMessage": "các cài đặt đồng bộ hóa"
   },
   "B90Z7UPFjc": {
     "defaultMessage": "Không có dự án"
@@ -6574,6 +6625,9 @@
   },
   "CIM2S3+MYa": {
     "defaultMessage": "Xác định mục tiêu, đối tượng và thông điệp"
+  },
+  "CIOYgjMx73": {
+    "defaultMessage": "Đẩy lên Intercom"
   },
   "CIdkhlQIV6": {
     "defaultMessage": "Chuyển sang được quản lý"
@@ -7979,6 +8033,9 @@
   "FFZzZvy0kN": {
     "defaultMessage": "01 Khác biệt theo thị trường"
   },
+  "FFxG82EsVF": {
+    "defaultMessage": "Hủy các thay đổi của bạn lần nữa"
+  },
   "FG27myF7Bk": {
     "defaultMessage": "Tự động hóa"
   },
@@ -8008,6 +8065,9 @@
   },
   "FK5XT+2lld": {
     "defaultMessage": "Hướng dẫn phong cách"
+  },
+  "FKZ67TsL+4": {
+    "defaultMessage": "Hủy các thay đổi"
   },
   "FKwIhQa4ff": {
     "defaultMessage": "Các vấn đề về chất lượng chỉ lộ ra sau khi ra mắt, không phải trước đó"
@@ -8380,6 +8440,9 @@
   },
   "GFW3iHWNfM": {
     "defaultMessage": "Không thể tải bản xem trước."
+  },
+  "GGSImhEeDv": {
+    "defaultMessage": "Giữ lại các bản nháp Intercom mà đồng đội đã chỉnh sửa sau lần đẩy gần nhất. Bỏ qua văn bản đã được phê duyệt nhưng không thay đổi."
   },
   "GIB7hmrXGj": {
     "defaultMessage": "Pending"
@@ -8966,6 +9029,9 @@
   "HbZmRDMHs3": {
     "defaultMessage": "Đang mở không gian làm việc…"
   },
+  "HbhX7yojwm": {
+    "defaultMessage": "lịch trình"
+  },
   "HcFGSr9o03": {
     "defaultMessage": "Tôi có cần di chuyển các bản dịch hiện có của mình không?"
   },
@@ -9011,6 +9077,9 @@
   "HljRytS7qm": {
     "defaultMessage": "Bạn không có quyền xem thông tin thanh toán của không gian làm việc này."
   },
+  "Hlv8AAHxdT": {
+    "defaultMessage": "tên"
+  },
   "HmDnokfJEK": {
     "defaultMessage": "Resolved"
   },
@@ -9035,11 +9104,17 @@
   "HoA+8TKVfD": {
     "defaultMessage": "Hệ số nhân thời gian chờ lùi lại"
   },
+  "HohV6ugLhJ": {
+    "defaultMessage": "Làm lại các thay đổi của trợ lý"
+  },
   "HpSZVN9p7L": {
     "defaultMessage": "Bố cục"
   },
   "HpiB8HnD5r": {
     "defaultMessage": "Trạng thái thuật ngữ"
+  },
+  "Hq4FCIyo0o": {
+    "defaultMessage": "Hủy"
   },
   "HqRsGE2RWy": {
     "defaultMessage": "Audiences"
@@ -9113,6 +9188,9 @@
   "HxcjgjcAgw": {
     "defaultMessage": "Trạng thái"
   },
+  "Hy5b7zz39q": {
+    "defaultMessage": "Chưa có bài viết nào được liên kết."
+  },
   "HylAKoKZ92": {
     "defaultMessage": "Châu Âu"
   },
@@ -9151,6 +9229,9 @@
   },
   "I28Vekk8WA": {
     "defaultMessage": "Đã đồng bộ lần cuối {when}"
+  },
+  "I2X0NI6aJ0": {
+    "defaultMessage": "Tìm kiếm bài viết"
   },
   "I2nwB3YC98": {
     "defaultMessage": "URL liên kết"
@@ -9259,6 +9340,9 @@
   },
   "IHSPoPMGG7": {
     "defaultMessage": "Thay đổi người được giao"
+  },
+  "IHytImbzyr": {
+    "defaultMessage": "các cài đặt"
   },
   "IIohVs/IF0": {
     "defaultMessage": "Chính-sách-tuyên-bố-thương-hiệu.pdf"
@@ -10397,6 +10481,9 @@
   "L0gachMRlZ": {
     "defaultMessage": "Cơ sở thuật ngữ"
   },
+  "L14GgyGrCO": {
+    "defaultMessage": "Hoàn tác việc tải lại quy trình tự động hóa đã lưu"
+  },
   "L1RgoMJkc1": {
     "defaultMessage": "Minh họa tiếp nhận"
   },
@@ -10571,6 +10658,9 @@
   "LPgS5mUnwV": {
     "defaultMessage": "Mở trình chỉnh sửa"
   },
+  "LPr1xWZqN2": {
+    "defaultMessage": "Hoàn tác việc loại bỏ các thay đổi của bạn"
+  },
   "LQqGbywv5w": {
     "defaultMessage": "No recommendations were found. You can continue with no markets and add them later."
   },
@@ -10652,6 +10742,9 @@
   "Leoig5Z0u9": {
     "defaultMessage": "Bắt đầu một yêu cầu bản địa hóa"
   },
+  "LewgKQxaFX": {
+    "defaultMessage": "Không thể ngắt kết nối Intercom."
+  },
   "LezQD0Jh9+": {
     "defaultMessage": "Chúng tôi sẽ gửi email cho bạn lời mời tham gia một kênh dùng chung với Hyperlocalise."
   },
@@ -10666,6 +10759,9 @@
   },
   "LguOyBNnte": {
     "defaultMessage": "Nguồn hướng dẫn"
+  },
+  "Lgxc1efd+d": {
+    "defaultMessage": "Tìm kiếm bài viết"
   },
   "LgyzYOcSb/": {
     "defaultMessage": "Slack"
@@ -12407,6 +12503,9 @@
   "PO+O1tp1vE": {
     "defaultMessage": "Ghi chú"
   },
+  "POgqFuVLk+": {
+    "defaultMessage": "Không thể bắt đầu kết nối với Intercom."
+  },
   "POwFafn88U": {
     "defaultMessage": "Một mục Contentful được xuất bản"
   },
@@ -12562,6 +12661,9 @@
   },
   "PoGhgzaxt/": {
     "defaultMessage": "Ẩn các vùng văn bản"
+  },
+  "PoKdjDHlXP": {
+    "defaultMessage": "Hoàn tác các thay đổi của trợ lý"
   },
   "PoNN6ffaMf": {
     "defaultMessage": "Nguồn {locale}"
@@ -13628,6 +13730,9 @@
   "S9c8QG8bF2": {
     "defaultMessage": "Xem công việc"
   },
+  "SALsrEbsZU": {
+    "defaultMessage": "Đã kết nối"
+  },
   "SAjiqcjzOx": {
     "defaultMessage": "Kết nối lại Slack"
   },
@@ -13711,6 +13816,9 @@
   },
   "SO48T+V4po": {
     "defaultMessage": "Bản địa hóa các chiến dịch, hành trình và tin nhắn trong ứng dụng trên Iterable."
+  },
+  "SOxLTVdmv8": {
+    "defaultMessage": "Chính sách thông báo đẩy"
   },
   "SP5RujLemP": {
     "defaultMessage": "Tạo và tái tạo hình ảnh được bản địa hóa cho các tài sản chiến dịch."
@@ -13897,6 +14005,9 @@
   },
   "SpUDjYg0OG": {
     "defaultMessage": "Chọn một phần tử văn bản để chuyển đến khung hình tham chiếu của phần tử đó."
+  },
+  "Sq+eRlJZgQ": {
+    "defaultMessage": "Đang tải bài viết"
   },
   "Sqn6+LQmY6": {
     "defaultMessage": "ID mục tiêu"
@@ -14669,6 +14780,9 @@
   "USK9hbsD4S": {
     "defaultMessage": "Tải xuống cặp ngôn ngữ địa phương"
   },
+  "USrLdmNJAO": {
+    "defaultMessage": "Tải lại tự động hóa đã lưu một lần nữa"
+  },
   "UTeqE+Yq4v": {
     "defaultMessage": "GitLab"
   },
@@ -14834,8 +14948,14 @@
   "Uq3Txt1tW6": {
     "defaultMessage": "Khóa"
   },
+  "UqKynWrYMs": {
+    "defaultMessage": "Nhấn {shortcut} để làm lại"
+  },
   "UqeBgW87bt": {
     "defaultMessage": "Xóa thành viên nhóm"
+  },
+  "UsLxkyzDYE": {
+    "defaultMessage": "Tự động hóa sẽ trở về trạng thái được lưu lần cuối. Các thay đổi chưa lưu của bạn sẽ bị mất."
   },
   "UsjppO5ENO": {
     "defaultMessage": "Ưu tiên các tín hiệu tạo dựng niềm tin và bằng chứng xã hội. Không sử dụng ngôn từ giảm giá quá mức hoặc các chiến thuật tạo cảm giác cấp bách."
@@ -14884,6 +15004,9 @@
   },
   "UxoXtyoyQB": {
     "defaultMessage": "Đội ngũ của tôi có thể làm gì trong Content Studio?"
+  },
+  "UyR75G1t9n": {
+    "defaultMessage": "Đã hoàn tác các thay đổi của trợ lý."
   },
   "UznHMJ+o+o": {
     "defaultMessage": "Truy vấn"
@@ -15338,6 +15461,9 @@
   "W/3juG8Ln3": {
     "defaultMessage": "Hyperlocalise chạy kiểm tra chất lượng ở mọi giai đoạn — bản nháp, xem xét, đồng bộ và sau khi xuất bản."
   },
+  "W/3qaSxy0d": {
+    "defaultMessage": "Không tìm thấy trung tâm trợ giúp nào trong không gian làm việc này."
+  },
   "W/GIC1a+rE": {
     "defaultMessage": "Gỡ kỹ năng {name}"
   },
@@ -15602,6 +15728,9 @@
   "WgTwa4eiEE": {
     "defaultMessage": "Báo cáo nhập khẩu"
   },
+  "Wh+pyeiIA0": {
+    "defaultMessage": "Mã thông báo kết thúc bằng {suffix}"
+  },
   "Wh0P2263Np": {
     "defaultMessage": "{current} trên tổng số {total}"
   },
@@ -15658,6 +15787,9 @@
   },
   "Wn4fduQvy1": {
     "defaultMessage": "Thành công một phần"
+  },
+  "WnA8ZhP3C6": {
+    "defaultMessage": "Refresh"
   },
   "WnNUs2UJBw": {
     "defaultMessage": "Đang tải hoạt động…"
@@ -15803,6 +15935,9 @@
   "X4Hw6VR6Ws": {
     "defaultMessage": "Chưa có hoạt động gần đây."
   },
+  "X4e5FCrkXH": {
+    "defaultMessage": "Đã ngắt kết nối Intercom."
+  },
   "X4qUUPKAse": {
     "defaultMessage": "Hủy"
   },
@@ -15829,6 +15964,9 @@
   },
   "X8XWn3q89C": {
     "defaultMessage": "Không thể tải Trình chỉnh sửa nội dung"
+  },
+  "X8lZ4XnxIR": {
+    "defaultMessage": "Chọn các bài viết đã được ánh xạ để lưu dưới dạng bản nháp trong Intercom. Thao tác này không xuất bản bài viết."
   },
   "X9+GfdK3RZ": {
     "defaultMessage": "Scope"
@@ -16103,6 +16241,9 @@
   "XlCqTK9P8L": {
     "defaultMessage": "File"
   },
+  "XlLg7tU4UB": {
+    "defaultMessage": "Làm lại"
+  },
   "XlVRjq3zhp": {
     "defaultMessage": "Kiến thức tự phát triển"
   },
@@ -16228,6 +16369,9 @@
   },
   "Y1DzYaPZ4D": {
     "defaultMessage": "Tiếp tục xác minh"
+  },
+  "Y1PYlKOJTa": {
+    "defaultMessage": "Đã hoàn tác các thay đổi đối với {target}."
   },
   "Y1cFr7sG1J": {
     "defaultMessage": "Truy vấn"
@@ -16454,6 +16598,9 @@
   "YWi5RNeyc2": {
     "defaultMessage": "Nhắm mục tiêu, phân chia và triển khai mà không cần thêm nhà cung cấp nào"
   },
+  "YXFxRGJgKh": {
+    "defaultMessage": "Trung tâm trợ giúp"
+  },
   "YXXKbKuK0y": {
     "defaultMessage": "Giới tính"
   },
@@ -16537,6 +16684,9 @@
   },
   "Yi/8efQvnI": {
     "defaultMessage": "Tài khoản của bạn đã đăng nhập, nhưng không gian làm việc này không có ngữ cảnh tổ chức đang hoạt động mà bạn có thể sử dụng."
+  },
+  "YiZ5ttL/m5": {
+    "defaultMessage": "Đã hủy các thay đổi của bạn một lần nữa."
   },
   "YjdAJSrtAi": {
     "defaultMessage": "Phần tử văn bản {index}"
@@ -17411,6 +17561,9 @@
   "aY0sGkAXN1": {
     "defaultMessage": "Đang xử lý…"
   },
+  "aYK9Ws6gX4": {
+    "defaultMessage": "Tiếp tục chỉnh sửa"
+  },
   "aa15mSwX4W": {
     "defaultMessage": "Ngôn ngữ nguồn"
   },
@@ -17467,6 +17620,9 @@
   },
   "ah1fHcY0dZ": {
     "defaultMessage": "View jobs"
+  },
+  "ahBN6E+7kk": {
+    "defaultMessage": "Không thể tải bài viết."
   },
   "ahBTXzQA9r": {
     "defaultMessage": "Hyperlocalise theo dõi nơi công việc bắt đầu, xác định phạm vi những gì cần dịch, thu thập ngữ cảnh mà người duyệt cần, và định tuyến công việc qua những người và hệ thống đã có sẵn trong stack của bạn."
@@ -17596,6 +17752,9 @@
   },
   "b0Ch7Q4CAZ": {
     "defaultMessage": "Tích hợp"
+  },
+  "b0Mnso+YSR": {
+    "defaultMessage": "các kỹ năng"
   },
   "b0hzgbcjSl": {
     "defaultMessage": "Tệp đã tải lên"
@@ -17854,6 +18013,9 @@
   },
   "bYpd314kqN": {
     "defaultMessage": "Lớp bộ nhớ bản địa hóa"
+  },
+  "bYsksXFrGX": {
+    "defaultMessage": "Hủy các thay đổi"
   },
   "bZmWrWqZb+": {
     "defaultMessage": "Đẩy nguồn"
@@ -19397,6 +19559,9 @@
   "eeAFg4MRde": {
     "defaultMessage": "Tệp nguồn"
   },
+  "efAi5lrO4s": {
+    "defaultMessage": "Lưu và chạy"
+  },
   "ehALlAgOmB": {
     "defaultMessage": "Từ khóa hạt giống"
   },
@@ -20042,6 +20207,9 @@
   "g3BfS0hD2m": {
     "defaultMessage": "Yêu cầu bản demo"
   },
+  "g3PqpCejL+": {
+    "defaultMessage": "Hoàn tác"
+  },
   "g3WGoqC7FR": {
     "defaultMessage": "Nhập CSV"
   },
@@ -20161,6 +20329,9 @@
   },
   "gJ8XFIM+3j": {
     "defaultMessage": "Xem tất cả bài viết"
+  },
+  "gJQpfiFRZW": {
+    "defaultMessage": "Đẩy {count, plural, one {# bài viết} other {# bài viết}}"
   },
   "gKJKlsBj8H": {
     "defaultMessage": "Đặt tên ngắn cho phiên bản này, sau đó đính kèm các thay đổi trên trang web mà phiên bản này sẽ hiển thị."
@@ -20624,6 +20795,9 @@
   "hElFzW5+gy": {
     "defaultMessage": "Nhập một ngôn ngữ BCP-47 hợp lệ (ví dụ: fr-FR, zh-Hant-TW)."
   },
+  "hFp2azt3cq": {
+    "defaultMessage": "Đã hoàn tác thay đổi gần đây nhất."
+  },
   "hFzuwtEzyB": {
     "defaultMessage": "Ai đó"
   },
@@ -20995,6 +21169,9 @@
   },
   "i2cbaLeWDA": {
     "defaultMessage": "Không thể tải tệp dự án"
+  },
+  "i2gq9AbUIT": {
+    "defaultMessage": "Mở tự động hóa"
   },
   "i4MOxqTP9L": {
     "defaultMessage": "Review SLA"
@@ -21512,6 +21689,9 @@
   "j6Jw8eFz2s": {
     "defaultMessage": "Hủy"
   },
+  "j6Y+3NEXmn": {
+    "defaultMessage": "Lần đẩy trước không thành công"
+  },
   "j7qlYfJ6Qt": {
     "defaultMessage": "{kind} · {format}"
   },
@@ -21685,6 +21865,9 @@
   },
   "jVMQIY999S": {
     "defaultMessage": "Dữ liệu Search Console trực tiếp cho {property}. Bộ lọc quốc gia tuân theo ngôn ngữ này."
+  },
+  "jVcIZ4UejN": {
+    "defaultMessage": "Làm lại các thay đổi đối với {target}"
   },
   "jVfYLLHPHu": {
     "defaultMessage": "Tắt tính năng nhóm"
@@ -22144,6 +22327,9 @@
   },
   "kSA5sHlbN9": {
     "defaultMessage": "Chưa có lần chạy nào."
+  },
+  "kSpMqJFNPn": {
+    "defaultMessage": "Nhập các bài viết trong Trung tâm trợ giúp vào một dự án gốc, sau đó đẩy các bản dịch đã được phê duyệt trở lại dưới dạng bản nháp trên Intercom."
   },
   "kU9ZZlDF/l": {
     "defaultMessage": "Hyperlocalise được xây dựng cho ai?"
@@ -22748,6 +22934,12 @@
   "lo142sTjcF": {
     "defaultMessage": "Truy vấn"
   },
+  "loFFcMBn8p": {
+    "defaultMessage": "Hủy thay đổi và chạy"
+  },
+  "lp9t4iDpCF": {
+    "defaultMessage": "Rõ ràng"
+  },
   "lpIsUoLsfZ": {
     "defaultMessage": "{count} hàng xem trước"
   },
@@ -22888,6 +23080,9 @@
   },
   "m7sC7R0rtG": {
     "defaultMessage": "Chưa đọc"
+  },
+  "m872VstnSl": {
+    "defaultMessage": "Đã làm lại thay đổi mới nhất."
   },
   "m8NpAC200k": {
     "defaultMessage": "Báo cáo QA được chạy trên các dự án gốc. Các tác vụ của nhà cung cấp không được quét tại đây."
@@ -23234,6 +23429,9 @@
   "mnlYeyj08E": {
     "defaultMessage": "Tourmatic"
   },
+  "moIVxRz2ih": {
+    "defaultMessage": "Hủy"
+  },
   "moK8z7fM5R": {
     "defaultMessage": "Đã lưu trữ"
   },
@@ -23362,6 +23560,9 @@
   },
   "n3fs1Skt3S": {
     "defaultMessage": "Việc đề cập đến KI yêu cầu sử dụng cách diễn đạt theo Đạo luật AI của EU trong điều khoản 4.3."
+  },
+  "n3x9N/b/Js": {
+    "defaultMessage": "Nhấn {shortcut} để hoàn tác"
   },
   "n4hpRZLl37": {
     "defaultMessage": "Thêm trường hợp"
@@ -24119,6 +24320,9 @@
   "odbevaPvBa": {
     "defaultMessage": "{count, plural, =0 {Tạo vấn đề} one {Tạo # vấn đề} other {Tạo # vấn đề}}"
   },
+  "odqLHGre3m": {
+    "defaultMessage": "Hiện không thể tải kết nối Intercom."
+  },
   "oeD72ehQB/": {
     "defaultMessage": "Rời khỏi trang với các thay đổi chưa được lưu?"
   },
@@ -24235,6 +24439,9 @@
   },
   "os6dmli1wK": {
     "defaultMessage": "Tiếp nhận bản tóm tắt chiến dịch và bối cảnh sáng tạo"
+  },
+  "otc1s9Zhhk": {
+    "defaultMessage": "Hủy thay đổi?"
   },
   "ou63JKkZ6w": {
     "defaultMessage": "Locale"
@@ -24992,6 +25199,9 @@
   "qJxW5aeiQX": {
     "defaultMessage": "{count} resolved"
   },
+  "qK3w0ogzWz": {
+    "defaultMessage": "Không tìm thấy bài viết phù hợp."
+  },
   "qLDfc32277": {
     "defaultMessage": "Khám phá prompt"
   },
@@ -25255,6 +25465,9 @@
   },
   "qyAeUOVpZe": {
     "defaultMessage": "Tiếng Séc (Séc)"
+  },
+  "qyF0LHVADJ": {
+    "defaultMessage": "Ghi đè các bản nháp trên Intercom khi đích từ xa mới hơn."
   },
   "qyJpxYtcpE": {
     "defaultMessage": "Tạo hoặc liên kết các vấn đề cho chuỗi này. Điều hướng đến một vấn đề để cộng tác."
@@ -25535,6 +25748,9 @@
   "rWXo8jdqPU": {
     "defaultMessage": "Updated"
   },
+  "rWY8/u56v5": {
+    "defaultMessage": "Đã làm lại các thay đổi của trợ lý"
+  },
   "rWZYfLEPfd": {
     "defaultMessage": "Thao tác này sẽ nhóm khoảng {occurrences, number} lần xuất hiện thành {groups, number} nhóm. Các bản dịch hiện có sẽ không bị thay đổi."
   },
@@ -25714,6 +25930,9 @@
   },
   "rywDd6XWpM": {
     "defaultMessage": "Cấp độ không gian làm việc"
+  },
+  "rz4L13auz1": {
+    "defaultMessage": "mô hình"
   },
   "rzB2qvVXWW": {
     "defaultMessage": "Bạn muốn sử dụng mô hình OpenAI này để trò chuyện, dịch thuật hoặc lập trình."
@@ -27158,6 +27377,9 @@
   "vAB5ykBgcy": {
     "defaultMessage": "Hủy"
   },
+  "vAl33la+cf": {
+    "defaultMessage": "Ngắt kết nối"
+  },
   "vAwILOzBUa": {
     "defaultMessage": "Bắt đầu với Hyperlocalise ngay hôm nay"
   },
@@ -27262,6 +27484,9 @@
   },
   "vOplG6AhcP": {
     "defaultMessage": "Locales"
+  },
+  "vQARQEeGSN": {
+    "defaultMessage": "Khu vực · {region}"
   },
   "vQWLTNVn0m": {
     "defaultMessage": "Kết nối Search Console"
@@ -27751,6 +27976,9 @@
   },
   "wLz+lanHT9": {
     "defaultMessage": "Đã đồng bộ bảng Canva \"Spring campaign / EN\" — 48 lớp văn bản sẵn sàng để tiếp nhận."
+  },
+  "wMco7sbdHi": {
+    "defaultMessage": "trạng thái"
   },
   "wMnFRUeiEV": {
     "defaultMessage": "Không thể thu hồi mã thông báo truy cập cá nhân"
@@ -28391,6 +28619,9 @@
   "xcHOCv8Mg0": {
     "defaultMessage": "Tên tệp"
   },
+  "xcQJbr6uuQ": {
+    "defaultMessage": "Bản nháp Intercom đã được đưa vào hàng đợi"
+  },
   "xcixo4Kx+Z": {
     "defaultMessage": "Gạch ngang"
   },
@@ -28552,6 +28783,9 @@
   },
   "y+0ftMWpAa": {
     "defaultMessage": "URL: {url}"
+  },
+  "y+NaInUKRl": {
+    "defaultMessage": "Đã khôi phục các thay đổi bạn đã loại bỏ"
   },
   "y+bELTU1GC": {
     "defaultMessage": "Markdown"
@@ -29377,6 +29611,9 @@
   },
   "zpDcqHTr7W": {
     "defaultMessage": "Hãy thử tải báo cáo lại."
+  },
+  "zpXEO84HvX": {
+    "defaultMessage": "Một lần chạy sẽ sử dụng phiên bản tự động hóa được lưu gần nhất. Hãy lưu các thay đổi để chạy với chúng hoặc hủy các thay đổi và chạy phiên bản tự động hóa đã lưu."
   },
   "zqUNf7FmTO": {
     "defaultMessage": "Tạo và điều chỉnh văn bản, tài liệu, bài thuyết trình, hình ảnh và video cho mọi thị trường từ một studio duy nhất. Người duyệt thấy được những gì họ cần; quy trình xuất bản vẫn liên tục tiến hành."
