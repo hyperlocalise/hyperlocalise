@@ -39,10 +39,10 @@ export type WorkspaceAutomationSetupStep =
       /** Attached skills whose tools own the field. Absent for a field of the setup as a whole. */
       skillIds?: string[];
     }
-    | { kind: "repository_for_github_trigger" }
-    | { kind: "contentful_tool_for_contentful_trigger" }
-    /** Advice only: the setup can be saved, but its runs would have nothing to send. */
-    | { kind: "nothing_to_deliver" };
+  | { kind: "repository_for_github_trigger" }
+  | { kind: "contentful_tool_for_contentful_trigger" }
+  /** Advice only: the setup can be saved, but its runs would have nothing to send. */
+  | { kind: "nothing_to_deliver" };
 
 export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   WorkspaceAutomationSkillIntegration,
@@ -97,7 +97,11 @@ export function listWorkspaceAutomationSetupSteps(input: {
   }
 
   // Contentful events select only automations with an enabled Contentful tool and connection.
-  if (form.kind !== "content_sync" && form.triggerMode === "contentful" && !form.contentfulEnabled) {
+  if (
+    form.kind !== "content_sync" &&
+    form.triggerMode === "contentful" &&
+    !form.contentfulEnabled
+  ) {
     steps.push({ kind: "contentful_tool_for_contentful_trigger" });
   }
 

@@ -166,7 +166,7 @@ describe("listWorkspaceAutomationSetupSteps", () => {
     });
     const withSkill = {
       ...addSkillToWorkspaceAutomationForm(
-        namedForm({ triggerMode: "contentful" }),
+        namedForm({ triggerMode: "contentful", projectId: "project-1" }),
         "translate-contentful-entries",
         { contentfulConnectionId: "conn-1" },
       ),

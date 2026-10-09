@@ -137,12 +137,8 @@ describe("AutomationAssistantPanel", () => {
   });
 
   it("leaves the list where it is once the person has scrolled back", () => {
-    expect(
-      isScrolledToBottom({ scrollTop: 0, scrollHeight: 800, clientHeight: 200 }),
-    ).toBe(false);
-    expect(
-      isScrolledToBottom({ scrollTop: 560, scrollHeight: 800, clientHeight: 200 }),
-    ).toBe(true);
+    expect(isScrolledToBottom({ scrollTop: 0, scrollHeight: 800, clientHeight: 200 })).toBe(false);
+    expect(isScrolledToBottom({ scrollTop: 560, scrollHeight: 800, clientHeight: 200 })).toBe(true);
   });
 });
 

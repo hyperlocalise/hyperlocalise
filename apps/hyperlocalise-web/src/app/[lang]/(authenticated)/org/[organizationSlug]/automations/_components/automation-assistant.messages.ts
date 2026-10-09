@@ -256,7 +256,7 @@ export const automationAssistantMessages = defineMessages({
   },
   contentfulToolForContentfulTrigger: {
     defaultMessage: "Add a skill that translates Contentful entries.",
-    id: "contentfulToolForContentfulTrigger",
+    id: "zvSexbzyTe",
     description: "A still-needed step: the Contentful trigger has no Contentful tool",
   },
   nothingToDeliver: {
