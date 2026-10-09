@@ -58,6 +58,35 @@ describe("formatMarkdownMarkupForDisplay", () => {
   });
 });
 
+describe("formatMarkdownMarkupForDisplay dual sentinels", () => {
+  const HELP_CENTER_FIN_URL =
+    "https://www.intercom.com/help/en/articles/1970126-get-started-with-help-center";
+  const COLLECTION_FIN_URL =
+    "https://www.intercom.com/help/en/articles/56647-create-collections-in-your-help-center";
+
+  it("expands two Fin callout links when source and target both use HLMDPH sentinels", () => {
+    const sourceTemplate = `For a public article to be enabled for Fin, it must be published, part of a live ${md0}Help Center${md1} and in a ${md2}collection.${md3}`;
+    const englishRaw = `For a public article to be enabled for Fin, it must be published, part of a live [Help Center](${HELP_CENTER_FIN_URL}) and in a [collection.](${COLLECTION_FIN_URL})`;
+    const germanRaw = `Damit ein öffentlicher Artikel für Fin aktiviert werden kann, muss er veröffentlicht, Teil eines aktiven [Hilfe-Centers](${HELP_CENTER_FIN_URL}) und in einer [Sammlung](${COLLECTION_FIN_URL}) sein.`;
+
+    const sourceProtected = recoverMarkdownMarkupTokens(sourceTemplate, englishRaw);
+    const targetProtected = recoverMarkdownMarkupTokens(sourceTemplate, germanRaw);
+    expect(sourceProtected).toBeTruthy();
+    expect(targetProtected).toBeTruthy();
+
+    expect(
+      formatMarkdownMarkupForDisplay(targetProtected!, sourceProtected!, {
+        sourceMarkdown: englishRaw,
+      }),
+    ).toBe(germanRaw);
+    expect(
+      formatMarkdownMarkupForDisplay(targetProtected!, sourceProtected!, {
+        sourceMarkdown: englishRaw,
+      }),
+    ).toBe(formatMarkdownMarkupForDisplay(targetProtected!, germanRaw));
+  });
+});
+
 describe("recoverMarkdownMarkupTokens", () => {
   it("puts source sentinels back into a raw-markdown translation", () => {
     const source = `visit our ${md0}Help Center.${md1}`;

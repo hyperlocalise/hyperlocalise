@@ -18,6 +18,7 @@ import {
   collectStandardMarkdownDelimiters,
   formatMarkdownMarkupForDisplay,
   recoverMarkdownMarkupTokens,
+  type MarkdownMarkupDisplayOptions,
 } from "./content-editor-markdown-markup";
 
 export type ContentEditorMarkdownDisplaySpan =
@@ -55,8 +56,12 @@ export function shouldUseMarkdownCatDisplay(message: string, companion?: string)
   );
 }
 
-export function expandMarkdownCatMarkup(message: string, companion?: string): string {
-  return formatMarkdownMarkupForDisplay(message, companion);
+export function expandMarkdownCatMarkup(
+  message: string,
+  companion?: string,
+  options?: MarkdownMarkupDisplayOptions,
+): string {
+  return formatMarkdownMarkupForDisplay(message, companion, options);
 }
 
 export function sourceHeadingIdLiteral(sourceText: string, companion?: string): string | null {
@@ -178,8 +183,9 @@ function visibleTextFromSpans(spans: ContentEditorMarkdownDisplaySpan[]): string
 export function markdownDisplayModel(
   message: string,
   companion?: string,
+  options?: MarkdownMarkupDisplayOptions,
 ): ContentEditorMarkdownDisplayModel {
-  const expanded = expandMarkdownCatMarkup(message, companion);
+  const expanded = expandMarkdownCatMarkup(message, companion, options);
   const heading = stripIntercomHeadingId(expanded);
   const linkReady = parseMarkdownLinkSpans(heading.text).map((span) =>
     span.type === "text"
@@ -228,6 +234,13 @@ export function reattachMarkdownHeadingId(text: string, headingLiteral: string |
 export function canUseMarkdownCatEditor(message: string, companion?: string): boolean {
   const direct = markdownDisplayModel(message, companion);
   if (direct.spans.some((span) => span.type === "link") || direct.headingId) {
+    return true;
+  }
+  if (
+    shouldUseMarkdownCatDisplay(message, companion) &&
+    markdownSpans(message).length > 0 &&
+    markdownSpans(message).length === markdownSpans(companion ?? "").length
+  ) {
     return true;
   }
   const swapped = markdownDisplayModel(companion ?? "", message);

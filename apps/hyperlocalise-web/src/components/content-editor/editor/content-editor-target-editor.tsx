@@ -380,18 +380,24 @@ function renderHighlightedPlainText(
 
 function ContentEditorMessageFormatParts({
   message,
+  companionMessage,
   highlightTokens,
   highlightStatus,
   highlightWholeTerm,
 }: {
   message: string;
+  companionMessage?: string;
   highlightTokens: string[];
   highlightStatus: "warn" | "fail";
   highlightWholeTerm: boolean;
 }) {
   const analysis = analyzeCatMessageFormat(message);
   const ranges = analysis.tokens
-    .filter((token) => token.kind !== "pound" && !isStructuralMarkdownMarkupToken(token, message))
+    .filter(
+      (token) =>
+        token.kind !== "pound" &&
+        !isStructuralMarkdownMarkupToken(token, message, companionMessage),
+    )
     .toSorted((first, second) => first.start - second.start)
     .reduce<ContentEditorMessageToken[]>((items, token) => {
       const previous = items.at(-1);
@@ -498,6 +504,7 @@ export function ContentEditorMessagePreview({
             >
               <ContentEditorMessageFormatParts
                 message={span.label}
+                companionMessage={companionMessage}
                 highlightTokens={highlightTokens}
                 highlightStatus={highlightStatus}
                 highlightWholeTerm={highlightWholeTerm}
@@ -507,6 +514,7 @@ export function ContentEditorMessagePreview({
             <span key={`text-${index}`}>
               <ContentEditorMessageFormatParts
                 message={span.text}
+                companionMessage={companionMessage}
                 highlightTokens={highlightTokens}
                 highlightStatus={highlightStatus}
                 highlightWholeTerm={highlightWholeTerm}

@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { analyzeCatMessageFormat } from "./content-editor-message-format";
 import {
+  canUseMarkdownCatEditor,
   isStructuralMarkdownMarkupToken,
   markdownDisplayDocFromModel,
   markdownDisplayModel,
@@ -22,6 +23,10 @@ import {
   serializeMarkdownEditorDoc,
   sourceHeadingIdLiteral,
 } from "./content-editor-markdown-display";
+import {
+  formatMarkdownMarkupForDisplay,
+  recoverMarkdownMarkupTokens,
+} from "./content-editor-markdown-markup";
 
 const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
 const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
@@ -70,6 +75,45 @@ describe("markdownDisplayModel", () => {
       },
       { type: "text", text: " for various products/brands." },
     ]);
+  });
+
+  it("expands dual-sentinel Fin callout links for display", () => {
+    const HELP_CENTER_FIN_URL =
+      "https://www.intercom.com/help/en/articles/1970126-get-started-with-help-center";
+    const COLLECTION_FIN_URL =
+      "https://www.intercom.com/help/en/articles/56647-create-collections-in-your-help-center";
+    const sourceTemplate = `For a public article to be enabled for Fin, it must be published, part of a live ${md0}Help Center${md1} and in a ${md2}collection.${md3}`;
+    const englishRaw = `For a public article to be enabled for Fin, it must be published, part of a live [Help Center](${HELP_CENTER_FIN_URL}) and in a [collection.](${COLLECTION_FIN_URL})`;
+    const germanRaw = `Damit ein öffentlicher Artikel für Fin aktiviert werden kann, muss er veröffentlicht, Teil eines aktiven [Hilfe-Centers](${HELP_CENTER_FIN_URL}) und in einer [Sammlung](${COLLECTION_FIN_URL}) sein.`;
+    const sourceProtected = recoverMarkdownMarkupTokens(sourceTemplate, englishRaw);
+    const targetProtected = recoverMarkdownMarkupTokens(sourceTemplate, germanRaw);
+    expect(sourceProtected).toBeTruthy();
+    expect(targetProtected).toBeTruthy();
+
+    const model = markdownDisplayModel(targetProtected!, sourceProtected!, {
+      sourceMarkdown: englishRaw,
+    });
+
+    expect(model.spans.filter((span) => span.type === "link")).toEqual([
+      {
+        type: "link",
+        label: "Hilfe-Centers",
+        href: HELP_CENTER_FIN_URL,
+        image: false,
+      },
+      {
+        type: "link",
+        label: "Sammlung",
+        href: COLLECTION_FIN_URL,
+        image: false,
+      },
+    ]);
+    expect(
+      formatMarkdownMarkupForDisplay(targetProtected!, sourceProtected!, {
+        sourceMarkdown: englishRaw,
+      }),
+    ).toBe(germanRaw);
+    expect(canUseMarkdownCatEditor(targetProtected!, sourceProtected!)).toBe(true);
   });
 
   it("parses raw markdown links without sentinels", () => {

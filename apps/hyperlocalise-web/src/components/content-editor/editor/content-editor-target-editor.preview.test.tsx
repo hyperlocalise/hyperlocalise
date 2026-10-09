@@ -17,6 +17,8 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { renderWithContentEditorProviders } from "@/components/content-editor/shared/content-editor-test-utils";
 
+import { recoverMarkdownMarkupTokens } from "@/components/content-editor/message-format/content-editor-markdown-markup";
+
 import {
   ContentEditorMessagePreview,
   ContentEditorTargetEditor,
@@ -65,6 +67,36 @@ describe("ContentEditorMessagePreview markdown display", () => {
     );
     expect(screen.queryByText("MD#0")).not.toBeInTheDocument();
     expect(screen.queryByText(/\]\(/)).not.toBeInTheDocument();
+  });
+});
+
+describe("ContentEditorTargetEditor dual-sentinel markdown display", () => {
+  const HELP_CENTER_FIN_URL =
+    "https://www.intercom.com/help/en/articles/1970126-get-started-with-help-center";
+  const COLLECTION_FIN_URL =
+    "https://www.intercom.com/help/en/articles/56647-create-collections-in-your-help-center";
+
+  it("renders Fin callout links without MD chips when both sides use sentinels", async () => {
+    const sourceTemplate = `For a public article to be enabled for Fin, it must be published, part of a live ${md0}Help Center${md1} and in a ${md2}collection.${md3}`;
+    const englishRaw = `For a public article to be enabled for Fin, it must be published, part of a live [Help Center](${HELP_CENTER_FIN_URL}) and in a [collection.](${COLLECTION_FIN_URL})`;
+    const germanRaw = `Damit ein öffentlicher Artikel für Fin aktiviert werden kann, muss er veröffentlicht, Teil eines aktiven [Hilfe-Centers](${HELP_CENTER_FIN_URL}) und in einer [Sammlung](${COLLECTION_FIN_URL}) sein.`;
+    const sourceProtected = recoverMarkdownMarkupTokens(sourceTemplate, englishRaw)!;
+    const targetProtected = recoverMarkdownMarkupTokens(sourceTemplate, germanRaw)!;
+
+    renderWithContentEditorProviders(
+      <ContentEditorTargetEditor
+        sourceText={sourceProtected}
+        value={targetProtected}
+        onChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Hilfe-Centers" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: "Sammlung" })).toBeInTheDocument();
+    expect(screen.queryByText("MD#0")).not.toBeInTheDocument();
+    expect(screen.queryByText(/HLMDPH/)).not.toBeInTheDocument();
   });
 });
 
