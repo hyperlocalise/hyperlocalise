@@ -90,7 +90,7 @@ export function snapshotOfAutomationAssistantPage(
 export function toAutomationAssistantSnapshotData(snapshot: AutomationAssistantSnapshot): unknown {
   switch (snapshot.kind) {
     case "automation-editor":
-      return { form: snapshot.document };
+      return automationSetupEditor.snapshotData(snapshot.document);
     default:
       return assertNever(snapshot.kind);
   }
@@ -101,9 +101,9 @@ export function readAutomationAssistantSnapshot(
   parts: readonly unknown[] | null | undefined,
 ): AutomationAssistantSnapshot | null {
   const data = readDataPart(parts, AUTOMATION_SETUP_SNAPSHOT_PART);
-  const form = z.object({ form: automationSetupEditor.documentSchema }).safeParse(data);
-  if (form.success) {
-    return { kind: "automation-editor", document: form.data.form };
+  const form = automationSetupEditor.readSnapshot(data);
+  if (form) {
+    return { kind: "automation-editor", document: form };
   }
   return null;
 }

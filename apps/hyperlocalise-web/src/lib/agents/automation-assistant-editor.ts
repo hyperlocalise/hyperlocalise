@@ -53,9 +53,11 @@ export type AutomationAssistantEditor<Context, Document, Change, Line, Edit> = {
   kind: AutomationAssistantEditorKind;
   toolName: string;
   contextSchema: z.ZodType<Context>;
-  documentSchema: z.ZodType<Document>;
   pageEditSchema: z.ZodType<Edit>;
   documentOf: (context: Context) => Document;
+  /** The data a saved reply records the document in, and the document read back from it. */
+  snapshotData: (document: Document) => unknown;
+  readSnapshot: (data: unknown) => Document | null;
   /** What the tool can set, whatever the page holds. Goes in the system prompt. */
   describeCatalogue: () => string;
   /** The page as it stands, to go at the start of the person's newest message. */

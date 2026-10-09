@@ -522,9 +522,13 @@ export const automationSetupEditor = {
   kind: WORKSPACE_AUTOMATION_EDITOR_CONTEXT_KIND,
   toolName: UPDATE_AUTOMATION_SETUP_TOOL_NAME,
   contextSchema: workspaceAutomationEditorContextSchema,
-  documentSchema: workspaceAutomationFormStateSchema,
   pageEditSchema: automationSetupPageEditSchema,
   documentOf: (context) => context.form,
+  snapshotData: (form) => ({ form }),
+  readSnapshot: (data) => {
+    const parsed = z.object({ form: workspaceAutomationFormStateSchema }).safeParse(data);
+    return parsed.success ? parsed.data.form : null;
+  },
   describeCatalogue: describeAutomationSetupCatalogue,
   describePage: describeAutomationSetupPage,
   listPageEdits: listAutomationSetupPageEdits,
