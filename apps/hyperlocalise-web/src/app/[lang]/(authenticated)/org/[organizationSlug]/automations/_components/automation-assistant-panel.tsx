@@ -67,7 +67,11 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
       {blocks.map((block, index) =>
         block.kind === "text" ? (
           // List markers sit outside their text, so lists are indented to keep them in the panel.
-          <MessageResponse key={index} className="[&_ol]:ps-5 [&_ul]:ps-5">
+          // A line that leads into a list, such as a "Skills used:" label, sits close to it.
+          <MessageResponse
+            key={index}
+            className="[&_ol]:ps-5 [&_ul]:ps-5 [&>p:has(+ol)]:mb-1.5 [&>p:has(+ul)]:mb-1.5"
+          >
             {block.text}
           </MessageResponse>
         ) : (
