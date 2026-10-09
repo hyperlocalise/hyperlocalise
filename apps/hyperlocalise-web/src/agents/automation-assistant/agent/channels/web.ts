@@ -19,7 +19,7 @@ import {
 } from "ai";
 
 import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
-import { describeAutomationSetupPageNow } from "@/lib/agents/workspace-automation-assistant";
+import { describeAutomationSetupPage } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
@@ -60,8 +60,9 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
 }
 
 /**
- * Puts the page as it stands beside the person's newest message, the last thing the model reads.
- * It is added for this turn only and never saved, so it cannot go stale in the history.
+ * Puts the page as it stands at the start of the person's newest message, so that the request is
+ * the last thing the model reads and the page the last thing before it. It is added for this
+ * turn only and never saved, so no stale copy of it builds up in the history.
  */
 function withPageNow(
   messages: ModelMessage[],
@@ -71,11 +72,11 @@ function withPageNow(
   if (last?.role !== "user") {
     return messages;
   }
-  const pageNow = { type: "text" as const, text: describeAutomationSetupPageNow(pageContext) };
+  const page = { type: "text" as const, text: describeAutomationSetupPage(pageContext) };
   const content =
     typeof last.content === "string"
-      ? [{ type: "text" as const, text: last.content }, pageNow]
-      : [...last.content, pageNow];
+      ? [page, { type: "text" as const, text: last.content }]
+      : [page, ...last.content];
   return [...messages.slice(0, -1), { ...last, content }];
 }
 

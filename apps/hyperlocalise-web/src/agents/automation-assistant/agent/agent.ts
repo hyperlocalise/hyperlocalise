@@ -16,7 +16,7 @@ import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import {
-  buildWorkspaceAutomationAssistantInstructions,
+  describeAutomationSetupCatalogue,
   UPDATE_AUTOMATION_SETUP_TOOL_NAME,
 } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
@@ -31,13 +31,14 @@ export const automationAssistantAgentId = "automation-assistant";
 export const automationAssistantStepLimit = 6;
 export const automationAssistantMaxOutputTokens = 4_000;
 
-/** The agent's own instructions followed by the section that changes with the page. */
-export function buildAutomationAssistantInstructions(
-  context: WorkspaceAutomationEditorContext,
-): string {
+/**
+ * The agent's own instructions followed by what it can set. Nothing in it depends on the page or
+ * the turn: the page as it stands goes with the person's newest message instead.
+ */
+export function buildAutomationAssistantInstructions(): string {
   return composeInstructions({
     agentId: automationAssistantAgentId,
-    dynamicSections: [buildWorkspaceAutomationAssistantInstructions(context)],
+    dynamicSections: [describeAutomationSetupCatalogue()],
   });
 }
 
@@ -52,7 +53,7 @@ export function createAutomationAssistantAgent(input: {
   const toolContext: AutomationAssistantToolContext = { automationEditor: input.context };
   return new ToolLoopAgent({
     model: input.model ?? getHyperlocaliseAgentModel(),
-    instructions: buildAutomationAssistantInstructions(input.context),
+    instructions: buildAutomationAssistantInstructions(),
     tools: {
       [UPDATE_AUTOMATION_SETUP_TOOL_NAME]: createUpdateAutomationSetupTool(toolContext),
     },

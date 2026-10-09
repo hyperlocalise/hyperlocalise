@@ -15,7 +15,8 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   applyAutomationSetupChanges,
   automationSetupChangeSchema,
-  buildWorkspaceAutomationAssistantInstructions,
+  describeAutomationSetupCatalogue,
+  describeAutomationSetupPage,
   collectAutomationSetupChanges,
   describeWorkspaceAutomationTrigger,
   summarizeAutomationSetupCall,
@@ -294,9 +295,9 @@ describe("describeWorkspaceAutomationTrigger", () => {
   });
 });
 
-describe("buildWorkspaceAutomationAssistantInstructions", () => {
+describe("describeAutomationSetupCatalogue", () => {
   it("says what each skill needs before and after it is attached", () => {
-    const instructions = buildWorkspaceAutomationAssistantInstructions(editorContext());
+    const instructions = describeAutomationSetupCatalogue();
 
     expect(instructions).toContain(
       [
@@ -314,7 +315,7 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
   });
 
   it("lists every skill with what it does, where it runs and its risk", () => {
-    const instructions = buildWorkspaceAutomationAssistantInstructions(editorContext());
+    const instructions = describeAutomationSetupCatalogue();
 
     for (const skill of WORKSPACE_AUTOMATION_SKILLS) {
       expect(instructions).toContain(`- id: ${skill.id}`);
@@ -324,13 +325,28 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
     expect(instructions).not.toContain("web_chat");
   });
 
+  it("is the same whatever page is open, so the system prompt never changes with it", () => {
+    expect(describeAutomationSetupCatalogue()).not.toContain("Automation setup page");
+  });
+});
+
+describe("describeAutomationSetupPage", () => {
+  it("is marked as the page's own words and as reference, and holds no catalogue", () => {
+    const page = describeAutomationSetupPage(editorContext());
+
+    expect(page.startsWith("<automation_setup_page>\n## Automation setup page")).toBe(true);
+    expect(page.endsWith("</automation_setup_page>")).toBe(true);
+    expect(page).toContain("not typed by the person");
+    expect(page).not.toContain("Skills you can attach");
+  });
+
   it("describes what the page holds", () => {
     const { context } = updateWorkspaceAutomationSetup(
       editorContext({ defaults: {} }),
       weeklySummary,
     );
 
-    const instructions = buildWorkspaceAutomationAssistantInstructions(context!);
+    const instructions = describeAutomationSetupPage(context!);
 
     expect(instructions).toContain('- Name: "Weekly localisation summary"');
     expect(instructions).toContain('"cadence":"weekly"');
@@ -352,7 +368,7 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
       projectId: "project-1",
     };
 
-    const named = buildWorkspaceAutomationAssistantInstructions(
+    const named = describeAutomationSetupPage(
       editorContext({ form, projectName: "Automated one" }),
     );
     expect(named).toContain("- Switched off (Paused)");
@@ -360,16 +376,16 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
     // The assistant is told no model, so it has none to show or to get wrong.
     expect(named).not.toMatch(/anthropic\/|openai\/|google\/|GPT|Claude|Gemini/);
 
-    const unnamed = buildWorkspaceAutomationAssistantInstructions(editorContext({ form }));
+    const unnamed = describeAutomationSetupPage(editorContext({ form }));
     expect(unnamed).toContain("- Project: one is chosen");
 
-    const fresh = buildWorkspaceAutomationAssistantInstructions(editorContext());
+    const fresh = describeAutomationSetupPage(editorContext());
     expect(fresh).toContain("- Switched on (Active)");
     expect(fresh).toContain("- Project: (none chosen)");
   });
 
   it("lists tools the person switched on by hand", () => {
-    const instructions = buildWorkspaceAutomationAssistantInstructions(
+    const instructions = describeAutomationSetupPage(
       editorContext({
         form: { ...createDefaultWorkspaceAutomationFormState(), semrushEnabled: true },
       }),
@@ -379,7 +395,7 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
   });
 
   it("shows the person's instructions as data and cuts long ones", () => {
-    const instructions = buildWorkspaceAutomationAssistantInstructions(
+    const instructions = describeAutomationSetupPage(
       editorContext({
         form: {
           ...createDefaultWorkspaceAutomationFormState(),
@@ -393,9 +409,9 @@ describe("buildWorkspaceAutomationAssistantInstructions", () => {
   });
 
   it("says a saved automation is open when editing one", () => {
-    expect(
-      buildWorkspaceAutomationAssistantInstructions(editorContext({ mode: "detail" })),
-    ).toContain('The save button is called "Save".');
+    expect(describeAutomationSetupPage(editorContext({ mode: "detail" }))).toContain(
+      'The save button is called "Save".',
+    );
   });
 });
 

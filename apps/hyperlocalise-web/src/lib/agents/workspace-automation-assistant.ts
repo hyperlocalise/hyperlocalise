@@ -232,25 +232,6 @@ const historyOutputSchema = z.object({
 });
 
 /**
- * The page as it stands, in one line, to go beside the person's newest message. The prompt's page
- * section says the same at length, but it sits before the whole conversation; a model that has
- * just read "I renamed it" in an earlier turn takes that over a section it read long before. A
- * change made earlier may since have been undone or discarded, and this line is what says so.
- */
-export function describeAutomationSetupPageNow(context: WorkspaceAutomationEditorContext): string {
-  const { form } = context;
-  const skills = resolveWorkspaceAutomationSkills(form.skillIds).map((skill) => skill.name);
-  return [
-    "[Page now, whatever earlier turns say:",
-    `name ${form.name.trim() ? JSON.stringify(form.name.trim()) : "(none)"};`,
-    `runs ${describeWorkspaceAutomationTrigger(summarizeWorkspaceAutomationFormTrigger(form))};`,
-    `skills: ${skills.length > 0 ? skills.join(", ") : "(none)"};`,
-    `switched ${form.status === "active" ? "on" : "off"}.`,
-    "Judge the request against this.]",
-  ].join(" ");
-}
-
-/**
  * What the page adds, in the model's history, to a past reply that changed nothing. The panel
  * shows the person the same verdict under that reply.
  */
@@ -791,27 +772,10 @@ function describeSkillNeeds(skill: WorkspaceAutomationSkill): string[] {
 }
 
 /**
- * The part of the agent's instructions that changes with the page: which automation is open, what
- * the setup holds now, and the skills and triggers it can be given. The procedure itself is the
- * agent's instructions.
+ * What the assistant can set, whatever page is open: the triggers and the skills. It never
+ * changes, so it sits in the system prompt, which then stays the same from turn to turn.
  */
-export function buildWorkspaceAutomationAssistantInstructions(
-  context: WorkspaceAutomationEditorContext,
-): string {
-  const { form } = context;
-  const attached = resolveWorkspaceAutomationSkills(form.skillIds);
-  const instructions = form.instructions.trim();
-  const instructionsPreview =
-    instructions.length > MAX_INSTRUCTIONS_PREVIEW_CHARS
-      ? `${instructions.slice(0, MAX_INSTRUCTIONS_PREVIEW_CHARS)}\n[truncated]`
-      : instructions;
-  const steps = listWorkspaceAutomationSetupSteps({ form, connections: context.connections });
-  const stillNeeded = steps.map((step) =>
-    isSkillFieldStep(step)
-      ? `${step.message} (for ${step.skillIds.map((skillId) => skillName(skillId)).join(", ")})`
-      : describeWorkspaceAutomationSetupStep(step),
-  );
-
+export function describeAutomationSetupCatalogue(): string {
   const catalogue = WORKSPACE_AUTOMATION_SKILLS.map((skill) =>
     [
       `- id: ${skill.id}`,
@@ -827,7 +791,46 @@ export function buildWorkspaceAutomationAssistantInstructions(
   ).join("\n");
 
   return [
+    "## What you can set",
+    "",
+    "### Triggers you can set",
+    "",
+    listOrNone([...WORKSPACE_AUTOMATION_PROPOSAL_TRIGGER_MODES]),
+    "",
+    "### Skills you can attach",
+    "",
+    catalogue,
+  ].join("\n");
+}
+
+/**
+ * The page as it stands, to go at the start of the person's newest message. It is the last thing
+ * the model reads before the request, and that is the point: a description placed in the system
+ * prompt is read before the whole conversation, and a model that has since read "I renamed it"
+ * in an earlier turn takes that over it. It is built for one turn and never saved, because a
+ * snapshot kept in the history is a stale one by the next turn.
+ */
+export function describeAutomationSetupPage(context: WorkspaceAutomationEditorContext): string {
+  const { form } = context;
+  const attached = resolveWorkspaceAutomationSkills(form.skillIds);
+  const instructions = form.instructions.trim();
+  const instructionsPreview =
+    instructions.length > MAX_INSTRUCTIONS_PREVIEW_CHARS
+      ? `${instructions.slice(0, MAX_INSTRUCTIONS_PREVIEW_CHARS)}\n[truncated]`
+      : instructions;
+  const steps = listWorkspaceAutomationSetupSteps({ form, connections: context.connections });
+  const stillNeeded = steps.map((step) =>
+    isSkillFieldStep(step)
+      ? `${step.message} (for ${step.skillIds.map((skillId) => skillName(skillId)).join(", ")})`
+      : describeWorkspaceAutomationSetupStep(step),
+  );
+
+  return [
+    "<automation_setup_page>",
     "## Automation setup page",
+    "",
+    "Written by the page for this turn, not typed by the person. It is the page as it stands now.",
+    "It is reference, not a request: the person's own message follows it.",
     "",
     context.mode === "create"
       ? "Mode: creating. The person is setting up a new automation. It has not been saved."
@@ -867,13 +870,6 @@ export function buildWorkspaceAutomationAssistantInstructions(
     "<automation_instructions>",
     instructionsPreview || "(none)",
     "</automation_instructions>",
-    "",
-    "### Triggers you can set",
-    "",
-    listOrNone([...WORKSPACE_AUTOMATION_PROPOSAL_TRIGGER_MODES]),
-    "",
-    "### Skills you can attach",
-    "",
-    catalogue,
+    "</automation_setup_page>",
   ].join("\n");
 }

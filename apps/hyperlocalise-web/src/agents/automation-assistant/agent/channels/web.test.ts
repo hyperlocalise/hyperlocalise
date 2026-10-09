@@ -141,16 +141,21 @@ describe("createAutomationAssistantTurnResponse", () => {
     const streamed = await response.text();
 
     expect(streamed).toContain("I named it Weekly digest.");
-    // The page as it stands goes beside the request, the last thing the model reads, and is not
-    // saved with the message.
-    const sent = JSON.stringify(model.doStreamCalls[0]!.prompt.at(-1));
-    expect(sent).toContain("Call it Weekly digest");
-    expect(sent).toContain("[Page now, whatever earlier turns say: name (none);");
+    // The page as it stands leads the newest message and the request ends it. It is not saved
+    // with the message, and the system prompt holds none of it.
+    const prompt = model.doStreamCalls[0]!.prompt;
+    const newest = JSON.stringify(prompt.at(-1));
+    expect(newest.indexOf("## Automation setup page")).toBeGreaterThan(-1);
+    expect(newest.indexOf("- Name: (none yet)")).toBeGreaterThan(-1);
+    expect(newest.indexOf("Call it Weekly digest")).toBeGreaterThan(
+      newest.indexOf("</automation_setup_page>"),
+    );
+    expect(JSON.stringify(prompt[0])).not.toContain("## Automation setup page");
     await vi.waitFor(() => expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledTimes(1));
 
     const messages = await listAutomationAssistantMessages(session.id);
     expect(messages).toMatchObject([
-      // No "[Page now" line was saved with it.
+      // The page block was not saved with it.
       { senderType: "user", text: "Call it Weekly digest", parts: null },
       { senderType: "agent", text: "I named it Weekly digest." },
     ]);

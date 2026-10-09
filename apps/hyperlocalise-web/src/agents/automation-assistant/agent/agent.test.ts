@@ -43,12 +43,13 @@ describe("createAutomationAssistantAgent", () => {
     expect(Object.keys(agent.tools)).toEqual(["update_automation_setup"]);
   });
 
-  it("is told who it is, what the page holds and which skills it can attach", () => {
-    const instructions = buildAutomationAssistantInstructions(context());
+  it("is told who it is and which skills it can attach, and nothing about the page", () => {
+    const instructions = buildAutomationAssistantInstructions();
 
     expect(instructions).toContain("You are Hyperlocalise's automation assistant.");
-    expect(instructions).toContain("## Automation setup page");
-    expect(instructions).toContain("Mode: creating.");
+    // The page as it stands goes with the newest message, so nothing here changes per turn.
+    expect(instructions).not.toContain("## Automation setup page");
+    expect(instructions).not.toContain("Mode: creating.");
     expect(instructions).toContain("### Skills you can attach");
     expect(instructions).toContain("id: summarize-localisation-changes");
     expect(instructions).not.toContain("Which automation");
