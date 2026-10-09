@@ -13,8 +13,9 @@
 // @vitest-environment happy-dom
 
 import type { UIMessage } from "ai";
+import { observable, runInAction } from "mobx";
 import { StrictMode, useState } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -38,6 +39,8 @@ const api = vi.hoisted(() => ({
   deleteAssistantSession: vi.fn(),
   streamAssistantTurn: vi.fn(),
   setPanelOpen: vi.fn(),
+  /** The app shell a test wants in place of the one that only records what the dock is told. */
+  shell: { current: null as { chatDock: unknown } | null },
 }));
 
 vi.mock("./automation-assistant-api", async (importOriginal) => {
@@ -46,7 +49,8 @@ vi.mock("./automation-assistant-api", async (importOriginal) => {
 });
 
 vi.mock("@/components/app-shell/store/app-shell-store-context", () => ({
-  useOptionalAppShellStore: () => ({ chatDock: { setPanelOpen: api.setPanelOpen } }),
+  useOptionalAppShellStore: () =>
+    api.shell.current ?? { chatDock: { setPanelOpen: api.setPanelOpen } },
 }));
 
 const session = (id: string, automationId: string | null = null) => ({
@@ -104,6 +108,9 @@ function Consumer() {
       <button type="button" onClick={assistant.startOver}>
         Start over
       </button>
+      <button type="button" onClick={() => assistant.setOpen(true)}>
+        Open
+      </button>
     </div>
   );
 }
@@ -143,6 +150,7 @@ function renderProvider(
 
 afterEach(() => {
   vi.clearAllMocks();
+  api.shell.current = null;
 });
 
 describe("AutomationAssistantProvider", () => {
@@ -243,6 +251,35 @@ describe("AutomationAssistantProvider", () => {
     // A later edit by hand is unsaved, and is not the assistant's.
     await user.click(screen.getByRole("button", { name: "Edit" }));
     expect(screen.getByText(/calls:0 changes:0/)).toBeTruthy();
+  });
+
+  it("folds the dock away when it opens, and closes when a chat is opened in the dock", async () => {
+    const user = userEvent.setup();
+    const chatDock = observable({ panelOpen: true });
+    api.shell.current = {
+      chatDock: {
+        get panelOpen() {
+          return chatDock.panelOpen;
+        },
+        setPanelOpen: (open: boolean) => {
+          runInAction(() => {
+            chatDock.panelOpen = open;
+          });
+        },
+      },
+    };
+    renderProvider();
+
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByText(/open:true/)).toBeTruthy();
+    expect(chatDock.panelOpen).toBe(false);
+
+    act(() => {
+      runInAction(() => {
+        chatDock.panelOpen = true;
+      });
+    });
+    expect(screen.getByText(/open:false/)).toBeTruthy();
   });
 
   it("ignores a change made for another page", async () => {
