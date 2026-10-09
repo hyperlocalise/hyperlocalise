@@ -23,10 +23,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
 import {
-  readAutomationSetupPageEdits,
-  summarizeAutomationSetupCall,
-  type AutomationSetupCallSummary,
-} from "@/lib/agents/workspace-automation-assistant";
+  readAutomationAssistantPageEdits,
+  summarizeAutomationAssistantCall,
+  type AutomationAssistantCallSummary,
+} from "@/lib/agents/automation-assistant-editors";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
 
@@ -47,9 +47,11 @@ const FAILURE_MESSAGES = {
   failed: messages.errorGeneric,
 } satisfies Record<AutomationAssistantFailure["reason"], unknown>;
 
-type Block = { kind: "text"; text: string } | { kind: "tool"; summary: AutomationSetupCallSummary };
+type Block =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; summary: AutomationAssistantCallSummary };
 
-/** Text and setup-tool parts of a reply, in order, with everything else left out. */
+/** Text and tool parts of a reply, in order, with everything else left out. */
 function toBlocks(parts: UIMessage["parts"]): Block[] {
   const blocks: Block[] = [];
   for (const part of parts) {
@@ -62,7 +64,7 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
       }
       continue;
     }
-    const summary = summarizeAutomationSetupCall(part);
+    const summary = summarizeAutomationAssistantCall(part);
     if (summary) {
       blocks.push({ kind: "tool", summary });
     }
@@ -232,7 +234,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           {assistant.messages.map((message) =>
             message.senderType === "user" ? (
               <div key={message.id} className="flex flex-col items-end gap-1.5">
-                <AutomationAssistantPageEdits edits={readAutomationSetupPageEdits(message.parts)} />
+                <AutomationAssistantPageEdits edits={readAutomationAssistantPageEdits(message.parts)} />
                 <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
                   {message.text}
                 </div>

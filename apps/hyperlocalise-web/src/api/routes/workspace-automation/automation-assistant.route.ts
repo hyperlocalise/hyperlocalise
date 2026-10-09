@@ -24,8 +24,8 @@ import {
 } from "@/api/response.schema";
 import { createAutomationAssistantTurnResponse } from "@/agents/automation-assistant/agent/channels/web";
 import { AUTOMATION_SETUP_SNAPSHOT_PART } from "@/lib/agents/workspace-automation-assistant";
+import { automationAssistantPageContextSchema } from "@/lib/agents/automation-assistant-editors";
 import { canUseWorkspaceAutomationAssistant } from "@/lib/agents/workspace-automation-assistant-access";
-import { workspaceAutomationEditorContextSchema } from "@/lib/agents/workspace-automation-editor-context";
 import { isWorkspaceAutomationAssistantForm } from "@/lib/agents/workspace-automation-proposal-form";
 import {
   beginAutomationAssistantTurn,
@@ -235,8 +235,12 @@ export function createAutomationAssistantRoutes() {
       if (!text) {
         return badRequestResponse(c, "empty_message");
       }
-      const pageContext = workspaceAutomationEditorContextSchema.safeParse(body.pageContext);
-      if (!pageContext.success || !isWorkspaceAutomationAssistantForm(pageContext.data.form)) {
+      const pageContext = automationAssistantPageContextSchema.safeParse(body.pageContext);
+      if (
+        !pageContext.success ||
+        (pageContext.data.kind === "automation-editor" &&
+          !isWorkspaceAutomationAssistantForm(pageContext.data.form))
+      ) {
         return badRequestResponse(c, "invalid_page_context");
       }
       if (session.automationId && pageContext.data.automationId !== session.automationId) {

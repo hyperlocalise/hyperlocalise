@@ -17,22 +17,24 @@ import type {
   AutomationAssistantSessionResponse,
 } from "@/api/routes/workspace-automation/automation-assistant.schema";
 import { apiClient } from "@/lib/api-client-instance";
-import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
+import type { AutomationAssistantPageContext } from "@/lib/agents/automation-assistant-editors";
 import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 
 export type AssistantSession = AutomationAssistantSessionResponse;
 export type AssistantMessage = AutomationAssistantMessageResponse;
+/** The saved thing a session is about. */
+export type AssistantSessionKey = { automationId: string };
 
 // Read when called, not when imported, so a page test can stub the client with less.
 const sessions = () => apiClient.api.orgs[":organizationSlug"].automations.assistant.sessions;
 
 export async function createAssistantSession(
   organizationSlug: string,
-  automationId: string | null,
+  key: AssistantSessionKey | null,
 ): Promise<AssistantSession> {
   const response = await sessions().$post({
     param: { organizationSlug },
-    json: { automationId },
+    json: { automationId: key?.automationId ?? null },
   });
   if (response.status !== 201) {
     throw await readApiResponseError(response, "Could not start the assistant.");
@@ -42,11 +44,11 @@ export async function createAssistantSession(
 
 export async function findAssistantSession(
   organizationSlug: string,
-  automationId: string,
+  key: AssistantSessionKey,
 ): Promise<{ session: AssistantSession | null; messages: AssistantMessage[] }> {
   const response = await sessions().$get({
     param: { organizationSlug },
-    query: { automationId },
+    query: { automationId: key.automationId },
   });
   if (response.status !== 200) {
     throw await readApiResponseError(response, "Could not load the assistant.");
@@ -143,7 +145,7 @@ export async function* streamAssistantTurn(input: {
   organizationSlug: string;
   sessionId: string;
   text: string;
-  pageContext: WorkspaceAutomationEditorContext;
+  pageContext: AutomationAssistantPageContext;
   /** The session's latest turn as this page knows it, which the server checks. */
   lastTurnId: string | null;
   signal?: AbortSignal;

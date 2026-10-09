@@ -14,12 +14,12 @@ import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
 
 import {
-  describeAutomationSetupPageEdits,
-  readAutomationSetupPageEdits,
-  readAutomationSetupSnapshot,
-  toAutomationSetupHistoryParts,
-} from "@/lib/agents/workspace-automation-assistant";
-import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
+  describeAutomationAssistantPageEdits,
+  readAutomationAssistantPageEditsRecord,
+  readAutomationAssistantSnapshot,
+  toAutomationAssistantModelHistoryParts,
+  type AutomationAssistantSnapshot,
+} from "@/lib/agents/automation-assistant-editors";
 import { db, schema } from "@/lib/database/client";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -282,17 +282,17 @@ export async function findAutomationAssistantLastTurnId(sessionId: string): Prom
   return row?.id ?? null;
 }
 
-/** How many of the newest replies are searched for the form the last turn left. */
+/** How many of the newest replies are searched for the page the last turn left. */
 const SNAPSHOT_LOOKBACK_REPLIES = 5;
 
 /**
- * The form as the assistant's last finished turn left it, or null when no turn has recorded one.
+ * The page as the assistant's last finished turn left it, or null when no turn has recorded it.
  * The next turn compares it with the page it is sent from, to learn what the person changed
  * themselves in between.
  */
-export async function findAutomationAssistantFormAfterLastTurn(
+export async function findAutomationAssistantSnapshotAfterLastTurn(
   sessionId: string,
-): Promise<WorkspaceAutomationFormState | null> {
+): Promise<AutomationAssistantSnapshot | null> {
   const rows = await db
     .select({ parts: messages.parts })
     .from(messages)
@@ -300,9 +300,9 @@ export async function findAutomationAssistantFormAfterLastTurn(
     .orderBy(desc(messages.createdAt))
     .limit(SNAPSHOT_LOOKBACK_REPLIES);
   for (const row of rows) {
-    const form = readAutomationSetupSnapshot(row.parts);
-    if (form) {
-      return form;
+    const snapshot = readAutomationAssistantSnapshot(row.parts);
+    if (snapshot) {
+      return snapshot;
     }
   }
   return null;
@@ -347,12 +347,14 @@ export async function loadAutomationAssistantModelMessages(
       }
       // What the person changed on the page before sending this is part of what happened, and
       // stays true, so the model is shown it with the message every time.
-      const edits = readAutomationSetupPageEdits(row.parts);
+      const record = readAutomationAssistantPageEditsRecord(row.parts);
       const text =
-        edits.length > 0 ? `${describeAutomationSetupPageEdits(edits)}\n\n${row.text}` : row.text;
+        record && record.edits.length > 0
+          ? `${describeAutomationAssistantPageEdits(record.editor, record.edits)}\n\n${row.text}`
+          : row.text;
       return [{ role: "user", parts: [{ type: "text", text }] }];
     }
-    const parts = toAutomationSetupHistoryParts(
+    const parts = toAutomationAssistantModelHistoryParts(
       row.parts ?? [{ type: "text", text: row.text }],
     ) as UIMessage["parts"];
     return parts.some((part) => part.type !== "step-start") ? [{ role: "assistant", parts }] : [];

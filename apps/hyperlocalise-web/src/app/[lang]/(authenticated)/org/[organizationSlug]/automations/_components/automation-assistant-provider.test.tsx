@@ -387,7 +387,7 @@ describe("AutomationAssistantProvider", () => {
     await waitFor(() => {
       expect(screen.getByText("messages:user,agent")).toBeTruthy();
     });
-    expect(api.findAssistantSession).toHaveBeenCalledWith("acme", "automation-a");
+    expect(api.findAssistantSession).toHaveBeenCalledWith("acme", { automationId: "automation-a" });
     expect(changes).toEqual([]);
     expect(screen.getByText(/calls:0 changes:0/)).toBeTruthy();
   });
@@ -462,7 +462,9 @@ describe("AutomationAssistantProvider", () => {
         expect.objectContaining({ sessionId: "sess-new", lastTurnId: null }),
       );
     });
-    expect(api.createAssistantSession).toHaveBeenCalledWith("acme", "automation-a");
+    expect(api.createAssistantSession).toHaveBeenCalledWith("acme", {
+      automationId: "automation-a",
+    });
   });
 
   it("shows a handed-over request as working from the first render and sends it once the integrations are known", async () => {

@@ -20,10 +20,10 @@ import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import type {
-  AutomationSetupCallSummary,
-  AutomationSetupChangeLine,
-  AutomationSetupPageEdit,
-} from "@/lib/agents/workspace-automation-assistant";
+  AutomationAssistantCallSummary,
+  AutomationAssistantChangeLine,
+  AutomationAssistantPageEdit,
+} from "@/lib/agents/automation-assistant-editors";
 import type { WorkspaceAutomationTriggerSummary } from "@/lib/agents/workspace-automation-proposal-form";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
@@ -92,7 +92,7 @@ function describeTrigger(intl: IntlShape, trigger: WorkspaceAutomationTriggerSum
   }
 }
 
-function describeLine(intl: IntlShape, line: AutomationSetupChangeLine): string {
+function describeLine(intl: IntlShape, line: AutomationAssistantChangeLine): string {
   switch (line.kind) {
     case "name":
       return intl.formatMessage(messages.toolLineName, { name: line.name });
@@ -128,7 +128,7 @@ function describeLine(intl: IntlShape, line: AutomationSetupChangeLine): string 
 }
 
 /** A change the person made on the page themselves, in the words a call's change is listed in. */
-function describeEdit(intl: IntlShape, edit: AutomationSetupPageEdit): string {
+function describeEdit(intl: IntlShape, edit: AutomationAssistantPageEdit): string {
   switch (edit.kind) {
     case "name":
       return edit.name
@@ -155,7 +155,7 @@ function describeEdit(intl: IntlShape, edit: AutomationSetupPageEdit): string {
  * the message, which opens to list the changes. The assistant is told the same, so the line also
  * explains why its next reply may redo or leave out something an earlier reply described.
  */
-export function AutomationAssistantPageEdits({ edits }: { edits: AutomationSetupPageEdit[] }) {
+export function AutomationAssistantPageEdits({ edits }: { edits: AutomationAssistantPageEdit[] }) {
   const intl = useIntl();
   if (edits.length === 0) {
     return null;
@@ -194,7 +194,11 @@ function Row({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
  * One call of the setup tool inside a reply: a line saying how it went, which opens to list what
  * the call changed on the page and what it left out. A call with nothing to list is a plain line.
  */
-export function AutomationAssistantToolCall({ summary }: { summary: AutomationSetupCallSummary }) {
+export function AutomationAssistantToolCall({
+  summary,
+}: {
+  summary: AutomationAssistantCallSummary;
+}) {
   const intl = useIntl();
 
   if (summary.state === "running") {

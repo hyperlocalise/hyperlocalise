@@ -39,7 +39,7 @@ function context(automationId: string | null = null) {
 describe("createAutomationAssistantAgent", () => {
   it("has the setup tool and nothing else", () => {
     const agent = createAutomationAssistantAgent({
-      toolContext: { automationEditor: context() },
+      toolContext: { kind: "automation-editor", automationEditor: context() },
     });
 
     expect(Object.keys(agent.tools)).toEqual(["update_automation_setup"]);
