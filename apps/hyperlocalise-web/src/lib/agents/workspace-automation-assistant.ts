@@ -551,7 +551,7 @@ export function updateWorkspaceAutomationSetup(
         applied: false,
         reason: "no_setup_page_open",
         message:
-          "No automation setup page is open. Ask the person to open the automation and open Assistant in the top bar there, then send the request again.",
+          "No automation setup page is open. Ask the person to open the automation and click Assistant on the right edge of its page, then send the request again.",
       },
     };
   }

@@ -18,7 +18,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MessageResponse } from "@/components/ai-elements/message";
-import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
@@ -206,27 +205,24 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
   );
 }
 
-const TOP_BAR_TOGGLE_ID = "automation-assistant";
-
-/** The assistant's one opener: a button in the app's top bar that opens and closes the panel. */
-function AutomationAssistantToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const intl = useIntl();
+/**
+ * The panel folded away: a narrow strip down the page's right edge that says what it is and
+ * opens the panel. It stays where the panel was, so opening and closing happen in one place.
+ */
+function AutomationAssistantStrip({ working, onOpen }: { working: boolean; onOpen: () => void }) {
   return (
-    <Button
+    <button
       type="button"
-      variant="outline"
-      size="sm"
-      aria-label={intl.formatMessage(messages.toggle)}
-      aria-pressed={open}
-      className={open ? "bg-muted text-foreground" : undefined}
-      onClick={onToggle}
+      aria-expanded={false}
+      className="flex h-full w-11 cursor-pointer flex-col items-center gap-3 py-4 text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+      onClick={onOpen}
     >
-      <SparkleIcon />
-      {/* The icon alone where the top bar is short of room. */}
-      <span className="hidden sm:inline">
-        <FormattedMessage {...messages.toggle} />
+      {/* A turn that is still running shows here while the panel is folded away. */}
+      {working ? <Spinner className="size-4" /> : <SparkleIcon className="size-4 shrink-0" />}
+      <span className="text-sm font-medium [writing-mode:vertical-rl]">
+        <FormattedMessage {...messages.strip} />
       </span>
-    </Button>
+    </button>
   );
 }
 
@@ -243,20 +239,16 @@ const SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
 
 /**
  * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
- * attached to the right edge at full height. Where the page has no room for both, the panel is a
- * sheet from the right edge. The page must carry `AUTOMATION_ASSISTANT_PAGE_CLASS`. Also puts the
- * assistant's toggle in the app's top bar while the page is open.
+ * attached to the right edge at full height. Closed, the assistant is a narrow strip there that
+ * opens it. Where the page has no room for the form and the open panel, the strip opens the
+ * panel as a sheet from the right edge. The page must carry `AUTOMATION_ASSISTANT_PAGE_CLASS`.
  */
 export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
-  const headerActions = useOptionalAppShellStore()?.headerActions ?? null;
   const rowRef = useRef<HTMLDivElement>(null);
   // Decided from the room the page really has, which the sidebar changes, not from the window.
   const [roomBeside, setRoomBeside] = useState(true);
-  const offered = assistant !== null;
-  const open = assistant?.open ?? false;
-  const setOpen = assistant?.setOpen;
 
   useLayoutEffect(() => {
     const row = rowRef.current;
@@ -278,36 +270,23 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
     return () => observer.disconnect();
   }, []);
 
-  // The top bar draws what is registered with it, so the button is registered again whenever
-  // what it shows changes.
-  useEffect(() => {
-    if (!headerActions || !setOpen) {
-      return;
-    }
-    headerActions.register({
-      id: TOP_BAR_TOGGLE_ID,
-      order: 0,
-      visible: true,
-      render: () => <AutomationAssistantToggle open={open} onToggle={() => setOpen(!open)} />,
-    });
-  }, [headerActions, open, setOpen]);
-
-  useEffect(() => {
-    if (!headerActions || !offered) {
-      return;
-    }
-    return () => headerActions.unregister(TOP_BAR_TOGGLE_ID);
-  }, [headerActions, offered]);
-
   const inSheet = !roomBeside;
+  const openBeside = assistant !== null && assistant.open && !inSheet;
   return (
     <div ref={rowRef} className="flex min-h-0 flex-1">
       <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex max-w-5xl flex-col gap-4">{children}</div>
       </div>
-      {assistant?.open && !inSheet ? (
-        <aside className="w-[380px] shrink-0 border-s border-border">
-          <AutomationAssistantPanel className="rounded-none border-0" />
+      {assistant ? (
+        <aside className={cn("shrink-0 border-s border-border", openBeside ? "w-[380px]" : "")}>
+          {openBeside ? (
+            <AutomationAssistantPanel className="rounded-none border-0" />
+          ) : (
+            <AutomationAssistantStrip
+              working={assistant.working}
+              onOpen={() => assistant.setOpen(true)}
+            />
+          )}
         </aside>
       ) : null}
       {assistant && inSheet ? (

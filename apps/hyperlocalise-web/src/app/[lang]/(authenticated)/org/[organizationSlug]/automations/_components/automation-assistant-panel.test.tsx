@@ -13,12 +13,10 @@
 // @vitest-environment happy-dom
 
 import type { UIMessage } from "ai";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-
-import { HeaderActionsStore } from "@/components/app-shell/store/header-actions-store";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { AutomationAssistantLayout, AutomationAssistantPanel } from "./automation-assistant-panel";
 import {
@@ -28,12 +26,6 @@ import {
 
 vi.mock("@/lib/billing/use-ai-features-access", () => ({
   useAiFeaturesAccess: () => ({ status: "available" }),
-}));
-
-const shell = vi.hoisted(() => ({ store: null as { headerActions: unknown } | null }));
-
-vi.mock("@/components/app-shell/store/app-shell-store-context", () => ({
-  useOptionalAppShellStore: () => shell.store,
 }));
 
 vi.mock("./automation-assistant-prompt", () => ({
@@ -91,19 +83,6 @@ function page(value: AutomationAssistantValue | null) {
   );
 }
 
-/** What the app's top bar would draw for the page. */
-function topBar(headerActions: HeaderActionsStore) {
-  return (
-    <IntlProvider locale="en">
-      {headerActions.orderedSlots.map((slot) => slot.render())}
-    </IntlProvider>
-  );
-}
-
-afterEach(() => {
-  shell.store = null;
-});
-
 describe("AutomationAssistantPanel", () => {
   it("shows one spinner while the setup tool runs", () => {
     showStreaming([
@@ -137,49 +116,38 @@ describe("AutomationAssistantPanel", () => {
 });
 
 describe("AutomationAssistantLayout", () => {
-  it("opens and closes the panel from one button in the app's top bar", async () => {
-    const headerActions = new HeaderActionsStore();
-    shell.store = { headerActions };
+  it("folds the assistant to a strip on the page's edge, which opens the panel in its place", async () => {
     const setOpen = vi.fn();
     const view = render(page(assistant({ open: false, setOpen })));
 
     expect(screen.getByText("the form")).toBeTruthy();
-    expect(screen.queryByRole("complementary")).toBeNull();
-    const bar = render(topBar(headerActions));
-    const closed = screen.getByRole("button", { name: "Assistant" });
-    expect(closed.getAttribute("aria-pressed")).toBe("false");
+    const edge = screen.getByRole("complementary");
+    const strip = within(edge).getByRole("button", { name: "Assistant" });
+    expect(strip.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("region", { name: "Automation assistant" })).toBeNull();
 
-    await userEvent.click(closed);
+    await userEvent.click(strip);
     expect(setOpen).toHaveBeenCalledWith(true);
 
     view.rerender(page(assistant({ open: true, setOpen })));
-    bar.rerender(topBar(headerActions));
-    const opened = screen.getByRole("button", { name: "Assistant" });
-    expect(opened.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("complementary")).toBeTruthy();
-
-    await userEvent.click(opened);
-    expect(setOpen).toHaveBeenLastCalledWith(false);
+    expect(
+      within(screen.getByRole("complementary")).getByRole("region", {
+        name: "Automation assistant",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Assistant" })).toBeNull();
   });
 
-  it("takes its button out of the top bar when the page is left", () => {
-    const headerActions = new HeaderActionsStore();
-    shell.store = { headerActions };
-    const view = render(page(assistant({ open: false })));
-    expect(headerActions.orderedSlots).toHaveLength(1);
+  it("shows in the strip that a turn is still running", () => {
+    render(page(assistant({ open: false, working: true, status: "streaming" })));
 
-    view.unmount();
-
-    expect(headerActions.orderedSlots).toHaveLength(0);
+    expect(within(screen.getByRole("complementary")).getByRole("status")).toBeTruthy();
   });
 
-  it("shows the form and no button for an automation the assistant is not offered on", () => {
-    const headerActions = new HeaderActionsStore();
-    shell.store = { headerActions };
-
+  it("shows the form and no strip for an automation the assistant is not offered on", () => {
     render(page(null));
 
     expect(screen.getByText("the form")).toBeTruthy();
-    expect(headerActions.orderedSlots).toHaveLength(0);
+    expect(screen.queryByRole("complementary")).toBeNull();
   });
 });

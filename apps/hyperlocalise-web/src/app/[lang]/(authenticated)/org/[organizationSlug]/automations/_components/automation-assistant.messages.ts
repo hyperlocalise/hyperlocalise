@@ -18,10 +18,11 @@ export const automationAssistantMessages = defineMessages({
     id: "2nHgxPOvkU",
     description: "Title of the assistant panel inside the automation editor",
   },
-  toggle: {
+  strip: {
     defaultMessage: "Assistant",
-    id: "MoUVZdVUxx",
-    description: "Button in the app's top bar that opens and closes the automation assistant panel",
+    id: "3mN3t224AF",
+    description:
+      "Label of the strip down the right edge of an automation page that opens the automation assistant panel",
   },
   startOver: {
     defaultMessage: "Start over",

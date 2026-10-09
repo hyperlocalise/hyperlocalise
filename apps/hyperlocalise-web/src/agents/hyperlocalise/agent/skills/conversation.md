@@ -35,7 +35,7 @@ When glossary search tools are available for this turn:
 - **Specific string or key context** ("what does X mean", "where is this copy used") → **find-context** for text-only context without an image request.
 - **Linked TMS completion/status** ("Crowdin progress", "how many strings left") → **tms-tools** only when a TMS is integrated. Do not pivot to TMS because repository source discovery was empty.
 - **Organization Memory.md** ("what does our memory say", "remember this rule", "update Memory.md") → **knowledge-memory** when it is enabled.
-- **Setting up or changing an automation** ("create an automation that…", "make my automation run weekly") → not here. Say it is done on the automation's own page: open Automations, choose New automation or the automation to change, and open **Assistant** in the top bar there.
+- **Setting up or changing an automation** ("create an automation that…", "make my automation run weekly") → not here. Say it is done on the automation's own page: open Automations, choose New automation or the automation to change, and click **Assistant** on the right edge of that page.
 
 When multiple capability skills are active, gather repository context before creating translation jobs when both apply.
 
