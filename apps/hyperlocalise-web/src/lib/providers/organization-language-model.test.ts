@@ -126,4 +126,59 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
       model: "claude-sonnet-4-6",
     });
   });
+
+  it.each([
+    {
+      provider: "gemini",
+      defaultModel: "gemini-2.5-pro",
+      apiKey: "sk-gemini",
+      modelId: "google/gemini-2.5-pro",
+    },
+    {
+      provider: "groq",
+      defaultModel: "llama-3.3-70b",
+      apiKey: "sk-groq",
+      modelId: "groq/llama-3.3-70b",
+    },
+    {
+      provider: "mistral",
+      defaultModel: "mistral-large-latest",
+      apiKey: "sk-mistral",
+      modelId: "mistral/mistral-large-latest",
+    },
+  ] as const)(
+    "routes $provider BYOK through resolveProviderLanguageModel",
+    async ({ provider, defaultModel, apiKey, modelId }) => {
+      selectMock.mockResolvedValue([
+        {
+          provider,
+          defaultModel,
+          encryptionAlgorithm: "aes-256-gcm",
+          ciphertext: "cipher",
+          iv: "iv",
+          authTag: "tag",
+          keyVersion: 1,
+        },
+      ]);
+      decryptProviderCredentialMock.mockReturnValue(apiKey);
+
+      await expect(
+        resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" }),
+      ).resolves.toEqual({
+        model: {
+          kind: provider,
+          modelId: defaultModel,
+          apiKey,
+        },
+        source: provider,
+        modelId,
+      });
+      expect(resolveProviderLanguageModelMock).toHaveBeenCalledWith({
+        provider,
+        apiKey,
+        model: defaultModel,
+      });
+      expect(getManagedLanguageModelMock).not.toHaveBeenCalled();
+    },
+  );
 });

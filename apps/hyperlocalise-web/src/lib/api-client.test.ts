@@ -44,6 +44,8 @@ describe("createApiClient", () => {
     expect(typeof org["semrush-connections"].$get).toBe("function");
     expect(typeof org["ahrefs-connections"].$get).toBe("function");
     expect(typeof org.pipes[":provider"].$get).toBe("function");
+    expect(typeof org.pipes[":provider"].$delete).toBe("function");
+    expect(typeof org.pipes[":provider"]["authorize-url"].$get).toBe("function");
     expect(typeof org["intercom-connections"].$get).toBe("function");
     expect(typeof org["canva-connections"].$get).toBe("function");
     expect(typeof org["agent-email"].$get).toBe("function");
@@ -52,6 +54,7 @@ describe("createApiClient", () => {
     expect(typeof org["github-installation"].$get).toBe("function");
     expect(typeof org.gitlab.projects.$get).toBe("function");
     expect(typeof org.intercom["help-centers"].$get).toBe("function");
+    expect(typeof org.intercom["help-centers"][":helpCenterId"].collections.$get).toBe("function");
     expect(typeof org.workspace.$get).toBe("function");
     expect(typeof org.billing["resource-usage"].$get).toBe("function");
     expect("api-keys" in org).toBe(false);

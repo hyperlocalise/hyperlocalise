@@ -205,6 +205,7 @@ export function ContentEditorEditorPanel({
           ) : (
             <ContentEditorEditorSourceSection
               sourceText={segment.sourceText}
+              targetText={segment.targetText}
               sourceLocale={segment.sourceLocale}
               segmentKey={segment.key}
               sourcePath={segment.sourcePath}

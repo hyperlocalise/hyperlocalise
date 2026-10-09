@@ -173,6 +173,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "ahrefs"
     | "intercom"
     | "intercomHelpCenterId"
+    | "intercomSourceLocale"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -213,11 +214,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
   intercom_help_center_required: "Choose an Intercom Help Center.",
   intercom_target_locales_unmapped:
-    "One or more target locales do not match Intercom Help Center locales.",
+    "One or more selected Intercom target locales do not exist on this Help Center.",
   intercom_source_locale_unmapped:
     "The source locale does not match an Intercom Help Center locale.",
   intercom_source_locale_mismatch:
-    "The Intercom source locale must match the project source locale.",
+    "The Intercom source locale must be the same language as the project source locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -1076,9 +1077,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { intercom: message };
     case "intercom_help_center_required":
     case "intercom_target_locales_unmapped":
+      return { intercomHelpCenterId: message };
     case "intercom_source_locale_unmapped":
     case "intercom_source_locale_mismatch":
-      return { intercomHelpCenterId: message };
+      return { intercomSourceLocale: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":

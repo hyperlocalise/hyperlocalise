@@ -20,6 +20,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
 import type { PipesStatus } from "@/lib/pipes/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -28,6 +29,10 @@ import { pipesProviderParamSchema } from "./pipes.schema";
 
 function canReadPipes(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
+}
+
+function canWritePipes(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "integrations:write");
 }
 
 const validateProviderParams = validator("param", (value, c) => {
@@ -41,6 +46,51 @@ const validateProviderParams = validator("param", (value, c) => {
 export function createPipesRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .get("/:provider/authorize-url", validateProviderParams, async (c) => {
+      if (!canWritePipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const organizationSlug = c.var.auth.organization.slug;
+      const requestUrl = new URL(c.req.url);
+      const result = await createPipesAuthorizeUrl({
+        provider,
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+        ...(organizationSlug
+          ? { returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations` }
+          : {}),
+      });
+
+      if (isErr(result)) {
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ url: result.value.url }, 200);
+    })
+    .delete("/:provider", validateProviderParams, async (c) => {
+      if (!canWritePipes(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const { provider } = c.req.valid("param");
+      const result = await deletePipesConnectedAccount({
+        provider,
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+      });
+
+      if (isErr(result)) {
+        if (result.error.code === "pipes_not_connected") {
+          return notFoundResponse(c, result.error.code, result.error.message);
+        }
+
+        return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.body(null, 204);
+    })
     .get("/:provider", validateProviderParams, async (c) => {
       if (!canReadPipes(c.var.auth.membership.role)) {
         return forbiddenResponse(c, "forbidden");

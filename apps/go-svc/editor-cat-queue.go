@@ -422,7 +422,7 @@ func escapeEditorCatIlike(value string) string {
 
 func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery, sourceFileID *string, includeSourcePath bool) ([]editorCatSegment, int, error) {
 	args := []any{actor.organizationID, project.ID}
-	where := `k.organization_id=$1 and k.project_id=$2`
+	where := `k.organization_id=$1 and k.project_id=$2 and ` + editorCatExcludeCalloutFenceSQL("k")
 	if sourceFileID != nil {
 		args = append(args, *sourceFileID)
 		where += ` and k.repository_source_file_id=$` + strconv.Itoa(len(args))

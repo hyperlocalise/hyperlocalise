@@ -17,5 +17,9 @@ import { INTERCOM_REST_ENDPOINTS } from "@/lib/intercom/constants";
 export const intercomRestEndpointSchema = z.enum(INTERCOM_REST_ENDPOINTS);
 
 export const intercomHelpCentersQuerySchema = z.object({
-  restEndpoint: intercomRestEndpointSchema.default("us"),
+  restEndpoint: intercomRestEndpointSchema.optional(),
+});
+
+export const intercomHelpCenterIdParamSchema = z.object({
+  helpCenterId: z.string().trim().min(1).max(64),
 });

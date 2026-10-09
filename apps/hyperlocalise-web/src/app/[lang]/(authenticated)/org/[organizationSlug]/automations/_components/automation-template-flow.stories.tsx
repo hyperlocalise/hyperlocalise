@@ -70,6 +70,15 @@ export const ContentfulTranslation: Story = {
   },
 };
 
+export const IntercomTranslation: Story = {
+  ...templateStory("translate-intercom-articles"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("Daily → Intercom → Create job → Translate with agent"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const SourceUploadTranslation: Story = {
   ...templateStory("translate-on-source-upload"),
   play: async ({ canvas }) => {

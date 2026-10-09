@@ -14,17 +14,29 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
+import {
+  getLatestRepositorySourceFileVersion,
+  getStoredFileContent,
+} from "@/lib/file-storage/records";
+import { isMarkdownCalloutFenceEntry } from "@/lib/markdown/markdown-callout-fence";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import {
-  collectApprovedIntercomArticleValues,
   hashIntercomTranslationValues,
-  INTERCOM_ARTICLE_JSON_KEYS,
   mergeIntercomLocalePushPayload,
+  parseIntercomArticleMarkdown,
   parseIntercomLastPushRecord,
   shouldSkipUnchangedIntercomHash,
-} from "./article-json";
+  type IntercomArticleFields,
+} from "./article-markdown";
 import { mapProjectLocalesToIntercom, normalizeIntercomLocaleTag } from "./intercom-locale";
 import { intercomMappingMatchesTarget } from "./intercom-sync-scope";
+import { composeIntercomArticleFromApprovedKeyedUnits } from "./keyed-article-compose";
+
+const APPROVED_VARIANT_READ_CONCURRENCY = 8;
+const APPROVED_KEYED_SOURCE_READ_CONCURRENCY = 8;
+const APPROVED_KEY_PAGE_SIZE = 2_000;
 
 export type IntercomPushEligibility = {
   eligibleLocaleCount: number;
@@ -117,7 +129,10 @@ export async function getIntercomPushEligibility(input: {
         continue;
       }
 
-      const approved = collectApprovedIntercomArticleValues(approvedByLocale?.get(hlLocale) ?? {});
+      const approved = approvedByLocale?.get(hlLocale);
+      if (!approved) {
+        continue;
+      }
       const values = mergeIntercomLocalePushPayload({
         approved,
         remote: null,
@@ -155,107 +170,222 @@ export async function getIntercomPushEligibility(input: {
   return { eligibleLocaleCount, mappedArticleCount };
 }
 
-async function loadApprovedIntercomArticleValuesByPath(input: {
+export async function loadApprovedIntercomArticleValuesByPath(input: {
   organizationId: string;
   projectId: string;
   sourcePaths: string[];
   targetLocales: string[];
-}): Promise<Map<string, Map<string, Record<string, string>>>> {
-  const valuesByPathAndLocale = new Map<string, Map<string, Record<string, string>>>();
+}): Promise<Map<string, Map<string, IntercomArticleFields>>> {
+  const valuesByPathAndLocale = new Map<string, Map<string, IntercomArticleFields>>();
   if (input.sourcePaths.length === 0 || input.targetLocales.length === 0) {
     return valuesByPathAndLocale;
   }
 
-  const sourceFiles = await db
+  const variants = await db
     .select({
-      id: schema.repositorySourceFiles.id,
-      sourcePath: schema.repositorySourceFiles.sourcePath,
+      sourcePath: schema.projectImageVariants.sourcePath,
+      targetLocale: schema.projectImageVariants.targetLocale,
+      storedFileId: schema.projectImageVariants.storedFileId,
     })
-    .from(schema.repositorySourceFiles)
+    .from(schema.projectImageVariants)
     .where(
       and(
-        eq(schema.repositorySourceFiles.organizationId, input.organizationId),
-        eq(schema.repositorySourceFiles.projectId, input.projectId),
-        inArray(schema.repositorySourceFiles.sourcePath, input.sourcePaths),
+        eq(schema.projectImageVariants.organizationId, input.organizationId),
+        eq(schema.projectImageVariants.projectId, input.projectId),
+        inArray(schema.projectImageVariants.sourcePath, input.sourcePaths),
+        inArray(schema.projectImageVariants.targetLocale, input.targetLocales),
+        eq(schema.projectImageVariants.status, "approved"),
       ),
     );
 
-  if (sourceFiles.length === 0) {
-    return valuesByPathAndLocale;
-  }
+  const readableVariants = variants.filter(
+    (variant): variant is typeof variant & { storedFileId: string } =>
+      typeof variant.storedFileId === "string" && variant.storedFileId.length > 0,
+  );
 
-  const pathByFileId = new Map(sourceFiles.map((file) => [file.id, file.sourcePath]));
-  const keys = await db
-    .select({
-      id: schema.projectTranslationKeys.id,
-      key: schema.projectTranslationKeys.key,
-      repositorySourceFileId: schema.projectTranslationKeys.repositorySourceFileId,
-    })
-    .from(schema.projectTranslationKeys)
-    .where(
-      and(
-        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-        eq(schema.projectTranslationKeys.projectId, input.projectId),
-        inArray(
-          schema.projectTranslationKeys.repositorySourceFileId,
-          sourceFiles.map((file) => file.id),
-        ),
-        inArray(schema.projectTranslationKeys.key, [...INTERCOM_ARTICLE_JSON_KEYS]),
-      ),
-    );
+  await mapWithConcurrency(readableVariants, APPROVED_VARIANT_READ_CONCURRENCY, async (variant) => {
+    try {
+      const stored = await getStoredFileContent({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        fileId: variant.storedFileId,
+      });
+      const approved = mergeIntercomLocalePushPayload({
+        approved: parseIntercomArticleMarkdown(stored.content.toString("utf8")),
+        remote: null,
+      });
+      if (!approved) {
+        return;
+      }
+      let localeValues = valuesByPathAndLocale.get(variant.sourcePath);
+      if (!localeValues) {
+        localeValues = new Map();
+        valuesByPathAndLocale.set(variant.sourcePath, localeValues);
+      }
+      localeValues.set(variant.targetLocale, approved);
+    } catch {
+      // Missing or unreadable variant bytes are treated as not approved.
+    }
+  });
 
-  if (keys.length === 0) {
-    return valuesByPathAndLocale;
-  }
-
-  const keyById = new Map(keys.map((key) => [key.id, key]));
-  const translations = await db
-    .select({
-      translationKeyId: schema.projectTranslations.translationKeyId,
-      targetLocale: schema.projectTranslations.targetLocale,
-      text: schema.projectTranslations.text,
-    })
-    .from(schema.projectTranslations)
-    .where(
-      and(
-        eq(schema.projectTranslations.organizationId, input.organizationId),
-        eq(schema.projectTranslations.projectId, input.projectId),
-        inArray(
-          schema.projectTranslations.translationKeyId,
-          keys.map((key) => key.id),
-        ),
-        inArray(schema.projectTranslations.targetLocale, input.targetLocales),
-        eq(schema.projectTranslations.status, "approved"),
-      ),
-    );
-
-  for (const translation of translations) {
-    if (translation.text.trim().length === 0) {
-      continue;
-    }
-    const key = keyById.get(translation.translationKeyId);
-    if (!key || !isIntercomArticleJsonKey(key.key) || !key.repositorySourceFileId) {
-      continue;
-    }
-    const sourcePath = pathByFileId.get(key.repositorySourceFileId);
-    if (!sourcePath) {
-      continue;
-    }
-    let localeValues = valuesByPathAndLocale.get(sourcePath);
-    if (!localeValues) {
-      localeValues = new Map();
-      valuesByPathAndLocale.set(sourcePath, localeValues);
-    }
-    const approved = localeValues.get(translation.targetLocale) ?? {};
-    approved[key.key] = translation.text;
-    localeValues.set(translation.targetLocale, approved);
-  }
+  await mergeApprovedKeyedIntercomArticleValues({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePaths: input.sourcePaths,
+    targetLocales: input.targetLocales,
+    valuesByPathAndLocale,
+  });
 
   return valuesByPathAndLocale;
 }
 
-function isIntercomArticleJsonKey(key: string): key is (typeof INTERCOM_ARTICLE_JSON_KEYS)[number] {
-  return INTERCOM_ARTICLE_JSON_KEYS.includes(key as (typeof INTERCOM_ARTICLE_JSON_KEYS)[number]);
+async function mergeApprovedKeyedIntercomArticleValues(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+  targetLocales: string[];
+  valuesByPathAndLocale: Map<string, Map<string, IntercomArticleFields>>;
+}) {
+  const missingPaths = input.sourcePaths.filter((sourcePath) => {
+    const approvedByLocale = input.valuesByPathAndLocale.get(sourcePath);
+    return input.targetLocales.some((locale) => !approvedByLocale?.has(locale));
+  });
+  if (missingPaths.length === 0) {
+    return;
+  }
+
+  const translationService = new ProjectTranslationService();
+  const keys: Array<{
+    id: string;
+    key: string;
+    sourceText: string;
+    isHidden: boolean;
+    sourcePath: string;
+  }> = [];
+  let offset = 0;
+  while (true) {
+    const page = await translationService.listKeysForProject({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePaths: missingPaths,
+      limit: APPROVED_KEY_PAGE_SIZE,
+      offset,
+    });
+    keys.push(...page);
+    if (page.length < APPROVED_KEY_PAGE_SIZE) {
+      break;
+    }
+    offset += page.length;
+  }
+  if (keys.length === 0) {
+    return;
+  }
+
+  const keysByPath = new Map<string, typeof keys>();
+  for (const key of keys) {
+    const existing = keysByPath.get(key.sourcePath);
+    if (existing) {
+      existing.push(key);
+      continue;
+    }
+    keysByPath.set(key.sourcePath, [key]);
+  }
+
+  const sourceMarkdownByPath = new Map<string, string>();
+  await mapWithConcurrency(
+    [...keysByPath.keys()],
+    APPROVED_KEYED_SOURCE_READ_CONCURRENCY,
+    async (sourcePath) => {
+      const version = await getLatestRepositorySourceFileVersion({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath,
+      });
+      if (!version?.storedFileId) {
+        return;
+      }
+      try {
+        const stored = await getStoredFileContent({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          fileId: version.storedFileId,
+        });
+        sourceMarkdownByPath.set(sourcePath, stored.content.toString("utf8"));
+      } catch {
+        // Missing source bytes cannot be marshaled back into an Intercom article.
+      }
+    },
+  );
+
+  for (const targetLocale of input.targetLocales) {
+    const translations = await translationService.getTranslationsByKeyIds({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: keys.map((key) => key.id),
+      targetLocale,
+    });
+    const translationByKeyId = new Map(
+      translations.map((translation) => [translation.translationKeyId, translation]),
+    );
+
+    for (const [sourcePath, pathKeys] of keysByPath) {
+      if (input.valuesByPathAndLocale.get(sourcePath)?.has(targetLocale)) {
+        continue;
+      }
+      const sourceMarkdown = sourceMarkdownByPath.get(sourcePath);
+      if (!sourceMarkdown || pathKeys.length === 0) {
+        continue;
+      }
+
+      const units: Array<{
+        key: string;
+        sourceText: string;
+        targetText: string;
+        isHidden: boolean;
+      }> = [];
+      let allVisibleApproved = true;
+      for (const key of pathKeys) {
+        if (isMarkdownCalloutFenceEntry(key.key, key.sourceText)) {
+          continue;
+        }
+        const translation = translationByKeyId.get(key.id);
+        const approvedText =
+          translation?.status === "approved" && translation.text.trim().length > 0
+            ? translation.text
+            : null;
+        if (!key.isHidden && !approvedText) {
+          allVisibleApproved = false;
+          break;
+        }
+        if (approvedText) {
+          units.push({
+            key: key.key,
+            sourceText: key.sourceText,
+            targetText: approvedText,
+            isHidden: key.isHidden,
+          });
+        }
+      }
+      if (!allVisibleApproved) {
+        continue;
+      }
+
+      const composed = composeIntercomArticleFromApprovedKeyedUnits({
+        sourceMarkdown,
+        units,
+      });
+      if (!composed) {
+        continue;
+      }
+
+      let localeValues = input.valuesByPathAndLocale.get(sourcePath);
+      if (!localeValues) {
+        localeValues = new Map();
+        input.valuesByPathAndLocale.set(sourcePath, localeValues);
+      }
+      localeValues.set(targetLocale, composed);
+    }
+  }
 }
 
 export function isIntercomPushRunActive(

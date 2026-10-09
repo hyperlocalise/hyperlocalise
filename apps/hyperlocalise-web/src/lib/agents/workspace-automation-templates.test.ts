@@ -91,6 +91,23 @@ describe("workspace automation templates", () => {
     });
   });
 
+  it("builds the Intercom template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-intercom-articles",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "intercom", label: "Intercom" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
   it("builds the source-upload template flow with create job and translate tools", () => {
     const template = getWorkspaceAutomationTemplate(
       "translate-on-source-upload",

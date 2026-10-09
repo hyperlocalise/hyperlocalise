@@ -1026,6 +1026,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "GERghL+Meu",
     description: "Tab label for automation run history",
   },
+  refreshRunHistory: {
+    defaultMessage: "Refresh",
+    id: "WnA8ZhP3C6",
+    description: "Button to reload the automation run history list",
+  },
   agentInstructionsSection: {
     defaultMessage: "Agent Instructions",
     id: "Ej5U0a0604",

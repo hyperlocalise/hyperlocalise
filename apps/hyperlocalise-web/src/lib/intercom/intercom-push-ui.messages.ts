@@ -16,15 +16,15 @@ import { defineMessages } from "react-intl";
 
 export const intercomPushUiMessages = defineMessages({
   pushButton: {
-    id: "cEmBHtXwxM",
-    defaultMessage: "Push to Intercom",
+    id: "M6GUBtvjFO",
+    defaultMessage: "Push to Intercom as draft",
     description:
       "Button to queue writing approved Help Center translations to Intercom as drafts (not published)",
   },
   pushQueued: {
-    id: "mQ8WJAG0a1",
-    defaultMessage: "Intercom push queued",
-    description: "Toast after an Intercom push automation run is queued",
+    id: "xcQJbr6uuQ",
+    defaultMessage: "Intercom drafts queued",
+    description: "Toast after an Intercom draft push automation run is queued",
   },
   pushFailed: {
     id: "uFwOz05XQ5",

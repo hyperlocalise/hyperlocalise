@@ -24,6 +24,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
+import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
   contentEditorMessageTokenSignature,
@@ -363,18 +364,24 @@ function renderHighlightedPlainText(
 
 export function ContentEditorMessagePreview({
   message,
+  companionMessage,
   className,
   highlightTokens = [],
   highlightStatus = "warn",
   highlightWholeTerm = false,
 }: {
   message: string;
+  companionMessage?: string;
   className?: string;
   highlightTokens?: string[];
   highlightStatus?: "warn" | "fail";
   highlightWholeTerm?: boolean;
 }) {
-  const analysis = useMemo(() => analyzeCatMessageFormat(message), [message]);
+  const displayMessage = useMemo(
+    () => formatMarkdownMarkupForDisplay(message, companionMessage),
+    [companionMessage, message],
+  );
+  const analysis = useMemo(() => analyzeCatMessageFormat(displayMessage), [displayMessage]);
   const ranges = analysis.tokens
     .filter((token) => token.kind !== "pound")
     .toSorted((first, second) => first.start - second.start)
@@ -390,7 +397,7 @@ export function ContentEditorMessagePreview({
     return (
       <span className={className}>
         {renderHighlightedPlainText(
-          message,
+          displayMessage,
           highlightTokens,
           highlightStatus,
           "plain",
@@ -404,21 +411,21 @@ export function ContentEditorMessagePreview({
   const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
   ranges.forEach((token) => {
     if (cursor < token.start) {
-      parts.push({ key: `text-${cursor}`, text: message.slice(cursor, token.start) });
+      parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor, token.start) });
     }
     parts.push({
       key: token.id,
       text:
         token.kind === "markup"
           ? (token.displayLabel ?? token.name)
-          : message.slice(token.start, token.end),
+          : displayMessage.slice(token.start, token.end),
       token,
     });
     cursor = token.end;
   });
 
-  if (cursor < message.length) {
-    parts.push({ key: `text-${cursor}`, text: message.slice(cursor) });
+  if (cursor < displayMessage.length) {
+    parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor) });
   }
 
   return (

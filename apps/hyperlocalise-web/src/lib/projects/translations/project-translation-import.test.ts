@@ -70,7 +70,12 @@ vi.mock("@/lib/database/client", () => ({
   },
 }));
 
-import { importApprovedProjectTranslationsFromEntries } from "./project-translation-service";
+import { inArray } from "drizzle-orm";
+
+import {
+  importApprovedProjectTranslationsFromEntries,
+  PROJECT_TRANSLATION_WRITE_BATCH_SIZE,
+} from "./project-translation-service";
 
 describe("importApprovedTranslationsFromEntries", () => {
   beforeEach(() => {
@@ -149,5 +154,63 @@ describe("importApprovedTranslationsFromEntries", () => {
     expect(result).toEqual({ matched: 0, imported: 0, skipped: 0 });
     expect(selectMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("chunks key lookup and approved inserts when entries exceed the write batch size", async () => {
+    const overflowCount = PROJECT_TRANSLATION_WRITE_BATCH_SIZE + 1;
+    const keys = Array.from({ length: overflowCount }, (_, index) => ({
+      id: `key_${index}`,
+      key: `k${index}`,
+    }));
+    const entries = Object.fromEntries(keys.map((row) => [row.key, `t-${row.key}`]));
+
+    let keyLookupIndex = 0;
+    whereMock.mockImplementation(() => {
+      if (keyLookupIndex === 0) {
+        keyLookupIndex += 1;
+        return { limit: limitMock };
+      }
+      const start = (keyLookupIndex - 1) * PROJECT_TRANSLATION_WRITE_BATCH_SIZE;
+      keyLookupIndex += 1;
+      return Promise.resolve(
+        keys.slice(start, start + PROJECT_TRANSLATION_WRITE_BATCH_SIZE),
+      ) as unknown as { limit: typeof limitMock };
+    });
+    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+
+    const result = await importApprovedProjectTranslationsFromEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      entries,
+      actorUserId: "user_1",
+    });
+
+    expect(result).toEqual({ matched: overflowCount, imported: overflowCount, skipped: 0 });
+    expect(valuesMock).toHaveBeenCalledTimes(2);
+    const insertedBatches = valuesMock.mock.calls.map(
+      (call) => (call as unknown[])[0] as unknown[],
+    );
+    expect(insertedBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
+    expect(insertedBatches[1]).toHaveLength(1);
+    expect(insertedBatches[1]?.[0]).toEqual(
+      expect.objectContaining({
+        translationKeyId: "key_500",
+        text: "t-k500",
+        status: "approved",
+        provenance: "import",
+      }),
+    );
+
+    const lookupBatches = vi
+      .mocked(inArray)
+      .mock.calls.map((call) => call[1] as unknown[])
+      .filter(
+        (values) => Array.isArray(values) && values.every((value) => typeof value === "string"),
+      );
+    expect(lookupBatches).toHaveLength(2);
+    expect(lookupBatches[0]).toHaveLength(PROJECT_TRANSLATION_WRITE_BATCH_SIZE);
+    expect(lookupBatches[1]).toHaveLength(1);
   });
 });

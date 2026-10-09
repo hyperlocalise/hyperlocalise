@@ -93,6 +93,39 @@ describe("entriesFromHlOutput", () => {
     ]);
   });
 
+  it("keeps ordinary resource strings that look like callout fences", () => {
+    expect(
+      entriesFromHlOutput({
+        "examples.callout": ":::callout examples",
+      }),
+    ).toEqual([
+      {
+        key: "examples.callout",
+        text: ":::callout examples",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
+  it("drops Intercom callout fence lines", () => {
+    expect(
+      entriesFromHlOutput({
+        "md.Paragraph[4]/line[0]":
+          ':::callout backgroundColor="#feedaf80"\nborderColor="#fbc91633"',
+        "md.Paragraph[4]/line[1]": "For a public article to be enabled for Fin",
+        "md.Paragraph[4]/line[2]": ":::",
+      }),
+    ).toEqual([
+      {
+        key: "md.Paragraph[4]/line[1]",
+        text: "For a public article to be enabled for Fin",
+        context: null,
+        type: "string",
+      },
+    ]);
+  });
+
   it("drops blank keys, empty values, and non-positive maxLength values", () => {
     expect(
       entriesFromHlOutput({

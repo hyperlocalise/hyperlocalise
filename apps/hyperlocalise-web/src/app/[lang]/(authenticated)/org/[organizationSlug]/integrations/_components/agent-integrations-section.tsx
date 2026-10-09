@@ -23,6 +23,7 @@ import { SimpleBrandIcon } from "./simple-brand-icon";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
+import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { PipesConnectionPanel } from "./pipes-connection-panel";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import {
@@ -191,12 +192,15 @@ export function CustomerEngagementIntegrationsSection({
   return (
     <>
       {showPipes ? (
-        <PipesIntegrationList
-          organizationSlug={organizationSlug}
-          slugs={workspacePipesCustomerEngagementSlugs}
-          disabled={!userIsAdmin}
-          isLast={comingSoonCustomerEngagementAgents.length === 0}
-        />
+        <>
+          <IntercomConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+          <PipesIntegrationList
+            organizationSlug={organizationSlug}
+            slugs={workspacePipesCustomerEngagementSlugs.filter((slug) => slug !== "intercom")}
+            disabled={!userIsAdmin}
+            isLast={comingSoonCustomerEngagementAgents.length === 0}
+          />
+        </>
       ) : null}
       {comingSoonCustomerEngagementAgents.map((agent, index) => (
         <ComingSoonIntegrationRow

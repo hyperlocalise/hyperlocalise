@@ -23,8 +23,8 @@ import {
   resolveIntercomPipesWorkosUserId,
 } from "@/lib/intercom/pipes";
 import {
+  intercomLocalesShareLanguage,
   mapProjectLocalesToIntercom,
-  normalizeIntercomLocaleTag,
 } from "@/lib/intercom/intercom-locale";
 import { getEmailPipesConnectionStatus, resolveEmailPipesWorkosUserId } from "@/lib/email/pipes";
 import { getGitLabPipesConnectionStatus, resolveGitLabPipesWorkosUserId } from "@/lib/gitlab/pipes";
@@ -752,12 +752,12 @@ export async function validateWorkspaceAutomationIntegrations(input: {
         const configuredSourceLocale = intercom.sourceLocale?.trim();
         if (
           configuredSourceLocale &&
-          normalizeIntercomLocaleTag(configuredSourceLocale) !==
-            normalizeIntercomLocaleTag(projectSourceLocale)
+          !intercomLocalesShareLanguage(configuredSourceLocale, projectSourceLocale)
         ) {
           return err({
             code: "intercom_source_locale_mismatch",
-            message: "The Intercom source locale must match the project source locale.",
+            message:
+              "The Intercom source locale must be the same language as the project source locale.",
           });
         }
 
@@ -783,11 +783,14 @@ export async function validateWorkspaceAutomationIntegrations(input: {
           });
         }
 
-        if (localeMapping.unmappedProjectTargets.length > 0) {
+        const configuredTargets = intercom.targetLocales.filter(
+          (locale) => locale.trim().length > 0,
+        );
+        if (configuredTargets.length > 0 && localeMapping.unmappedProjectTargets.length > 0) {
           return err({
             code: "intercom_target_locales_unmapped",
             message:
-              "One or more project target locales do not match Intercom Help Center locales.",
+              "One or more selected Intercom target locales do not exist on this Help Center.",
           });
         }
       }

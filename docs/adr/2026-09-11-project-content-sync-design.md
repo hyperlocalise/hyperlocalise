@@ -41,6 +41,11 @@ Content-sync runs use the same run table and enqueue path. Execution skips the o
 
 GitHub reuses the sandbox clone, source upload, and translation PR helpers, filtered by the configured folders. Contentful, GitLab, and Intercom share the same config contract; their executors ship after GitHub.
 
+Help Center article localisation later shipped as the **Translate Intercom Help
+Center articles** workspace skill (markdown sources and a separate **Push to
+Intercom as draft** action), not as `kind: "content_sync"`. See
+[`2026-10-08-intercom-help-center-markdown-design.md`](./2026-10-08-intercom-help-center-markdown-design.md).
+
 Provider webhooks and **Sync now** trigger a run. If a repo-level GitHub automation targets the same repository and project, the project content-sync automation wins and the repo-level pair is skipped.
 
 ### Out of scope

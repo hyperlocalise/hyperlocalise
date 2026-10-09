@@ -203,6 +203,86 @@ describe("enqueueFileTranslationFollowUpStep", () => {
     expect(enqueueFileTranslationJobMock).not.toHaveBeenCalled();
   });
 
+  it("skips follow-up when the leftover file format is unsupported", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await expect(
+      enqueueFileTranslationFollowUpStep({
+        organizationId: "org_1",
+        parentJobId: "job_parent",
+        projectId: "project_1",
+        sourceFileId: "file_1",
+        fileFormat: "not-a-format",
+        sourceLocale: "en-US",
+        targetLocales: ["ja-JP"],
+      }),
+    ).resolves.toBeNull();
+
+    expect(enqueueFileTranslationJobMock).not.toHaveBeenCalled();
+    expect(selectLimitMock).not.toHaveBeenCalled();
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[file-translation-workflow] follow-up skipped; unsupported file format",
+      expect.objectContaining({
+        parentJobId: "job_parent",
+        fileFormat: "not-a-format",
+      }),
+    );
+    consoleWarn.mockRestore();
+  });
+
+  it("reuses a running follow-up without creating or re-enqueueing another job", async () => {
+    const enqueueMock = vi.fn();
+    createTranslationJobEventQueueMock.mockReturnValueOnce({ enqueue: enqueueMock });
+    selectLimitMock.mockResolvedValueOnce([{ id: "job_running_followup", status: "running" }]);
+
+    await expect(
+      enqueueFileTranslationFollowUpStep({
+        organizationId: "org_1",
+        parentJobId: "job_parent",
+        projectId: "project_1",
+        sourceFileId: "file_1",
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["ja-JP"],
+      }),
+    ).resolves.toEqual({ jobId: "job_running_followup" });
+
+    expect(enqueueFileTranslationJobMock).not.toHaveBeenCalled();
+    expect(enqueueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null when enqueueing a new follow-up job fails", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    selectLimitMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { createdByUserId: "user_1", apiKeyId: null, ownerUserId: null, assigneeType: "agent" },
+      ]);
+    enqueueFileTranslationJobMock.mockResolvedValue({ ok: false, code: "queue_unavailable" });
+
+    await expect(
+      enqueueFileTranslationFollowUpStep({
+        organizationId: "org_1",
+        parentJobId: "job_parent",
+        projectId: "project_1",
+        sourceFileId: "file_1",
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["ja-JP"],
+      }),
+    ).resolves.toBeNull();
+
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[file-translation-workflow] follow-up enqueue failed",
+      expect.objectContaining({
+        parentJobId: "job_parent",
+        leftoverLocaleCount: 1,
+        error: "queue_unavailable",
+      }),
+    );
+    consoleWarn.mockRestore();
+  });
+
   it("skips a second automatic retry", async () => {
     await expect(
       enqueueFileTranslationFollowUpStep({
