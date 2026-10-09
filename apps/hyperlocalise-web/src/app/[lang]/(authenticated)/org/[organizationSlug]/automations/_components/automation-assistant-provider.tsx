@@ -200,6 +200,9 @@ export function AutomationAssistantProvider({
   const lastTurnId = useRef<string | null>(null);
   // The session being made, so a turn that starts meanwhile waits for it and makes no second one.
   const sessionCreation = useRef<Promise<AssistantSession> | null>(null);
+  // The delete Start over sent. The next session is asked for after it: a saved automation has
+  // one session per person, so asking sooner would be answered with the one being deleted.
+  const sessionEnding = useRef<Promise<void> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const turnRunning = useRef(false);
   const handedOver = useRef(false);
@@ -355,7 +358,8 @@ export function AutomationAssistantProvider({
     if (sessionRef.current) {
       return Promise.resolve(sessionRef.current);
     }
-    sessionCreation.current ??= createAssistantSession(organizationSlug, automationId ?? null)
+    sessionCreation.current ??= (sessionEnding.current ?? Promise.resolve())
+      .then(() => createAssistantSession(organizationSlug, automationId ?? null))
       .then((created) => {
         notifySession(created);
         return created;
@@ -496,7 +500,14 @@ export function AutomationAssistantProvider({
     handedOver.current = true;
     appliedToolCallIds.current = new Set();
     if (ended) {
-      void deleteAssistantSession(organizationSlug, ended.id).catch(() => undefined);
+      const ending = deleteAssistantSession(organizationSlug, ended.id)
+        .catch(() => undefined)
+        .finally(() => {
+          if (sessionEnding.current === ending) {
+            sessionEnding.current = null;
+          }
+        });
+      sessionEnding.current = ending;
     }
   });
 

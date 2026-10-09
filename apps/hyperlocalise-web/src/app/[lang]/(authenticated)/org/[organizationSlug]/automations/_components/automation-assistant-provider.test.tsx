@@ -424,6 +424,47 @@ describe("AutomationAssistantProvider", () => {
     expect(screen.getByText("messages:")).toBeTruthy();
   });
 
+  it("asks for the next session only once Start over has deleted the old one", async () => {
+    const user = userEvent.setup();
+    api.findAssistantSession.mockResolvedValue({
+      session: session("sess-old", "automation-a"),
+      messages: [],
+    });
+    let finishDeleting: () => void = () => {};
+    api.deleteAssistantSession.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishDeleting = resolve;
+      }),
+    );
+    api.createAssistantSession.mockResolvedValue(session("sess-new", "automation-a"));
+    api.streamAssistantTurn.mockImplementation(async function* () {});
+    api.loadAssistantSession.mockResolvedValue({
+      session: session("sess-new", "automation-a"),
+      messages: [],
+    });
+    renderProvider({ automationId: "automation-a", mode: "detail" });
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle/)).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Start over" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    // While the old session is still there, the server would hand it back as the person's one.
+    expect(api.deleteAssistantSession).toHaveBeenCalledWith("acme", "sess-old");
+    expect(api.createAssistantSession).not.toHaveBeenCalled();
+    expect(screen.getByText(/status:streaming/)).toBeTruthy();
+
+    finishDeleting();
+
+    await waitFor(() => {
+      expect(api.streamAssistantTurn).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: "sess-new", lastTurnId: null }),
+      );
+    });
+    expect(api.createAssistantSession).toHaveBeenCalledWith("acme", "automation-a");
+  });
+
   it("shows a handed-over request as working from the first render and sends it once the integrations are known", async () => {
     api.createAssistantSession.mockResolvedValue(session("sess-1"));
     api.streamAssistantTurn.mockImplementation(async function* () {});
