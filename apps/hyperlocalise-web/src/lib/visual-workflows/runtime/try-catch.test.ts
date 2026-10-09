@@ -176,6 +176,7 @@ describe("Try / Catch runtime", () => {
               kind: "flow.return" as const,
               outputs: [{ id: "result", name: "result", type: "string" as const }],
             },
+            inputs: { "value.result": { kind: "literal" as const, value: "done" } },
           }
         : node,
     );
