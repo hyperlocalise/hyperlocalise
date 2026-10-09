@@ -116,6 +116,33 @@ describe("collectHtmlTranslationPageEntries", () => {
       "html.p.strong": "les tableaux",
     });
   });
+
+  it("skips blank source text, whitespace-only extracts, and empty lock completions", () => {
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: {
+          "html.p": "Hello",
+          "html.p.strong": "   ",
+          "html.p.2": "World",
+        },
+        extracted: {
+          "html.p": "   ",
+          "html.p.strong": "monde",
+          "html.p.2": "Monde",
+        },
+        confirmed: { "html.p.2": "" },
+        completedPathKeys: ["html.p", "html.p.strong", "html.p.2"],
+      }),
+    ).toEqual({});
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: { "html.p": "Hello" },
+        extracted: { "html.p": "Bonjour" },
+        confirmed: {},
+        completedPathKeys: [],
+      }),
+    ).toEqual({});
+  });
 });
 
 describe("isFileTranslationCliHardFailure", () => {
@@ -155,6 +182,14 @@ describe("isFileTranslationCliHardFailure", () => {
 
   it("accepts a fully successful report", () => {
     expect(isFileTranslationCliHardFailure({ succeeded: 10, failed: 0 }, 0)).toBe(false);
+  });
+
+  it("fails when the CLI exits 0 but reported only failures", () => {
+    expect(isFileTranslationCliHardFailure({ succeeded: 0, failed: 3 }, 0)).toBe(true);
+  });
+
+  it("treats mixed success as progress when the CLI exits 0", () => {
+    expect(isFileTranslationCliHardFailure({ succeeded: 2, failed: 1 }, 0)).toBe(false);
   });
 });
 

@@ -517,6 +517,30 @@ func TestEditorCatQueueHTMLKeysAndDocumentView(t *testing.T) {
 	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
 }
 
+func TestHasHashedHTMLSegmentKey(t *testing.T) {
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef.2"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef#srx.0"}}))
+	require.True(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.0123456789abcdef.2#srx.1"}}))
+	require.False(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.p"}}))
+	require.False(t, hasHashedHTMLSegmentKey([]editorCatSegment{{Key: "html.body.p"}}))
+	require.False(t, hasHashedHTMLSegmentKey(nil))
+}
+
+func TestRewriteHashedHTMLSegmentKeysNoopsOnEmpty(t *testing.T) {
+	segments := []editorCatSegment{{Key: "html.0123456789abcdef"}}
+	rewriteHashedHTMLSegmentKeys(nil, segments)
+	require.Equal(t, "html.0123456789abcdef", segments[0].Key)
+	rewriteHashedHTMLSegmentKeys([]byte("<p>Hello</p>"), nil)
+}
+
+func TestRewriteHashedHTMLQueueKeysNoopsWithoutHashedKeys(t *testing.T) {
+	api := &editorCatAPI{}
+	segments := []editorCatSegment{{Key: "html.body.p"}}
+	got := api.rewriteHashedHTMLQueueKeys(nil, editorCatActor{}, editorCatProject{}, "pages/home.html", segments)
+	require.Equal(t, "html.body.p", got[0].Key)
+}
+
 func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {
 	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
 	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)
