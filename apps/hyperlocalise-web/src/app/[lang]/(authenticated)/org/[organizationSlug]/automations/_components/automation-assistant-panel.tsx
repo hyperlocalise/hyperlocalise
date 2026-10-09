@@ -115,7 +115,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
         className,
       )}
     >
-      <header className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <header className="flex items-center gap-2 border-b border-border py-2 ps-5 pe-3">
         <SparkleIcon className="size-4 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">
@@ -149,7 +149,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           <XIcon />
         </Button>
       </header>
-      <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3">
+      <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
         {assistant.messages.length === 0 && !assistant.streaming ? (
           <TypographyMuted className="text-sm">
             <FormattedMessage {...messages.empty} />
@@ -176,7 +176,7 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           <Reply parts={[]} pending />
         ) : null}
       </div>
-      <footer className="flex flex-col gap-2 border-t border-border p-2">
+      <footer className="flex flex-col gap-2 border-t border-border p-3">
         {assistant.error ? (
           <p className="px-1 text-xs text-destructive">
             <FormattedMessage
