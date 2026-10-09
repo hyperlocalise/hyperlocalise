@@ -19,7 +19,10 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { updateWorkspaceAutomationSetup } from "@/lib/agents/workspace-automation-assistant";
+import {
+  readAutomationSetupPageEdits,
+  updateWorkspaceAutomationSetup,
+} from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -102,6 +105,7 @@ function Consumer() {
     <div>
       <p>{`status:${assistant.status} open:${assistant.open} calls:${assistant.appliedCallCount} changes:${assistant.appliedChangeCount} error:${assistant.error ?? "none"}`}</p>
       <p>{`messages:${assistant.messages.map((message) => message.senderType).join(",")}`}</p>
+      <p>{`edits:${assistant.messages.map((message) => readAutomationSetupPageEdits(message.parts).length).join(",")}`}</p>
       <button type="button" onClick={() => assistant.send("Post a weekly summary")}>
         Send
       </button>
@@ -280,6 +284,33 @@ describe("AutomationAssistantProvider", () => {
       });
     });
     expect(screen.getByText(/open:false/)).toBeTruthy();
+  });
+
+  it("shows what the person changed on the page above their message as soon as the turn says so", async () => {
+    const user = userEvent.setup();
+    let finish: () => void = () => undefined;
+    api.createAssistantSession.mockResolvedValue(session("sess-1"));
+    api.streamAssistantTurn.mockImplementation(async function* () {
+      yield {
+        id: "stream-1",
+        role: "assistant",
+        parts: [{ type: "data-page-edits", data: { edits: [{ kind: "name", name: "Old name" }] } }],
+      };
+      // The reply is still being written while the line is already there.
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    });
+    api.loadAssistantSession.mockResolvedValue({ session: session("sess-1"), messages: [] });
+    renderProvider();
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("edits:1")).toBeTruthy();
+    });
+    expect(screen.getByText(/status:streaming/)).toBeTruthy();
+    finish();
   });
 
   it("ignores a change made for another page", async () => {

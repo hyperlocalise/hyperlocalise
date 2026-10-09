@@ -18,12 +18,13 @@ import {
   type UIMessage,
 } from "ai";
 
-import type { InboxChatUIMessage } from "@/lib/agent-contracts/inbox-chat-message";
+import type { InboxChatDataTypes } from "@/lib/agent-contracts/inbox-chat-message";
 import {
   AUTOMATION_SETUP_PAGE_EDITS_PART,
   AUTOMATION_SETUP_SNAPSHOT_PART,
   describeAutomationSetupPage,
   listAutomationSetupPageEdits,
+  type AutomationSetupPageEdit,
 } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import {
@@ -51,6 +52,12 @@ import { createAutomationAssistantAgent } from "../agent";
 import type { AutomationAssistantToolContext } from "../tools/update_automation_setup";
 
 export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
+
+/** What the assistant's stream carries beside the reply: progress, and the person's page edits. */
+type AutomationAssistantUIMessage = UIMessage<
+  never,
+  InboxChatDataTypes & { "page-edits": { edits: AutomationSetupPageEdit[] } }
+>;
 const STREAM_ERROR_MESSAGE = "Sorry, something went wrong while the assistant was working.";
 
 function textFromParts(parts: UIMessage["parts"]) {
@@ -114,7 +121,7 @@ export function createAutomationAssistantTurnResponse(input: {
   // The tool rewrites this as it works, so after the turn it holds the form the turn left.
   const toolContext: AutomationAssistantToolContext = { automationEditor: input.pageContext };
 
-  const stream = createUIMessageStream<InboxChatUIMessage>({
+  const stream = createUIMessageStream<AutomationAssistantUIMessage>({
     execute: async ({ writer }) => {
       // Whatever differs between the form the last turn left and the page this message comes
       // from, the person changed themselves. It is saved with their message, so every later turn
@@ -150,6 +157,10 @@ export function createAutomationAssistantTurnResponse(input: {
       });
       shouldTrackUsage = true;
 
+      // The panel shows this above the person's message while the reply is still being written.
+      if (pageEdits.length > 0) {
+        writer.write({ type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits: pageEdits } });
+      }
       writer.write({ type: "data-status", id: "prep", data: { message: "Thinking…" } });
       const messages = withPageNow(
         await loadAutomationAssistantModelMessages(session.id),

@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
 import {
+  readAutomationSetupPageEdits,
   summarizeAutomationSetupCall,
   type AutomationSetupCallSummary,
 } from "@/lib/agents/workspace-automation-assistant";
@@ -30,7 +31,10 @@ import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
 
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
-import { AutomationAssistantToolCall } from "./automation-assistant-tool-call";
+import {
+  AutomationAssistantPageEdits,
+  AutomationAssistantToolCall,
+} from "./automation-assistant-tool-call";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
 import { useAutomationAssistant } from "./automation-assistant-provider";
 
@@ -169,7 +173,8 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
         ) : null}
         {assistant.messages.map((message) =>
           message.senderType === "user" ? (
-            <div key={message.id} className="flex justify-end">
+            <div key={message.id} className="flex flex-col items-end gap-1.5">
+              <AutomationAssistantPageEdits edits={readAutomationSetupPageEdits(message.parts)} />
               <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
                 {message.text}
               </div>

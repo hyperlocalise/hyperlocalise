@@ -225,16 +225,18 @@ describe("createAutomationAssistantTurnResponse", () => {
         pageContext: pageContext(),
         languageModel: { model, source: "gateway", modelId: "mock" },
       });
-      await response.text();
+      const streamed = await response.text();
       await vi.waitFor(async () => {
         const after = await getAutomationAssistantSession({ ...scope, sessionId: session.id });
         expect(after?.turnStartedAt).toBeNull();
       });
+      return streamed;
     };
 
-    await turn(modelThatNamesTheAutomation());
+    // The page hears of the person's own edits in the stream, to show above their message.
+    expect(await turn(modelThatNamesTheAutomation())).not.toContain("data-page-edits");
     const second = modelThatNamesTheAutomation();
-    await turn(second);
+    expect(await turn(second)).toContain("data-page-edits");
 
     const messages = await listAutomationAssistantMessages(session.id);
     expect(messages.map((message) => message.senderType)).toEqual([

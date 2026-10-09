@@ -19,7 +19,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { AutomationSetupCallSummary } from "@/lib/agents/workspace-automation-assistant";
 
-import { AutomationAssistantToolCall } from "./automation-assistant-tool-call";
+import {
+  AutomationAssistantPageEdits,
+  AutomationAssistantToolCall,
+} from "./automation-assistant-tool-call";
 
 function show(summary: AutomationSetupCallSummary) {
   return render(
@@ -28,6 +31,47 @@ function show(summary: AutomationSetupCallSummary) {
     </IntlProvider>,
   );
 }
+
+describe("AutomationAssistantPageEdits", () => {
+  it("opens to list what the person changed on the page themselves", async () => {
+    render(
+      <IntlProvider locale="en">
+        <AutomationAssistantPageEdits
+          edits={[
+            { kind: "name", name: "Competitor news brief" },
+            { kind: "name", name: "" },
+            { kind: "skill_removed", skillName: "Post results to Slack" },
+            { kind: "status", active: false },
+            { kind: "other" },
+          ]}
+        />
+      </IntlProvider>,
+    );
+
+    const line = screen.getByRole("button", { name: "You edited the setup · 5 changes" });
+    expect(screen.queryByRole("listitem")).toBeNull();
+
+    await userEvent.click(line);
+
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Name set to “Competitor news brief”",
+      "Name cleared",
+      "Removed skill: Post results to Slack",
+      "Switched off",
+      "Other settings changed",
+    ]);
+  });
+
+  it("is nothing when the person changed nothing", () => {
+    const { container } = render(
+      <IntlProvider locale="en">
+        <AutomationAssistantPageEdits edits={[]} />
+      </IntlProvider>,
+    );
+
+    expect(container.textContent).toBe("");
+  });
+});
 
 describe("AutomationAssistantToolCall", () => {
   it("opens to list what the call changed and what it left out", async () => {

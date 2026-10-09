@@ -156,6 +156,33 @@ export const automationAssistantMessages = defineMessages({
     description:
       "Line at the end of the assistant panel while a new automation holds changes of the assistant that are not saved",
   },
+  pageEditsCount: {
+    defaultMessage: "You edited the setup · {count, plural, one {# change} other {# changes}}",
+    id: "ybeD8Dwr0/",
+    description:
+      "Line above a message of the person's in the assistant panel, which opens to list what they changed on the page themselves before sending it",
+  },
+  pageEditNameCleared: {
+    defaultMessage: "Name cleared",
+    id: "0H5pl9VPXc",
+    description: "Listed change the person made on the page: the automation's name was emptied",
+  },
+  pageEditSwitchedOn: {
+    defaultMessage: "Switched on",
+    id: "XRVoKH5pyY",
+    description: "Listed change the person made on the page: the automation was switched on",
+  },
+  pageEditSwitchedOff: {
+    defaultMessage: "Switched off",
+    id: "jodRzGHD9D",
+    description: "Listed change the person made on the page: the automation was switched off",
+  },
+  pageEditOther: {
+    defaultMessage: "Other settings changed",
+    id: "DsTO8y8qOe",
+    description:
+      "Listed change the person made on the page: a setting the assistant does not set, such as the repository or the project",
+  },
   headerCreated: {
     defaultMessage: "The assistant set up this automation",
     id: "4XHdLftqfc",

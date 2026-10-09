@@ -182,6 +182,25 @@ describe("what the panel says a turn did", () => {
     expect(screen.queryByText("No changes made to the setup")).toBeNull();
   });
 
+  it("says above the person's message what they changed on the page before sending it", () => {
+    show(
+      assistant({
+        messages: [
+          {
+            ...reply([
+              { type: "data-page-edits", data: { edits: [{ kind: "name", name: "Old name" }] } },
+            ] as UIMessage["parts"]),
+            senderType: "user",
+            text: "Rename it again",
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "You edited the setup · 1 change" })).toBeTruthy();
+    expect(screen.getByText("Rename it again")).toBeTruthy();
+  });
+
   it("says the changes are on the page and unsaved only while the page counts some", () => {
     const { unmount } = show(assistant({ mode: "detail", appliedCallCount: 1 }));
     expect(

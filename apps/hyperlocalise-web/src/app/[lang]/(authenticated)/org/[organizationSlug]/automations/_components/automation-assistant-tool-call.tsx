@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type {
   AutomationSetupCallSummary,
   AutomationSetupChangeLine,
+  AutomationSetupPageEdit,
 } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationTriggerSummary } from "@/lib/agents/workspace-automation-proposal-form";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
@@ -124,6 +125,60 @@ function describeLine(intl: IntlShape, line: AutomationSetupChangeLine): string 
     default:
       return assertNever(line);
   }
+}
+
+/** A change the person made on the page themselves, in the words a call's change is listed in. */
+function describeEdit(intl: IntlShape, edit: AutomationSetupPageEdit): string {
+  switch (edit.kind) {
+    case "name":
+      return edit.name
+        ? describeLine(intl, edit)
+        : intl.formatMessage(messages.pageEditNameCleared);
+    case "instructions":
+    case "trigger":
+    case "skill_added":
+    case "skill_removed":
+      return describeLine(intl, edit);
+    case "status":
+      return intl.formatMessage(
+        edit.active ? messages.pageEditSwitchedOn : messages.pageEditSwitchedOff,
+      );
+    case "other":
+      return intl.formatMessage(messages.pageEditOther);
+    default:
+      return assertNever(edit);
+  }
+}
+
+/**
+ * What the person changed on the page themselves before sending a message: one quiet line above
+ * the message, which opens to list the changes. The assistant is told the same, so the line also
+ * explains why its next reply may redo or leave out something an earlier reply described.
+ */
+export function AutomationAssistantPageEdits({ edits }: { edits: AutomationSetupPageEdit[] }) {
+  const intl = useIntl();
+  if (edits.length === 0) {
+    return null;
+  }
+  return (
+    <Collapsible className="flex flex-col items-end">
+      <CollapsibleTrigger
+        className={`group ${ROW_CLASS} cursor-pointer rounded-sm text-end transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none`}
+      >
+        <span>
+          <FormattedMessage {...messages.pageEditsCount} values={{ count: edits.length }} />
+        </span>
+        <CaretDownIcon className="size-3 shrink-0 transition-transform group-data-[panel-open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ul className="mt-1.5 flex flex-col gap-1 border-e-2 border-border pe-3 text-end text-xs leading-5 text-muted-foreground">
+          {edits.map((edit, index) => (
+            <li key={index}>{describeEdit(intl, edit)}</li>
+          ))}
+        </ul>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
 function Row({ icon, children }: { icon?: ReactNode; children: ReactNode }) {

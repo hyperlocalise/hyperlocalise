@@ -29,7 +29,9 @@ import {
 import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import {
   applyAutomationSetupChanges,
+  AUTOMATION_SETUP_PAGE_EDITS_PART,
   collectAutomationSetupChanges,
+  readAutomationSetupPageEdits,
 } from "@/lib/agents/workspace-automation-assistant";
 import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import { isWorkspaceAutomationAssistantForm } from "@/lib/agents/workspace-automation-proposal-form";
@@ -357,9 +359,11 @@ export function AutomationAssistantProvider({
     setError(null);
     setStatus("streaming");
     setOpen(true);
+    const local = shown ?? localMessage(text);
     if (!shown) {
-      setMessages((list) => [...list, localMessage(text)]);
+      setMessages((list) => [...list, local]);
     }
+    let editsShown = false;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -378,6 +382,18 @@ export function AutomationAssistantProvider({
         })) {
           if (controller.signal.aborted) {
             return;
+          }
+          // The turn says first what the person changed on the page since the last one. It
+          // goes above their message at once, as it will be when the saved turn is loaded.
+          const edits = editsShown ? [] : readAutomationSetupPageEdits(reply.parts);
+          if (edits.length > 0) {
+            editsShown = true;
+            const parts = [
+              { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits } },
+            ] as UIMessage["parts"];
+            setMessages((list) =>
+              list.map((message) => (message.id === local.id ? { ...message, parts } : message)),
+            );
           }
           setStreaming(reply);
           applyStreamedChanges(reply);
