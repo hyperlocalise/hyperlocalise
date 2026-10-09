@@ -90,7 +90,7 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
 
 /** How the turn is counted: which page of the automation it came from. */
 function modeOf(pageContext: AutomationAssistantPageContext): string {
-  return pageContext.mode;
+  return pageContext.kind === "automation-editor" ? pageContext.mode : "visual_workflow";
 }
 
 /**

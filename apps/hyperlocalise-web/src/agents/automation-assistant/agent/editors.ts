@@ -13,10 +13,13 @@
 import type { Tool } from "ai";
 
 import type { AutomationAssistantPageContext } from "@/lib/agents/automation-assistant-editors";
+import { EDIT_VISUAL_WORKFLOW_TOOL_NAME } from "@/lib/agents/visual-workflow-assistant";
+import type { VisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
 import { UPDATE_AUTOMATION_SETUP_TOOL_NAME } from "@/lib/agents/workspace-automation-assistant";
 import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
+import { createEditVisualWorkflowTool } from "./tools/edit-visual-workflow";
 import { createUpdateAutomationSetupTool } from "./tools/update-automation-setup";
 
 /**
@@ -24,10 +27,9 @@ import { createUpdateAutomationSetupTool } from "./tools/update-automation-setup
  * for the editor the turn was sent from. The tool rewrites it, so after the turn it holds the
  * page as the turn left it.
  */
-export type AutomationAssistantToolContext = {
-  kind: "automation-editor";
-  automationEditor: WorkspaceAutomationEditorContext;
-};
+export type AutomationAssistantToolContext =
+  | { kind: "automation-editor"; automationEditor: WorkspaceAutomationEditorContext }
+  | { kind: "visual-workflow-editor"; visualWorkflowEditor: VisualWorkflowEditorContext };
 
 export function createAutomationAssistantToolContext(
   page: AutomationAssistantPageContext,
@@ -35,8 +37,10 @@ export function createAutomationAssistantToolContext(
   switch (page.kind) {
     case "automation-editor":
       return { kind: page.kind, automationEditor: page };
+    case "visual-workflow-editor":
+      return { kind: page.kind, visualWorkflowEditor: page };
     default:
-      return assertNever(page.kind);
+      return assertNever(page);
   }
 }
 
@@ -47,8 +51,10 @@ export function automationAssistantPageOf(
   switch (toolContext.kind) {
     case "automation-editor":
       return toolContext.automationEditor;
+    case "visual-workflow-editor":
+      return toolContext.visualWorkflowEditor;
     default:
-      return assertNever(toolContext.kind);
+      return assertNever(toolContext);
   }
 }
 
@@ -61,8 +67,12 @@ export function createAutomationAssistantTools(
       return {
         [UPDATE_AUTOMATION_SETUP_TOOL_NAME]: createUpdateAutomationSetupTool(toolContext),
       };
+    case "visual-workflow-editor":
+      return {
+        [EDIT_VISUAL_WORKFLOW_TOOL_NAME]: createEditVisualWorkflowTool(toolContext),
+      };
     default:
-      return assertNever(toolContext.kind);
+      return assertNever(toolContext);
   }
 }
 
@@ -71,6 +81,8 @@ export function automationAssistantSkillFor(kind: AutomationAssistantToolContext
   switch (kind) {
     case "automation-editor":
       return "automation-setup";
+    case "visual-workflow-editor":
+      return "visual-workflow";
     default:
       return assertNever(kind);
   }

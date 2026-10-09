@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import type { VisualWorkflowEditorState } from "@/lib/visual-workflows/schema/types";
 
 import {
   AUTOMATION_SETUP_PAGE_EDITS_PART,
@@ -21,6 +22,12 @@ import {
   toAutomationAssistantHistoryParts,
   type AutomationAssistantCallSummary as CallSummary,
 } from "./automation-assistant-editor";
+import {
+  visualWorkflowEditor,
+  type VisualWorkflowChangeLine,
+  type VisualWorkflowPageEdit,
+} from "./visual-workflow-assistant";
+import { visualWorkflowEditorContextSchema } from "./visual-workflow-editor-context";
 import {
   automationSetupEditor,
   type AutomationSetupChangeLine,
@@ -35,31 +42,33 @@ import type { WorkspaceAutomationFormState } from "./workspace-automation-view-m
  */
 export const automationAssistantEditors = {
   "automation-editor": automationSetupEditor,
+  "visual-workflow-editor": visualWorkflowEditor,
 };
 
 export const automationAssistantPageContextSchema = z.discriminatedUnion("kind", [
   workspaceAutomationEditorContextSchema,
+  visualWorkflowEditorContextSchema,
 ]);
 
 /** What an open page tells the assistant with each turn. */
 export type AutomationAssistantPageContext = z.infer<typeof automationAssistantPageContextSchema>;
+export type AutomationAssistantEditorKind = AutomationAssistantPageContext["kind"];
 
-export type AutomationAssistantChangeLine = AutomationSetupChangeLine;
-export type AutomationAssistantPageEdit = AutomationSetupPageEdit;
+export type AutomationAssistantChangeLine = AutomationSetupChangeLine | VisualWorkflowChangeLine;
+export type AutomationAssistantPageEdit = AutomationSetupPageEdit | VisualWorkflowPageEdit;
 export type AutomationAssistantCallSummary = CallSummary<AutomationAssistantChangeLine>;
 
 /** The part of a page the tool changes, as a saved reply records it. */
-export type AutomationAssistantSnapshot = {
-  kind: "automation-editor";
-  document: WorkspaceAutomationFormState;
-};
+export type AutomationAssistantSnapshot =
+  | { kind: "automation-editor"; document: WorkspaceAutomationFormState }
+  | { kind: "visual-workflow-editor"; document: VisualWorkflowEditorState };
 
-export function describeAutomationAssistantCatalogue(
-  kind: AutomationAssistantPageContext["kind"],
-): string {
+export function describeAutomationAssistantCatalogue(kind: AutomationAssistantEditorKind): string {
   switch (kind) {
     case "automation-editor":
       return automationSetupEditor.describeCatalogue();
+    case "visual-workflow-editor":
+      return visualWorkflowEditor.describeCatalogue();
     default:
       return assertNever(kind);
   }
@@ -70,8 +79,10 @@ export function describeAutomationAssistantPage(context: AutomationAssistantPage
   switch (context.kind) {
     case "automation-editor":
       return automationSetupEditor.describePage(context);
+    case "visual-workflow-editor":
+      return visualWorkflowEditor.describePage(context);
     default:
-      return assertNever(context.kind);
+      return assertNever(context);
   }
 }
 
@@ -81,8 +92,10 @@ export function snapshotOfAutomationAssistantPage(
   switch (context.kind) {
     case "automation-editor":
       return { kind: context.kind, document: automationSetupEditor.documentOf(context) };
+    case "visual-workflow-editor":
+      return { kind: context.kind, document: visualWorkflowEditor.documentOf(context) };
     default:
-      return assertNever(context.kind);
+      return assertNever(context);
   }
 }
 
@@ -91,8 +104,10 @@ export function toAutomationAssistantSnapshotData(snapshot: AutomationAssistantS
   switch (snapshot.kind) {
     case "automation-editor":
       return automationSetupEditor.snapshotData(snapshot.document);
+    case "visual-workflow-editor":
+      return visualWorkflowEditor.snapshotData(snapshot.document);
     default:
-      return assertNever(snapshot.kind);
+      return assertNever(snapshot);
   }
 }
 
@@ -104,6 +119,10 @@ export function readAutomationAssistantSnapshot(
   const form = automationSetupEditor.readSnapshot(data);
   if (form) {
     return { kind: "automation-editor", document: form };
+  }
+  const workflow = visualWorkflowEditor.readSnapshot(data);
+  if (workflow) {
+    return { kind: "visual-workflow-editor", document: workflow };
   }
   return null;
 }
@@ -122,42 +141,59 @@ export function listAutomationAssistantPageEdits(
       return before.kind === after.kind
         ? automationSetupEditor.listPageEdits(before.document, after.form)
         : [];
+    case "visual-workflow-editor":
+      return before.kind === after.kind
+        ? visualWorkflowEditor.listPageEdits(
+            before.document,
+            visualWorkflowEditor.documentOf(after),
+          )
+        : [];
     default:
-      return assertNever(after.kind);
+      return assertNever(after);
   }
 }
 
 /** The page's record, for the model, of what the person changed themselves before a message. */
 export function describeAutomationAssistantPageEdits(
-  kind: AutomationAssistantPageContext["kind"],
+  kind: AutomationAssistantEditorKind,
   edits: readonly AutomationAssistantPageEdit[],
 ): string {
   switch (kind) {
     case "automation-editor":
-      return automationSetupEditor.describePageEdits(edits);
+      return automationSetupEditor.describePageEdits(
+        edits.filter((edit): edit is AutomationSetupPageEdit => isSetupEdit(edit)),
+      );
+    case "visual-workflow-editor":
+      return visualWorkflowEditor.describePageEdits(
+        edits.filter((edit): edit is VisualWorkflowPageEdit => !isSetupEdit(edit)),
+      );
     default:
       return assertNever(kind);
   }
 }
 
+function isSetupEdit(edit: AutomationAssistantPageEdit): edit is AutomationSetupPageEdit {
+  return automationSetupEditor.pageEditSchema.safeParse(edit).success;
+}
+
 /** The data of the part a saved message of the person's records their page edits in. */
 export function toAutomationAssistantPageEditsData(
-  kind: AutomationAssistantPageContext["kind"],
+  kind: AutomationAssistantEditorKind,
   edits: readonly AutomationAssistantPageEdit[],
-): { editor: AutomationAssistantPageContext["kind"]; edits: AutomationAssistantPageEdit[] } {
+): { editor: AutomationAssistantEditorKind; edits: AutomationAssistantPageEdit[] } {
   return { editor: kind, edits: [...edits] };
 }
 
 const pageEditsDataSchema = z.object({
   // Absent on messages saved before the assistant served more than one kind of page.
-  editor: z.enum(["automation-editor"]).default("automation-editor"),
+  editor: z.enum(["automation-editor", "visual-workflow-editor"]).default("automation-editor"),
   edits: z.array(z.unknown()),
 });
 
 /** What the person changed on the page before sending a saved message, with its editor, or null. */
 export function readAutomationAssistantPageEditsRecord(
   parts: readonly unknown[] | null | undefined,
-): { editor: AutomationAssistantPageContext["kind"]; edits: AutomationAssistantPageEdit[] } | null {
+): { editor: AutomationAssistantEditorKind; edits: AutomationAssistantPageEdit[] } | null {
   const parsed = pageEditsDataSchema.safeParse(
     readDataPart(parts, AUTOMATION_SETUP_PAGE_EDITS_PART),
   );
@@ -167,6 +203,10 @@ export function readAutomationAssistantPageEditsRecord(
   switch (parsed.data.editor) {
     case "automation-editor": {
       const edits = z.array(automationSetupEditor.pageEditSchema).safeParse(parsed.data.edits);
+      return edits.success ? { editor: parsed.data.editor, edits: edits.data } : null;
+    }
+    case "visual-workflow-editor": {
+      const edits = z.array(visualWorkflowEditor.pageEditSchema).safeParse(parsed.data.edits);
       return edits.success ? { editor: parsed.data.editor, edits: edits.data } : null;
     }
     default:
@@ -185,7 +225,7 @@ export function readAutomationAssistantPageEdits(
 export function summarizeAutomationAssistantCall(
   part: unknown,
 ): AutomationAssistantCallSummary | null {
-  return automationSetupEditor.summarizeCall(part);
+  return automationSetupEditor.summarizeCall(part) ?? visualWorkflowEditor.summarizeCall(part);
 }
 
 /** A past reply as the model is shown it, with the calls of every editor's tool kept. */

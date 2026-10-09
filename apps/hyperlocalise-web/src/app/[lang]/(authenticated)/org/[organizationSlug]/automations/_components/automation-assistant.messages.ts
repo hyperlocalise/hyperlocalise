@@ -286,4 +286,50 @@ export const automationAssistantMessages = defineMessages({
     id: "KQXF59dqej",
     description: "Cancel button of the dialog shown before undoing a turn of the assistant",
   },
+  toolLineNodeAdded: {
+    defaultMessage: "Added a {node} step",
+    id: "7u3f5h9bJH",
+    description:
+      "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title",
+  },
+  toolLineNodeRemoved: {
+    defaultMessage: "Removed the {node} step",
+    id: "JisM1jWILg",
+    description:
+      "Line in the assistant's change list: a node was removed from the workflow; {node} is the node type's title",
+  },
+  toolLineNodeConfigured: {
+    defaultMessage: "Changed {fields} on the {node} step",
+    id: "7tK9YSDkvx",
+    description:
+      "Line in the assistant's change list: a node's settings were changed; {fields} lists the settings, {node} is the node type's title",
+  },
+  toolLineEdgeAdded: {
+    defaultMessage: "Connected {source} to {target}",
+    id: "lEXKxwEywz",
+    description:
+      "Line in the assistant's change list: two workflow nodes were connected, named by their ids",
+  },
+  toolLineEdgeRemoved: {
+    defaultMessage: "Disconnected {source} from {target}",
+    id: "KXlC8hrmGf",
+    description:
+      "Line in the assistant's change list: a connection between two workflow nodes was removed, named by their ids",
+  },
+  toolLineWorkflowRenamed: {
+    defaultMessage: 'Renamed the workflow to "{name}"',
+    id: "NOPoUyz/8O",
+    description: "Line in the assistant's change list: the workflow was given a new name",
+  },
+  toolLineRejected: {
+    defaultMessage: "Could not make one change ({code})",
+    id: "jSpg6W6q1g",
+    description:
+      "Line in the assistant's change list: an operation on the workflow was refused; {code} is the machine reason",
+  },
+  pageEditWorkflowNameCleared: {
+    defaultMessage: "Cleared the workflow's name",
+    id: "VluH2EAHsX",
+    description: "Line in the list of what the person changed on the workflow themselves",
+  },
 });

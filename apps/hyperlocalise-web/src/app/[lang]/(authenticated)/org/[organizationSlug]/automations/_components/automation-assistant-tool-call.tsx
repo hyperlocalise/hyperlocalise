@@ -28,6 +28,7 @@ import type { WorkspaceAutomationTriggerSummary } from "@/lib/agents/workspace-a
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import { AUTOMATION_ASSISTANT_INTEGRATION_LABELS } from "./automation-assistant-summary";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-editor/visual-workflow-node-picker";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import { workspaceAutomationTriggerMessages } from "./workspace-automation-trigger-settings.messages";
@@ -122,6 +123,33 @@ function describeLine(intl: IntlShape, line: AutomationAssistantChangeLine): str
             ),
           })
         : intl.formatMessage(messages.toolLineSkillWrongTrigger, { skill: line.skillName });
+    case "node_added":
+      return intl.formatMessage(messages.toolLineNodeAdded, {
+        node: intl.formatMessage(visualWorkflowNodeTitleMessage(line.type)),
+      });
+    case "node_removed":
+      return intl.formatMessage(messages.toolLineNodeRemoved, {
+        node: intl.formatMessage(visualWorkflowNodeTitleMessage(line.type)),
+      });
+    case "node_configured":
+      return intl.formatMessage(messages.toolLineNodeConfigured, {
+        node: intl.formatMessage(visualWorkflowNodeTitleMessage(line.type)),
+        fields: intl.formatList(line.fields, { type: "conjunction" }),
+      });
+    case "edge_added":
+      return intl.formatMessage(messages.toolLineEdgeAdded, {
+        source: line.source,
+        target: line.target,
+      });
+    case "edge_removed":
+      return intl.formatMessage(messages.toolLineEdgeRemoved, {
+        source: line.source,
+        target: line.target,
+      });
+    case "workflow_renamed":
+      return intl.formatMessage(messages.toolLineWorkflowRenamed, { name: line.name });
+    case "rejected":
+      return intl.formatMessage(messages.toolLineRejected, { code: line.code });
     default:
       return assertNever(line);
   }
@@ -145,6 +173,16 @@ function describeEdit(intl: IntlShape, edit: AutomationAssistantPageEdit): strin
       );
     case "other":
       return intl.formatMessage(messages.pageEditOther);
+    case "workflow_renamed":
+      return edit.name
+        ? describeLine(intl, edit)
+        : intl.formatMessage(messages.pageEditWorkflowNameCleared);
+    case "node_added":
+    case "node_removed":
+    case "node_configured":
+    case "edge_added":
+    case "edge_removed":
+      return describeLine(intl, edit);
     default:
       return assertNever(edit);
   }
@@ -223,7 +261,9 @@ export function AutomationAssistantToolCall({
     );
   }
 
-  const made = summary.changes.filter((line) => line.kind !== "skill_not_added").length;
+  const made = summary.changes.filter(
+    (line) => line.kind !== "skill_not_added" && line.kind !== "rejected",
+  ).length;
   const title =
     made > 0 ? (
       <FormattedMessage {...messages.toolUpdatedCount} values={{ count: made }} />
@@ -246,7 +286,12 @@ export function AutomationAssistantToolCall({
       <CollapsibleContent>
         <ul className="mt-1.5 flex flex-col gap-1 border-s-2 border-border ps-3 text-xs leading-5 text-muted-foreground">
           {summary.changes.map((line, index) => (
-            <li key={index} className={line.kind === "skill_not_added" ? "text-foreground" : ""}>
+            <li
+              key={index}
+              className={
+                line.kind === "skill_not_added" || line.kind === "rejected" ? "text-foreground" : ""
+              }
+            >
               {describeLine(intl, line)}
             </li>
           ))}

@@ -243,7 +243,9 @@ export function createAutomationAssistantRoutes() {
       ) {
         return badRequestResponse(c, "invalid_page_context");
       }
-      if (session.automationId && pageContext.data.automationId !== session.automationId) {
+      const pageAutomationId =
+        pageContext.data.kind === "automation-editor" ? pageContext.data.automationId : null;
+      if (session.automationId && pageAutomationId !== session.automationId) {
         return badRequestResponse(c, "page_context_mismatch");
       }
       const aiFeaturesRejection = await rejectIfAiFeaturesUnavailable(c, organizationId);
