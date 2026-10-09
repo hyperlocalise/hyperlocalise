@@ -53,8 +53,10 @@ function setupStepKey(step: WorkspaceAutomationSetupStep): string {
 }
 
 /**
- * One line above the form once the assistant has touched it: what happened, how many changes it
- * made, whether it is still working, and what the setup still needs before it can be saved.
+ * One notice above the form about what the assistant did to it. Until a change lands it says the
+ * assistant is working; from then on it says what happened, how many changes were made and what
+ * the setup still needs before it can be saved. It is about the form, so it stops saying
+ * "working" the moment the form has changed, though the reply in the panel is still being written.
  */
 export function AutomationAssistantSummary({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
@@ -108,7 +110,7 @@ export function AutomationAssistantSummary({ organizationSlug }: { organizationS
       aria-live="polite"
       className="flex flex-col gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm"
     >
-      {assistant.working ? (
+      {assistant.working && assistant.appliedCallCount === 0 ? (
         <p className="flex items-center gap-2 text-muted-foreground">
           <Spinner className="size-4" />
           <FormattedMessage
