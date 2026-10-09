@@ -13,15 +13,17 @@
 import { makeAutoObservable } from "mobx";
 
 import type { DomainResearchDomain } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 export type DomainsPageLoadStatus = "idle" | "loading" | "error" | "success";
 
 export class DomainsPageStore {
   readonly organizationSlug: string;
   domains: DomainResearchDomain[] = [];
+  linkedDomains: LinkedDomainPublic[] = [];
   loadStatus: DomainsPageLoadStatus = "idle";
   addDomainDialogOpen = false;
-  editLocalesDomain: DomainResearchDomain | null = null;
+  editLinkedDomain: LinkedDomainPublic | null = null;
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -44,8 +46,8 @@ export class DomainsPageStore {
     return this.loadStatus === "success" && this.domains.length > 0;
   }
 
-  get dialogDomain() {
-    return this.editLocalesDomain ?? undefined;
+  linkedDomainById(id: string) {
+    return this.linkedDomains.find((domain) => domain.id === id);
   }
 
   setLoadStatus(status: DomainsPageLoadStatus) {
@@ -56,20 +58,24 @@ export class DomainsPageStore {
     this.domains = domains;
   }
 
+  setLinkedDomains(domains: LinkedDomainPublic[]) {
+    this.linkedDomains = domains;
+  }
+
   openAddDomainDialog() {
-    this.editLocalesDomain = null;
+    this.editLinkedDomain = null;
     this.addDomainDialogOpen = true;
   }
 
-  openEditLocales(domain: DomainResearchDomain) {
-    this.editLocalesDomain = domain;
+  openEditLocales(domain: LinkedDomainPublic) {
+    this.editLinkedDomain = domain;
     this.addDomainDialogOpen = true;
   }
 
   setAddDomainDialogOpen(open: boolean) {
     this.addDomainDialogOpen = open;
     if (!open) {
-      this.editLocalesDomain = null;
+      this.editLinkedDomain = null;
     }
   }
 }

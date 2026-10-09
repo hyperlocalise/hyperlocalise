@@ -101,8 +101,8 @@ export const domainDetailPageContentMessages = defineMessages({
     description: "Help text for linked domain market selection",
   },
   editMarkets: {
-    defaultMessage: "Edit markets",
-    id: "L2itdwaRts",
+    defaultMessage: "Edit locales",
+    id: "usJ8kB/kYc",
     description: "Button to edit linked domain research markets",
   },
   noMarkets: {
