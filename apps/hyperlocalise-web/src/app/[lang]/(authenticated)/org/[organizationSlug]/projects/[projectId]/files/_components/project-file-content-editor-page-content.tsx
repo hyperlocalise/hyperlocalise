@@ -711,6 +711,7 @@ function ProjectFileContentEditorPageContentInner({
             organizationSlug={organizationSlug}
             projectId={projectId}
             canManageAutomations={canManageAutomations}
+            sourcePath={sourcePath}
             pageNavigationGuardRef={pageNavigationGuardRef}
           />
         ) : null

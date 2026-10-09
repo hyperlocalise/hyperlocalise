@@ -213,6 +213,7 @@ export const IntercomPushInHeader: Story = {
         organizationSlug="story"
         projectId="story"
         canManageAutomations
+        sourcePath="intercom/customer-support/reset-your-password.md"
       />
     ),
   },
@@ -227,6 +228,6 @@ export const IntercomPushInHeader: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Push to Intercom as draft" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Push to Intercom" })).toBeEnabled();
   },
 };

@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api-client-instance";
 export async function queueIntercomPushRun(input: {
   organizationSlug: string;
   automationId: string;
+  sourcePaths: string[];
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].automations[
     ":automationId"
@@ -25,7 +26,10 @@ export async function queueIntercomPushRun(input: {
     },
     json: {
       idempotencyKey: `push_approved:${input.automationId}:${crypto.randomUUID()}`,
-      inputSnapshot: { operation: "push_approved" },
+      inputSnapshot: {
+        operation: "push_approved",
+        sourcePaths: input.sourcePaths,
+      },
     },
   });
   if (!response.ok) {

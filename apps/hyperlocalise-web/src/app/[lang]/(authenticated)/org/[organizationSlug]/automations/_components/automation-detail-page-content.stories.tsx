@@ -260,76 +260,8 @@ export const IntercomWeeklyImport: Story = {
     await expect(canvas.queryByText(/^Locales:/)).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
     await expect(
-      canvas.queryByRole("button", { name: "Push to Intercom as draft" }),
+      canvas.queryByRole("button", { name: "Push to Intercom" }),
     ).not.toBeInTheDocument();
-  },
-};
-
-export const IntercomPushApprovedReady: Story = {
-  args: {
-    automationId: intercomAutomation.id,
-  },
-  parameters: {
-    msw: {
-      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
-        recentRuns: intercomAutomationRunsFixture,
-        intercomPush: {
-          eligibleLocaleCount: 2,
-          mappedArticleCount: publishedIntercomArticles.length,
-          pushRunInProgress: false,
-        },
-      }),
-    },
-    nextjs: {
-      appDirectory: true,
-      navigation: {
-        pathname: `/org/acme/automations/${intercomAutomation.id}`,
-      },
-    },
-  },
-  play: async ({ canvas }) => {
-    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Push to Intercom as draft" })).toBeEnabled();
-    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
-  },
-};
-
-export const IntercomPushInProgress: Story = {
-  args: {
-    automationId: intercomAutomation.id,
-  },
-  parameters: {
-    msw: {
-      handlers: createAutomationDetailMswHandlers(intercomAutomation, {
-        recentRuns: [
-          {
-            ...intercomAutomationRunsFixture[0],
-            id: "run_intercom_push_running",
-            status: "running",
-            completedAt: null,
-          },
-          ...intercomAutomationRunsFixture.slice(1),
-        ],
-        intercomPush: {
-          eligibleLocaleCount: 2,
-          mappedArticleCount: publishedIntercomArticles.length,
-          pushRunInProgress: true,
-        },
-      }),
-    },
-    nextjs: {
-      appDirectory: true,
-      navigation: {
-        pathname: `/org/acme/automations/${intercomAutomation.id}`,
-      },
-    },
-  },
-  play: async ({ canvas }) => {
-    await expect(await canvas.findByText("Customer Support")).toBeInTheDocument();
-    await expect(
-      canvas.queryByRole("button", { name: "Push to Intercom as draft" }),
-    ).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Run now" })).toBeEnabled();
   },
 };
 

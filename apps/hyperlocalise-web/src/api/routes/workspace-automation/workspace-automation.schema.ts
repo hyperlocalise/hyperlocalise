@@ -28,6 +28,10 @@ export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
 });
 
+export const getWorkspaceAutomationQuerySchema = z.object({
+  includePushArticles: z.string().optional(),
+});
+
 export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
   automationId: z.string().uuid(),
   knowledgeFileId: z.string().uuid(),

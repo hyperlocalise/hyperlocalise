@@ -13,10 +13,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  intercomCopyHasVisibleText,
   intercomLocalesShareLanguage,
+  isIntercomTargetContentImportable,
   mapProjectLocalesToIntercom,
   resolveIntercomLocaleKey,
   resolveProjectLocaleKey,
+  selectIntercomTargetLocalesToImport,
+  unionIntercomLocales,
 } from "./intercom-locale";
 
 describe("resolveIntercomLocaleKey", () => {
@@ -83,7 +87,64 @@ describe("intercomLocalesShareLanguage", () => {
   });
 });
 
+describe("unionIntercomLocales", () => {
+  it("adds article translated_content keys that the Help Center list omitted", () => {
+    expect(unionIntercomLocales(["en", "fr"], ["fr", "de"])).toEqual(["en", "fr", "de"]);
+  });
+});
+
+describe("isIntercomTargetContentImportable", () => {
+  it("accepts title and body with real copy", () => {
+    expect(
+      isIntercomTargetContentImportable({
+        title: "Bonjour",
+        description: "",
+        body: "<p>Bienvenue</p>",
+      }),
+    ).toBe(true);
+    expect(intercomCopyHasVisibleText("<p>Bienvenue</p>")).toBe(true);
+  });
+
+  it("rejects title-only copy and empty HTML bodies", () => {
+    expect(
+      isIntercomTargetContentImportable({
+        title: "Hallo",
+        description: "",
+        body: "",
+      }),
+    ).toBe(false);
+    expect(
+      isIntercomTargetContentImportable({
+        title: "Hallo",
+        description: "",
+        body: "<p></p>",
+      }),
+    ).toBe(false);
+    expect(
+      isIntercomTargetContentImportable({
+        title: "Hallo",
+        description: "",
+        body: "<p>&nbsp;</p>",
+      }),
+    ).toBe(false);
+    expect(intercomCopyHasVisibleText("<p></p>")).toBe(false);
+  });
+});
+
 describe("mapProjectLocalesToIntercom", () => {
+  it("maps German from an article locale when the Help Center list omitted it", () => {
+    const result = mapProjectLocalesToIntercom({
+      projectSourceLocale: "en-US",
+      projectTargetLocales: ["de-DE", "fr-FR"],
+      intercomLocales: unionIntercomLocales(["en", "fr"], ["fr", "de"]),
+      configuredSourceLocale: "en",
+    });
+
+    expect(result.sourceIntercomLocale).toBe("en");
+    expect(result.jobTargetLocales).toEqual(["de-DE", "fr-FR"]);
+    expect(result.intercomTargetLocales).toEqual(["de", "fr"]);
+  });
+
   it("maps regional project targets onto Intercom language codes", () => {
     const result = mapProjectLocalesToIntercom({
       projectSourceLocale: "en-US",
@@ -184,5 +245,92 @@ describe("mapProjectLocalesToIntercom", () => {
 
     expect(result.sourceIntercomLocale).toBeNull();
     expect(result.jobTargetLocales).toEqual([]);
+  });
+});
+
+describe("selectIntercomTargetLocalesToImport", () => {
+  const localeMapping = {
+    sourceIntercomLocale: "en",
+    jobTargetLocales: ["de-DE", "fr-FR", "ja-JP"],
+    intercomTargetLocales: ["de", "fr", "ja"],
+  };
+
+  it("imports mapped locales that have a title and body", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping,
+        localeContent: {
+          de: { title: "Hallo", description: "", body: "Willkommen" },
+          fr: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+        },
+      }),
+    ).toEqual([
+      {
+        projectLocale: "de-DE",
+        intercomLocale: "de",
+        fields: { title: "Hallo", description: "", body: "Willkommen" },
+      },
+      {
+        projectLocale: "fr-FR",
+        intercomLocale: "fr",
+        fields: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+      },
+    ]);
+  });
+
+  it("looks up translated_content by normalized Intercom locale tags", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping: {
+          sourceIntercomLocale: "en",
+          jobTargetLocales: ["en-GB"],
+          intercomTargetLocales: ["en-GB"],
+        },
+        localeContent: {
+          "en-gb": { title: "Hello", description: "", body: "Welcome" },
+        },
+      }),
+    ).toEqual([
+      {
+        projectLocale: "en-GB",
+        intercomLocale: "en-GB",
+        fields: { title: "Hello", description: "", body: "Welcome" },
+      },
+    ]);
+  });
+
+  it("skips the source locale, unmapped locales, and incomplete copy", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping: {
+          sourceIntercomLocale: "en",
+          jobTargetLocales: ["de-DE", "fr-FR"],
+          intercomTargetLocales: ["en", "fr"],
+        },
+        localeContent: {
+          en: { title: "Hello", description: "", body: "Source" },
+          ja: { title: "こんにちは", description: "", body: "本文" },
+          fr: { title: "Bonjour", description: "", body: "" },
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not import a German stub with a title and empty HTML body", () => {
+    expect(
+      selectIntercomTargetLocalesToImport({
+        localeMapping,
+        localeContent: {
+          de: { title: "Getting started", description: "", body: "<p>&nbsp;</p>" },
+          fr: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+        },
+      }),
+    ).toEqual([
+      {
+        projectLocale: "fr-FR",
+        intercomLocale: "fr",
+        fields: { title: "Bonjour", description: "Intro", body: "Bienvenue" },
+      },
+    ]);
   });
 });

@@ -259,6 +259,9 @@ describe("workspace automation view model", () => {
       assignTranslateWithAgentEnabled: true,
     });
     expect(form?.skillIds).toEqual(["translate-intercom-articles"]);
+    expect(form?.intercomIncludeDrafts).toBe(true);
+    expect(form?.intercomOverwriteIntercomDrafts).toBe(true);
+    expect(form?.intercomExistingTranslationPolicy).toBe("seed_empty");
     expect(
       workspaceAutomationFormCanActivate({
         ...form!,
@@ -266,6 +269,43 @@ describe("workspace automation view model", () => {
         intercomHelpCenterLocales: ["en", "de"],
       }),
     ).toBe(true);
+  });
+
+  it("persists the Intercom existing-translation policy on the automation payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate Intercom articles",
+      instructions: "Import Help Center articles.",
+      intercomEnabled: true,
+      intercomHelpCenterId: "hc-1",
+      intercomHelpCenterLocales: ["en", "de"],
+      intercomExistingTranslationPolicy: "refresh_imported" as const,
+      projectId: "project-1",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.intercom).toMatchObject({
+      existingTranslationPolicy: "refresh_imported",
+    });
+
+    const hydrated = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: {
+        intercom: {
+          enabled: true,
+          restEndpoint: "us",
+          helpCenterId: "hc-1",
+          helpCenterLocales: ["en", "de"],
+          collectionIds: [],
+          sourceLocale: "en",
+          targetLocales: [],
+          includeDrafts: false,
+          overwriteIntercomDrafts: false,
+          existingTranslationPolicy: "overwrite_all",
+        },
+      },
+    });
+    expect(hydrated.intercomExistingTranslationPolicy).toBe("overwrite_all");
   });
 
   it("prefills the Contentful translation template", () => {

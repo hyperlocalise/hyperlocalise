@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Extension, type Extensions } from "@tiptap/core";
+import { Extension, type Extensions, type JSONContent } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -24,6 +24,16 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
+import {
+  canUseMarkdownCatEditor,
+  isStructuralMarkdownMarkupToken,
+  markdownDisplayDocFromModel,
+  markdownDisplayModel,
+  persistMarkdownCatTarget,
+  serializeMarkdownEditorDoc,
+  shouldUseMarkdownCatDisplay,
+  sourceHeadingIdLiteral,
+} from "@/components/content-editor/message-format/content-editor-markdown-display";
 import { formatMarkdownMarkupForDisplay } from "@/components/content-editor/message-format/content-editor-markdown-markup";
 import {
   analyzeCatMessageFormat,
@@ -257,7 +267,13 @@ function createCatMessageFormatExtension() {
 }
 
 const contentEditorTargetEditorExtensions = [
-  StarterKit.configure({ heading: false }),
+  StarterKit.configure({
+    heading: false,
+    link: {
+      openOnClick: false,
+      HTMLAttributes: { class: "text-primary underline", target: null },
+    },
+  }),
   createCatMessageFormatExtension(),
 ] as unknown as Extensions;
 
@@ -362,6 +378,92 @@ function renderHighlightedPlainText(
   );
 }
 
+function ContentEditorMessageFormatParts({
+  message,
+  companionMessage,
+  highlightTokens,
+  highlightStatus,
+  highlightWholeTerm,
+}: {
+  message: string;
+  companionMessage?: string;
+  highlightTokens: string[];
+  highlightStatus: "warn" | "fail";
+  highlightWholeTerm: boolean;
+}) {
+  const analysis = analyzeCatMessageFormat(message);
+  const ranges = analysis.tokens
+    .filter(
+      (token) =>
+        token.kind !== "pound" &&
+        !isStructuralMarkdownMarkupToken(token, message, companionMessage),
+    )
+    .toSorted((first, second) => first.start - second.start)
+    .reduce<ContentEditorMessageToken[]>((items, token) => {
+      const previous = items.at(-1);
+      if (previous && token.start < previous.end) {
+        return items;
+      }
+      return [...items, token];
+    }, []);
+
+  if (ranges.length === 0) {
+    return renderHighlightedPlainText(
+      message,
+      highlightTokens,
+      highlightStatus,
+      "plain",
+      highlightWholeTerm,
+    );
+  }
+
+  let cursor = 0;
+  const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
+  ranges.forEach((token) => {
+    if (cursor < token.start) {
+      parts.push({ key: `text-${cursor}`, text: message.slice(cursor, token.start) });
+    }
+    parts.push({
+      key: token.id,
+      text:
+        token.kind === "markup"
+          ? (token.displayLabel ?? token.name)
+          : message.slice(token.start, token.end),
+      token,
+    });
+    cursor = token.end;
+  });
+
+  if (cursor < message.length) {
+    parts.push({ key: `text-${cursor}`, text: message.slice(cursor) });
+  }
+
+  return parts.map((part) =>
+    part.token ? (
+      <span
+        key={part.key}
+        className={cn(
+          "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
+          contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
+        )}
+        title={part.token.kind === "markup" ? part.token.literal : undefined}
+      >
+        {part.text}
+      </span>
+    ) : (
+      <span key={part.key}>
+        {renderHighlightedPlainText(
+          part.text,
+          highlightTokens,
+          highlightStatus,
+          part.key,
+          highlightWholeTerm,
+        )}
+      </span>
+    ),
+  );
+}
+
 export function ContentEditorMessagePreview({
   message,
   companionMessage,
@@ -377,83 +479,61 @@ export function ContentEditorMessagePreview({
   highlightStatus?: "warn" | "fail";
   highlightWholeTerm?: boolean;
 }) {
+  const markdown = useMemo(() => {
+    if (!shouldUseMarkdownCatDisplay(message, companionMessage)) {
+      return null;
+    }
+    return markdownDisplayModel(message, companionMessage);
+  }, [companionMessage, message]);
   const displayMessage = useMemo(
     () => formatMarkdownMarkupForDisplay(message, companionMessage),
     [companionMessage, message],
   );
-  const analysis = useMemo(() => analyzeCatMessageFormat(displayMessage), [displayMessage]);
-  const ranges = analysis.tokens
-    .filter((token) => token.kind !== "pound")
-    .toSorted((first, second) => first.start - second.start)
-    .reduce<ContentEditorMessageToken[]>((items, token) => {
-      const previous = items.at(-1);
-      if (previous && token.start < previous.end) {
-        return items;
-      }
-      return [...items, token];
-    }, []);
 
-  if (ranges.length === 0) {
+  if (markdown) {
     return (
       <span className={className}>
-        {renderHighlightedPlainText(
-          displayMessage,
-          highlightTokens,
-          highlightStatus,
-          "plain",
-          highlightWholeTerm,
+        {markdown.spans.map((span, index) =>
+          span.type === "link" ? (
+            <a
+              key={`link-${index}`}
+              href={span.href || undefined}
+              title={span.href}
+              className="text-primary underline"
+              onClick={(event) => event.preventDefault()}
+            >
+              <ContentEditorMessageFormatParts
+                message={span.label}
+                companionMessage={companionMessage}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </a>
+          ) : (
+            <span key={`text-${index}`}>
+              <ContentEditorMessageFormatParts
+                message={span.text}
+                companionMessage={companionMessage}
+                highlightTokens={highlightTokens}
+                highlightStatus={highlightStatus}
+                highlightWholeTerm={highlightWholeTerm}
+              />
+            </span>
+          ),
         )}
       </span>
     );
   }
 
-  let cursor = 0;
-  const parts: Array<{ text: string; token?: ContentEditorMessageToken; key: string }> = [];
-  ranges.forEach((token) => {
-    if (cursor < token.start) {
-      parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor, token.start) });
-    }
-    parts.push({
-      key: token.id,
-      text:
-        token.kind === "markup"
-          ? (token.displayLabel ?? token.name)
-          : displayMessage.slice(token.start, token.end),
-      token,
-    });
-    cursor = token.end;
-  });
-
-  if (cursor < displayMessage.length) {
-    parts.push({ key: `text-${cursor}`, text: displayMessage.slice(cursor) });
-  }
-
   return (
     <span className={className}>
-      {parts.map((part) =>
-        part.token ? (
-          <span
-            key={part.key}
-            className={cn(
-              "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
-              contentEditorMessageTokenToneClass(tokenVisualKind(part.token)),
-            )}
-            title={part.token.kind === "markup" ? part.token.literal : undefined}
-          >
-            {part.text}
-          </span>
-        ) : (
-          <span key={part.key}>
-            {renderHighlightedPlainText(
-              part.text,
-              highlightTokens,
-              highlightStatus,
-              part.key,
-              highlightWholeTerm,
-            )}
-          </span>
-        ),
-      )}
+      <ContentEditorMessageFormatParts
+        message={displayMessage}
+        highlightTokens={highlightTokens}
+        highlightStatus={highlightStatus}
+        highlightWholeTerm={highlightWholeTerm}
+      />
     </span>
   );
 }
@@ -540,6 +620,17 @@ export function ContentEditorTargetEditor({
   const intl = useIntl();
   const valueRef = useRef(value);
   valueRef.current = value;
+  const markdownMode = canUseMarkdownCatEditor(value, sourceText);
+  const headingLiteral = useMemo(
+    () => sourceHeadingIdLiteral(sourceText, value),
+    [sourceText, value],
+  );
+  const sourceTextRef = useRef(sourceText);
+  sourceTextRef.current = sourceText;
+  const headingLiteralRef = useRef(headingLiteral);
+  headingLiteralRef.current = headingLiteral;
+  const markdownModeRef = useRef(markdownMode);
+  markdownModeRef.current = markdownMode;
   const highlightRef = useRef({
     tokens: highlightTokens ?? [],
     status: highlightStatus,
@@ -561,20 +652,37 @@ export function ContentEditorTargetEditor({
     [sourceAnalysis, targetAnalysis],
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
-  const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");
-  const characterCount = value.length;
+  const sourceTokens = sourceAnalysis.tokens.filter(
+    (token) => token.kind !== "pound" && !isStructuralMarkdownMarkupToken(token, sourceText, value),
+  );
+  const characterCount = markdownMode
+    ? markdownDisplayModel(value, sourceText).visibleText.length
+    : value.length;
   const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
+
+  function persistedEditorValue(activeEditor: NonNullable<ReturnType<typeof useEditor>>) {
+    if (!markdownModeRef.current) {
+      return editorText(activeEditor);
+    }
+    return persistMarkdownCatTarget(
+      sourceTextRef.current,
+      serializeMarkdownEditorDoc(activeEditor.getJSON()),
+      headingLiteralRef.current,
+    );
+  }
 
   const editor = useEditor({
     extensions: [
       ...contentEditorTargetEditorExtensions,
       createQaHighlightExtension(() => highlightRef.current),
     ],
-    content: textDocFromValue(value),
+    content: (markdownMode
+      ? markdownDisplayDocFromModel(markdownDisplayModel(value, sourceText))
+      : textDocFromValue(value)) as JSONContent,
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      const nextValue = editorText(activeEditor);
+      const nextValue = persistedEditorValue(activeEditor);
       // Ignore no-op updates (e.g. mount/focus round-trips) so focusing a loaded
       // translation does not mark the segment as an unsaved draft.
       if (nextValue === valueRef.current) {
@@ -615,12 +723,17 @@ export function ContentEditorTargetEditor({
       return;
     }
 
-    if (editorText(editor) === value) {
+    if (persistedEditorValue(editor) === value) {
       return;
     }
 
-    editor.commands.setContent(textDocFromValue(value), { emitUpdate: false });
-  }, [editor, value]);
+    editor.commands.setContent(
+      (markdownMode
+        ? markdownDisplayDocFromModel(markdownDisplayModel(value, sourceText))
+        : textDocFromValue(value)) as JSONContent,
+      { emitUpdate: false },
+    );
+  }, [editor, markdownMode, sourceText, value]);
 
   useEffect(() => {
     if (autoFocus && editor) editor.commands.focus("end");
