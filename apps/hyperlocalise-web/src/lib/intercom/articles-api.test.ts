@@ -468,6 +468,87 @@ describe("listIntercomArticlesSince", () => {
 
     expect(articles.map((article) => article.id)).toEqual(["4410"]);
   });
+
+  it("stops GET /articles pagination once the watermark is reached", async () => {
+    let nextCalls = 0;
+    const newer = {
+      ...intercomApiArticlesListResponse.data[1]!,
+      id: "9003",
+      updated_at: 1678000000,
+      state: "published",
+      parent_ids: [38],
+    };
+    const older = {
+      ...intercomApiArticlesListResponse.data[1]!,
+      id: "9004",
+      updated_at: 1670000000,
+      state: "published",
+      parent_ids: [38],
+    };
+    const client = {
+      helpCenters: {
+        collections: {
+          list: async () => [{ id: "38", help_center_id: 123 }],
+        },
+      },
+      articles: {
+        list: async () => ({
+          data: [newer, older],
+          hasNextPage: () => true,
+          getNextPage: async () => {
+            nextCalls += 1;
+            throw new Error("watermark should stop pagination");
+          },
+        }),
+        search: async () => ({ data: { articles: [] } }),
+      },
+    };
+
+    const articles = await listIntercomArticlesSince({
+      client: client as never,
+      watermarkUpdatedAt: 1674000000,
+      includeDrafts: false,
+      helpCenterId: "123",
+    });
+
+    expect(nextCalls).toBe(0);
+    expect(articles.map((article) => article.id)).toEqual(["9003"]);
+  });
+
+  it("drops standalone search hits older than the watermark", async () => {
+    const standalone = {
+      type: "article",
+      id: "9001",
+      title: "Standalone FAQ",
+      description: "Not in a collection",
+      body: "<p>FAQ</p>",
+      state: "published",
+      updated_at: 1670000000,
+      author_id: 19,
+      parent_ids: [],
+      translated_content: { type: "article_translated_content" },
+    };
+    const client = {
+      helpCenters: {
+        collections: {
+          list: async () => [{ id: "38", help_center_id: 123 }],
+        },
+      },
+      articles: {
+        list: async () => createArticleListPage([]),
+        search: async () => ({ data: { articles: [standalone] } }),
+      },
+    };
+
+    const articles = await listIntercomArticlesSince({
+      client: client as never,
+      watermarkUpdatedAt: 1674000000,
+      includeDrafts: false,
+      helpCenterId: "123",
+    });
+
+    expect(articles).toEqual([]);
+  });
 });
 
 describe("articleBelongsToCollections", () => {
