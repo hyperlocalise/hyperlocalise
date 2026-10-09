@@ -68,6 +68,26 @@ export function collectCompletedTranslationPageEntries(input: {
   return collected;
 }
 
+/** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
+ * lock and a re-extracted target file never share keys. Match source paths. */
+export function collectHtmlTranslationPageEntries(input: {
+  sourceEntries: Record<string, string>;
+  extracted: Record<string, string>;
+  confirmed: Record<string, string>;
+}): Record<string, string> {
+  const collected: Record<string, string> = {};
+  for (const [key, sourceText] of Object.entries(input.sourceEntries)) {
+    if (!sourceText?.trim() || key in input.confirmed) {
+      continue;
+    }
+    const value = input.extracted[key];
+    if (value?.trim()) {
+      collected[key] = value;
+    }
+  }
+  return collected;
+}
+
 export function completedFileTranslationKeys(lock: unknown, outputFilename: string): string[] {
   const parsed = lockSchema.parse(lock);
   const entries = Object.entries(parsed.run_completed ?? {}).find(
@@ -87,11 +107,32 @@ export async function collectFileTranslationPageStep(input: {
   "use step";
   const { readTranslatedFile, extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
-  const lock: unknown = JSON.parse(
-    (await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json")).toString("utf8"),
-  );
+  const { extractHtmlIngestEntries, isHtmlTranslationSourcePath, utf8FromStoredFileContent } =
+    await import("@/lib/projects/files/html-ingest-entries");
+  const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
+  const lock: unknown = htmlSource
+    ? null
+    : JSON.parse(
+        utf8FromStoredFileContent(
+          await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
+        ),
+      );
   const delta: Record<string, Record<string, string>> = {};
   for (const [locale, filename] of Object.entries(input.outputFilenames)) {
+    if (htmlSource || isHtmlTranslationSourcePath(filename)) {
+      const extracted = extractHtmlIngestEntries(
+        utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, filename)),
+      );
+      const collected = collectHtmlTranslationPageEntries({
+        sourceEntries: input.sourceEntries,
+        extracted,
+        confirmed: input.confirmed[locale] ?? {},
+      });
+      if (Object.keys(collected).length > 0) {
+        delta[locale] = collected;
+      }
+      continue;
+    }
     const keys = [
       ...new Set([
         ...completedFileTranslationKeys(lock, filename),

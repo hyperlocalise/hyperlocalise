@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   collectCompletedTranslationPageEntries,
+  collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
 } from "./file-translation-progress";
@@ -47,6 +48,49 @@ describe("collectCompletedTranslationPageEntries", () => {
         prefills: {},
       }),
     ).toThrow("completed translation is missing from output");
+  });
+});
+
+describe("collectHtmlTranslationPageEntries", () => {
+  it("matches HTML target text onto source tag-path keys", () => {
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: {
+          "html.p": "This page tests ",
+          "html.p.strong": "tables",
+          "html.p.strong.2": "bullet lists",
+        },
+        extracted: {
+          "html.p": "Cette page teste ",
+          "html.p.strong": "les tableaux",
+          "html.p.strong.2": "les listes à puces",
+          "html.143b270a32602d41": "ignored hashed key",
+        },
+        confirmed: {},
+      }),
+    ).toEqual({
+      "html.p": "Cette page teste ",
+      "html.p.strong": "les tableaux",
+      "html.p.strong.2": "les listes à puces",
+    });
+  });
+
+  it("skips already confirmed HTML path keys", () => {
+    expect(
+      collectHtmlTranslationPageEntries({
+        sourceEntries: {
+          "html.p": "This page tests ",
+          "html.p.strong": "tables",
+        },
+        extracted: {
+          "html.p": "Cette page teste ",
+          "html.p.strong": "les tableaux",
+        },
+        confirmed: { "html.p": "Cette page teste " },
+      }),
+    ).toEqual({
+      "html.p.strong": "les tableaux",
+    });
   });
 });
 
