@@ -206,9 +206,10 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
 }
 
 /**
- * Opens and closes the assistant from the form. In the primary colour, so that the one control
- * for a whole conversation is not missed among the section labels. Renders nothing where the
- * assistant is not offered.
+ * Opens and closes the assistant from the form. Outlined in the primary colour with a faint glow,
+ * so that the one control for a whole conversation is not missed among the section labels and
+ * still does not pass for the page's main action. Renders nothing where the assistant is not
+ * offered.
  */
 export function AutomationAssistantOpenButton() {
   const assistant = useAutomationAssistant();
@@ -218,8 +219,10 @@ export function AutomationAssistantOpenButton() {
   return (
     <Button
       type="button"
+      variant="outline"
       size="xs"
       aria-pressed={assistant.open}
+      className="border-primary/60 bg-background text-primary ring-3 ring-primary/15 hover:bg-primary/10 hover:text-primary aria-pressed:bg-primary/10"
       onClick={() => assistant.setOpen(!assistant.open)}
     >
       <SparkleIcon />
