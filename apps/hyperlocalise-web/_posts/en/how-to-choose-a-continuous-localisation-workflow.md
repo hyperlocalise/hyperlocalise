@@ -76,12 +76,12 @@ Expect AI to change the cost of a first draft. Do not expect it to remove the ne
 
 Evaluate platforms against the work you need done, not against a feature checklist. The four criteria below are the ones that determine whether multilingual content can move with the product.
 
-| Criterion | Question it answers | What "working" looks like | Typical failure |
-| --- | --- | --- | --- |
-| Product-context awareness | Does the system know what this string is for? | Drafts and reviewers see screen, intent, constraints, and related copy | Fluent text that uses the wrong term or tone |
-| Human-in-the-loop review | Can people inspect, correct, and teach the system? | High-risk content is routed; corrections improve later work | Either a rubber stamp or a full manual bottleneck |
-| TMS interoperability | Can this work with the stack we already run? | Jobs, memory, glossary, and status move without a migration project | Months of rip-and-replace before any quality gain |
-| Release-readiness signals | Can we ship this locale? | Missing strings, review debt, and sync failures are visible before release | A green completion rate on an unshippable build |
+| Criterion                 | Question it answers                                | What "working" looks like                                                  | Typical failure                                   |
+| ------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------- |
+| Product-context awareness | Does the system know what this string is for?      | Drafts and reviewers see screen, intent, constraints, and related copy     | Fluent text that uses the wrong term or tone      |
+| Human-in-the-loop review  | Can people inspect, correct, and teach the system? | High-risk content is routed; corrections improve later work                | Either a rubber stamp or a full manual bottleneck |
+| TMS interoperability      | Can this work with the stack we already run?       | Jobs, memory, glossary, and status move without a migration project        | Months of rip-and-replace before any quality gain |
+| Release-readiness signals | Can we ship this locale?                           | Missing strings, review debt, and sync failures are visible before release | A green completion rate on an unshippable build   |
 
 These criteria are independent. A platform can score well on draft quality and still hide release blockers. Another can be an excellent TMS and still send translators isolated strings. Score each one separately on a pilot, using your own content.
 
@@ -151,12 +151,12 @@ If the only status you can get is "translated" versus "untranslated," you will k
 
 Directories win "what are the best localisation platforms?" queries because they list options. They usually list products. A more accurate map for workflow automation is four classes of option. They are not a ranking. Many companies use more than one class at once.
 
-| Class | What it is for | What it tends to do well | Where it usually stops |
-| --- | --- | --- | --- |
-| Legacy TMS | Organising translation production at scale | Vendors, memory, terminology, permissions, reporting | Product context and release signals still live elsewhere |
-| Developer-first platforms | Keeping software strings close to the codebase | Git sync, CLI, branching, design tools, in-context preview | AI is often a feature inside the TMS, not a workflow layer |
-| Agentic layers | Coordinating context, drafts, review, and readiness across tools | Discovery of context, routing, TMS-agnostic automation | They still need a system of record and human owners |
-| In-house scripts | A narrow, custom path around a model and a repository | Exact fit for one pipeline | Context, evaluation, and maintenance become a product you now own |
+| Class                     | What it is for                                                   | What it tends to do well                                   | Where it usually stops                                            |
+| ------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| Legacy TMS                | Organising translation production at scale                       | Vendors, memory, terminology, permissions, reporting       | Product context and release signals still live elsewhere          |
+| Developer-first platforms | Keeping software strings close to the codebase                   | Git sync, CLI, branching, design tools, in-context preview | AI is often a feature inside the TMS, not a workflow layer        |
+| Agentic layers            | Coordinating context, drafts, review, and readiness across tools | Discovery of context, routing, TMS-agnostic automation     | They still need a system of record and human owners               |
+| In-house scripts          | A narrow, custom path around a model and a repository            | Exact fit for one pipeline                                 | Context, evaluation, and maintenance become a product you now own |
 
 ### Legacy TMS
 
