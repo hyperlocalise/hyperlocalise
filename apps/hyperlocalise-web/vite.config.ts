@@ -60,23 +60,9 @@ const formatjsRulesOff = Object.fromEntries(
   Object.keys(formatjsStrictRules).map((rule) => [rule, "off" as const]),
 );
 
-// Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
-const translatedLocales = [
-  "zh-CN",
-  "da-DK",
-  "nl-NL",
-  "fil-PH",
-  "fr-FR",
-  "de-DE",
-  "ja-JP",
-  "ko-KR",
-  "th-TH",
-  "vi-VN",
-] as const;
-const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
-  `_posts/${locale}/**`,
-  `lang/${locale}.json`,
-]);
+// Locale catalogs stay as committed. Do not list locales here — a new
+// `_posts/<locale>` or `lang/<locale>.json` must not fail `vp check`.
+const localeCatalogIgnorePatterns = ["_posts/**", "lang/*.json"] as const;
 
 const isCi = process.env.CI === "true";
 
@@ -87,7 +73,7 @@ export default defineConfig({
       "drizzle/**",
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
-      ...translatedIgnorePatterns,
+      ...localeCatalogIgnorePatterns,
     ],
   },
   lint: {
@@ -97,7 +83,7 @@ export default defineConfig({
       "pnpm-*.yaml",
       "public/mockServiceWorker.js",
       "src/e2e/**",
-      ...translatedIgnorePatterns,
+      ...localeCatalogIgnorePatterns,
     ],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
