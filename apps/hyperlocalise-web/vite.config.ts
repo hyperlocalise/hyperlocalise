@@ -61,7 +61,18 @@ const formatjsRulesOff = Object.fromEntries(
 );
 
 // Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
-const translatedLocales = ["de-DE", "fr-FR", "vi-VN", "zh-CN"] as const;
+const translatedLocales = [
+  "zh-CN",
+  "da-DK",
+  "nl-NL",
+  "fil-PH",
+  "fr-FR",
+  "de-DE",
+  "ja-JP",
+  "ko-KR",
+  "th-TH",
+  "vi-VN",
+] as const;
 const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
   `_posts/${locale}/**`,
   `lang/${locale}.json`,
