@@ -18,6 +18,7 @@ type UpsertedMemoryEntry = {
   memoryId: string;
   metadata: { segmentKey: string };
   normalizedSourceText: string;
+  reviewStatus: string;
   sourceText: string;
   targetText: string;
 };
@@ -121,7 +122,12 @@ const {
     listHiddenKeysMock,
     onConflictDoUpdateMock,
     selectMock,
-    sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
+    sqlMock: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
+      sql: strings.reduce(
+        (result, part, index) => `${result}${part}${index < values.length ? String(values[index]) : ""}`,
+        "",
+      ),
+    })),
     valuesMock,
     whereMock,
   };
@@ -229,9 +235,11 @@ describe("persistFileTranslationMemoryEntries", () => {
     ).toMatchObject({
       externalKey: "job_1:fr:second",
       metadata: { segmentKey: "second" },
+      reviewStatus: "pending",
       sourceText: " hello   world ",
       targetText: "Salut le monde",
     });
+    expect(values.every((value) => value.reviewStatus === "pending")).toBe(true);
   });
 
   it("uses the database clock for conflict update timestamps", async () => {
@@ -248,7 +256,9 @@ describe("persistFileTranslationMemoryEntries", () => {
 
     expect(onConflictDoUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        setWhere: { sql: "reviewStatus <> 'approved'" },
         set: expect.objectContaining({
+          reviewStatus: { sql: "excluded.review_status" },
           updatedAt: { sql: "now()" },
           version: expect.anything(),
         }),

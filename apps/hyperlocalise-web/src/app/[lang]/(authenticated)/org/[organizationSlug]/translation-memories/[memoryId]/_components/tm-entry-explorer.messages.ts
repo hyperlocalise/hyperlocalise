@@ -136,9 +136,9 @@ export const tmEntryExplorerMessages = defineMessages({
     description: "Approved review status for a translation memory entry",
   },
   reviewPending: {
-    defaultMessage: "Pending",
+    defaultMessage: "Draft",
     id: "HXvIFMFODd",
-    description: "Pending review status for a translation memory entry",
+    description: "Draft review status for an unreviewed translation memory entry",
   },
   reviewRejected: {
     defaultMessage: "Rejected",
@@ -159,6 +159,120 @@ export const tmEntryExplorerMessages = defineMessages({
     defaultMessage: "Sync",
     id: "gBuKJZ8SD6",
     description: "Sync origin for a translation memory entry",
+  },
+  originFileJob: {
+    defaultMessage: "Translation job",
+    id: "tmOriginFileJob1",
+    description: "Origin for entries written by a file translation job",
+  },
+  originApprovedJob: {
+    defaultMessage: "Approved project",
+    id: "tmOriginApproved1",
+    description: "Origin for entries promoted from approved project translations",
+  },
+  chipSameAsSource: {
+    defaultMessage: "Same as source",
+    id: "tmChipSameSrc1",
+    description: "Chip label for the same-as-source cleanup filter",
+  },
+  reviewQueueTitle: {
+    defaultMessage:
+      "{count, plural, one {# draft entry needs review} other {# draft entries need review}}",
+    id: "tmReviewQueueT1",
+    description: "Banner title showing how many translation memory drafts need review",
+  },
+  reviewQueueBody: {
+    defaultMessage:
+      "Translation jobs save suggestions as drafts. Approve them before they can be reused.",
+    id: "tmReviewQueueB1",
+    description: "Explains why translation memory drafts are held out of matching",
+  },
+  reviewDrafts: {
+    defaultMessage: "Review drafts",
+    id: "tmReviewDrafts1",
+    description: "Button that filters the explorer to draft translation memory entries",
+  },
+  cleanupLabel: {
+    defaultMessage: "Cleanup",
+    id: "tmCleanupLabel1",
+    description: "Button that opens translation memory cleanup shortcuts",
+  },
+  cleanupDrafts: {
+    defaultMessage: "Drafts",
+    id: "tmCleanupDrafts1",
+    description: "Cleanup shortcut that shows draft translation memory entries",
+  },
+  cleanupRejected: {
+    defaultMessage: "Rejected",
+    id: "tmCleanupReject1",
+    description: "Cleanup shortcut that shows rejected translation memory entries",
+  },
+  cleanupSameAsSource: {
+    defaultMessage: "Same as source",
+    id: "tmCleanupSame1",
+    description: "Cleanup shortcut that shows entries whose target copies the source",
+  },
+  cleanupJobOrigin: {
+    defaultMessage: "From translation jobs",
+    id: "tmCleanupJob1",
+    description: "Cleanup shortcut that shows entries written by translation jobs",
+  },
+  selectedCount: {
+    defaultMessage: "{count, plural, one {# selected} other {# selected}}",
+    id: "tmSelectedCount1",
+    description: "How many translation memory entries are selected for a bulk action",
+  },
+  approveSelected: {
+    defaultMessage: "Approve",
+    id: "tmApproveSel1",
+    description: "Bulk action that approves selected translation memory drafts",
+  },
+  rejectSelected: {
+    defaultMessage: "Reject",
+    id: "tmRejectSel1",
+    description: "Bulk action that rejects selected translation memory drafts",
+  },
+  deleteSelected: {
+    defaultMessage: "Delete",
+    id: "tmDeleteSel1",
+    description: "Bulk action that deletes selected translation memory entries",
+  },
+  selectEntryAria: {
+    defaultMessage: "Select entry {sourceText}",
+    id: "tmSelectEntry1",
+    description: "Accessible label for selecting a translation memory entry",
+  },
+  selectAllAria: {
+    defaultMessage: "Select all visible entries",
+    id: "tmSelectAll1",
+    description: "Accessible label for selecting every visible translation memory entry",
+  },
+  bulkReviewFailed: {
+    defaultMessage: "Unable to update the selected entries.",
+    id: "tmBulkRevFail1",
+    description: "Error shown when bulk translation memory review fails",
+  },
+  bulkDeleteFailed: {
+    defaultMessage: "Unable to delete the selected entries.",
+    id: "tmBulkDelFail1",
+    description: "Error shown when bulk translation memory delete fails",
+  },
+  bulkApproved: {
+    defaultMessage:
+      "{count, plural, one {Approved # entry} other {Approved # entries}}",
+    id: "tmBulkApproved1",
+    description: "Toast after approving translation memory entries",
+  },
+  bulkRejected: {
+    defaultMessage:
+      "{count, plural, one {Rejected # entry} other {Rejected # entries}}",
+    id: "tmBulkRejected1",
+    description: "Toast after rejecting translation memory entries",
+  },
+  bulkDeleted: {
+    defaultMessage: "{count, plural, one {Deleted # entry} other {Deleted # entries}}",
+    id: "tmBulkDeleted1",
+    description: "Toast after deleting translation memory entries",
   },
   clearFilters: {
     defaultMessage: "Clear filters",

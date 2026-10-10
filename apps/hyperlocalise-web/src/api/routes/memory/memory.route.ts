@@ -54,6 +54,8 @@ import {
   exportMemoryEntriesQuerySchema,
   listMemoryImportAttemptsQuerySchema,
   promoteMemoryFromProjectBodySchema,
+  bulkDeleteMemoryEntriesBodySchema,
+  bulkReviewMemoryEntriesBodySchema,
   listMemoryEntriesQuerySchema,
   listMemoryQuerySchema,
   memoryEntryIdParamsSchema,
@@ -68,6 +70,8 @@ import {
   type ExportMemoryEntriesQuery,
   type MemoryEntryRecord,
   type MemoryImportAttemptRecord,
+  type BulkDeleteMemoryEntriesBody,
+  type BulkReviewMemoryEntriesBody,
   type PromoteMemoryFromProjectBody,
   type ListMemoryQuery,
   type UpdateMemoryEntryBody,
@@ -94,6 +98,11 @@ import {
   recordMemoryEntryCreatedEvent,
   updateMemoryEntrySafely,
 } from "@/lib/memory/memory-entry-lifecycle";
+import {
+  bulkDeleteMemoryEntries,
+  bulkReviewMemoryEntries,
+  getMemoryEntryReviewSummary,
+} from "@/lib/memory/memory-entry-review";
 
 type MemoryListResult = {
   memories: Memory[];
@@ -520,6 +529,26 @@ const validatePromoteMemoryFromProjectBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateBulkReviewMemoryEntriesBody = validator("json", (value, c) => {
+  const parsed = bulkReviewMemoryEntriesBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidMemoryPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateBulkDeleteMemoryEntriesBody = validator("json", (value, c) => {
+  const parsed = bulkDeleteMemoryEntriesBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidMemoryPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateAttachMemoryProjectBody = validator("json", (value, c) => {
   const parsed = attachMemoryProjectBodySchema.safeParse(value);
 
@@ -904,6 +933,91 @@ export function createMemoryRoutes() {
           },
           200,
         );
+      },
+    )
+    .get("/:memoryId/entries/review-summary", validateMemoryParams, async (c) => {
+      const params = c.req.valid("param");
+      const resolved = await resolveMemoryCapabilities(c.var.auth, params.memoryId);
+      if (resolved.kind !== "resolved") {
+        if (resolved.kind === "unavailable") {
+          return apiErrorResponse(c, 503, "memory_unavailable", "Translation memory unavailable");
+        }
+        return memoryNotFoundResponse(c);
+      }
+
+      const memory = resolved.value.resource.persistedMemory;
+      if (!memory) {
+        return c.json({ reviewSummary: { pending: 0, rejected: 0, sameAsSource: 0 } }, 200);
+      }
+
+      return c.json({ reviewSummary: await getMemoryEntryReviewSummary(memory.id) }, 200);
+    })
+    .post(
+      "/:memoryId/entries/bulk-review",
+      validateMemoryParams,
+      validateBulkReviewMemoryEntriesBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const payload: BulkReviewMemoryEntriesBody = c.req.valid("json");
+        const access = await requireMemoryCapability(c, params.memoryId, "review");
+        if ("response" in access) return access.response;
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, "review", "unsupported");
+
+        const result = await bulkReviewMemoryEntries({
+          memory,
+          entryIds: payload.entryIds,
+          reviewStatus: payload.reviewStatus,
+          actorUserId: c.var.auth.user.localUserId,
+        });
+
+        if (isErr(result)) {
+          if (result.error.code === "memory_entry_read_only") {
+            return memoryEntryReadOnlyResponse(c, result.error.reason);
+          }
+          return badRequestResponse(
+            c,
+            result.error.code,
+            result.error.code === "selection_too_large"
+              ? "Select at most 100 translation memory entries"
+              : "Select at least one translation memory entry",
+          );
+        }
+
+        return c.json({ updated: result.value.updated }, 200);
+      },
+    )
+    .post(
+      "/:memoryId/entries/bulk-delete",
+      validateMemoryParams,
+      validateBulkDeleteMemoryEntriesBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const payload: BulkDeleteMemoryEntriesBody = c.req.valid("json");
+        const access = await requireMemoryCapability(c, params.memoryId, "bulk_mutation");
+        if ("response" in access) return access.response;
+        const memory = access.value.resource.persistedMemory;
+        if (!memory) return memoryCapabilityDeniedResponse(c, "bulk_mutation", "unsupported");
+
+        const result = await bulkDeleteMemoryEntries({
+          memory,
+          entryIds: payload.entryIds,
+        });
+
+        if (isErr(result)) {
+          if (result.error.code === "memory_entry_read_only") {
+            return memoryEntryReadOnlyResponse(c, result.error.reason);
+          }
+          return badRequestResponse(
+            c,
+            result.error.code,
+            result.error.code === "selection_too_large"
+              ? "Select at most 100 translation memory entries"
+              : "Select at least one translation memory entry",
+          );
+        }
+
+        return c.json({ deleted: result.value.deleted }, 200);
       },
     )
     .get("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {

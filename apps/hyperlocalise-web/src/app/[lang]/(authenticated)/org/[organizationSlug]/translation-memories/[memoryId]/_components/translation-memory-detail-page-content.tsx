@@ -280,6 +280,8 @@ export function TranslationMemoryDetailPageContent({
         memoryId={memoryId}
         localeCoverage={memory.localeCoverage}
         canEdit={canEdit}
+        canReview={canReview}
+        canBulkDelete={canEdit}
         canManageMemories={canManageMemoryEntries}
         isDeleting={deleteEntry.isPending}
         onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
