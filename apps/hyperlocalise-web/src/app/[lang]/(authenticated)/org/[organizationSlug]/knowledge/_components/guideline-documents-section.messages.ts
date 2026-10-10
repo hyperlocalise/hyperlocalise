@@ -136,6 +136,12 @@ export const guidelineDocumentsSectionMessages = defineMessages({
     id: "r+yexMeuDZ",
     description: "Reason a guideline document failed: the file is malformed",
   },
+  errorEnqueueRetrying: {
+    defaultMessage: "Processing will retry automatically.",
+    id: "kN0LAIxQ9l",
+    description:
+      "Reason shown when guideline ingest enqueue failed but the server will retry via sweep",
+  },
   errorGeneric: {
     defaultMessage: "This file could not be processed. Upload it again to retry.",
     id: "5PnVdIytmB",

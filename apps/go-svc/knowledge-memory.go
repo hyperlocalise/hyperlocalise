@@ -581,6 +581,12 @@ func formatKnowledgeMemoryTime(value time.Time) string {
 	return value.UTC().Format("2006-01-02T15:04:05.000Z")
 }
 
+func formatKnowledgeMemoryCursorTime(value time.Time) string {
+	// Microsecond precision matches PostgreSQL timestamptz so page cursors
+	// built from these strings do not skip same-millisecond rows.
+	return value.UTC().Format("2006-01-02T15:04:05.000000Z")
+}
+
 func (api *knowledgeMemoryAPI) projectScope(ctx context.Context, actor workspaceActor, rawProjectID string) (knowledgeMemoryScope, error) {
 	projectID := strings.TrimSpace(rawProjectID)
 	if projectID == "" || len(projectID) > 256 {

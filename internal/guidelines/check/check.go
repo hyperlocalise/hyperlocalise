@@ -29,6 +29,10 @@ const (
 // ErrInvalidInput identifies a request the caller must fix.
 var ErrInvalidInput = errors.New("invalid guideline check input")
 
+// ErrMandatoryPassagesOverBudget means always-applied guidelines cannot fit in the
+// model prompt budget, so a check cannot run without omitting mandatory rules.
+var ErrMandatoryPassagesOverBudget = errors.New("mandatory guideline passages exceed prompt budget")
+
 // Field names the text a finding points into.
 type Field string
 
@@ -153,7 +157,10 @@ func (c *Checker) Check(ctx context.Context, scope guidelines.Scope, req Request
 		return Result{}, fmt.Errorf("retrieve guidelines: %w", err)
 	}
 	result := Result{Findings: []Finding{}, Passages: []Passage{}, SearchAvailable: retrieved.SearchAvailable, Model: c.model.Name()}
-	passages := promptPassages(retrieved)
+	passages, err := promptPassages(retrieved)
+	if err != nil {
+		return Result{}, err
+	}
 	if len(passages) == 0 {
 		return result, nil
 	}
@@ -190,35 +197,48 @@ func retrievalQuery(req Request) string {
 }
 
 // promptPassages chunks mandatory documents so every citation has a stable
-// passage ID, then appends search hits not already included.
-func promptPassages(retrieved guidelines.Result) []Passage {
+// passage ID, then appends search hits not already included. Every mandatory
+// chunk must fit; optional search hits may be dropped when the budget runs out.
+func promptPassages(retrieved guidelines.Result) ([]Passage, error) {
 	passages := make([]Passage, 0)
 	seen := make(map[string]bool)
 	budget := maxPassageRunes
-	add := func(chunk guidelines.Chunk) bool {
+	addMandatory := func(chunk guidelines.Chunk) error {
 		if seen[chunk.ID] {
-			return true
+			return nil
 		}
 		runes := utf8.RuneCountInString(chunk.Text)
 		if runes > budget {
-			return false
+			return ErrMandatoryPassagesOverBudget
 		}
 		budget -= runes
 		seen[chunk.ID] = true
 		passages = append(passages, Passage{ID: chunk.ID, DocumentID: chunk.DocumentID, Text: chunk.Text})
-		return true
+		return nil
+	}
+	addOptional := func(chunk guidelines.Chunk) {
+		if seen[chunk.ID] {
+			return
+		}
+		runes := utf8.RuneCountInString(chunk.Text)
+		if runes > budget {
+			return
+		}
+		budget -= runes
+		seen[chunk.ID] = true
+		passages = append(passages, Passage{ID: chunk.ID, DocumentID: chunk.DocumentID, Text: chunk.Text})
 	}
 	for _, doc := range retrieved.Mandatory {
 		for _, chunk := range guidelines.Chunks(doc) {
-			if !add(chunk) {
-				break
+			if err := addMandatory(chunk); err != nil {
+				return nil, err
 			}
 		}
 	}
 	for _, chunk := range retrieved.Passages {
-		add(chunk)
+		addOptional(chunk)
 	}
-	return passages
+	return passages, nil
 }
 
 const systemPrompt = `You check localization content against an organization's guidelines.

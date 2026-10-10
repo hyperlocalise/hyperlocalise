@@ -12,24 +12,25 @@ import (
 )
 
 type guidelineDocumentRecord struct {
-	ID             string  `json:"id"`
-	ProjectID      *string `json:"projectId"`
-	Locale         *string `json:"locale"`
-	Title          string  `json:"title"`
-	Filename       string  `json:"filename"`
-	ContentType    string  `json:"contentType"`
-	ByteSize       int64   `json:"byteSize"`
-	CharacterCount int     `json:"characterCount"`
-	Truncated      bool    `json:"truncated"`
-	RevisionID     string  `json:"revisionId"`
-	Version        int64   `json:"version"`
-	Mandatory      bool    `json:"mandatory"`
-	Status         string  `json:"status"`
-	ErrorCode      *string `json:"errorCode"`
-	Indexed        bool    `json:"indexed"`
-	CreatedAt      string  `json:"createdAt"`
-	UpdatedAt      string  `json:"updatedAt"`
-	Content        *string `json:"content,omitempty"`
+	ID              string  `json:"id"`
+	ProjectID       *string `json:"projectId"`
+	Locale          *string `json:"locale"`
+	Title           string  `json:"title"`
+	Filename        string  `json:"filename"`
+	ContentType     string  `json:"contentType"`
+	ByteSize        int64   `json:"byteSize"`
+	CharacterCount  int     `json:"characterCount"`
+	Truncated       bool    `json:"truncated"`
+	RevisionID      string  `json:"revisionId"`
+	Version         int64   `json:"version"`
+	Mandatory       bool    `json:"mandatory"`
+	Status          string  `json:"status"`
+	ErrorCode       *string `json:"errorCode"`
+	Indexed         bool    `json:"indexed"`
+	CreatedAt       string  `json:"createdAt"`
+	UpdatedAt       string  `json:"updatedAt"`
+	createdAtCursor string  `json:"-"`
+	Content         *string `json:"content,omitempty"`
 
 	organizationID    string
 	storageLocationID string
@@ -74,6 +75,7 @@ func scanGuidelineDocument(row pgx.Row, withContent bool) (guidelineDocumentReco
 	record.ErrorCode = guidelineOptionalText(errorCode)
 	record.CreatedAt = formatKnowledgeMemoryTime(createdAt)
 	record.UpdatedAt = formatKnowledgeMemoryTime(updatedAt)
+	record.createdAtCursor = formatKnowledgeMemoryCursorTime(createdAt)
 	if withContent {
 		record.Content = &content
 	}

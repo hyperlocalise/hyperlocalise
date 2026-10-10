@@ -48,7 +48,7 @@ vi.mock("sonner", () => ({
   toast: { error: mocks.toastError, success: mocks.toastSuccess },
 }));
 
-const { GuidelineDocumentsSection, useGuidelineDocumentUpload } =
+const { GuidelineDocumentsSection, guidelineDocumentsRefetchInterval, useGuidelineDocumentUpload } =
   await import("./guideline-documents-section");
 
 function guidelineDocument(overrides: Partial<GuidelineDocument> = {}): GuidelineDocument {
@@ -87,6 +87,29 @@ function wrapper({ children }: { children: ReactNode }) {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("guidelineDocumentsRefetchInterval", () => {
+  it("polls while processing or awaiting enqueue recovery", () => {
+    expect(guidelineDocumentsRefetchInterval(undefined)).toBe(false);
+    expect(guidelineDocumentsRefetchInterval([guidelineDocument()])).toBe(false);
+    expect(guidelineDocumentsRefetchInterval([guidelineDocument({ status: "processing" })])).toBe(
+      3000,
+    );
+    expect(
+      guidelineDocumentsRefetchInterval([
+        guidelineDocument({
+          status: "failed",
+          errorCode: "guideline_ingest_enqueue_failed",
+        }),
+      ]),
+    ).toBe(15_000);
+    expect(
+      guidelineDocumentsRefetchInterval([
+        guidelineDocument({ status: "failed", errorCode: "no_text" }),
+      ]),
+    ).toBe(false);
+  });
 });
 
 describe("GuidelineDocumentsSection", () => {

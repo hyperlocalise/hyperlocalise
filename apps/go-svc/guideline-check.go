@@ -182,6 +182,13 @@ func (api *guidelineCheckAPI) evaluate(ctx context.Context, organizationID strin
 	if errors.Is(err, check.ErrInvalidInput) {
 		return 0, nil, invalidGuidelineCheck("segments")
 	}
+	if errors.Is(err, check.ErrMandatoryPassagesOverBudget) {
+		return 0, nil, knowledgeMemoryFailure(
+			400,
+			"guideline_check_mandatory_too_large",
+			"Mandatory guidelines exceed the size limit for a single check. Shorten always-applied notes or uploaded documents.",
+		)
+	}
 	if err != nil {
 		slog.WarnContext(ctx, "guideline_check_failed", "organization_id", organizationID, "project_id", scope.ProjectID, "segments", len(request.Segments), "error", err)
 		return 0, nil, knowledgeMemoryFailure(502, "guideline_check_failed", "Guideline check failed")
