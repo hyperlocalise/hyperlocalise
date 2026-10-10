@@ -11,7 +11,17 @@
  * Version 2.0 or later.
  */
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
@@ -149,5 +159,55 @@ export const projectKnowledgeMemoryRevisions = pgTable(
       sql`char_length(${table.summary}) <= 160`,
     ),
     check("project_knowledge_memory_revisions_version_check", sql`${table.version} >= 1`),
+  ],
+);
+
+/**
+ * Stores uploaded guideline documents. Extraction and indexing run asynchronously
+ * in the guideline ingest worker; `revisionId` identifies the content to index.
+ */
+export const guidelineDocuments = pgTable(
+  "guideline_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    locale: text("locale"),
+    title: text("title").notNull(),
+    storageLocationId: text("storage_location_id").notNull(),
+    storageKey: text("storage_key").notNull(),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    content: text("content").notNull().default(""),
+    truncated: boolean("truncated").notNull().default(false),
+    revisionId: uuid("revision_id").notNull().defaultRandom(),
+    version: integer("version").notNull().default(1),
+    mandatory: boolean("mandatory").notNull().default(false),
+    status: text("status").notNull().default("processing"),
+    errorCode: text("error_code"),
+    indexedRevisionId: uuid("indexed_revision_id"),
+    enqueuedAt: timestamp("enqueued_at", { withTimezone: true }).notNull().defaultNow(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_guideline_documents_org_project").on(table.organizationId, table.projectId),
+    index("idx_guideline_documents_status_enqueued_at").on(table.status, table.enqueuedAt),
+    check("guideline_documents_content_length_check", sql`char_length(${table.content}) <= 50000`),
+    check("guideline_documents_title_length_check", sql`char_length(${table.title}) <= 200`),
+    check(
+      "guideline_documents_status_check",
+      sql`${table.status} in ('processing', 'ready', 'failed')`,
+    ),
+    check("guideline_documents_version_check", sql`${table.version} >= 1`),
   ],
 );

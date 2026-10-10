@@ -5,14 +5,23 @@ description: "Give translators and agents the tone, audience, and product contex
 
 Use **Guideline** for instructions that cannot be expressed as a term pair: audience, voice, product context, market preferences, and examples. Put required term translations in a glossary and reusable sentence pairs in a translation memory.
 
-## Upload a guideline
+## Write or upload a guideline
+
+A guideline can be text you write in the editor, uploaded documents, or both.
 
 1. Open workspace **Guideline** for shared context, or the project’s **Guideline** for project-specific context.
-2. Select **Upload guideline**.
-3. Choose a supported file and upload it. Upload one file at a time.
-4. Confirm it appears before referencing it in a request or automation.
+2. Select **Markdown/Text** to write the guideline, or drop a file on **Upload guideline**. Use **Add sources** to upload more files later.
+3. Wait for the document's status to change from **Processing** to **Ready** under **Uploaded guidelines**.
 
-Supported uploads include CSV, JSON, PDF, XLSX, XLS, TXT, Markdown, DOCX, and PPTX. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
+Supported uploads are PDF, DOCX, Markdown, and plain text, up to 25 MB and one file at a time. Hyperlocalise extracts the text and indexes it for search. Scanned PDFs without a text layer show **Failed** with “No readable text was found”; export the document with selectable text and upload it again. Very long files are truncated, and the document shows a notice when that happens. Options marked **Coming soon**, such as connector-based imports, are not available upload paths.
+
+Admins and localization managers can upload, delete, and change documents. Other members can view them.
+
+### Choose what always applies
+
+The text written in the editor always applies in full. Uploaded documents are searched, and only the passages relevant to the text being translated or checked are used. Turn on **Always apply** for a short document that must be used in full every time, such as a list of banned words. Keep long reference material searchable so it does not crowd out more relevant guidance.
+
+Uploaded documents apply to every target locale, so state the market inside the document when a rule only applies to one language.
 
 ## What to include
 
@@ -34,3 +43,9 @@ Add the approved wording and a counterexample when a rule could be ambiguous. St
 Attach the relevant knowledge when configuring an [automation](/platform/automation/create-automation), and name it in one-off requests. Review a representative sample to confirm the instruction has the intended effect. Updating a guideline does not retroactively rewrite or approve existing translations.
 
 Keep a clear owner for the document so project and workspace guidance do not give conflicting instructions. See [Language resources](/platform/knowledge).
+
+## Check text against guidelines
+
+Agents can check source text or translations against your guidelines with the [`check_guidelines` MCP tool](/platform/developers/mcp-tools#guideline-checks). Send up to 50 segments with an optional project and target locale. Each finding points to the exact text that breaks a rule and quotes the guideline passage it relies on. Findings without a supporting guideline passage are discarded.
+
+An empty result means no guideline violation was found. It does not confirm that the translation is accurate, so keep reviewing a sample. Each checked segment counts toward your plan's guideline check usage.

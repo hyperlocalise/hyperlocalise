@@ -13,20 +13,13 @@
 
 export const KNOWLEDGE_UPLOAD_MAX_FILES = 1;
 
-export const KNOWLEDGE_UPLOAD_ACCEPT =
-  ".csv,.json,.pdf,.xlsx,.xls,.txt,.md,.docx,.pptx,text/csv,application/json,application/pdf,text/plain,text/markdown";
+/** Matches the go-svc guideline upload limit. */
+export const KNOWLEDGE_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
-export const KNOWLEDGE_UPLOAD_EXTENSIONS = [
-  ".csv",
-  ".json",
-  ".pdf",
-  ".xlsx",
-  ".xls",
-  ".txt",
-  ".md",
-  ".docx",
-  ".pptx",
-] as const;
+export const KNOWLEDGE_UPLOAD_ACCEPT =
+  ".pdf,.docx,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain";
+
+export const KNOWLEDGE_UPLOAD_EXTENSIONS = [".pdf", ".docx", ".md", ".markdown", ".txt"] as const;
 
 export type KnowledgeUploadActionId =
   | "google-drive"

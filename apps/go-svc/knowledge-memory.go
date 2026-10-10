@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/ingest"
 )
 
 const (
@@ -23,10 +24,12 @@ const (
 	knowledgeMemoryMaxSummary  = 160
 	knowledgeMemoryMaxPreview  = 4_000
 	knowledgeMemorySmallLimit  = 2_000
+	knowledgeMemoryTimeout     = 30 * time.Second
 )
 
 type knowledgeMemoryAPI struct {
-	workspace *workspaceAPI
+	workspace       *workspaceAPI
+	guidelineIngest guidelineIngestPublisher
 }
 
 type knowledgeMemoryError struct {
@@ -104,6 +107,10 @@ func (api *knowledgeMemoryAPI) register(mux *http.ServeMux, verifier SessionVeri
 type knowledgeMemoryRouteHandler func(http.ResponseWriter, *http.Request, workspaceActor) (int, any, error)
 
 func (api *knowledgeMemoryAPI) handle(mutation bool, fn knowledgeMemoryRouteHandler) http.Handler {
+	return api.handleWith(mutation, knowledgeMemoryBodyLimit, knowledgeMemoryTimeout, fn)
+}
+
+func (api *knowledgeMemoryAPI) handleWith(mutation bool, bodyLimit int64, timeout time.Duration, fn knowledgeMemoryRouteHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if mutation && denyBrowserMutation(r) {
@@ -115,11 +122,11 @@ func (api *knowledgeMemoryAPI) handle(mutation bool, fn knowledgeMemoryRouteHand
 			return
 		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		r = r.WithContext(ctx)
 		if mutation {
-			r.Body = http.MaxBytesReader(w, r.Body, knowledgeMemoryBodyLimit)
+			r.Body = http.MaxBytesReader(w, r.Body, bodyLimit)
 		}
 		claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
 		if !ok {
@@ -151,6 +158,10 @@ func (api *knowledgeMemoryAPI) handle(mutation bool, fn knowledgeMemoryRouteHand
 }
 
 func writeKnowledgeMemoryJSON(w http.ResponseWriter, status int, value any) {
+	if status == http.StatusNoContent {
+		w.WriteHeader(status)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(value); err != nil {
@@ -239,8 +250,23 @@ func (api *knowledgeMemoryAPI) commitResponse(w http.ResponseWriter, r *http.Req
 		}
 		return 0, nil, err
 	}
+	api.publishGuidelineSync(r.Context(), scope)
 	setKnowledgeMemoryETagHeader(w, result)
 	return http.StatusOK, map[string]any{"knowledgeMemory": result}, nil
+}
+
+// publishGuidelineSync re-indexes notes after a commit. Failure is logged only:
+// retrieval reloads canonical notes, and mandatory notes are always returned.
+func (api *knowledgeMemoryAPI) publishGuidelineSync(ctx context.Context, scope knowledgeMemoryScope) {
+	if api.guidelineIngest == nil {
+		return
+	}
+	publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), guidelinePublishTimeout)
+	defer cancel()
+	err := api.guidelineIngest.Publish(publishCtx, ingest.Message{Operation: ingest.OperationSync, OrganizationID: scope.organizationID, ProjectID: scope.projectID})
+	if err != nil {
+		slog.WarnContext(ctx, "guideline_ingest_sync_enqueue_failed", "organization_id", scope.organizationID, "project_id", scope.projectID, "error", err)
+	}
 }
 
 func (api *knowledgeMemoryAPI) previewWorkspace(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
@@ -573,5 +599,5 @@ func (api *knowledgeMemoryAPI) projectScope(ctx context.Context, actor workspace
 	if !exists {
 		return knowledgeMemoryScope{}, knowledgeMemoryFailure(404, "project_not_found", "Project not found")
 	}
-	return knowledgeMemoryScope{projectID: projectID}, nil
+	return knowledgeMemoryScope{organizationID: actor.organizationID, projectID: projectID}, nil
 }

@@ -31,9 +31,8 @@ export const knowledgeUploadSectionMessages = defineMessages({
     description: "Clickable label inside the knowledge upload dropzone hint",
   },
   formats: {
-    defaultMessage:
-      "Supported formats: .csv, .json, .pdf, .xlsx, .xls, .txt, .md, .docx, .pptx. Max 1 file per upload.",
-    id: "vVxZW3OWeO",
+    defaultMessage: "Supported formats: .pdf, .docx, .md, .txt. Up to 25 MB, 1 file per upload.",
+    id: "I4SX9RyzOi",
     description: "Supported formats and file limit for knowledge upload",
   },
   or: {
@@ -85,5 +84,10 @@ export const knowledgeUploadSectionMessages = defineMessages({
     defaultMessage: "That file type is not supported. Use a supported format.",
     id: "pJSZRmHIFC",
     description: "Toast when the selected knowledge upload file uses an unsupported format",
+  },
+  fileTooLarge: {
+    defaultMessage: "That file is larger than 25 MB.",
+    id: "UxELaHpNTI",
+    description: "Toast when the selected knowledge upload file exceeds the size limit",
   },
 });

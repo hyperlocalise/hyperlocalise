@@ -25,6 +25,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   filterKnowledgeUploadFiles,
   KNOWLEDGE_UPLOAD_ACCEPT,
+  KNOWLEDGE_UPLOAD_MAX_BYTES,
   KNOWLEDGE_UPLOAD_MAX_FILES,
   type KnowledgeUploadActionId,
 } from "./knowledge-upload.shared";
@@ -86,6 +87,10 @@ export function KnowledgeUploadSection({
     const accepted = filterKnowledgeUploadFiles(all);
     if (accepted.length === 0 && all.length > 0) {
       toast.message(intl.formatMessage(knowledgeUploadSectionMessages.unsupportedFiles));
+      return;
+    }
+    if (accepted.some((file) => file.size > KNOWLEDGE_UPLOAD_MAX_BYTES)) {
+      toast.message(intl.formatMessage(knowledgeUploadSectionMessages.fileTooLarge));
       return;
     }
 
