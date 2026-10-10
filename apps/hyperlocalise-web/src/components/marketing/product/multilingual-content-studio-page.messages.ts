@@ -512,6 +512,13 @@ export const multilingualContentStudioPageMessages = defineMessages({
     id: "wqX73vSqoO",
     description: "Content Studio FAQ answer about product fit",
   },
+  howItWorksNarrative: {
+    defaultMessage:
+      "Work begins when you bring source material into the studio — a campaign brief, a Google Doc, slides from Drive, screenshots, or video with transcripts. You choose the target languages and attach Guidelines, glossaries, and market notes so every adaptation starts from the same rules. The studio keeps creative context in one place instead of scattering comments across email and chat. Inside the workspace, you and agents work through the same sequence for each asset type. Text blocks get drafted or translated with terminology locked; documents and decks keep layout while copy updates per locale; images and video get alt text, on-screen text, and captions aligned to your voice. Reviewers comment in context, compare against the source, and approve or send back specific segments without exporting files. Outputs are ready for the next step in your stack. Finished copy can hand off to Automation Workflow for publish checks, export to your TMS, or download for legal sign-off. Because every language shares the same project thread, you always know which version is current and what still needs a human pass before launch.",
+    id: "AncG3ExMGo",
+    description:
+      "Long-form how-it-works narrative for the multilingual Content Studio product page",
+  },
   ctaHeadline: {
     defaultMessage: "Your next story.\nReady for the world.",
     id: "iSz2hKqv1Z",

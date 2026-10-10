@@ -38,6 +38,7 @@ import type { AppLocale } from "@/lib/app-i18n/locales";
 
 import { GuidelinesBoardMock } from "./guidelines-board-mock";
 import { guidelinesPageMessages as messages } from "./guidelines-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 import { KnowledgeWaveGlobe } from "./knowledge-wave-globe";
 
 const sourceIds = ["drive", "notion", "sharepoint"] as const;
@@ -401,6 +402,8 @@ export function GuidelinesPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <GuidelineSources />
 

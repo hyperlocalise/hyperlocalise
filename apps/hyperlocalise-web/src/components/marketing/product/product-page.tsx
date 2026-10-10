@@ -37,6 +37,7 @@ import { HyperlabMockUI } from "./hyperlab-mock-ui";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { KnowledgeHero } from "./knowledge-hero";
 import { KnowledgeMockUI } from "./knowledge-mock-ui";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { VisualWorkflowPlayground } from "./visual-workflow-playground";
 
@@ -271,6 +272,12 @@ export function ProductPage({ content, faqItems, faqHeading, faqSubheading }: Pr
         <section className="px-3 pb-20 sm:px-6 lg:px-8">
           <ProductShowcase content={content} />
         </section>
+
+        {content.howItWorksNarrativeKey ? (
+          <ProductHowItWorksNarrativeSection
+            narrative={productPageMessages[content.howItWorksNarrativeKey]}
+          />
+        ) : null}
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductDetailsSection content={content} />

@@ -40,6 +40,7 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { cn } from "@/lib/primitives/cn";
 
 import { multilingualContentStudioPageMessages as messages } from "./multilingual-content-studio-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const formatIds = ["text", "slides", "images", "video"] as const;
 type FormatId = (typeof formatIds)[number];
@@ -719,6 +720,8 @@ export function MultilingualContentStudioPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <ContentFormats />
 
