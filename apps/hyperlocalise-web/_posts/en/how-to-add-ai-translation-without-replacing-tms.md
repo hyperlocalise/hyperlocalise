@@ -116,3 +116,5 @@ That is the promise of a TMS-agnostic workflow.
 With Hyperlocalise, teams can bring AI translation intelligence into their existing localisation stack, connect context across tools, support human reviewers, and build a knowledge layer that improves over time.
 
 AI translation should not force teams to start again. It should help them move faster from where they already are.
+
+For the evaluation criteria behind that choice — product context, human review, TMS interoperability, and release-readiness — see [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow).

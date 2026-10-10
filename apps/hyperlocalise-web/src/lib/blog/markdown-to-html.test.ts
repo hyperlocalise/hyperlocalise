@@ -27,4 +27,14 @@ describe("markdownToHtml", () => {
 
     expect(html).not.toContain("onerror");
   });
+
+  it("renders GFM tables used by buyer-guide posts", async () => {
+    const html = await markdownToHtml(
+      "| Criterion | Question |\n| --- | --- |\n| Product-context awareness | What is this string for? |\n",
+    );
+
+    expect(html).toContain("<table");
+    expect(html).toContain("Product-context awareness");
+    expect(html).toContain("What is this string for?");
+  });
 });
