@@ -386,6 +386,12 @@ export const hyperlabPageMessages = defineMessages({
     id: "jfrmvbYbYG",
     description: "Hyperlab FAQ answer about getting started",
   },
+  howItWorksNarrative: {
+    defaultMessage:
+      "A test starts when you mark content or UX that should differ by market — a headline on the homepage, a checkout step, pricing copy, or a feature flag tied to a locale. You pick the audience (for example Japan only), define the variants, and set how long to collect signal. Hyperlab keeps the rest of your site stable so you are not guessing from global averages. Inside the experiment, traffic splits according to your rules while Domains and product analytics feed context back. You see engagement, conversion, and qualitative cues per variant without rebuilding the page in a separate tool. When Automation Workflow is connected, winning copy can become the default string for that locale while other markets stay on the control. Outputs tell you which version to keep and how to roll it out. Dashboards compare variants with confidence cues, link to the underlying strings in Content Studio, and document who approved the change. Winners can publish to production for that market only, sync into Guidelines as a recorded preference, or trigger a broader localization pass when the learning applies to additional languages.",
+    id: "Ej3S3KuUdO",
+    description: "Long-form how-it-works narrative for the Hyperlab product page",
+  },
   ctaHeadline: {
     defaultMessage: "Stop guessing\nwhat each market wants.",
     id: "swCjOVTXG7",

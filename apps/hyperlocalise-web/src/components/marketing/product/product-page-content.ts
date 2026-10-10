@@ -51,6 +51,7 @@ export type ProductPageContent = {
     headlineKey: ProductMessageKey;
     descriptionKey: ProductMessageKey;
   };
+  howItWorksNarrativeKey?: ProductMessageKey;
   related: ProductPageLink[];
 };
 
@@ -93,6 +94,7 @@ export const productPages: ProductPageContent[] = [
       headlineKey: "agentsAutomationCtaHeadline",
       descriptionKey: "agentsAutomationCtaDescription",
     },
+    howItWorksNarrativeKey: "agentsAutomationHowItWorksNarrative",
     related: [
       { labelKey: "productNavContentStudio", href: "/product/multilingual-content-studio" },
       { labelKey: "productNavDomains", href: "/product/domains" },
