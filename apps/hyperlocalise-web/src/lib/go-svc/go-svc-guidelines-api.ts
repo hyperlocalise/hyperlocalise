@@ -118,10 +118,7 @@ export class GoSvcGuidelinesApi {
       if (cursor) {
         query.set("cursor", cursor);
       }
-      const body = await this.request.json<GuidelineDocumentListPage>(
-        `${path}?${query}`,
-        options,
-      );
+      const body = await this.request.json<GuidelineDocumentListPage>(`${path}?${query}`, options);
       documents.push(...body.guidelineDocuments);
       cursor = body.nextCursor ?? undefined;
     } while (cursor);
