@@ -237,13 +237,13 @@ Når kildesynkroniseringen er fuldført, skal du gennemgå det nye indhold i Hyp
 
 I dette eksempel bør en korrekturlæser kontrollere mere end den bogstavelige nøjagtighed:
 
-| Indhold         | Gennemgangsspørgsmål                                    |
-| --------------- | -------------------------------------------------------- |
-| `filters.save`  | Er dette tydeligt en handling snarere end en gemt tilstand?    |
-| `filters.saved` | Matcher termen teksten i navigationen og indstillingerne?        |
+| Indhold         | Gennemgangsspørgsmål                                                    |
+| --------------- | ----------------------------------------------------------------------- |
+| `filters.save`  | Er dette tydeligt en handling snarere end en gemt tilstand?             |
+| `filters.saved` | Matcher termen teksten i navigationen og indstillingerne?               |
 | Beskrivelse     | Passer det til brugergrænsefladen og bevarer terminologien "workspace"? |
-| Udgivelsestitel   | Bruger den samme betegnelse som produktfunktionen?        |
-| Udgivelsesnoter | Er kommandoer, menunavne og brugerresultater konsekvente?  |
+| Udgivelsestitel | Bruger den samme betegnelse som produktfunktionen?                      |
+| Udgivelsesnoter | Er kommandoer, menunavne og brugerresultater konsekvente?               |
 
 Vedhæft produktkontekst eller skærmbilleder, når en kort tekst er tvetydig. En oversætter, der kun ser »Gem filter«, kan ikke vide, om det er en knap, en toastbesked eller en sideoverskrift. Det er her, platformen supplerer CLI'en: Git flytter filer, mens Hyperlocalise sørger for den viden, der er nødvendig for at træffe et velovervejet sprogligt valg.
 

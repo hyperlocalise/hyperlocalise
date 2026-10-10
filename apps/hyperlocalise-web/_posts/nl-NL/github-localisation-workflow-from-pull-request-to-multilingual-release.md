@@ -237,13 +237,13 @@ Zodra de bronsynchronisatie is voltooid, controleer je de nieuwe content in Hype
 
 Bij dit voorbeeld moet een beoordelaar meer controleren dan alleen de letterlijke juistheid:
 
-| Inhoud          | Beoordelingsvraag                                        |
-| --------------- | -------------------------------------------------------- |
-| `filters.save`  | Is dit duidelijk een actie in plaats van een opgeslagen status?    |
-| `filters.saved` | Komt de term overeen met navigatie- en instellingsteksten?        |
-| Beschrijving     | Past het in de gebruikersinterface en blijft de term “workspace” behouden? |
-| Releasetitel   | Gebruikt het dezelfde naam als de productfunctie?        |
-| Releasebulletpoints | Zijn opdrachten, menunamen en resultaten voor gebruikers consistent?  |
+| Inhoud              | Beoordelingsvraag                                                          |
+| ------------------- | -------------------------------------------------------------------------- |
+| `filters.save`      | Is dit duidelijk een actie in plaats van een opgeslagen status?            |
+| `filters.saved`     | Komt de term overeen met navigatie- en instellingsteksten?                 |
+| Beschrijving        | Past het in de gebruikersinterface en blijft de term “workspace” behouden? |
+| Releasetitel        | Gebruikt het dezelfde naam als de productfunctie?                          |
+| Releasebulletpoints | Zijn opdrachten, menunamen en resultaten voor gebruikers consistent?       |
 
 Voeg productcontext of schermafbeeldingen toe wanneer een korte tekst onduidelijk is. Een vertaler die alleen ‘Filter opslaan’ ziet, kan niet weten of dit een knop, een toastmelding of een paginatitel is. Daarin vult het platform de CLI aan: Git verplaatst bestanden, terwijl Hyperlocalise de kennis meebrengt die nodig is om een goede taalkeuze te maken.
 

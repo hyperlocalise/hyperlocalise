@@ -20,6 +20,7 @@ tags:
   - release readiness
   - localisation platforms
 ---
+
 AI has changed what product teams should expect from localisation software.
 
 Traditional translation management systems were designed to store strings, assign translation tasks, and move content between translators and reviewers. Those capabilities remain important, but they no longer solve the entire problem.

@@ -320,11 +320,11 @@ Gebruik `hl sync push --dry-run` wanneer je bucketpaden of locatielijsten wijzig
 
 Vertalers moeten het volledige ICU-bericht zien, niet alleen losse Engelse fragmenten. Stel tijdens de beoordeling vragen over taalspecifieke zaken die ICU in één tekenreeks verbergt:
 
-| Bericht                     | Beoordelingsvraag                                                                                             |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Bericht                     | Beoordelingsvraag                                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `filters.banner.savedCount` | Klinken de vertakkingen voor `=0`, `one` en `other` natuurlijk? Wordt `#` correct uitgebreid volgens de meervoudsregels van elke locale? |
-| `filters.banner.scope`      | Dekt `select` elke `scope`-waarde die de app verstuurt? Is `other` een veilige terugvaloptie?                             |
-| Korte labels                | Passen vertaalde strings na uitbreiding voor meervoudsvormen nog steeds op knoppen?                                                |
+| `filters.banner.scope`      | Dekt `select` elke `scope`-waarde die de app verstuurt? Is `other` een veilige terugvaloptie?                                            |
+| Korte labels                | Passen vertaalde strings na uitbreiding voor meervoudsvormen nog steeds op knoppen?                                                      |
 
 Voeg screenshots toe wanneer er een meervoudstak voorkomt in een lay-out met beperkte ruimte. Hyperlocalise bewaart de woordenlijst en projectinstructies bij het segment; de CLI verplaatst alleen bestanden.
 

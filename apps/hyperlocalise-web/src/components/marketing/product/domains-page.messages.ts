@@ -415,7 +415,7 @@ export const domainsPageMessages = defineMessages({
   howItWorksNarrative: {
     defaultMessage:
       "Monitoring starts when your multilingual site is live — Domains ingests URLs from your sitemap or CMS connection and maps each page to its locale variants. You point it at the domains you care about, set how often to rescan, and choose whether to include staging or production. The product treats every language as a first-class surface, not an afterthought bolted onto a single-market audit. Inside each scan, Domains compares what search engines and AI assistants can actually fetch against what you intended to publish. It checks hreflang pairs, canonical tags, indexability, structured data, and whether translated titles and snippets still match the on-page copy. When a locale drops out of results or an AI answer cites the wrong URL, the issue is tied to the specific page and language so writers know what to fix. Outputs land as a prioritized backlog your team can act on. You see broken alternates, thin translations, and missing metadata ranked by traffic and severity, with links back to the live URL and suggested copy changes. Fixes can flow into Content Studio or Automation Workflow so corrections ship in every language, not just the market where someone noticed the problem first.",
-    id: "4uj9mfVR/x",
+    id: "mJEqo1QFTM",
     description: "Long-form how-it-works narrative for the Domains product page",
   },
   ctaHeadline: {
