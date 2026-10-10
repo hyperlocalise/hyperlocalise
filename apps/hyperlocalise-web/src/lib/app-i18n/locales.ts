@@ -19,7 +19,19 @@ import type { NextRequest } from "next/server";
  * When adding a locale, land catalogs here first, then promote into
  * SUPPORTED_APP_LOCALES once routing should accept it.
  */
-export const AVAILABLE_APP_CONTENT_LOCALES = ["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"] as const;
+export const AVAILABLE_APP_CONTENT_LOCALES = [
+  "en",
+  "zh-CN",
+  "da-DK",
+  "nl-NL",
+  "fil-PH",
+  "fr-FR",
+  "de-DE",
+  "ja-JP",
+  "ko-KR",
+  "th-TH",
+  "vi-VN",
+] as const;
 
 /** Locales accepted by `/[lang]` routing, cookies, and the language toggle. */
 export const SUPPORTED_APP_LOCALES = AVAILABLE_APP_CONTENT_LOCALES;

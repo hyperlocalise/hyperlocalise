@@ -42,6 +42,7 @@ import {
   type HyperlabSceneId,
 } from "./hyperlab-mock-ui";
 import { hyperlabPageMessages as messages } from "./hyperlab-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const solutionIds = [
   "flags",
@@ -468,6 +469,8 @@ export function HyperlabPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <HyperlabSolutions />
         <CompareSection />

@@ -287,6 +287,12 @@ export const productPageMessages = defineMessages({
     id: "NwknAq8TGX",
     description: "Proof point 3 body for the agents automation product page",
   },
+  agentsAutomationHowItWorksNarrative: {
+    defaultMessage:
+      "A run starts when something in your connected stack needs multilingual work — a page updated in Contentful, a brief dropped in Notion, a message in Slack, or a pull request opened in GitHub. You define those triggers when you build the workflow, along with the languages, owners, and approval rules each path should use. Hyperlocalise watches those sources, packages the changed content and surrounding context, and opens a run so the same campaign does not stall in someone's inbox. Inside the run, agents follow the steps you drew on the canvas: draft or adapt copy with your Guidelines and glossary attached, route strings to human reviewers when confidence is low, and branch by market when Hyperlab or Domains signal a locale-specific need. Each step writes an audit trail — who touched what, which model or rule fired, and whether the output passed your checks — so localization managers can see progress without chasing updates across tools. Outputs land back where your team already works. Approved strings sync to your CMS or site repo, notifications post to Slack, help content updates in Intercom, and parallel exports can still push to Crowdin, Lokalise, Phrase, or Smartling if you run a hybrid stack. When the next launch follows the same workflow, every language takes the same path automatically, and people only step in when something is off.",
+    id: "OC0Ni4OgkT",
+    description: "Long-form how-it-works narrative for the agents automation product page",
+  },
   agentsAutomationCtaHeadline: {
     defaultMessage: "Set up the workflow. Watch the next campaign follow it.",
     id: "BlXinWb00f",

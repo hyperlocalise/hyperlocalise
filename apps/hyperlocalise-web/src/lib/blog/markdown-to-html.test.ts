@@ -28,6 +28,27 @@ describe("markdownToHtml", () => {
     expect(html).not.toContain("onerror");
   });
 
+  it("prefixes root-relative marketing links with the active locale", async () => {
+    const html = await markdownToHtml(
+      "Read [this post](/blog/sample) and [product localisation](/use-cases/product-localisation).",
+      { locale: "en" },
+    );
+
+    expect(html).toContain('href="/en/blog/sample"');
+    expect(html).toContain('href="/en/use-cases/product-localisation"');
+    expect(html).not.toContain('href="/blog/sample"');
+  });
+
+  it("leaves external and hash-only links unchanged", async () => {
+    const html = await markdownToHtml(
+      "[Calendar](https://calendar.app.google/example) and [section](#intro)",
+      { locale: "en" },
+    );
+
+    expect(html).toContain('href="https://calendar.app.google/example"');
+    expect(html).toContain('href="#intro"');
+  });
+
   it("renders GFM tables used by buyer-guide posts", async () => {
     const html = await markdownToHtml(
       "| Criterion | Question |\n| --- | --- |\n| Product-context awareness | What is this string for? |\n",

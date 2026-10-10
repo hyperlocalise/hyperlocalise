@@ -15,23 +15,19 @@
 import { FormattedMessage } from "react-intl";
 
 import { finalCtaSectionMessages } from "./final-cta-section.messages";
-import { Button } from "@/components/ui/button";
+import { MarketingConversionCtaButtons } from "./marketing-conversion-cta-buttons";
 import { TypographyH2 } from "@/components/ui/typography";
 
 export function FinalCtaSection() {
   return (
-    <section id="waitlist" className="text-center">
+    <section className="text-center">
       <TypographyH2
         className="pb-0 text-4xl leading-[1.04] tracking-[-0.04em] normal-case sm:text-5xl"
         weight="bold"
       >
         <FormattedMessage {...finalCtaSectionMessages.headline} />
       </TypographyH2>
-      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Button nativeButton={false} render={<a href="/auth/sign-in" rel="noopener noreferrer" />}>
-          <FormattedMessage {...finalCtaSectionMessages.joinEarlyAccess} />
-        </Button>
-      </div>
+      <MarketingConversionCtaButtons className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row" />
     </section>
   );
 }

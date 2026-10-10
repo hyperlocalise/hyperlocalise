@@ -13,6 +13,10 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import {
+  getAgentsAutomationFaqItems,
+  getAgentsAutomationFaqSectionCopy,
+} from "@/components/marketing/product/agents-automation-faq-content";
 import { ProductPage } from "@/components/marketing/product/product-page";
 import { DomainsPage } from "@/components/marketing/product/domains-page";
 import { GuidelinesPage } from "@/components/marketing/product/guidelines-page";
@@ -85,7 +89,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
   };
 }
 
-function renderProductPage(slug: string) {
+function renderProductPage(slug: string, locale: string) {
   if (slug === "multilingual-content-studio") {
     return <MultilingualContentStudioPage />;
   }
@@ -108,6 +112,18 @@ function renderProductPage(slug: string) {
     notFound();
   }
 
+  if (slug === "agents-automation") {
+    const faqCopy = getAgentsAutomationFaqSectionCopy(locale);
+    return (
+      <ProductPage
+        content={content}
+        faqItems={getAgentsAutomationFaqItems(locale)}
+        faqHeading={faqCopy.heading}
+        faqSubheading={faqCopy.subheading}
+      />
+    );
+  }
+
   return <ProductPage content={content} />;
 }
 
@@ -123,7 +139,7 @@ export default async function ProductRoutePage({ params }: ProductRouteProps) {
   }
 
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
-  const page = renderProductPage(slug);
+  const page = renderProductPage(slug, locale);
   const jsonLd = productJsonLdSlugs.has(slug)
     ? buildProductJsonLd(slug as ProductPageSlug, locale)
     : null;

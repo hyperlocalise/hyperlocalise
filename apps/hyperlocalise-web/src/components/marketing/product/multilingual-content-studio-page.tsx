@@ -40,6 +40,7 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { cn } from "@/lib/primitives/cn";
 
 import { multilingualContentStudioPageMessages as messages } from "./multilingual-content-studio-page.messages";
+import { ProductHowItWorksNarrativeSection } from "./product-how-it-works-narrative-section";
 
 const formatIds = ["text", "slides", "images", "video"] as const;
 type FormatId = (typeof formatIds)[number];
@@ -112,7 +113,7 @@ const PUBLISHED_PAGE_COPY = {
     meta: "8. September 2026 · 4 Min. Lesezeit",
     imageAlt: "Nächtliche Lichter der Städte auf der Erde, aus dem Weltraum fotografiert",
   },
-  ja: {
+  "ja-JP": {
     languageName: "日本語",
     category: "Daylight ジャーナル",
     title: "いつもと違う光で、世界を見つめる。",
@@ -145,16 +146,28 @@ const PUBLISHED_PAGE_COPY = {
     meta: "8 tháng 9, 2026 · 4 phút đọc",
     imageAlt: "Ánh đèn thành phố trên Trái Đất về đêm, được chụp từ không gian",
   },
-} as const satisfies Record<AppLocale | "ja", unknown>;
+} as const satisfies Partial<Record<AppLocale, unknown>>;
 
-const PUBLISHED_PAGE_LOCALES = Object.keys(PUBLISHED_PAGE_COPY) as Array<
-  keyof typeof PUBLISHED_PAGE_COPY
->;
+type PublishedPageLocale = keyof typeof PUBLISHED_PAGE_COPY;
+
+const PUBLISHED_PAGE_LOCALES = Object.keys(PUBLISHED_PAGE_COPY) as PublishedPageLocale[];
+
+function resolvePublishedPageLocale(locale: AppLocale): PublishedPageLocale {
+  if (locale in PUBLISHED_PAGE_COPY) {
+    return locale as PublishedPageLocale;
+  }
+
+  return "en";
+}
 
 function WebPublishingSection() {
   const locale = useAppLocale();
-  const [language, setLanguage] = useState<keyof typeof PUBLISHED_PAGE_COPY>(locale);
-  const orderedLocales = [locale, ...PUBLISHED_PAGE_LOCALES.filter((value) => value !== locale)];
+  const publishedLocale = resolvePublishedPageLocale(locale);
+  const [language, setLanguage] = useState<PublishedPageLocale>(publishedLocale);
+  const orderedLocales = [
+    publishedLocale,
+    ...PUBLISHED_PAGE_LOCALES.filter((value) => value !== publishedLocale),
+  ];
   const article = PUBLISHED_PAGE_COPY[language];
 
   return (
@@ -707,6 +720,8 @@ export function MultilingualContentStudioPage() {
             </span>
           </div>
         </section>
+
+        <ProductHowItWorksNarrativeSection narrative={messages.howItWorksNarrative} />
 
         <ContentFormats />
 
