@@ -31,8 +31,8 @@ describe("groupLocalePickerEntries", () => {
       ]),
     ).toEqual([
       ["americas", ["en"]],
-      ["asia-pacific", ["zh-CN", "vi-VN"]],
-      ["europe", ["de-DE", "fr-FR"]],
+      ["asia-pacific", ["zh-CN", "fil-PH", "ja-JP", "ko-KR", "th-TH", "vi-VN"]],
+      ["europe", ["da-DK", "nl-NL", "fr-FR", "de-DE"]],
     ]);
   });
 
