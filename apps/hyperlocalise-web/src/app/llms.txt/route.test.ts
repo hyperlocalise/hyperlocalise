@@ -64,6 +64,12 @@ describe("llms.txt route", () => {
     expect(body).toContain("[Agent registration](https://www.hyperlocalise.com/auth.md)");
     expect(body).toContain("register a coding agent with AuthKit");
     expect(body).toContain(
+      "[Pricing](https://www.hyperlocalise.com/en/pricing): Compare Free, Starter, Growth, and Enterprise plans for Hyperlocalise — agentic localisation for teams shipping global product content.",
+    );
+    expect(body).toContain(
+      "[Company](https://www.hyperlocalise.com/en/company): Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.",
+    );
+    expect(body).toContain(
       "[Contact](https://www.hyperlocalise.com/en/contact): Reach the Hyperlocalise team.",
     );
     expect(body).not.toContain("github.com/hyperlocalise");
