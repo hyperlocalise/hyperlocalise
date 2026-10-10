@@ -196,7 +196,9 @@ export function TmEntryExplorer({
   const selectedEntry = entries.find((entry) => entry.id === state.entry) ?? null;
   const hasFilters = getActiveTmEntryFilterChips(state).length > 0;
   const visibleEntryIds = entries.map((entry) => entry.id);
-  const selectedVisibleIds = selectedEntryIds.filter((entryId) => visibleEntryIds.includes(entryId));
+  const selectedVisibleIds = selectedEntryIds.filter((entryId) =>
+    visibleEntryIds.includes(entryId),
+  );
   const allVisibleSelected =
     visibleEntryIds.length > 0 && selectedVisibleIds.length === visibleEntryIds.length;
   const someVisibleSelected = selectedVisibleIds.length > 0 && !allVisibleSelected;
@@ -229,9 +231,12 @@ export function TmEntryExplorer({
     onSuccess: async (result, reviewStatus) => {
       await invalidateMemoryEntries();
       toast.success(
-        intl.formatMessage(reviewStatus === "approved" ? messages.bulkApproved : messages.bulkRejected, {
-          count: result.updated,
-        }),
+        intl.formatMessage(
+          reviewStatus === "approved" ? messages.bulkApproved : messages.bulkRejected,
+          {
+            count: result.updated,
+          },
+        ),
       );
     },
     onError: (error) => toast.error(error.message),
@@ -404,7 +409,10 @@ export function TmEntryExplorer({
       {canSelectEntries && selectedVisibleIds.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border px-3 py-2">
           <TypographyP size="small" weight="medium">
-            <FormattedMessage {...messages.selectedCount} values={{ count: selectedVisibleIds.length }} />
+            <FormattedMessage
+              {...messages.selectedCount}
+              values={{ count: selectedVisibleIds.length }}
+            />
           </TypographyP>
           {canReview ? (
             <>

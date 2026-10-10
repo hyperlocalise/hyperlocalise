@@ -137,7 +137,7 @@ export const tmEntryExplorerMessages = defineMessages({
   },
   reviewPending: {
     defaultMessage: "Draft",
-    id: "HXvIFMFODd",
+    id: "rHzxDmrDRL",
     description: "Draft review status for an unreviewed translation memory entry",
   },
   reviewRejected: {
@@ -162,116 +162,114 @@ export const tmEntryExplorerMessages = defineMessages({
   },
   originFileJob: {
     defaultMessage: "Translation job",
-    id: "tmOriginFileJob1",
+    id: "IrifQRmlhp",
     description: "Origin for entries written by a file translation job",
   },
   originApprovedJob: {
     defaultMessage: "Approved project",
-    id: "tmOriginApproved1",
+    id: "/Z40OYzdZ/",
     description: "Origin for entries promoted from approved project translations",
   },
   chipSameAsSource: {
     defaultMessage: "Same as source",
-    id: "tmChipSameSrc1",
+    id: "0yPPbm/1Fr",
     description: "Chip label for the same-as-source cleanup filter",
   },
   reviewQueueTitle: {
     defaultMessage:
       "{count, plural, one {# draft entry needs review} other {# draft entries need review}}",
-    id: "tmReviewQueueT1",
+    id: "uJcPfJRQmM",
     description: "Banner title showing how many translation memory drafts need review",
   },
   reviewQueueBody: {
     defaultMessage:
       "Translation jobs save suggestions as drafts. Approve them before they can be reused.",
-    id: "tmReviewQueueB1",
+    id: "dbUlLM1Oqq",
     description: "Explains why translation memory drafts are held out of matching",
   },
   reviewDrafts: {
     defaultMessage: "Review drafts",
-    id: "tmReviewDrafts1",
+    id: "Es+ucDoi27",
     description: "Button that filters the explorer to draft translation memory entries",
   },
   cleanupLabel: {
     defaultMessage: "Cleanup",
-    id: "tmCleanupLabel1",
+    id: "In7j8i2QDa",
     description: "Button that opens translation memory cleanup shortcuts",
   },
   cleanupDrafts: {
     defaultMessage: "Drafts",
-    id: "tmCleanupDrafts1",
+    id: "vvIzxKmwpF",
     description: "Cleanup shortcut that shows draft translation memory entries",
   },
   cleanupRejected: {
     defaultMessage: "Rejected",
-    id: "tmCleanupReject1",
+    id: "GvmhHrQBlr",
     description: "Cleanup shortcut that shows rejected translation memory entries",
   },
   cleanupSameAsSource: {
     defaultMessage: "Same as source",
-    id: "tmCleanupSame1",
+    id: "3/uQHFvlcM",
     description: "Cleanup shortcut that shows entries whose target copies the source",
   },
   cleanupJobOrigin: {
     defaultMessage: "From translation jobs",
-    id: "tmCleanupJob1",
+    id: "qGKp4CkdHO",
     description: "Cleanup shortcut that shows entries written by translation jobs",
   },
   selectedCount: {
     defaultMessage: "{count, plural, one {# selected} other {# selected}}",
-    id: "tmSelectedCount1",
+    id: "d8SUTrtkQm",
     description: "How many translation memory entries are selected for a bulk action",
   },
   approveSelected: {
     defaultMessage: "Approve",
-    id: "tmApproveSel1",
+    id: "eTWHD/yEhf",
     description: "Bulk action that approves selected translation memory drafts",
   },
   rejectSelected: {
     defaultMessage: "Reject",
-    id: "tmRejectSel1",
+    id: "SRM30InJ7k",
     description: "Bulk action that rejects selected translation memory drafts",
   },
   deleteSelected: {
     defaultMessage: "Delete",
-    id: "tmDeleteSel1",
+    id: "CEaPOoMSXx",
     description: "Bulk action that deletes selected translation memory entries",
   },
   selectEntryAria: {
     defaultMessage: "Select entry {sourceText}",
-    id: "tmSelectEntry1",
+    id: "Gwl9Xy1ZJk",
     description: "Accessible label for selecting a translation memory entry",
   },
   selectAllAria: {
     defaultMessage: "Select all visible entries",
-    id: "tmSelectAll1",
+    id: "7hdb/IRr/l",
     description: "Accessible label for selecting every visible translation memory entry",
   },
   bulkReviewFailed: {
     defaultMessage: "Unable to update the selected entries.",
-    id: "tmBulkRevFail1",
+    id: "7BNesLRShh",
     description: "Error shown when bulk translation memory review fails",
   },
   bulkDeleteFailed: {
     defaultMessage: "Unable to delete the selected entries.",
-    id: "tmBulkDelFail1",
+    id: "XTuALgEqF+",
     description: "Error shown when bulk translation memory delete fails",
   },
   bulkApproved: {
-    defaultMessage:
-      "{count, plural, one {Approved # entry} other {Approved # entries}}",
-    id: "tmBulkApproved1",
+    defaultMessage: "{count, plural, one {Approved # entry} other {Approved # entries}}",
+    id: "jdB1QCPixr",
     description: "Toast after approving translation memory entries",
   },
   bulkRejected: {
-    defaultMessage:
-      "{count, plural, one {Rejected # entry} other {Rejected # entries}}",
-    id: "tmBulkRejected1",
+    defaultMessage: "{count, plural, one {Rejected # entry} other {Rejected # entries}}",
+    id: "hInJax4uyv",
     description: "Toast after rejecting translation memory entries",
   },
   bulkDeleted: {
     defaultMessage: "{count, plural, one {Deleted # entry} other {Deleted # entries}}",
-    id: "tmBulkDeleted1",
+    id: "tcR6O6Wybu",
     description: "Toast after deleting translation memory entries",
   },
   clearFilters: {

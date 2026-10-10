@@ -124,7 +124,8 @@ const {
     selectMock,
     sqlMock: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
       sql: strings.reduce(
-        (result, part, index) => `${result}${part}${index < values.length ? String(values[index]) : ""}`,
+        (result, part, index) =>
+          `${result}${part}${index < values.length ? String(values[index]) : ""}`,
         "",
       ),
     })),

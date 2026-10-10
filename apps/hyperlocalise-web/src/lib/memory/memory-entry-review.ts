@@ -41,9 +41,7 @@ function uniqueEntryIds(entryIds: string[]) {
   return [...new Set(entryIds.filter((entryId) => entryId.trim().length > 0))];
 }
 
-function validateBulkSelection(
-  entryIds: string[],
-): Result<string[], MemoryEntryBulkMutationError> {
+function validateBulkSelection(entryIds: string[]): Result<string[], MemoryEntryBulkMutationError> {
   const uniqueIds = uniqueEntryIds(entryIds);
   if (uniqueIds.length === 0) {
     return err({ code: "empty_selection" });

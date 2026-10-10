@@ -123,17 +123,18 @@ describe("memory entry review", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ updated: 1 });
 
-    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$get(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            memoryId: memory.id,
-            entryId: draft.id,
-          },
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: draft.id,
         },
-        { headers },
-      );
+      },
+      { headers },
+    );
     expect(detail.status).toBe(200);
     const body = (await detail.json()) as { memoryEntry: { reviewStatus: string } };
     expect(body.memoryEntry.reviewStatus).toBe("approved");
@@ -166,17 +167,18 @@ describe("memory entry review", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ deleted: 1 });
 
-    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][":memoryId"]
-      .entries[":entryId"].$get(
-        {
-          param: {
-            organizationSlug: identity.organization.slug ?? "missing-slug",
-            memoryId: memory.id,
-            entryId: draft.id,
-          },
+    const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: draft.id,
         },
-        { headers },
-      );
+      },
+      { headers },
+    );
     expect(detail.status).toBe(404);
   });
 });
