@@ -43,18 +43,22 @@ func documentFilter(id string, version int64) tp.Filter {
 	return tp.NewFilterAnd([]tp.Filter{tp.NewFilterEq("document_id", id), tp.NewFilterLte("version", version)})
 }
 
-func guidelineSchema() map[string]tp.AttributeSchemaConfigParam {
-	return map[string]tp.AttributeSchemaConfigParam{
-		"document_id": {Type: "string"},
-		"revision_id": {Type: "string"},
-		"version":     {Type: "int"},
-		"project_id":  {Type: "string"},
-		"locale":      {Type: "string"},
-		textAttribute: {
+func schemaConfig(config tp.AttributeSchemaConfigParam) tp.AttributeSchemaParam {
+	return tp.AttributeSchemaParam{AttributeSchemaConfig: &config}
+}
+
+func guidelineSchema() map[string]tp.AttributeSchemaParam {
+	return map[string]tp.AttributeSchemaParam{
+		"document_id": schemaConfig(tp.AttributeSchemaConfigParam{Type: "string"}),
+		"revision_id": schemaConfig(tp.AttributeSchemaConfigParam{Type: "string"}),
+		"version":     schemaConfig(tp.AttributeSchemaConfigParam{Type: "int"}),
+		"project_id":  schemaConfig(tp.AttributeSchemaConfigParam{Type: "string"}),
+		"locale":      schemaConfig(tp.AttributeSchemaConfigParam{Type: "string"}),
+		textAttribute: schemaConfig(tp.AttributeSchemaConfigParam{
 			Type:           "string",
 			FullTextSearch: &tp.FullTextSearchConfigParam{Stemming: tp.Bool(false), RemoveStopwords: tp.Bool(false)},
 			Embed:          tp.AttributeEmbedConfigParam{Model: embedding.Model, Dims: tp.Int(int64(embedding.Dimensions))},
-		},
+		}),
 	}
 }
 
