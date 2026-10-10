@@ -320,11 +320,11 @@ Brug `hl sync push --dry-run`, når du ændrer bucket-stier eller lokalelister.
 
 Oversættere bør se den fulde ICU-meddelelse, ikke isolerede engelske tekstfragmenter. Under gennemgangen skal man stille lokalitetsspecifikke spørgsmål, som ICU skjuler i en enkelt streng:
 
-| Meddelelse                  | Gennemgangsspørgsmål                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Meddelelse                  | Gennemgangsspørgsmål                                                                                           |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `filters.banner.savedCount` | Lyder grenene `=0`, `one` og `other` naturlige? Udvides `#` korrekt i henhold til hvert sprogområdes flertalsregler? |
-| `filters.banner.scope`      | Dækker `select` alle `scope`-værdier, som appen sender? Er `other` en sikker fallback?                               |
-| Korte etiketter             | Passer de oversatte tekster stadig på knapperne efter pluralisudvidelse?                                             |
+| `filters.banner.scope`      | Dækker `select` alle `scope`-værdier, som appen sender? Er `other` en sikker fallback?                             |
+| Korte etiketter                | Passer de oversatte tekster stadig på knapperne efter pluralisudvidelse?                                                |
 
 Vedhæft skærmbilleder, når der forekommer en flertalsgren i et layout med begrænset plads. Hyperlocalise opbevarer ordliste og projektinstruktioner sammen med segmentet – CLI'en flytter kun filer.
 

@@ -17,7 +17,6 @@ tags:
   - translation intelligence
   - machine translation
 ---
-
 AI has made translation faster. But for global teams, faster translation does not always mean better localisation.
 
 The real problem is not that AI struggles to translate words. The real problem is that AI often lacks the context to understand what those words are supposed to do.
