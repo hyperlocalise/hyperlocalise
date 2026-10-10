@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
+import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 
@@ -26,9 +28,12 @@ import {
 
 type UseCasePageProps = {
   content: UseCasePageContent;
+  faqItems: HomepageFaqItem[];
+  faqHeading: string;
+  faqSubheading: string;
 };
 
-export function UseCasePage({ content }: UseCasePageProps) {
+export function UseCasePage({ content, faqItems, faqHeading, faqSubheading }: UseCasePageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
@@ -54,6 +59,10 @@ export function UseCasePage({ content }: UseCasePageProps) {
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           <UseCaseScenarioSection content={content.scenario} />
+        </section>
+
+        <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+          <HomepageFaqSection items={faqItems} heading={faqHeading} subheading={faqSubheading} />
         </section>
 
         <section className="border-t border-border px-5 py-24 sm:px-8 lg:px-10">
