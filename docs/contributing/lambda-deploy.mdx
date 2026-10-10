@@ -16,10 +16,24 @@ Current workers:
 | activity-log | `apps/activity-log-lambda/**` | `activity_log_deploy` | `lambda-deploy-activity-log-…` |
 | glossary-interchange | `apps/glossary-interchange-lambda/**` | `glossary_interchange_deploy` | `lambda-deploy-glossary-interchange-…` |
 | memory-interchange | `apps/memory-interchange-lambda/**` | `memory_interchange_deploy` | `lambda-deploy-memory-interchange-…` |
+| guideline-ingest | `apps/guideline-ingest-lambda/**`, `internal/guidelines/**`, `internal/textextract/**` | `guideline_ingest_deploy` | `lambda-deploy-guideline-ingest-…` |
 
 Concurrency groups append `${{ github.ref }}` (for example `refs/heads/main`). Every deploy job uses the same AWS role session name: `github-actions-lambda-deploy`.
 
 Infrastructure provisioning (queues, IAM, SSM parameter names) lives in the infra repository. See [Activity-log SQS and Go Lambda infrastructure](../adr/2026-09-25-activity-log-sqs-lambda-infrastructure.md).
+
+### guideline-ingest
+
+The guideline-ingest worker extracts uploaded guideline documents and indexes guidelines in turbopuffer. The infra repository provides:
+
+- An SQS queue with a DLQ. go-svc sends to it through `GUIDELINE_INGEST_SQS_QUEUE_URL` and needs `sqs:SendMessage` and `sqs:GetQueueAttributes`.
+- A Lambda with a 5 minute timeout, 1536 MB memory, an event source batch size of 1, and partial batch responses enabled. The function name is in the SSM parameter `/hyperlocalise/prod/lambda/guideline-ingest/function_name`.
+- Lambda environment:
+  - `DATABASE_URL_SECRET_ARN` and `DATABASE_SECRET_KEY`.
+  - `TURBOPUFFER_ARN` and `TURBOPUFFER_KEY` for the API key secret, plus `TURBOPUFFER_REGION` and `TURBOPUFFER_GUIDELINES_PREFIX` matching go-svc.
+  - `OBJECT_STORAGE_S3_FILES_BUCKET`, `OBJECT_STORAGE_S3_FILES_REGION` and `OBJECT_STORAGE_DEFAULT_LOCATION`. The location ID must match the one go-svc writes into `guideline_documents.storage_location_id`.
+  - Optional OCR for scanned PDFs and images: `GUIDELINE_OCR_MODEL` with `AI_GATEWAY_ARN` and `AI_GATEWAY_KEY`. Set `GUIDELINE_IMAGE_UPLOADS_ENABLED=true` on go-svc only when OCR is configured.
+- Read access to the object storage bucket.
 
 ## Path filters
 

@@ -39,6 +39,7 @@ Tool responses are JSON text in MCP content blocks. Errors use `{ "error": "<cod
 | `download_translations`    | Download a reconstructed UTF-8 target file (`projectId`, `sourcePath`, `locale`)                                                                                        |
 | `query_translation_memory` | Search approved translation-memory entries for exact and lexical matches, optionally scoped by project or memory                                                        |
 | `get_knowledge_memory`     | Read organization-wide or project-specific `Memory.md` guidelines                                                                                                       |
+| `check_guidelines`         | Check source or translated segments against workspace and project guidelines, with cited passages                                                                       |
 
 `list_files` returns metadata only: `id` (stored file or source-file id), `sourcePath`, `filename`, `contentType`, `byteSize`, `updatedAt`, and `sourceLocale` when known. Pagination includes `total`, `limit`, `offset`, `hasMore`, and `nextOffset`. The tool does not return file contents. Inaccessible projects return `project_not_found`. Use the listed `sourcePath` values for later upload, download, or `run_workflow` calls.
 
@@ -131,6 +132,26 @@ The response includes `scope`, `content`, `updatedAt`, `truncated`, and `project
 
 Project reads use the authenticated member's normal project access. Missing or inaccessible projects return `project_not_found` without exposing whether the project exists.
 
+### Guideline checks
+
+`check_guidelines` reviews up to 50 segments against the workspace guideline, uploaded guideline documents, and, when `projectId` is set, the project's guidelines. Use it before saving a translation or to audit source copy.
+
+```json
+{
+  "projectId": "project-id",
+  "sourceLocale": "en-US",
+  "targetLocale": "fr-FR",
+  "segments": [{ "id": "welcome", "source": "Can you help?", "target": "Peux-tu aider ?" }],
+  "checks": ["target"]
+}
+```
+
+Each segment needs an `id` and at least one of `source` or `target`. Segments may contain up to 16,000 characters in total. `checks` defaults to every field present. `targetLocale` also selects any locale-specific guideline documents.
+
+The response contains `findings`, `passages`, `searchAvailable`, and `model`. Each finding has `segmentId`, `field`, `severity` (`error`, `warning`, or `info`), `start` and `end` offsets into the checked text in UTF-16 code units, `message`, an optional `suggestion`, and the `passageId` it cites. `passages` contains only the cited guideline text. Findings that do not cite a guideline are dropped, so an empty `findings` array means no guideline violation was found, not that the text is correct.
+
+`searchAvailable: false` means only always-applied guidelines were considered because guideline search was unavailable. Each checked segment counts toward the organization's guideline check usage.
+
 ### Board (issues)
 
 | Tool                  | Description                                                       |
@@ -215,7 +236,7 @@ See [Integrations](/platform/integrations#other-external-services).
 | `idempotency_conflict`                         | The supplied idempotency key is already associated with a different workflow payload                                                 |
 | `ai_features_required`                         | AI translation features are not available for the organization                                                                       |
 | `ai_features_check_failed`                     | Hyperlocalise could not verify AI feature availability                                                                               |
-| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, including `query_translation_memory` and `get_knowledge_memory` |
+| `project_not_found`                            | Wrong `projectId` or missing project access on project-scoped tools, such as `query_translation_memory` and `check_guidelines`       |
 | `glossary_not_found`                           | Wrong `glossaryId`, missing glossary access, or a provider glossary on `query_glossary`                                              |
 | `glossary_read_only`                           | `create_glossary_concept` targeted a provider-synced glossary                                                                        |
 | `duplicate_glossary_concept_term`              | A source or target term already exists for the same locale in the native glossary                                                    |
@@ -232,6 +253,9 @@ See [Integrations](/platform/integrations#other-external-services).
 | `source_file_too_large`                        | The translation reconstruction exceeds the public API key limit                                                                      |
 | `unsupported_binary_download`                  | The reconstructed file cannot be returned as UTF-8 text                                                                              |
 | `memory_not_found`                             | `query_translation_memory` targeted a missing, inaccessible, malformed, or project-unlinked translation memory                       |
+| `invalid_guideline_check`                      | `check_guidelines` received no segments, duplicate segment IDs, too much text, or an invalid locale                                  |
+| `guideline_check_limit_reached`                | The organization has used its guideline check allowance                                                                              |
+| `guideline_check_unavailable`                  | Guideline checks are not configured for this deployment                                                                              |
 
 
 ## Next

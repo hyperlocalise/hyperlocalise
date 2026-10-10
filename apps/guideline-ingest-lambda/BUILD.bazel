@@ -1,0 +1,17 @@
+go_binary(
+    name = "guideline-ingest",
+    srcs = [
+        "main.go",
+        "store.go",
+        "worker.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/guideline-ingest-lambda",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "guideline-ingest-test",
+    srcs = ["worker_test.go"],
+    embed = [":guideline-ingest"],
+    visibility = ["//visibility:public"],
+)

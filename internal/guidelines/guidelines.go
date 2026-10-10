@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/language"
 )
 
 // ErrInvalidInput identifies invalid or inconsistent guideline identities.
@@ -142,6 +144,49 @@ func (s *Service) Sync(ctx context.Context, scope Scope) error {
 		}
 	}
 	return nil
+}
+
+// IndexDocument indexes one canonical revision loaded by the caller. Workers use
+// it for documents scoped to a locale, which a scope-wide Sync does not load.
+func (s *Service) IndexDocument(ctx context.Context, doc Document) error {
+	if s.index == nil {
+		return errors.New("guideline index not configured")
+	}
+	if err := ValidateDocument(doc); err != nil {
+		return err
+	}
+	if err := s.index.Upsert(ctx, doc); err != nil {
+		return fmt.Errorf("index guideline: %w", err)
+	}
+	return nil
+}
+
+// Delete removes indexed passages for documentID up to and including version.
+func (s *Service) Delete(ctx context.Context, scope Scope, documentID string, version int64) error {
+	if s.index == nil {
+		return errors.New("guideline index not configured")
+	}
+	if strings.TrimSpace(scope.OrganizationID) == "" || strings.TrimSpace(documentID) == "" || version < 1 {
+		return ErrInvalidInput
+	}
+	if err := s.index.DeleteThrough(ctx, scope, documentID, version); err != nil {
+		return fmt.Errorf("delete guideline: %w", err)
+	}
+	return nil
+}
+
+// NormalizeLocale returns the canonical BCP 47 form so stored and requested
+// locales compare equal. An empty locale stays empty.
+func NormalizeLocale(locale string) (string, error) {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(locale, "_", "-"))
+	if trimmed == "" {
+		return "", nil
+	}
+	tag, err := language.Parse(trimmed)
+	if err != nil || len(trimmed) > 35 {
+		return "", ErrInvalidInput
+	}
+	return tag.String(), nil
 }
 
 // Retrieve rechecks revision/scope after search and returns canonical passages.
