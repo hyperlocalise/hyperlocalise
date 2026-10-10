@@ -693,7 +693,7 @@
     "defaultMessage": "Publiez les brouillons localisés sur l’environnement de staging."
   },
   "/SBgalTEEE": {
-    "defaultMessage": "Demander une démo"
+    "defaultMessage": "Commencer gratuitement"
   },
   "/SJnfuawRk": {
     "defaultMessage": "Vous souhaitez un deuxième rédacteur pour les textes plus longs."
@@ -4152,7 +4152,7 @@
     "defaultMessage": "Échec de la suppression de la tâche"
   },
   "712aIFkBYq": {
-    "defaultMessage": "Demandez un accès anticipé à Hyperlocalise."
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et lancez des campagnes mondiales avec des workflows de localisation respectueux de votre marque."
   },
   "71I+YToKV7": {
     "defaultMessage": "Forfait gratuit"
@@ -7554,7 +7554,7 @@
     "defaultMessage": "Rejoindre la liste d’attente"
   },
   "EGy0DHdyiF": {
-    "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et découvrez comment votre équipe peut maintenir le contenu d’assistance à jour dans chaque langue."
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et découvrez comment votre équipe peut maintenir le contenu d’assistance à jour dans chaque langue."
   },
   "EH/CNk39Q2": {
     "defaultMessage": "Chemin du champ secret"
@@ -8775,7 +8775,7 @@
     "defaultMessage": "Marketing"
   },
   "H/M3brO8Jk": {
-    "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et découvrez comment votre équipe peut lancer du contenu produit à l’échelle mondiale plus rapidement, sans remplacer vos outils existants."
+    "defaultMessage": "Créez un espace de travail gratuit dès aujourd’hui ou demandez une démo, et découvrez comment votre équipe peut lancer du contenu produit mondial plus rapidement, sans remplacer vos outils existants."
   },
   "H/rcXdOxHm": {
     "defaultMessage": "Nouvel article"
@@ -10170,7 +10170,7 @@
     "defaultMessage": "Push GitHub"
   },
   "KCoITTErMU": {
-    "defaultMessage": "Conçu pour les équipes de localisation. Bientôt disponible."
+    "defaultMessage": "Conçu pour les équipes de localisation. Commencez gratuitement dès aujourd’hui."
   },
   "KDIMmNPAxL": {
     "defaultMessage": "{actor} a marqué ceci comme un doublon de {relatedIssue}"
@@ -10305,7 +10305,7 @@
     "defaultMessage": "Connectez Crowdin dans <link>Intégrations</link> pour utiliser cet outil."
   },
   "Ka+dKs8Zz9": {
-    "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et intégrez les vérifications de localisation à votre pipeline de publication."
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et intégrez les vérifications de localisation à votre pipeline de publication."
   },
   "KaF5SxLR8X": {
     "defaultMessage": "Wiki GTM · Mis à jour cette semaine"
@@ -20790,7 +20790,7 @@
     "defaultMessage": "Actions sur la requête"
   },
   "hEICju0qcP": {
-    "defaultMessage": "Demandez un accès anticipé à Hyperlocalise."
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et détectez la dérive des traductions avant qu’elle n’atteigne vos clients."
   },
   "hElFzW5+gy": {
     "defaultMessage": "Saisissez une langue locale BCP-47 valide (p. ex. fr-FR, zh-Hant-TW)."
@@ -27501,7 +27501,7 @@
     "defaultMessage": "Étape d’agent fictive avec des outils."
   },
   "vRHN9vcIJA": {
-    "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et découvrez comment votre équipe opérations peut orchestrer la localisation sans remplacer vos outils existants."
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et découvrez comment votre équipe opérations peut orchestrer la localisation sans remplacer vos outils existants."
   },
   "vRzaf+T+4c": {
     "defaultMessage": "Génération des brouillons de pages d’atterrissage localisés…"

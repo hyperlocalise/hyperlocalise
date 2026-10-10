@@ -693,7 +693,7 @@
     "defaultMessage": "Xuất bản các bản nháp đã bản địa hóa lên môi trường staging."
   },
   "/SBgalTEEE": {
-    "defaultMessage": "Yêu cầu bản demo"
+    "defaultMessage": "Bắt đầu miễn phí"
   },
   "/SJnfuawRk": {
     "defaultMessage": "Bạn muốn có thêm một người viết cho những nội dung dài hơn."
@@ -4152,7 +4152,7 @@
     "defaultMessage": "Không thể xóa công việc"
   },
   "712aIFkBYq": {
-    "defaultMessage": "Yêu cầu quyền truy cập sớm vào Hyperlocalise."
+    "defaultMessage": "Tạo workspace miễn phí hoặc yêu cầu bản demo, và triển khai chiến dịch toàn cầu với quy trình bản địa hóa an toàn cho thương hiệu."
   },
   "71I+YToKV7": {
     "defaultMessage": "Gói miễn phí"
@@ -7554,7 +7554,7 @@
     "defaultMessage": "Join waitlist"
   },
   "EGy0DHdyiF": {
-    "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và xem đội ngũ của bạn có thể giữ nội dung hỗ trợ luôn cập nhật trên mọi ngôn ngữ như thế nào."
+    "defaultMessage": "Tạo workspace miễn phí hoặc yêu cầu bản demo, và xem cách đội ngũ của bạn có thể giữ nội dung hỗ trợ luôn cập nhật trên mọi ngôn ngữ."
   },
   "EH/CNk39Q2": {
     "defaultMessage": "Đường dẫn trường bí mật"
@@ -8775,7 +8775,7 @@
     "defaultMessage": "Marketing"
   },
   "H/M3brO8Jk": {
-    "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và xem cách đội ngũ của bạn có thể ra mắt nội dung sản phẩm toàn cầu nhanh hơn mà không cần thay thế các công cụ hiện có của bạn."
+    "defaultMessage": "Tạo workspace miễn phí hôm nay hoặc yêu cầu bản demo, và xem cách đội ngũ của bạn có thể ra mắt nội dung sản phẩm toàn cầu nhanh hơn mà không cần thay thế các công cụ hiện có."
   },
   "H/rcXdOxHm": {
     "defaultMessage": "Bài viết mới"
@@ -10170,7 +10170,7 @@
     "defaultMessage": "Đẩy lên GitHub"
   },
   "KCoITTErMU": {
-    "defaultMessage": "Được xây dựng cho các đội ngũ bản địa hóa. Sắp ra mắt."
+    "defaultMessage": "Được xây dựng cho các đội ngũ bản địa hóa. Bắt đầu miễn phí hôm nay."
   },
   "KDIMmNPAxL": {
     "defaultMessage": "{actor} đã đánh dấu đây là bản trùng lặp của {relatedIssue}"
@@ -10305,7 +10305,7 @@
     "defaultMessage": "Kết nối Crowdin trong <link>Tích hợp</link> để sử dụng công cụ này."
   },
   "Ka+dKs8Zz9": {
-    "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và đưa các kiểm tra bản địa hóa vào quy trình phát hành của bạn."
+    "defaultMessage": "Tạo workspace miễn phí hoặc yêu cầu bản demo, và đưa các kiểm tra bản địa hóa vào quy trình phát hành của bạn."
   },
   "KaF5SxLR8X": {
     "defaultMessage": "Wiki GTM · Đã cập nhật trong tuần này"
@@ -20790,7 +20790,7 @@
     "defaultMessage": "Thao tác truy vấn"
   },
   "hEICju0qcP": {
-    "defaultMessage": "Yêu cầu quyền truy cập sớm vào Hyperlocalise."
+    "defaultMessage": "Tạo workspace miễn phí hoặc yêu cầu bản demo, và phát hiện drift bản dịch trước khi nó ảnh hưởng đến khách hàng."
   },
   "hElFzW5+gy": {
     "defaultMessage": "Nhập một ngôn ngữ BCP-47 hợp lệ (ví dụ: fr-FR, zh-Hant-TW)."
@@ -27501,7 +27501,7 @@
     "defaultMessage": "Bước tác nhân giữ chỗ với các công cụ."
   },
   "vRHN9vcIJA": {
-    "defaultMessage": "Tham gia danh sách chờ Hyperlocalise và xem cách đội ngũ vận hành của bạn có thể điều phối hoạt động bản địa hóa mà không cần thay thế các công cụ hiện có của bạn."
+    "defaultMessage": "Tạo workspace miễn phí hoặc yêu cầu bản demo, và xem cách đội ngũ vận hành của bạn có thể điều phối hoạt động bản địa hóa mà không cần thay thế các công cụ hiện có."
   },
   "vRzaf+T+4c": {
     "defaultMessage": "Đang tạo bản nháp trang đích được bản địa hóa..."

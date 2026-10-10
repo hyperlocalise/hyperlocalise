@@ -14,6 +14,7 @@
  */
 import { FormattedMessage } from "react-intl";
 
+import { MarketingConversionCtaButtons } from "@/components/marketing/marketing-conversion-cta-buttons";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
@@ -276,7 +277,7 @@ type UseCaseCtaSectionProps = {
 
 export function UseCaseCtaSection({ content }: UseCaseCtaSectionProps) {
   return (
-    <section id="waitlist" className="text-center">
+    <section className="text-center">
       <TypographyH2
         className="pb-0 text-4xl leading-[1.04] tracking-[-0.04em] normal-case sm:text-5xl"
         weight="bold"
@@ -286,15 +287,10 @@ export function UseCaseCtaSection({ content }: UseCaseCtaSectionProps) {
       <TypographyP className="mx-auto mt-5 max-w-2xl" tone="subtle">
         <UseCaseMessage messageKey={content.descriptionKey} />
       </TypographyP>
-      <div className="mt-8 flex justify-center">
-        <Button
-          className="rounded-full px-5"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
-          <UseCaseMessage messageKey={content.primaryLabelKey} />
-        </Button>
-      </div>
+      <MarketingConversionCtaButtons
+        className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
+        primaryButtonClassName="rounded-full px-5"
+      />
     </section>
   );
 }
