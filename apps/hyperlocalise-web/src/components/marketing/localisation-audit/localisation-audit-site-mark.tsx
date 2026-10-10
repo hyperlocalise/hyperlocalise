@@ -52,6 +52,8 @@ export function LocalisationAuditSiteMark({
   const [logoFailed, setLogoFailed] = useState(false);
   const showLogo = Boolean(logoUrl) && !logoFailed;
   const imageSrc = showLogo ? logoUrl : null;
+  const siteLabel = (companyName ?? domainKey).trim() || domainKey;
+  const logoAlt = `${siteLabel} logo`;
 
   return (
     <span
@@ -64,7 +66,7 @@ export function LocalisationAuditSiteMark({
         // Arbitrary audited-site logos; next/image host allowlist cannot cover them.
         <img
           src={imageSrc}
-          alt=""
+          alt={logoAlt}
           width={32}
           height={32}
           loading="lazy"

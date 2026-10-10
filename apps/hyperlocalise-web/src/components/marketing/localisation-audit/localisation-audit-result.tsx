@@ -583,6 +583,8 @@ function CompanyMark({
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const showLogo = Boolean(profile?.logoUrl) && !logoFailed;
+  const siteLabel = (profile?.name ?? domainKey).trim() || domainKey;
+  const logoAlt = `${siteLabel} logo`;
 
   return (
     <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] backdrop-blur-sm sm:size-20">
@@ -590,7 +592,7 @@ function CompanyMark({
         // Arbitrary audited-site logos; next/image host allowlist cannot cover them.
         <img
           src={profile!.logoUrl!}
-          alt=""
+          alt={logoAlt}
           className="size-full object-contain p-2"
           onError={() => setLogoFailed(true)}
         />
