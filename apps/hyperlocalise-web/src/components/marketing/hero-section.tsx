@@ -19,6 +19,7 @@ import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { heroSectionMessages } from "./hero-section.messages";
+import { TRUSTED_BY_LOGOS } from "./trusted-by-logos";
 import { REQUEST_DEMO_URL } from "./request-demo";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,36 +30,6 @@ import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 const dashboardHref = "/dashboard";
 const HERO_IMAGE_SRC = "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg";
-
-const TRUSTED_BY_LOGOS = [
-  {
-    id: "heidi-health",
-    href: "https://www.heidihealth.com",
-    src: "/images/customers/heidi-health-logo.png",
-    alt: heroSectionMessages.heidiHealthAlt,
-    width: 800,
-    height: 332,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "tourfinder",
-    href: "https://tourfinder.vn",
-    src: "/images/customers/tourfinder-logo.png",
-    alt: heroSectionMessages.tourfinderAlt,
-    width: 1177,
-    height: 294,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "tourmatic",
-    href: "https://tourmatic.io",
-    src: "/images/customers/tourmatic-logo.svg",
-    alt: heroSectionMessages.tourmaticAlt,
-    width: 315,
-    height: 58,
-    className: "h-6 sm:h-7",
-  },
-] as const;
 
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
