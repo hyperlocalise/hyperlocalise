@@ -135,7 +135,7 @@ func (api *guidelineDocumentAPI) list(_ http.ResponseWriter, r *http.Request, ac
 	var nextCursor any
 	if page.HasMore && len(page.Records) > 0 {
 		last := page.Records[len(page.Records)-1]
-		nextCursor = encodeGlossaryPageCursor(last.CreatedAt, last.ID)
+		nextCursor = encodeGlossaryPageCursor(last.createdAtCursor, last.ID)
 	}
 	return http.StatusOK, map[string]any{
 		"guidelineDocuments": page.Records,

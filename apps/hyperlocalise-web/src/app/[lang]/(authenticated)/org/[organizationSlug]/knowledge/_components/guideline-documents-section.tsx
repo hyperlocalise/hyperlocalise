@@ -48,6 +48,30 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { guidelineDocumentsSectionMessages as messages } from "./guideline-documents-section.messages";
 
 const PROCESSING_POLL_MS = 3000;
+const ENQUEUE_RECOVERY_POLL_MS = 15_000;
+
+/** Transient SQS publish failure; go-svc sweep moves these back to processing. */
+export const GUIDELINE_INGEST_ENQUEUE_FAILED = "guideline_ingest_enqueue_failed";
+
+export function guidelineDocumentsRefetchInterval(
+  documents: GuidelineDocument[] | undefined,
+): number | false {
+  if (!documents) {
+    return false;
+  }
+  if (documents.some((document) => document.status === "processing")) {
+    return PROCESSING_POLL_MS;
+  }
+  if (
+    documents.some(
+      (document) =>
+        document.status === "failed" && document.errorCode === GUIDELINE_INGEST_ENQUEUE_FAILED,
+    )
+  ) {
+    return ENQUEUE_RECOVERY_POLL_MS;
+  }
+  return false;
+}
 
 export function guidelineDocumentsQueryKey(organizationSlug: string, projectId?: string) {
   return projectId
@@ -67,6 +91,8 @@ function errorMessage(code: string | null): MessageDescriptor {
       return messages.errorEncrypted;
     case "malformed":
       return messages.errorMalformed;
+    case GUIDELINE_INGEST_ENQUEUE_FAILED:
+      return messages.errorEnqueueRetrying;
     default:
       return messages.errorGeneric;
   }
@@ -256,10 +282,7 @@ export function GuidelineDocumentsSection({
     enabled: !loading,
     queryFn: ({ signal }) =>
       client.guidelines.listDocuments(organizationSlug, projectId, { signal }),
-    refetchInterval: (current) =>
-      current.state.data?.some((document) => document.status === "processing")
-        ? PROCESSING_POLL_MS
-        : false,
+    refetchInterval: (current) => guidelineDocumentsRefetchInterval(current.state.data),
   });
 
   if (loading || query.isPending) {

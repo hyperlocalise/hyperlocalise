@@ -142,6 +142,32 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestCheckRejectsOverBudgetMandatoryPassages(t *testing.T) {
+	doc1 := mandatoryDoc("workspace:org", strings.Repeat("a", 50000))
+	doc2 := mandatoryDoc("project:p1", strings.Repeat("b", 50000))
+	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{doc1, doc2}}}
+	model := &fakeModel{output: `{"findings":[]}`}
+	_, err := New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
+		Segments: []Segment{{ID: "s1", Target: "Bonjour"}},
+	})
+	require.ErrorIs(t, err, ErrMandatoryPassagesOverBudget)
+	require.Zero(t, model.calls)
+}
+
+func TestCheckAllowsDroppingOptionalPassagesWhenOverBudget(t *testing.T) {
+	note := mandatoryDoc("workspace:org", strings.Repeat("a", 59000))
+	hit := guidelines.Chunk{ID: "hit-1", DocumentID: "doc:1", RevisionID: "r9", Text: strings.Repeat("x", 5000)}
+	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{note}, Passages: []guidelines.Chunk{hit}, SearchAvailable: true}}
+	model := &fakeModel{output: `{"findings":[]}`}
+	result, err := New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{
+		Segments: []Segment{{ID: "s1", Target: "Bonjour"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, model.calls)
+	require.NotContains(t, model.user, "xxxxx")
+	require.True(t, result.SearchAvailable)
+}
+
 func TestRetrievalQueryStaysWithinRetrieveLimit(t *testing.T) {
 	query := retrievalQuery(Request{Segments: []Segment{{ID: "a", Source: strings.Repeat("é", 9000), Target: strings.Repeat("ü", 9000)}}})
 	require.LessOrEqual(t, len(query), maxQueryBytes)

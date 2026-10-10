@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
@@ -262,6 +263,53 @@ func TestGuidelineDocumentListPagination(t *testing.T) {
 	badCursor := env.json(http.MethodGet, path+"?cursor=not-valid", "")
 	require.Equal(t, http.StatusBadRequest, badCursor.Code)
 	require.Contains(t, badCursor.Body.String(), "invalid_guideline_document_cursor")
+}
+
+func TestGuidelineDocumentListPaginationSameMillisecond(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	base := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	ids := make([]string, 4)
+	for i := range ids {
+		rec := env.upload(t, http.MethodPost, path, "doc"+strconv.Itoa(i)+".txt", []byte("rule"), nil)
+		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+		ids[i] = decodeGuidelineDocument(t, rec).ID
+	}
+	// Newest first when ordered by created_at desc: .500456, .500123, .500050, .400000.
+	// Page 1 (limit 2) ends at .500123; a millisecond cursor would skip .500050 on page 2.
+	stamps := []time.Time{
+		base.Add(500456 * time.Microsecond),
+		base.Add(500123 * time.Microsecond),
+		base.Add(500050 * time.Microsecond),
+		base.Add(400000 * time.Microsecond),
+	}
+	for i, id := range ids {
+		_, err := env.scope.Pool.Exec(t.Context(),
+			`update guideline_documents set created_at = $2 where id = $1::uuid`, id, stamps[i])
+		require.NoError(t, err)
+	}
+
+	first := env.json(http.MethodGet, path+"?limit=2", "")
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	var page1 struct {
+		GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+		NextCursor         string                    `json:"nextCursor"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &page1))
+	require.Len(t, page1.GuidelineDocuments, 2)
+	require.Equal(t, ids[0], page1.GuidelineDocuments[0].ID)
+	require.Equal(t, ids[1], page1.GuidelineDocuments[1].ID)
+	require.NotEmpty(t, page1.NextCursor)
+
+	second := env.json(http.MethodGet, path+"?limit=2&cursor="+url.QueryEscape(page1.NextCursor), "")
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	var page2 struct {
+		GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+	}
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &page2))
+	require.Len(t, page2.GuidelineDocuments, 2)
+	require.Equal(t, ids[2], page2.GuidelineDocuments[0].ID)
+	require.Equal(t, ids[3], page2.GuidelineDocuments[1].ID)
 }
 
 func TestGuidelineDocumentAccessControl(t *testing.T) {
