@@ -1,0 +1,68 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { getMarketingIntegrationBySlug } from "@/components/marketing/integrations/integrations-page-content";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import {
+  createMarketingOgImage,
+  marketingOgImageContentType,
+  marketingOgImageSize,
+  toMarketingOgHeading,
+} from "@/lib/og/create-marketing-og-image";
+
+import { getIntegrationRouteMetadata } from "./integration-route-metadata";
+
+export const alt = "Hyperlocalise";
+export const size = marketingOgImageSize;
+export const contentType = marketingOgImageContentType;
+
+type IntegrationOgImageProps = {
+  params: Promise<{ lang: string; slug: string }>;
+};
+
+export default async function Image({ params }: IntegrationOgImageProps) {
+  const { lang, slug } = await params;
+  const intl = getIntlShape(lang);
+  const integration = getMarketingIntegrationBySlug(intl.locale, slug);
+
+  if (!integration) {
+    return createMarketingOgImage({
+      heading: "Hyperlocalise",
+      description: intl.formatMessage({
+        defaultMessage: "The best agentic localisation platform",
+        id: "CYGau9cDQe",
+        description: "Open Graph fallback description for unknown pages",
+      }),
+      locale: lang,
+    });
+  }
+
+  const metadata = getIntegrationRouteMetadata(intl, slug);
+
+  if (!metadata) {
+    return createMarketingOgImage({
+      heading: "Hyperlocalise",
+      description: intl.formatMessage({
+        defaultMessage: "The best agentic localisation platform",
+        id: "CYGau9cDQe",
+        description: "Open Graph fallback description for unknown pages",
+      }),
+      locale: lang,
+    });
+  }
+
+  return createMarketingOgImage({
+    heading: toMarketingOgHeading(metadata.title),
+    description: metadata.description,
+    locale: lang,
+  });
+}
