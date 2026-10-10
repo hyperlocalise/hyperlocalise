@@ -15135,6 +15135,10 @@
     "defaultMessage": "No assigned TMS jobs found.",
     "description": "Empty state when the user has no assigned TMS jobs"
   },
+  "Qm8nK2pL4w": {
+    "defaultMessage": "Canva",
+    "description": "Alt text for the Canva logo in the hero trusted-by strip"
+  },
   "QmJs3YzCjV": {
     "defaultMessage": "What does \"up to 80% off\" mean?",
     "description": "Startups FAQ question about the discount amount"
@@ -15742,6 +15746,10 @@
   "RwXMampnc5": {
     "defaultMessage": "Catch",
     "description": "Try / Catch handled failure exit"
+  },
+  "Rx7vN3mP9s": {
+    "defaultMessage": "Wall St. Rank",
+    "description": "Alt text for the Wall St. Rank logo in the hero trusted-by strip"
   },
   "Rx1gsFSIpF": {
     "defaultMessage": "This Crowdin session could not be verified. Reopen the Hyperlocalise tab.",
@@ -19732,7 +19740,7 @@
     "description": "Error when sending a chat dock reply fails"
   },
   "ZeZBOe2pAC": {
-    "defaultMessage": "Trusted by",
+    "defaultMessage": "Trusted by teams at",
     "description": "Label above customer logos at the bottom of the marketing homepage hero"
   },
   "Zg7mAl/85b": {

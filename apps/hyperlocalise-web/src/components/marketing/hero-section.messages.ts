@@ -37,8 +37,8 @@ export const heroSectionMessages = defineMessages({
     description: "Primary call-to-action on the marketing homepage hero when the user is signed in",
   },
   trustedBy: {
-    defaultMessage: "Trusted by",
-    id: "ZeZBOe2pAC",
+    defaultMessage: "Trusted by teams at",
+    id: "FXvq+2/Qcr",
     description: "Label above customer logos at the bottom of the marketing homepage hero",
   },
   heidiHealthAlt: {
@@ -51,10 +51,15 @@ export const heroSectionMessages = defineMessages({
     id: "DRxt7oXd6u",
     description: "Alt text for the Tourfinder logo in the hero trusted-by strip",
   },
-  tourmaticAlt: {
-    defaultMessage: "Tourmatic",
-    id: "kFLYRBqx6+",
-    description: "Alt text for the Tourmatic logo in the hero trusted-by strip",
+  canvaAlt: {
+    defaultMessage: "Canva",
+    id: "0IfkwkPaXA",
+    description: "Alt text for the Canva logo in the hero trusted-by strip",
+  },
+  wallStRankAlt: {
+    defaultMessage: "Wall St. Rank",
+    id: "j6HO+OwVD0",
+    description: "Alt text for the Wall St. Rank logo in the hero trusted-by strip",
   },
   weexAlt: {
     defaultMessage: "WEEX",
