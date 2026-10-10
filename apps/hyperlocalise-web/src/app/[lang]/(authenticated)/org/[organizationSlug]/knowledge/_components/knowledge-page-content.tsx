@@ -17,6 +17,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { readApiError } from "@/lib/api-error";
 
+import {
+  GuidelineDocumentsSection,
+  useGuidelineDocumentUpload,
+} from "./guideline-documents-section";
 import { getKnowledgeMemory, knowledgeMemoryQueryKey } from "./knowledge-memory-api";
 import { KnowledgeMemoryEditor } from "./knowledge-memory-editor";
 import type { LoadedKnowledgeMemory } from "./knowledge-memory-query";
@@ -38,6 +42,7 @@ export function KnowledgePageContent({
   const [draftSeed, setDraftSeed] = useState<string | undefined>(undefined);
   const [editorMountKey, setEditorMountKey] = useState(0);
   const isAddingSources = useRef(false);
+  const uploadDocument = useGuidelineDocumentUpload(organizationSlug, projectId);
 
   const knowledgeMemoryQuery = useQuery({
     queryKey: knowledgeMemoryQueryKey(organizationSlug, projectId),
@@ -100,7 +105,29 @@ export function KnowledgePageContent({
       {resolvedMode === "loading" ? <KnowledgePageSkeleton /> : null}
 
       {resolvedMode === "upload" ? (
-        <KnowledgeUploadSection onStartMarkdownText={() => openEditor()} />
+        <KnowledgeUploadSection
+          onStartMarkdownText={() => openEditor()}
+          onFilesSelected={(files) => {
+            const [file] = files;
+            if (file) {
+              uploadDocument.mutate(file, {
+                onSuccess: () => {
+                  if (hasExistingKnowledge) {
+                    openEditor();
+                  }
+                },
+              });
+            }
+          }}
+        />
+      ) : null}
+
+      {resolvedMode !== "loading" ? (
+        <GuidelineDocumentsSection
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          canUpdate={canUpdateKnowledgeMemory}
+        />
       ) : null}
 
       {resolvedMode !== "loading" ? (

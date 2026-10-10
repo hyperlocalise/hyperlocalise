@@ -22,13 +22,19 @@ type fakeIndex struct {
 	err      error
 	onSearch func()
 	writes   []Document
+	deletes  []string
 }
 
 func (s *fakeIndex) Upsert(_ context.Context, doc Document) error {
 	s.writes = append(s.writes, doc)
 	return s.err
 }
-func (s *fakeIndex) DeleteThrough(context.Context, Scope, string, int64) error { return s.err }
+
+func (s *fakeIndex) DeleteThrough(_ context.Context, _ Scope, id string, _ int64) error {
+	s.deletes = append(s.deletes, id)
+	return s.err
+}
+
 func (s *fakeIndex) Search(context.Context, Query) ([]Chunk, error) {
 	if s.onSearch != nil {
 		s.onSearch()
@@ -121,4 +127,40 @@ func TestChunksAndSync(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []Document{doc}, result.Mandatory)
 	require.False(t, result.SearchAvailable)
+}
+
+func TestIndexDocumentAndDelete(t *testing.T) {
+	doc := fixtureDocument()
+	doc.Scope.Locale = "fr-FR"
+	index := &fakeIndex{}
+	service := NewService(&fakeSource{}, index)
+	require.NoError(t, service.IndexDocument(t.Context(), doc))
+	require.Equal(t, []Document{doc}, index.writes)
+
+	invalid := doc
+	invalid.Version = 0
+	require.ErrorIs(t, service.IndexDocument(t.Context(), invalid), ErrInvalidInput)
+
+	require.NoError(t, service.Delete(t.Context(), doc.Scope, doc.ID, 3))
+	require.Equal(t, []string{doc.ID}, index.deletes)
+	require.ErrorIs(t, service.Delete(t.Context(), doc.Scope, "", 3), ErrInvalidInput)
+	require.ErrorIs(t, service.Delete(t.Context(), Scope{}, doc.ID, 3), ErrInvalidInput)
+
+	index.err = errors.New("unavailable")
+	require.Error(t, service.IndexDocument(t.Context(), doc))
+	require.Error(t, service.Delete(t.Context(), doc.Scope, doc.ID, 3))
+
+	unconfigured := NewService(&fakeSource{}, nil)
+	require.Error(t, unconfigured.IndexDocument(t.Context(), doc))
+	require.Error(t, unconfigured.Delete(t.Context(), doc.Scope, doc.ID, 3))
+}
+
+func TestNormalizeLocale(t *testing.T) {
+	for input, want := range map[string]string{"": "", "  ": "", "fr_fr": "fr-FR", "EN-us": "en-US", "zh-hans-cn": "zh-Hans-CN"} {
+		got, err := NormalizeLocale(input)
+		require.NoError(t, err, input)
+		require.Equal(t, want, got, input)
+	}
+	_, err := NormalizeLocale("not a locale!")
+	require.ErrorIs(t, err, ErrInvalidInput)
 }

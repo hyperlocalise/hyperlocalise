@@ -62,7 +62,7 @@ func TestHealth(t *testing.T) {
 	h.health(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, rec.Body.String())
+	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"guideline_ingest":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, rec.Body.String())
 }
 
 func TestHealthValkeyOK(t *testing.T) {
@@ -160,7 +160,7 @@ func TestRegisterRoutesServesNativePaths(t *testing.T) {
 	healthReq := httptest.NewRequest(http.MethodGet, "/health", nil)
 	handler.ServeHTTP(healthRec, healthReq)
 	require.Equal(t, http.StatusOK, healthRec.Code)
-	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
+	require.JSONEq(t, `{"status":"ok","activity_log":{"status":"disabled"},"glossary_interchange":{"status":"disabled"},"guideline_ingest":{"status":"disabled"},"valkey":{"status":"disabled"},"postgres":{"status":"disabled"}}`, healthRec.Body.String())
 
 	payload := `{"sourceText":"Hello","targetText":"Bonjour","sourcePath":"/messages/en.json"}`
 	rec := httptest.NewRecorder()

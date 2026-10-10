@@ -86,7 +86,9 @@ export class GoSvcRequest {
       headers.set("Authorization", `Bearer ${token}`);
     }
     let body: BodyInit | undefined;
-    if (request.body !== undefined) {
+    if (request.body instanceof FormData) {
+      body = request.body;
+    } else if (request.body !== undefined) {
       headers.set("Content-Type", "application/json");
       body = JSON.stringify(request.body);
     }

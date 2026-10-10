@@ -67,6 +67,7 @@ import {
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { NativeGlossary } from "@/lib/glossary/native-glossary";
 import { err, ok } from "@/lib/primitives/result/results";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
 
 const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -94,6 +95,16 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
     workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
   };
 });
+
+const { guidelineInternalCheckMock } = vi.hoisted(() => ({
+  guidelineInternalCheckMock: vi.fn(),
+}));
+
+vi.mock("@/lib/go-svc/go-svc-server-client", () => ({
+  createGoSvcServerClient: () => ({
+    guidelines: { internalCheck: guidelineInternalCheckMock },
+  }),
+}));
 
 const { resolveMcpClientMetadataMock } = vi.hoisted(() => ({
   resolveMcpClientMetadataMock: vi.fn(),
@@ -321,6 +332,7 @@ describe("mcpRoutes", () => {
     isAutumnBooleanFeatureEnabledMock.mockResolvedValue(true);
     workspaceKnowledgeFlagRunMock.mockReset();
     workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+    guidelineInternalCheckMock.mockReset();
   });
 
   afterEach(async () => {
@@ -9937,6 +9949,101 @@ describe("mcpRoutes", () => {
     expect(result.isError).toBe(true);
     expect(result.output).toMatchObject({
       error: "project_not_found",
+    });
+  });
+
+  it("checks segments against guidelines through go-svc", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const checkResult = {
+      findings: [
+        {
+          segmentId: "s1",
+          field: "target",
+          severity: "error",
+          start: 5,
+          end: 7,
+          message: "Use the formal vous.",
+          suggestion: "vous",
+          passageId: "chunk-1",
+        },
+      ],
+      passages: [{ id: "chunk-1", documentId: "doc:1", text: "Use vous." }],
+      searchAvailable: true,
+      model: "test-model",
+    };
+    guidelineInternalCheckMock.mockResolvedValue(checkResult);
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        segments: [{ id: "s1", target: "Peux-tu aider ?" }],
+      }),
+    );
+
+    expect(result.isError).toBe(false);
+    expect(result.output).toEqual(checkResult);
+    expect(guidelineInternalCheckMock).toHaveBeenCalledWith(auth.organization.localOrganizationId, {
+      projectId: stored.project.id,
+      sourceLocale: undefined,
+      targetLocale: "fr-FR",
+      segments: [{ id: "s1", target: "Peux-tu aider ?" }],
+      checks: undefined,
+    });
+  });
+
+  it("does not check guidelines for inaccessible projects or disabled workspaces", async () => {
+    const accessible = await fixture.createStoredProjectFixture();
+    const inaccessible = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(accessible.identity);
+
+    const forbidden = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        projectId: inaccessible.project.id,
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+    expect(forbidden.isError).toBe(true);
+    expect(forbidden.output).toMatchObject({ error: "project_not_found" });
+
+    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+    const disabled = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+    expect(disabled.isError).toBe(true);
+    expect(disabled.output).toMatchObject({ error: "knowledge_memory_unavailable" });
+    expect(guidelineInternalCheckMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces go-svc guideline check errors as tool errors", async () => {
+    const headers = await authenticatedMcpHeaders();
+    guidelineInternalCheckMock.mockRejectedValue(
+      new GoSvcClientError({
+        code: "guideline_check_limit_reached",
+        message: "Guideline check limit reached",
+        status: 402,
+      }),
+    );
+
+    const result = await readMcpToolResult(
+      await callMcpTool(headers, "check_guidelines", {
+        segments: [{ id: "s1", target: "Bonjour" }],
+      }),
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.output).toMatchObject({
+      error: "guideline_check_limit_reached",
+      message: "Guideline check limit reached",
     });
   });
 
