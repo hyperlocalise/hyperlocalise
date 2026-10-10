@@ -46,10 +46,22 @@ describe("app i18n locales", () => {
 
   it("supports every ready content locale for routing", () => {
     expect(SUPPORTED_APP_LOCALES).toEqual(AVAILABLE_APP_CONTENT_LOCALES);
-    expect(SUPPORTED_APP_LOCALES).toEqual(["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"]);
+    expect(SUPPORTED_APP_LOCALES).toEqual([
+      "en",
+      "zh-CN",
+      "da-DK",
+      "nl-NL",
+      "fil-PH",
+      "fr-FR",
+      "de-DE",
+      "ja-JP",
+      "ko-KR",
+      "th-TH",
+      "vi-VN",
+    ]);
     expect(isSupportedAppLocale("zh-CN")).toBe(true);
     expect(isSupportedAppLocale("fr-FR")).toBe(true);
-    expect(isSupportedAppLocale("ja-JP")).toBe(false);
+    expect(isSupportedAppLocale("ja-JP")).toBe(true);
   });
 
   it("normalizes supported locales case-insensitively", () => {
@@ -59,12 +71,12 @@ describe("app i18n locales", () => {
   });
 
   it("keeps content locale helpers aligned with supported routing locales", () => {
-    expect(AVAILABLE_APP_CONTENT_LOCALES).toEqual(["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"]);
+    expect(AVAILABLE_APP_CONTENT_LOCALES).toEqual(SUPPORTED_APP_LOCALES);
     expect(isAvailableAppContentLocale("zh-CN")).toBe(true);
     expect(isAvailableAppContentLocale("fr-FR")).toBe(true);
     expect(normalizeAppContentLocale("zh-cn")).toBe("zh-CN");
     expect(normalizeAppContentLocale("de-de")).toBe("de-DE");
-    expect(normalizeAppContentLocale("ja-JP")).toBeNull();
+    expect(normalizeAppContentLocale("ja-JP")).toBe("ja-JP");
   });
 
   it("prefers the locale cookie before accept-language negotiation", () => {
@@ -87,7 +99,13 @@ describe("app i18n locales", () => {
     );
   });
 
+  it("negotiates newly supported accept-language values", () => {
+    expect(getAppLocaleFromRequest(createRequest({ acceptLanguage: "ja-JP,ja;q=0.9" }))).toBe(
+      "ja-JP",
+    );
+  });
+
   it("falls back to English for unsupported accept-language values", () => {
-    expect(getAppLocaleFromRequest(createRequest({ acceptLanguage: "ja-JP,ja;q=0.9" }))).toBe("en");
+    expect(getAppLocaleFromRequest(createRequest({ acceptLanguage: "sv-SE,sv;q=0.9" }))).toBe("en");
   });
 });
