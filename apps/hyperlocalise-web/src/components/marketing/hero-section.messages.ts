@@ -51,11 +51,6 @@ export const heroSectionMessages = defineMessages({
     id: "DRxt7oXd6u",
     description: "Alt text for the Tourfinder logo in the hero trusted-by strip",
   },
-  canvaAlt: {
-    defaultMessage: "Canva",
-    id: "0IfkwkPaXA",
-    description: "Alt text for the Canva logo in the hero trusted-by strip",
-  },
   wallStRankAlt: {
     defaultMessage: "Wall St. Rank",
     id: "j6HO+OwVD0",

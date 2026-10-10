@@ -46,15 +46,6 @@ export const TRUSTED_BY_LOGOS: TrustedByLogo[] = [
     className: "h-6 sm:h-7",
   },
   {
-    id: "canva",
-    href: "https://www.canva.com",
-    src: "/images/customers/canva-logo.svg",
-    alt: heroSectionMessages.canvaAlt,
-    width: 80,
-    height: 30,
-    className: "h-6 sm:h-7",
-  },
-  {
     id: "wall-st-rank",
     href: "https://www.wallstrank.com",
     src: "/images/customers/wall-st-rank-logo.svg",
