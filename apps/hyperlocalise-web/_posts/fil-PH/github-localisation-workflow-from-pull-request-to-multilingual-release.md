@@ -237,13 +237,13 @@ Kapag nakumpleto na ang pag-sync ng source, suriin ang bagong content sa Hyperlo
 
 Para sa halimbawang ito, dapat suriin ng tagasuri ang higit pa sa literal na katumpakan:
 
-| Nilalaman                   | Tanong sa pagrepaso                                                           |
-| --------------------------- | ----------------------------------------------------------------------------- |
-| `filters.save`              | Malinaw ba itong isang aksyon, sa halip na isang naka-save na estado?         |
-| `filters.saved`             | Tugma ba ang termino sa tekstong ginagamit para sa nabigasyon at mga setting? |
-| Paglalarawan                | Kasya ba ito sa UI at napapanatili ang terminong “workspace”?                 |
-| Pamagat ng release          | Ginagamit ba nito ang parehong pangalan ng feature ng produkto?               |
-| Mga bullet point ng release | Pare-pareho ba ang mga command, pangalan ng menu, at resulta para sa user?    |
+| Nilalaman        | Tanong sa pagrepaso                                          |
+| --------------- | -------------------------------------------------------- |
+| `filters.save`  | Malinaw ba itong isang aksyon, sa halip na isang naka-save na estado?    |
+| `filters.saved` | Tugma ba ang termino sa tekstong ginagamit para sa nabigasyon at mga setting?        |
+| Paglalarawan     | Kasya ba ito sa UI at napapanatili ang terminong “workspace”? |
+| Pamagat ng release   | Ginagamit ba nito ang parehong pangalan ng feature ng produkto?        |
+| Mga bullet point ng release | Pare-pareho ba ang mga command, pangalan ng menu, at resulta para sa user?  |
 
 Maglakip ng konteksto ng produkto o mga screenshot kapag malabo ang isang maikling string. Hindi malalaman ng tagasalin na “I-save ang filter” lang ang nakikita kung label ito ng button, toast, o pamagat ng page. Dito nagiging katuwang ng CLI ang platform: inililipat ng Git ang mga file, samantalang dala ng Hyperlocalise ang kaalamang kailangan para makapagpasya nang wasto sa wika.
 

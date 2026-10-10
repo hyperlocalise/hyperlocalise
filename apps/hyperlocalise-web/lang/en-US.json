@@ -191,6 +191,10 @@
     "defaultMessage": "Save changes",
     "description": "Submit button to save team edits"
   },
+  "+Hatz1jNOF": {
+    "defaultMessage": "Guidelines take effect when you connect the documents your team already maintains — brand books in Google Drive, voice pages in Notion, legal standards in SharePoint, or rules typed directly in Hyperlocalise. You choose which collections apply to which workspaces and languages, and the system keeps them indexed as sources change. New hires and agents read the same corpus instead of hunting for the latest PDF. Inside every draft, Guidelines run as a continuous check rather than a one-time import. Agents pull relevant passages for the content type and market, compare proposed copy against tone, terminology, and compliance rules, and surface mismatches with citations to the source doc. Reviewers see why a phrase was flagged and can accept a fix, override with a note, or update the underlying rule when the brand evolves. Outputs show up where people already write. Flagged segments appear in Content Studio and Automation Workflow runs, blocking publish steps until critical issues clear or an owner approves an exception. Over time, accepted decisions feed back into the knowledge base so the next campaign starts closer to on-brand, and leadership can audit which rules fire most often across locales.",
+    "description": "Long-form how-it-works narrative for the Guidelines product page"
+  },
   "+IYjyCmBJt": {
     "defaultMessage": "Automation Workflow connects tasks, AI agents, and human review into repeatable content operations.",
     "description": "Homepage FAQ answer about platform topic 3"
@@ -4350,6 +4354,10 @@
   "6E7bAH/1Ep": {
     "defaultMessage": "Select a project above to load live translation memories from your connected provider.",
     "description": "Description prompting the user to select a TMS project for live memories"
+  },
+  "6EJKMtXG+O": {
+    "defaultMessage": "A test starts when you mark content or UX that should differ by market — a headline on the homepage, a checkout step, pricing copy, or a feature flag tied to a locale. You pick the audience (for example Japan only), define the variants, and set how long to collect signal. Hyperlab keeps the rest of your site stable so you are not guessing from global averages. Inside the experiment, traffic splits according to your rules while Domains and product analytics feed context back. You see engagement, conversion, and qualitative cues per variant without rebuilding the page in a separate tool. When Automation Workflow is connected, winning copy can become the default string for that locale while other markets stay on the control. Outputs tell you which version to keep and how to roll it out. Dashboards compare variants with confidence cues, link to the underlying strings in Content Studio, and document who approved the change. Winners can publish to production for that market only, sync into Guidelines as a recorded preference, or trigger a broader localization pass when the learning applies to additional languages.",
+    "description": "Long-form how-it-works narrative for the Hyperlab product page"
   },
   "6ETzpV6b95": {
     "defaultMessage": "Learning",
@@ -9415,6 +9423,10 @@
     "defaultMessage": "Created",
     "description": "Import created count"
   },
+  "FXvq+2/Qcr": {
+    "defaultMessage": "Trusted by teams at",
+    "description": "Label above customer logos at the bottom of the marketing homepage hero"
+  },
   "FXyyu0UtlW": {
     "defaultMessage": "Apply",
     "description": "Button that applies the CAT advanced filter"
@@ -12395,6 +12407,10 @@
     "defaultMessage": "Connect remote MCP servers for automation tools.",
     "description": "Description for the MCP server integrations row"
   },
+  "LgcNXumCl8": {
+    "defaultMessage": "How it works",
+    "description": "Eyebrow for the long-form how-it-works narrative on product pages"
+  },
   "LguOyBNnte": {
     "defaultMessage": "Guideline sources",
     "description": "Accessible label for the Guidelines source tabs"
@@ -13803,6 +13819,10 @@
     "defaultMessage": "{percent}% of the test",
     "description": "Allocation label for a variant"
   },
+  "OC0Ni4OgkT": {
+    "defaultMessage": "A run starts when something in your connected stack needs multilingual work — a page updated in Contentful, a brief dropped in Notion, a message in Slack, or a pull request opened in GitHub. You define those triggers when you build the workflow, along with the languages, owners, and approval rules each path should use. Hyperlocalise watches those sources, packages the changed content and surrounding context, and opens a run so the same campaign does not stall in someone's inbox. Inside the run, agents follow the steps you drew on the canvas: draft or adapt copy with your Guidelines and glossary attached, route strings to human reviewers when confidence is low, and branch by market when Hyperlab or Domains signal a locale-specific need. Each step writes an audit trail — who touched what, which model or rule fired, and whether the output passed your checks — so localization managers can see progress without chasing updates across tools. Outputs land back where your team already works. Approved strings sync to your CMS or site repo, notifications post to Slack, help content updates in Intercom, and parallel exports can still push to Crowdin, Lokalise, Phrase, or Smartling if you run a hybrid stack. When the next launch follows the same workflow, every language takes the same path automatically, and people only step in when something is off.",
+    "description": "Long-form how-it-works narrative for the agents automation product page"
+  },
   "OC0jExzrXg": {
     "defaultMessage": "Assign articles to the right reviewers based on topic, locale, or expertise.",
     "description": "Capability 4 description for the help-center-localisation use case"
@@ -15135,10 +15155,6 @@
     "defaultMessage": "No assigned TMS jobs found.",
     "description": "Empty state when the user has no assigned TMS jobs"
   },
-  "Qm8nK2pL4w": {
-    "defaultMessage": "Canva",
-    "description": "Alt text for the Canva logo in the hero trusted-by strip"
-  },
   "QmJs3YzCjV": {
     "defaultMessage": "What does \"up to 80% off\" mean?",
     "description": "Startups FAQ question about the discount amount"
@@ -15746,10 +15762,6 @@
   "RwXMampnc5": {
     "defaultMessage": "Catch",
     "description": "Try / Catch handled failure exit"
-  },
-  "Rx7vN3mP9s": {
-    "defaultMessage": "Wall St. Rank",
-    "description": "Alt text for the Wall St. Rank logo in the hero trusted-by strip"
   },
   "Rx1gsFSIpF": {
     "defaultMessage": "This Crowdin session could not be verified. Reopen the Hyperlocalise tab.",
@@ -19739,10 +19751,6 @@
     "defaultMessage": "Could not send your message. Try again.",
     "description": "Error when sending a chat dock reply fails"
   },
-  "ZeZBOe2pAC": {
-    "defaultMessage": "Trusted by teams at",
-    "description": "Label above customer logos at the bottom of the marketing homepage hero"
-  },
   "Zg7mAl/85b": {
     "defaultMessage": "Open in Content Editor",
     "description": "Link label on an issue sheet row pointing back to the Content Editor"
@@ -20646,6 +20654,10 @@
   "bHCCUqEOmY": {
     "defaultMessage": "Retry policy values are out of range.",
     "description": "Validation issue for retry policy config"
+  },
+  "bHKZwn0sWu": {
+    "defaultMessage": "Work begins when you bring source material into the studio — a campaign brief, a Google Doc, slides from Drive, screenshots, or video with transcripts. You choose the target languages and attach Guidelines, glossaries, and market notes so every adaptation starts from the same rules. The studio keeps creative context in one place instead of scattering comments across email and chat. Inside the workspace, you and agents work through the same sequence for each asset type. Text blocks get drafted or translated with terminology locked; documents and decks keep layout while copy updates per locale; images and video get alt text, on-screen text, and captions aligned to your voice. Reviewers comment in context, compare against the source, and approve or send back specific segments without exporting files. Outputs are ready for the next step in your stack. Finished copy can hand off to Automation Workflow for publish checks, export to your TMS, or download for legal sign-off. Because every language shares the same project thread, you always know which version is current and what still needs a human pass before launch.",
+    "description": "Long-form how-it-works narrative for the multilingual Content Studio product page"
   },
   "bHXY88TkOe": {
     "defaultMessage": "View findings",
@@ -23563,6 +23575,10 @@
     "defaultMessage": "Copy",
     "description": "Copy button for the Hyperlab endpoint URL"
   },
+  "gSGjmPxLZ8": {
+    "defaultMessage": "{planName}: {priceLabel}",
+    "description": "Accessible pricing card heading combining plan name and price"
+  },
   "gSVYd4jPtI": {
     "defaultMessage": "file",
     "description": "Fallback format label when a provider file has no format metadata"
@@ -25035,6 +25051,10 @@
     "defaultMessage": "Web launch",
     "description": "Inbox issue project label in content ops mock"
   },
+  "j6HO+OwVD0": {
+    "defaultMessage": "Wall St. Rank",
+    "description": "Alt text for the Wall St. Rank logo in the hero trusted-by strip"
+  },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the add team member dialog footer"
@@ -25198,6 +25218,10 @@
   "jOtw3PC362": {
     "defaultMessage": "Default (general prose)",
     "description": "SRX template option: default"
+  },
+  "jP0mfL7DgW": {
+    "defaultMessage": "{planName}: {priceLabel} per month",
+    "description": "Accessible pricing card heading for a monthly paid plan"
   },
   "jPddLz1mvi": {
     "defaultMessage": "No source files linked to this job.",
@@ -25654,10 +25678,6 @@
   "kF7pSDBwvM": {
     "defaultMessage": "Close comparison",
     "description": "Hide original document"
-  },
-  "kFLYRBqx6+": {
-    "defaultMessage": "Tourmatic",
-    "description": "Alt text for the Tourmatic logo in the hero trusted-by strip"
   },
   "kFMJ/YkEV9": {
     "defaultMessage": "Could not start this chat. Try again.",
@@ -26726,6 +26746,10 @@
   "mHug8Cyl7z": {
     "defaultMessage": "AI Agent",
     "description": "Catalog title for the AI agent stub node"
+  },
+  "mJEqo1QFTM": {
+    "defaultMessage": "Monitoring starts when your multilingual site is live — Domains ingests URLs from your sitemap or CMS connection and maps each page to its locale variants. You point it at the domains you care about, set how often to rescan, and choose whether to include staging or production. The product treats every language as a first-class surface, not an afterthought bolted onto a single-market audit. Inside each scan, Domains compares what search engines and AI assistants can actually fetch against what you intended to publish. It checks hreflang pairs, canonical tags, indexability, structured data, and whether translated titles and snippets still match the on-page copy. When a locale drops out of results or an AI answer cites the wrong URL, the issue is tied to the specific page and language so writers know what to fix. Outputs land as a prioritized backlog your team can act on. You see broken alternates, thin translations, and missing metadata ranked by traffic and severity, with links back to the live URL and suggested copy changes. Fixes can flow into Content Studio or Automation Workflow so corrections ship in every language, not just the market where someone noticed the problem first.",
+    "description": "Long-form how-it-works narrative for the Domains product page"
   },
   "mJWxbqwGL6": {
     "defaultMessage": "Could not load domain research.",

@@ -320,11 +320,11 @@ Gamitin ang `hl sync push --dry-run` kapag binabago mo ang mga path ng bucket o 
 
 Dapat makita ng mga tagasalin ang buong mensahe ng ICU, hindi ang mga hiwa-hiwalay na bahaging Ingles. Sa pagrerepaso, itanong ang mga tanong na partikular sa locale na itinatago ng ICU sa iisang string:
 
-| Mensahe                     | Tanong sa pagrepaso                                                                                                                                |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mensahe                     | Tanong sa pagrepaso                                                                                                |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `filters.banner.savedCount` | Natural bang basahin ang mga sangay na `=0`, `one`, at `other`? Tama bang lumalawak ang `#` ayon sa mga tuntunin sa pangmaramihan ng bawat locale? |
-| `filters.banner.scope`      | Sinasaklaw ba ng `select` ang bawat halagang `scope` na ipinapadala ng app? Ligtas bang fallback ang `other`?                                      |
-| Maiikling label             | Kasya pa rin ba sa mga button ang mga isinaling string pagkatapos ng pagpapalawak ng mga anyong pangmaramihan?                                     |
+| `filters.banner.scope`      | Sinasaklaw ba ng `select` ang bawat halagang `scope` na ipinapadala ng app? Ligtas bang fallback ang `other`?                             |
+| Maiikling label                | Kasya pa rin ba sa mga button ang mga isinaling string pagkatapos ng pagpapalawak ng mga anyong pangmaramihan?                                                |
 
 Mag-attach ng mga screenshot kapag may sangay na pangmaramihan sa isang layout na may mga limitasyon. Pinananatili ng Hyperlocalise ang glossary at mga tagubilin ng proyekto kasama ng segment—mga file lang ang inililipat ng CLI.
 
