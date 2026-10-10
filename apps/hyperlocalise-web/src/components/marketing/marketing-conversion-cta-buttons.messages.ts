@@ -14,10 +14,15 @@
  */
 import { defineMessages } from "react-intl";
 
-export const finalCtaSectionMessages = defineMessages({
-  headline: {
-    defaultMessage: "Built for localisation teams. Start free today.",
-    id: "gHUxugs0eg",
-    description: "Marketing homepage final call-to-action section headline",
+export const marketingConversionCtaMessages = defineMessages({
+  startForFree: {
+    defaultMessage: "Start for free",
+    id: "5ilEKzvkRa",
+    description: "Primary self-serve CTA on marketing conversion sections",
+  },
+  requestDemo: {
+    defaultMessage: "Request a demo",
+    id: "JOF5bl34kw",
+    description: "Secondary demo CTA on marketing conversion sections",
   },
 });

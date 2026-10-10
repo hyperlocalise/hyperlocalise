@@ -799,10 +799,6 @@
     "defaultMessage": "Publish localized drafts to staging.",
     "description": "CMS tool description in content ops agent setup mock"
   },
-  "/SBgalTEEE": {
-    "defaultMessage": "Request a Demo",
-    "description": "Primary call-to-action button on the marketing homepage final section"
-  },
   "/SJnfuawRk": {
     "defaultMessage": "You want a second writer for longer text.",
     "description": "Situation for Claude Sonnet on the pricing page"
@@ -4684,7 +4680,7 @@
     "description": "Toast fallback when deleting a Crowdin task fails without an Error message"
   },
   "712aIFkBYq": {
-    "defaultMessage": "Request early access to Hyperlocalise.",
+    "defaultMessage": "Start a free workspace, or request a demo, and launch global campaigns with brand-safe localisation workflows.",
     "description": "CTA section description for the marketing-localisation use case"
   },
   "71I+YToKV7": {
@@ -8632,7 +8628,7 @@
     "description": "Section heading for automation templates"
   },
   "EGy0DHdyiF": {
-    "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale.",
+    "defaultMessage": "Start a free workspace, or request a demo, and see how your team can keep support content current across every locale.",
     "description": "CTA section description for the help-center-localisation use case"
   },
   "EH/CNk39Q2": {
@@ -10072,7 +10068,7 @@
     "description": "Template category filter tab for marketing templates"
   },
   "H/M3brO8Jk": {
-    "defaultMessage": "Join the Hyperlocalise waitlist and see how your team can launch global product content faster without replacing your existing tools.",
+    "defaultMessage": "Start a free workspace today, or request a demo, and see how your team can launch global product content faster without replacing your existing tools.",
     "description": "CTA section description for the product-localisation use case"
   },
   "H/rcXdOxHm": {
@@ -11608,7 +11604,7 @@
     "description": "Mock trigger name"
   },
   "KCoITTErMU": {
-    "defaultMessage": "Built for localisation teams. Available soon.",
+    "defaultMessage": "Built for localisation teams. Start free today.",
     "description": "Marketing homepage final call-to-action section headline"
   },
   "KDIMmNPAxL": {
@@ -11760,7 +11756,7 @@
     "description": "Description when Crowdin is not connected"
   },
   "Ka+dKs8Zz9": {
-    "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
+    "defaultMessage": "Start a free workspace, or request a demo, and bring localisation checks into your release pipeline.",
     "description": "CTA section description for the github-release-localisation use case"
   },
   "KaF5SxLR8X": {
@@ -23136,7 +23132,7 @@
     "description": "Validation error when the source locale is also selected as a target"
   },
   "g3BfS0hD2m": {
-    "defaultMessage": "Request a Demo",
+    "defaultMessage": "Request a demo",
     "description": "Use case page call-to-action to request a demo"
   },
   "g3PqpCejL+": {
@@ -23824,7 +23820,7 @@
     "description": "Aria label for the query detail overflow menu"
   },
   "hEICju0qcP": {
-    "defaultMessage": "Request early access to Hyperlocalise.",
+    "defaultMessage": "Start a free workspace, or request a demo, and catch translation drift before it reaches your customers.",
     "description": "CTA section description for the localisation-quality-monitoring use case"
   },
   "hElFzW5+gy": {
@@ -31508,7 +31504,7 @@
     "description": "Catalog description for the AI agent stub node"
   },
   "vRHN9vcIJA": {
-    "defaultMessage": "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools.",
+    "defaultMessage": "Start a free workspace, or request a demo, and see how your operations team can orchestrate localisation without replacing your existing tools.",
     "description": "CTA section description for the localisation-operations use case"
   },
   "vRzaf+T+4c": {
