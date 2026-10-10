@@ -80,6 +80,12 @@ export type GuidelineCheckResult = {
 
 export type GuidelineSweepResult = { scanned: number; republished: number; failed: number };
 
+type GuidelineDocumentListPage = {
+  guidelineDocuments: GuidelineDocument[];
+  nextCursor: string | null;
+  pagination: { limit: number; returned: number; hasMore: boolean };
+};
+
 /** Omit projectId for workspace-wide documents. */
 function documentsPath(organizationSlug: string, projectId?: string, ...segments: string[]) {
   return projectId
@@ -104,11 +110,22 @@ export class GoSvcGuidelinesApi {
     projectId?: string,
     options: GoSvcRequestOptions = {},
   ) {
-    const body = await this.request.json<{ guidelineDocuments: GuidelineDocument[] }>(
-      documentsPath(organizationSlug, projectId),
-      options,
-    );
-    return body.guidelineDocuments;
+    const path = documentsPath(organizationSlug, projectId);
+    const documents: GuidelineDocument[] = [];
+    let cursor: string | undefined;
+    do {
+      const query = new URLSearchParams({ limit: "200" });
+      if (cursor) {
+        query.set("cursor", cursor);
+      }
+      const body = await this.request.json<GuidelineDocumentListPage>(
+        `${path}?${query}`,
+        options,
+      );
+      documents.push(...body.guidelineDocuments);
+      cursor = body.nextCursor ?? undefined;
+    } while (cursor);
+    return documents;
   }
 
   async getDocument(

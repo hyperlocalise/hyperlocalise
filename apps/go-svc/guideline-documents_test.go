@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -208,6 +210,60 @@ func TestGuidelineDocumentUploadRejectsUnsupportedAndMarksEnqueueFailure(t *test
 	require.Contains(t, unavailable.Body.String(), "guideline_ingest_unavailable")
 }
 
+func TestGuidelineDocumentListPagination(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	ids := make([]string, 3)
+	for i := range ids {
+		rec := env.upload(t, http.MethodPost, path, "doc"+strconv.Itoa(i)+".txt", []byte("rule"), nil)
+		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+		ids[i] = decodeGuidelineDocument(t, rec).ID
+	}
+
+	first := env.json(http.MethodGet, path+"?limit=2", "")
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	var page1 struct {
+		GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+		NextCursor         string                    `json:"nextCursor"`
+		Pagination         struct {
+			Limit    int  `json:"limit"`
+			Returned int  `json:"returned"`
+			HasMore  bool `json:"hasMore"`
+		} `json:"pagination"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &page1))
+	require.Len(t, page1.GuidelineDocuments, 2)
+	require.True(t, page1.Pagination.HasMore)
+	require.NotEmpty(t, page1.NextCursor)
+
+	second := env.json(http.MethodGet, path+"?limit=2&cursor="+url.QueryEscape(page1.NextCursor), "")
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	var page2 struct {
+		GuidelineDocuments []guidelineDocumentRecord `json:"guidelineDocuments"`
+		NextCursor         *string                   `json:"nextCursor"`
+		Pagination         struct {
+			HasMore bool `json:"hasMore"`
+		} `json:"pagination"`
+	}
+	require.NoError(t, json.Unmarshal(second.Body.Bytes(), &page2))
+	require.Len(t, page2.GuidelineDocuments, 1)
+	require.False(t, page2.Pagination.HasMore)
+	require.Nil(t, page2.NextCursor)
+
+	seen := map[string]bool{}
+	for _, record := range append(page1.GuidelineDocuments, page2.GuidelineDocuments...) {
+		seen[record.ID] = true
+	}
+	require.Len(t, seen, 3)
+	for _, id := range ids {
+		require.True(t, seen[id])
+	}
+
+	badCursor := env.json(http.MethodGet, path+"?cursor=not-valid", "")
+	require.Equal(t, http.StatusBadRequest, badCursor.Code)
+	require.Contains(t, badCursor.Body.String(), "invalid_guideline_document_cursor")
+}
+
 func TestGuidelineDocumentAccessControl(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	projectID := env.scope.MustProject(t, "", "Project")
@@ -243,14 +299,16 @@ func TestGuidelineDocumentSweepRepublishesLostMessages(t *testing.T) {
 	env := newGuidelineTestEnv(t, "admin")
 	path := env.scope.OrgPath("/guidelines/documents")
 	ids := map[string]string{}
-	for _, name := range []string{"stuck", "unindexed", "indexed", "fresh"} {
+	for _, name := range []string{"stuck", "unindexed", "indexed", "enqueue_failed", "fresh"} {
 		rec := env.upload(t, http.MethodPost, path, name+".txt", []byte("Rule for "+name), nil)
 		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
 		ids[name] = decodeGuidelineDocument(t, rec).ID
 	}
 	pool := env.scope.Pool
 	_, err := pool.Exec(t.Context(), `update guideline_documents set enqueued_at = now() - interval '1 hour' where id = any($1::uuid[])`,
-		[]string{ids["stuck"], ids["unindexed"], ids["indexed"]})
+		[]string{ids["stuck"], ids["unindexed"], ids["indexed"], ids["enqueue_failed"]})
+	require.NoError(t, err)
+	_, err = pool.Exec(t.Context(), `update guideline_documents set status = 'failed', error_code = 'guideline_ingest_enqueue_failed' where id = $1`, ids["enqueue_failed"])
 	require.NoError(t, err)
 	_, err = pool.Exec(t.Context(), `update guideline_documents set status = 'ready' where id = any($1::uuid[])`, []string{ids["unindexed"], ids["indexed"]})
 	require.NoError(t, err)
@@ -272,12 +330,16 @@ func TestGuidelineDocumentSweepRepublishesLostMessages(t *testing.T) {
 			republished[message.DocumentID] = true
 		}
 	}
-	require.Equal(t, map[string]bool{ids["stuck"]: true, ids["unindexed"]: true}, republished)
+	require.Equal(t, map[string]bool{ids["stuck"]: true, ids["unindexed"]: true, ids["enqueue_failed"]: true}, republished)
 
 	var stillOld int
 	require.NoError(t, pool.QueryRow(t.Context(), `select count(*) from guideline_documents where id = any($1::uuid[]) and enqueued_at < now() - interval '15 minutes'`,
-		[]string{ids["stuck"], ids["unindexed"]}).Scan(&stillOld))
+		[]string{ids["stuck"], ids["unindexed"], ids["enqueue_failed"]}).Scan(&stillOld))
 	require.Zero(t, stillOld)
+
+	var recoveredStatus string
+	require.NoError(t, pool.QueryRow(t.Context(), `select status from guideline_documents where id = $1`, ids["enqueue_failed"]).Scan(&recoveredStatus))
+	require.Equal(t, "processing", recoveredStatus)
 }
 
 func TestKnowledgeMemoryCommitPublishesGuidelineSync(t *testing.T) {

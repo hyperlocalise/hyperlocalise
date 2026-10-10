@@ -593,6 +593,8 @@ be the only retained copy of guideline content.
 Guideline documents are uploaded under `/v1/orgs/{org}/guidelines/documents` and
 `/v1/orgs/{org}/projects/{projectId}/guidelines/documents` (PDF, DOCX, Markdown,
 or text up to 25 MB; PNG/JPEG only when `GUIDELINE_IMAGE_UPLOADS_ENABLED=true`).
+`GET` list supports `limit` (default 50, max 200) and opaque `cursor` pagination
+via `nextCursor`.
 Uploads need object storage and `GUIDELINE_INGEST_SQS_QUEUE_URL`; without the
 queue they return 503. The `guideline-ingest` Lambda extracts and indexes each
 document, and `POST /internal/guidelines/sweep` republishes lost messages.

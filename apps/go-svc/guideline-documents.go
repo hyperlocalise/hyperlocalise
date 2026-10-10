@@ -26,13 +26,15 @@ import (
 )
 
 const (
-	guidelineDocumentMaxBytes     = 25 << 20
-	guidelineDocumentBodyLimit    = guidelineDocumentMaxBytes + 1<<20
-	guidelineDocumentMaxTitle     = 200
-	guidelineDocumentMaxFilename  = 255
-	guidelineDocumentMaxFieldSize = 1 << 10
-	guidelinePublishTimeout       = 5 * time.Second
-	guidelineDocumentTimeout      = 60 * time.Second
+	guidelineDocumentMaxBytes         = 25 << 20
+	guidelineDocumentBodyLimit        = guidelineDocumentMaxBytes + 1<<20
+	guidelineDocumentMaxTitle         = 200
+	guidelineDocumentMaxFilename      = 255
+	guidelineDocumentMaxFieldSize     = 1 << 10
+	guidelineDocumentListDefaultLimit = 50
+	guidelineDocumentListMaxLimit     = 200
+	guidelinePublishTimeout           = 5 * time.Second
+	guidelineDocumentTimeout          = 60 * time.Second
 	// Images need OCR, which only runs when the ingest worker has a vision model.
 	GUIDELINE_IMAGE_UPLOADS_ENV = "GUIDELINE_IMAGE_UPLOADS_ENABLED"
 )
@@ -98,16 +100,52 @@ func (api *guidelineDocumentAPI) requireWriter(actor workspaceActor) error {
 	return nil
 }
 
+func guidelineDocumentListLimit(r *http.Request) (int, error) {
+	limit := guidelineDocumentListDefaultLimit
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > guidelineDocumentListMaxLimit {
+			return 0, invalidGuidelineDocument("limit")
+		}
+		limit = parsed
+	}
+	return limit, nil
+}
+
 func (api *guidelineDocumentAPI) list(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
 	scope, err := api.scope(r.Context(), r, actor)
 	if err != nil {
 		return 0, nil, err
 	}
-	records, err := listGuidelineDocuments(r.Context(), api.knowledge.workspace.pool, scope)
+	limit, err := guidelineDocumentListLimit(r)
 	if err != nil {
 		return 0, nil, err
 	}
-	return http.StatusOK, map[string]any{"guidelineDocuments": records}, nil
+	cursorCreatedAt, cursorID := "", ""
+	if cursor := strings.TrimSpace(r.URL.Query().Get("cursor")); cursor != "" {
+		cursorCreatedAt, cursorID, err = decodeGlossaryPageCursor(cursor)
+		if err != nil {
+			return 0, nil, knowledgeMemoryFailure(400, "invalid_guideline_document_cursor", "Guideline document cursor is invalid")
+		}
+	}
+	page, err := listGuidelineDocumentsPage(r.Context(), api.knowledge.workspace.pool, scope, limit, cursorCreatedAt, cursorID)
+	if err != nil {
+		return 0, nil, err
+	}
+	var nextCursor any
+	if page.HasMore && len(page.Records) > 0 {
+		last := page.Records[len(page.Records)-1]
+		nextCursor = encodeGlossaryPageCursor(last.CreatedAt, last.ID)
+	}
+	return http.StatusOK, map[string]any{
+		"guidelineDocuments": page.Records,
+		"nextCursor":         nextCursor,
+		"pagination": map[string]any{
+			"limit":    limit,
+			"returned": len(page.Records),
+			"hasMore":  page.HasMore,
+		},
+	}, nil
 }
 
 func (api *guidelineDocumentAPI) get(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
