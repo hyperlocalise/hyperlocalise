@@ -42,7 +42,7 @@
     "@formkit/auto-animate": "^0.10.0",
     "@hookform/resolvers": "5.9.1",
     "@inno76/univer-import-export": "^0.2.3",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "@next/third-parties": "^16.4.0",
     "@phosphor-icons/react": "^2.1.10",
     "@pierre/diffs": "^1.5.2",
