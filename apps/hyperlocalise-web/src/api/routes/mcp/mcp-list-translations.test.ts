@@ -180,6 +180,7 @@ async function insertTranslation(input: {
   targetLocale: string;
   text: string;
   status: "draft" | "needs_review" | "approved" | "rejected";
+  provenance?: "manual" | "translation_job" | "import" | "agent";
 }) {
   await db.insert(schema.projectTranslations).values(input);
 }
@@ -718,6 +719,129 @@ describe("MCP list_translations", () => {
     expect(result.isError).toBe(false);
     expect(result.output.coverageSource).toBe("native_overlay");
     expect(result.output.translations?.map((row) => row.key)).toEqual(["overlay"]);
+  });
+
+  it("filters qa_issues, machine_translated, and with_comments from seeded overlay rows", async () => {
+    const stored = await fixture.createStoredProjectFixture();
+    const headers = await authenticatedMcpHeaders(stored.identity);
+    const { keys } = await seedFileKeys({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      sourcePath: "locales/home.json",
+      entries: [
+        { key: "qa_row", text: "Needs QA" },
+        { key: "machine_row", text: "Machine copy" },
+        { key: "comment_row", text: "Has a comment" },
+        { key: "plain_row", text: "Human copy" },
+      ],
+    });
+
+    const qaRow = keys.find((row) => row.key === "qa_row");
+    const machineRow = keys.find((row) => row.key === "machine_row");
+    const commentRow = keys.find((row) => row.key === "comment_row");
+    const plainRow = keys.find((row) => row.key === "plain_row");
+    expect(qaRow && machineRow && commentRow && plainRow).toBeTruthy();
+
+    await insertTranslation({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: qaRow!.id,
+      targetLocale: "fr-FR",
+      text: "Besoin QA",
+      status: "needs_review",
+    });
+    await insertTranslation({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: machineRow!.id,
+      targetLocale: "fr-FR",
+      text: "Copie machine",
+      status: "draft",
+      provenance: "agent",
+    });
+    await insertTranslation({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: commentRow!.id,
+      targetLocale: "fr-FR",
+      text: "Avec commentaire",
+      status: "needs_review",
+    });
+    await insertTranslation({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: plainRow!.id,
+      targetLocale: "fr-FR",
+      text: "Copie humaine",
+      status: "approved",
+    });
+
+    const [run] = await db
+      .insert(schema.translationQaRuns)
+      .values({
+        organizationId: stored.organization.id,
+        projectId: stored.project.id,
+        trigger: "manual",
+        status: "succeeded",
+        createdByUserId: stored.user.id,
+        summary: { byCheckType: {}, bySeverity: {}, byLocale: {} },
+        completedAt: new Date(),
+      })
+      .returning({ id: schema.translationQaRuns.id });
+
+    await db.insert(schema.translationQaFindings).values({
+      runId: run!.id,
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: qaRow!.id,
+      key: "qa_row",
+      targetLocale: "fr-FR",
+      checkType: "same_as_source",
+      severity: "warning",
+      category: "qa",
+      status: "open",
+      message: "Looks untranslated",
+      relatedTokens: [],
+      sourceText: "Needs QA",
+      targetText: "Besoin QA",
+    });
+
+    await db.insert(schema.projectTranslationComments).values({
+      organizationId: stored.organization.id,
+      projectId: stored.project.id,
+      translationKeyId: commentRow!.id,
+      targetLocale: "fr-FR",
+      type: "comment",
+      text: "Please keep the product name.",
+      authorUserId: stored.user.id,
+    });
+
+    const qaIssues = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        queueFilter: "qa_issues",
+      }),
+    );
+    expect(qaIssues.output.translations?.map((row) => row.key)).toEqual(["qa_row"]);
+
+    const machineTranslated = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        queueFilter: "machine_translated",
+      }),
+    );
+    expect(machineTranslated.output.translations?.map((row) => row.key)).toEqual(["machine_row"]);
+
+    const withComments = await readToolResult(
+      await callMcpTool(headers, {
+        projectId: stored.project.id,
+        targetLocale: "fr-FR",
+        queueFilter: "with_comments",
+      }),
+    );
+    expect(withComments.output.translations?.map((row) => row.key)).toEqual(["comment_row"]);
   });
 
   it("returns project_not_found for missing and cross-organization projects", async () => {
