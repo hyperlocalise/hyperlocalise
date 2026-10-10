@@ -13,10 +13,7 @@
 import type { Metadata } from "next";
 import type { WithContext } from "schema-dts";
 import { WebApplication } from "schema-dts";
-import {
-  buildHomepageFaqJsonLd,
-  getHomepageFaqItems,
-} from "@/components/marketing/homepage-faq-content";
+import { getHomepageFaqItems } from "@/components/marketing/homepage-faq-content";
 import { HomepageFaqSection } from "@/components/marketing/homepage-faq-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
@@ -126,7 +123,6 @@ export default async function Home({ params }: HomePageProps) {
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
   const jsonLd = buildJsonLd(locale);
   const faqItems = getHomepageFaqItems(locale);
-  const faqJsonLd = buildHomepageFaqJsonLd(locale, faqItems);
   const recentPosts = getAllPosts(lang)
     .slice(0, 4)
     .map(({ content: _content, ...rest }) => rest);
@@ -148,7 +144,6 @@ export default async function Home({ params }: HomePageProps) {
 
       <div className="mx-auto max-w-7xl">
         <JsonLd data={jsonLd} />
-        <JsonLd data={faqJsonLd} />
         <section className="border-t border-border scroll-mt-24">
           <div className="px-5 py-24 sm:px-8 sm:py-28 lg:px-10">
             <HomepageFaqSection items={faqItems} />
