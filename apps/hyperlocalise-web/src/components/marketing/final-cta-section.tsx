@@ -15,7 +15,6 @@
 import { FormattedMessage } from "react-intl";
 
 import { finalCtaSectionMessages } from "./final-cta-section.messages";
-import { REQUEST_DEMO_URL } from "./request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH2 } from "@/components/ui/typography";
 
@@ -29,10 +28,7 @@ export function FinalCtaSection() {
         <FormattedMessage {...finalCtaSectionMessages.headline} />
       </TypographyH2>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Button
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
+        <Button nativeButton={false} render={<a href="/auth/sign-in" rel="noopener noreferrer" />}>
           <FormattedMessage {...finalCtaSectionMessages.joinEarlyAccess} />
         </Button>
       </div>
