@@ -40,7 +40,8 @@ go-svc writes the row first and then publishes an `ingest.Message` to SQS.
 
 A lost publish is recovered by the `/internal/guidelines/sweep` route, which a
 Vercel cron calls every 15 minutes. It republishes rows that have been
-`processing` too long and `ready` rows whose index lags the current revision.
+`processing` too long, `ready` rows whose index lags the current revision, and
+`failed` rows with `guideline_ingest_enqueue_failed` after a transient SQS error.
 
 For rebuilds, enumerate canonical organization/project scopes and call Sync. For
 an incompatible index schema/chunker change, build under a new deployment prefix

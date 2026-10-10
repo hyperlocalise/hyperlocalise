@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -100,22 +101,43 @@ func insertGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideli
 		input.contentType, input.byteSize, input.revisionID, input.mandatory, input.userID), false)
 }
 
-func listGuidelineDocuments(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope) ([]guidelineDocumentRecord, error) {
+type guidelineDocumentListPage struct {
+	Records []guidelineDocumentRecord
+	HasMore bool
+}
+
+func listGuidelineDocumentsPage(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, limit int, cursorCreatedAt, cursorID string) (guidelineDocumentListPage, error) {
+	where := guidelineDocumentProjectFilter
+	args := []any{scope.organizationID, scope.projectID}
+	if cursorCreatedAt != "" || cursorID != "" {
+		args = append(args, cursorCreatedAt, cursorID)
+		pos := len(args)
+		where += ` and (d.created_at, d.id) < ($` + strconv.Itoa(pos-1) + `::timestamptz, $` + strconv.Itoa(pos) + `::uuid)`
+	}
+	args = append(args, limit+1)
+	limitPos := len(args)
 	rows, err := db.Query(ctx, `select `+guidelineDocumentColumns+` from guideline_documents d
-		where `+guidelineDocumentProjectFilter+` order by d.created_at desc, d.id limit 200`, scope.organizationID, scope.projectID)
+		where `+where+` order by d.created_at desc, d.id desc limit $`+strconv.Itoa(limitPos), args...)
 	if err != nil {
-		return nil, fmt.Errorf("list guideline documents: %w", err)
+		return guidelineDocumentListPage{}, fmt.Errorf("list guideline documents: %w", err)
 	}
 	defer rows.Close()
-	records := make([]guidelineDocumentRecord, 0)
+	records := make([]guidelineDocumentRecord, 0, limit+1)
 	for rows.Next() {
 		record, err := scanGuidelineDocument(rows, false)
 		if err != nil {
-			return nil, fmt.Errorf("scan guideline document: %w", err)
+			return guidelineDocumentListPage{}, fmt.Errorf("scan guideline document: %w", err)
 		}
 		records = append(records, record)
 	}
-	return records, rows.Err()
+	if err := rows.Err(); err != nil {
+		return guidelineDocumentListPage{}, err
+	}
+	hasMore := len(records) > limit
+	if hasMore {
+		records = records[:limit]
+	}
+	return guidelineDocumentListPage{Records: records, HasMore: hasMore}, nil
 }
 
 func loadGuidelineDocument(ctx context.Context, db dictionaryDB, scope guidelineDocumentScope, id string, withContent bool) (guidelineDocumentRecord, bool, error) {
@@ -225,12 +247,14 @@ func deleteGuidelineDocument(ctx context.Context, db dictionaryDB, scope guideli
 }
 
 // listGuidelineDocumentsToSweep selects rows whose ingest message may have been
-// lost: processing past the grace period, or ready but not indexed at the
-// current revision.
+// lost: processing past the grace period, ready but not indexed at the current
+// revision, or failed after a transient enqueue error.
 func listGuidelineDocumentsToSweep(ctx context.Context, db dictionaryDB, olderThan time.Duration, limit int) ([]guidelineDocumentRecord, error) {
 	rows, err := db.Query(ctx, `select `+guidelineDocumentColumns+` from guideline_documents d
 		where d.enqueued_at < now() - make_interval(secs => $1)
-			and (d.status = 'processing' or (d.status = 'ready' and d.indexed_revision_id is distinct from d.revision_id))
+			and (d.status = 'processing'
+				or (d.status = 'ready' and d.indexed_revision_id is distinct from d.revision_id)
+				or (d.status = 'failed' and d.error_code = 'guideline_ingest_enqueue_failed'))
 		order by d.enqueued_at limit $2`, olderThan.Seconds(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("list guideline documents to sweep: %w", err)
@@ -248,6 +272,11 @@ func listGuidelineDocumentsToSweep(ctx context.Context, db dictionaryDB, olderTh
 }
 
 func touchGuidelineDocumentEnqueued(ctx context.Context, db dictionaryDB, id, revisionID string) error {
-	_, err := db.Exec(ctx, `update guideline_documents set enqueued_at = now() where id = $1 and revision_id = $2`, id, revisionID)
+	_, err := db.Exec(ctx, `update guideline_documents set
+			enqueued_at = now(),
+			status = case when status = 'failed' and error_code = 'guideline_ingest_enqueue_failed' then 'processing' else status end,
+			error_code = case when status = 'failed' and error_code = 'guideline_ingest_enqueue_failed' then null else error_code end,
+			updated_at = now()
+		where id = $1 and revision_id = $2`, id, revisionID)
 	return err
 }
