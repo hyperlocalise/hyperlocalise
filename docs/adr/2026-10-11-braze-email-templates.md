@@ -24,7 +24,7 @@ drag-and-drop email, and marketplace listing stay out of this change.
 
 Braze has no per-locale `translated_content` on a template. The library is a
 flat list of named copies. Locale write-back therefore creates or updates
-`Template_Name_fr`, not the source.
+`Template_Name_fr-FR`, not the source.
 
 The connection itself stays on WorkOS Pipes. This ADR covers the file shape,
 import, CAT eligibility, and copy write-back only.
@@ -41,8 +41,8 @@ Import never writes to Braze.
 Import writes one HTML file per resource:
 
 ```text
-braze/email/{template-slug}.html
-braze/content-block/{block-slug}.html
+braze/templates/{template-slug}.html
+braze/content-blocks/{block-slug}.html
 ```
 
 Email files store `subject`, `preheader`, `body`, and optional
@@ -51,7 +51,7 @@ Email files store `subject`, `preheader`, `body`, and optional
 `<!--HL_BRAZE_LIQUID_n-->` so translators do not break personalization.
 
 Skip drag-and-drop email templates and names that already look like locale
-copies (`Template_Name_fr`). Persist sync state on
+copies (`Template_Name_fr-FR`). Persist sync state on
 `braze_template_sync_states` and watermarks on `braze_sync_cursors`.
 
 Existing-translation policy defaults to `seed_empty`. A later import still
@@ -72,12 +72,13 @@ source. Never publish. Content Block creates use `state=draft`. If a copy is
 already active, update content only.
 
 A later push skips a locale whose approved hash matches the last successful
-push unless `overwriteWhenRemoteNewer` is on and the remote hash is newer.
+push. When `overwriteWhenRemoteNewer` is off, it also skips a locale whose
+remote copy is newer than the last successful push.
 
-Project locales map onto Braze copy suffixes by exact tag first, then
-language-only aliases such as `fr-FR` → `fr` when only one regional form is
-present. Keep locked writing-system and regional pairs separate (`en-US` is
-not `en-GB`, `zh-CN` is not `zh-TW`, `pt` is not `pt-BR`).
+Braze copy suffixes are the native project locale tags (`fr-FR` writes
+`Template_Name_fr-FR`). Keep locked writing-system and regional pairs
+separate when checking source compatibility (`en-US` is not `en-GB`,
+`zh-CN` is not `zh-TW`, `pt` is not `pt-BR`).
 
 ## Alternatives considered
 
@@ -94,8 +95,8 @@ not `en-GB`, `zh-CN` is not `zh-TW`, `pt` is not `pt-BR`).
 
 - Operators connect Braze (HL-861), attach the skill, then use
   **Push to Braze** from CAT when approved locales are ready.
-- Customer docs describe HTML sources at `braze/email/` and
-  `braze/content-block/`, locale-suffixed copies, and **Push to Braze**.
+- Customer docs describe HTML sources at `braze/templates/` and
+  `braze/content-blocks/`, locale-suffixed copies, and **Push to Braze**.
 - The workspace skill `translate-braze-email-templates.md` is the operator
   contract for the agent.
 - Email-template localisation is this skill, not `kind: "content_sync"`.

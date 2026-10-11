@@ -83,9 +83,22 @@ export function serializeBrazeContentBlockEnvelope(fields: BrazeContentBlockEnve
 }
 
 function readFieldInnerHtml(html: string, field: string): string {
-  const pattern = new RegExp(`<div[^>]*${FIELD_ATTR}="${field}"[^>]*>([\\s\\S]*?)</div>`, "i");
-  const match = html.match(pattern);
-  return match?.[1] ?? "";
+  const open = new RegExp(`<div[^>]*${FIELD_ATTR}="${field}"[^>]*>`, "i");
+  const match = open.exec(html);
+  if (!match) {
+    return "";
+  }
+  const rest = html.slice(match.index + match[0].length);
+  const nextField = rest.search(new RegExp(`<div[^>]*${FIELD_ATTR}="`, "i"));
+  const bodyEnd = rest.search(/<\/body>/i);
+  let end = rest.length;
+  if (nextField >= 0) {
+    end = Math.min(end, nextField);
+  }
+  if (bodyEnd >= 0) {
+    end = Math.min(end, bodyEnd);
+  }
+  return rest.slice(0, end).replace(/\s*<\/div>\s*$/i, "");
 }
 
 function decodeHtml(value: string): string {

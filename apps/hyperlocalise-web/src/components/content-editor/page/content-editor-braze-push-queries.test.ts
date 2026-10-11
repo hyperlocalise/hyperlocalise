@@ -21,7 +21,7 @@ import {
 const items: ContentEditorBrazePushItem[] = [
   {
     sourceId: "1",
-    sourcePath: "braze/email/welcome-email.html",
+    sourcePath: "braze/templates/welcome-email.html",
     resourceKind: "email_template",
     status: "active",
     eligibleLocaleCount: 1,
@@ -32,7 +32,7 @@ const items: ContentEditorBrazePushItem[] = [
   },
   {
     sourceId: "2",
-    sourcePath: "braze/content-block/hero-promo.html",
+    sourcePath: "braze/content-blocks/hero-promo.html",
     resourceKind: "content_block",
     status: "active",
     eligibleLocaleCount: 0,
@@ -45,20 +45,22 @@ const items: ContentEditorBrazePushItem[] = [
 
 describe("defaultSelectedBrazePushSourcePaths", () => {
   it("checks the open file when it is mapped", () => {
-    expect(defaultSelectedBrazePushSourcePaths(items, "braze/email/welcome-email.html")).toEqual([
-      "braze/email/welcome-email.html",
-    ]);
+    expect(
+      defaultSelectedBrazePushSourcePaths(items, "braze/templates/welcome-email.html"),
+    ).toEqual(["braze/templates/welcome-email.html"]);
   });
 
   it("selects nothing when the open path is missing", () => {
     expect(defaultSelectedBrazePushSourcePaths(items, null)).toEqual([]);
-    expect(defaultSelectedBrazePushSourcePaths(items, "braze/email/missing.html")).toEqual([]);
+    expect(defaultSelectedBrazePushSourcePaths(items, "braze/templates/missing.html")).toEqual([]);
   });
 });
 
 describe("brazeItemTitleFromSourcePath", () => {
   it("uses the HTML filename", () => {
-    expect(brazeItemTitleFromSourcePath("braze/email/welcome-email.html")).toBe("welcome-email");
-    expect(brazeItemTitleFromSourcePath("braze/content-block/hero-promo.html")).toBe("hero-promo");
+    expect(brazeItemTitleFromSourcePath("braze/templates/welcome-email.html")).toBe(
+      "welcome-email",
+    );
+    expect(brazeItemTitleFromSourcePath("braze/content-blocks/hero-promo.html")).toBe("hero-promo");
   });
 });

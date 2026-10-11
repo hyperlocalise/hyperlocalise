@@ -22440,7 +22440,7 @@
     "description": "Differentiator section description for the localisation-quality-monitoring use case"
   },
   "eENPAn2kRY": {
-    "defaultMessage": "Localize campaigns, in-app messages, and customer journeys in Braze.",
+    "defaultMessage": "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
     "description": "Braze integration description on the integrations page"
   },
   "eETDpPUyD4": {

@@ -17,6 +17,7 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 import {
   BRAZE_CLUSTER_UNREACHABLE,
   BRAZE_CREDENTIALS_INVALID,
+  BRAZE_TEMPORARILY_UNAVAILABLE,
   BRAZE_REQUIRED_PERMISSION_PINGS,
   brazePermissionMissingError,
   pingBrazeRestCredentials,
@@ -109,6 +110,19 @@ describe("pingBrazeRestCredentials", () => {
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
       expect(result.error).toEqual(BRAZE_CLUSTER_UNREACHABLE);
+    }
+  });
+
+  it("rejects a temporary Braze HTTP failure instead of calling the cluster unreachable", async () => {
+    const result = await pingBrazeRestCredentials({
+      apiKey: "braze-rest-key",
+      restEndpoint: "iad-03",
+      fetchImpl: async () => new Response("rate limited", { status: 429 }),
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error).toEqual(BRAZE_TEMPORARILY_UNAVAILABLE);
     }
   });
 });

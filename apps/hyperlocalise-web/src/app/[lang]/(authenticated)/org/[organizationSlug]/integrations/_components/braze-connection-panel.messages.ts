@@ -63,23 +63,23 @@ export const brazeConnectionPanelMessages = defineMessages({
   },
   clusterPlaceholder: {
     defaultMessage: "Choose a REST cluster",
-    id: "n8QbK2mR7c",
+    id: "+1MdqtQjmp",
     description: "Placeholder on the Braze REST cluster picker before a cluster is chosen",
   },
   clusterSearchPlaceholder: {
     defaultMessage: "Search or paste a REST endpoint",
-    id: "p3VwL9sT4h",
+    id: "+ag6bbxEOO",
     description: "Search field placeholder for filtering Braze REST clusters by key or URL",
   },
   clusterEmpty: {
     defaultMessage: "No REST cluster matches.",
-    id: "k6HdN1qY8b",
+    id: "rjsQdrxRfX",
     description: "Empty state when the Braze REST cluster search has no matches",
   },
   clusterHint: {
     defaultMessage:
       "Copy the REST endpoint from Braze Settings → APIs and Identifiers, then search or paste it here.",
-    id: "w2FmC8uE5j",
+    id: "WoFnpvLrkf",
     description:
       "Hint describing where to find the Braze REST cluster and that the URL can be pasted",
   },

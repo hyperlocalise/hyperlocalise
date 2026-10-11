@@ -26,6 +26,11 @@ export const BRAZE_CLUSTER_UNREACHABLE = {
     "Could not reach that Braze REST cluster. Confirm the cluster matches the instance that issued the key.",
 };
 
+export const BRAZE_TEMPORARILY_UNAVAILABLE = {
+  code: "braze_temporarily_unavailable" as const,
+  message: "Braze did not accept the request. Wait a moment and try saving again.",
+};
+
 export const BRAZE_REQUIRED_PERMISSION_PINGS = [
   {
     permission: "templates.email.list",
@@ -61,6 +66,7 @@ export function brazePermissionMissingError(permissions: readonly BrazeRequiredP
 export type BrazePingError =
   | typeof BRAZE_CREDENTIALS_INVALID
   | typeof BRAZE_CLUSTER_UNREACHABLE
+  | typeof BRAZE_TEMPORARILY_UNAVAILABLE
   | ReturnType<typeof brazePermissionMissingError>;
 
 function isAuthFailure(status: number): boolean {
@@ -115,6 +121,10 @@ export async function pingBrazeRestCredentials(input: {
     (outcome) => "status" in outcome.result && isAuthFailure(outcome.result.status),
   );
   const unreachable = outcomes.filter((outcome) => "unreachable" in outcome.result);
+  const transient = outcomes.filter(
+    (outcome) =>
+      "status" in outcome.result && (outcome.result.status === 429 || outcome.result.status >= 500),
+  );
 
   if (succeeded.length === BRAZE_REQUIRED_PERMISSION_PINGS.length) {
     return ok(true);
@@ -122,8 +132,17 @@ export async function pingBrazeRestCredentials(input: {
   if (succeeded.length > 0 && authFailures.length > 0) {
     return err(brazePermissionMissingError(authFailures.map((outcome) => outcome.permission)));
   }
-  if (authFailures.length > 0 && unreachable.length === 0) {
+  if (authFailures.length > 0 && unreachable.length === 0 && transient.length === 0) {
     return err(BRAZE_CREDENTIALS_INVALID);
+  }
+  if (transient.length > 0 && unreachable.length === 0 && authFailures.length === 0) {
+    return err(BRAZE_TEMPORARILY_UNAVAILABLE);
+  }
+  if (unreachable.length > 0 && authFailures.length === 0) {
+    return err(BRAZE_CLUSTER_UNREACHABLE);
+  }
+  if (transient.length > 0) {
+    return err(BRAZE_TEMPORARILY_UNAVAILABLE);
   }
   return err(BRAZE_CLUSTER_UNREACHABLE);
 }

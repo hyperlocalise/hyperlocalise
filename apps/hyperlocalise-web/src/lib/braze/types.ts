@@ -32,4 +32,5 @@ export type BrazeSettingsError =
   | { code: "braze_endpoint_invalid"; message: string }
   | { code: "braze_credentials_invalid"; message: string }
   | { code: "braze_cluster_unreachable"; message: string }
+  | { code: "braze_temporarily_unavailable"; message: string }
   | { code: "braze_permission_missing"; message: string };

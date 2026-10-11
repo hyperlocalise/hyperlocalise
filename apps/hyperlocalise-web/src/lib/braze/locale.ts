@@ -12,69 +12,6 @@
  */
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 
-/**
- * Preferred Braze copy suffix for a project locale.
- * Language-only except locked regional pairs that must stay distinct.
- */
-export const PROJECT_LOCALE_TO_BRAZE_SUFFIX: Record<string, string> = {
-  ar: "ar",
-  "ar-SA": "ar",
-  cs: "cs",
-  "cs-CZ": "cs",
-  da: "da",
-  "da-DK": "da",
-  de: "de",
-  "de-DE": "de",
-  el: "el",
-  "el-GR": "el",
-  en: "en",
-  "en-US": "en-US",
-  "en-GB": "en-GB",
-  "en-AU": "en",
-  "en-IN": "en",
-  es: "es",
-  "es-ES": "es",
-  "es-MX": "es",
-  fi: "fi",
-  "fi-FI": "fi",
-  fr: "fr",
-  "fr-FR": "fr",
-  "fr-CA": "fr",
-  he: "he",
-  "he-IL": "he",
-  hu: "hu",
-  "hu-HU": "hu",
-  id: "id",
-  "id-ID": "id",
-  it: "it",
-  "it-IT": "it",
-  ja: "ja",
-  "ja-JP": "ja",
-  ko: "ko",
-  "ko-KR": "ko",
-  nb: "nb",
-  "nb-NO": "nb",
-  nl: "nl",
-  "nl-NL": "nl",
-  pl: "pl",
-  "pl-PL": "pl",
-  pt: "pt",
-  "pt-PT": "pt",
-  "pt-BR": "pt-BR",
-  ro: "ro",
-  "ro-RO": "ro",
-  ru: "ru",
-  "ru-RU": "ru",
-  sv: "sv",
-  "sv-SE": "sv",
-  tr: "tr",
-  "tr-TR": "tr",
-  vi: "vi",
-  "vi-VN": "vi",
-  "zh-CN": "zh-CN",
-  "zh-TW": "zh-TW",
-};
-
 const LOCKED_LOCALE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["pt", "pt-BR"],
   ["zh-CN", "zh-TW"],
@@ -123,8 +60,7 @@ function uniqueNonEmptyLocales(values: readonly string[]): string[] {
 
 function localeLockKeys(locale: string): string[] {
   const normalized = normalizeBrazeLocaleTag(locale);
-  const suffix = PROJECT_LOCALE_TO_BRAZE_SUFFIX[normalized] ?? normalized;
-  return [...new Set([normalized, suffix, locale.trim()])];
+  return [...new Set([normalized, locale.trim()])];
 }
 
 function isLockedLocalePair(left: string, right: string): boolean {
@@ -151,21 +87,10 @@ export function areBrazeSourceLocalesCompatible(left: string, right: string): bo
 }
 
 /**
- * Locale suffix written onto Braze library copies (`Template_Name_fr`).
+ * Locale suffix written onto Braze library copies (`Template_Name_fr-FR`).
  */
 export function resolveBrazeLocaleSuffix(projectLocale: string): string {
-  const normalized = normalizeBrazeLocaleTag(projectLocale);
-  if (PROJECT_LOCALE_TO_BRAZE_SUFFIX[normalized]) {
-    return PROJECT_LOCALE_TO_BRAZE_SUFFIX[normalized];
-  }
-  if (PROJECT_LOCALE_TO_BRAZE_SUFFIX[projectLocale.trim()]) {
-    return PROJECT_LOCALE_TO_BRAZE_SUFFIX[projectLocale.trim()];
-  }
-  const parts = parseLocaleParts(normalized);
-  if (parts.region && isLockedLocalePair(parts.language, normalized)) {
-    return `${parts.language}-${parts.region}`;
-  }
-  return parts.language || normalized;
+  return normalizeBrazeLocaleTag(projectLocale);
 }
 
 export function mapProjectLocalesToBraze(input: {

@@ -78,8 +78,9 @@ export const agentIntegrationsSectionMessages = defineMessages({
     description: "Braze integration name on the integrations page",
   },
   brazeDescription: {
-    defaultMessage: "Localize campaigns, in-app messages, and customer journeys in Braze.",
-    id: "eENPAn2kRY",
+    defaultMessage:
+      "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
+    id: "Yb4Y1JetMA",
     description: "Braze integration description on the integrations page",
   },
   iterableName: {

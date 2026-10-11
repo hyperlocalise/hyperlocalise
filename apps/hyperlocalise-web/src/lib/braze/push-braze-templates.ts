@@ -23,7 +23,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import { applyHtmlIngestTranslations } from "@/lib/projects/files/html-ingest-entries";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { BrazeApiError, type BrazeTemplatesClient } from "./client";
+import { BrazeApiError, listAllBrazeContentBlocks, type BrazeTemplatesClient } from "./client";
 import { loadBrazeAutomationClient } from "./credentials";
 import {
   hashBrazeContent,
@@ -66,6 +66,44 @@ export function selectBrazePushMappings<T extends { sourcePath: string }>(
   const selected = new Set(sourcePaths.filter((path) => path.trim().length > 0));
   return mappings.filter((mapping) => selected.has(mapping.sourcePath));
 }
+
+export const BRAZE_REMOTE_NEWER_SLACK_MS = 5000;
+
+export function shouldSkipUnchangedBrazePush(
+  lastHash: string | undefined,
+  contentHash: string,
+): boolean {
+  return lastHash === contentHash;
+}
+
+export function countMappedBrazeTargetLocales(localeMapping: {
+  jobTargetLocales: readonly string[];
+  brazeSuffixes: readonly string[];
+}): number {
+  let count = 0;
+  for (let index = 0; index < localeMapping.jobTargetLocales.length; index += 1) {
+    if (localeMapping.jobTargetLocales[index] && localeMapping.brazeSuffixes[index]) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export function isRemoteNewer(
+  remoteUpdatedAt: string | undefined,
+  lastPushedAt: Date | null,
+): boolean {
+  if (!remoteUpdatedAt || !lastPushedAt) {
+    return false;
+  }
+  const remote = new Date(remoteUpdatedAt);
+  return (
+    !Number.isNaN(remote.getTime()) &&
+    remote.getTime() > lastPushedAt.getTime() + BRAZE_REMOTE_NEWER_SLACK_MS
+  );
+}
+
+type BrazePushCopyResult = { status: "pushed" | "skipped" };
 
 export async function runPushBrazeTemplates(input: {
   organizationId: string;
@@ -145,7 +183,7 @@ export async function runPushBrazeTemplates(input: {
       sourcePath: mapping.sourcePath,
     });
     if (!sourceHtml) {
-      result.failedLocales += 1;
+      result.failedLocales += countMappedBrazeTargetLocales(localeMapping);
       continue;
     }
 
@@ -171,29 +209,32 @@ export async function runPushBrazeTemplates(input: {
         const translatedHtml = applyHtmlIngestTranslations(sourceHtml, approved.prefilled);
         const contentHash = hashBrazeContent(translatedHtml);
         const lastHash = (mapping.lastPushContentHash ?? {})[suffix];
-        if (lastHash === contentHash && !overwriteWhenRemoteNewer) {
+        if (shouldSkipUnchangedBrazePush(lastHash, contentHash)) {
           result.skippedLocales += 1;
           continue;
         }
 
-        if (mapping.resourceKind === "email_template") {
-          await pushEmailCopy({
-            client: loaded.value.client,
-            mapping,
-            suffix,
-            html: translatedHtml,
-            overwriteWhenRemoteNewer,
-          });
+        const copyResult =
+          mapping.resourceKind === "email_template"
+            ? await pushEmailCopy({
+                client: loaded.value.client,
+                mapping,
+                suffix,
+                html: translatedHtml,
+                overwriteWhenRemoteNewer,
+              })
+            : await pushContentBlockCopy({
+                client: loaded.value.client,
+                mapping,
+                suffix,
+                html: translatedHtml,
+                overwriteWhenRemoteNewer,
+              });
+        if (copyResult.status === "skipped") {
+          result.skippedLocales += 1;
         } else {
-          await pushContentBlockCopy({
-            client: loaded.value.client,
-            mapping,
-            suffix,
-            html: translatedHtml,
-            overwriteWhenRemoteNewer,
-          });
+          result.pushedLocales += 1;
         }
-        result.pushedLocales += 1;
       } catch (error) {
         logger.warn(
           {
@@ -241,7 +282,7 @@ async function pushEmailCopy(input: {
   suffix: string;
   html: string;
   overwriteWhenRemoteNewer: boolean;
-}) {
+}): Promise<BrazePushCopyResult> {
   const fields = restoreBrazeEmailEnvelope(
     parseBrazeEmailEnvelope(input.html),
     input.mapping.liquidTokens ?? {},
@@ -256,7 +297,7 @@ async function pushEmailCopy(input: {
     if (!input.overwriteWhenRemoteNewer) {
       const remote = await input.client.getEmailTemplate(copyId);
       if (isRemoteNewer(remote.updated_at, input.mapping.lastPushedAt)) {
-        return;
+        return { status: "skipped" };
       }
     }
     await input.client.updateEmailTemplate({
@@ -281,6 +322,7 @@ async function pushEmailCopy(input: {
   const contentHash = hashBrazeContent(input.html);
   rememberCopy(input.mapping, input.suffix, copyId, copyName, contentHash);
   await persistCopySuccess(input.mapping, input.suffix, copyId, copyName, contentHash);
+  return { status: "pushed" };
 }
 
 async function pushContentBlockCopy(input: {
@@ -289,7 +331,7 @@ async function pushContentBlockCopy(input: {
   suffix: string;
   html: string;
   overwriteWhenRemoteNewer: boolean;
-}) {
+}): Promise<BrazePushCopyResult> {
   const fields = restoreBrazeContentBlockEnvelope(
     parseBrazeContentBlockEnvelope(input.html),
     input.mapping.liquidTokens ?? {},
@@ -300,7 +342,7 @@ async function pushContentBlockCopy(input: {
     if (!input.overwriteWhenRemoteNewer) {
       const remote = await input.client.getContentBlock(copyId);
       if (isRemoteNewer(remote.last_edited, input.mapping.lastPushedAt)) {
-        return;
+        return { status: "skipped" };
       }
     }
     await input.client.updateContentBlock({
@@ -333,11 +375,12 @@ async function pushContentBlockCopy(input: {
   const contentHash = hashBrazeContent(input.html);
   rememberCopy(input.mapping, input.suffix, copyId, copyName, contentHash);
   await persistCopySuccess(input.mapping, input.suffix, copyId, copyName, contentHash);
+  return { status: "pushed" };
 }
 
 async function findContentBlockIdByName(client: BrazeTemplatesClient, name: string) {
-  const page = await client.listContentBlocks({ limit: 1000 });
-  return page.content_blocks.find((block) => block.name === name)?.content_block_id ?? null;
+  const blocks = await listAllBrazeContentBlocks(client);
+  return blocks.find((block) => block.name === name)?.content_block_id ?? null;
 }
 
 function rememberCopy(
@@ -351,14 +394,6 @@ function rememberCopy(
   mapping.localeCopyNames = { ...mapping.localeCopyNames, [suffix]: copyName };
   mapping.lastPushContentHash = { ...mapping.lastPushContentHash, [suffix]: contentHash };
   mapping.lastPushedAt = new Date();
-}
-
-function isRemoteNewer(remoteUpdatedAt: string | undefined, lastPushedAt: Date | null): boolean {
-  if (!remoteUpdatedAt || !lastPushedAt) {
-    return false;
-  }
-  const remote = new Date(remoteUpdatedAt);
-  return !Number.isNaN(remote.getTime()) && remote.getTime() > lastPushedAt.getTime();
 }
 
 async function persistCopySuccess(

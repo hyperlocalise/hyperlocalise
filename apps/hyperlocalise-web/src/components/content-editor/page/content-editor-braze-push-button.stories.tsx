@@ -170,7 +170,7 @@ export const ConfirmQueuesSelectedTemplates: Story = {
     await waitFor(() => {
       void expect(queuedPushBodies[0]?.inputSnapshot).toEqual({
         operation: "push_approved",
-        sourcePaths: ["braze/email/welcome-email.html", "braze/email/password-reset.html"],
+        sourcePaths: ["braze/templates/welcome-email.html", "braze/templates/password-reset.html"],
       });
     });
   },

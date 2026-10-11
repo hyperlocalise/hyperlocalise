@@ -16,21 +16,21 @@ import { collectKnownBrazeCopyIds, shouldSkipBrazeLibraryItem } from "./copy-fil
 
 describe("braze copy filter", () => {
   it("skips known locale-copy ids and suffix names", () => {
-    const knownCopyIds = collectKnownBrazeCopyIds([{ localeCopyIds: { fr: "copy-1" } }]);
+    const knownCopyIds = collectKnownBrazeCopyIds([{ localeCopyIds: { "fr-FR": "copy-1" } }]);
     expect(
       shouldSkipBrazeLibraryItem({
         id: "copy-1",
         name: "Welcome",
         knownCopyIds,
-        suffixes: ["fr"],
+        suffixes: ["fr-FR"],
       }),
     ).toBe(true);
     expect(
       shouldSkipBrazeLibraryItem({
         id: "source-1",
-        name: "Welcome_fr",
+        name: "Welcome_fr-FR",
         knownCopyIds,
-        suffixes: ["fr"],
+        suffixes: ["fr-FR"],
       }),
     ).toBe(true);
     expect(
@@ -38,7 +38,7 @@ describe("braze copy filter", () => {
         id: "source-1",
         name: "Welcome",
         knownCopyIds,
-        suffixes: ["fr"],
+        suffixes: ["fr-FR"],
       }),
     ).toBe(false);
   });

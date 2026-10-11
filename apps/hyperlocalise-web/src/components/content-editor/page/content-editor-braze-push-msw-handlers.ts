@@ -20,7 +20,7 @@ import type { ContentEditorBrazePushItem } from "./content-editor-braze-push-que
 export const contentEditorBrazePushStoryItems: ContentEditorBrazePushItem[] = [
   {
     sourceId: "tmpl_welcome",
-    sourcePath: "braze/email/welcome-email.html",
+    sourcePath: "braze/templates/welcome-email.html",
     resourceKind: "email_template",
     status: "active",
     eligibleLocaleCount: 2,
@@ -31,7 +31,7 @@ export const contentEditorBrazePushStoryItems: ContentEditorBrazePushItem[] = [
   },
   {
     sourceId: "tmpl_reset",
-    sourcePath: "braze/email/password-reset.html",
+    sourcePath: "braze/templates/password-reset.html",
     resourceKind: "email_template",
     status: "active",
     eligibleLocaleCount: 0,
@@ -42,7 +42,7 @@ export const contentEditorBrazePushStoryItems: ContentEditorBrazePushItem[] = [
   },
   {
     sourceId: "block_hero",
-    sourcePath: "braze/content-block/hero-promo.html",
+    sourcePath: "braze/content-blocks/hero-promo.html",
     resourceKind: "content_block",
     status: "push_failed",
     eligibleLocaleCount: 1,

@@ -29,7 +29,12 @@ export function IntegrationLogo({ src, muted = false, className }: IntegrationLo
       alt=""
       width={20}
       height={20}
-      className={cn("size-5 object-contain", muted && "opacity-75", className)}
+      className={cn(
+        "size-5 object-contain",
+        src.includes("braze-logo.svg") && "dark:invert",
+        muted && "opacity-75",
+        className,
+      )}
     />
   );
 }

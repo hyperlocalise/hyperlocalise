@@ -50,7 +50,7 @@ function mapBrazePipesError(
   c: Parameters<typeof badRequestResponse>[0],
   error: BrazePipesError | BrazeSettingsError,
 ) {
-  if (error.code === "braze_pipes_unavailable") {
+  if (error.code === "braze_pipes_unavailable" || error.code === "braze_temporarily_unavailable") {
     return serviceUnavailableResponse(c, error.code, error.message);
   }
   if (error.code === "braze_api_key_required") {
@@ -175,7 +175,7 @@ export function createBrazeRoutes() {
         restEndpoint,
       });
       if (isErr(ping)) {
-        return badRequestResponse(c, ping.error.code, ping.error.message);
+        return mapBrazePipesError(c, ping.error);
       }
 
       if (trimmedApiKey) {

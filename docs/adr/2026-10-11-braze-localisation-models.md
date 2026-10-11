@@ -16,7 +16,7 @@ ships two apps against one Braze account:
 
 | App | Writes to Braze |
 | --- | --- |
-| Email Templates | Locale-suffixed library copies (`Template_Name_fr`) |
+| Email Templates | Locale-suffixed library copies (`Template_Name_fr-FR`) |
 | Campaigns & Canvas | Multi-language variants on tagged draft messages |
 
 Mixing those write-backs in one skill would hide which Braze surface

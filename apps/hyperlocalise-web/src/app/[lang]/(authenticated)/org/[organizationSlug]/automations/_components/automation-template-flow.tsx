@@ -42,12 +42,15 @@ type IconBucket =
   | "email"
   | "contentful"
   | "intercom"
+  | "braze"
   | "web-search"
   | "web-chat"
   | "upload"
   | "job"
   | "translate"
   | "validation";
+
+const BRAND_TOOL_IDS = new Set(["intercom", "braze", "contentful"]);
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
@@ -70,6 +73,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "contentful";
     case "intercom":
       return "intercom";
+    case "braze":
+      return "braze";
     case "web-search":
       return "web-search";
     case "web-chat":
@@ -120,6 +125,16 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       );
     case "intercom":
       return <SimpleBrandIcon icon={siIntercom} colored={false} className={iconClassName} />;
+    case "braze":
+      return (
+        <Image
+          src="/images/braze-logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className={cn(iconClassName, "dark:invert")}
+        />
+      );
     case "web-search":
       return <MagnifyingGlassIcon className={iconClassName} />;
     case "web-chat":
@@ -144,9 +159,9 @@ export function AutomationTemplateTriggerIcon({
 }) {
   const flow = getWorkspaceAutomationTemplateFlow(template);
   const triggerBucket = iconBucketForNode(flow.trigger);
-  const intercomTool = flow.tools.find((tool) => tool.id === "intercom");
+  const brandTool = flow.tools.find((tool) => BRAND_TOOL_IDS.has(tool.id));
   const bucket =
-    triggerBucket === "schedule" && intercomTool ? iconBucketForNode(intercomTool) : triggerBucket;
+    triggerBucket === "schedule" && brandTool ? iconBucketForNode(brandTool) : triggerBucket;
   return <FlowIcon bucket={bucket} className="size-4" />;
 }
 

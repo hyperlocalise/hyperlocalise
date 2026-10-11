@@ -33,7 +33,12 @@ import {
   listAllBrazeEmailTemplates,
   type BrazeTemplatesClient,
 } from "./client";
-import { collectKnownBrazeCopyIds, shouldSkipBrazeLibraryItem } from "./copy-filter";
+import { collectKnownBrazeCopyIds } from "./copy-filter";
+import {
+  mergeBrazeImportTargets,
+  nextBrazeWatermark,
+  shouldListBrazeWithoutWatermark,
+} from "./import-selection";
 import { loadBrazeAutomationClient } from "./credentials";
 import {
   DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY,
@@ -145,33 +150,49 @@ export async function runImportBrazeTemplates(input: {
   const blockFilter = new Set(braze.contentBlockIds ?? []);
 
   const listedTemplates = await listAllBrazeEmailTemplates(client, {
-    modifiedAfter: isoWatermark(cursor?.emailWatermarkUpdatedAt),
+    modifiedAfter: shouldListBrazeWithoutWatermark(templateFilter)
+      ? null
+      : isoWatermark(cursor?.emailWatermarkUpdatedAt),
   });
   const listedBlocks = await listAllBrazeContentBlocks(client, {
-    modifiedAfter: isoWatermark(cursor?.contentBlockWatermarkUpdatedAt),
+    modifiedAfter: shouldListBrazeWithoutWatermark(blockFilter)
+      ? null
+      : isoWatermark(cursor?.contentBlockWatermarkUpdatedAt),
   });
 
-  const templates = listedTemplates.filter((item) => {
-    if (templateFilter.size > 0 && !templateFilter.has(item.email_template_id)) {
-      return false;
-    }
-    return !shouldSkipBrazeLibraryItem({
+  const templates = mergeBrazeImportTargets({
+    listed: listedTemplates.map((item) => ({
       id: item.email_template_id,
       name: item.template_name,
-      knownCopyIds,
-      suffixes: localeMapping.brazeSuffixes,
-    });
+      updatedAt: parseRemoteDate(item.updated_at),
+    })),
+    existing: existingMappings
+      .filter((row) => row.resourceKind === "email_template")
+      .map((row) => ({
+        sourceId: row.sourceId,
+        sourceName: row.sourceName,
+        sourceUpdatedAt: row.sourceUpdatedAt,
+      })),
+    filterIds: templateFilter,
+    knownCopyIds,
+    suffixes: localeMapping.brazeSuffixes,
   });
-  const blocks = listedBlocks.filter((item) => {
-    if (blockFilter.size > 0 && !blockFilter.has(item.content_block_id)) {
-      return false;
-    }
-    return !shouldSkipBrazeLibraryItem({
+  const blocks = mergeBrazeImportTargets({
+    listed: listedBlocks.map((item) => ({
       id: item.content_block_id,
       name: item.name,
-      knownCopyIds,
-      suffixes: localeMapping.brazeSuffixes,
-    });
+      updatedAt: parseRemoteDate(item.last_edited),
+    })),
+    existing: existingMappings
+      .filter((row) => row.resourceKind === "content_block")
+      .map((row) => ({
+        sourceId: row.sourceId,
+        sourceName: row.sourceName,
+        sourceUpdatedAt: row.sourceUpdatedAt,
+      })),
+    filterIds: blockFilter,
+    knownCopyIds,
+    suffixes: localeMapping.brazeSuffixes,
   });
 
   const result: ImportBrazeTemplatesResult = {
@@ -189,25 +210,34 @@ export async function runImportBrazeTemplates(input: {
     ? braze.existingTranslationPolicy
     : DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY;
 
+  const emailSuccessUpdatedAt: Array<Date | null> = [];
+  const emailFailedUpdatedAt: Array<Date | null> = [];
+  const blockSuccessUpdatedAt: Array<Date | null> = [];
+  const blockFailedUpdatedAt: Array<Date | null> = [];
+
   for (const template of templates) {
     const outcome = await importEmailTemplate({
       organizationId: input.organizationId,
       automation: input.automation,
       projectId,
       client,
-      templateId: template.email_template_id,
-      templateName: template.template_name,
-      updatedAt: parseRemoteDate(template.updated_at),
+      templateId: template.id,
+      templateName: template.name,
+      updatedAt: template.updatedAt,
       sourceLocale: localeMapping.sourceSuffix,
       localeMapping,
       policy,
       workflowRunId: input.workflowRunId,
       existing: existingMappings.find(
-        (row) =>
-          row.resourceKind === "email_template" && row.sourceId === template.email_template_id,
+        (row) => row.resourceKind === "email_template" && row.sourceId === template.id,
       ),
     });
     applyOutcome(result, outcome);
+    if (outcome.failed) {
+      emailFailedUpdatedAt.push(template.updatedAt);
+    } else if (outcome.imported) {
+      emailSuccessUpdatedAt.push(template.updatedAt);
+    }
   }
 
   for (const block of blocks) {
@@ -216,36 +246,48 @@ export async function runImportBrazeTemplates(input: {
       automation: input.automation,
       projectId,
       client,
-      contentBlockId: block.content_block_id,
+      contentBlockId: block.id,
       name: block.name,
-      updatedAt: parseRemoteDate(block.last_edited),
+      updatedAt: block.updatedAt,
       sourceLocale: localeMapping.sourceSuffix,
       localeMapping,
       policy,
       workflowRunId: input.workflowRunId,
       existing: existingMappings.find(
-        (row) => row.resourceKind === "content_block" && row.sourceId === block.content_block_id,
+        (row) => row.resourceKind === "content_block" && row.sourceId === block.id,
       ),
     });
     applyOutcome(result, outcome);
+    if (outcome.failed) {
+      blockFailedUpdatedAt.push(block.updatedAt);
+    } else if (outcome.imported) {
+      blockSuccessUpdatedAt.push(block.updatedAt);
+    }
   }
 
-  const latestEmail = maxDate(templates.map((item) => parseRemoteDate(item.updated_at)));
-  const latestBlock = maxDate(blocks.map((item) => parseRemoteDate(item.last_edited)));
+  const emailWatermarkUpdatedAt = nextBrazeWatermark({
+    previous: cursor?.emailWatermarkUpdatedAt,
+    successUpdatedAt: emailSuccessUpdatedAt,
+    failedUpdatedAt: emailFailedUpdatedAt,
+  });
+  const contentBlockWatermarkUpdatedAt = nextBrazeWatermark({
+    previous: cursor?.contentBlockWatermarkUpdatedAt,
+    successUpdatedAt: blockSuccessUpdatedAt,
+    failedUpdatedAt: blockFailedUpdatedAt,
+  });
   await db
     .insert(schema.brazeSyncCursors)
     .values({
       automationId: input.automation.id,
       organizationId: input.organizationId,
-      emailWatermarkUpdatedAt: latestEmail ?? cursor?.emailWatermarkUpdatedAt ?? null,
-      contentBlockWatermarkUpdatedAt: latestBlock ?? cursor?.contentBlockWatermarkUpdatedAt ?? null,
+      emailWatermarkUpdatedAt,
+      contentBlockWatermarkUpdatedAt,
     })
     .onConflictDoUpdate({
       target: schema.brazeSyncCursors.automationId,
       set: {
-        emailWatermarkUpdatedAt: latestEmail ?? cursor?.emailWatermarkUpdatedAt ?? null,
-        contentBlockWatermarkUpdatedAt:
-          latestBlock ?? cursor?.contentBlockWatermarkUpdatedAt ?? null,
+        emailWatermarkUpdatedAt,
+        contentBlockWatermarkUpdatedAt,
         updatedAt: new Date(),
       },
     });
@@ -281,19 +323,6 @@ function applyOutcome(
   result.translationsImported += outcome.translationsImported;
   result.translationsSkipped += outcome.translationsSkipped;
   result.translationsFailed += outcome.translationsFailed;
-}
-
-function maxDate(values: Array<Date | null>): Date | null {
-  let latest: Date | null = null;
-  for (const value of values) {
-    if (!value) {
-      continue;
-    }
-    if (!latest || value.getTime() > latest.getTime()) {
-      latest = value;
-    }
-  }
-  return latest;
 }
 
 async function importEmailTemplate(input: {

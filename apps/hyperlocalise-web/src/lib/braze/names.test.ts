@@ -21,6 +21,7 @@ import {
 
 describe("braze names", () => {
   it("builds locale-suffixed email copy names without touching the source", () => {
+    expect(brazeEmailCopyName("Welcome email", "fr-FR")).toBe("Welcome email_fr-FR");
     expect(brazeEmailCopyName("Welcome email", "fr")).toBe("Welcome email_fr");
   });
 

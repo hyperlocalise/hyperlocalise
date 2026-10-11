@@ -24,7 +24,8 @@ describe("braze locale", () => {
     expect(resolveBrazeLocaleSuffix("en-US")).toBe("en-US");
     expect(resolveBrazeLocaleSuffix("en-GB")).toBe("en-GB");
     expect(resolveBrazeLocaleSuffix("pt-BR")).toBe("pt-BR");
-    expect(resolveBrazeLocaleSuffix("fr-FR")).toBe("fr");
+    expect(resolveBrazeLocaleSuffix("fr-FR")).toBe("fr-FR");
+    expect(resolveBrazeLocaleSuffix("fr")).toBe("fr");
   });
 
   it("rejects locked source locale mismatches", () => {
@@ -38,11 +39,11 @@ describe("braze locale", () => {
       projectTargetLocales: ["fr-FR", "pt-BR", "en"],
     });
     expect(mapped.jobTargetLocales).toEqual(["fr-FR", "pt-BR"]);
-    expect(mapped.brazeSuffixes).toEqual(["fr", "pt-BR"]);
+    expect(mapped.brazeSuffixes).toEqual(["fr-FR", "pt-BR"]);
   });
 
   it("detects locale-suffixed copy names", () => {
-    expect(isBrazeLocaleCopyName({ name: "Welcome_fr", suffixes: ["fr"] })).toBe(true);
-    expect(isBrazeLocaleCopyName({ name: "Welcome", suffixes: ["fr"] })).toBe(false);
+    expect(isBrazeLocaleCopyName({ name: "Welcome_fr-FR", suffixes: ["fr-FR"] })).toBe(true);
+    expect(isBrazeLocaleCopyName({ name: "Welcome", suffixes: ["fr-FR"] })).toBe(false);
   });
 });
