@@ -541,6 +541,19 @@ func TestRewriteHashedHTMLQueueKeysNoopsWithoutHashedKeys(t *testing.T) {
 	require.Equal(t, "html.body.p", got[0].Key)
 }
 
+func TestIsTrustedStoredFileURL(t *testing.T) {
+	trustedPath := "https://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"
+	trustedWorkspace := "https://cdn.example.com/organizations/org_1/workspace/files/abc123/home.html"
+
+	require.True(t, isTrustedStoredFileURL(trustedPath))
+	require.True(t, isTrustedStoredFileURL(trustedWorkspace))
+	require.False(t, isTrustedStoredFileURL("http://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL("https://evil.example/etc/passwd"))
+	require.False(t, isTrustedStoredFileURL("https:///organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL(":not-a-url"))
+	require.False(t, isTrustedStoredFileURL(""))
+}
+
 func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {
 	content := []byte("<html><body><h1>Welcome</h1><p>Hello world.</p></body></html>")
 	mapping := translationfileparser.LegacyHTMLKeyToPathKey(content)

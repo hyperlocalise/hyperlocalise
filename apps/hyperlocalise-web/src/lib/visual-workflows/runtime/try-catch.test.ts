@@ -411,6 +411,39 @@ describe("Try / Catch runtime", () => {
         error: { code: "cancelled", message: "Run cancelled." },
       }),
     ).toBe(false);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
+        error: { code: "yield_execution", message: "Yield to the next slice." },
+      }),
+    ).toBe(false);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
+        error: { code: "retry_backoff", message: "Wait before retrying." },
+      }),
+    ).toBe(false);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
+        error: { code: "wait_suspended", message: "Wait is still open." },
+      }),
+    ).toBe(false);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
+        error: { code: "merge_suspended", message: "Merge is still open." },
+      }),
+    ).toBe(false);
+    expect(
+      shouldReuseTryCatchBodyFailure("failed", {
+        ok: false,
+        error: { message: "missing code" },
+      }),
+    ).toBe(true);
+    expect(shouldReuseTryCatchBodyFailure("succeeded", { ok: true, output: {} })).toBe(false);
+    expect(shouldReuseTryCatchBodyFailure("failed", { ok: true, output: {} })).toBe(false);
+    expect(shouldReuseTryCatchBodyFailure("failed", null)).toBe(false);
   });
 
   it.each(["cancelled", "needs_attention"])("does not swallow %s", async (code) => {
