@@ -125,7 +125,7 @@ export function useContentEditorWorkspaceRuntime({
   const onAskQuestion = reviewOverrides?.onAskQuestion;
 
   const canLookupContext = Boolean(lookupSegmentContext) && canLookupFreshContext;
-  const canLoadVisualContext = Boolean(lookupSegmentVisualContext && store.providerKind);
+  const canLoadVisualContext = Boolean(lookupSegmentVisualContext);
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
   const queueView = useMemo(
     () => computed(() => store.getQueuePanelSegments(queueFilter, usesServerQueueFilter)),

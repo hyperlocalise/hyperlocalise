@@ -204,7 +204,7 @@ export class ContentEditorIntelligenceController {
         .catch(() => undefined);
     }
 
-    if (!lookupSegmentVisualContext || !this.workspace.providerKind) {
+    if (!lookupSegmentVisualContext) {
       return;
     }
     if (this.workspace.segmentIntelligence[segmentId]?.visualContext) {
