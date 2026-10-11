@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { MessageFormat } from "@/lib/i18n/message-format";
+
 export const translationQaCheckTypes = [
   "not_localized",
   "whitespace_only",
@@ -58,6 +60,7 @@ export type TranslationQaSegmentInput = {
   maxLength?: number | null;
   targetLocale: string;
   glossaryTerms?: readonly TranslationQaGlossaryTerm[];
+  messageFormat?: MessageFormat | null;
 };
 
 export type TranslationQaCheck = {

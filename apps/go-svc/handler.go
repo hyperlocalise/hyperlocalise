@@ -45,6 +45,7 @@ type validateSegmentRequest struct {
 	Modes         []string `json:"modes,omitempty"`
 	TargetLocale  string   `json:"targetLocale,omitempty"`
 	AcceptedWords []string `json:"acceptedWords,omitempty"`
+	MessageFormat string   `json:"messageFormat,omitempty"`
 }
 
 type validateSegmentResponse struct {

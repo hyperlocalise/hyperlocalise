@@ -103,3 +103,16 @@ func TestParseInvariantI18nextPlaceholders(t *testing.T) {
 		})
 	}
 }
+
+func TestParseInvariantStrictICURejectsInterpolation(t *testing.T) {
+	if _, err := ParseInvariantWithOptions("Hello {{name}}", InvariantOptions{StrictICU: true}); err == nil {
+		t.Fatal("expected strict ICU parse error for {{name}}")
+	}
+	inv, err := ParseInvariantWithOptions("Hello {name}", InvariantOptions{StrictICU: true})
+	if err != nil {
+		t.Fatalf("strict ICU parse error = %v", err)
+	}
+	if !SamePlaceholderSet(inv.Placeholders, []string{"name"}) {
+		t.Errorf("placeholders = %v, want [name]", inv.Placeholders)
+	}
+}

@@ -13,6 +13,7 @@
 import { and, asc, count, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import type { TranslationQaScanQueue } from "@/lib/workflow/types";
@@ -44,6 +45,7 @@ type QaScanKeyRow = {
   sourceText: string;
   maxLength: number | null;
   sourcePath: string | null;
+  messageFormat: MessageFormat | null;
 };
 
 type NativeQaProject = {
@@ -231,6 +233,7 @@ export async function scanTranslationQaPage(input: {
       sourceText: schema.projectTranslationKeys.sourceText,
       maxLength: schema.projectTranslationKeys.maxLength,
       sourcePath: schema.repositorySourceFiles.sourcePath,
+      messageFormat: schema.repositorySourceFiles.messageFormat,
     })
     .from(schema.projectTranslationKeys)
     .leftJoin(
@@ -353,9 +356,14 @@ export async function scanTranslationQaPage(input: {
       "QA CLI is not available in sandbox",
     );
     const fallbackStartedAt = Date.now();
-    results = await mapWithConcurrency(segments, 8, async (segment) => {
+    const fallbackSegments = segments.map((segment, index) => ({
+      ...segment,
+      glossaryTerms,
+      messageFormat: requests[index]?.key.messageFormat ?? null,
+    }));
+    results = await mapWithConcurrency(fallbackSegments, 8, async (segment) => {
       const { checks, skippedChecks } = await validateScanSegment(
-        { ...segment, glossaryTerms },
+        segment,
         acceptedWordsByLocale.get(normalizeQaSpellcheckLocale(segment.targetLocale)) ?? [],
         policy,
       );

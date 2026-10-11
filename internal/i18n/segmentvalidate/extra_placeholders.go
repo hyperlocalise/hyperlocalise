@@ -32,8 +32,15 @@ var ExtraPlaceholderPattern = regexp.MustCompile(
 )
 
 func extractExtraPlaceholders(text string) []string {
-	interpolations := extractInterpolationPlaceholderLiterals(text)
+	return extractExtraPlaceholdersFor(MessageFormatAuto, text)
+}
+
+func extractExtraPlaceholdersFor(format MessageFormat, text string) []string {
 	classic := extractClassicExtraPlaceholders(text)
+	if !format.parsesInterpolations() {
+		return withoutI18nextNesting(classic)
+	}
+	interpolations := extractInterpolationPlaceholderLiterals(text)
 	if len(interpolations) == 0 {
 		return classic
 	}
@@ -42,6 +49,22 @@ func extractExtraPlaceholders(text string) []string {
 	}
 	out := append(interpolations, classic...)
 	slices.Sort(out)
+	return out
+}
+
+func withoutI18nextNesting(placeholders []string) []string {
+	if len(placeholders) == 0 {
+		return placeholders
+	}
+	out := placeholders[:0]
+	for _, placeholder := range placeholders {
+		if !strings.HasPrefix(placeholder, "$t(") {
+			out = append(out, placeholder)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 
@@ -162,11 +185,11 @@ func ValidateExtraPlaceholderParity(source, translated string) error {
 }
 
 func validateExtraPlaceholderParity(source, translated string) error {
-	_, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	_, err := validateExtraPlaceholderParityWithTokens(MessageFormatAuto, source, translated)
 	return err
 }
 
-func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, error) {
+func validateExtraPlaceholderParityWithTokens(format MessageFormat, source, translated string) (bool, error) {
 	// BOLT OPTIMIZATION: Dual-string fast-path when neither source nor translated contains
 	// placeholder signal characters (%, $, or mustache/i18next "{{").
 	if !strings.ContainsAny(source, "%$") &&
@@ -175,8 +198,8 @@ func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, 
 		!strings.Contains(translated, "{{") {
 		return false, nil
 	}
-	expected := extractExtraPlaceholders(source)
-	got := extractExtraPlaceholders(translated)
+	expected := extractExtraPlaceholdersFor(format, source)
+	got := extractExtraPlaceholdersFor(format, translated)
 	if stringSlicesEqual(expected, got) {
 		return len(expected) > 0, nil
 	}

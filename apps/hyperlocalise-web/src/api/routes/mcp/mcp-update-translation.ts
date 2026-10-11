@@ -20,6 +20,7 @@ import {
   getNativeProjectContentEditorSegmentDetail,
   saveNativeProjectContentEditorTranslation,
 } from "@/lib/projects/content-editor/native-content-editor-service";
+import { getRepositorySourceFileMessageFormat } from "@/lib/projects/files/source-file-message-format";
 
 export type McpUpdateTranslationDetail = {
   id: string;
@@ -94,9 +95,14 @@ export async function updateMcpTranslation(input: {
     };
   }
 
+  const messageFormat = await getRepositorySourceFileMessageFormat({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: detail.segment.sourcePath,
+  });
   const formatIssues = compareCatMessageFormats(
-    analyzeCatMessageFormat(detail.segment.sourceText),
-    analyzeCatMessageFormat(input.targetText),
+    analyzeCatMessageFormat(detail.segment.sourceText, { messageFormat }),
+    analyzeCatMessageFormat(input.targetText, { messageFormat }),
   ).filter((issue) => issue.kind !== "extra-token");
 
   if (formatIssues.length > 0) {

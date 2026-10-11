@@ -37,6 +37,7 @@ import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
 import type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 
 export type { RepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
 export { defaultRepositorySourceFileSegmentationSettings } from "@/lib/projects/files/source-file-segmentation-schema";
@@ -129,6 +130,8 @@ export const repositorySourceFiles = pgTable(
       .$type<RepositorySourceFileSegmentationSettings>()
       .notNull()
       .default(sql`'{"enabled":false,"template":"default"}'::jsonb`),
+    /** Placeholder syntax used by validation: auto, icu, or i18next. */
+    messageFormat: text("message_format").$type<MessageFormat>().notNull().default("auto"),
     reconciledSourceFileVersionId: uuid("reconciled_source_file_version_id").references(
       (): AnyPgColumn => repositorySourceFileVersions.id,
       { onDelete: "set null" },

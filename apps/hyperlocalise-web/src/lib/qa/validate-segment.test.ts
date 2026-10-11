@@ -41,6 +41,32 @@ describe("validateTranslationSegment", () => {
     expect(checks.map((check) => check.checkType)).toEqual(["not_localized", "whitespace_only"]);
   });
 
+  describe("messageFormat", () => {
+    const placeholderChecks = (
+      sourceText: string,
+      targetText: string,
+      messageFormat?: "auto" | "icu" | "i18next",
+    ) =>
+      validateTranslationSegment({ sourceText, targetText, targetLocale: "fr-FR", messageFormat })
+        .filter((check) => check.checkType === "placeholder_mismatch")
+        .flatMap((check) => check.relatedTokens);
+
+    it("checks single braces outside i18next mode", () => {
+      expect(placeholderChecks("Hi {name}", "Salut")).toEqual(["{name}"]);
+      expect(placeholderChecks("Hi {name}", "Salut", "icu")).toEqual(["{name}"]);
+    });
+
+    it("treats single braces as text in i18next mode", () => {
+      expect(placeholderChecks("Hi {name}", "Salut", "i18next")).toEqual([]);
+      expect(placeholderChecks("Hi {{name}}", "Salut", "i18next")).toEqual(["{{name}}"]);
+    });
+
+    it("treats i18next nesting as text in icu mode", () => {
+      expect(placeholderChecks("See $t(common.more)", "Voir")).toEqual(["$t(common.more)"]);
+      expect(placeholderChecks("See $t(common.more)", "Voir", "icu")).toEqual([]);
+    });
+  });
+
   it("warns when the target matches the source", () => {
     const checks = validateTranslationSegment({
       sourceText: "Save",

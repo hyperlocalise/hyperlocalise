@@ -86,6 +86,25 @@ describe("cat message format utilities", () => {
     ]);
   });
 
+  it("keeps i18next interpolations as ICU parse errors in icu mode", () => {
+    const analysis = analyzeCatMessageFormat("Hello {{name}}", { messageFormat: "icu" });
+
+    expect(analysis.parseError?.message).toBeTruthy();
+    expect(analysis.placeholders).toEqual([]);
+  });
+
+  it("treats single braces as text in i18next mode", () => {
+    const analysis = analyzeCatMessageFormat("{count, plural, one {#} other {#}} {{name}}", {
+      messageFormat: "i18next",
+    });
+
+    expect(analysis.parseError).toBeUndefined();
+    expect(analysis.icuBlocks).toEqual([]);
+    expect(analysis.placeholders).toEqual([
+      expect.objectContaining({ kind: "argument", name: "name", literal: "{{name}}" }),
+    ]);
+  });
+
   it("reports missing i18next interpolations", () => {
     const issues = compare("Hello {{name}}", "Bonjour");
 

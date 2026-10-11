@@ -349,21 +349,28 @@ func (api *editorCatAPI) saveTranslation(r *http.Request, actor editorCatActor, 
 		if lockedIDs[canonicalEditorCatID(occurrenceID)] {
 			continue
 		}
-		var occurrenceSourceText, occurrencePath string
+		var occurrenceSourceText, occurrencePath, occurrenceMessageFormat string
 		var occurrenceMaxLength *int
 		err = tx.QueryRow(r.Context(), `
-            select k.source_text, coalesce(f.source_path, $4), k.max_length
+            select k.source_text, coalesce(f.source_path, $4), k.max_length, coalesce(f.message_format, 'auto')
             from project_translation_keys k
             left join repository_source_files f on f.id=k.repository_source_file_id
                 and f.organization_id=k.organization_id and f.project_id=k.project_id
             where k.organization_id=$1 and k.project_id=$2 and k.id=$3`,
 			actor.organizationID, project.ID, occurrenceID, sourcePath,
-		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength)
+		).Scan(&occurrenceSourceText, &occurrencePath, &occurrenceMaxLength, &occurrenceMessageFormat)
 		if err != nil {
 			return nil, 0, err
 		}
 		if body.Group != nil {
-			if err = editorCatValidateTargetText(occurrenceSourceText, occurrencePath, body.Text, targetLocale, occurrenceMaxLength); err != nil {
+			if err = editorCatValidateTargetText(editorCatValidationInput{
+				sourceText:    occurrenceSourceText,
+				sourcePath:    occurrencePath,
+				targetText:    body.Text,
+				targetLocale:  targetLocale,
+				maxLength:     occurrenceMaxLength,
+				messageFormat: occurrenceMessageFormat,
+			}); err != nil {
 				return nil, 0, err
 			}
 		}

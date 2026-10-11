@@ -1,0 +1,1 @@
+ALTER TABLE "repository_source_files" ADD COLUMN "message_format" text DEFAULT 'auto' NOT NULL;

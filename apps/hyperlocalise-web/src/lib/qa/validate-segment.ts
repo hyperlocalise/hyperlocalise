@@ -16,6 +16,12 @@ import {
   extractInterpolationPlaceholders,
   maskInterpolationPlaceholders,
 } from "@/lib/i18n/interpolation-placeholders";
+import {
+  type MessageFormat,
+  messageFormatParsesIcu,
+  messageFormatParsesInterpolations,
+  normalizeMessageFormat,
+} from "@/lib/i18n/message-format";
 
 import { countRunes } from "./count-runes";
 import type {
@@ -25,13 +31,20 @@ import type {
 } from "./types";
 
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
+const PRINTF_PLACEHOLDER_PATTERN = /%\d*\$?[sd]|%\w+/gu;
 
-function collectPlaceholders(value: string) {
+function collectPlaceholders(value: string, format: MessageFormat) {
+  const classicPattern = messageFormatParsesIcu(format)
+    ? PLACEHOLDER_PATTERN
+    : PRINTF_PLACEHOLDER_PATTERN;
+  if (!messageFormatParsesInterpolations(format)) {
+    return [...value.matchAll(classicPattern)].map((match) => match[0]!);
+  }
   const interpolationSpans = extractInterpolationPlaceholders(value);
   const interpolations = interpolationSpans.map((span) => span.literal);
   const nesting = extractI18nextNestingPlaceholders(value);
   const remainder = maskInterpolationPlaceholders(value, interpolationSpans);
-  const classic = [...remainder.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]!);
+  const classic = [...remainder.matchAll(classicPattern)].map((match) => match[0]!);
   return [...interpolations, ...nesting, ...classic];
 }
 
@@ -291,9 +304,10 @@ export function validateTranslationSegment(input: TranslationQaSegmentInput): Tr
   }
 
   if (targetTrimmed !== "") {
+    const format = normalizeMessageFormat(input.messageFormat);
     const { absent, extra } = leftoverPlaceholders(
-      collectPlaceholders(source),
-      collectPlaceholders(target),
+      collectPlaceholders(source, format),
+      collectPlaceholders(target, format),
     );
     if (absent.length > 0 || extra.length > 0) {
       checks.push({

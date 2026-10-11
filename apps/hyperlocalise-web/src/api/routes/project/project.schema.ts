@@ -20,6 +20,7 @@ import {
   maxProjectTargetLocales,
   projectTargetLocalesSchema,
 } from "@/lib/i18n/locales";
+import { messageFormatSchema } from "@/lib/i18n/message-format";
 
 export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
@@ -598,6 +599,13 @@ export const updateProjectFileSegmentationBodySchema = z.object({
   segmentation: repositorySourceFileSegmentationSettingsSchema,
 });
 
+export const projectFileMessageFormatQuerySchema = projectFileSegmentationQuerySchema;
+
+export const updateProjectFileMessageFormatBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  messageFormat: messageFormatSchema,
+});
+
 export const projectFileSegmentationResponseSchema = z.object({
   segmentation: repositorySourceFileSegmentationSettingsSchema.extend({
     supportsSegmentation: z.boolean(),
@@ -852,6 +860,8 @@ export const projectFileCatSegmentSchema = z.object({
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */
   format: z.string().nullable().optional(),
+  /** Placeholder syntax of this segment's file (All Files mode). */
+  messageFormat: messageFormatSchema.optional(),
   externalResourceId: z.string().optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   /** Grouped queues only: identical source strings in scope, including this one. */
@@ -930,6 +940,8 @@ export const projectFileCatResponseSchema = z.object({
       .optional(),
     ingestState: sourceFileIngestStateSchema.optional(),
     ingestError: z.string().nullable().optional(),
+    /** Placeholder syntax for single-file queues. All Files queues set it per segment. */
+    messageFormat: messageFormatSchema.optional(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
   }),

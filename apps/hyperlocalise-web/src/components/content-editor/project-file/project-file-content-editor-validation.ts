@@ -21,6 +21,7 @@ import type {
   ContentEditorFormatCheckCategory,
 } from "@/components/content-editor/shared/types";
 import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { capResolvedSpellcheckWords } from "@/lib/spellcheck-dictionary/normalize-word";
 
@@ -86,6 +87,7 @@ export async function fetchCatSegmentValidation(
     sourcePath: string;
     targetLocale: string;
     maxLength?: number;
+    messageFormat?: MessageFormat | null;
     acceptedWords?: readonly string[];
     signal?: AbortSignal;
     intl: ContentEditorFormatMessageIntl;
@@ -120,6 +122,7 @@ export async function fetchCatSegmentValidation(
             ...(input.maxLength != null && input.maxLength > 0
               ? { maxLength: input.maxLength }
               : {}),
+            ...(input.messageFormat ? { messageFormat: input.messageFormat } : {}),
             ...(targetLocale ? { targetLocale } : {}),
             ...(input.acceptedWords && input.acceptedWords.length > 0
               ? { acceptedWords: capResolvedSpellcheckWords(input.acceptedWords) }

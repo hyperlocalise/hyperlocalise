@@ -136,6 +136,10 @@ import {
   getRepositorySourceFileSegmentation,
   updateRepositorySourceFileSegmentation,
 } from "@/lib/projects/files/source-file-segmentation";
+import {
+  getRepositorySourceFileMessageFormat,
+  updateRepositorySourceFileMessageFormat,
+} from "@/lib/projects/files/source-file-message-format";
 import { localizeAndStoreDocumentVariant } from "@/lib/projects/files/document-variant-service";
 import {
   localizeAndStoreImageVariant,
@@ -210,6 +214,8 @@ import {
   projectFileDetailQuerySchema,
   projectFileSegmentationQuerySchema,
   updateProjectFileSegmentationBodySchema,
+  projectFileMessageFormatQuerySchema,
+  updateProjectFileMessageFormatBodySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFileTranslationImportBodySchema,
@@ -648,6 +654,26 @@ const validateProjectFileSegmentationQuery = validator("query", (value, c) => {
 
 const validateUpdateProjectFileSegmentationBody = validator("json", (value, c) => {
   const parsed = updateProjectFileSegmentationBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileMessageFormatQuery = validator("query", (value, c) => {
+  const parsed = projectFileMessageFormatQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectFileMessageFormatBody = validator("json", (value, c) => {
+  const parsed = updateProjectFileMessageFormatBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -3390,6 +3416,77 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           },
           200,
         );
+      },
+    )
+    .get(
+      "/:projectId/files/message-format",
+      validateProjectParams,
+      validateProjectFileMessageFormatQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "message_format_not_supported",
+            "Message format settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const messageFormat = await getRepositorySourceFileMessageFormat({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!messageFormat) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json({ messageFormat }, 200);
+      },
+    )
+    .patch(
+      "/:projectId/files/message-format",
+      validateProjectParams,
+      validateUpdateProjectFileMessageFormatBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind !== "native") {
+          return badRequestResponse(
+            c,
+            "message_format_not_supported",
+            "Message format settings apply to native workspace files only.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const messageFormat = await updateRepositorySourceFileMessageFormat({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+          messageFormat: body.messageFormat,
+        });
+        if (!messageFormat) {
+          return notFoundResponse(c, "source_file_not_found");
+        }
+
+        return c.json({ messageFormat }, 200);
       },
     )
     .post(

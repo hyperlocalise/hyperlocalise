@@ -30,6 +30,12 @@ import {
   extractInterpolationPlaceholders,
   maskInterpolationPlaceholders,
 } from "@/lib/i18n/interpolation-placeholders";
+import {
+  type MessageFormat,
+  messageFormatParsesIcu,
+  messageFormatParsesInterpolations,
+  normalizeMessageFormat,
+} from "@/lib/i18n/message-format";
 
 import { extractInternalMarkupSpans } from "./content-editor-internal-markup";
 
@@ -255,8 +261,22 @@ function icuBlockSummaries(tokens: ContentEditorMessageToken[]): ContentEditorIc
     }));
 }
 
-export function analyzeCatMessageFormat(message: string): ContentEditorMessageAnalysis {
+export function analyzeCatMessageFormat(
+  message: string,
+  options: { messageFormat?: MessageFormat | null } = {},
+): ContentEditorMessageAnalysis {
+  const format = normalizeMessageFormat(options.messageFormat);
   const markupTokens = markupTokensFromMessage(message);
+
+  if (!messageFormatParsesIcu(format)) {
+    const tokens = mergeMessageTokens(markupTokens, interpolationTokensFromMessage(message));
+    return {
+      message,
+      tokens,
+      placeholders: placeholderTokens(tokens),
+      icuBlocks: [],
+    };
+  }
 
   try {
     const tokens = mergeMessageTokens(markupTokens, analyzeIcuMessageTokens(message));
@@ -267,7 +287,9 @@ export function analyzeCatMessageFormat(message: string): ContentEditorMessageAn
       icuBlocks: icuBlockSummaries(tokens),
     };
   } catch (error) {
-    const interpolationTokens = interpolationTokensFromMessage(message);
+    const interpolationTokens = messageFormatParsesInterpolations(format)
+      ? interpolationTokensFromMessage(message)
+      : [];
     if (interpolationTokens.length > 0) {
       try {
         const masked = maskInterpolationPlaceholders(
@@ -487,9 +509,13 @@ export function compareCatMessageFormats(
   return issues;
 }
 
-export function missingCatMessageTokens(sourceMessage: string, targetMessage: string) {
-  const source = analyzeCatMessageFormat(sourceMessage);
-  const target = analyzeCatMessageFormat(targetMessage);
+export function missingCatMessageTokens(
+  sourceMessage: string,
+  targetMessage: string,
+  options: { messageFormat?: MessageFormat | null } = {},
+) {
+  const source = analyzeCatMessageFormat(sourceMessage, options);
+  const target = analyzeCatMessageFormat(targetMessage, options);
   return missingCatMessageTokensFromAnalysis(source, target);
 }
 

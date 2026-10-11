@@ -33,6 +33,8 @@ type editorCatSegment struct {
 	LooksLikeImageURL *bool   `json:"looksLikeImageUrl,omitempty"`
 	LooksLikeVideoURL *bool   `json:"looksLikeVideoUrl,omitempty"`
 	SourcePath        *string `json:"sourcePath,omitempty"`
+	// Set in all-files queues, where segments come from files with different settings.
+	MessageFormat *string `json:"messageFormat,omitempty"`
 	// Set in grouped queues: identical source strings in scope, including this one.
 	OccurrenceCount *int `json:"occurrenceCount,omitempty"`
 	// Set on grouped rows with several occurrences. The least complete status among the
@@ -67,6 +69,7 @@ type editorCatQueueFile struct {
 	SourcePath                string                     `json:"sourcePath"`
 	Filename                  string                     `json:"filename"`
 	Provider                  any                        `json:"provider"`
+	MessageFormat             string                     `json:"messageFormat,omitempty"`
 	TargetLocale              string                     `json:"targetLocale"`
 	CanEditTranslations       bool                       `json:"canEditTranslations"`
 	Truncated                 bool                       `json:"truncated"`
@@ -258,6 +261,10 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 		return editorCatQueueFile{}, err
 	}
 	keys = api.rewriteHashedHTMLQueueKeys(r, actor, project, query.sourcePath, keys)
+	var messageFormat string
+	if err := api.pool.QueryRow(r.Context(), `select message_format from repository_source_files where id=$1`, sourceFileID).Scan(&messageFormat); err != nil {
+		return editorCatQueueFile{}, err
+	}
 	pagination := editorCatPagination{
 		Offset:        query.offset,
 		Limit:         query.limit,
@@ -269,6 +276,7 @@ func (api *editorCatAPI) loadTextFileQueue(r *http.Request, actor editorCatActor
 		SourcePath:          query.sourcePath,
 		Filename:            filenameFromSourcePath(query.sourcePath),
 		Provider:            nil,
+		MessageFormat:       messageFormat,
 		TargetLocale:        query.targetLocale,
 		CanEditTranslations: actor.canEdit(),
 		Truncated:           pagination.HasMore,
@@ -506,7 +514,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 	listArgs = append(listArgs, query.limit, query.offset)
 	selectCols := `k.id, k.key, k.source_text, k.context, k.type, k.max_length, k.metadata, k.is_hidden`
 	if includeSourcePath {
-		selectCols += `, f.source_path`
+		selectCols += `, f.source_path, f.message_format`
 	}
 	limitN := strconv.Itoa(len(listArgs) - 1)
 	offsetN := strconv.Itoa(len(listArgs))
@@ -551,11 +559,11 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		var maxLength *int
 		var metadata []byte
 		var hidden bool
-		var sourcePath *string
+		var sourcePath, messageFormat *string
 		var occurrenceCount int
 		dest := []any{&segment.ExternalStringID, &segment.Key, &segment.SourceText, &context, &keyType, &maxLength, &metadata, &hidden}
 		if includeSourcePath {
-			dest = append(dest, &sourcePath)
+			dest = append(dest, &sourcePath, &messageFormat)
 		}
 		if query.grouped {
 			dest = append(dest, &occurrenceCount)
@@ -590,6 +598,7 @@ func (api *editorCatAPI) listKeys(r *http.Request, actor editorCatActor, project
 		}
 		if includeSourcePath && sourcePath != nil {
 			segment.SourcePath = sourcePath
+			segment.MessageFormat = messageFormat
 		}
 		segments = append(segments, segment)
 	}
