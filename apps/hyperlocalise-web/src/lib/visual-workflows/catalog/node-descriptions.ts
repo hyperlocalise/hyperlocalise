@@ -62,6 +62,10 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
     title: "Sequence",
     purpose: "Dispatch execution paths in a configured order.",
   },
+  "logic.try_catch": {
+    title: "Try / Catch",
+    purpose: "Handle failures from a bounded execution region.",
+  },
   "flow.call_workflow": {
     title: "Call workflow",
     purpose: "Run a published version of another workflow and use what it returns.",

@@ -142,7 +142,7 @@ describe("createScriptedAutomationAssistantApi", () => {
       saved: { automationId: "automation-1", messages: saved.messages },
     });
 
-    const found = await api.findAssistantSession("acme", "automation-1");
+    const found = await api.findAssistantSession("acme", { automationId: "automation-1" });
 
     expect(found.messages).toHaveLength(4);
     expect(saved.form.name).toBe("Competitor news brief");

@@ -29,6 +29,7 @@ import {
   AssistantTurnInProgressError,
   type AssistantMessage,
   type AssistantSession,
+  type AssistantSessionKey,
   type AutomationAssistantApi,
 } from "./automation-assistant-api";
 
@@ -419,6 +420,7 @@ export function createScriptedAutomationAssistantApi(
       session: {
         id: crypto.randomUUID(),
         automationId,
+        visualWorkflowId: null,
         title: "Automation assistant",
         turnInProgress: false,
         createdAt: now,
@@ -436,16 +438,22 @@ export function createScriptedAutomationAssistantApi(
     addSession(options.saved.automationId, options.saved.messages);
   }
 
-  const findByAutomation = (automationId: string) =>
-    [...sessions.values()].find((stored) => stored.session.automationId === automationId);
+  // The scripts set up an automation's form, so only an automation has a session here.
+  const automationIdOf = (key: AssistantSessionKey | null) =>
+    key && "automationId" in key ? key.automationId : null;
+  const findByAutomation = (automationId: string | null) =>
+    automationId
+      ? [...sessions.values()].find((stored) => stored.session.automationId === automationId)
+      : undefined;
 
   return {
-    createAssistantSession: async (_organizationSlug, automationId) =>
-      (automationId ? findByAutomation(automationId) : undefined)?.session ??
-      addSession(automationId, []).session,
+    createAssistantSession: async (_organizationSlug, key) => {
+      const automationId = automationIdOf(key);
+      return findByAutomation(automationId)?.session ?? addSession(automationId, []).session;
+    },
 
-    findAssistantSession: async (_organizationSlug, automationId) => {
-      const stored = findByAutomation(automationId);
+    findAssistantSession: async (_organizationSlug, key) => {
+      const stored = findByAutomation(automationIdOf(key));
       return { session: stored?.session ?? null, messages: stored?.messages ?? [] };
     },
 
@@ -462,6 +470,9 @@ export function createScriptedAutomationAssistantApi(
       const stored = sessions.get(sessionId);
       if (!stored) {
         throw new Error("session_not_found");
+      }
+      if (pageContext.kind !== "automation-editor") {
+        throw new Error("unsupported_editor");
       }
       if (options.failure) {
         await wait(pace.thinkingMs, signal);
