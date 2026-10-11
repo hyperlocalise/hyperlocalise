@@ -246,6 +246,54 @@ describe("pipesRoutes", () => {
     expect(mocks.createPipesAuthorizeUrl).not.toHaveBeenCalled();
   });
 
+  it("returns the current user's Pipes connection status for Braze", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "braze" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      pipe: {
+        provider: "braze",
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "wxyz",
+      },
+    });
+  });
+
+  it("clears Braze cluster settings when disconnecting Braze", async () => {
+    const { upsertBrazeConnectionSettings, getBrazeConnectionSettings } =
+      await import("@/lib/braze/settings");
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const localOrganizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const workosUserId = identity.user.workosUserId;
+
+    const saved = await upsertBrazeConnectionSettings({
+      localOrganizationId,
+      workosUserId,
+      restEndpoint: "iad-03",
+    });
+    expect(saved.ok).toBe(true);
+
+    const response = await client.api.orgs[":organizationSlug"].pipes[":provider"].$delete(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "", provider: "braze" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    expect(await getBrazeConnectionSettings({ localOrganizationId, workosUserId })).toBeNull();
+  });
+
   it("disconnects a Pipes provider for an admin", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

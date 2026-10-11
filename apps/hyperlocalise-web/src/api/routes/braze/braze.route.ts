@@ -1,0 +1,137 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { Hono } from "hono";
+import { validator } from "hono/validator";
+
+import { hasCapability } from "@/api/auth/policy";
+import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import {
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+import { getBrazePipesConnectionStatus } from "@/lib/braze/pipes";
+import {
+  deleteBrazeConnectionSettings,
+  getBrazeConnectionSettings,
+  upsertBrazeConnectionSettings,
+} from "@/lib/braze/settings";
+import type { BrazePipesError } from "@/lib/braze/types";
+import { isErr } from "@/lib/primitives/result/results";
+
+import { upsertBrazeConnectionBodySchema } from "./braze.schema";
+
+function canReadBraze(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "integrations:read");
+}
+
+function canWriteBraze(role: AuthVariables["auth"]["membership"]["role"]) {
+  return hasCapability(role, "integrations:write");
+}
+
+function mapBrazePipesError(c: Parameters<typeof badRequestResponse>[0], error: BrazePipesError) {
+  if (error.code === "braze_pipes_unavailable") {
+    return serviceUnavailableResponse(c, error.code, error.message);
+  }
+  return notFoundResponse(c, error.code, error.message);
+}
+
+const validateUpsertBody = validator("json", (value, c) => {
+  const parsed = upsertBrazeConnectionBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_braze_endpoint",
+      "Choose a Braze REST cluster from the allowlisted instances.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+export function createBrazeRoutes() {
+  return new Hono<{ Variables: AuthVariables }>()
+    .use("*", workosAuthMiddleware)
+    .get("/", async (c) => {
+      if (!canReadBraze(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const localOrganizationId = c.var.auth.organization.localOrganizationId;
+      const workosUserId = c.var.auth.user.workosUserId;
+      const statusResult = await getBrazePipesConnectionStatus({
+        localOrganizationId,
+        workosUserId,
+      });
+      if (isErr(statusResult)) {
+        return mapBrazePipesError(c, statusResult.error);
+      }
+
+      if (!statusResult.value.connected) {
+        await deleteBrazeConnectionSettings({ localOrganizationId, workosUserId });
+        return c.json({ braze: null }, 200);
+      }
+
+      const settings = await getBrazeConnectionSettings({
+        localOrganizationId,
+        workosUserId,
+      });
+      return c.json({ braze: settings }, 200);
+    })
+    .put("/", validateUpsertBody, async (c) => {
+      if (!canWriteBraze(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const localOrganizationId = c.var.auth.organization.localOrganizationId;
+      const workosUserId = c.var.auth.user.workosUserId;
+      const statusResult = await getBrazePipesConnectionStatus({
+        localOrganizationId,
+        workosUserId,
+      });
+      if (isErr(statusResult)) {
+        return mapBrazePipesError(c, statusResult.error);
+      }
+      if (!statusResult.value.connected) {
+        return notFoundResponse(
+          c,
+          "braze_not_connected",
+          "Connect Braze in Integrations before saving a REST cluster.",
+        );
+      }
+
+      const { restEndpoint } = c.req.valid("json");
+      const result = await upsertBrazeConnectionSettings({
+        localOrganizationId,
+        workosUserId,
+        restEndpoint,
+      });
+      if (isErr(result)) {
+        return badRequestResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ braze: result.value }, 200);
+    })
+    .delete("/", async (c) => {
+      if (!canWriteBraze(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      await deleteBrazeConnectionSettings({
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+      });
+      return c.body(null, 204);
+    });
+}

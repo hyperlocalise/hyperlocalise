@@ -101,6 +101,12 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/ahrefs-connections", () =>
       HttpResponse.json({ ahrefsConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/braze", () => HttpResponse.json({ braze: null })),
+    http.put("/api/orgs/:organizationSlug/braze", async ({ request }) => {
+      const body = (await request.json()) as { restEndpoint?: string };
+      return HttpResponse.json({ braze: { restEndpoint: body.restEndpoint ?? "iad-03" } });
+    }),
+    http.delete("/api/orgs/:organizationSlug/braze", () => new HttpResponse(null, { status: 204 })),
     http.get("/api/orgs/:organizationSlug/pipes/:provider", ({ params }) =>
       HttpResponse.json({
         pipe: {
@@ -231,6 +237,10 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/ahrefs-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ ahrefsConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/braze", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ braze: null });
   }),
   http.get("/api/orgs/:organizationSlug/pipes/:provider", async () => {
     await delay("infinite");
