@@ -37,6 +37,7 @@ const { enqueueActivityLogEventMock, resolveApiAuthContextFromSessionMock } = vi
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
