@@ -21,16 +21,17 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { listBrazeLibraryForPicker } from "@/lib/braze/list-library";
 import { getBrazePipesConnectionStatus, saveBrazePipesApiKey } from "@/lib/braze/pipes";
 import {
   deleteBrazeConnectionSettings,
   getBrazeConnectionSettings,
   upsertBrazeConnectionSettings,
 } from "@/lib/braze/settings";
-import type { BrazePipesError } from "@/lib/braze/types";
+import type { BrazePipesError, BrazeSettingsError } from "@/lib/braze/types";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { upsertBrazeConnectionBodySchema } from "./braze.schema";
+import { brazeLibraryQuerySchema, upsertBrazeConnectionBodySchema } from "./braze.schema";
 
 function canReadBraze(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
@@ -40,11 +41,17 @@ function canWriteBraze(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:write");
 }
 
-function mapBrazePipesError(c: Parameters<typeof badRequestResponse>[0], error: BrazePipesError) {
+function mapBrazePipesError(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: BrazePipesError | BrazeSettingsError,
+) {
   if (error.code === "braze_pipes_unavailable") {
     return serviceUnavailableResponse(c, error.code, error.message);
   }
   if (error.code === "braze_api_key_required") {
+    return badRequestResponse(c, error.code, error.message);
+  }
+  if (error.code === "braze_endpoint_missing" || error.code === "braze_endpoint_invalid") {
     return badRequestResponse(c, error.code, error.message);
   }
   return notFoundResponse(c, error.code, error.message);
@@ -59,6 +66,14 @@ const validateUpsertBody = validator("json", (value, c) => {
       "Choose a Braze REST cluster from the allowlisted instances.",
       parsed.error.flatten(),
     );
+  }
+  return parsed.data;
+});
+
+const validateLibraryQuery = validator("query", (value, c) => {
+  const parsed = brazeLibraryQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_query_params", "Query parameters are invalid.");
   }
   return parsed.data;
 });
@@ -91,6 +106,22 @@ export function createBrazeRoutes() {
         workosUserId,
       });
       return c.json({ braze: settings }, 200);
+    })
+    .get("/library", validateLibraryQuery, async (c) => {
+      if (!canReadBraze(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const library = await listBrazeLibraryForPicker({
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
+        projectId: c.req.valid("query").projectId,
+      });
+      if (isErr(library)) {
+        return mapBrazePipesError(c, library.error);
+      }
+
+      return c.json(library.value, 200);
     })
     .put("/", validateUpsertBody, async (c) => {
       if (!canWriteBraze(c.var.auth.membership.role)) {

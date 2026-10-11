@@ -24,6 +24,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_braze_templates",
+  "push_braze_templates",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -220,6 +222,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-braze-email-templates",
+    name: "Translate Braze Email Templates",
+    category: "translate",
+    description:
+      "Import Braze email templates and Content Blocks into a native project, translate HTML, and push locale-suffixed library copies.",
+    grants:
+      "Reads Braze templates through Pipes, writes HTML source files and native jobs. Push creates locale-suffixed copies and never changes the source template.",
+    tools: ["import_braze_templates", "push_braze_templates"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze", "email template", "content block"],
+      weak: ["template", "email", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -327,6 +345,7 @@ export type WorkspaceAutomationSkillIntegration =
   | "crowdin"
   | "contentful"
   | "intercom"
+  | "braze"
   | "slack"
   | "email";
 
@@ -340,6 +359,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   run_contentful_translation: "contentful",
   import_intercom_articles: "intercom",
   push_intercom_translations: "intercom",
+  import_braze_templates: "braze",
+  push_braze_templates: "braze",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -441,6 +462,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return Boolean(toolConfig.intercom?.enabled);
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return Boolean(toolConfig.braze?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

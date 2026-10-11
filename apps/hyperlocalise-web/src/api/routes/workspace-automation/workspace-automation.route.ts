@@ -46,12 +46,18 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
+  hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationIntercomTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  getBrazePushEligibility,
+  isBrazePushRunActive,
+  type BrazePushItem,
+} from "@/lib/braze/push-eligibility";
 import {
   getIntercomPushEligibility,
   isIntercomPushRunActive,
@@ -611,7 +617,26 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
-      return c.json({ automation, recentRuns, intercomPush }, 200);
+      let brazePush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: BrazePushItem[];
+      } | null = null;
+      if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {
+        const eligibility = await getBrazePushEligibility({
+          organizationId,
+          automation,
+        });
+        brazePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isBrazePushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      return c.json({ automation, recentRuns, intercomPush, brazePush }, 200);
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");

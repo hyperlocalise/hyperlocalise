@@ -9,6 +9,7 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | --- | --- |
 | GitHub repositories and events | [Connect GitHub](/platform/connections/github) |
 | Intercom Help Center articles | [Localize Intercom Help Center articles](/platform/connections/intercom) |
+| Braze email templates | [Localize Braze email templates](/platform/connections/braze) |
 | Canva and Figma translation | [Design tools](/platform/connections/design-tools) |
 | Repository files through CI | [Connect the CLI](/platform/cli) |
 | An AI agent working with Platform | [Hosted MCP server](/platform/mcp) |
@@ -36,11 +37,15 @@ Use **Use GitLab repo** in a manual or scheduled automation for repository analy
 
 Connect Intercom from **Integrations**, then create a scheduled or manual automation with the **Translate Intercom Help Center articles** skill. Import writes markdown source files into a native project. **Push to Intercom** writes Intercom drafts. It does not publish. See [Localize Intercom Help Center articles](/platform/connections/intercom).
 
+## Braze
+
+Connect Braze from **Integrations** with a REST API key and REST cluster, then create a scheduled or manual automation with the **Translate Braze Email Templates** skill. Import writes HTML source files into a native project. **Push to Braze** creates locale-suffixed library copies. It does not update the source template and does not publish. See [Localize Braze email templates](/platform/connections/braze).
+
 ## Other external services
 
 Use the provider’s **Connect** action in **Integrations**, complete authorization or supply the requested credential, then select that tool in your automation. Availability and actions differ by provider; a catalog entry does not guarantee content sync.
 
-For Ahrefs, connect the account and add the **Ahrefs** tool to the automation. For Zernio, save a valid API key, then select the **Zernio** tool and connection. For Braze, connect the API key and save the REST cluster from **Integrations**. Confirm the intended account and action before running tasks that publish or change external content.
+For Ahrefs, connect the account and add the **Ahrefs** tool to the automation. For Zernio, save a valid API key, then select the **Zernio** tool and connection. Confirm the intended account and action before running tasks that publish or change external content.
 
 ## MCP server connections
 

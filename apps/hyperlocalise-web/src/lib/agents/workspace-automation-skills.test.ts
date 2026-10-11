@@ -101,6 +101,15 @@ describe("workspace automation skills", () => {
     expect(listMissingWorkspaceAutomationSkillIntegrations(intercom, { intercom: true })).toEqual(
       [],
     );
+
+    const [braze] = resolveWorkspaceAutomationSkills(["translate-braze-email-templates"]);
+    if (!braze) {
+      throw new Error("missing skill");
+    }
+    expect(listMissingWorkspaceAutomationSkillIntegrations(braze, { braze: false })).toEqual([
+      "braze",
+    ]);
+    expect(listMissingWorkspaceAutomationSkillIntegrations(braze, { braze: true })).toEqual([]);
   });
 
   it("offers research, Crowdin and issue skills on every orchestrated trigger", () => {

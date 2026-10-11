@@ -131,6 +131,34 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-braze-email-templates",
+    category: "popular",
+    name: "Translate Braze Email Templates",
+    description:
+      "Import Braze email templates and Content Blocks as HTML, localise in Jobs, then push locale-suffixed library copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Braze email template localisation connector",
+      capabilities: [
+        "Import email templates and Content Blocks as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push copies automatically on import — operators enqueue Push to Braze separately",
+      ],
+      goal: "Keep Braze templates in sync for localisation and write approved locales as suffixed library copies without changing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-braze-email-templates"],
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -997,6 +1025,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.intercomEnabled) {
     tools.push({ id: "intercom", label: "Intercom" });
+  }
+
+  if (form.brazeEnabled) {
+    tools.push({ id: "braze", label: "Braze" });
   }
 
   if (form.createNativeTmsJobEnabled) {

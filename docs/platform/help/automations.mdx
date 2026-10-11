@@ -13,6 +13,7 @@ Open the automation’s **Run History** first. No run usually points to trigger 
 - For source uploads, check the selected project and confirm the upload completed.
 - For Contentful, check the configured webhook event and delivery in Contentful.
 - For Intercom Help Center import, confirm Intercom is connected, the Help Center and region are set, and the project locales map onto the Help Center locale codes. Exact tags match first; language-only aliases such as `en` ↔ `en-US` are supported when only one regional form is present. A schedule imports markdown articles. It does not push translations. **Push to Intercom** appears in the Content editor header after you approve every visible string for a mapped locale.
+- For Braze email template import, confirm Braze is connected, the REST cluster is saved, and the project locales map onto Braze copy suffixes. Exact tags match first; language-only aliases such as `fr-FR` → `fr` are supported when only one regional form is present. A schedule imports HTML templates and Content Blocks. It does not push copies. **Push to Braze** appears in the Content editor header after you approve at least one mapped locale.
 
 Test a single matching event after correcting the configuration. See [Create an automation](/platform/automation/create-automation).
 

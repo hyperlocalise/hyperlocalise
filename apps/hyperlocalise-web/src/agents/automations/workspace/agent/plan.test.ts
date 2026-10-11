@@ -158,6 +158,27 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["push_intercom_translations", "notify_slack"]);
   });
 
+  it("plans Braze push-only tools when operation is push_approved", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          braze: {
+            enabled: true,
+            sourceLocale: "en",
+            templateIds: [],
+            contentBlockIds: [],
+            existingTranslationPolicy: "seed_empty",
+            overwriteWhenRemoteNewer: true,
+          },
+        },
+      }),
+      { operation: "push_approved" },
+    );
+
+    expect(plan.tools).toEqual(["push_braze_templates"]);
+  });
+
   it("puts contentful before github when template skill targets contentful", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

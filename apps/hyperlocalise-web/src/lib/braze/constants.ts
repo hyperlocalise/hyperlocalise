@@ -92,3 +92,19 @@ export function brazeRestEndpointOptionLabel(restEndpoint: BrazeRestEndpoint): s
   const host = BRAZE_REST_ENDPOINT_BASE_URLS[restEndpoint].replace(/^https:\/\//, "");
   return `${BRAZE_REST_ENDPOINT_LABELS[restEndpoint]} · ${host}`;
 }
+
+/** Official Templates API list page size. Default 100, maximum 1000. */
+export const BRAZE_TEMPLATES_LIST_LIMIT = 100;
+export const BRAZE_TEMPLATES_LIST_MAX_LIMIT = 1000;
+
+/** `POST /templates/email/create` body HTML limit. */
+export const BRAZE_EMAIL_BODY_MAX_BYTES = 400 * 1024;
+
+/** `POST /content_blocks/create` content limit. */
+export const BRAZE_CONTENT_BLOCK_MAX_BYTES = 50 * 1024;
+
+export const BRAZE_CONTENT_BLOCK_NAME_MAX_LENGTH = 100;
+export const BRAZE_CONTENT_BLOCK_DESCRIPTION_MAX_LENGTH = 250;
+
+export const BRAZE_RESOURCE_KINDS = ["email_template", "content_block"] as const;
+export type BrazeResourceKind = (typeof BRAZE_RESOURCE_KINDS)[number];

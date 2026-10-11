@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { invalidateContentEditorBrazePushQueries } from "@/components/content-editor/page/content-editor-braze-push-queries";
 import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
 
 import { NativeTargetProvider } from "./content-editor-native-target-context";
@@ -645,6 +646,7 @@ export function ProjectFileContentEditorWorkspace({
               status: "approved",
             });
             invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+            invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
             return "reviewed" as const;
           } catch (error) {
             if (!isCatDeferredToApp(error)) {
@@ -667,6 +669,7 @@ export function ProjectFileContentEditorWorkspace({
           throw new Error(await readApiError(response, statusFallback));
         }
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed" as const;
       }
 
@@ -682,6 +685,7 @@ export function ProjectFileContentEditorWorkspace({
       });
       if (translation.isApproved) {
         invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+        invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
         return "reviewed";
       }
       return "needs_review";
@@ -709,6 +713,7 @@ export function ProjectFileContentEditorWorkspace({
   const handleBulkApproveComplete = useCallback(() => {
     void invalidateQueue();
     invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
+    invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
   }, [invalidateQueue, organizationSlug, projectId, queryClient]);
 
   const handleSaveDraft = useCallback(

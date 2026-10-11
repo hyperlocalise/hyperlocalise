@@ -18,3 +18,7 @@ export const upsertBrazeConnectionBodySchema = z.object({
   restEndpoint: z.enum(BRAZE_REST_ENDPOINTS),
   apiKey: z.string().optional(),
 });
+
+export const brazeLibraryQuerySchema = z.object({
+  projectId: z.string().trim().min(1).max(128).optional(),
+});

@@ -63,6 +63,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   notify_email: ["emailRecipients", "emailFrom"],
   import_intercom_articles: ["intercomHelpCenterId", "projectId"],
   push_intercom_translations: ["intercomHelpCenterId", "projectId"],
+  import_braze_templates: ["projectId"],
+  push_braze_templates: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -132,6 +134,12 @@ function enableSkillTool(
         ...form,
         intercomEnabled: true,
       };
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return {
+        ...form,
+        brazeEnabled: true,
+      };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
     case "assign_translate_with_agent":
@@ -184,6 +192,9 @@ function disableSkillTool(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return { ...form, intercomEnabled: false };
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return { ...form, brazeEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":
