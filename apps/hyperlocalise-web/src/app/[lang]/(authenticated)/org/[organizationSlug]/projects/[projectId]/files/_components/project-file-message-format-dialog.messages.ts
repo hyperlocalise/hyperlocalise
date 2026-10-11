@@ -71,7 +71,7 @@ export const projectFileMessageFormatDialogMessages = defineMessages({
   },
   retry: {
     defaultMessage: "Try again",
-    id: 'rlF044R+WV',
+    id: "rlF044R+WV",
     description: "Retry button after placeholder format failed to load",
   },
   saveFailed: {
