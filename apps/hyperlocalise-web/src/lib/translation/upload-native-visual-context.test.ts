@@ -96,6 +96,7 @@ describe("uploadNativeVisualContextScreenshot", () => {
       expect(createVisualContextScreenshot).toHaveBeenCalledWith("acme", "project-1", {
         filename: "checkout.png",
         contentType: "image/png",
+        byteSize: file.size,
         name: "checkout",
         sourcePath: "locales/en.json",
         externalStringId: "key-1",
@@ -104,7 +105,12 @@ describe("uploadNativeVisualContextScreenshot", () => {
         "https://objects.test/upload/shot.png",
         expect.objectContaining({ method: "PUT", body: file }),
       );
-      expect(finalizeVisualContextScreenshot).toHaveBeenCalledWith("acme", "project-1", "shot-1");
+      expect(finalizeVisualContextScreenshot).toHaveBeenCalledWith(
+        "acme",
+        "project-1",
+        "shot-1",
+        {},
+      );
       expect(result.screenshots).toHaveLength(1);
     } finally {
       globalThis.fetch = originalFetch;

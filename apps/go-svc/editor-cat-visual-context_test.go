@@ -3,12 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"image"
+	"image/png"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/HugoSmits86/nativewebp"
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/memory"
@@ -107,7 +111,7 @@ func TestEditorCatVisualContextUploadBindAndLookup(t *testing.T) {
 	require.Equal(t, http.MethodPut, created.Upload.Method)
 	require.Contains(t, created.Upload.URL, "visual-context/")
 
-	png := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 120)...)
+	png := mustVisualContextPNG(t, 2, 2)
 	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
 		Key:         strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/"),
 		Body:        bytes.NewReader(png),
@@ -163,7 +167,7 @@ func TestEditorCatVisualContextBindUnbindAndDelete(t *testing.T) {
 		} `json:"upload"`
 	}
 	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
-	payload := append([]byte("RIFF\x00\x00\x00\x00WEBP"), bytes.Repeat([]byte{0}, 116)...)
+	payload := mustVisualContextWebP(t, 2, 2)
 	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
 		Key:         strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/"),
 		Body:        bytes.NewReader(payload),
@@ -276,6 +280,49 @@ func TestEditorCatVisualContextFinalizeTooLargeCleansUp(t *testing.T) {
 	require.ErrorIs(t, err, objectstore.ErrNotFound)
 }
 
+func TestEditorCatVisualContextFinalizeInvalidImageCleansUp(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "admin")
+	api.objects = visualContextObjectRegistry(t)
+	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128}`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Screenshot struct {
+			ID string `json:"id"`
+		} `json:"screenshot"`
+		Upload struct {
+			URL string `json:"url"`
+		} `json:"upload"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+	objectKey := strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/")
+	payload := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 120)...)
+	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
+		Key:         objectKey,
+		Body:        bytes.NewReader(payload),
+		Size:        int64(len(payload)),
+		ContentType: "image/png",
+		IfAbsent:    true,
+	})
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots/"+created.Screenshot.ID+"/finalize"), `{}`)
+	require.Equal(t, http.StatusUnsupportedMediaType, rec.Code)
+	require.Contains(t, rec.Body.String(), "visual_context_upload_invalid_image")
+
+	var leftoverID string
+	err = scope.Pool.QueryRow(t.Context(), `
+        select id from project_visual_context_screenshots
+        where id=$1 and organization_id=$2 and project_id=$3`,
+		created.Screenshot.ID, scope.OrganizationID, scope.ProjectID,
+	).Scan(&leftoverID)
+	require.ErrorIs(t, err, pgx.ErrNoRows)
+
+	store, err := api.objects.Resolve("r2-primary")
+	require.NoError(t, err)
+	_, err = store.Stat(t.Context(), objectKey)
+	require.ErrorIs(t, err, objectstore.ErrNotFound)
+}
+
 func TestEditorCatVisualContextFinalizeMissingUpload(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	api.objects = visualContextObjectRegistry(t)
@@ -292,6 +339,18 @@ func TestEditorCatVisualContextFinalizeMissingUpload(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "visual_context_upload_missing")
 }
 
+func TestValidateVisualContextImage(t *testing.T) {
+	require.NoError(t, validateVisualContextImage(mustVisualContextPNG(t, 2, 2), "image/png"))
+	require.NoError(t, validateVisualContextImage(mustVisualContextWebP(t, 2, 2), "image/webp"))
+
+	truncatedPNG := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 120)...)
+	require.ErrorIs(t, validateVisualContextImage(truncatedPNG, "image/png"), errVisualContextInvalidImage)
+
+	require.ErrorIs(t, validateVisualContextImage(oversizedVisualContextWebP(8000, 8000), "image/webp"), errVisualContextInvalidImage)
+	require.ErrorIs(t, validateVisualContextImage(oversizedVisualContextWebP(20000, 20), "image/webp"), errVisualContextInvalidImage)
+	require.ErrorIs(t, validateVisualContextImage([]byte("not-an-image"), "image/jpeg"), errVisualContextInvalidImage)
+}
+
 func TestNormalizeVisualContextUpload(t *testing.T) {
 	filename, contentType, err := normalizeVisualContextUpload("Checkout Photo.PNG", "image/png")
 	require.NoError(t, err)
@@ -303,4 +362,38 @@ func TestNormalizeVisualContextUpload(t *testing.T) {
 
 	_, _, err = normalizeVisualContextUpload("shot.gif", "image/gif")
 	require.EqualError(t, err, "invalid_project_payload")
+}
+
+func mustVisualContextPNG(t *testing.T, width, height int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, width, height))))
+	return buf.Bytes()
+}
+
+func mustVisualContextWebP(t *testing.T, width, height int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	require.NoError(t, nativewebp.Encode(&buf, image.NewRGBA(image.Rect(0, 0, width, height)), nil))
+	return buf.Bytes()
+}
+
+func oversizedVisualContextWebP(width, height int) []byte {
+	payload := make([]byte, 10)
+	w := width - 1
+	h := height - 1
+	payload[4] = byte(w)
+	payload[5] = byte(w >> 8)
+	payload[6] = byte(w >> 16)
+	payload[7] = byte(h)
+	payload[8] = byte(h >> 8)
+	payload[9] = byte(h >> 16)
+	out := make([]byte, 30)
+	copy(out[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(out[4:8], 22)
+	copy(out[8:12], "WEBP")
+	copy(out[12:16], "VP8X")
+	binary.LittleEndian.PutUint32(out[16:20], 10)
+	copy(out[20:], payload)
+	return out
 }

@@ -6,6 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/image/webp"
 )
 
 const (
@@ -25,6 +29,9 @@ const (
 	visualContextMaxBytes       = 10 * 1024 * 1024
 	visualContextMaxFilenameLen = 255
 	visualContextMaxNameRunes   = 256
+	// Keep decoded allocation under ~100 MB (4 bytes/pixel) and within Textract's per-side cap.
+	visualContextMaxImagePixels = 25_000_000
+	visualContextMaxImageSide   = 10_000
 	// Pending rows older than this can no longer receive an upload; they are
 	// swept opportunistically because go-svc has no background scheduler.
 	visualContextStaleUploadAge   = visualContextUploadTTL + 45*time.Minute
@@ -371,35 +378,50 @@ func hashVisualContextUpload(r *http.Request, store objectstore.Store, key, cont
 		return "", err
 	}
 	defer func() { _ = body.Close() }()
-	limited := io.LimitReader(body, visualContextMaxBytes+1)
-	header := make([]byte, 12)
-	n, err := io.ReadFull(limited, header)
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+	data, err := io.ReadAll(io.LimitReader(body, visualContextMaxBytes+1))
+	if err != nil {
 		return "", err
 	}
-	header = header[:n]
-	if !visualContextImageSignatureMatches(header, contentType) {
+	if len(data) > visualContextMaxBytes {
 		return "", errVisualContextInvalidImage
 	}
-	sum := sha256.New()
-	_, _ = sum.Write(header)
-	if _, err := io.Copy(sum, limited); err != nil {
+	if err := validateVisualContextImage(data, contentType); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(sum.Sum(nil)), nil
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
-func visualContextImageSignatureMatches(header []byte, contentType string) bool {
+func validateVisualContextImage(data []byte, contentType string) error {
+	cfg, err := decodeVisualContextConfig(data, contentType)
+	if err != nil {
+		return errVisualContextInvalidImage
+	}
+	return rejectVisualContextImageSize(cfg.Width, cfg.Height)
+}
+
+func decodeVisualContextConfig(data []byte, contentType string) (image.Config, error) {
+	reader := bytes.NewReader(data)
 	switch contentType {
 	case "image/png":
-		return bytes.HasPrefix(header, []byte("\x89PNG\r\n\x1a\n"))
+		return png.DecodeConfig(reader)
 	case "image/jpeg":
-		return bytes.HasPrefix(header, []byte{0xff, 0xd8, 0xff})
+		return jpeg.DecodeConfig(reader)
 	case "image/webp":
-		return len(header) >= 12 && string(header[0:4]) == "RIFF" && string(header[8:12]) == "WEBP"
+		return webp.DecodeConfig(reader)
 	default:
-		return false
+		return image.Config{}, errVisualContextInvalidImage
 	}
+}
+
+func rejectVisualContextImageSize(width, height int) error {
+	if width <= 0 || height <= 0 || width > visualContextMaxImageSide || height > visualContextMaxImageSide {
+		return errVisualContextInvalidImage
+	}
+	if int64(width)*int64(height) > visualContextMaxImagePixels {
+		return errVisualContextInvalidImage
+	}
+	return nil
 }
 
 func (api *editorCatAPI) bindVisualContextScreenshot(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -764,6 +786,15 @@ func validateVisualContextDimensions(width, height *int) error {
 	}
 	if height != nil && *height <= 0 {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid screenshot height")
+	}
+	if width != nil && *width > visualContextMaxImageSide {
+		return editorCatFailure(400, "invalid_project_payload", "Invalid screenshot width")
+	}
+	if height != nil && *height > visualContextMaxImageSide {
+		return editorCatFailure(400, "invalid_project_payload", "Invalid screenshot height")
+	}
+	if width != nil && height != nil && rejectVisualContextImageSize(*width, *height) != nil {
+		return editorCatFailure(400, "invalid_project_payload", "Screenshot dimensions exceed the supported limit")
 	}
 	return nil
 }
