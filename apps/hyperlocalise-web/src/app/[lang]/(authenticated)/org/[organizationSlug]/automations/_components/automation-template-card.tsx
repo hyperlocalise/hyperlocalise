@@ -21,6 +21,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
 import { cn } from "@/lib/primitives/cn";
 
+import { AutomationIconTile } from "./automation-icon-tile";
 import { AutomationTemplateFlow, AutomationTemplateTriggerIcon } from "./automation-template-flow";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 
@@ -59,9 +60,9 @@ export function AutomationTemplateCard({
         template.activatable && "transition-colors hover:bg-subtle",
       )}
     >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-subtle ring-1 ring-border">
+      <AutomationIconTile tone="trigger" className="size-10 rounded-full">
         <AutomationTemplateTriggerIcon template={template} />
-      </div>
+      </AutomationIconTile>
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex items-start gap-2">
           <CardTitle className="text-sm font-semibold">{template.name}</CardTitle>

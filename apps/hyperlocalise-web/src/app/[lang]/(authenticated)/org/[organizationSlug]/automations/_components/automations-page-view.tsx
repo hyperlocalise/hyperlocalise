@@ -14,7 +14,18 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { PlusIcon, LightningIcon } from "@phosphor-icons/react";
+import {
+  ArrowsClockwiseIcon,
+  ChatTextIcon,
+  ClockIcon,
+  GithubLogoIcon,
+  HandTapIcon,
+  LightningIcon,
+  PlusIcon,
+  UploadSimpleIcon,
+  WebhooksLogoIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
@@ -31,11 +42,17 @@ import type {
 import {
   isContentSyncAutomation,
   type WorkspaceAutomationRecord,
+  type WorkspaceAutomationTriggerConfig,
 } from "@/lib/agents/workspace-automation-types";
 import type { AiFeaturesAccessStatus } from "@/lib/billing/use-ai-features-access";
 
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import {
+  PageHeader,
+  toneClass,
+  WorkspacePageShell,
+} from "../../_components/workspace-resource-shared";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
+import { AutomationIconTile } from "./automation-icon-tile";
 import {
   AutomationTemplateCard,
   defaultRenderAutomationLink,
@@ -80,9 +97,12 @@ function AutomationListSkeleton() {
           key={index}
           className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-4 last:border-b-0`}
         >
-          <div className="flex min-w-0 flex-col gap-2">
-            <Skeleton className="h-4 w-3/5 rounded-full bg-muted" />
-            <Skeleton className="h-3 w-2/5 rounded-full bg-muted" />
+          <div className="flex min-w-0 items-center gap-3">
+            <Skeleton className="size-7 shrink-0 rounded-md bg-muted" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-3/5 rounded-full bg-muted" />
+              <Skeleton className="h-3 w-2/5 rounded-full bg-muted" />
+            </div>
           </div>
           <div className="flex flex-wrap gap-1">
             <Skeleton className="h-5 w-14 rounded-full bg-muted" />
@@ -136,6 +156,28 @@ function revealNewAutomationSection(
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   section?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
   prompt?.focus({ preventScroll: true });
+}
+
+/** The same icons the trigger menu in the editor uses. */
+const TRIGGER_MODE_ICONS: Record<WorkspaceAutomationTriggerConfig["mode"], Icon> = {
+  manual: HandTapIcon,
+  scheduled: ClockIcon,
+  github: GithubLogoIcon,
+  contentful: WebhooksLogoIcon,
+  source_upload: UploadSimpleIcon,
+  web_chat: ChatTextIcon,
+};
+
+function AutomationTriggerTile({ automation }: { automation: WorkspaceAutomationRecord }) {
+  const TriggerIcon = isContentSyncAutomation(automation)
+    ? ArrowsClockwiseIcon
+    : TRIGGER_MODE_ICONS[automation.triggerConfig.mode];
+
+  return (
+    <AutomationIconTile tone="trigger">
+      <TriggerIcon className="size-4" />
+    </AutomationIconTile>
+  );
 }
 
 function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomationRecord }) {
@@ -411,18 +453,24 @@ export function AutomationsPageView({
                     className: `${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted`,
                     children: (
                       <>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{automation.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {resolveAutomationTriggerLabel(
-                              intl,
-                              automation.triggerConfig,
-                              automation,
-                            )}
-                          </p>
+                        <div className="flex min-w-0 items-center gap-3">
+                          <AutomationTriggerTile automation={automation} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{automation.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {resolveAutomationTriggerLabel(
+                                intl,
+                                automation.triggerConfig,
+                                automation,
+                              )}
+                            </p>
+                          </div>
                         </div>
                         <AutomationToolsSummary automation={automation} />
-                        <Badge variant={automation.status === "active" ? "default" : "secondary"}>
+                        <Badge
+                          variant={automation.status === "active" ? "outline" : "secondary"}
+                          className={automation.status === "active" ? toneClass("safe") : undefined}
+                        >
                           {automation.status === "active" ? (
                             <FormattedMessage {...automationsPageViewMessages.statusActive} />
                           ) : (
