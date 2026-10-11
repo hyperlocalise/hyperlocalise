@@ -55,6 +55,7 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
+import { parseLiveProviderMemoryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { TmEntryExplorer } from "./tm-entry-explorer";
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
@@ -101,30 +102,40 @@ export function TranslationMemoryDetailPageContent({
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].$get({ param: { organizationSlug, memoryId } });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadMemoryFailed)),
-        );
-      const body = await response.json();
-      return body.memory as MemoryRecord;
+      if (parseLiveProviderMemoryId(memoryId)) {
+        const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+          ":memoryId"
+        ].$get({ param: { organizationSlug, memoryId } });
+        if (!response.ok)
+          throw new Error(
+            await readApiError(response, intl.formatMessage(messages.loadMemoryFailed)),
+          );
+        const body = await response.json();
+        return body.memory as MemoryRecord;
+      }
+      try {
+        const body = await goSvcClient.memory.get(organizationSlug, memoryId);
+        return body.memory as MemoryRecord;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadMemoryFailed)), {
+          cause: error,
+        });
+      }
     },
   });
 
   const attachedProjectsQuery = useQuery({
     queryKey: ["translation-memory-projects", organizationSlug, memoryId],
+    enabled: !parseLiveProviderMemoryId(memoryId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].projects.$get({ param: { organizationSlug, memoryId } });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.loadProjectsFailed)),
-        );
-      const body = await response.json();
-      return body.projects as MemoryProjectRecord[];
+      try {
+        const body = await goSvcClient.memory.projects.list(organizationSlug, memoryId);
+        return body.projects as MemoryProjectRecord[];
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
+          cause: error,
+        });
+      }
     },
   });
 
@@ -169,15 +180,13 @@ export function TranslationMemoryDetailPageContent({
         targetText: values.targetText.trim(),
         matchScore: 100,
       };
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries.$post({
-        param: { organizationSlug, memoryId },
-        json: payload,
-      });
-      if (!response.ok)
-        throw new Error(await readApiError(response, intl.formatMessage(messages.saveEntryFailed)));
-      return response.json();
+      try {
+        return await goSvcClient.memory.entries.create(organizationSlug, memoryId, payload);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveEntryFailed)), {
+          cause: error,
+        });
+      }
     },
     onSuccess: async () => {
       await invalidateEntries();
@@ -190,13 +199,13 @@ export function TranslationMemoryDetailPageContent({
 
   const deleteEntry = useMutation({
     mutationFn: async (entryId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].entries[":entryId"].$delete({ param: { organizationSlug, memoryId, entryId } });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.deleteEntryFailed)),
-        );
+      try {
+        await goSvcClient.memory.entries.delete(organizationSlug, memoryId, entryId);
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.deleteEntryFailed)), {
+          cause: error,
+        });
+      }
     },
     onSuccess: async () => {
       await invalidateEntries();
@@ -207,14 +216,17 @@ export function TranslationMemoryDetailPageContent({
 
   const attachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].projects.$post({ param: { organizationSlug, memoryId }, json: { projectId, priority: 0 } });
-      if (!response.ok)
+      try {
+        return await goSvcClient.memory.projects.attach(organizationSlug, memoryId, {
+          projectId,
+          priority: 0,
+        });
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.assignProjectFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.assignProjectFailed)),
+          { cause: error },
         );
-      return response.json();
+      }
     },
     onSuccess: async () => {
       await invalidateProjects();
@@ -226,13 +238,14 @@ export function TranslationMemoryDetailPageContent({
 
   const detachProject = useMutation({
     mutationFn: async (projectId: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].projects[":projectId"].$delete({ param: { organizationSlug, memoryId, projectId } });
-      if (!response.ok)
+      try {
+        await goSvcClient.memory.projects.detach(organizationSlug, memoryId, projectId);
+      } catch (error) {
         throw new Error(
-          await readApiError(response, intl.formatMessage(messages.removeProjectFailed)),
+          goSvcErrorMessage(error, intl.formatMessage(messages.removeProjectFailed)),
+          { cause: error },
         );
+      }
     },
     onSuccess: async () => {
       await invalidateProjects();

@@ -80,7 +80,18 @@ func (api *memoryAPI) createMemoryEntryHandler(r *http.Request, actor memoryActo
 }
 
 func (api *memoryAPI) exportMemoryEntriesHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	return api.exportMemoryEntries(r, m)
+	value, status, err := api.exportMemoryEntries(r, m)
+	if err == nil {
+		api.publishActivity(r.Context(), activityLogEventInput{
+			ActorUserID:    actor.userID,
+			EventType:      "translation_memory_exported",
+			OrganizationID: actor.organizationID,
+			Payload:        map[string]any{"resourceId": m.ID},
+			TargetID:       m.ID,
+			TargetKind:     "translation_memory",
+		})
+	}
+	return value, status, err
 }
 
 func (api *memoryAPI) importMemoryEntriesHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
@@ -173,14 +184,8 @@ func (api *memoryAPI) getMemoryEntry(ctx context.Context, m memoryRecord, entryI
 }
 
 func (api *memoryAPI) createMemoryEntry(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "edit", true, true); denied {
 		return nil, 0, err
-	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	var payload memoryEntryPayload
 	if err := readMemoryBody(r, []string{"sourceLocale", "targetLocale", "sourceText", "targetText", "matchScore"}, &payload); err != nil {
@@ -241,10 +246,10 @@ func (api *memoryAPI) createMemoryEntry(r *http.Request, actor memoryActor, m me
 
 func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m memoryRecord, entryID string) (any, int, error) {
 	if err := requireNativeMemory(m); err != nil {
-		return nil, 0, err
+		return nil, 0, api.rejectMemoryAction(r.Context(), actor, m, "edit", "read_only", err)
 	}
 	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
+		return nil, 0, api.rejectMemoryAction(r.Context(), actor, m, "edit", "archived", memoryFailure(403, "memory_action_archived", "This translation memory is archived"))
 	}
 	var payload memoryEntryPayload
 	if err := readMemoryBody(r, []string{"sourceLocale", "targetLocale", "sourceText", "targetText", "matchScore", "reviewStatus", "expectedVersion", "metadata"}, &payload); err != nil {
@@ -326,10 +331,7 @@ func (api *memoryAPI) patchMemoryEntry(r *http.Request, actor memoryActor, m mem
 }
 
 func (api *memoryAPI) deleteMemoryEntry(ctx context.Context, actor memoryActor, m memoryRecord, entryID string) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(ctx, actor, m, "edit", true, true); denied {
 		return nil, 0, err
 	}
 	tag, err := api.pool.Exec(ctx, `delete from memory_entries where id=$1 and memory_id=$2`, entryID, m.ID)

@@ -133,14 +133,8 @@ func (api *memoryAPI) exportMemoryEntries(r *http.Request, m memoryRecord) (any,
 }
 
 func (api *memoryAPI) importMemoryEntries(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "import", true, true); denied {
 		return nil, 0, err
-	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	var payload memoryImportPayload
 	if err := readMemoryBody(r, []string{"format", "content", "attemptId", "dryRun", "mode", "maxUnits", "sourceFilename", "sourceByteSize"}, &payload); err != nil {

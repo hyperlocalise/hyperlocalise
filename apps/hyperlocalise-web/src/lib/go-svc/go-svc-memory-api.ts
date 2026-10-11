@@ -40,7 +40,7 @@ export class GoSvcMemoryApi {
 
   list(
     organizationSlug: string,
-    query: GoSvcPageQuery & { projectId?: string } = {},
+    query: GoSvcPageQuery & { projectId?: string; source?: "native" | "external_tms" } = {},
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<{ memories: MemoryRecord[]; total: number }>(
