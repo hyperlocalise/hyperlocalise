@@ -3,7 +3,7 @@ name: Lambda Deploy
 on:
   push:
     branches:
-      - main
+      - prod
     paths:
       - Makefile
       - go.mod
@@ -105,7 +105,7 @@ jobs:
   activity_log_deploy:
     name: Build and deploy activity-log Lambda
     needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
+    if: github.ref == 'refs/heads/prod' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.activity-log == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
@@ -184,7 +184,7 @@ jobs:
   glossary_interchange_deploy:
     name: Build and deploy glossary-interchange Lambda
     needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
+    if: github.ref == 'refs/heads/prod' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.glossary-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
@@ -263,7 +263,7 @@ jobs:
   memory_interchange_deploy:
     name: Build and deploy memory-interchange Lambda
     needs: changed_paths
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
+    if: github.ref == 'refs/heads/prod' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.memory-interchange == 'true')
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     concurrency:
