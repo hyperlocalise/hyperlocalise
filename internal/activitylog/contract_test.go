@@ -57,6 +57,8 @@ func TestIsImplementedEventType(t *testing.T) {
 	require.True(t, IsImplementedEventType("query_created"))
 	require.True(t, IsImplementedEventType("organization_api_key_created"))
 	require.True(t, IsImplementedEventType("organization_api_key_revoked"))
+	require.True(t, IsImplementedEventType("dictionary_created"))
+	require.True(t, IsImplementedEventType("linked_domain_verified"))
 }
 
 func TestValidateMessageAcceptsOrganizationAPIKeyCreated(t *testing.T) {
@@ -66,6 +68,31 @@ func TestValidateMessageAcceptsOrganizationAPIKeyCreated(t *testing.T) {
 	message.Event.Payload = json.RawMessage(`{"apiKeyId":"key-1","keyPrefix":"hl_AbCd","name":"CI deploy","permissions":["jobs:read"]}`)
 
 	require.NoError(t, ValidateMessage(message))
+}
+
+func TestValidateMessageAcceptsDictionaryAndLinkedDomainEvents(t *testing.T) {
+	cases := []struct {
+		eventType  string
+		targetKind string
+		payload    string
+	}{
+		{"dictionary_created", "dictionary", `{"name":"Brand names","resourceId":"dict-1"}`},
+		{"dictionary_imported", "dictionary", `{"itemCount":12,"locale":"en-US","resourceId":"dict-1"}`},
+		{"dictionary_project_attached", "project", `{"projectId":"project-1","resourceId":"dict-1"}`},
+		{"linked_domain_created", "linked_domain", `{"name":"example.com","resourceId":"domain-1","status":"pending_verification"}`},
+		{"linked_domain_verified", "linked_domain", `{"name":"example.com","resourceId":"domain-1","status":"verified","verifiedMethod":"dns_txt"}`},
+		{"linked_domain_cancelled", "linked_domain", `{"name":"example.com","resourceId":"domain-1","status":"cancelled"}`},
+		{"linked_domain_markets_changed", "linked_domain", `{"name":"example.com","nextMarketIds":["germany-de"],"previousMarketIds":["france-fr"],"resourceId":"domain-1"}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.eventType, func(t *testing.T) {
+			message := validMessage()
+			message.Event.EventType = tc.eventType
+			message.Event.TargetKind = tc.targetKind
+			message.Event.Payload = json.RawMessage(tc.payload)
+			require.NoError(t, ValidateMessage(message))
+		})
+	}
 }
 
 func TestValidateMessageAcceptsQueryCreated(t *testing.T) {

@@ -26,6 +26,7 @@ import {
   KeyIcon,
   PuzzlePieceIcon,
   ChatCircleIcon,
+  GlobeIcon,
   TextTIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -182,6 +183,26 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "string_segment_commented",
     ],
   },
+  {
+    icon: BookOpenTextIcon,
+    label: messages.dictionaryEventGroup,
+    eventTypes: [
+      "dictionary_created",
+      "dictionary_deleted",
+      "dictionary_imported",
+      "dictionary_project_attached",
+    ],
+  },
+  {
+    icon: GlobeIcon,
+    label: messages.linkedDomainEventGroup,
+    eventTypes: [
+      "linked_domain_created",
+      "linked_domain_verified",
+      "linked_domain_cancelled",
+      "linked_domain_markets_changed",
+    ],
+  },
 ];
 
 const eventTypeLabels = {
@@ -244,6 +265,14 @@ const eventTypeLabels = {
   string_segment_locked: messages.stringSegmentLockedEventType,
   string_segment_unlocked: messages.stringSegmentUnlockedEventType,
   string_segment_commented: messages.stringSegmentCommentedEventType,
+  dictionary_created: messages.dictionaryCreatedEventType,
+  dictionary_deleted: messages.dictionaryDeletedEventType,
+  dictionary_imported: messages.dictionaryImportedEventType,
+  dictionary_project_attached: messages.dictionaryProjectAttachedEventType,
+  linked_domain_created: messages.linkedDomainCreatedEventType,
+  linked_domain_verified: messages.linkedDomainVerifiedEventType,
+  linked_domain_cancelled: messages.linkedDomainCancelledEventType,
+  linked_domain_markets_changed: messages.linkedDomainMarketsChangedEventType,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
 export const activityLogEventTypeLabels = eventTypeLabels;

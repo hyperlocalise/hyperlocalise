@@ -26,6 +26,7 @@ import {
   FileIcon,
   GitBranchIcon,
   ChatCircleIcon,
+  GlobeIcon,
   TextTIcon,
 } from "@phosphor-icons/react";
 
@@ -115,6 +116,14 @@ const eventActions = {
   string_segment_locked: messages.stringSegmentLockedAction,
   string_segment_unlocked: messages.stringSegmentUnlockedAction,
   string_segment_commented: messages.stringSegmentCommentedAction,
+  dictionary_created: messages.dictionaryCreatedAction,
+  dictionary_deleted: messages.dictionaryDeletedAction,
+  dictionary_imported: messages.dictionaryImportedAction,
+  dictionary_project_attached: messages.dictionaryProjectAttachedAction,
+  linked_domain_created: messages.linkedDomainCreatedAction,
+  linked_domain_verified: messages.linkedDomainVerifiedAction,
+  linked_domain_cancelled: messages.linkedDomainCancelledAction,
+  linked_domain_markets_changed: messages.linkedDomainMarketsChangedAction,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
 export const activityLogEventActions = eventActions;
@@ -160,6 +169,12 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   }
   if (eventType.startsWith("string_segment_")) {
     return { icon: TextTIcon, className: "bg-warning/10 text-warning" };
+  }
+  if (eventType.startsWith("dictionary_")) {
+    return { icon: BookOpenTextIcon, className: "bg-warning/10 text-warning" };
+  }
+  if (eventType.startsWith("linked_domain_")) {
+    return { icon: GlobeIcon, className: "bg-success/10 text-success" };
   }
   return { icon: DatabaseIcon, className: "bg-info/10 text-info" };
 }

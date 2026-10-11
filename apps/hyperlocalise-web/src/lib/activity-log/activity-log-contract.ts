@@ -30,6 +30,8 @@ export const ACTIVITY_TARGET_KINDS = [
   "query",
   "file",
   "string_segment",
+  "dictionary",
+  "linked_domain",
 ] as const;
 export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 
@@ -103,6 +105,22 @@ export const QUERY_ACTIVITY_EVENT_TYPES = [
 ] as const;
 export type QueryActivityEventType = (typeof QUERY_ACTIVITY_EVENT_TYPES)[number];
 
+export const DICTIONARY_ACTIVITY_EVENT_TYPES = [
+  "dictionary_created",
+  "dictionary_deleted",
+  "dictionary_imported",
+  "dictionary_project_attached",
+] as const;
+export type DictionaryActivityEventType = (typeof DICTIONARY_ACTIVITY_EVENT_TYPES)[number];
+
+export const LINKED_DOMAIN_ACTIVITY_EVENT_TYPES = [
+  "linked_domain_created",
+  "linked_domain_verified",
+  "linked_domain_cancelled",
+  "linked_domain_markets_changed",
+] as const;
+export type LinkedDomainActivityEventType = (typeof LINKED_DOMAIN_ACTIVITY_EVENT_TYPES)[number];
+
 export const FILE_SEGMENT_ACTIVITY_EVENT_TYPES = [
   "file_uploaded",
   "file_translations_imported",
@@ -124,6 +142,8 @@ export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
   ...VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
   ...QUERY_ACTIVITY_EVENT_TYPES,
   ...FILE_SEGMENT_ACTIVITY_EVENT_TYPES,
+  ...DICTIONARY_ACTIVITY_EVENT_TYPES,
+  ...LINKED_DOMAIN_ACTIVITY_EVENT_TYPES,
 ] as const;
 export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
 
@@ -133,7 +153,9 @@ export type ActivityEventType =
   | LaterActivityEventType
   | VisualWorkflowActivityEventType
   | QueryActivityEventType
-  | FileSegmentActivityEventType;
+  | FileSegmentActivityEventType
+  | DictionaryActivityEventType
+  | LinkedDomainActivityEventType;
 
 export type ActivityMembershipRole =
   | "admin"
@@ -399,6 +421,34 @@ export type ActivityPayloadByEventType = {
   string_segment_locked: StringSegmentActivityPayload;
   string_segment_unlocked: StringSegmentActivityPayload;
   string_segment_commented: StringSegmentActivityPayload;
+  dictionary_created: SafeResourcePayload;
+  dictionary_deleted: SafeResourcePayload;
+  dictionary_imported: ImportExportPayload & {
+    locale?: string;
+  };
+  dictionary_project_attached: AttachmentPayload;
+  linked_domain_created: {
+    name: string;
+    resourceId: string;
+    status: string;
+  };
+  linked_domain_verified: {
+    name: string;
+    resourceId: string;
+    status: string;
+    verifiedMethod?: string;
+  };
+  linked_domain_cancelled: {
+    name: string;
+    resourceId: string;
+    status: "cancelled";
+  };
+  linked_domain_markets_changed: {
+    name: string;
+    nextMarketIds: readonly string[];
+    previousMarketIds: readonly string[];
+    resourceId: string;
+  };
 };
 
 export type ActivityTargetKindByEventType = {
@@ -461,6 +511,14 @@ export type ActivityTargetKindByEventType = {
   string_segment_locked: "string_segment";
   string_segment_unlocked: "string_segment";
   string_segment_commented: "string_segment";
+  dictionary_created: "dictionary";
+  dictionary_deleted: "dictionary";
+  dictionary_imported: "dictionary";
+  dictionary_project_attached: "project";
+  linked_domain_created: "linked_domain";
+  linked_domain_verified: "linked_domain";
+  linked_domain_cancelled: "linked_domain";
+  linked_domain_markets_changed: "linked_domain";
 };
 
 type ActivityLogEventBase = {
