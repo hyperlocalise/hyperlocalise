@@ -33,6 +33,10 @@ var ErrInvalidInput = errors.New("invalid guideline check input")
 // model prompt budget, so a check cannot run without omitting mandatory rules.
 var ErrMandatoryPassagesOverBudget = errors.New("mandatory guideline passages exceed prompt budget")
 
+// ErrUnreadableOutput means the model did not return usable findings JSON.
+// Treat this as a failed check, not an empty clean result.
+var ErrUnreadableOutput = errors.New("guideline check model output is unreadable")
+
 // Field names the text a finding points into.
 type Field string
 
@@ -168,7 +172,10 @@ func (c *Checker) Check(ctx context.Context, scope guidelines.Scope, req Request
 	if err != nil {
 		return Result{}, fmt.Errorf("guideline check model: %w", err)
 	}
-	result.Findings, result.Passages = groundFindings(req, passages, raw)
+	result.Findings, result.Passages, err = groundFindings(req, passages, raw)
+	if err != nil {
+		return Result{}, err
+	}
 	return result, nil
 }
 
@@ -312,16 +319,15 @@ type modelFinding struct {
 
 // groundFindings drops findings for unknown segments, unrequested fields,
 // uncited passages or quotes absent from the text, and returns the passages
-// that remaining findings cite.
-func groundFindings(req Request, passages []Passage, raw string) ([]Finding, []Passage) {
-	var output struct {
-		Findings []modelFinding `json:"findings"`
+// that remaining findings cite. Invalid or empty model JSON is an error so a
+// truncated or refused reply is never reported as a clean check.
+func groundFindings(req Request, passages []Passage, raw string) ([]Finding, []Passage, error) {
+	candidates, err := parseModelFindings(raw)
+	if err != nil {
+		return nil, nil, err
 	}
 	findings := []Finding{}
 	cited := []Passage{}
-	if err := json.Unmarshal([]byte(raw), &output); err != nil {
-		return findings, cited
-	}
 	segments := make(map[string]Segment, len(req.Segments))
 	for _, segment := range req.Segments {
 		segments[segment.ID] = segment
@@ -332,7 +338,7 @@ func groundFindings(req Request, passages []Passage, raw string) ([]Finding, []P
 	}
 	citedIndex := make(map[int]bool)
 	seen := make(map[string]bool)
-	for _, candidate := range output.Findings {
+	for _, candidate := range candidates {
 		segment, ok := segments[candidate.SegmentID]
 		field := Field(candidate.Field)
 		if !ok || !checked[field] {
@@ -369,7 +375,20 @@ func groundFindings(req Request, passages []Passage, raw string) ([]Finding, []P
 			cited = append(cited, passages[passageIndex])
 		}
 	}
-	return findings, cited
+	return findings, cited, nil
+}
+
+func parseModelFindings(raw string) ([]modelFinding, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("%w: empty response", ErrUnreadableOutput)
+	}
+	var output struct {
+		Findings []modelFinding `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(raw), &output); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnreadableOutput, err)
+	}
+	return output.Findings, nil
 }
 
 func passageLabel(label string, count int) (int, bool) {

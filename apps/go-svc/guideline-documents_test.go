@@ -25,12 +25,16 @@ import (
 )
 
 type recordingGuidelinePublisher struct {
-	mu       sync.Mutex
-	messages []ingest.Message
-	err      error
+	mu        sync.Mutex
+	messages  []ingest.Message
+	err       error
+	onPublish func(ingest.Message)
 }
 
 func (p *recordingGuidelinePublisher) Publish(_ context.Context, message ingest.Message) error {
+	if p.onPublish != nil {
+		p.onPublish(message)
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.err != nil {
@@ -363,6 +367,13 @@ func TestGuidelineDocumentSweepRepublishesLostMessages(t *testing.T) {
 	_, err = pool.Exec(t.Context(), `update guideline_documents set indexed_revision_id = revision_id where id = $1`, ids["indexed"])
 	require.NoError(t, err)
 	env.publisher.messages = nil
+	var enqueueFailedStatusAtPublish string
+	env.publisher.onPublish = func(message ingest.Message) {
+		if message.DocumentID != ids["enqueue_failed"] {
+			return
+		}
+		require.NoError(t, pool.QueryRow(t.Context(), `select status from guideline_documents where id = $1`, message.DocumentID).Scan(&enqueueFailedStatusAtPublish))
+	}
 
 	unauthorized := env.serve(httptest.NewRequest(http.MethodPost, "/internal/guidelines/sweep", nil))
 	require.Equal(t, http.StatusUnauthorized, unauthorized.Code)
@@ -388,6 +399,31 @@ func TestGuidelineDocumentSweepRepublishesLostMessages(t *testing.T) {
 	var recoveredStatus string
 	require.NoError(t, pool.QueryRow(t.Context(), `select status from guideline_documents where id = $1`, ids["enqueue_failed"]).Scan(&recoveredStatus))
 	require.Equal(t, "processing", recoveredStatus)
+	require.Equal(t, "processing", enqueueFailedStatusAtPublish)
+}
+
+func TestGuidelineDocumentSweepRemarksEnqueueFailedWhenPublishFails(t *testing.T) {
+	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
+	env := newGuidelineTestEnv(t, "admin")
+	path := env.scope.OrgPath("/guidelines/documents")
+	created := env.upload(t, http.MethodPost, path, "retry.txt", []byte("Always use vous."), nil)
+	require.Equal(t, http.StatusAccepted, created.Code, created.Body.String())
+	id := decodeGuidelineDocument(t, created).ID
+	pool := env.scope.Pool
+	_, err := pool.Exec(t.Context(), `update guideline_documents set status = 'failed', error_code = 'guideline_ingest_enqueue_failed', enqueued_at = now() - interval '1 hour' where id = $1`, id)
+	require.NoError(t, err)
+	env.publisher.err = errors.New("sqs unavailable")
+
+	req := httptest.NewRequest(http.MethodPost, "/internal/guidelines/sweep", nil)
+	req.Header.Set(serverCallTokenHeader, serverCallToken())
+	rec := env.serve(req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), `"failed":1`)
+
+	var status, errorCode string
+	require.NoError(t, pool.QueryRow(t.Context(), `select status, error_code from guideline_documents where id = $1`, id).Scan(&status, &errorCode))
+	require.Equal(t, "failed", status)
+	require.Equal(t, "guideline_ingest_enqueue_failed", errorCode)
 }
 
 func TestKnowledgeMemoryCommitPublishesGuidelineSync(t *testing.T) {

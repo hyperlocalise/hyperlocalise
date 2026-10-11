@@ -63,5 +63,24 @@ func (m *OpenAIModel) Complete(ctx context.Context, system, user string) (string
 	if len(resp.Choices) == 0 {
 		return "", errors.New("chat completion returned no choices")
 	}
-	return resp.Choices[0].Message.Content, nil
+	return completionText(resp.Choices[0])
+}
+
+func completionText(choice openai.ChatCompletionChoice) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(choice.FinishReason)) {
+	case "length":
+		return "", errors.New("chat completion truncated")
+	case "content_filter":
+		return "", errors.New("chat completion refused")
+	case "error":
+		return "", errors.New("chat completion failed")
+	}
+	if refusal := strings.TrimSpace(choice.Message.Refusal); refusal != "" {
+		return "", errors.New("chat completion refused")
+	}
+	content := strings.TrimSpace(choice.Message.Content)
+	if content == "" {
+		return "", errors.New("chat completion returned empty content")
+	}
+	return choice.Message.Content, nil
 }

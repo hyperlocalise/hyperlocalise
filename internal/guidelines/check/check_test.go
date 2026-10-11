@@ -99,7 +99,7 @@ func TestCheckUTF16OffsetsAndEmptyQuote(t *testing.T) {
 	require.Equal(t, 5, end)
 }
 
-func TestCheckSkipsModelWithoutGuidelinesAndToleratesBadOutput(t *testing.T) {
+func TestCheckSkipsModelWithoutGuidelinesAndRejectsBadOutput(t *testing.T) {
 	model := &fakeModel{}
 	result, err := New(&fakeRetriever{}, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
 	require.NoError(t, err)
@@ -107,8 +107,14 @@ func TestCheckSkipsModelWithoutGuidelinesAndToleratesBadOutput(t *testing.T) {
 	require.Empty(t, result.Findings)
 	require.False(t, result.SearchAvailable)
 
-	model.output = "not json"
 	retriever := &fakeRetriever{result: guidelines.Result{Mandatory: []guidelines.Document{mandatoryDoc("workspace:org", "Rule.")}}}
+	for _, output := range []string{"", "not json", `{"findings":`} {
+		model.output = output
+		_, err = New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
+		require.ErrorIs(t, err, ErrUnreadableOutput, output)
+	}
+
+	model.output = `{"findings":[]}`
 	result, err = New(retriever, model).Check(context.Background(), guidelines.Scope{OrganizationID: "org"}, Request{Segments: []Segment{{ID: "s1", Target: "Bonjour"}}})
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
@@ -197,4 +203,46 @@ func TestOpenAIModelSendsStrictSchema(t *testing.T) {
 
 	_, err = NewOpenAIModel(OpenAIConfig{APIKey: "key"})
 	require.ErrorIs(t, err, ErrInvalidInput)
+}
+
+func TestOpenAIModelRejectsIncompleteReplies(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		wantErr string
+	}{
+		{
+			name:    "truncated",
+			body:    `{"id":"1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"length","message":{"role":"assistant","content":"{\"findings\":["}}]}`,
+			wantErr: "truncated",
+		},
+		{
+			name:    "refused",
+			body:    `{"id":"1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"content_filter","message":{"role":"assistant","content":""}}]}`,
+			wantErr: "refused",
+		},
+		{
+			name:    "empty",
+			body:    `{"id":"1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":""}}]}`,
+			wantErr: "empty content",
+		},
+		{
+			name:    "refusal text",
+			body:    `{"id":"1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"","refusal":"I can't help with that."}}]}`,
+			wantErr: "refused",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(server.Close)
+			model, err := NewOpenAIModel(OpenAIConfig{BaseURL: server.URL, APIKey: "key", Model: "openai/gpt-5-mini"})
+			require.NoError(t, err)
+			_, err = model.Complete(context.Background(), "system", "user")
+			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
 }

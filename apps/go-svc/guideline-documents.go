@@ -334,13 +334,22 @@ func (api *guidelineDocumentAPI) sweep(w http.ResponseWriter, r *http.Request) {
 		if record.ProjectID != nil {
 			projectID = *record.ProjectID
 		}
+		// Restore a worker-accepted state before publish. A failed enqueue
+		// row is otherwise stale if the worker consumes the retry first.
+		if err := touchGuidelineDocumentEnqueued(ctx, pool, record.ID, record.RevisionID); err != nil {
+			failed++
+			slog.WarnContext(ctx, "guideline_ingest_sweep_touch_failed", "organization_id", record.organizationID, "document_id", record.ID, "error", err)
+			continue
+		}
 		err := api.publisher.Publish(ctx, ingest.Message{
 			Operation: ingest.OperationExtractIndex, OrganizationID: record.organizationID, ProjectID: projectID, DocumentID: record.ID, RevisionID: record.RevisionID,
 		})
-		if err == nil {
-			err = touchGuidelineDocumentEnqueued(ctx, pool, record.ID, record.RevisionID)
-		}
 		if err != nil {
+			if record.Status == "failed" {
+				if markErr := markGuidelineDocumentEnqueueFailed(ctx, pool, record.ID, record.RevisionID); markErr != nil {
+					slog.WarnContext(ctx, "guideline_ingest_sweep_remark_failed", "organization_id", record.organizationID, "document_id", record.ID, "error", markErr)
+				}
+			}
 			failed++
 			slog.WarnContext(ctx, "guideline_ingest_sweep_publish_failed", "organization_id", record.organizationID, "document_id", record.ID, "error", err)
 			continue

@@ -19,8 +19,15 @@ const (
 	guidelineCheckFeatureID = "guideline_checks"
 	guidelineCheckBodyLimit = 256 << 10
 	guidelineCheckTimeout   = 90 * time.Second
-	defaultAIGatewayBaseURL = "https://ai-gateway.vercel.sh/v1"
+	// WriteTimeout is 75s globally. These routes need longer so a check that
+	// finishes near the work deadline can still track usage and write JSON.
+	guidelineCheckWriteSlack = 20 * time.Second
+	defaultAIGatewayBaseURL  = "https://ai-gateway.vercel.sh/v1"
 )
+
+func setGuidelineCheckWriteDeadline(w http.ResponseWriter) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(guidelineCheckTimeout + guidelineCheckWriteSlack))
+}
 
 type guidelineCheckMeter interface {
 	Check(context.Context, autumn.CheckRequest) (autumn.CheckResponse, error)
@@ -69,7 +76,8 @@ func invalidGuidelineCheck(field string) error {
 	return knowledgeMemoryFailureDetails(400, "invalid_guideline_check", "Guideline check request is invalid", map[string]any{"field": field})
 }
 
-func (api *guidelineCheckAPI) check(_ http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
+func (api *guidelineCheckAPI) check(w http.ResponseWriter, r *http.Request, actor workspaceActor) (int, any, error) {
+	setGuidelineCheckWriteDeadline(w)
 	return api.run(r, actor.organizationID, func(ctx context.Context, projectID string) (string, error) {
 		project, err := api.knowledge.projectScope(ctx, actor, projectID)
 		return project.projectID, err
@@ -85,6 +93,7 @@ type internalGuidelineCheckPayload struct {
 // feature flags and team project access before calling.
 func (api *guidelineCheckAPI) internalCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	setGuidelineCheckWriteDeadline(w)
 	if api.knowledge == nil || api.knowledge.workspace == nil || api.knowledge.workspace.pool == nil {
 		writeKnowledgeMemoryError(w, r, knowledgeMemoryFailure(503, "service_unavailable", "Knowledge memory service unavailable"))
 		return
