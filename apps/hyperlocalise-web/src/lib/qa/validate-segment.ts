@@ -11,6 +11,11 @@
  * Version 2.0 or later.
  */
 import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import {
+  extractI18nextNestingPlaceholders,
+  extractInterpolationPlaceholders,
+  maskInterpolationPlaceholders,
+} from "@/lib/i18n/interpolation-placeholders";
 
 import { countRunes } from "./count-runes";
 import type {
@@ -22,7 +27,12 @@ import type {
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
 
 function collectPlaceholders(value: string) {
-  return [...value.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]);
+  const interpolationSpans = extractInterpolationPlaceholders(value);
+  const interpolations = interpolationSpans.map((span) => span.literal);
+  const nesting = extractI18nextNestingPlaceholders(value);
+  const remainder = maskInterpolationPlaceholders(value, interpolationSpans);
+  const classic = [...remainder.matchAll(PLACEHOLDER_PATTERN)].map((match) => match[0]!);
+  return [...interpolations, ...nesting, ...classic];
 }
 
 function leftoverPlaceholders(sourceTokens: readonly string[], targetTokens: readonly string[]) {

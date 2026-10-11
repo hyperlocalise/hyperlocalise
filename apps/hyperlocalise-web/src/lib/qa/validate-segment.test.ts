@@ -157,6 +157,31 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("fails missing i18next interpolations", () => {
+    const checks = validateTranslationSegment({
+      sourceText: "Hello {{name, uppercase}}",
+      targetText: "Bonjour",
+      targetLocale: "fr-FR",
+    });
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        checkType: "placeholder_mismatch",
+        relatedTokens: ["{{name, uppercase}}"],
+      }),
+    ]);
+  });
+
+  it("accepts matching i18next interpolations and nesting", () => {
+    expect(
+      validateTranslationSegment({
+        sourceText: "See {{name}} $t(help.link)",
+        targetText: "Voir {{name}} $t(help.link)",
+        targetLocale: "fr-FR",
+      }).filter((check) => check.checkType === "placeholder_mismatch"),
+    ).toEqual([]);
+  });
+
   it("reports glossary misses and forbidden terms", () => {
     const checks = validateTranslationSegment({
       sourceText: "Open the admin Dashboard",

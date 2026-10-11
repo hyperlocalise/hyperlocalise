@@ -187,12 +187,12 @@ func normalizeMustachePlaceholders(s string) string {
 			}
 
 			if match {
-				name := strings.TrimSpace(s[i+braceCount : j])
-				if isPlaceholderName(name) {
-					// Convert moustache placeholders to ICU-style arguments for fallback parsing.
-					b.WriteByte('{')
-					b.WriteString(name)
-					b.WriteByte('}')
+				// Convert mustache/i18next interpolations to ICU arguments so
+				// {{name}}, {{- name}}, and {{name, uppercase}} participate in
+				// placeholder parity. Nested ICU ({{count, plural, ...}}) is left
+				// unchanged.
+				if rewrite, ok := interpolationRewrite(s[i+braceCount : j]); ok {
+					b.WriteString(rewrite)
 					i = j + braceCount
 					continue
 				}
