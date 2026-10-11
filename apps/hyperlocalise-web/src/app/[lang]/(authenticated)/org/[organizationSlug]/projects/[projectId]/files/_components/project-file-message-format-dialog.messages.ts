@@ -69,6 +69,11 @@ export const projectFileMessageFormatDialogMessages = defineMessages({
     id: "iaUn+Dn3Pk",
     description: "Error when loading per-file placeholder format fails",
   },
+  retry: {
+    defaultMessage: "Try again",
+    id: 'rlF044R+WV',
+    description: "Retry button after placeholder format failed to load",
+  },
   saveFailed: {
     defaultMessage: "Could not save placeholder format.",
     id: "LFyUVsCgBE",

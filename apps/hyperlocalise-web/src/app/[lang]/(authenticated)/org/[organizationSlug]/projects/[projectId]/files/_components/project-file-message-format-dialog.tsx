@@ -35,7 +35,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { readApiResponseError } from "@/lib/api-error";
+import { ApiResponseError, readApiResponseError } from "@/lib/api-error";
+import { apiClient } from "@/lib/api-client-instance";
 import {
   type MessageFormat,
   messageFormats,
@@ -56,8 +57,8 @@ const FORMAT_HINTS: Record<MessageFormat, MessageDescriptor> = {
   i18next: messages.formatI18nextHint,
 };
 
-function messageFormatApiPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files/message-format`;
+function messageFormatApi() {
+  return apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files["message-format"];
 }
 
 export function ProjectFileMessageFormatDialog({
@@ -82,28 +83,39 @@ export function ProjectFileMessageFormatDialog({
     queryKey,
     enabled: open,
     queryFn: async () => {
-      const params = new URLSearchParams({ sourcePath });
-      const response = await fetch(
-        `${messageFormatApiPath(organizationSlug, projectId)}?${params}`,
-      );
-      if (!response.ok) {
-        throw await readApiResponseError(response, intl.formatMessage(messages.loadFailed));
+      const fallback = intl.formatMessage(messages.loadFailed);
+      try {
+        const response = await messageFormatApi().$get({
+          param: { organizationSlug, projectId },
+          query: { sourcePath },
+        });
+        if (response.status !== 200) {
+          throw await readApiResponseError(response, fallback);
+        }
+        const body = await response.json();
+        return normalizeMessageFormat(body.messageFormat);
+      } catch (error) {
+        if (error instanceof ApiResponseError) {
+          throw error;
+        }
+        throw new Error(fallback, { cause: error instanceof Error ? error : undefined });
       }
-      const body = (await response.json()) as { messageFormat: string };
-      return normalizeMessageFormat(body.messageFormat);
     },
   });
 
   const messageFormat = selected ?? settingsQuery.data ?? null;
+  const loadErrorMessage =
+    settingsQuery.error instanceof Error
+      ? settingsQuery.error.message
+      : intl.formatMessage(messages.loadFailed);
 
   const saveMutation = useMutation({
     mutationFn: async (value: MessageFormat) => {
-      const response = await fetch(messageFormatApiPath(organizationSlug, projectId), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourcePath, messageFormat: value }),
+      const response = await messageFormatApi().$patch({
+        param: { organizationSlug, projectId },
+        json: { sourcePath, messageFormat: value },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, intl.formatMessage(messages.saveFailed));
       }
     },
@@ -134,7 +146,11 @@ export function ProjectFileMessageFormatDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {messageFormat === null ? (
+        {settingsQuery.isError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {loadErrorMessage}
+          </p>
+        ) : messageFormat === null ? (
           <div className="flex justify-center py-8">
             <Spinner />
           </div>
@@ -170,18 +186,31 @@ export function ProjectFileMessageFormatDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             <FormattedMessage {...messages.cancel} />
           </Button>
-          <Button
-            type="button"
-            disabled={messageFormat === null || saveMutation.isPending}
-            onClick={() => {
-              if (messageFormat) {
-                saveMutation.mutate(messageFormat);
-              }
-            }}
-          >
-            {saveMutation.isPending ? <Spinner className="size-4" /> : null}
-            <FormattedMessage {...messages.save} />
-          </Button>
+          {settingsQuery.isError ? (
+            <Button
+              type="button"
+              disabled={settingsQuery.isFetching}
+              onClick={() => {
+                void settingsQuery.refetch();
+              }}
+            >
+              {settingsQuery.isFetching ? <Spinner className="size-4" /> : null}
+              <FormattedMessage {...messages.retry} />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled={messageFormat === null || saveMutation.isPending}
+              onClick={() => {
+                if (messageFormat) {
+                  saveMutation.mutate(messageFormat);
+                }
+              }}
+            >
+              {saveMutation.isPending ? <Spinner className="size-4" /> : null}
+              <FormattedMessage {...messages.save} />
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
