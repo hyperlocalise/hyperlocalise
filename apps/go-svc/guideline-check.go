@@ -26,7 +26,10 @@ const (
 )
 
 func setGuidelineCheckWriteDeadline(w http.ResponseWriter) {
-	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(guidelineCheckTimeout + guidelineCheckWriteSlack))
+	deadline := time.Now().Add(guidelineCheckTimeout + guidelineCheckWriteSlack)
+	if err := http.NewResponseController(w).SetWriteDeadline(deadline); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		slog.Warn("guideline_check_write_deadline_failed", "error", err)
+	}
 }
 
 type guidelineCheckMeter interface {

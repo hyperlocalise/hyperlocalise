@@ -19,6 +19,10 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
 func requestID(r *http.Request) string {
 	if id := strings.TrimSpace(r.Header.Get("X-Vercel-Id")); id != "" {
 		return id
