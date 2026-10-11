@@ -37,6 +37,11 @@ build-memory-interchange-lambda: ## build the memory-interchange Lambda bootstra
 	@mkdir -p dist/memory-interchange-lambda
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/memory-interchange-lambda/bootstrap ./apps/memory-interchange-lambda
 
+.PHONY: build-guideline-ingest-lambda
+build-guideline-ingest-lambda: ## build the guideline-ingest Lambda bootstrap binary
+	@mkdir -p dist/guideline-ingest-lambda
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/guideline-ingest-lambda/bootstrap ./apps/guideline-ingest-lambda
+
 .PHONY: check-build-public-api
 check-build-public-api: ## check standalone public API service build
 	@go build -o /dev/null ./apps/public-api

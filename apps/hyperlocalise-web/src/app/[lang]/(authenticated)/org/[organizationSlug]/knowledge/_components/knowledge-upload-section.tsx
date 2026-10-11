@@ -25,6 +25,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   filterKnowledgeUploadFiles,
   KNOWLEDGE_UPLOAD_ACCEPT,
+  KNOWLEDGE_UPLOAD_MAX_BYTES,
   KNOWLEDGE_UPLOAD_MAX_FILES,
   type KnowledgeUploadActionId,
 } from "./knowledge-upload.shared";
@@ -75,6 +76,7 @@ export function KnowledgeUploadSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const canUploadFiles = onFilesSelected != null;
 
   const applyFiles = (incoming: FileList | File[]) => {
     const all = Array.from(incoming);
@@ -86,6 +88,10 @@ export function KnowledgeUploadSection({
     const accepted = filterKnowledgeUploadFiles(all);
     if (accepted.length === 0 && all.length > 0) {
       toast.message(intl.formatMessage(knowledgeUploadSectionMessages.unsupportedFiles));
+      return;
+    }
+    if (accepted.some((file) => file.size > KNOWLEDGE_UPLOAD_MAX_BYTES)) {
+      toast.message(intl.formatMessage(knowledgeUploadSectionMessages.fileTooLarge));
       return;
     }
 
@@ -121,84 +127,88 @@ export function KnowledgeUploadSection({
         <FormattedMessage {...knowledgeUploadSectionMessages.title} />
       </h2>
 
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-            setIsDragging(false);
-          }
-        }}
-        onDrop={handleDrop}
-        className={cn(
-          "flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-border bg-background px-6 py-10 text-center transition-colors",
-          isDragging && "border-foreground/40 bg-muted",
-        )}
-      >
-        <UploadSimpleIcon className="size-8 text-foreground" />
-        <p className="text-sm text-foreground">
-          <FormattedMessage
-            {...knowledgeUploadSectionMessages.dropHint}
-            values={{
-              chooseFiles: (
-                <span className="font-medium text-primary underline-offset-4 hover:underline">
-                  <FormattedMessage {...knowledgeUploadSectionMessages.chooseFiles} />
-                </span>
-              ),
+      {canUploadFiles ? (
+        <>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => inputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                inputRef.current?.click();
+              }
             }}
-          />
-        </p>
-        <p className="max-w-lg text-xs leading-5 text-muted-foreground">
-          <FormattedMessage {...knowledgeUploadSectionMessages.formats} />
-        </p>
-        {selectedFiles.length > 0 ? (
-          <div className="mt-1 space-y-1">
-            <p className="text-xs font-medium text-foreground">
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setIsDragging(false);
+              }
+            }}
+            onDrop={handleDrop}
+            className={cn(
+              "flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-border bg-background px-6 py-10 text-center transition-colors",
+              isDragging && "border-foreground/40 bg-muted",
+            )}
+          >
+            <UploadSimpleIcon className="size-8 text-foreground" />
+            <p className="text-sm text-foreground">
               <FormattedMessage
-                {...knowledgeUploadSectionMessages.selectedFiles}
-                values={{ count: selectedFiles.length }}
+                {...knowledgeUploadSectionMessages.dropHint}
+                values={{
+                  chooseFiles: (
+                    <span className="font-medium text-primary underline-offset-4 hover:underline">
+                      <FormattedMessage {...knowledgeUploadSectionMessages.chooseFiles} />
+                    </span>
+                  ),
+                }}
               />
             </p>
-            <ul className="space-y-0.5 text-xs text-muted-foreground">
-              {selectedFiles.map((file) => (
-                <li key={`${file.name}-${file.size}-${file.lastModified}`}>{file.name}</li>
-              ))}
-            </ul>
+            <p className="max-w-lg text-xs leading-5 text-muted-foreground">
+              <FormattedMessage {...knowledgeUploadSectionMessages.formats} />
+            </p>
+            {selectedFiles.length > 0 ? (
+              <div className="mt-1 space-y-1">
+                <p className="text-xs font-medium text-foreground">
+                  <FormattedMessage
+                    {...knowledgeUploadSectionMessages.selectedFiles}
+                    values={{ count: selectedFiles.length }}
+                  />
+                </p>
+                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                  {selectedFiles.map((file) => (
+                    <li key={`${file.name}-${file.size}-${file.lastModified}`}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <input
+              ref={inputRef}
+              type="file"
+              accept={KNOWLEDGE_UPLOAD_ACCEPT}
+              className="sr-only"
+              onChange={(event) => {
+                if (event.target.files) {
+                  applyFiles(event.target.files);
+                  event.target.value = "";
+                }
+              }}
+            />
           </div>
-        ) : null}
-        <input
-          ref={inputRef}
-          type="file"
-          accept={KNOWLEDGE_UPLOAD_ACCEPT}
-          className="sr-only"
-          onChange={(event) => {
-            if (event.target.files) {
-              applyFiles(event.target.files);
-              event.target.value = "";
-            }
-          }}
-        />
-      </div>
 
-      <p className="text-sm text-muted-foreground">
-        <FormattedMessage {...knowledgeUploadSectionMessages.or} />
-      </p>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage {...knowledgeUploadSectionMessages.or} />
+          </p>
+        </>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <UploadSourceButton

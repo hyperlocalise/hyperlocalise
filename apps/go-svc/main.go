@@ -15,7 +15,11 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/experiment"
 	"github.com/hyperlocalise/hyperlocalise/internal/dataforseo"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
+	"github.com/hyperlocalise/hyperlocalise/internal/guidelines/check"
+	guidelinepg "github.com/hyperlocalise/hyperlocalise/internal/guidelines/postgres"
 	"github.com/hyperlocalise/hyperlocalise/internal/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/workos/workos-go/v10"
 )
 
@@ -147,6 +151,7 @@ func main() {
 		}
 	}
 
+	var guidelinePool *pgxpool.Pool
 	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
 		pool, err := postgres.NewPool(context.Background(), databaseURL)
 		if err != nil {
@@ -154,6 +159,7 @@ func main() {
 		}
 		defer pool.Close()
 		h.postgres = pool
+		guidelinePool = pool
 		traced := tracedPool{inner: pool}
 		h.dictionaries.pool = traced
 		h.glossaries.pool = traced
@@ -187,6 +193,14 @@ func main() {
 	}
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
+	guidelineIngestPublisher, guidelineIngestErr := newGuidelineIngestPublisher(context.Background())
+	if guidelineIngestErr != nil {
+		log.Printf("configure guideline ingest publisher: %v", guidelineIngestErr)
+	}
+	if guidelineIngestPublisher != nil {
+		h.knowledgeMemories.guidelineIngest = guidelineIngestPublisher
+	}
+	h.guidelineDocuments = newGuidelineDocumentAPI(h.knowledgeMemories, h.objects, guidelineIngestPublisher)
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
@@ -196,6 +210,22 @@ func main() {
 	}
 	defer closeGuidelines()
 	h.guidelines = guidelineSearch
+	h.guidelineCheck = &guidelineCheckAPI{knowledge: h.knowledgeMemories}
+	if h.autumn != nil {
+		h.guidelineCheck.meter = h.autumn
+	}
+	checkModel, err := newGuidelineCheckModel()
+	if err != nil {
+		log.Fatalf("configure guideline check model: %v", err)
+	}
+	// Without a search index, checks still apply mandatory guidelines.
+	checkRetriever := guidelineSearch
+	if checkRetriever == nil && guidelinePool != nil {
+		checkRetriever = guidelines.NewService(guidelinepg.NewWithPool(guidelinePool), nil)
+	}
+	if checkModel != nil && checkRetriever != nil {
+		h.guidelineCheck.checker = check.New(checkRetriever, checkModel)
+	}
 
 	valkeyCtx, cancelValkey := context.WithTimeout(context.Background(), 5*time.Second)
 	valkeyClient, err := configureValkey(valkeyCtx)

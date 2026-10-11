@@ -17,6 +17,11 @@ on:
       - internal/i18n/memoryinterchange/**
       - internal/i18n/editor-export/**
       - internal/objectstore/**
+      - apps/guideline-ingest-lambda/**
+      - internal/guidelines/**
+      - internal/textextract/**
+      - internal/embedding/**
+      - internal/postgres/**
       - .github/actions/go-bootstrap/**
       - .github/actions/provision-lambda/**
       - .github/actions/upload-lambda-artifact/**
@@ -44,6 +49,7 @@ jobs:
       activity-log: ${{ steps.paths.outputs.activity-log }}
       glossary-interchange: ${{ steps.paths.outputs.glossary-interchange }}
       memory-interchange: ${{ steps.paths.outputs.memory-interchange }}
+      guideline-ingest: ${{ steps.paths.outputs.guideline-ingest }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -88,6 +94,24 @@ jobs:
               - 'internal/i18n/memoryinterchange/**'
               - 'internal/i18n/editor-export/**'
               - 'internal/objectstore/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
+            guideline-ingest:
+              - 'apps/guideline-ingest-lambda/**'
+              - 'internal/guidelines/**'
+              - 'internal/textextract/**'
+              - 'internal/embedding/**'
+              - 'internal/objectstore/**'
+              - 'internal/postgres/**'
               - 'Makefile'
               - 'go.mod'
               - 'go.sum'
@@ -333,6 +357,89 @@ jobs:
         run: |
           {
             echo "## Memory-interchange Lambda deployed"
+            echo
+            echo "- Function: \`${FUNCTION_NAME}\`"
+            echo "- Object: \`${S3_URI}\`"
+            echo "- Version: \`${VERSION_ID}\`"
+            echo "- Update: \`${UPDATE}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  guideline_ingest_deploy:
+    name: Build and deploy guideline-ingest Lambda
+    needs: changed_paths
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || needs.changed_paths.outputs.guideline-ingest == 'true')
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
+    concurrency:
+      group: lambda-deploy-guideline-ingest-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure push deploy is not superseded
+        uses: ./.github/actions/ensure-deploy-main-tip
+        with:
+          event-name: ${{ github.event_name }}
+          filters: |
+            superseding:
+              - 'apps/guideline-ingest-lambda/**'
+              - 'internal/guidelines/**'
+              - 'internal/textextract/**'
+              - 'internal/embedding/**'
+              - 'internal/objectstore/**'
+              - 'internal/postgres/**'
+              - 'Makefile'
+              - 'go.mod'
+              - 'go.sum'
+              - 'MODULE.bazel'
+              - 'internal/secretsmanager/**'
+              - '.github/actions/go-bootstrap/**'
+              - '.github/actions/provision-lambda/**'
+              - '.github/actions/upload-lambda-artifact/**'
+              - '.github/actions/deploy-lambda-artifact/**'
+              - '.github/actions/ensure-deploy-main-tip/**'
+              - '.github/workflows/lambda-deploy.yml'
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Test guideline-ingest Lambda
+        run: go test ./apps/guideline-ingest-lambda ./internal/guidelines/... ./internal/textextract
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: github-actions-lambda-deploy
+
+      - name: Build and deploy guideline-ingest Lambda artifact
+        id: deploy
+        uses: ./.github/actions/deploy-lambda-artifact
+        with:
+          bucket-parameter-name: ${{ env.LAMBDA_ARTIFACT_BUCKET_PARAMETER_NAME }}
+          function-parameter-name: /hyperlocalise/prod/lambda/guideline-ingest/function_name
+          build-command: make build-guideline-ingest-lambda
+          binary-path: dist/guideline-ingest-lambda/bootstrap
+          s3-key: guideline-ingest/bootstrap.zip
+
+      - name: Summarize guideline-ingest deployment
+        shell: bash
+        env:
+          S3_URI: ${{ steps.deploy.outputs.s3-uri }}
+          VERSION_ID: ${{ steps.deploy.outputs.version-id }}
+          FUNCTION_NAME: ${{ steps.deploy.outputs.function-name }}
+          UPDATE: ${{ steps.deploy.outputs.update }}
+        run: |
+          {
+            echo "## Guideline-ingest Lambda deployed"
             echo
             echo "- Function: \`${FUNCTION_NAME}\`"
             echo "- Object: \`${S3_URI}\`"

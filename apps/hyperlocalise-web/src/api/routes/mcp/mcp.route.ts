@@ -147,6 +147,9 @@ import { toolCanAccessMemory, toolCanAccessProject } from "@/lib/tools/tool-acce
 import { mcpCreateGlossaryConceptInputSchema } from "./mcp-create-glossary-concept.schema";
 import { mcpQueryTranslationMemoryInputSchema } from "./mcp-query-translation-memory.schema";
 import { mcpGetKnowledgeMemoryInputSchema } from "@/api/routes/mcp/mcp-get-knowledge-memory.schema";
+import { mcpCheckGuidelinesInputSchema } from "@/api/routes/mcp/mcp-check-guidelines.schema";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-request";
+import { createGoSvcServerClient } from "@/lib/go-svc/go-svc-server-client";
 import {
   getKnowledgeMemoryForOrganization,
   getKnowledgeMemoryForProject,
@@ -2784,6 +2787,40 @@ async function createMcpServerForRequest(
           },
         ],
       };
+    },
+  );
+
+  server.registerTool(
+    "check_guidelines",
+    {
+      description:
+        "Check source or translated segments against workspace and project guidelines. Returns findings with UTF-16 offsets and the guideline passages they cite.",
+      inputSchema: mcpCheckGuidelinesInputSchema,
+    },
+    async ({ projectId, sourceLocale, targetLocale, segments, checks }) => {
+      if (!(await isMcpKnowledgeMemoryFeatureEnabled(apiAuth))) {
+        return mcpToolError(
+          "knowledge_memory_unavailable",
+          "Workspace Knowledge is not enabled for this organization",
+        );
+      }
+
+      if (projectId && !(await toolCanAccessProject(mcpToolContext(apiAuth), projectId))) {
+        return mcpToolError("project_not_found", "Project not found or inaccessible");
+      }
+
+      try {
+        const result = await createGoSvcServerClient().guidelines.internalCheck(
+          apiAuth.organization.localOrganizationId,
+          { projectId, sourceLocale, targetLocale, segments, checks },
+        );
+        return { content: [{ type: "text", text: JSON.stringify(result) }] };
+      } catch (error) {
+        if (error instanceof GoSvcClientError) {
+          return mcpToolError(error.code, error.message);
+        }
+        throw error;
+      }
     },
   );
 
