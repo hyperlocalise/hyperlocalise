@@ -17,10 +17,18 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  enqueueVisualWorkflowCreatedActivityMock,
+  enqueueVisualWorkflowDeletedActivityMock,
+  enqueueVisualWorkflowPublishedActivityMock,
+  enqueueVisualWorkflowStatusActivityMock,
   resolveApiAuthContextFromSessionMock,
   visualWorkflowExecutionEnqueueMock,
   isAutumnBooleanFeatureEnabledMock,
 } = vi.hoisted(() => ({
+  enqueueVisualWorkflowCreatedActivityMock: vi.fn(),
+  enqueueVisualWorkflowDeletedActivityMock: vi.fn(),
+  enqueueVisualWorkflowPublishedActivityMock: vi.fn(),
+  enqueueVisualWorkflowStatusActivityMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -29,6 +37,14 @@ const {
   ),
   visualWorkflowExecutionEnqueueMock: vi.fn(async () => ({ ids: ["visual-workflow-run-1"] })),
   isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowCreatedActivity: enqueueVisualWorkflowCreatedActivityMock,
+  enqueueVisualWorkflowDeletedActivity: enqueueVisualWorkflowDeletedActivityMock,
+  enqueueVisualWorkflowPublishedActivity: enqueueVisualWorkflowPublishedActivityMock,
+  enqueueVisualWorkflowRunStartedActivity: vi.fn(),
+  enqueueVisualWorkflowStatusActivity: enqueueVisualWorkflowStatusActivityMock,
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -188,6 +204,13 @@ describe("visual workflow routes", () => {
     };
     expect(created.visualWorkflow.name).toBe("Lead ping");
     expect(created.visualWorkflow.status).toBe("draft");
+    expect(enqueueVisualWorkflowCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Lead ping",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const listedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"].$get(
       {
@@ -245,6 +268,13 @@ describe("visual workflow routes", () => {
       { headers },
     );
     expect(deletedResponse.status).toBe(204);
+    expect(enqueueVisualWorkflowDeletedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Lead ping v2",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const listedAfterDelete = await client.api.orgs[":organizationSlug"]["visual-workflows"].$get(
       {
@@ -345,6 +375,34 @@ describe("visual workflow routes", () => {
     };
     expect(published.visualWorkflow.status).toBe("active");
     expect(published.visualWorkflow.triggerFingerprint).toBeTruthy();
+    expect(enqueueVisualWorkflowPublishedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        name: "Delete then revive",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
+
+    const pausedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug,
+          visualWorkflowId: created.visualWorkflow.id,
+        },
+        json: { expectedRevision: 2, status: "paused" },
+      },
+      { headers },
+    );
+    expect(pausedResponse.status).toBe(200);
+    expect(enqueueVisualWorkflowStatusActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        status: "paused",
+        visualWorkflowId: created.visualWorkflow.id,
+      }),
+    );
 
     const deletedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
       ":visualWorkflowId"

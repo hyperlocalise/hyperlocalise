@@ -595,6 +595,20 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 			},
 		},
 		{
+			name:       "visual_workflow",
+			targetKind: "visual_workflow",
+			eventType:  "visual_workflow_published",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into visual_workflows (id, organization_id, name, definition)
+                    values ($1, $2, 'Campaign pages', '{}'::jsonb)`,
+					id, scope.OrganizationID)
+				require.NoError(t, err)
+				return id, "Campaign pages", "/org/" + scope.Slug + "/automations/visual-workflows/" + id
+			},
+		},
+		{
 			name:       "org-scoped job",
 			targetKind: "job",
 			eventType:  "job_created",

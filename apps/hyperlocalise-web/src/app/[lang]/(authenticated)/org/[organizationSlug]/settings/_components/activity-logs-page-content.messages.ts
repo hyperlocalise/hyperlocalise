@@ -225,6 +225,46 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "uIkNdFV4AX",
     description: "Activity log event type label for disabling automations",
   },
+  automationCreatedEventType: {
+    defaultMessage: "Automation Created",
+    id: "8jiuCoyVpa",
+    description: "Activity log event type label for creating automations",
+  },
+  automationDeletedEventType: {
+    defaultMessage: "Automation Deleted",
+    id: "ZdtDJMNEWA",
+    description: "Activity log event type label for deleting automations",
+  },
+  visualWorkflowCreatedEventType: {
+    defaultMessage: "Visual Workflow Created",
+    id: "+RFsBEni8d",
+    description: "Activity log event type label for creating visual workflows",
+  },
+  visualWorkflowDeletedEventType: {
+    defaultMessage: "Visual Workflow Deleted",
+    id: "/SBxHj0JY1",
+    description: "Activity log event type label for deleting visual workflows",
+  },
+  visualWorkflowPublishedEventType: {
+    defaultMessage: "Visual Workflow Published",
+    id: "5ZRJIF2YEf",
+    description: "Activity log event type label for publishing visual workflows",
+  },
+  visualWorkflowEnabledEventType: {
+    defaultMessage: "Visual Workflow Enabled",
+    id: "lkRSWA3RCX",
+    description: "Activity log event type label for enabling visual workflows",
+  },
+  visualWorkflowDisabledEventType: {
+    defaultMessage: "Visual Workflow Disabled",
+    id: "s2nhkcZKAr",
+    description: "Activity log event type label for disabling visual workflows",
+  },
+  visualWorkflowRunStartedEventType: {
+    defaultMessage: "Visual Workflow Run Started",
+    id: "/jSn20wHsp",
+    description: "Activity log event type label for visual workflow runs",
+  },
   fileUploadedEventType: {
     defaultMessage: "File Uploaded",
     id: "b0hzgbcjSl",
@@ -319,6 +359,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Automations",
     id: "JA+rxr35jC",
     description: "Activity log event type group for automations",
+  },
+  visualWorkflowEventGroup: {
+    defaultMessage: "Visual workflows",
+    id: "aV3ehfeMLX",
+    description: "Activity log event type group for visual workflows",
   },
   fileEventGroup: {
     defaultMessage: "Files",
@@ -684,6 +729,46 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "disabled an automation",
     id: "MmRAbYJJub",
     description: "Action for disabling an automation",
+  },
+  automationCreatedAction: {
+    defaultMessage: "created an automation",
+    id: "9Cs6CzvjiC",
+    description: "Action for creating an automation",
+  },
+  automationDeletedAction: {
+    defaultMessage: "deleted an automation",
+    id: "Gl+LobSOlL",
+    description: "Action for deleting an automation",
+  },
+  visualWorkflowCreatedAction: {
+    defaultMessage: "created a visual workflow",
+    id: "vwjPgomhSV",
+    description: "Action for creating a visual workflow",
+  },
+  visualWorkflowDeletedAction: {
+    defaultMessage: "deleted a visual workflow",
+    id: "XOFGS0/TGY",
+    description: "Action for deleting a visual workflow",
+  },
+  visualWorkflowPublishedAction: {
+    defaultMessage: "published a visual workflow",
+    id: "qF8Df1EKi9",
+    description: "Action for publishing a visual workflow",
+  },
+  visualWorkflowEnabledAction: {
+    defaultMessage: "enabled a visual workflow",
+    id: "Cz30wjZvqz",
+    description: "Action for enabling a visual workflow",
+  },
+  visualWorkflowDisabledAction: {
+    defaultMessage: "disabled a visual workflow",
+    id: "du6Z5VSDjw",
+    description: "Action for disabling a visual workflow",
+  },
+  visualWorkflowRunStartedAction: {
+    defaultMessage: "started a visual workflow run",
+    id: "5lw2B8GGrH",
+    description: "Action for starting a visual workflow run",
   },
   fileUploadedAction: {
     defaultMessage: "uploaded a file",

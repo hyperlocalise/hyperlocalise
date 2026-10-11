@@ -73,7 +73,11 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
-import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automation-events";
+import {
+  enqueueAutomationCreatedActivity,
+  enqueueAutomationDeletedActivity,
+  enqueueAutomationStatusActivity,
+} from "@/lib/activity-log/job-automation-events";
 
 import {
   createWorkspaceAutomationBodySchema,
@@ -552,6 +556,16 @@ export function createWorkspaceAutomationRoutes(
           return mapAutomationConfigValidationError(c, result.error);
         }
 
+        await enqueueAutomationCreatedActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          automationId: result.value.id,
+          name: result.value.name,
+          organizationId,
+          status: result.value.status,
+        });
+
         return c.json({ automation: result.value, recentRuns: [] }, 201);
       } catch (error) {
         return mapAutomationError(c, error);
@@ -822,14 +836,13 @@ export function createWorkspaceAutomationRoutes(
       }
 
       if (existing.status !== "archived") {
-        await enqueueAutomationStatusActivity({
+        await enqueueAutomationDeletedActivity({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
           automationId: existing.id,
           name: result.value.name,
           organizationId,
-          status: "archived",
         });
       }
 

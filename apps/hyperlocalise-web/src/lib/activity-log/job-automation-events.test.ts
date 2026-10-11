@@ -30,6 +30,8 @@ vi.mock("@/lib/analytics/server", () => ({
 
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import {
+  enqueueAutomationCreatedActivity,
+  enqueueAutomationDeletedActivity,
   enqueueAutomationRunStartedActivity,
   enqueueAutomationStatusActivity,
   enqueueJobCancelledActivity,
@@ -126,6 +128,45 @@ describe("job and automation activity events", () => {
           jobId: "job_1",
           kind: "review",
           status: "failed",
+        },
+      }),
+    );
+  });
+
+  it("records automation create and delete", async () => {
+    await enqueueAutomationCreatedActivity({
+      ...userActor,
+      automationId: "automation_1",
+      name: "Daily localization check",
+      organizationId: "org_1",
+      status: "active",
+    });
+    await enqueueAutomationDeletedActivity({
+      ...userActor,
+      automationId: "automation_1",
+      name: "Daily localization check",
+      organizationId: "org_1",
+    });
+
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: "automation_created",
+        payload: {
+          automationId: "automation_1",
+          name: "Daily localization check",
+          status: "active",
+        },
+      }),
+    );
+    expect(enqueueActivityLogEventMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: "automation_deleted",
+        payload: {
+          automationId: "automation_1",
+          name: "Daily localization check",
+          status: "archived",
         },
       }),
     );

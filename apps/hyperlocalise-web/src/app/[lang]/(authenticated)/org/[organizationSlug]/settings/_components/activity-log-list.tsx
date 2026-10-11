@@ -24,6 +24,7 @@ import {
   UsersThreeIcon,
   DatabaseIcon,
   FileIcon,
+  GitBranchIcon,
   TextTIcon,
 } from "@phosphor-icons/react";
 
@@ -82,9 +83,17 @@ const eventActions = {
   job_created: messages.jobCreatedAction,
   job_cancelled: messages.jobCancelledAction,
   job_failed: messages.jobFailedAction,
+  automation_created: messages.automationCreatedAction,
+  automation_deleted: messages.automationDeletedAction,
   automation_run_started: messages.automationRunStartedAction,
   automation_enabled: messages.automationEnabledAction,
   automation_disabled: messages.automationDisabledAction,
+  visual_workflow_created: messages.visualWorkflowCreatedAction,
+  visual_workflow_deleted: messages.visualWorkflowDeletedAction,
+  visual_workflow_published: messages.visualWorkflowPublishedAction,
+  visual_workflow_enabled: messages.visualWorkflowEnabledAction,
+  visual_workflow_disabled: messages.visualWorkflowDisabledAction,
+  visual_workflow_run_started: messages.visualWorkflowRunStartedAction,
   file_uploaded: messages.fileUploadedAction,
   file_translations_imported: messages.fileTranslationsImportedAction,
   string_segment_translation_updated: messages.stringSegmentTranslationUpdatedAction,
@@ -125,6 +134,9 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   }
   if (eventType.startsWith("automation_")) {
     return { icon: PuzzlePieceIcon, className: "bg-success/10 text-success" };
+  }
+  if (eventType.startsWith("visual_workflow_")) {
+    return { icon: GitBranchIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("file_")) {
     return { icon: FileIcon, className: "bg-primary/10 text-primary" };

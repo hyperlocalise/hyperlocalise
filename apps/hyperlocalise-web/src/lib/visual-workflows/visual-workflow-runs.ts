@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, sql, or, isNull, lte } from "drizzle-orm";
 
+import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
+import { enqueueVisualWorkflowRunStartedActivity } from "@/lib/activity-log/visual-workflow-events";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
@@ -644,6 +646,11 @@ export async function getVisualWorkflowRunByIdempotencyKey(input: {
 }
 
 export async function createVisualWorkflowRun(input: {
+  activityActor?: {
+    actorCredentialId: string | null;
+    actorKind: ActivityActorKind;
+    actorUserId: string | null;
+  };
   organizationId: string;
   visualWorkflowId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
@@ -746,6 +753,20 @@ export async function createVisualWorkflowRun(input: {
     .insert(schema.visualWorkflowOutbox)
     .values({ runId: row.id, organizationId: row.organizationId, workflowId: row.visualWorkflowId })
     .onConflictDoNothing();
+
+  if (!input.testDefinition && (input.mode ?? "live") !== "mock") {
+    await enqueueVisualWorkflowRunStartedActivity({
+      actorCredentialId: input.activityActor?.actorCredentialId ?? null,
+      actorKind: input.activityActor?.actorKind ?? "system",
+      actorUserId: input.activityActor?.actorUserId ?? null,
+      name: workflow.name,
+      organizationId: input.organizationId,
+      runId: row.id,
+      triggerSource: input.triggerSource,
+      visualWorkflowId: workflow.id,
+    });
+  }
+
   return serializeRun(row);
 }
 
@@ -1416,6 +1437,11 @@ export async function executeVisualWorkflowRun(input: {
 }
 
 export async function dispatchManualVisualWorkflowRun(input: {
+  activityActor?: {
+    actorCredentialId: string | null;
+    actorKind: ActivityActorKind;
+    actorUserId: string | null;
+  };
   organizationId: string;
   visualWorkflowId: string;
   idempotencyKey: string;
@@ -1438,6 +1464,7 @@ export async function dispatchManualVisualWorkflowRun(input: {
   });
 
   const run = await createVisualWorkflowRun({
+    activityActor: input.activityActor,
     organizationId: input.organizationId,
     visualWorkflowId: input.visualWorkflowId,
     triggerSource: "manual",

@@ -26,6 +26,7 @@ export const ACTIVITY_TARGET_KINDS = [
   "translation_memory",
   "job",
   "automation",
+  "visual_workflow",
   "file",
   "string_segment",
 ] as const;
@@ -71,11 +72,23 @@ export const LATER_ACTIVITY_EVENT_TYPES = [
   "job_created",
   "job_cancelled",
   "job_failed",
+  "automation_created",
+  "automation_deleted",
   "automation_run_started",
   "automation_enabled",
   "automation_disabled",
 ] as const;
 export type LaterActivityEventType = (typeof LATER_ACTIVITY_EVENT_TYPES)[number];
+
+export const VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES = [
+  "visual_workflow_created",
+  "visual_workflow_deleted",
+  "visual_workflow_published",
+  "visual_workflow_enabled",
+  "visual_workflow_disabled",
+  "visual_workflow_run_started",
+] as const;
+export type VisualWorkflowActivityEventType = (typeof VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES)[number];
 
 export const FILE_SEGMENT_ACTIVITY_EVENT_TYPES = [
   "file_uploaded",
@@ -94,6 +107,7 @@ export type FileSegmentActivityEventType = (typeof FILE_SEGMENT_ACTIVITY_EVENT_T
 export const IMPLEMENTED_ACTIVITY_EVENT_TYPES = [
   ...V1_ACTIVITY_EVENT_TYPES,
   ...LATER_ACTIVITY_EVENT_TYPES,
+  ...VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
   ...FILE_SEGMENT_ACTIVITY_EVENT_TYPES,
 ] as const;
 export type ImplementedActivityEventType = (typeof IMPLEMENTED_ACTIVITY_EVENT_TYPES)[number];
@@ -102,6 +116,7 @@ export type ActivityEventType =
   | V1ActivityEventType
   | ReservedActivityEventType
   | LaterActivityEventType
+  | VisualWorkflowActivityEventType
   | FileSegmentActivityEventType;
 
 export type ActivityMembershipRole =
@@ -237,6 +252,16 @@ export type ActivityPayloadByEventType = {
     projectId?: string;
     status: "failed";
   };
+  automation_created: {
+    automationId: string;
+    name: string;
+    status: "active" | "archived" | "paused";
+  };
+  automation_deleted: {
+    automationId: string;
+    name: string;
+    status: "archived";
+  };
   automation_run_started: {
     automationId: string;
     name: string;
@@ -253,6 +278,38 @@ export type ActivityPayloadByEventType = {
     automationId: string;
     name: string;
     status: "archived" | "paused";
+  };
+  visual_workflow_created: {
+    name: string;
+    status: "draft";
+    visualWorkflowId: string;
+  };
+  visual_workflow_deleted: {
+    name: string;
+    status: "archived";
+    visualWorkflowId: string;
+  };
+  visual_workflow_published: {
+    name: string;
+    publishedVersion: number;
+    visualWorkflowId: string;
+  };
+  visual_workflow_enabled: {
+    name: string;
+    status: "active";
+    visualWorkflowId: string;
+  };
+  visual_workflow_disabled: {
+    name: string;
+    status: "archived" | "paused";
+    visualWorkflowId: string;
+  };
+  visual_workflow_run_started: {
+    name: string;
+    runId: string;
+    status: "queued";
+    triggerSource: string;
+    visualWorkflowId: string;
   };
   file_uploaded: FileActivityPayload;
   file_translations_imported: FileActivityPayload & {
@@ -309,9 +366,17 @@ export type ActivityTargetKindByEventType = {
   job_created: "job";
   job_cancelled: "job";
   job_failed: "job";
+  automation_created: "automation";
+  automation_deleted: "automation";
   automation_run_started: "automation";
   automation_enabled: "automation";
   automation_disabled: "automation";
+  visual_workflow_created: "visual_workflow";
+  visual_workflow_deleted: "visual_workflow";
+  visual_workflow_published: "visual_workflow";
+  visual_workflow_enabled: "visual_workflow";
+  visual_workflow_disabled: "visual_workflow";
+  visual_workflow_run_started: "visual_workflow";
   file_uploaded: "file";
   file_translations_imported: "file";
   string_segment_translation_updated: "string_segment";
