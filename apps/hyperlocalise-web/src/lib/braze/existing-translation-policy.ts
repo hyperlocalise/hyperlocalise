@@ -40,11 +40,16 @@ export type BrazeLocaleTranslationPresence = {
 export function brazeTranslationPresence(input: {
   importedHash?: string;
   translatedKeyCount: number;
+  provenances?: readonly string[];
 }): BrazeLocaleTranslationPresence {
   const hasExistingTranslation = input.translatedKeyCount > 0;
+  const provenances = [...new Set((input.provenances ?? []).filter((value) => value.trim()))];
   return {
     hasExistingTranslation,
-    importProvenanceOnly: hasExistingTranslation && Boolean(input.importedHash),
+    importProvenanceOnly:
+      hasExistingTranslation &&
+      provenances.length > 0 &&
+      provenances.every((value) => value === "import"),
     contentHash: input.importedHash ?? null,
   };
 }

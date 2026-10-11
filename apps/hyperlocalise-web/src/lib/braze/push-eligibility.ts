@@ -16,6 +16,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { selectInScopeBrazeMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
 
 export type BrazePushItem = {
@@ -75,16 +76,22 @@ export async function getBrazePushEligibility(input: {
     configuredSourceLocale: braze.sourceLocale,
   });
 
-  const mappings = await db
-    .select()
-    .from(schema.brazeTemplateSyncStates)
-    .where(
-      and(
-        eq(schema.brazeTemplateSyncStates.organizationId, input.organizationId),
-        eq(schema.brazeTemplateSyncStates.automationId, input.automation.id),
-        inArray(schema.brazeTemplateSyncStates.status, ["active", "push_failed"]),
+  const mappings = selectInScopeBrazeMappings(
+    await db
+      .select()
+      .from(schema.brazeTemplateSyncStates)
+      .where(
+        and(
+          eq(schema.brazeTemplateSyncStates.organizationId, input.organizationId),
+          eq(schema.brazeTemplateSyncStates.automationId, input.automation.id),
+          inArray(schema.brazeTemplateSyncStates.status, ["active", "push_failed"]),
+        ),
       ),
-    );
+    {
+      templateIds: braze.templateIds,
+      contentBlockIds: braze.contentBlockIds,
+    },
+  );
 
   const translationService = new ProjectTranslationService();
   let eligibleLocaleCount = 0;

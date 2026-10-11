@@ -30,6 +30,14 @@ describe("braze names", () => {
     expect(brazeContentBlockCopyName("Hero / Promo!", "pt-BR")).toBe("Hero_Promo_pt-BR");
   });
 
+  it("keeps the locale suffix inside the 100-character Content Block limit", () => {
+    const longName = "A".repeat(100);
+    const copy = brazeContentBlockCopyName(longName, "fr-FR");
+    expect(copy).toHaveLength(100);
+    expect(copy.endsWith("_fr-FR")).toBe(true);
+    expect(copy).not.toBe(sanitizeBrazeContentBlockName(longName));
+  });
+
   it("slugifies source paths", () => {
     expect(slugifyBrazePathSegment("Welcome email", "item")).toBe("welcome-email");
   });

@@ -16,7 +16,10 @@ import {
   brazeLibraryNeedsFullCopyScan,
   discoverBrazeLocaleCopies,
   mergeBrazeLocaleCopies,
+  leftoverBrazeJobLocalesNotCoveredByOpenJobs,
   remainingBrazeJobLocales,
+  intersectBrazeJobLocales,
+  selectInScopeBrazeMappings,
 } from "./discover-locale-copies";
 import { brazeEmailCopyName } from "./names";
 
@@ -83,5 +86,35 @@ describe("discoverBrazeLocaleCopies", () => {
         skippedExistingSuffixes: ["de-DE"],
       }),
     ).toEqual(["ja-JP"]);
+  });
+
+  it("honors configured native-job locales and open jobs", () => {
+    expect(intersectBrazeJobLocales(["fr-FR", "de-DE", "ja-JP"], ["ja-JP"], false)).toEqual([
+      "ja-JP",
+    ]);
+    expect(
+      leftoverBrazeJobLocalesNotCoveredByOpenJobs({
+        leftoverLocales: ["fr-FR", "de-DE"],
+        sourceFileId: "file_1",
+        openJobs: [{ sourceFileId: "file_1", targetLocales: ["fr-FR"] }],
+      }),
+    ).toEqual(["de-DE"]);
+    expect(intersectBrazeJobLocales(["fr-FR", "de-DE"], ["ja-JP"], true)).toEqual([
+      "fr-FR",
+      "de-DE",
+    ]);
+  });
+
+  it("keeps only mappings still in the automation picker", () => {
+    const mappings = [
+      { sourceId: "keep", resourceKind: "email_template" as const },
+      { sourceId: "drop", resourceKind: "email_template" as const },
+      { sourceId: "block", resourceKind: "content_block" as const },
+    ];
+    expect(
+      selectInScopeBrazeMappings(mappings, { templateIds: ["keep"], contentBlockIds: [] }).map(
+        (item) => item.sourceId,
+      ),
+    ).toEqual(["keep", "block"]);
   });
 });

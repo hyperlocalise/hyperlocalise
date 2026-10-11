@@ -39,5 +39,10 @@ export function sanitizeBrazeContentBlockName(value: string): string {
 }
 
 export function brazeContentBlockCopyName(sourceName: string, localeSuffix: string): string {
-  return sanitizeBrazeContentBlockName(`${sourceName}_${localeSuffix}`);
+  const suffix = `_${localeSuffix.trim() || "locale"}`;
+  const maxBaseLength = Math.max(1, BRAZE_CONTENT_BLOCK_NAME_MAX_LENGTH - suffix.length);
+  const base = sanitizeBrazeContentBlockName(sourceName)
+    .slice(0, maxBaseLength)
+    .replace(/_+$/g, "");
+  return `${base || "content_block"}${suffix}`.slice(0, BRAZE_CONTENT_BLOCK_NAME_MAX_LENGTH);
 }

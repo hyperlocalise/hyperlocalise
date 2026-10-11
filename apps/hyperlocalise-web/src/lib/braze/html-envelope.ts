@@ -88,17 +88,20 @@ function readFieldInnerHtml(html: string, field: string): string {
   if (!match) {
     return "";
   }
-  const rest = html.slice(match.index + match[0].length);
-  const nextField = rest.search(new RegExp(`<div[^>]*${FIELD_ATTR}="`, "i"));
-  const bodyEnd = rest.search(/<\/body>/i);
-  let end = rest.length;
-  if (nextField >= 0) {
-    end = Math.min(end, nextField);
+  const start = match.index + match[0].length;
+  const tag = /<\/?div\b[^>]*>/gi;
+  tag.lastIndex = start;
+  let depth = 1;
+  let found = tag.exec(html);
+  while (found) {
+    const isClose = found[0].startsWith("</");
+    depth += isClose ? -1 : 1;
+    if (depth === 0) {
+      return html.slice(start, found.index);
+    }
+    found = tag.exec(html);
   }
-  if (bodyEnd >= 0) {
-    end = Math.min(end, bodyEnd);
-  }
-  return rest.slice(0, end).replace(/\s*<\/div>\s*$/i, "");
+  return html.slice(start);
 }
 
 function decodeHtml(value: string): string {
@@ -154,12 +157,18 @@ export function hashBrazeContent(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function brazeSourcePathToken(id: string): string {
+  return createHash("sha256").update(id).digest("hex").slice(0, 8);
+}
+
 export function buildBrazeEmailSourcePath(input: {
   templateId: string;
   templateName?: string | null;
 }): string {
   const slug = slugifyBrazePathSegment(input.templateName ?? "", input.templateId);
-  return normalizeSourcePath(`braze/templates/${slug}.html`);
+  return normalizeSourcePath(
+    `braze/templates/${slug}-${brazeSourcePathToken(input.templateId)}.html`,
+  );
 }
 
 export function buildBrazeContentBlockSourcePath(input: {
@@ -167,5 +176,7 @@ export function buildBrazeContentBlockSourcePath(input: {
   name?: string | null;
 }): string {
   const slug = slugifyBrazePathSegment(input.name ?? "", input.contentBlockId);
-  return normalizeSourcePath(`braze/content-blocks/${slug}.html`);
+  return normalizeSourcePath(
+    `braze/content-blocks/${slug}-${brazeSourcePathToken(input.contentBlockId)}.html`,
+  );
 }

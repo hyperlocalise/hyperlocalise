@@ -32,6 +32,7 @@ import {
   restoreBrazeContentBlockEnvelope,
   restoreBrazeEmailEnvelope,
 } from "./html-envelope";
+import { selectInScopeBrazeMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
 import { brazeContentBlockCopyName, brazeEmailCopyName } from "./names";
 
@@ -204,16 +205,22 @@ export async function runPushBrazeTemplates(input: {
   });
 
   const mappings = selectBrazePushMappings(
-    await db
-      .select()
-      .from(schema.brazeTemplateSyncStates)
-      .where(
-        and(
-          eq(schema.brazeTemplateSyncStates.organizationId, input.organizationId),
-          eq(schema.brazeTemplateSyncStates.automationId, input.automation.id),
-          inArray(schema.brazeTemplateSyncStates.status, ["active", "push_failed"]),
+    selectInScopeBrazeMappings(
+      await db
+        .select()
+        .from(schema.brazeTemplateSyncStates)
+        .where(
+          and(
+            eq(schema.brazeTemplateSyncStates.organizationId, input.organizationId),
+            eq(schema.brazeTemplateSyncStates.automationId, input.automation.id),
+            inArray(schema.brazeTemplateSyncStates.status, ["active", "push_failed"]),
+          ),
         ),
-      ),
+      {
+        templateIds: braze.templateIds,
+        contentBlockIds: braze.contentBlockIds,
+      },
+    ),
     input.sourcePaths,
   );
 

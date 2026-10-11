@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import { db, schema } from "@/lib/database/client";
@@ -28,6 +28,12 @@ import {
   importApprovedProjectTranslationsFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
+import {
+  INTERCOM_IMPORT_OPEN_JOB_STATUSES,
+  readFileTranslationJobSourceFileId,
+  readFileTranslationJobTargetLocales,
+} from "@/lib/intercom/import-intercom-jobs";
+import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 
 import {
   BrazeApiError,
@@ -41,6 +47,8 @@ import {
   brazeLibraryNeedsFullCopyScan,
   discoverBrazeLocaleCopies,
   mergeBrazeLocaleCopies,
+  intersectBrazeJobLocales,
+  leftoverBrazeJobLocalesNotCoveredByOpenJobs,
   remainingBrazeJobLocales,
 } from "./discover-locale-copies";
 import {
@@ -64,7 +72,6 @@ import {
   serializeBrazeEmailEnvelope,
 } from "./html-envelope";
 import { mapProjectLocalesToBraze } from "./locale";
-import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 
 const logger = createLogger("import-braze-templates");
 const jobQueue = createTranslationJobEventQueue();
@@ -261,6 +268,17 @@ export async function runImportBrazeTemplates(input: {
     }));
   }
 
+  await archiveOutOfScopeBrazeMappings({
+    existing: existingMappings,
+    templateIds: templateFilter,
+    contentBlockIds: blockFilter,
+  });
+
+  const openJobs = await loadOpenBrazeFileTranslationJobs({
+    organizationId: input.organizationId,
+    projectId,
+  });
+
   const result: ImportBrazeTemplatesResult = {
     imported: 0,
     skipped: 0,
@@ -295,6 +313,7 @@ export async function runImportBrazeTemplates(input: {
       policy,
       workflowRunId: input.workflowRunId,
       library: templateLibrary,
+      openJobs,
       existing: existingMappings.find(
         (row) => row.resourceKind === "email_template" && row.sourceId === template.id,
       ),
@@ -321,6 +340,7 @@ export async function runImportBrazeTemplates(input: {
       policy,
       workflowRunId: input.workflowRunId,
       library: blockLibrary,
+      openJobs,
       existing: existingMappings.find(
         (row) => row.resourceKind === "content_block" && row.sourceId === block.id,
       ),
@@ -406,6 +426,7 @@ async function importEmailTemplate(input: {
   policy: ReturnType<typeof isBrazeExistingTranslationPolicy> extends never ? never : string;
   workflowRunId?: string | null;
   library: ReadonlyArray<{ id: string; name: string }>;
+  openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
   existing?: typeof schema.brazeTemplateSyncStates.$inferSelect;
 }) {
   try {
@@ -473,6 +494,7 @@ async function importEmailTemplate(input: {
       projectId: input.projectId,
       sourceFileId,
       sourceLocale: input.sourceLocale,
+      openJobs: input.openJobs,
       targetLocales: remainingBrazeJobLocales({
         jobTargetLocales: input.localeMapping.jobTargetLocales,
         brazeSuffixes: input.localeMapping.brazeSuffixes,
@@ -569,6 +591,7 @@ async function importContentBlock(input: {
   policy: string;
   workflowRunId?: string | null;
   library: ReadonlyArray<{ id: string; name: string }>;
+  openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
   existing?: typeof schema.brazeTemplateSyncStates.$inferSelect;
 }) {
   try {
@@ -626,6 +649,7 @@ async function importContentBlock(input: {
       projectId: input.projectId,
       sourceFileId,
       sourceLocale: input.sourceLocale,
+      openJobs: input.openJobs,
       targetLocales: remainingBrazeJobLocales({
         jobTargetLocales: input.localeMapping.jobTargetLocales,
         brazeSuffixes: input.localeMapping.brazeSuffixes,
@@ -809,26 +833,28 @@ async function importLocaleCopies(input: {
       continue;
     }
     const copyId = input.localeCopyIds[suffix];
+    const presence = await loadBrazeLocalePresence({
+      translationService,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      targetLocale: projectLocale,
+      importedHash: input.importedHashes[suffix],
+    });
     if (!copyId) {
       skipped += 1;
+      if (presence.hasExistingTranslation) {
+        skippedExistingSuffixes.push(suffix);
+      }
       continue;
     }
     try {
       const html = await input.loadCopyHtml(copyId);
       const incomingHash = hashBrazeContent(html);
-      const loaded = await translationService.loadAsPrefilledEntries({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        sourcePath: input.sourcePath,
-        targetLocale: projectLocale,
-      });
       const action = decideBrazeExistingTranslationAction({
         policy: input.policy,
         incomingHash,
-        presence: brazeTranslationPresence({
-          importedHash: input.importedHashes[suffix],
-          translatedKeyCount: loaded.translatedKeyCount,
-        }),
+        presence,
       });
       if (action === "skip") {
         skipped += 1;
@@ -866,9 +892,19 @@ async function maybeCreateBrazeJob(input: {
   sourceFileId: string;
   sourceLocale: string;
   targetLocales: string[];
+  openJobs: Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
 }): Promise<string | undefined> {
   const createJob = input.automation.toolConfig.createNativeTmsJob;
-  if (!createJob?.enabled || input.targetLocales.length === 0) {
+  const targetLocales = leftoverBrazeJobLocalesNotCoveredByOpenJobs({
+    leftoverLocales: intersectBrazeJobLocales(
+      input.targetLocales,
+      createJob?.targetLocales,
+      createJob?.useProjectTargetLocales,
+    ),
+    sourceFileId: input.sourceFileId,
+    openJobs: input.openJobs,
+  });
+  if (!createJob?.enabled || targetLocales.length === 0) {
     return undefined;
   }
   const created = await createFileTranslationJob({
@@ -876,7 +912,7 @@ async function maybeCreateBrazeJob(input: {
     projectId: input.projectId,
     sourceFileId: input.sourceFileId,
     sourceLocale: input.sourceLocale,
-    targetLocales: input.targetLocales,
+    targetLocales,
     fileFormat: "html",
     metadata: { uploadSurface: "braze_automation" },
   });
@@ -890,7 +926,94 @@ async function maybeCreateBrazeJob(input: {
       jobQueue,
     });
   }
+  input.openJobs.push({ sourceFileId: input.sourceFileId, targetLocales });
   return created.jobId;
+}
+
+async function loadOpenBrazeFileTranslationJobs(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<Array<{ sourceFileId: string | null; targetLocales: readonly string[] }>> {
+  const rows = await db
+    .select({ inputPayload: schema.jobs.inputPayload })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.organizationId, input.organizationId),
+        eq(schema.jobs.projectId, input.projectId),
+        eq(schema.jobs.kind, "translation"),
+        inArray(schema.jobs.status, [...INTERCOM_IMPORT_OPEN_JOB_STATUSES]),
+      ),
+    );
+  return rows.map((row) => ({
+    sourceFileId: readFileTranslationJobSourceFileId(row.inputPayload),
+    targetLocales: readFileTranslationJobTargetLocales(row.inputPayload),
+  }));
+}
+
+async function archiveOutOfScopeBrazeMappings(input: {
+  existing: Array<typeof schema.brazeTemplateSyncStates.$inferSelect>;
+  templateIds: ReadonlySet<string>;
+  contentBlockIds: ReadonlySet<string>;
+}) {
+  const ids: string[] = [];
+  for (const row of input.existing) {
+    if (row.status === "archived") {
+      continue;
+    }
+    const inScope =
+      row.resourceKind === "email_template"
+        ? input.templateIds.size === 0 || input.templateIds.has(row.sourceId)
+        : input.contentBlockIds.size === 0 || input.contentBlockIds.has(row.sourceId);
+    if (!inScope) {
+      ids.push(row.id);
+    }
+  }
+  if (ids.length === 0) {
+    return;
+  }
+  await db
+    .update(schema.brazeTemplateSyncStates)
+    .set({ status: "archived", updatedAt: new Date() })
+    .where(inArray(schema.brazeTemplateSyncStates.id, ids));
+}
+
+async function loadBrazeLocalePresence(input: {
+  translationService: ProjectTranslationService;
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  importedHash?: string;
+}) {
+  const sourceFile = await input.translationService.getRepositorySourceFileByPath({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+  });
+  if (!sourceFile) {
+    return brazeTranslationPresence({
+      importedHash: input.importedHash,
+      translatedKeyCount: 0,
+    });
+  }
+  const keys = await input.translationService.listKeysForFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    repositorySourceFileId: sourceFile.id,
+    targetLocale: input.targetLocale,
+  });
+  const translations = await input.translationService.getTranslationsByKeyIds({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    translationKeyIds: keys.map((key) => key.id),
+    targetLocale: input.targetLocale,
+  });
+  return brazeTranslationPresence({
+    importedHash: input.importedHash,
+    translatedKeyCount: translations.filter((row) => (row.text ?? "").trim().length > 0).length,
+    provenances: translations.map((row) => row.provenance),
+  });
 }
 
 async function upsertSyncState(input: {

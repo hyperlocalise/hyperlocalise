@@ -106,3 +106,55 @@ export function remainingBrazeJobLocales(input: {
   }
   return remaining;
 }
+
+function localeKey(locale: string): string {
+  return locale.trim().replace(/_/g, "-").toLowerCase();
+}
+
+export function intersectBrazeJobLocales(
+  remaining: readonly string[],
+  configuredTargetLocales: readonly string[] | undefined,
+  useProjectTargetLocales: boolean | undefined,
+): string[] {
+  if (useProjectTargetLocales !== false || !configuredTargetLocales?.length) {
+    return [...remaining];
+  }
+  const allowed = new Set(configuredTargetLocales.map(localeKey));
+  return remaining.filter((locale) => allowed.has(localeKey(locale)));
+}
+
+export function leftoverBrazeJobLocalesNotCoveredByOpenJobs(input: {
+  leftoverLocales: readonly string[];
+  sourceFileId: string;
+  openJobs: ReadonlyArray<{ sourceFileId: string | null; targetLocales: readonly string[] }>;
+}): string[] {
+  const covered = new Set<string>();
+  for (const job of input.openJobs) {
+    if (job.sourceFileId !== input.sourceFileId) {
+      continue;
+    }
+    for (const locale of job.targetLocales) {
+      covered.add(localeKey(locale));
+    }
+  }
+  return input.leftoverLocales.filter((locale) => !covered.has(localeKey(locale)));
+}
+
+export function selectInScopeBrazeMappings<
+  T extends { sourceId: string; resourceKind: "email_template" | "content_block" },
+>(
+  mappings: readonly T[],
+  input: {
+    templateIds?: readonly string[] | null;
+    contentBlockIds?: readonly string[] | null;
+  },
+): T[] {
+  const templateIds = new Set((input.templateIds ?? []).filter((id) => id.trim()));
+  const contentBlockIds = new Set((input.contentBlockIds ?? []).filter((id) => id.trim()));
+  return mappings.filter((mapping) => {
+    if (mapping.resourceKind === "email_template") {
+      return templateIds.size === 0 || templateIds.has(mapping.sourceId);
+    }
+    return contentBlockIds.size === 0 || contentBlockIds.has(mapping.sourceId);
+  });
+}

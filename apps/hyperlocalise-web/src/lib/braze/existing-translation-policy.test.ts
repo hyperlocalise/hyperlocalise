@@ -25,6 +25,35 @@ describe("braze existing translation policy", () => {
       contentHash: null,
     });
     expect(
+      brazeTranslationPresence({
+        importedHash: "old",
+        translatedKeyCount: 1,
+        provenances: ["translation_job"],
+      }),
+    ).toEqual({
+      hasExistingTranslation: true,
+      importProvenanceOnly: false,
+      contentHash: "old",
+    });
+    expect(
+      brazeTranslationPresence({
+        importedHash: "leftover-import-hash",
+        translatedKeyCount: 1,
+        provenances: ["manual"],
+      }),
+    ).toEqual({
+      hasExistingTranslation: true,
+      importProvenanceOnly: false,
+      contentHash: "leftover-import-hash",
+    });
+    expect(
+      brazeTranslationPresence({
+        importedHash: "old",
+        translatedKeyCount: 1,
+        provenances: ["import"],
+      }).importProvenanceOnly,
+    ).toBe(true);
+    expect(
       decideBrazeExistingTranslationAction({
         policy: "seed_empty",
         presence: brazeTranslationPresence({ importedHash: undefined, translatedKeyCount: 0 }),

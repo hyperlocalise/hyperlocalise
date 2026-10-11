@@ -13,6 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildBrazeContentBlockSourcePath,
+  buildBrazeEmailSourcePath,
   parseBrazeContentBlockEnvelope,
   parseBrazeEmailEnvelope,
   restoreBrazeContentBlockEnvelope,
@@ -57,5 +59,34 @@ describe("braze html envelope", () => {
     const parsed = parseBrazeContentBlockEnvelope(serialized.html);
     expect(parsed.content).toContain('<div class="card"><div>Promo</div></div>');
     expect(restoreBrazeContentBlockEnvelope(parsed, serialized.tokensByField)).toEqual(fields);
+  });
+
+  it("keeps body markup after a nested </body> tag", () => {
+    const html = [
+      "<!doctype html><html><body>",
+      '<div data-hl-braze-field="subject">Hi</div>',
+      '<div data-hl-braze-field="preheader"></div>',
+      '<div data-hl-braze-field="body"><table><tr><td></body></td></tr></table><p>After</p></div>',
+      '<div data-hl-braze-field="plaintext_body">plain</div>',
+      "</body></html>",
+    ].join("");
+    expect(parseBrazeEmailEnvelope(html)).toEqual({
+      subject: "Hi",
+      preheader: undefined,
+      body: "<table><tr><td></body></td></tr></table><p>After</p>",
+      plaintext_body: "plain",
+    });
+  });
+
+  it("keeps collision-safe source paths for same-name items", () => {
+    expect(buildBrazeEmailSourcePath({ templateId: "tmpl_a", templateName: "Welcome" })).not.toBe(
+      buildBrazeEmailSourcePath({ templateId: "tmpl_b", templateName: "Welcome" }),
+    );
+    expect(buildBrazeContentBlockSourcePath({ contentBlockId: "cb_a", name: "Hero" })).not.toBe(
+      buildBrazeContentBlockSourcePath({ contentBlockId: "cb_b", name: "Hero" }),
+    );
+    expect(buildBrazeEmailSourcePath({ templateId: "tmpl_a", templateName: "Welcome" })).toMatch(
+      /^braze\/templates\/welcome-[a-f0-9]{8}\.html$/,
+    );
   });
 });
