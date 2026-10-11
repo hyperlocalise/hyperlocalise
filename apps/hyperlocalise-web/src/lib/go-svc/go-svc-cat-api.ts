@@ -227,7 +227,14 @@ export class GoSvcCatApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<ProjectFileContentEditorVisualContextFinalizeResponse>(
-      catPath(organizationSlug, projectId, "visual-context", "screenshots", screenshotId, "finalize"),
+      catPath(
+        organizationSlug,
+        projectId,
+        "visual-context",
+        "screenshots",
+        screenshotId,
+        "finalize",
+      ),
       { method: "POST", body, ...options },
     );
   }
@@ -240,7 +247,14 @@ export class GoSvcCatApi {
     options: GoSvcRequestOptions = {},
   ) {
     return this.request.json<ProjectFileContentEditorVisualContextBindResponse>(
-      catPath(organizationSlug, projectId, "visual-context", "screenshots", screenshotId, "bindings"),
+      catPath(
+        organizationSlug,
+        projectId,
+        "visual-context",
+        "screenshots",
+        screenshotId,
+        "bindings",
+      ),
       { method: "POST", body, ...options },
     );
   }

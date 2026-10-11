@@ -181,6 +181,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const [isIssuePanelOpen, setIsIssuePanelOpen] = useState(false);
+  const [isUploadingVisualContext, setIsUploadingVisualContext] = useState(false);
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
@@ -378,7 +379,6 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       ? segmentPosition < totalSegments
       : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
-  const [isUploadingVisualContext, setIsUploadingVisualContext] = useState(false);
   const selectedSegmentIntelligence = resolveSegmentIntelligenceForDisplay(
     {
       intelligence: shell.intelligence,

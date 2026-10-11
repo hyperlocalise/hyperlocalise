@@ -154,8 +154,12 @@ func TestEditorCatVisualContextBindUnbindAndDelete(t *testing.T) {
     }`)
 	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
 	var created struct {
-		Screenshot struct{ ID string `json:"id"` } `json:"screenshot"`
-		Upload     struct{ URL string `json:"url"` } `json:"upload"`
+		Screenshot struct {
+			ID string `json:"id"`
+		} `json:"screenshot"`
+		Upload struct {
+			URL string `json:"url"`
+		} `json:"upload"`
 	}
 	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
 	payload := []byte("webp-bytes")
@@ -234,7 +238,9 @@ func TestEditorCatVisualContextFinalizeMissingUpload(t *testing.T) {
 	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.jpg","contentType":"image/jpeg"}`)
 	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
 	var created struct {
-		Screenshot struct{ ID string `json:"id"` } `json:"screenshot"`
+		Screenshot struct {
+			ID string `json:"id"`
+		} `json:"screenshot"`
 	}
 	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots/"+created.Screenshot.ID+"/finalize"), `{}`)

@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -80,8 +80,7 @@ describe("ContentEditorVisualContextPanel", () => {
     expect(onUpload).toHaveBeenCalledWith(file);
   });
 
-  it("rejects unsupported screenshot types", async () => {
-    const user = userEvent.setup();
+  it("rejects unsupported screenshot types", () => {
     const onUpload = vi.fn();
 
     renderWithContentEditorProviders(
@@ -89,8 +88,9 @@ describe("ContentEditorVisualContextPanel", () => {
     );
 
     const input = document.querySelector('input[type="file"]');
+    expect(input).toBeInstanceOf(HTMLInputElement);
     const file = new File(["gif"], "notes.gif", { type: "image/gif" });
-    await user.upload(input as HTMLInputElement, file);
+    fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
 
     expect(onUpload).not.toHaveBeenCalled();
     expect(screen.getByText("Screenshots must be PNG, JPEG, or WebP.")).toBeInTheDocument();
