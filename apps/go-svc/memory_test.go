@@ -220,8 +220,8 @@ func TestMemoryListCountsAccessibleProjects(t *testing.T) {
 	api, scope := memoryTestAPI(t, "member")
 	accessibleTeam := scope.MustTeam(t, "accessible", "Accessible", "member")
 	restrictedTeam := scope.MustTeam(t, "restricted", "Restricted", "")
-	accessibleProject := scope.MustProject(t, scope.ProjectID, "Accessible")
-	restrictedProject := scope.MustProject(t, scope.ProjectID+"_hidden", "Restricted")
+	accessibleProject := scope.MustProject(t, uniqueProjectID("paccess"), "Accessible")
+	restrictedProject := scope.MustProject(t, uniqueProjectID("prestrict"), "Restricted")
 	_, err := scope.Pool.Exec(t.Context(), `
 		update projects set team_id = case id when $1 then $2::uuid else $4::uuid end
 		where id in ($1, $3)`,
