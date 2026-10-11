@@ -251,9 +251,7 @@ describe("removePendingOrganizationMembershipForInvite", () => {
 
     await db
       .delete(schema.organizationMemberships)
-      .where(
-        eq(schema.organizationMemberships.id, firstMembership.id),
-      );
+      .where(eq(schema.organizationMemberships.id, firstMembership.id));
     await db
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, secondMembership.id));
