@@ -93,7 +93,11 @@ export function brazeRestEndpointOptionLabel(restEndpoint: BrazeRestEndpoint): s
 }
 
 function normalizeBrazeRestEndpointQuery(query: string): string {
-  return query.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return query
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "");
 }
 
 export function brazeRestEndpointMatchesQuery(
@@ -113,9 +117,7 @@ export function brazeRestEndpointMatchesQuery(
 }
 
 export function filterBrazeRestEndpoints(query: string): BrazeRestEndpoint[] {
-  return BRAZE_REST_ENDPOINTS.filter((endpoint) =>
-    brazeRestEndpointMatchesQuery(endpoint, query),
-  );
+  return BRAZE_REST_ENDPOINTS.filter((endpoint) => brazeRestEndpointMatchesQuery(endpoint, query));
 }
 
 /** Official Templates API list page size. Default 100, maximum 1000. */

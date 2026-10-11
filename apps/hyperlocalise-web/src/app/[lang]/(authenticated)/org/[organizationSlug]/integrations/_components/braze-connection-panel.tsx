@@ -326,7 +326,9 @@ function BrazeRestEndpointSelect({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const options = useMemo(() => filterBrazeRestEndpoints(search), [search]);
-  const searchPlaceholder = intl.formatMessage(brazeConnectionPanelMessages.clusterSearchPlaceholder);
+  const searchPlaceholder = intl.formatMessage(
+    brazeConnectionPanelMessages.clusterSearchPlaceholder,
+  );
 
   return (
     <Popover
@@ -382,7 +384,9 @@ function BrazeRestEndpointSelect({
                     setSearch("");
                   }}
                 >
-                  <span className="whitespace-normal">{brazeRestEndpointOptionLabel(endpoint)}</span>
+                  <span className="whitespace-normal">
+                    {brazeRestEndpointOptionLabel(endpoint)}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

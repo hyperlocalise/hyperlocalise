@@ -112,9 +112,7 @@ export const DefaultsToOpenTemplate: Story = {
       name: /welcome-email/i,
     });
     await expect(openTemplate).toBeChecked();
-    await expect(
-      dialogCanvas.getByRole("checkbox", { name: /password-reset/i }),
-    ).not.toBeChecked();
+    await expect(dialogCanvas.getByRole("checkbox", { name: /password-reset/i })).not.toBeChecked();
     await expect(dialogCanvas.getByRole("checkbox", { name: /hero-promo/i })).not.toBeChecked();
     await expect(dialogCanvas.getByRole("button", { name: "Push 1 template" })).toBeEnabled();
   },

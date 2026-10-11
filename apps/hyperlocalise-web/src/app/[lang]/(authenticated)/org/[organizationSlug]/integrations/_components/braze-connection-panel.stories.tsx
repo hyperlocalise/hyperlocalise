@@ -12,7 +12,7 @@
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse } from "msw";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor } from "storybook/test";
 
 import { BrazeConnectionPanel } from "./braze-connection-panel";
 import { integrationsOrganizationSlug } from "./integrations.fixture";
@@ -83,7 +83,9 @@ export const Disconnected: Story = {
     await expect(
       canvas.queryByRole("option", { name: "US-01 · https://rest.iad-01.braze.com" }),
     ).toBeNull();
-    await userEvent.click(canvas.getByRole("option", { name: "EU-01 · https://rest.fra-01.braze.eu" }));
+    await userEvent.click(
+      canvas.getByRole("option", { name: "EU-01 · https://rest.fra-01.braze.eu" }),
+    );
     await expect(canvas.getByRole("button", { name: "REST cluster" })).toHaveTextContent(
       "EU-01 · https://rest.fra-01.braze.eu",
     );
@@ -103,8 +105,8 @@ export const Connected: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByRole("button", { name: "Manage" }));
     await expect(canvas.getByText("Token ending in wxyz")).toBeVisible();
-    await waitFor(() => {
-      expect(canvas.getByRole("button", { name: "REST cluster" })).toHaveTextContent(
+    await waitFor(async () => {
+      await expect(canvas.getByRole("button", { name: "REST cluster" })).toHaveTextContent(
         "US-03 · https://rest.iad-03.braze.com",
       );
     });
