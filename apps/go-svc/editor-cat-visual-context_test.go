@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore/memory"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -230,6 +231,49 @@ func TestEditorCatVisualContextMemberCannotUpload(t *testing.T) {
 	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png"}`)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
+}
+
+func TestEditorCatVisualContextFinalizeTooLargeCleansUp(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "admin")
+	api.objects = visualContextObjectRegistry(t)
+	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png"}`)
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+	var created struct {
+		Screenshot struct {
+			ID string `json:"id"`
+		} `json:"screenshot"`
+		Upload struct {
+			URL string `json:"url"`
+		} `json:"upload"`
+	}
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+	objectKey := strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/")
+	payload := bytes.Repeat([]byte{0x89}, visualContextMaxBytes+1)
+	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
+		Key:         objectKey,
+		Body:        bytes.NewReader(payload),
+		Size:        int64(len(payload)),
+		ContentType: "image/png",
+		IfAbsent:    true,
+	})
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots/"+created.Screenshot.ID+"/finalize"), `{}`)
+	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+	require.Contains(t, rec.Body.String(), "visual_context_upload_too_large")
+
+	var leftoverID string
+	err = scope.Pool.QueryRow(t.Context(), `
+        select id from project_visual_context_screenshots
+        where id=$1 and organization_id=$2 and project_id=$3`,
+		created.Screenshot.ID, scope.OrganizationID, scope.ProjectID,
+	).Scan(&leftoverID)
+	require.ErrorIs(t, err, pgx.ErrNoRows)
+
+	store, err := api.objects.Resolve("r2-primary")
+	require.NoError(t, err)
+	_, err = store.Stat(t.Context(), objectKey)
+	require.ErrorIs(t, err, objectstore.ErrNotFound)
 }
 
 func TestEditorCatVisualContextFinalizeMissingUpload(t *testing.T) {

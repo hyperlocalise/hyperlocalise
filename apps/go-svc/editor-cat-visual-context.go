@@ -245,6 +245,7 @@ func (api *editorCatAPI) finalizeVisualContextScreenshot(r *http.Request, actor 
 		return nil, 0, err
 	}
 	if info.Size <= 0 || info.Size > visualContextMaxBytes {
+		api.discardRejectedVisualContextUpload(r, actor, project, screenshotID, location, key)
 		return nil, 0, editorCatFailure(413, "visual_context_upload_too_large", "The screenshot upload is empty or exceeds the 10 MB limit")
 	}
 	bodyReader, _, err := store.Get(r.Context(), key)
@@ -443,6 +444,20 @@ func (api *editorCatAPI) deleteVisualContextScreenshot(r *http.Request, actor ed
 		}
 	}
 	return nil, http.StatusNoContent, nil
+}
+
+func (api *editorCatAPI) discardRejectedVisualContextUpload(r *http.Request, actor editorCatActor, project editorCatProject, screenshotID, location, key string) {
+	_, _ = api.pool.Exec(r.Context(), `
+        delete from project_visual_context_screenshots
+        where id=$1 and organization_id=$2 and project_id=$3 and status='upload_pending'`,
+		screenshotID, actor.organizationID, project.ID,
+	)
+	if api.objects == nil {
+		return
+	}
+	if store, err := api.objects.Resolve(location); err == nil {
+		_ = store.Delete(r.Context(), key)
+	}
 }
 
 func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor editorCatActor, project editorCatProject, keyID string) ([]editorCatVisualContextScreenshot, error) {
