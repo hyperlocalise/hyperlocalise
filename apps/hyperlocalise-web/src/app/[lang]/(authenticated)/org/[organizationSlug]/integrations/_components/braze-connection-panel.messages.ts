@@ -46,6 +46,16 @@ export const brazeConnectionPanelMessages = defineMessages({
     id: "U4ehpvU/9G",
     description: "Hint that a connected Braze key can be rotated by pasting a new value",
   },
+  showApiKeyAriaLabel: {
+    defaultMessage: "Show API key",
+    id: "jzpUQUqMZp",
+    description: "Aria label for revealing the Braze REST API key field",
+  },
+  hideApiKeyAriaLabel: {
+    defaultMessage: "Hide API key",
+    id: "M++zkzakx8",
+    description: "Aria label for hiding the Braze REST API key field",
+  },
   clusterLabel: {
     defaultMessage: "REST cluster",
     id: "IyYEob9ejo",

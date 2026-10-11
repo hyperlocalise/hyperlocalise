@@ -120,6 +120,11 @@ describe("BrazeConnectionPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("API key")).toBeInTheDocument();
     expect(screen.getByText("REST cluster")).toBeInTheDocument();
+    expect(screen.getByLabelText("API key")).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "Show API key" }));
+    expect(screen.getByLabelText("API key")).toHaveAttribute("type", "text");
+    fireEvent.click(screen.getByRole("button", { name: "Hide API key" }));
+    expect(screen.getByLabelText("API key")).toHaveAttribute("type", "password");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.queryByText("Braze Pipes widget")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();

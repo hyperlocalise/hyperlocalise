@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useId, useMemo, useState } from "react";
-import { FloppyDiskIcon } from "@phosphor-icons/react";
+import { EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -60,6 +60,7 @@ export function BrazeConnectionPanel({
   const apiKeyFieldId = useId();
   const [expanded, setExpanded] = useState(false);
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [selectedEndpoint, setSelectedEndpoint] = useState<BrazeRestEndpoint | null>(null);
   const statusQuery = usePipesStatus(organizationSlug, BRAZE_PIPES_SLUG, expanded);
   const summary = useMemo(() => resolveWorkspaceIntegrationSummary(intl, BRAZE_PIPES_SLUG), [intl]);
@@ -119,6 +120,7 @@ export function BrazeConnectionPanel({
         }),
       ]);
       setApiKey("");
+      setShowApiKey(false);
       setSelectedEndpoint(null);
       setExpanded(false);
       toast.success(intl.formatMessage(brazeConnectionPanelMessages.disconnectedToast));
@@ -144,6 +146,7 @@ export function BrazeConnectionPanel({
     },
     onSuccess: async () => {
       setApiKey("");
+      setShowApiKey(false);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
@@ -213,14 +216,30 @@ export function BrazeConnectionPanel({
           <FieldLabel htmlFor={apiKeyFieldId}>
             <FormattedMessage {...brazeConnectionPanelMessages.apiKeyLabel} />
           </FieldLabel>
-          <Input
-            id={apiKeyFieldId}
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            disabled={!userCanManage || saveConnection.isPending}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
+          <div className="relative">
+            <Input
+              id={apiKeyFieldId}
+              type={showApiKey ? "text" : "password"}
+              autoComplete="off"
+              value={apiKey}
+              disabled={!userCanManage || saveConnection.isPending}
+              onChange={(event) => setApiKey(event.target.value)}
+              className="pe-9"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey((current) => !current)}
+              disabled={!userCanManage || saveConnection.isPending}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              aria-label={intl.formatMessage(
+                showApiKey
+                  ? brazeConnectionPanelMessages.hideApiKeyAriaLabel
+                  : brazeConnectionPanelMessages.showApiKeyAriaLabel,
+              )}
+            >
+              {showApiKey ? <EyeSlashIcon size={16} /> : <EyeIcon size={16} />}
+            </button>
+          </div>
           <p className="text-xs text-muted-foreground">
             <FormattedMessage
               {...(isConnected
