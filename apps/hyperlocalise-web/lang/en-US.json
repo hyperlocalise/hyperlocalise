@@ -21887,7 +21887,7 @@
     "defaultMessage": "Export filtered as XLSX",
     "description": "Glossary action to export the current language filter as XLSX"
   },
-  "dA1pLc8mZf": {
+  "M20HVGjx7C": {
     "defaultMessage": "Dictionary Project Attached",
     "description": "Activity log event type label for attaching a dictionary to a project"
   },
@@ -21895,7 +21895,7 @@
     "defaultMessage": "No. Hyperlocalise works alongside your existing TMS. Keep using Phrase, Lokalise, Crowdin or Smartling while Hyperlocalise orchestrates AI agents, review workflows, context discovery and quality checks.",
     "description": "Homepage FAQ answer about platform topic 9"
   },
-  "dAa8Lc4mZf": {
+  "lV7c6rxgZX": {
     "defaultMessage": "attached a dictionary to a project",
     "description": "Action for attaching a spellcheck dictionary to a project"
   },
@@ -21919,7 +21919,7 @@
     "defaultMessage": "Website · live pages",
     "description": "Website check row on the daily compliance audit mock card"
   },
-  "dC3kQm7nLp": {
+  "vlJmij48Pk": {
     "defaultMessage": "Dictionary Created",
     "description": "Activity log event type label for dictionary creation"
   },
@@ -21939,11 +21939,11 @@
     "defaultMessage": "{name} (disabled)",
     "description": "Contentful connection option label when the connection is disabled"
   },
-  "dCa7Qm3nLp": {
+  "p+l9yp3+PH": {
     "defaultMessage": "created a dictionary",
     "description": "Action for a spellcheck dictionary creation activity"
   },
-  "dD6rWn2xQt": {
+  "s6NLAIiQ6o": {
     "defaultMessage": "Dictionary Deleted",
     "description": "Activity log event type label for dictionary deletion"
   },
@@ -21951,7 +21951,7 @@
     "defaultMessage": "Start from a phrase this market actually searches for.",
     "description": "Empty keyword research description"
   },
-  "dDa2Wn9xQt": {
+  "ids+317avp": {
     "defaultMessage": "deleted a dictionary",
     "description": "Action for a spellcheck dictionary deletion activity"
   },
@@ -21975,7 +21975,7 @@
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
     "description": "Scenario section title for the localisation-operations use case"
   },
-  "dG8kQm2nLp": {
+  "TWTIbFfjVV": {
     "defaultMessage": "Dictionaries",
     "description": "Activity log event type group for spellcheck dictionaries"
   },
@@ -21995,7 +21995,7 @@
     "defaultMessage": "Production website",
     "description": "Placeholder for a client key name field"
   },
-  "dI9vBs4yHk": {
+  "vdeP2Xo4gi": {
     "defaultMessage": "Dictionary Imported",
     "description": "Activity log event type label for dictionary word imports"
   },
@@ -22003,7 +22003,7 @@
     "defaultMessage": "The audit could not finish for this domain.",
     "description": "Fallback error when a failed localisation audit has no error message"
   },
-  "dIa5Bs1yHk": {
+  "Cz3dpIMRmN": {
     "defaultMessage": "imported dictionary words",
     "description": "Action for a spellcheck dictionary word import activity"
   },
@@ -26475,11 +26475,11 @@
     "defaultMessage": "Confidence",
     "description": "Filter option for confidence warnings"
   },
-  "lC5nHq3wRj": {
+  "/rZ4ZyulJi": {
     "defaultMessage": "Linked Domain Created",
     "description": "Activity log event type label for creating a linked domain"
   },
-  "lCa1Hq6wRj": {
+  "lEmnokrrS2": {
     "defaultMessage": "created a linked domain",
     "description": "Action for a linked domain creation activity"
   },
@@ -26507,7 +26507,7 @@
     "defaultMessage": "Issue columns",
     "description": "Project settings nav item for issue sheet columns"
   },
-  "lG4pRt9jKb": {
+  "scjKnowuFr": {
     "defaultMessage": "Linked domains",
     "description": "Activity log event type group for linked domains"
   },
@@ -26551,7 +26551,7 @@
     "defaultMessage": "No ranking pages in this market yet.",
     "description": "Empty overview pages"
   },
-  "lM4cAe6oWi": {
+  "R/hnP/HG+W": {
     "defaultMessage": "Linked Domain Markets Changed",
     "description": "Activity log event type label for changing linked domain markets"
   },
@@ -26559,7 +26559,7 @@
     "defaultMessage": "A product launch campaign goes live in six markets",
     "description": "Scenario section title for the marketing-localisation use case"
   },
-  "lMa6cAe4oWi": {
+  "HzMhwpgFt2": {
     "defaultMessage": "changed linked domain markets",
     "description": "Action for a linked domain market change activity"
   },
@@ -26639,7 +26639,7 @@
     "defaultMessage": "No matching blocks",
     "description": "Empty state when slash command filter matches nothing"
   },
-  "lV2tKp7sXd": {
+  "x/ixOXudXh": {
     "defaultMessage": "Linked Domain Verified",
     "description": "Activity log event type label for verifying a linked domain"
   },
@@ -26647,7 +26647,7 @@
     "defaultMessage": "Translate",
     "description": "Skill menu group: skills that produce translations"
   },
-  "lVa9tKp2sXd": {
+  "7K7+VuCgvb": {
     "defaultMessage": "verified a linked domain",
     "description": "Action for a linked domain verification activity"
   },
@@ -26663,7 +26663,7 @@
     "defaultMessage": "Inbound address ready. Send files or images with a target language to translate by email.",
     "description": "Email integration description when an inbound address exists"
   },
-  "lX8bYm1uFg": {
+  "qBpW7LbE1Z": {
     "defaultMessage": "Linked Domain Cancelled",
     "description": "Activity log event type label for cancelling a linked domain claim"
   },
@@ -26671,7 +26671,7 @@
     "defaultMessage": "Reconnect {providerName} to keep this integration working.",
     "description": "Hint when a WorkOS Pipes installation needs reauthorization"
   },
-  "lXa3bYm8uFg": {
+  "PyDhCP5QIy": {
     "defaultMessage": "cancelled a linked domain claim",
     "description": "Action for a linked domain cancellation activity"
   },
