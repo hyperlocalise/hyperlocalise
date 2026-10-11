@@ -309,15 +309,16 @@ func (api *apiKeyAPI) createAPIKey(ctx context.Context, actor organizationActor,
 
 	api.publishActivity(ctx, activityLogEventInput{
 		ActorUserID:    actor.userID,
-		EventType:      "personal_access_token_created",
+		EventType:      "organization_api_key_created",
 		OrganizationID: actor.organizationID,
 		Payload: map[string]any{
+			"apiKeyId":    created.ID,
 			"keyPrefix":   created.KeyPrefix,
+			"name":        created.Name,
 			"permissions": requested,
-			"tokenId":     created.ID,
 		},
 		TargetID:   created.ID,
-		TargetKind: patAuditTarget,
+		TargetKind: "organization_api_key",
 	})
 
 	created.Key = plainKey
@@ -338,16 +339,16 @@ func (api *apiKeyAPI) revokeAPIKeyHandler(r *http.Request, actor organizationAct
 func (api *apiKeyAPI) revokeAPIKey(ctx context.Context, actor organizationActor, apiKeyID string) error {
 	owner := ownerScope(actor, canRevokeOtherUsersAPIKeys(actor.role))
 	var (
-		tokenID, keyPrefix, organizationID string
-		ownerUserID                        *string
+		tokenID, keyPrefix, name, organizationID string
+		ownerUserID                              *string
 	)
 	err := api.pool.QueryRow(ctx, `
         update organization_api_keys set revoked_at=now(), updated_at=now()
         where id=$1 and organization_id=$2
           and ($3::uuid is null or created_by_user_id = $3::uuid)
           and revoked_at is null
-        returning id, key_prefix, organization_id, created_by_user_id::text`,
-		apiKeyID, actor.organizationID, owner).Scan(&tokenID, &keyPrefix, &organizationID, &ownerUserID)
+        returning id, key_prefix, name, organization_id, created_by_user_id::text`,
+		apiKeyID, actor.organizationID, owner).Scan(&tokenID, &keyPrefix, &name, &organizationID, &ownerUserID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		var exists int
 		err = api.pool.QueryRow(ctx, `
@@ -375,15 +376,16 @@ func (api *apiKeyAPI) revokeAPIKey(ctx context.Context, actor organizationActor,
 	logPatAuditFailure(ctx, patRevokedAuditAction, organizationID, tokenID, err)
 	api.publishActivity(ctx, activityLogEventInput{
 		ActorUserID:    actor.userID,
-		EventType:      "personal_access_token_revoked",
+		EventType:      "organization_api_key_revoked",
 		OrganizationID: organizationID,
 		Payload: map[string]any{
+			"apiKeyId":  tokenID,
 			"keyPrefix": keyPrefix,
+			"name":      name,
 			"reason":    patRevokeReasonManual,
-			"tokenId":   tokenID,
 		},
 		TargetID:   tokenID,
-		TargetKind: patAuditTarget,
+		TargetKind: "organization_api_key",
 	})
 	return nil
 }

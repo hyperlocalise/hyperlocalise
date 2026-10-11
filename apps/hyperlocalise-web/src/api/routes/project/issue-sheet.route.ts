@@ -21,6 +21,11 @@ import {
 } from "@/api/auth/capability-guards";
 import { badRequestResponse, conflictResponse, notFoundResponse } from "@/api/response.schema";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import {
+  enqueueQueryCreatedActivity,
+  enqueueQueryImportedActivity,
+} from "@/lib/activity-log/query-events";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import { createIssueRelationshipRoutes } from "./issue-relationships.route";
@@ -290,6 +295,14 @@ export function createIssueSheetRoutes() {
             actorUserId: c.var.auth.user.localUserId,
             body: c.req.valid("json"),
           });
+          if (!result.dryRun && result.created > 0) {
+            await enqueueQueryImportedActivity({
+              ...sessionActivityActor(c.var.auth.user.localUserId),
+              itemCount: result.created,
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: project.id,
+            });
+          }
           return c.json({ import: result }, result.dryRun ? 200 : 201);
         } catch (error) {
           if (error instanceof Error) {
@@ -437,6 +450,14 @@ export function createIssueSheetRoutes() {
             projectId: project.id,
             actorUserId: c.var.auth.user.localUserId,
             body: c.req.valid("json"),
+          });
+          await enqueueQueryCreatedActivity({
+            ...sessionActivityActor(c.var.auth.user.localUserId),
+            identifier: issue.identifier,
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: project.id,
+            queryId: issue.id,
+            source: "manual",
           });
           return c.json({ issue }, 201);
         } catch (error) {

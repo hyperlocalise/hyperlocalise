@@ -78,6 +78,12 @@ const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = 
   workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
 }));
 
+vi.mock("@/lib/activity-log/query-events", () => ({
+  enqueueQueryCreatedActivity: vi.fn(),
+  enqueueQueryDeletedActivity: vi.fn(),
+  enqueueQueryImportedActivity: vi.fn(),
+}));
+
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
   return {

@@ -22,12 +22,18 @@ func activityLogTargetKey(kind, id string) string {
 		return "glossary:" + id
 	case "translation_memory":
 		return "translation_memory:" + id
+	case "dictionary":
+		return "dictionary:" + id
+	case "linked_domain":
+		return "linked_domain:" + id
 	case "job":
 		return "job:" + id
 	case "automation":
 		return "automation:" + id
 	case "visual_workflow":
 		return "visual_workflow:" + id
+	case "query":
+		return "query:" + id
 	case "membership":
 		return "membership:" + id
 	case "file":
@@ -43,6 +49,11 @@ func payloadTargetDisplayName(payload map[string]any) *string {
 	// BOLT OPTIMIZATION: Unroll payload key lookups to avoid slice allocations for key list,
 	// and eliminate redundant strings.TrimSpace calls.
 	if val, ok := payload["name"].(string); ok {
+		if trimmed := strings.TrimSpace(val); trimmed != "" {
+			return &trimmed
+		}
+	}
+	if val, ok := payload["identifier"].(string); ok {
 		if trimmed := strings.TrimSpace(val); trimmed != "" {
 			return &trimmed
 		}
@@ -122,9 +133,12 @@ func loadActivityLogTargetViews(
 	projectIDs := unique(idsByKind["project"])
 	glossaryIDs := unique(idsByKind["glossary"])
 	memoryIDs := unique(idsByKind["translation_memory"])
+	dictionaryIDs := unique(idsByKind["dictionary"])
+	linkedDomainIDs := unique(idsByKind["linked_domain"])
 	jobIDs := unique(idsByKind["job"])
 	automationIDs := unique(idsByKind["automation"])
 	visualWorkflowIDs := unique(idsByKind["visual_workflow"])
+	queryIDs := unique(idsByKind["query"])
 	membershipIDs := unique(idsByKind["membership"])
 
 	payloadMemberUserIDs := make([]string, 0)
@@ -222,6 +236,60 @@ func loadActivityLogTargetViews(
 		}
 	}
 
+	if len(dictionaryIDs) > 0 {
+		queryRows, err := pool.Query(ctx, `
+            select id, name from spellcheck_word_libraries
+            where organization_id = $1 and id = any($2::uuid[])`, organizationID, dictionaryIDs)
+		if err != nil {
+			return nil, err
+		}
+		for queryRows.Next() {
+			var id, name string
+			if err := queryRows.Scan(&id, &name); err != nil {
+				queryRows.Close()
+				return nil, err
+			}
+			views[activityLogTargetKey("dictionary", id)] = activityLogTargetView{
+				DisplayName: stringPtr(name),
+				Href:        stringPtr("/org/" + organizationSlug + "/dictionaries/" + id),
+				ID:          id,
+				Kind:        "dictionary",
+			}
+		}
+		err = queryRows.Err()
+		queryRows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(linkedDomainIDs) > 0 {
+		queryRows, err := pool.Query(ctx, `
+            select id, domain_key from linked_domains
+            where organization_id = $1 and id = any($2::uuid[])`, organizationID, linkedDomainIDs)
+		if err != nil {
+			return nil, err
+		}
+		for queryRows.Next() {
+			var id, domainKey string
+			if err := queryRows.Scan(&id, &domainKey); err != nil {
+				queryRows.Close()
+				return nil, err
+			}
+			views[activityLogTargetKey("linked_domain", id)] = activityLogTargetView{
+				DisplayName: stringPtr(domainKey),
+				Href:        stringPtr("/org/" + organizationSlug + "/domains/" + id),
+				ID:          id,
+				Kind:        "linked_domain",
+			}
+		}
+		err = queryRows.Err()
+		queryRows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(jobIDs) > 0 {
 		queryRows, err := pool.Query(ctx, `
             select id, kind, project_id from jobs
@@ -299,6 +367,35 @@ func loadActivityLogTargetViews(
 				Href:        stringPtr("/org/" + organizationSlug + "/automations/visual-workflows/" + id),
 				ID:          id,
 				Kind:        "visual_workflow",
+			}
+		}
+		err = queryRows.Err()
+		queryRows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(queryIDs) > 0 {
+		queryRows, err := pool.Query(ctx, `
+            select id, identifier, project_id from issue_sheet_issues
+            where organization_id = $1 and id = any($2::uuid[])`, organizationID, queryIDs)
+		if err != nil {
+			return nil, err
+		}
+		for queryRows.Next() {
+			var id, identifier, projectID string
+			if err := queryRows.Scan(&id, &identifier, &projectID); err != nil {
+				queryRows.Close()
+				return nil, err
+			}
+			views[activityLogTargetKey("query", id)] = activityLogTargetView{
+				DisplayName: stringPtr(identifier),
+				Href: stringPtr(
+					"/org/" + organizationSlug + "/projects/" + projectID + "/issue-sheet/" + identifier,
+				),
+				ID:   id,
+				Kind: "query",
 			}
 		}
 		err = queryRows.Err()
@@ -404,6 +501,10 @@ func loadActivityLogTargetViews(
 			href = stringPtr("/org/" + organizationSlug + "/settings/integrations")
 		} else if row.targetKind == "invitation" || row.targetKind == "membership" {
 			href = stringPtr("/org/" + organizationSlug + "/settings/members")
+		} else if row.targetKind == "dictionary" {
+			href = stringPtr("/org/" + organizationSlug + "/dictionaries")
+		} else if row.targetKind == "linked_domain" {
+			href = stringPtr("/org/" + organizationSlug + "/domains")
 		}
 
 		views[key] = activityLogTargetView{

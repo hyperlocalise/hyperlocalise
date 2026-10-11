@@ -25,6 +25,8 @@ import {
   GitBranchIcon,
   KeyIcon,
   PuzzlePieceIcon,
+  ChatCircleIcon,
+  GlobeIcon,
   TextTIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -82,7 +84,12 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: KeyIcon,
     label: messages.accessEventGroup,
-    eventTypes: ["personal_access_token_created", "personal_access_token_revoked"],
+    eventTypes: [
+      "personal_access_token_created",
+      "personal_access_token_revoked",
+      "organization_api_key_created",
+      "organization_api_key_revoked",
+    ],
   },
   {
     icon: PuzzlePieceIcon,
@@ -153,6 +160,11 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     ],
   },
   {
+    icon: ChatCircleIcon,
+    label: messages.queryEventGroup,
+    eventTypes: ["query_created", "query_deleted", "query_imported"],
+  },
+  {
     icon: FileIcon,
     label: messages.fileEventGroup,
     eventTypes: ["file_uploaded", "file_translations_imported"],
@@ -171,6 +183,26 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
       "string_segment_commented",
     ],
   },
+  {
+    icon: BookOpenTextIcon,
+    label: messages.dictionaryEventGroup,
+    eventTypes: [
+      "dictionary_created",
+      "dictionary_deleted",
+      "dictionary_imported",
+      "dictionary_project_attached",
+    ],
+  },
+  {
+    icon: GlobeIcon,
+    label: messages.linkedDomainEventGroup,
+    eventTypes: [
+      "linked_domain_created",
+      "linked_domain_verified",
+      "linked_domain_cancelled",
+      "linked_domain_markets_changed",
+    ],
+  },
 ];
 
 const eventTypeLabels = {
@@ -184,6 +216,8 @@ const eventTypeLabels = {
   workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
   personal_access_token_revoked: messages.personalAccessTokenRevokedEventType,
+  organization_api_key_created: messages.organizationApiKeyCreatedEventType,
+  organization_api_key_revoked: messages.organizationApiKeyRevokedEventType,
   integration_connected: messages.integrationConnectedEventType,
   integration_disconnected: messages.integrationDisconnectedEventType,
   integration_credential_revealed: messages.integrationCredentialRevealedEventType,
@@ -218,6 +252,9 @@ const eventTypeLabels = {
   visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
   visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
   visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  query_created: messages.queryCreatedEventType,
+  query_deleted: messages.queryDeletedEventType,
+  query_imported: messages.queryImportedEventType,
   file_uploaded: messages.fileUploadedEventType,
   file_translations_imported: messages.fileTranslationsImportedEventType,
   string_segment_translation_updated: messages.stringSegmentTranslationUpdatedEventType,
@@ -228,6 +265,14 @@ const eventTypeLabels = {
   string_segment_locked: messages.stringSegmentLockedEventType,
   string_segment_unlocked: messages.stringSegmentUnlockedEventType,
   string_segment_commented: messages.stringSegmentCommentedEventType,
+  dictionary_created: messages.dictionaryCreatedEventType,
+  dictionary_deleted: messages.dictionaryDeletedEventType,
+  dictionary_imported: messages.dictionaryImportedEventType,
+  dictionary_project_attached: messages.dictionaryProjectAttachedEventType,
+  linked_domain_created: messages.linkedDomainCreatedEventType,
+  linked_domain_verified: messages.linkedDomainVerifiedEventType,
+  linked_domain_cancelled: messages.linkedDomainCancelledEventType,
+  linked_domain_markets_changed: messages.linkedDomainMarketsChangedEventType,
 } satisfies Record<ImplementedActivityEventType, MessageDescriptor>;
 
 export const activityLogEventTypeLabels = eventTypeLabels;

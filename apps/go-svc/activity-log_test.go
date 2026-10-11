@@ -609,6 +609,50 @@ func TestActivityLogGlossaryMemoryAutomationAndOrgJobTargets(t *testing.T) {
 			},
 		},
 		{
+			name:       "dictionary",
+			targetKind: "dictionary",
+			eventType:  "dictionary_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := scope.MustDictionary(t, "", "Brand names")
+				return id, "Brand names", "/org/" + scope.Slug + "/dictionaries/" + id
+			},
+		},
+		{
+			name:       "linked_domain",
+			targetKind: "linked_domain",
+			eventType:  "linked_domain_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into linked_domains (
+                        id, organization_id, created_by_user_id, domain_key, domain_slug,
+                        source_url, market_ids, status, verification_token
+                    ) values ($1, $2, $3, 'example.com', 'example-com-aaaaaa',
+                        'https://example.com/', array['france-fr'], 'pending_verification', 'token')`,
+					id, scope.OrganizationID, scope.UserID)
+				require.NoError(t, err)
+				return id, "example.com", "/org/" + scope.Slug + "/domains/" + id
+			},
+		},
+		{
+			name:       "query",
+			targetKind: "query",
+			eventType:  "query_created",
+			seed: func(t *testing.T, scope *testenv.Scope) (string, string, string) {
+				id := uuid.NewString()
+				var prefix string
+				require.NoError(t, scope.Pool.QueryRow(t.Context(), `select identifier from projects where id=$1`, scope.ProjectID).Scan(&prefix))
+				identifier := prefix + "-21"
+				_, err := scope.Pool.Exec(t.Context(), `
+                    insert into issue_sheet_issues (
+                        id, organization_id, project_id, number, identifier, title
+                    ) values ($1, $2, $3, 21, $4, 'Context needed')`,
+					id, scope.OrganizationID, scope.ProjectID, identifier)
+				require.NoError(t, err)
+				return id, identifier, "/org/" + scope.Slug + "/projects/" + scope.ProjectID + "/issue-sheet/" + identifier
+			},
+		},
+		{
 			name:       "org-scoped job",
 			targetKind: "job",
 			eventType:  "job_created",

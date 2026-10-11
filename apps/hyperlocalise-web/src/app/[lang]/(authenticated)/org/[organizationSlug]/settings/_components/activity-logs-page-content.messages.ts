@@ -120,6 +120,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "OD2Mw78kw/",
     description: "Activity log event type label for personal access token revocation",
   },
+  organizationApiKeyCreatedEventType: {
+    defaultMessage: "API Key Created",
+    id: "JrA+jNfHXy",
+    description: "Activity log event type label for creating an organization API key",
+  },
+  organizationApiKeyRevokedEventType: {
+    defaultMessage: "API Key Revoked",
+    id: "v5xbuERHHQ",
+    description: "Activity log event type label for revoking an organization API key",
+  },
   integrationConnectedEventType: {
     defaultMessage: "Integration Connected",
     id: "qsKNiCPt7J",
@@ -290,6 +300,21 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "/jSn20wHsp",
     description: "Activity log event type label for visual workflow runs",
   },
+  queryCreatedEventType: {
+    defaultMessage: "Query Created",
+    id: "Ds+zJSK1Kp",
+    description: "Activity log event type label for creating a Query",
+  },
+  queryDeletedEventType: {
+    defaultMessage: "Query Deleted",
+    id: "VSw3JkkdYk",
+    description: "Activity log event type label for deleting a Query",
+  },
+  queryImportedEventType: {
+    defaultMessage: "Queries Imported",
+    id: "HsTC/VyFCY",
+    description: "Activity log event type label for importing Queries",
+  },
   fileUploadedEventType: {
     defaultMessage: "File Uploaded",
     id: "b0hzgbcjSl",
@@ -390,6 +415,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "aV3ehfeMLX",
     description: "Activity log event type group for visual workflows",
   },
+  queryEventGroup: {
+    defaultMessage: "Queries",
+    id: "c2AEweY0yB",
+    description: "Activity log event type group for Queries",
+  },
   fileEventGroup: {
     defaultMessage: "Files",
     id: "gWW0AlUbAk",
@@ -399,6 +429,56 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Strings",
     id: "HAcQZdyjXj",
     description: "Activity log event type group for string segments",
+  },
+  dictionaryEventGroup: {
+    defaultMessage: "Dictionaries",
+    id: "TWTIbFfjVV",
+    description: "Activity log event type group for spellcheck dictionaries",
+  },
+  linkedDomainEventGroup: {
+    defaultMessage: "Linked domains",
+    id: "scjKnowuFr",
+    description: "Activity log event type group for linked domains",
+  },
+  dictionaryCreatedEventType: {
+    defaultMessage: "Dictionary Created",
+    id: "vlJmij48Pk",
+    description: "Activity log event type label for dictionary creation",
+  },
+  dictionaryDeletedEventType: {
+    defaultMessage: "Dictionary Deleted",
+    id: "s6NLAIiQ6o",
+    description: "Activity log event type label for dictionary deletion",
+  },
+  dictionaryImportedEventType: {
+    defaultMessage: "Dictionary Imported",
+    id: "vdeP2Xo4gi",
+    description: "Activity log event type label for dictionary word imports",
+  },
+  dictionaryProjectAttachedEventType: {
+    defaultMessage: "Dictionary Project Attached",
+    id: "M20HVGjx7C",
+    description: "Activity log event type label for attaching a dictionary to a project",
+  },
+  linkedDomainCreatedEventType: {
+    defaultMessage: "Linked Domain Created",
+    id: "/rZ4ZyulJi",
+    description: "Activity log event type label for creating a linked domain",
+  },
+  linkedDomainVerifiedEventType: {
+    defaultMessage: "Linked Domain Verified",
+    id: "x/ixOXudXh",
+    description: "Activity log event type label for verifying a linked domain",
+  },
+  linkedDomainCancelledEventType: {
+    defaultMessage: "Linked Domain Cancelled",
+    id: "qBpW7LbE1Z",
+    description: "Activity log event type label for cancelling a linked domain claim",
+  },
+  linkedDomainMarketsChangedEventType: {
+    defaultMessage: "Linked Domain Markets Changed",
+    id: "R/hnP/HG+W",
+    description: "Activity log event type label for changing linked domain markets",
   },
   actorLabel: {
     defaultMessage: "Actor",
@@ -650,6 +730,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "KUk2sS3WzB",
     description: "Action for a personal access token revocation activity",
   },
+  organizationApiKeyCreatedAction: {
+    defaultMessage: "created an API key",
+    id: "G03HnOcSA7",
+    description: "Action for an organization API key creation activity",
+  },
+  organizationApiKeyRevokedAction: {
+    defaultMessage: "revoked an API key",
+    id: "0iCmLfILOO",
+    description: "Action for an organization API key revocation activity",
+  },
   integrationConnectedAction: {
     defaultMessage: "connected an integration",
     id: "GMqTpOh8aZ",
@@ -820,6 +910,21 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "5lw2B8GGrH",
     description: "Action for starting a visual workflow run",
   },
+  queryCreatedAction: {
+    defaultMessage: "created a query",
+    id: "BAB3xRzd3f",
+    description: "Action for creating a Query",
+  },
+  queryDeletedAction: {
+    defaultMessage: "deleted a query",
+    id: "eD/DPyafBd",
+    description: "Action for deleting a Query",
+  },
+  queryImportedAction: {
+    defaultMessage: "imported queries",
+    id: "DuGUFMT/N4",
+    description: "Action for importing Queries",
+  },
   fileUploadedAction: {
     defaultMessage: "uploaded a file",
     id: "qICJFGMBSv",
@@ -869,5 +974,45 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "commented on a string",
     id: "UKiNYTCKL8",
     description: "Action for a string comment activity",
+  },
+  dictionaryCreatedAction: {
+    defaultMessage: "created a dictionary",
+    id: "p+l9yp3+PH",
+    description: "Action for a spellcheck dictionary creation activity",
+  },
+  dictionaryDeletedAction: {
+    defaultMessage: "deleted a dictionary",
+    id: "ids+317avp",
+    description: "Action for a spellcheck dictionary deletion activity",
+  },
+  dictionaryImportedAction: {
+    defaultMessage: "imported dictionary words",
+    id: "Cz3dpIMRmN",
+    description: "Action for a spellcheck dictionary word import activity",
+  },
+  dictionaryProjectAttachedAction: {
+    defaultMessage: "attached a dictionary to a project",
+    id: "lV7c6rxgZX",
+    description: "Action for attaching a spellcheck dictionary to a project",
+  },
+  linkedDomainCreatedAction: {
+    defaultMessage: "created a linked domain",
+    id: "lEmnokrrS2",
+    description: "Action for a linked domain creation activity",
+  },
+  linkedDomainVerifiedAction: {
+    defaultMessage: "verified a linked domain",
+    id: "7K7+VuCgvb",
+    description: "Action for a linked domain verification activity",
+  },
+  linkedDomainCancelledAction: {
+    defaultMessage: "cancelled a linked domain claim",
+    id: "PyDhCP5QIy",
+    description: "Action for a linked domain cancellation activity",
+  },
+  linkedDomainMarketsChangedAction: {
+    defaultMessage: "changed linked domain markets",
+    id: "HzMhwpgFt2",
+    description: "Action for a linked domain market change activity",
   },
 });

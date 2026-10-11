@@ -208,8 +208,8 @@ func TestJavaProperties_DanglingContinuationError(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for dangling continuation at EOF")
 	}
-	if !strings.Contains(err.Error(), "continuation escape at end of file") {
-		t.Errorf("expected 'continuation escape at end of file' error, got %v", err)
+	if !strings.Contains(err.Error(), "line 1: continuation escape at end of file") {
+		t.Errorf("expected dangling continuation on line 1, got %v", err)
 	}
 }
 

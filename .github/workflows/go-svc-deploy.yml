@@ -3,7 +3,7 @@ name: Go Service Deploy
 on:
   push:
     branches:
-      - main
+      - prod
     paths:
       - .dockerignore
       - Dockerfile.vercel
@@ -40,7 +40,7 @@ env:
 jobs:
   build-and-push:
     name: Build and push go-svc image
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 
@@ -82,7 +82,7 @@ jobs:
   deploy:
     name: Deploy go-svc image to ECS
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 

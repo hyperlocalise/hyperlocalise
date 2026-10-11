@@ -25,17 +25,28 @@ import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/tes
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const { resolveApiAuthContextFromSessionMock, isAutumnBooleanFeatureEnabledMock } = vi.hoisted(
-  () => ({
-    resolveApiAuthContextFromSessionMock: vi.fn(
-      (options) =>
-        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-        globalThis.__testApiAuthContext ??
-        null,
-    ),
-    isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
-  }),
-);
+const {
+  enqueueQueryCreatedActivityMock,
+  enqueueQueryImportedActivityMock,
+  resolveApiAuthContextFromSessionMock,
+  isAutumnBooleanFeatureEnabledMock,
+} = vi.hoisted(() => ({
+  enqueueQueryCreatedActivityMock: vi.fn(),
+  enqueueQueryImportedActivityMock: vi.fn(),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+  isAutumnBooleanFeatureEnabledMock: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/activity-log/query-events", () => ({
+  enqueueQueryCreatedActivity: enqueueQueryCreatedActivityMock,
+  enqueueQueryDeletedActivity: vi.fn(),
+  enqueueQueryImportedActivity: enqueueQueryImportedActivityMock,
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
@@ -161,6 +172,14 @@ describe("Issue Sheet routes", () => {
       status: "created",
       source: "issue_sheet",
     });
+    expect(enqueueQueryCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: createdBody.issue.identifier,
+        projectId: project.id,
+        queryId: createdBody.issue.id,
+        source: "manual",
+      }),
+    );
     trackSpy.mockRestore();
 
     const listResponse = await issueSheet().$get(
@@ -944,6 +963,12 @@ Second import issue,Done,EXT-2,P2`;
       import: { created: number; skippedDuplicates: number };
     };
     expect(importBody.import.created).toBe(2);
+    expect(enqueueQueryImportedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemCount: 2,
+        projectId: project.id,
+      }),
+    );
 
     const reimportResponse = await issueSheet().import.$post(
       {

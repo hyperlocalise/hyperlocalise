@@ -77,6 +77,8 @@ import {
   issueSheetFeedQuerySchema,
   issueSheetUpdateIssueBodySchema,
 } from "@/api/routes/project/issue-sheet.schema";
+import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
+import { enqueueQueryCreatedActivity } from "@/lib/activity-log/query-events";
 import {
   IssueSheetService,
   type IssueSheetIssue,
@@ -1653,6 +1655,7 @@ async function createMcpServerForRequest(
       }
 
       let issue: Awaited<ReturnType<IssueSheetService["createIssue"]>> | null = null;
+      let createdIssue = false;
       const externalRef = idempotencyKey ? `mcp:${idempotencyKey}` : undefined;
       const fingerprint = idempotencyKey ? mcpCreateIssueFingerprint(body) : undefined;
 
@@ -1706,6 +1709,7 @@ async function createMcpServerForRequest(
               ...(externalRef ? { externalRef } : {}),
             },
           });
+          createdIssue = true;
         } catch (error) {
           if (error instanceof Error) {
             if (error.message === "assignee_not_assignable") {
@@ -1736,6 +1740,17 @@ async function createMcpServerForRequest(
 
       if (!issue) {
         throw new Error("issue_sheet_issue_load_failed");
+      }
+
+      if (createdIssue) {
+        await enqueueQueryCreatedActivity({
+          ...sessionActivityActor(apiAuth.user.localUserId),
+          identifier: issue.identifier,
+          organizationId: apiAuth.organization.localOrganizationId,
+          projectId,
+          queryId: issue.id,
+          source: "mcp",
+        });
       }
 
       if (fingerprint) {

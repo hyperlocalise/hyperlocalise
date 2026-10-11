@@ -182,6 +182,57 @@ func TestJavaPropertiesParserLineNumbersWithCarriageReturn(t *testing.T) {
 	}
 }
 
+func TestJavaPropertiesParserReportsDanglingContinuationOnSourceLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "single line with trailing newline",
+			content: "key=value \\\n",
+			want:    "line 1: continuation escape at end of file",
+		},
+		{
+			name:    "single line without trailing newline",
+			content: "key=value \\",
+			want:    "line 1: continuation escape at end of file",
+		},
+		{
+			name:    "multi-line with trailing newline",
+			content: "key=first \\\n    second \\\n",
+			want:    "line 2: continuation escape at end of file",
+		},
+		{
+			name:    "multi-line without trailing newline",
+			content: "key=first \\\n    second \\",
+			want:    "line 2: continuation escape at end of file",
+		},
+		{
+			name:    "after comment with CRLF",
+			content: "# header\r\nkey=value \\\r\n",
+			want:    "line 2: continuation escape at end of file",
+		},
+		{
+			name:    "CR-only multi-line with trailing CR",
+			content: "key=first \\\r    second \\\r",
+			want:    "line 2: continuation escape at end of file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (JavaPropertiesParser{}).Parse([]byte(tt.content))
+			if err == nil {
+				t.Fatal("expected dangling continuation error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("unexpected error: %v\nwant: %s", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestPropertiesEntryCapHintUsesPlausibleEntriesNotPhysicalLines(t *testing.T) {
 	tests := []struct {
 		name    string

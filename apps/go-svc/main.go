@@ -93,17 +93,17 @@ func main() {
 		log.Printf("configure memory interchange publisher: %v", memoryInterchangeErr)
 	}
 	h.spellChecker = spellChecker
-	h.dictionaries = &dictionaryAPI{}
+	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
 	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
-	h.qaReports = &qaReportAPI{}
+	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
-	h.issueSheets = &issueSheetAPI{}
+	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
@@ -131,7 +131,7 @@ func main() {
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
 	}
-	h.workspace = &workspaceAPI{membership: membershipLookup}
+	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}

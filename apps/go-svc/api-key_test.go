@@ -58,14 +58,15 @@ func TestAPIKeyCreateIssuesHashedTokenOnce(t *testing.T) {
 
 	events := env.activity.recorded()
 	require.Len(t, events, 1)
-	require.Equal(t, "personal_access_token_created", events[0].EventType)
-	require.Equal(t, patAuditTarget, events[0].TargetKind)
+	require.Equal(t, "organization_api_key_created", events[0].EventType)
+	require.Equal(t, "organization_api_key", events[0].TargetKind)
 	require.Equal(t, key.ID, events[0].TargetID)
 	require.Equal(t, env.owner.userID, events[0].ActorUserID)
 	require.Equal(t, map[string]any{
+		"apiKeyId":    key.ID,
 		"keyPrefix":   key.KeyPrefix,
+		"name":        key.Name,
 		"permissions": []string{"jobs:read", "jobs:write", "files:read", "files:write"},
-		"tokenId":     key.ID,
 	}, events[0].Payload)
 
 	listRec := env.request(env.owner, http.MethodGet, "", "")
