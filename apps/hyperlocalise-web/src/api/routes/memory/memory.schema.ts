@@ -80,6 +80,7 @@ export const listMemoryEntriesQuerySchema = z
     sourceLocale: z.string().trim().max(50).optional(),
     targetLocale: z.string().trim().max(50).optional(),
     reviewStatus: memoryEntryReviewStatusSchema.optional(),
+    sameAsSource: z.enum(["true"]).optional(),
     origin: z.string().trim().min(1).max(100).optional(),
     provider: z.string().trim().min(1).max(100).optional(),
     createdByUserId: z.string().uuid().optional(),
@@ -140,6 +141,45 @@ export const promoteMemoryFromProjectBodySchema = z.object({
   sourceLocale: z.string().trim().min(1).max(50),
   targetLocale: z.string().trim().max(50).optional(),
   sourcePath: z.string().trim().min(1).max(2048).optional(),
+});
+
+export const bulkReviewMemoryEntriesBodySchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        version: z.number().int().min(1),
+      }),
+    )
+    .min(1)
+    .max(100),
+  reviewStatus: z.enum(["approved", "rejected"]),
+});
+
+export const bulkDeleteMemoryEntriesBodySchema = z.object({
+  entryIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+export const memoryEntryReviewSummarySchema = z.object({
+  pending: z.number().int().nonnegative(),
+  rejected: z.number().int().nonnegative(),
+  sameAsSource: z.number().int().nonnegative(),
+});
+
+export const memoryEntryReviewSummaryResponseSchema = z.object({
+  reviewSummary: memoryEntryReviewSummarySchema,
+});
+
+export const memoryEntryBulkReviewResponseSchema = z.object({
+  bulkReview: z.object({
+    updated: z.number().int().nonnegative(),
+  }),
+});
+
+export const memoryEntryBulkDeleteResponseSchema = z.object({
+  bulkDelete: z.object({
+    deleted: z.number().int().nonnegative(),
+  }),
 });
 
 export const listMemoryImportAttemptsQuerySchema = z.object({
@@ -404,6 +444,14 @@ export type UpdateMemoryBody = z.infer<typeof updateMemoryBodySchema>;
 export type CreateMemoryEntryBody = z.infer<typeof createMemoryEntryBodySchema>;
 export type UpdateMemoryEntryBody = z.infer<typeof updateMemoryEntryBodySchema>;
 export type PromoteMemoryFromProjectBody = z.infer<typeof promoteMemoryFromProjectBodySchema>;
+export type BulkReviewMemoryEntriesBody = z.infer<typeof bulkReviewMemoryEntriesBodySchema>;
+export type BulkDeleteMemoryEntriesBody = z.infer<typeof bulkDeleteMemoryEntriesBodySchema>;
+export type MemoryEntryReviewSummary = z.infer<typeof memoryEntryReviewSummarySchema>;
+export type MemoryEntryReviewSummaryResponse = z.infer<
+  typeof memoryEntryReviewSummaryResponseSchema
+>;
+export type MemoryEntryBulkReviewResponse = z.infer<typeof memoryEntryBulkReviewResponseSchema>;
+export type MemoryEntryBulkDeleteResponse = z.infer<typeof memoryEntryBulkDeleteResponseSchema>;
 export type ListMemoryImportAttemptsQuery = z.infer<typeof listMemoryImportAttemptsQuerySchema>;
 export type ExportMemoryEntriesQuery = z.infer<typeof exportMemoryEntriesQuerySchema>;
 export type MemoryImportReport = z.infer<typeof memoryImportReportSchema>;

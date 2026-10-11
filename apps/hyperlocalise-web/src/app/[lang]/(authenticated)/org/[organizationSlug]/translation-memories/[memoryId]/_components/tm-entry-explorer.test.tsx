@@ -14,7 +14,7 @@
 
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -37,6 +37,9 @@ const navigation = vi.hoisted(() => ({
 const apiMocks = vi.hoisted(() => ({
   getEntries: vi.fn(),
   getEntry: vi.fn(),
+  getReviewSummary: vi.fn(),
+  bulkReview: vi.fn(),
+  bulkDelete: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -57,6 +60,15 @@ vi.mock("@/lib/api-client-instance", () => ({
             ":memoryId": {
               entries: {
                 $get: (...args: unknown[]) => apiMocks.getEntries(...args),
+                "review-summary": {
+                  $get: (...args: unknown[]) => apiMocks.getReviewSummary(...args),
+                },
+                "bulk-review": {
+                  $post: (...args: unknown[]) => apiMocks.bulkReview(...args),
+                },
+                "bulk-delete": {
+                  $post: (...args: unknown[]) => apiMocks.bulkDelete(...args),
+                },
                 ":entryId": {
                   $get: (...args: unknown[]) => apiMocks.getEntry(...args),
                 },
@@ -191,6 +203,13 @@ describe("TmEntryExplorer", () => {
     navigation.replace.mockReset();
     apiMocks.getEntries.mockReset();
     apiMocks.getEntry.mockReset();
+    apiMocks.getReviewSummary.mockReset();
+    apiMocks.bulkReview.mockReset();
+    apiMocks.bulkDelete.mockReset();
+    apiMocks.getReviewSummary.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reviewSummary: { pending: 0, rejected: 0, sameAsSource: 0 } }),
+    });
     apiMocks.getEntry.mockImplementation(async () => ({
       ok: true,
       json: async () => createDetail(createEntry()),
@@ -474,6 +493,101 @@ describe("TmEntryExplorer", () => {
     ).toBeGreaterThan(0);
     expect(navigation.replace).toHaveBeenCalledWith("/en/org/acme/translation-memories/mem_1", {
       scroll: false,
+    });
+  });
+
+  it("shows a draft review queue and filters to drafts", async () => {
+    const user = userEvent.setup();
+    apiMocks.getReviewSummary.mockResolvedValue({
+      ok: true,
+      json: async () => ({ reviewSummary: { pending: 3, rejected: 1, sameAsSource: 2 } }),
+    });
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([createEntry()])));
+
+    renderExplorer();
+
+    await waitFor(() => {
+      expect(screen.getByText("3 draft entries need review")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Review drafts" }));
+
+    expect(navigation.replace).toHaveBeenCalledWith(
+      expect.stringContaining("reviewStatus=pending"),
+      { scroll: false },
+    );
+  });
+
+  it("approves selected draft entries in bulk", async () => {
+    const user = userEvent.setup();
+    const draft = createEntry({
+      reviewStatus: "pending",
+      provenance: "file_job",
+      sourceText: "Save",
+      targetText: "Guardar",
+    });
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.bulkReview.mockResolvedValue({
+      ok: true,
+      json: async () => ({ bulkReview: { updated: 1 } }),
+    });
+
+    renderExplorer({ canReview: true, canBulkDelete: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(apiMocks.bulkReview).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", memoryId: "mem_1" },
+        json: {
+          entries: [{ id: draft.id, version: draft.version }],
+          reviewStatus: "approved",
+        },
+      });
+    });
+  });
+
+  it("asks for confirmation before deleting selected entries", async () => {
+    const user = userEvent.setup();
+    const draft = createEntry({
+      reviewStatus: "pending",
+      provenance: "file_job",
+      sourceText: "Save",
+      targetText: "Guardar",
+    });
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.bulkDelete.mockResolvedValue({
+      ok: true,
+      json: async () => ({ bulkDelete: { deleted: 1 } }),
+    });
+
+    renderExplorer({ canReview: true, canBulkDelete: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]!);
+
+    expect(apiMocks.bulkDelete).not.toHaveBeenCalled();
+    const confirmDialog = screen.getByRole("alertdialog");
+    expect(within(confirmDialog).getByText("Delete selected entries?")).toBeInTheDocument();
+
+    await user.click(within(confirmDialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(apiMocks.bulkDelete).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", memoryId: "mem_1" },
+        json: {
+          entryIds: [draft.id],
+        },
+      });
     });
   });
 });

@@ -86,6 +86,7 @@ type EntryListQuery = {
   modifiedFrom?: string;
   modifiedTo?: string;
   importBatchId?: string;
+  sameAsSource?: "true";
   sort?: "created_at" | "updated_at";
   sortDir?: "asc" | "desc";
 };
@@ -700,5 +701,36 @@ describe("GET /translation-memories/:memoryId/entries", () => {
     expect(filteredBody.memoryEntries.every((entry) => entry.importBatchId === importBatchId)).toBe(
       true,
     );
+  });
+
+  it("filters entries whose target copies the source", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+
+    await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Cancel",
+      targetText: "Cancel",
+    });
+    await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Save",
+      targetText: "Guardar",
+    });
+
+    const response = await listEntries({
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+      headers,
+      query: { sameAsSource: "true" },
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as EntryListBody;
+    expect(body.total).toBe(1);
+    expect(body.memoryEntries).toEqual([
+      expect.objectContaining({
+        sourceText: "Cancel",
+        targetText: "Cancel",
+      }),
+    ]);
   });
 });
