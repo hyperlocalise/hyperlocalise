@@ -389,8 +389,14 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 		}
 
 		if pNext >= len(text) {
-			// Accurately report the line where the dangling continuation was found.
-			errLine := lineNumber + lineCount
+			// lineCount already includes this physical line's terminator when
+			// the dangling backslash is followed by a newline. Report the
+			// source line of the backslash, not the empty line after it.
+			precedingTerminators := lineCount
+			if pEnd < pNext {
+				precedingTerminators--
+			}
+			errLine := lineNumber + precedingTerminators
 			return propertiesLogicalLine{}, pNext, lineCount, fmt.Errorf("line %d: continuation escape at end of file", errLine)
 		}
 
