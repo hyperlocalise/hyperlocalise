@@ -22,6 +22,11 @@ import type {
   ContentEditorVisualContext,
   ContentEditorVisualContextScreenshot,
 } from "@/lib/translation/content-editor-visual-context";
+import {
+  VisualContextScreenshotTooLargeError,
+  isVisualContextScreenshotFile,
+  isVisualContextScreenshotTooLarge,
+} from "@/lib/translation/upload-native-visual-context";
 import { cn } from "@/lib/primitives/cn";
 
 import { contentEditorVisualContextPanelMessages } from "@/components/content-editor/shared/content-editor.messages";
@@ -178,20 +183,26 @@ export function ContentEditorVisualContextPanel({
                 if (!file) {
                   return;
                 }
-                if (
-                  file.type !== "image/png" &&
-                  file.type !== "image/jpeg" &&
-                  file.type !== "image/webp"
-                ) {
+                if (!isVisualContextScreenshotFile(file)) {
                   setUploadError(
                     intl.formatMessage(contentEditorVisualContextPanelMessages.invalidFile),
                   );
                   return;
                 }
-                setUploadError(null);
-                void Promise.resolve(onUpload(file)).catch(() => {
+                if (isVisualContextScreenshotTooLarge(file)) {
                   setUploadError(
-                    intl.formatMessage(contentEditorVisualContextPanelMessages.uploadFailed),
+                    intl.formatMessage(contentEditorVisualContextPanelMessages.fileTooLarge),
+                  );
+                  return;
+                }
+                setUploadError(null);
+                void Promise.resolve(onUpload(file)).catch((error: unknown) => {
+                  setUploadError(
+                    intl.formatMessage(
+                      error instanceof VisualContextScreenshotTooLargeError
+                        ? contentEditorVisualContextPanelMessages.fileTooLarge
+                        : contentEditorVisualContextPanelMessages.uploadFailed,
+                    ),
                   );
                 });
               }}

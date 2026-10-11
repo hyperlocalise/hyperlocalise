@@ -10,13 +10,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ProjectFileContentEditorVisualContextMatchBody } from "@/api/routes/project/project.schema";
 import type { GoSvcClient } from "@/lib/go-svc/go-svc-client";
-import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
+import {
+  VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES,
+  type ContentEditorVisualContext,
+} from "@/lib/translation/content-editor-visual-context";
 
 const VISUAL_CONTEXT_UPLOAD_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+// The browser sets these from the body and URL; fetch rejects or ignores them.
+const BROWSER_MANAGED_HEADERS = new Set(["content-length", "host"]);
+
+export class VisualContextScreenshotTooLargeError extends Error {
+  constructor() {
+    super("Screenshot exceeds the 10 MB upload limit");
+    this.name = "VisualContextScreenshotTooLargeError";
+  }
+}
 
 export function isVisualContextScreenshotFile(file: File) {
   return VISUAL_CONTEXT_UPLOAD_TYPES.has(file.type);
+}
+
+export function isVisualContextScreenshotTooLarge(file: File) {
+  return file.size > VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES;
 }
 
 export async function uploadNativeVisualContextScreenshot(input: {
@@ -26,35 +43,50 @@ export async function uploadNativeVisualContextScreenshot(input: {
   sourcePath: string;
   externalStringId: string;
   file: File;
+  match?: ProjectFileContentEditorVisualContextMatchBody;
 }): Promise<ContentEditorVisualContext> {
+  if (isVisualContextScreenshotTooLarge(input.file)) {
+    throw new VisualContextScreenshotTooLargeError();
+  }
   const created = await input.client.cat.createVisualContextScreenshot(
     input.organizationSlug,
     input.projectId,
     {
       filename: input.file.name,
       contentType: input.file.type || "application/octet-stream",
+      byteSize: input.file.size,
       name: input.file.name.replace(/\.[^.]+$/, "") || input.file.name,
       sourcePath: input.sourcePath,
       externalStringId: input.externalStringId,
     },
   );
-  const headers = new Headers();
-  for (const [name, values] of Object.entries(created.upload.headers)) {
-    headers.set(name, values.join(","));
+  try {
+    const headers = new Headers();
+    for (const [name, values] of Object.entries(created.upload.headers)) {
+      if (!BROWSER_MANAGED_HEADERS.has(name.toLowerCase())) {
+        headers.set(name, values.join(","));
+      }
+    }
+    const uploaded = await fetch(created.upload.url, {
+      method: created.upload.method,
+      headers,
+      body: input.file,
+    });
+    if (!uploaded.ok) {
+      throw new Error("Failed to upload screenshot");
+    }
+    await input.client.cat.finalizeVisualContextScreenshot(
+      input.organizationSlug,
+      input.projectId,
+      created.screenshot.id,
+      input.match ? { match: input.match } : {},
+    );
+  } catch (error) {
+    await input.client.cat
+      .deleteVisualContextScreenshot(input.organizationSlug, input.projectId, created.screenshot.id)
+      .catch(() => undefined);
+    throw error;
   }
-  const uploaded = await fetch(created.upload.url, {
-    method: created.upload.method,
-    headers,
-    body: input.file,
-  });
-  if (!uploaded.ok) {
-    throw new Error("Failed to upload screenshot");
-  }
-  await input.client.cat.finalizeVisualContextScreenshot(
-    input.organizationSlug,
-    input.projectId,
-    created.screenshot.id,
-  );
   const { visualContext } = await input.client.cat.visualContext(
     input.organizationSlug,
     input.projectId,

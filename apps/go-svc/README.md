@@ -471,7 +471,9 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
 | POST | `/files/detail/cat/visual-context` | Native screenshots bound to a string |
 | POST | `/files/detail/cat/visual-context/screenshots` | Presign a screenshot upload, optionally bind a string |
-| POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context; optional `match` queues OCR binding |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/match` | Queue an async OCR match that binds strings to the screenshot (`202`) |
+| GET | `/files/detail/cat/visual-context/processes/{id}` | Poll a match process and its auto bindings |
 | POST | `/files/detail/cat/visual-context/screenshots/{id}/bindings` | Bind a screenshot to a native string |
 | DELETE | `/files/detail/cat/visual-context/screenshots/{id}/bindings/{bindingId}` | Remove a string binding |
 | DELETE | `/files/detail/cat/visual-context/screenshots/{id}` | Delete a screenshot and its bindings |

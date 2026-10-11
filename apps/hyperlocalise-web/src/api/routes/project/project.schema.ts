@@ -15,6 +15,7 @@ import { z } from "zod";
 import { successEnvelopeSchema } from "@/api/response.schema";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
+import { VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES } from "@/lib/translation/content-editor-visual-context";
 import {
   localeInputSchema,
   maxProjectTargetLocales,
@@ -739,6 +740,7 @@ export const projectFileCatVisualContextResponseSchema = z.object({
 export const projectFileCatVisualContextUploadBodySchema = z.object({
   filename: z.string().trim().min(1).max(255),
   contentType: z.string().trim().min(1).max(128),
+  byteSize: z.number().int().positive().max(VISUAL_CONTEXT_SCREENSHOT_MAX_BYTES),
   name: z.string().trim().max(256).optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
@@ -752,6 +754,31 @@ export const projectFileCatVisualContextBindingSchema = z.object({
   screenshotId: z.string(),
   externalStringId: z.string(),
   marker: projectFileCatVisualContextMarkerSchema.nullable().optional(),
+  source: z.enum(["manual", "auto"]).optional(),
+});
+
+/** Mirrors Smartling MatchParams: scope by sourcePath or externalStringIds, not both. */
+export const projectFileCatVisualContextMatchBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+  externalStringIds: z.array(z.string().trim().min(1).max(128)).max(500).optional(),
+  overrideContextOlderThanDays: z.number().int().min(1).max(3650).optional(),
+});
+
+export const projectFileCatVisualContextMatchProcessSchema = z.object({
+  id: z.string(),
+  screenshotId: z.string(),
+  status: z.enum(["queued", "in_progress", "completed", "failed"]),
+  checkedStringsCount: z.number().int().nullable(),
+  boundStringsCount: z.number().int().nullable(),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  completedAt: z.string().nullable(),
+  bindings: z.array(projectFileCatVisualContextBindingSchema),
+});
+
+export const projectFileCatVisualContextMatchResponseSchema = z.object({
+  process: projectFileCatVisualContextMatchProcessSchema,
 });
 
 export const projectFileCatVisualContextUploadResponseSchema = z.object({
@@ -773,10 +800,12 @@ export const projectFileCatVisualContextFinalizeBodySchema = z.object({
   name: z.string().trim().max(256).optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  match: projectFileCatVisualContextMatchBodySchema.optional(),
 });
 
 export const projectFileCatVisualContextFinalizeResponseSchema = z.object({
   screenshot: projectFileCatVisualContextScreenshotSchema,
+  process: projectFileCatVisualContextMatchProcessSchema.optional(),
 });
 
 export const projectFileCatVisualContextBindBodySchema = z.object({
@@ -1091,6 +1120,12 @@ export type ProjectFileContentEditorVisualContextFinalizeBody = z.infer<
 >;
 export type ProjectFileContentEditorVisualContextFinalizeResponse = z.infer<
   typeof projectFileCatVisualContextFinalizeResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextMatchBody = z.infer<
+  typeof projectFileCatVisualContextMatchBodySchema
+>;
+export type ProjectFileContentEditorVisualContextMatchResponse = z.infer<
+  typeof projectFileCatVisualContextMatchResponseSchema
 >;
 export type ProjectFileContentEditorVisualContextBindBody = z.infer<
   typeof projectFileCatVisualContextBindBodySchema

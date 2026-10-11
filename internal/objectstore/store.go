@@ -54,10 +54,12 @@ type Store interface {
 }
 
 // Upload describes the headers that must be sent with a signed PUT request.
+// A positive ContentLength is signed, so the upload must be exactly that size.
 type Upload struct {
-	Key         string `json:"key"`
-	ContentType string `json:"contentType"`
-	IfAbsent    bool   `json:"ifAbsent"`
+	Key           string `json:"key"`
+	ContentType   string `json:"contentType"`
+	ContentLength int64  `json:"contentLength,omitempty"`
+	IfAbsent      bool   `json:"ifAbsent"`
 }
 
 // SignedRequest is temporary access, never a durable object identifier.

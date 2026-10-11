@@ -49,6 +49,8 @@ import type {
   ProjectFileContentEditorVisualContextBody,
   ProjectFileContentEditorVisualContextFinalizeBody,
   ProjectFileContentEditorVisualContextFinalizeResponse,
+  ProjectFileContentEditorVisualContextMatchBody,
+  ProjectFileContentEditorVisualContextMatchResponse,
   ProjectFileContentEditorVisualContextResponse,
   ProjectFileContentEditorVisualContextUploadBody,
   ProjectFileContentEditorVisualContextUploadResponse,
@@ -236,6 +238,31 @@ export class GoSvcCatApi {
         "finalize",
       ),
       { method: "POST", body, ...options },
+    );
+  }
+
+  matchVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    body: ProjectFileContentEditorVisualContextMatchBody = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextMatchResponse>(
+      catPath(organizationSlug, projectId, "visual-context", "screenshots", screenshotId, "match"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  visualContextMatchProcess(
+    organizationSlug: string,
+    projectId: string,
+    processId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextMatchResponse>(
+      catPath(organizationSlug, projectId, "visual-context", "processes", processId),
+      options,
     );
   }
 

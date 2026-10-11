@@ -32,6 +32,8 @@ type editorCatAPI struct {
 	pool       dictionaryPool
 	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
 	objects    *objectstore.Registry
+	// matchPublisher is nil when automatic visual-context matching is not configured.
+	matchPublisher visualContextMatchPublisher
 }
 
 type editorCatActor struct {
@@ -171,6 +173,8 @@ func (api *editorCatAPI) register(mux *http.ServeMux, verifier SessionVerifier) 
 	route("POST "+cat+"/visual-context", api.loadVisualContext)
 	route("POST "+cat+"/visual-context/screenshots", api.createVisualContextScreenshot)
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/finalize", api.finalizeVisualContextScreenshot)
+	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/match", api.matchVisualContextScreenshot)
+	route("GET "+cat+"/visual-context/processes/{processId}", api.loadVisualContextMatchProcess)
 	route("POST "+cat+"/visual-context/screenshots/{screenshotId}/bindings", api.bindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}/bindings/{bindingId}", api.unbindVisualContextScreenshot)
 	route("DELETE "+cat+"/visual-context/screenshots/{screenshotId}", api.deleteVisualContextScreenshot)

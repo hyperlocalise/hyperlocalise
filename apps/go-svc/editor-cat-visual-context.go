@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/hyperlocalise/hyperlocalise/internal/objectstore"
@@ -21,6 +24,12 @@ const (
 	visualContextDownloadTTL    = time.Hour
 	visualContextMaxBytes       = 10 * 1024 * 1024
 	visualContextMaxFilenameLen = 255
+	visualContextMaxNameRunes   = 256
+	// Pending rows older than this can no longer receive an upload; they are
+	// swept opportunistically because go-svc has no background scheduler.
+	visualContextStaleUploadAge   = visualContextUploadTTL + 45*time.Minute
+	visualContextStaleUploadBatch = 20
+	visualContextMarkerEpsilon    = 1e-9
 )
 
 type editorCatVisualContextMarker struct {
@@ -38,6 +47,7 @@ type editorCatVisualContextLookupBody struct {
 type editorCatVisualContextUploadBody struct {
 	Filename         string                        `json:"filename"`
 	ContentType      string                        `json:"contentType"`
+	ByteSize         int64                         `json:"byteSize"`
 	Name             *string                       `json:"name"`
 	Width            *int                          `json:"width"`
 	Height           *int                          `json:"height"`
@@ -47,9 +57,10 @@ type editorCatVisualContextUploadBody struct {
 }
 
 type editorCatVisualContextFinalizeBody struct {
-	Name   *string `json:"name"`
-	Width  *int    `json:"width"`
-	Height *int    `json:"height"`
+	Name   *string                   `json:"name"`
+	Width  *int                      `json:"width"`
+	Height *int                      `json:"height"`
+	Match  *visualContextMatchParams `json:"match"`
 }
 
 type editorCatVisualContextBindBody struct {
@@ -72,6 +83,7 @@ type editorCatVisualContextBinding struct {
 	ScreenshotID     string                        `json:"screenshotId"`
 	ExternalStringID string                        `json:"externalStringId"`
 	Marker           *editorCatVisualContextMarker `json:"marker"`
+	Source           string                        `json:"source"`
 }
 
 func (api *editorCatAPI) loadVisualContext(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -121,6 +133,9 @@ func (api *editorCatAPI) createVisualContextScreenshot(r *http.Request, actor ed
 	if err != nil {
 		return nil, 0, err
 	}
+	if body.ByteSize <= 0 || body.ByteSize > visualContextMaxBytes {
+		return nil, 0, editorCatFailure(413, "visual_context_upload_too_large", "Screenshots must be between 1 byte and 10 MB")
+	}
 	if err := validateVisualContextDimensions(body.Width, body.Height); err != nil {
 		return nil, 0, err
 	}
@@ -143,6 +158,7 @@ func (api *editorCatAPI) createVisualContextScreenshot(r *http.Request, actor ed
 			return nil, 0, err
 		}
 	}
+	api.sweepStaleVisualContextUploads(r, actor, project)
 	location := api.objects.DefaultLocationID()
 	signer, err := api.objects.Presigner(location)
 	if err != nil {
@@ -150,6 +166,15 @@ func (api *editorCatAPI) createVisualContextScreenshot(r *http.Request, actor ed
 	}
 	screenshotID := uuid.NewString()
 	objectKey := fmt.Sprintf("visual-context/%s/%s/%s/%s", actor.organizationID, project.ID, screenshotID, filename)
+	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{
+		Key:           objectKey,
+		ContentType:   contentType,
+		ContentLength: body.ByteSize,
+		IfAbsent:      true,
+	}, visualContextUploadTTL)
+	if err != nil {
+		return nil, 0, err
+	}
 	tx, err := api.pool.Begin(r.Context())
 	if err != nil {
 		return nil, 0, err
@@ -174,10 +199,6 @@ func (api *editorCatAPI) createVisualContextScreenshot(r *http.Request, actor ed
 		}
 	}
 	if err = tx.Commit(r.Context()); err != nil {
-		return nil, 0, err
-	}
-	signed, err := signer.PresignUpload(r.Context(), objectstore.Upload{Key: objectKey, ContentType: contentType, IfAbsent: true}, visualContextUploadTTL)
-	if err != nil {
 		return nil, 0, err
 	}
 	return map[string]any{
@@ -217,6 +238,17 @@ func (api *editorCatAPI) finalizeVisualContextScreenshot(r *http.Request, actor 
 	if err := validateVisualContextDimensions(body.Width, body.Height); err != nil {
 		return nil, 0, err
 	}
+	var match *resolvedVisualContextMatch
+	if body.Match != nil {
+		if api.matchPublisher == nil {
+			return nil, 0, visualContextMatchingUnavailable()
+		}
+		resolved, resolveErr := api.resolveVisualContextMatch(r, actor, project, *body.Match)
+		if resolveErr != nil {
+			return nil, 0, resolveErr
+		}
+		match = &resolved
+	}
 	name := optionalTrimmedVisualContextName(body.Name)
 	var location, key, filename, contentType string
 	var storedName *string
@@ -248,22 +280,17 @@ func (api *editorCatAPI) finalizeVisualContextScreenshot(r *http.Request, actor 
 		api.discardRejectedVisualContextUpload(r, actor, project, screenshotID, location, key)
 		return nil, 0, editorCatFailure(413, "visual_context_upload_too_large", "The screenshot upload is empty or exceeds the 10 MB limit")
 	}
-	bodyReader, _, err := store.Get(r.Context(), key)
+	digest, err := hashVisualContextUpload(r, store, key, contentType)
+	if errors.Is(err, errVisualContextInvalidImage) {
+		api.discardRejectedVisualContextUpload(r, actor, project, screenshotID, location, key)
+		return nil, 0, editorCatFailure(415, "visual_context_upload_invalid_image", "The uploaded file is not a valid PNG, JPEG, or WebP image")
+	}
 	if err != nil {
 		if errors.Is(err, objectstore.ErrNotFound) {
 			return nil, 0, editorCatFailure(409, "visual_context_upload_missing", "The screenshot upload has not completed")
 		}
 		return nil, 0, err
 	}
-	sum := sha256.New()
-	if _, err = io.Copy(sum, io.LimitReader(bodyReader, visualContextMaxBytes+1)); err != nil {
-		_ = bodyReader.Close()
-		return nil, 0, err
-	}
-	if err = bodyReader.Close(); err != nil {
-		return nil, 0, err
-	}
-	digest := hex.EncodeToString(sum.Sum(nil))
 	if name != nil {
 		storedName = name
 	}
@@ -303,14 +330,24 @@ func (api *editorCatAPI) finalizeVisualContextScreenshot(r *http.Request, actor 
 	if tag.RowsAffected() == 0 {
 		return nil, 0, editorCatFailure(409, "visual_context_screenshot_not_pending", "The screenshot is no longer waiting for upload")
 	}
+	var process *editorCatVisualContextMatchProcess
+	if match != nil {
+		process, err = insertVisualContextMatchProcess(r, tx, actor, project, screenshotID, *match)
+		if err != nil {
+			return nil, 0, err
+		}
+	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
+	}
+	if process != nil {
+		api.enqueueVisualContextMatch(r, actor, project, process)
 	}
 	imageURL, err := api.signVisualContextDownload(r, location, key)
 	if err != nil {
 		return nil, 0, err
 	}
-	return map[string]any{
+	response := map[string]any{
 		"screenshot": editorCatVisualContextScreenshot{
 			ID:       screenshotID,
 			Name:     storedName,
@@ -319,7 +356,50 @@ func (api *editorCatAPI) finalizeVisualContextScreenshot(r *http.Request, actor 
 			Height:   height,
 			Markers:  []editorCatVisualContextMarker{},
 		},
-	}, http.StatusOK, nil
+	}
+	if process != nil {
+		response["process"] = process
+	}
+	return response, http.StatusOK, nil
+}
+
+var errVisualContextInvalidImage = errors.New("visual context upload is not a supported image")
+
+func hashVisualContextUpload(r *http.Request, store objectstore.Store, key, contentType string) (string, error) {
+	body, _, err := store.Get(r.Context(), key)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = body.Close() }()
+	limited := io.LimitReader(body, visualContextMaxBytes+1)
+	header := make([]byte, 12)
+	n, err := io.ReadFull(limited, header)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	header = header[:n]
+	if !visualContextImageSignatureMatches(header, contentType) {
+		return "", errVisualContextInvalidImage
+	}
+	sum := sha256.New()
+	_, _ = sum.Write(header)
+	if _, err := io.Copy(sum, limited); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(sum.Sum(nil)), nil
+}
+
+func visualContextImageSignatureMatches(header []byte, contentType string) bool {
+	switch contentType {
+	case "image/png":
+		return bytes.HasPrefix(header, []byte("\x89PNG\r\n\x1a\n"))
+	case "image/jpeg":
+		return bytes.HasPrefix(header, []byte{0xff, 0xd8, 0xff})
+	case "image/webp":
+		return len(header) >= 12 && string(header[0:4]) == "RIFF" && string(header[8:12]) == "WEBP"
+	default:
+		return false
+	}
 }
 
 func (api *editorCatAPI) bindVisualContextScreenshot(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
@@ -438,11 +518,7 @@ func (api *editorCatAPI) deleteVisualContextScreenshot(r *http.Request, actor ed
 	if err = tx.Commit(r.Context()); err != nil {
 		return nil, 0, err
 	}
-	if api.objects != nil {
-		if store, resolveErr := api.objects.Resolve(location); resolveErr == nil {
-			_ = store.Delete(r.Context(), key)
-		}
-	}
+	api.deleteVisualContextObject(r, location, key)
 	return nil, http.StatusNoContent, nil
 }
 
@@ -452,11 +528,53 @@ func (api *editorCatAPI) discardRejectedVisualContextUpload(r *http.Request, act
         where id=$1 and organization_id=$2 and project_id=$3 and status='upload_pending'`,
 		screenshotID, actor.organizationID, project.ID,
 	)
+	api.deleteVisualContextObject(r, location, key)
+}
+
+func (api *editorCatAPI) sweepStaleVisualContextUploads(r *http.Request, actor editorCatActor, project editorCatProject) {
+	rows, err := api.pool.Query(r.Context(), `
+        delete from project_visual_context_screenshots
+        where id in (
+            select id from project_visual_context_screenshots
+            where organization_id=$1 and project_id=$2 and status='upload_pending'
+              and created_at < now() - make_interval(secs => $3)
+            order by created_at
+            limit $4
+        )
+        returning object_location, object_key`,
+		actor.organizationID, project.ID, visualContextStaleUploadAge.Seconds(), visualContextStaleUploadBatch,
+	)
+	if err != nil {
+		slog.WarnContext(r.Context(), "visual_context_stale_upload_sweep_failed", "project_id", project.ID, "error", err)
+		return
+	}
+	type staleObject struct{ location, key string }
+	stale := make([]staleObject, 0)
+	for rows.Next() {
+		var object staleObject
+		if err := rows.Scan(&object.location, &object.key); err != nil {
+			rows.Close()
+			slog.WarnContext(r.Context(), "visual_context_stale_upload_sweep_failed", "project_id", project.ID, "error", err)
+			return
+		}
+		stale = append(stale, object)
+	}
+	rows.Close()
+	for _, object := range stale {
+		api.deleteVisualContextObject(r, object.location, object.key)
+	}
+}
+
+func (api *editorCatAPI) deleteVisualContextObject(r *http.Request, location, key string) {
 	if api.objects == nil {
 		return
 	}
-	if store, err := api.objects.Resolve(location); err == nil {
-		_ = store.Delete(r.Context(), key)
+	store, err := api.objects.Resolve(location)
+	if err == nil {
+		err = store.Delete(r.Context(), key)
+	}
+	if err != nil {
+		slog.WarnContext(r.Context(), "visual_context_object_delete_failed", "object_location", location, "error", err)
 	}
 }
 
@@ -488,9 +606,7 @@ func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor edi
 		if err = rows.Scan(&shot.id, &shot.name, &shot.location, &shot.key, &shot.width, &shot.height, &left, &top, &width, &height); err != nil {
 			return nil, err
 		}
-		if left != nil && top != nil && width != nil && height != nil {
-			shot.marker = &editorCatVisualContextMarker{Left: *left, Top: *top, Width: *width, Height: *height}
-		}
+		shot.marker = visualContextMarkerFromColumns(left, top, width, height)
 		pending = append(pending, shot)
 	}
 	if err = rows.Err(); err != nil {
@@ -516,6 +632,13 @@ func (api *editorCatAPI) listVisualContextScreenshots(r *http.Request, actor edi
 		})
 	}
 	return screenshots, nil
+}
+
+func visualContextMarkerFromColumns(left, top, width, height *float64) *editorCatVisualContextMarker {
+	if left == nil || top == nil || width == nil || height == nil {
+		return nil
+	}
+	return &editorCatVisualContextMarker{Left: *left, Top: *top, Width: *width, Height: *height}
 }
 
 func (api *editorCatAPI) requireVisualContextScreenshot(r *http.Request, actor editorCatActor, project editorCatProject, screenshotID string) error {
@@ -555,13 +678,15 @@ func insertVisualContextBinding(r *http.Request, db dictionaryDB, actor editorCa
 	err := db.QueryRow(r.Context(), `
         insert into project_visual_context_bindings (
             organization_id, project_id, screenshot_id, translation_key_id,
-            marker_left, marker_top, marker_width, marker_height, created_by_user_id
-        ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            marker_left, marker_top, marker_width, marker_height, source, created_by_user_id
+        ) values ($1,$2,$3,$4,$5,$6,$7,$8,'manual',$9)
         on conflict (screenshot_id, translation_key_id) do update set
             marker_left=excluded.marker_left,
             marker_top=excluded.marker_top,
             marker_width=excluded.marker_width,
             marker_height=excluded.marker_height,
+            source='manual',
+            match_process_id=null,
             updated_at=now()
         returning id`,
 		actor.organizationID, project.ID, screenshotID, keyID, left, top, width, height, actor.userID,
@@ -574,6 +699,7 @@ func insertVisualContextBinding(r *http.Request, db dictionaryDB, actor editorCa
 		ScreenshotID:     screenshotID,
 		ExternalStringID: keyID,
 		Marker:           marker,
+		Source:           "manual",
 	}, nil
 }
 
@@ -647,7 +773,9 @@ func validateVisualContextMarker(marker *editorCatVisualContextMarker) error {
 		return nil
 	}
 	if marker.Left < 0 || marker.Left > 100 || marker.Top < 0 || marker.Top > 100 ||
-		marker.Width <= 0 || marker.Width > 100 || marker.Height <= 0 || marker.Height > 100 {
+		marker.Width <= 0 || marker.Width > 100 || marker.Height <= 0 || marker.Height > 100 ||
+		marker.Left+marker.Width > 100+visualContextMarkerEpsilon ||
+		marker.Top+marker.Height > 100+visualContextMarkerEpsilon {
 		return editorCatFailure(400, "invalid_project_payload", "Invalid screenshot marker")
 	}
 	return nil
@@ -661,12 +789,17 @@ func optionalTrimmedVisualContext(value *string) string {
 }
 
 func optionalTrimmedVisualContextName(value *string) *string {
-	trimmed := optionalTrimmedVisualContext(value)
+	trimmed := truncateVisualContextRunes(optionalTrimmedVisualContext(value), visualContextMaxNameRunes)
 	if trimmed == "" {
 		return nil
 	}
-	if len(trimmed) > 256 {
-		trimmed = trimmed[:256]
-	}
 	return &trimmed
+}
+
+func truncateVisualContextRunes(value string, limit int) string {
+	if utf8.RuneCountInString(value) <= limit {
+		return value
+	}
+	runes := []rune(value)
+	return strings.TrimSpace(string(runes[:limit]))
 }

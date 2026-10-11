@@ -1393,6 +1393,11 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
     id: "HmiZVn+TeY",
     description: "Error when an unsupported visual context screenshot type is selected",
   },
+  fileTooLarge: {
+    defaultMessage: "Screenshots must be 10 MB or smaller.",
+    id: "QRPmcpjd59",
+    description: "Error when a visual context screenshot exceeds the upload size limit",
+  },
 });
 
 export const contentEditorPanelErrorBoundaryMessages = defineMessages({

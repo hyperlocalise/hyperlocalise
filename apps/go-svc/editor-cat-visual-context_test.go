@@ -78,7 +78,7 @@ func TestEditorCatVisualContextUploadBindAndLookup(t *testing.T) {
 
 	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{
         "filename":"checkout.png",
-        "contentType":"image/png",
+        "contentType":"image/png","byteSize":128,
         "name":"Checkout screen",
         "width":800,
         "height":600,
@@ -107,7 +107,7 @@ func TestEditorCatVisualContextUploadBindAndLookup(t *testing.T) {
 	require.Equal(t, http.MethodPut, created.Upload.Method)
 	require.Contains(t, created.Upload.URL, "visual-context/")
 
-	png := bytes.Repeat([]byte{0x89, 0x50, 0x4e, 0x47}, 32)
+	png := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 120)...)
 	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
 		Key:         strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/"),
 		Body:        bytes.NewReader(png),
@@ -149,7 +149,7 @@ func TestEditorCatVisualContextBindUnbindAndDelete(t *testing.T) {
 
 	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{
         "filename":"screen.webp",
-        "contentType":"image/webp",
+        "contentType":"image/webp","byteSize":128,
         "sourcePath":"locales/en.json",
         "externalStringId":"`+firstKey+`"
     }`)
@@ -163,7 +163,7 @@ func TestEditorCatVisualContextBindUnbindAndDelete(t *testing.T) {
 		} `json:"upload"`
 	}
 	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
-	payload := []byte("webp-bytes")
+	payload := append([]byte("RIFF\x00\x00\x00\x00WEBP"), bytes.Repeat([]byte{0}, 116)...)
 	_, _, err := api.objects.Put(t.Context(), objectstore.PutInput{
 		Key:         strings.TrimPrefix(created.Upload.URL, "https://objects.test/upload/"),
 		Body:        bytes.NewReader(payload),
@@ -215,20 +215,20 @@ func TestEditorCatVisualContextUploadValidation(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Contains(t, rec.Body.String(), "invalid_project_payload")
 
-	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","sourcePath":"locales/en.json"}`)
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128,"sourcePath":"locales/en.json"}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 
-	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","marker":{"left":10,"top":10,"width":10,"height":10}}`)
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128,"marker":{"left":10,"top":10,"width":10,"height":10}}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 
-	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","sourcePath":"locales/en.json","externalStringId":"`+keyID+`","marker":{"left":-1,"top":0,"width":10,"height":10}}`)
+	rec = editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128,"sourcePath":"locales/en.json","externalStringId":"`+keyID+`","marker":{"left":-1,"top":0,"width":10,"height":10}}`)
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestEditorCatVisualContextMemberCannotUpload(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "member")
 	api.objects = visualContextObjectRegistry(t)
-	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png"}`)
+	rec := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128}`)
 	require.Equal(t, http.StatusForbidden, rec.Code)
 	require.Contains(t, rec.Body.String(), "forbidden")
 }
@@ -236,7 +236,7 @@ func TestEditorCatVisualContextMemberCannotUpload(t *testing.T) {
 func TestEditorCatVisualContextFinalizeTooLargeCleansUp(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	api.objects = visualContextObjectRegistry(t)
-	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png"}`)
+	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.png","contentType":"image/png","byteSize":128}`)
 	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
 	var created struct {
 		Screenshot struct {
@@ -279,7 +279,7 @@ func TestEditorCatVisualContextFinalizeTooLargeCleansUp(t *testing.T) {
 func TestEditorCatVisualContextFinalizeMissingUpload(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "admin")
 	api.objects = visualContextObjectRegistry(t)
-	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.jpg","contentType":"image/jpeg"}`)
+	create := editorCatRequestScope(api, scope, http.MethodPost, editorCatPathFor(scope, "/files/detail/cat/visual-context/screenshots"), `{"filename":"shot.jpg","contentType":"image/jpeg","byteSize":128}`)
 	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
 	var created struct {
 		Screenshot struct {

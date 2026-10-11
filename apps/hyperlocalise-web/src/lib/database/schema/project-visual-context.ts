@@ -23,7 +23,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { storedFiles } from "./files";
+import { repositorySourceFiles, storedFiles } from "./files";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 import { projectTranslationKeys } from "./project-strings";
@@ -43,7 +43,7 @@ export const projectVisualContextScreenshots = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     storedFileId: text("stored_file_id").references(() => storedFiles.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     name: text("name"),
     filename: text("filename").notNull(),
@@ -88,8 +88,72 @@ export const projectVisualContextScreenshots = pgTable(
 );
 
 /**
+ * Async OCR match runs that bind strings to a screenshot, modelled on Smartling's
+ * context match processes. Scope is a source file, explicit keys, or (both null)
+ * the whole project. Processed by `apps/visual-context-match-lambda`.
+ */
+export const projectVisualContextMatchProcesses = pgTable(
+  "project_visual_context_match_processes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    screenshotId: uuid("screenshot_id")
+      .notNull()
+      .references(() => projectVisualContextScreenshots.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("queued"),
+    repositorySourceFileId: uuid("repository_source_file_id").references(
+      () => repositorySourceFiles.id,
+      { onDelete: "cascade" },
+    ),
+    translationKeyIds: uuid("translation_key_ids").array(),
+    overrideContextOlderThanDays: integer("override_context_older_than_days"),
+    checkedStringsCount: integer("checked_strings_count"),
+    boundStringsCount: integer("bound_strings_count"),
+    errorCode: text("error_code"),
+    attempts: integer("attempts").notNull().default(0),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_project_visual_context_match_processes_org_project").on(
+      table.organizationId,
+      table.projectId,
+    ),
+    uniqueIndex("project_visual_context_match_processes_active_screenshot")
+      .on(table.screenshotId)
+      .where(sql`${table.status} in ('queued', 'in_progress')`),
+    check(
+      "project_visual_context_match_processes_status_check",
+      sql`${table.status} in ('queued', 'in_progress', 'completed', 'failed')`,
+    ),
+    check(
+      "project_visual_context_match_processes_scope_check",
+      sql`${table.repositorySourceFileId} is null or ${table.translationKeyIds} is null`,
+    ),
+    check(
+      "project_visual_context_match_processes_override_check",
+      sql`${table.overrideContextOlderThanDays} is null or ${table.overrideContextOlderThanDays} >= 1`,
+    ),
+  ],
+);
+
+/**
  * Binds a visual-context screenshot to a native translation key, with optional
- * percent-based markers that highlight the string on the image.
+ * percent-based markers that highlight the string on the image. `source` is
+ * `auto` for OCR matches; auto matches never overwrite manual bindings.
  */
 export const projectVisualContextBindings = pgTable(
   "project_visual_context_bindings",
@@ -111,6 +175,11 @@ export const projectVisualContextBindings = pgTable(
     markerTop: doublePrecision("marker_top"),
     markerWidth: doublePrecision("marker_width"),
     markerHeight: doublePrecision("marker_height"),
+    source: text("source").notNull().default("manual"),
+    matchProcessId: uuid("match_process_id").references(
+      () => projectVisualContextMatchProcesses.id,
+      { onDelete: "set null" },
+    ),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -131,6 +200,11 @@ export const projectVisualContextBindings = pgTable(
       table.translationKeyId,
     ),
     index("idx_project_visual_context_bindings_screenshot").on(table.screenshotId),
+    index("idx_project_visual_context_bindings_match_process").on(table.matchProcessId),
+    check(
+      "project_visual_context_bindings_source_check",
+      sql`${table.source} in ('manual', 'auto')`,
+    ),
     check(
       "project_visual_context_bindings_marker_check",
       sql`(
@@ -147,6 +221,8 @@ export const projectVisualContextBindings = pgTable(
         and ${table.markerTop} >= 0 and ${table.markerTop} <= 100
         and ${table.markerWidth} > 0 and ${table.markerWidth} <= 100
         and ${table.markerHeight} > 0 and ${table.markerHeight} <= 100
+        and ${table.markerLeft} + ${table.markerWidth} <= 100.000001
+        and ${table.markerTop} + ${table.markerHeight} <= 100.000001
       )`,
     ),
   ],

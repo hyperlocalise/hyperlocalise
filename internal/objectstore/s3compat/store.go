@@ -163,10 +163,13 @@ func (s *Store) PresignUpload(ctx context.Context, input objectstore.Upload, ttl
 	if err := validateTTL(ttl); err != nil {
 		return objectstore.SignedRequest{}, err
 	}
-	if strings.TrimSpace(input.ContentType) == "" {
+	if strings.TrimSpace(input.ContentType) == "" || input.ContentLength < 0 {
 		return objectstore.SignedRequest{}, objectstore.ErrInvalidInput
 	}
 	req := &s3.PutObjectInput{Bucket: &s.bucket, Key: &input.Key, ContentType: &input.ContentType}
+	if input.ContentLength > 0 {
+		req.ContentLength = &input.ContentLength
+	}
 	if input.IfAbsent {
 		req.IfNoneMatch = aws.String("*")
 	}

@@ -16,6 +16,7 @@ Current workers:
 | activity-log | `apps/activity-log-lambda/**` | `activity_log_deploy` | `lambda-deploy-activity-log-…` |
 | glossary-interchange | `apps/glossary-interchange-lambda/**` | `glossary_interchange_deploy` | `lambda-deploy-glossary-interchange-…` |
 | memory-interchange | `apps/memory-interchange-lambda/**` | `memory_interchange_deploy` | `lambda-deploy-memory-interchange-…` |
+| visual-context-match | `apps/visual-context-match-lambda/**` | `visual_context_match_deploy` | `lambda-deploy-visual-context-match-…` |
 
 Concurrency groups append `${{ github.ref }}` (for example `refs/heads/prod`). Every deploy job uses the same AWS role session name: `github-actions-lambda-deploy`.
 
