@@ -126,9 +126,7 @@ describe("cat message format utilities", () => {
     expect(analysis.placeholders).toEqual([
       expect.objectContaining({ kind: "argument", name: "user_name" }),
     ]);
-    expect(analysis.icuBlocks).toEqual([
-      expect.objectContaining({ arg: "count", type: "plural" }),
-    ]);
+    expect(analysis.icuBlocks).toEqual([expect.objectContaining({ arg: "count", type: "plural" })]);
   });
 
   it("does not pass format checks when source ICU syntax cannot be parsed", () => {

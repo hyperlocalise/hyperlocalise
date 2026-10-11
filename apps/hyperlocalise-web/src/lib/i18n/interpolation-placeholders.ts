@@ -32,12 +32,16 @@ function isPlaceholderName(value: string) {
 
 function interpolationFormatIsICU(format: string) {
   const firstToken = format.split(",")[0]?.trim() ?? "";
-  const first = firstToken.includes("(") ? firstToken.slice(0, firstToken.indexOf("(")) : firstToken;
+  const first = firstToken.includes("(")
+    ? firstToken.slice(0, firstToken.indexOf("("))
+    : firstToken;
   return ICU_INTERPOLATION_FORMATS.has(first.toLowerCase());
 }
 
 function isSimpleInterpolationFormat(format: string) {
-  return format !== "" && isPlaceholderName(format) && !format.includes(".") && !format.includes("[");
+  return (
+    format !== "" && isPlaceholderName(format) && !format.includes(".") && !format.includes("[")
+  );
 }
 
 function splitInterpolation(interior: string) {
@@ -118,7 +122,7 @@ export function extractInterpolationPlaceholders(message: string): Interpolation
   }
 
   const spans: InterpolationPlaceholder[] = [];
-  for (let index = 0; index < message.length; ) {
+  for (let index = 0; index < message.length;) {
     const open = message.indexOf("{{", index);
     if (open === -1) {
       break;
