@@ -239,23 +239,23 @@ export const tmEntryExplorerMessages = defineMessages({
   },
   confirmBulkDeleteTitle: {
     defaultMessage: "Delete selected entries?",
-    id: "tmConfirmDelT1",
+    id: "36xZffJVIP",
     description: "Title for the bulk translation memory delete confirmation",
   },
   confirmBulkDeleteBody: {
     defaultMessage:
       "{count, plural, one {This permanently deletes # selected entry.} other {This permanently deletes # selected entries.}}",
-    id: "tmConfirmDelB1",
+    id: "GftyFc6QcS",
     description: "Explains that bulk translation memory delete cannot be undone",
   },
   confirmBulkDeleteAction: {
     defaultMessage: "Delete",
-    id: "tmConfirmDelA1",
+    id: "ERhdtCoB3w",
     description: "Confirms permanent deletion of selected translation memory entries",
   },
   cancelBulkDelete: {
     defaultMessage: "Cancel",
-    id: "tmConfirmDelC1",
+    id: "kMySdc7EDT",
     description: "Cancels bulk deletion of translation memory entries",
   },
   selectEntryAria: {

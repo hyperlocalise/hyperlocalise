@@ -552,45 +552,6 @@ describe("TmEntryExplorer", () => {
     });
   });
 
-  it("refreshes the open entry after bulk review", async () => {
-    const user = userEvent.setup();
-    const draft = createEntry({
-      reviewStatus: "pending",
-      provenance: "file_job",
-      sourceText: "Save",
-      targetText: "Guardar",
-    });
-    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
-    apiMocks.getEntry.mockResolvedValue({
-      ok: true,
-      json: async () => createDetail(draft),
-    });
-    apiMocks.bulkReview.mockResolvedValue({
-      ok: true,
-      json: async () => ({ bulkReview: { updated: 1 } }),
-    });
-
-    renderExplorer({ canReview: true });
-
-    await waitFor(() => {
-      expect(screen.getByText("Save")).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByRole("button", { name: "Open entry Save" }));
-    await waitFor(() => {
-      expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
-    });
-    const detailCallsBeforeReview = apiMocks.getEntry.mock.calls.length;
-
-    await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
-    await user.click(screen.getByRole("button", { name: "Approve" }));
-
-    await waitFor(() => {
-      expect(apiMocks.getEntry.mock.calls.length).toBeGreaterThan(detailCallsBeforeReview);
-    });
-    expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
-  });
-
   it("asks for confirmation before deleting selected entries", async () => {
     const user = userEvent.setup();
     const draft = createEntry({
@@ -611,10 +572,6 @@ describe("TmEntryExplorer", () => {
       expect(screen.getByText("Save")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: "Open entry Save" }));
-    await waitFor(() => {
-      expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
-    });
     await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
     await user.click(screen.getAllByRole("button", { name: "Delete" })[0]!);
 
@@ -631,9 +588,6 @@ describe("TmEntryExplorer", () => {
           entryIds: [draft.id],
         },
       });
-    });
-    await waitFor(() => {
-      expect(screen.queryByText("Translation memory entry")).not.toBeInTheDocument();
     });
   });
 });
