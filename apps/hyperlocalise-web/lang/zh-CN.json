@@ -170,6 +170,9 @@
   "+HZaUMLm0i": {
     "defaultMessage": "保存更改"
   },
+  "+Hatz1jNOF": {
+    "defaultMessage": "当你接入团队已经维护的文档时，Guidelines 就会生效——例如 Google Drive 中的品牌手册、Notion 中的语调指南、SharePoint 中的法律规范，或直接在 Hyperlocalise 中录入的规则。你可以选择哪些集合适用于哪些工作区和语言；系统会为这些内容建立索引，并在来源发生变化时同步更新。新员工和智能体可以查阅同一套资料，无需再费力寻找最新的 PDF。\n\n在每份草稿中，Guidelines 都会持续进行检查，而不是只在导入时检查一次。智能体会根据内容类型和市场提取相关段落，将拟议文案与语调、术语和合规规则进行比对，并标出不匹配之处，同时附上源文档引用。审核人员可以查看某个短语被标记的原因，然后接受修改、添加备注以覆盖规则，或在品牌发展变化时更新底层规则。\n\n检查结果会出现在人们日常撰写内容的地方。被标记的片段会显示在 Content Studio 和 Automation Workflow 执行记录中；关键问题解决之前，或负责人批准例外之前，发布步骤会被阻止。随着时间推移，已接受的决策会反馈到知识库中，让下一场营销活动从一开始就更符合品牌调性；管理层也可以审查哪些规则在不同地区的内容中最常触发。"
+  },
   "+HuJAuB0t9": {
     "defaultMessage": "{prefix}••••••••"
   },
@@ -373,6 +376,9 @@
   },
   "+ngHznLyUe": {
     "defaultMessage": "匈牙利语（匈牙利）"
+  },
+  "+oxkFsrFr8": {
+    "defaultMessage": "创建免费工作区或申请演示，通过确保品牌一致性的本地化工作流程，启动全球营销活动。"
   },
   "+pwP0Po+Io": {
     "defaultMessage": "已废弃"
@@ -754,6 +760,9 @@
   },
   "/Y9GJUEqGi": {
     "defaultMessage": "提取播放头处的文本"
+  },
+  "/Z40OYzdZ/": {
+    "defaultMessage": "已批准的项目"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "筛选器"
@@ -1426,6 +1435,9 @@
   },
   "0xs+BR2vTX": {
     "defaultMessage": "无法保存自动化设置。"
+  },
+  "0yPPbm/1Fr": {
+    "defaultMessage": "与源文相同"
   },
   "0yR+TXg23A": {
     "defaultMessage": "凭据名称"
@@ -2366,6 +2378,9 @@
   "3/ebdpqqmW": {
     "defaultMessage": "正在上传文件并开始导入..."
   },
+  "3/uQHFvlcM": {
+    "defaultMessage": "与源文相同"
+  },
   "304a0qYa4S": {
     "defaultMessage": "待注册"
   },
@@ -2431,6 +2446,9 @@
   },
   "36xVSohq0P": {
     "defaultMessage": "有关新增或更新源文案的简报及其上下文。"
+  },
+  "36xZffJVIP": {
+    "defaultMessage": "删除选中的条目？"
   },
   "37SGIX021g": {
     "defaultMessage": "备注"
@@ -3632,6 +3650,9 @@
   "5iWVkPCngl": {
     "defaultMessage": "此范围内没有 Search Console 查询。"
   },
+  "5ilEKzvkRa": {
+    "defaultMessage": "免费开始"
+  },
   "5jQYM3pK9b": {
     "defaultMessage": "定义"
   },
@@ -3844,6 +3865,9 @@
   },
   "6E7bAH/1Ep": {
     "defaultMessage": "请在上方选择一个项目，以从您连接的提供商加载实时翻译记忆库。"
+  },
+  "6EJKMtXG+O": {
+    "defaultMessage": "当你标记出需要因市场而异的内容或用户体验时，测试就会开始——例如首页标题、结账步骤、定价文案，或与某个地区设置关联的功能开关。你可以选择受众（例如仅限日本）、定义不同版本，并设定收集数据的时长。Hyperlab 会让网站的其他部分保持稳定，避免你根据全球平均数据来猜测。在实验中，流量会按照你的规则分配，同时 Domains 和产品分析会提供相关背景信息。你无需在单独的工具中重建页面，就能查看各个版本的互动、转化和定性信号。连接 Automation Workflow 后，表现最佳的文案可以成为该地区的默认字符串，而其他市场仍保留对照版本。输出结果会告诉你应保留哪个版本，以及如何逐步推出。仪表板会对比各个版本并显示置信度提示，链接到 Content Studio 中的底层字符串，并记录是谁批准了更改。表现最佳的版本可以仅针对该市场发布到生产环境、同步到 Guidelines 作为已记录的偏好，或在相关经验适用于其他语言时触发更大范围的本地化流程。"
   },
   "6ETzpV6b95": {
     "defaultMessage": "学习"
@@ -4244,6 +4268,9 @@
   "76aHgfoqyy": {
     "defaultMessage": "分段验证请求失败。"
   },
+  "76p0N2h6Ed": {
+    "defaultMessage": "创建免费工作区，或申请演示，了解您的团队如何确保所有语言版本的支持内容始终保持最新。"
+  },
   "76uDSBNqg0": {
     "defaultMessage": "true"
   },
@@ -4297,6 +4324,9 @@
   },
   "7BA/WdUPFq": {
     "defaultMessage": "此环境尚未配置 GitHub App 集成。"
+  },
+  "7BNesLRShh": {
+    "defaultMessage": "无法更新所选条目。"
   },
   "7CPu6D68D+": {
     "defaultMessage": "本地化评分"
@@ -4486,6 +4516,9 @@
   },
   "7h7yO8hu3a": {
     "defaultMessage": "User"
+  },
+  "7hdb/IRr/l": {
+    "defaultMessage": "选择所有可见条目"
   },
   "7itDAFKmls": {
     "defaultMessage": "创建工作区需要配置 WorkOS 组织管理。"
@@ -6482,6 +6515,9 @@
   "BuW96vtm0m": {
     "defaultMessage": "API 密钥"
   },
+  "BuyfK8oOrG": {
+    "defaultMessage": "创建免费工作区，或申请演示，了解您的运营团队如何在不更换现有工具的情况下统筹本地化工作。"
+  },
   "BvipsKvoDg": {
     "defaultMessage": "Type"
   },
@@ -6643,6 +6679,9 @@
   },
   "CE4Mjxv5Pv": {
     "defaultMessage": "受邀成员将被添加到此团队，以便他们访问项目。"
+  },
+  "CEaPOoMSXx": {
+    "defaultMessage": "Delete"
   },
   "CFK4BGiWin": {
     "defaultMessage": "审核状态"
@@ -7709,6 +7748,9 @@
   "EReC/afPt5": {
     "defaultMessage": "源文件"
   },
+  "ERhdtCoB3w": {
+    "defaultMessage": "Delete"
+  },
   "ERiH8D9Q+l": {
     "defaultMessage": "“{source}”的上下文是什么？"
   },
@@ -7873,6 +7915,9 @@
   },
   "Erp8YPXBb/": {
     "defaultMessage": "{count} 行"
+  },
+  "Es+ucDoi27": {
+    "defaultMessage": "审核草稿"
   },
   "EsHwflBzPz": {
     "defaultMessage": "跟踪审核覆盖率和批准状态"
@@ -8197,6 +8242,9 @@
   },
   "FXDqvAOc70": {
     "defaultMessage": "已创建"
+  },
+  "FXvq+2/Qcr": {
+    "defaultMessage": "深受以下团队信赖"
   },
   "FXyyu0UtlW": {
     "defaultMessage": "应用"
@@ -8666,6 +8714,9 @@
   "GftwLzyFL4": {
     "defaultMessage": "Today"
   },
+  "GftyFc6QcS": {
+    "defaultMessage": "{count, plural, one {这将永久删除 # 个所选条目。} other {这将永久删除 # 个所选条目。}}"
+  },
   "GgAZPvlKF6": {
     "defaultMessage": "{current}/{count}"
   },
@@ -8780,6 +8831,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "截止日期为 {due}"
   },
+  "GvmhHrQBlr": {
+    "defaultMessage": "已拒绝"
+  },
   "Gw6z856Urj": {
     "defaultMessage": "Could not save notification preferences."
   },
@@ -8794,6 +8848,9 @@
   },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
+  },
+  "Gwl9Xy1ZJk": {
+    "defaultMessage": "选择条目 {sourceText}"
   },
   "GwpF6lZmgi": {
     "defaultMessage": "收到一条网页聊天消息"
@@ -9614,6 +9671,9 @@
   "ImtoSoLxJY": {
     "defaultMessage": "项目 ID（可选）"
   },
+  "In7j8i2QDa": {
+    "defaultMessage": "清理"
+  },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {在错误发生前创建了 # 个任务} other {在错误发生前创建了 # 个任务}}。重试前请刷新任务列表，以避免重复创建。"
   },
@@ -9661,6 +9721,9 @@
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
+  },
+  "IrifQRmlhp": {
+    "defaultMessage": "翻译任务"
   },
   "Is9VBW0Pl3": {
     "defaultMessage": "Key"
@@ -9913,6 +9976,9 @@
   },
   "JOEjtzHHyY": {
     "defaultMessage": "You"
+  },
+  "JOF5bl34kw": {
+    "defaultMessage": "申请演示"
   },
   "JOyIQ9rRB7": {
     "defaultMessage": "正在断开连接…"
@@ -10846,6 +10912,9 @@
   },
   "LgRbsjVF3G": {
     "defaultMessage": "连接远程 MCP 服务器以使用自动化工具。"
+  },
+  "LgcNXumCl8": {
+    "defaultMessage": "它是如何运作的"
   },
   "LguOyBNnte": {
     "defaultMessage": "指南来源"
@@ -12040,6 +12109,9 @@
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% 的测试"
+  },
+  "OC0Ni4OgkT": {
+    "defaultMessage": "当你已连接的技术栈中有内容需要进行多语言处理时，运行就会启动——例如 Contentful 中的页面更新了、Notion 中新增了一份简报、Slack 中收到一条消息，或 GitHub 中开启了一个拉取请求。构建工作流时，你可以定义这些触发条件，以及每条路径应使用的语言、负责人和审批规则。Hyperlocalise 会监控这些来源，打包变更内容及其相关上下文，并启动一次运行，避免同一场营销活动卡在某人的收件箱里。在运行过程中，代理会按照你在画布上绘制的步骤执行：附上你的指南和术语表来起草或改编文案；当置信度较低时，将字符串交由人工审核；当 Hyperlab 或 Domains 表明某个地区有特定需求时，按市场分支处理。每一步都会留下审计记录——谁处理了什么、触发了哪个模型或规则，以及输出是否通过了检查——让本地化经理无需在各种工具间追问进度，也能掌握情况。输出会回到团队日常使用的平台中。已批准的字符串会同步到 CMS 或网站代码库，通知会发布到 Slack，帮助内容会在 Intercom 中更新；如果你使用混合技术栈，也可以同时将内容导出到 Crowdin、Lokalise、Phrase 或 Smartling。下次发布采用相同的工作流时，每种语言都会自动走完相同的流程，只有出现问题时才需要人工介入。"
   },
   "OC0jExzrXg": {
     "defaultMessage": "根据主题、地区或专业知识将文章分配给合适的审核人员。"
@@ -13940,6 +14012,9 @@
   "SRAb4hnti/": {
     "defaultMessage": "JP 产品页面"
   },
+  "SRM30InJ7k": {
+    "defaultMessage": "Reject"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "协作"
   },
@@ -15689,6 +15764,9 @@
   "WGmc876gab": {
     "defaultMessage": "使用工作区指南作为此自动化的指导。"
   },
+  "WHOyA1uTn/": {
+    "defaultMessage": "创建免费工作空间或申请演示，将本地化检查纳入您的发布流程。"
+  },
   "WHrTXX3A2/": {
     "defaultMessage": "打开术语表指南"
   },
@@ -16237,6 +16315,9 @@
   },
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise 原生"
+  },
+  "XTuALgEqF+": {
+    "defaultMessage": "无法删除所选条目。"
   },
   "XUGFGcmuvI": {
     "defaultMessage": "正在加载片段"
@@ -17964,7 +18045,7 @@
     "defaultMessage": "删除"
   },
   "bAOOxyyl8P": {
-    "defaultMessage": "请求演示"
+    "defaultMessage": "申请演示"
   },
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
@@ -18022,6 +18103,9 @@
   },
   "bHCCUqEOmY": {
     "defaultMessage": "重试策略值超出范围。"
+  },
+  "bHKZwn0sWu": {
+    "defaultMessage": "当你将源材料导入工作室时，工作就开始了——无论是营销活动简报、Google 文档、来自 Drive 的幻灯片、屏幕截图，还是带有文字稿的视频。你可以选择目标语言，并附上指南、术语表和市场备注，让每次改编都遵循相同的规则。工作室将创意背景集中在一处，而不是让评论散落在电子邮件和聊天中。\n\n在工作区中，你和智能体会针对每种素材类型按相同的流程协作。文本块可以在术语锁定的情况下起草或翻译；文档和演示文稿会保留版式，同时按地区语言更新文案；图片和视频则会添加与你的品牌语气一致的替代文本、屏幕文字和字幕。审阅者可以在上下文中发表评论、与源内容进行比较，并批准或退回特定片段，无需导出文件。\n\n输出内容已准备好进入工作流程的下一步。完成的文案可以移交给 Automation Workflow 进行发布检查、导出到你的 TMS，或下载以供法务审批。由于所有语言都在同一项目讨论串中，你始终清楚哪个版本是最新的，以及上线前哪些内容仍需人工审核。"
   },
   "bHXY88TkOe": {
     "defaultMessage": "查看问题"
@@ -18896,6 +18980,9 @@
   "d7yqWFV1zN": {
     "defaultMessage": "质量保证警报"
   },
+  "d8SUTrtkQm": {
+    "defaultMessage": "{count, plural, one {已选择 # 个} other {已选择 # 个}}"
+  },
   "d8Vs3k3UER": {
     "defaultMessage": "此对话已不再可用。"
   },
@@ -19144,6 +19231,9 @@
   },
   "dbIHLj/rDN": {
     "defaultMessage": "要合并相同的字符串吗？"
+  },
+  "dbUlLM1Oqq": {
+    "defaultMessage": "翻译任务会将建议保存为草稿。请先批准这些建议，然后才能再次使用。"
   },
   "dbtTNEaJX2": {
     "defaultMessage": "得分：{score}/100"
@@ -19598,6 +19688,9 @@
   "eTERhCaPbB": {
     "defaultMessage": "打开账单"
   },
+  "eTWHD/yEhf": {
+    "defaultMessage": "Approve"
+  },
   "eTaaI/udxD": {
     "defaultMessage": "权限：{permissions}"
   },
@@ -19750,6 +19843,9 @@
   },
   "eogv8qHzO7": {
     "defaultMessage": "直接且熟悉的法语 SaaS CTA 表述。"
+  },
+  "epsUQC31kr": {
+    "defaultMessage": "立即创建免费工作区，或申请演示，了解您的团队如何在不更换现有工具的情况下，更快地推出全球化产品内容。"
   },
   "eq+MOWqVs2": {
     "defaultMessage": "创建您的第一个本地化项目"
@@ -20450,6 +20546,9 @@
   "gFvQ/JVP4A": {
     "defaultMessage": "随时间变化的错误和警告"
   },
+  "gHUxugs0eg": {
+    "defaultMessage": "专为本地化团队打造。立即免费开始。"
+  },
   "gHgMNG7oQS": {
     "defaultMessage": "将工作路由给现有工作流程中的审核者"
   },
@@ -20539,6 +20638,9 @@
   },
   "gRhG9VDHId": {
     "defaultMessage": "复制"
+  },
+  "gSGjmPxLZ8": {
+    "defaultMessage": "{planName}：{priceLabel}"
   },
   "gSVYd4jPtI": {
     "defaultMessage": "file"
@@ -20962,6 +21064,9 @@
   },
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# 条翻译记忆} other {# 条翻译记忆}}"
+  },
+  "hInJax4uyv": {
+    "defaultMessage": "{count, plural, one {已拒绝 # 条目} other {已拒绝 # 条目}}"
   },
   "hKPqpZwImM": {
     "defaultMessage": "{count} 个失败"
@@ -21836,6 +21941,9 @@
   "j53Gofjd1b": {
     "defaultMessage": "网站上线"
   },
+  "j6HO+OwVD0": {
+    "defaultMessage": "华尔街排名"
+  },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel"
   },
@@ -21971,6 +22079,9 @@
   "jOtw3PC362": {
     "defaultMessage": "默认（一般文本）"
   },
+  "jP0mfL7DgW": {
+    "defaultMessage": "{planName}：每月 {priceLabel}"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "此任务未关联任何源文件。"
   },
@@ -22084,6 +22195,9 @@
   },
   "jd3LwSKaUe": {
     "defaultMessage": "成员已从团队中移除"
+  },
+  "jdB1QCPixr": {
+    "defaultMessage": "{count, plural, one {已批准 # 个条目} other {已批准 # 个条目}}"
   },
   "jdk6igRynG": {
     "defaultMessage": "Unavailable"
@@ -22444,6 +22558,9 @@
   },
   "kMsw+6lY8Y": {
     "defaultMessage": "查看市场测试"
+  },
+  "kMySdc7EDT": {
+    "defaultMessage": "取消"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "需要审核"
@@ -23344,6 +23461,9 @@
   },
   "mHug8Cyl7z": {
     "defaultMessage": "AI 代理"
+  },
+  "mJEqo1QFTM": {
+    "defaultMessage": "当您的多语言网站上线后，监控便会开始——Domains 会从您的站点地图或 CMS 连接中获取 URL，并将每个页面与其对应的语言区域版本关联起来。您只需指定要关注的域名，设置重新扫描的频率，并选择是否纳入预发布环境或生产环境。该产品将每种语言都视为一项核心内容，而不是单一市场审计中附带考虑的事项。\n\n在每次扫描中，Domains 都会将搜索引擎和 AI 助手实际能够抓取的内容，与您原本打算发布的内容进行比对。它会检查 hreflang 配对、规范标签、可索引性、结构化数据，以及已翻译的标题和摘要是否仍与页面文案相符。当某个语言区域版本从搜索结果中消失，或 AI 答案引用了错误的 URL 时，问题会关联到具体页面和语言，方便撰稿人了解需要修正的内容。\n\n扫描结果会整理成一份按优先级排序的待办清单，供团队处理。您可以看到失效的替代页面、内容单薄的译文和缺失的元数据，并按流量和严重程度排序，同时附有指向在线 URL 的链接和建议的文案修改。修正内容可以流转到 Content Studio 或 Automation Workflow，确保每种语言都能同步更新，而不只是最先发现问题的市场。"
   },
   "mJWxbqwGL6": {
     "defaultMessage": "无法加载域名研究。"
@@ -25331,6 +25451,9 @@
   "qFvm5jLVh9": {
     "defaultMessage": "开启它。保留可用的版本。"
   },
+  "qGKp4CkdHO": {
+    "defaultMessage": "来自翻译任务"
+  },
   "qGSAjtA2ao": {
     "defaultMessage": "您的角色无法写回翻译。"
   },
@@ -25801,6 +25924,9 @@
   },
   "rHxmEAsvVD": {
     "defaultMessage": "保存翻译只会更新与其共享的字符串。使用“应用到全部”使所有出现位置保持一致。"
+  },
+  "rHzxDmrDRL": {
+    "defaultMessage": "草稿"
   },
   "rI3RUd2o85": {
     "defaultMessage": "管理项目"
@@ -26876,6 +27002,9 @@
   "tcEBE8+x0p": {
     "defaultMessage": "MB"
   },
+  "tcR6O6Wybu": {
+    "defaultMessage": "{count, plural, one {已删除 # 个条目} other {已删除 # 个条目}}"
+  },
   "tdAVe+ZkeJ": {
     "defaultMessage": "导入 · {filename}"
   },
@@ -27154,6 +27283,9 @@
   },
   "uJX/OOWNsW": {
     "defaultMessage": "请先修复 QA 错误，再保存：{checks}"
+  },
+  "uJcPfJRQmM": {
+    "defaultMessage": "{count, plural, one {# 条草稿需要审核} other {# 条草稿需要审核}}"
   },
   "uJhgTrf87d": {
     "defaultMessage": "此市场的答案已刷新。"
@@ -27614,6 +27746,9 @@
   "vFJiS8I8Kx": {
     "defaultMessage": "专为大规模本地化运营而打造"
   },
+  "vFLD5uz9RF": {
+    "defaultMessage": "创建免费工作区或申请演示，在翻译偏差影响客户之前及时发现。"
+  },
   "vFR3uUyEFs": {
     "defaultMessage": "重试"
   },
@@ -27940,6 +28075,9 @@
   },
   "vv8/iiR38E": {
     "defaultMessage": "目标语言环境"
+  },
+  "vvIzxKmwpF": {
+    "defaultMessage": "草稿"
   },
   "vvT35LUoRE": {
     "defaultMessage": "暂无组织成员。"

@@ -170,6 +170,9 @@
   "+HZaUMLm0i": {
     "defaultMessage": "Enregistrer les modifications"
   },
+  "+Hatz1jNOF": {
+    "defaultMessage": "Guidelines prend effet lorsque vous connectez les documents que votre équipe tient déjà à jour : chartes de marque dans Google Drive, pages sur le ton de la marque dans Notion, normes juridiques dans SharePoint ou règles saisies directement dans Hyperlocalise. Vous choisissez les collections qui s’appliquent à chaque espace de travail et à chaque langue, et le système les maintient indexées au fil des modifications apportées aux sources. Les nouvelles recrues et les agents consultent le même corpus au lieu de chercher le PDF le plus récent. Dans chaque brouillon, Guidelines effectue une vérification continue plutôt qu’un import ponctuel. Les agents extraient les passages pertinents selon le type de contenu et le marché, comparent le texte proposé aux règles de ton, de terminologie et de conformité, puis signalent les incohérences en citant le document source. Les réviseurs voient pourquoi une formulation a été signalée et peuvent accepter une correction, la remplacer en ajoutant une note ou mettre à jour la règle sous-jacente à mesure que la marque évolue. Les résultats apparaissent là où les équipes rédigent déjà. Les segments signalés s’affichent dans Content Studio et les exécutions d’Automation Workflow, et bloquent les étapes de publication jusqu’à ce que les problèmes critiques soient résolus ou qu’un responsable approuve une exception. Au fil du temps, les décisions acceptées sont réintégrées dans la base de connaissances, afin que la campagne suivante soit d’emblée plus conforme à la marque et que la direction puisse vérifier quelles règles sont le plus souvent appliquées dans les différentes langues et régions."
+  },
   "+HuJAuB0t9": {
     "defaultMessage": "{prefix}••••••••"
   },
@@ -373,6 +376,9 @@
   },
   "+ngHznLyUe": {
     "defaultMessage": "hongrois (Hongrie)"
+  },
+  "+oxkFsrFr8": {
+    "defaultMessage": "Démarrez gratuitement dans un espace de travail, ou demandez une démo, et lancez des campagnes internationales avec des workflows de localisation qui respectent votre marque."
   },
   "+pwP0Po+Io": {
     "defaultMessage": "Obsolète"
@@ -754,6 +760,9 @@
   },
   "/Y9GJUEqGi": {
     "defaultMessage": "Extraire le texte à la tête de lecture"
+  },
+  "/Z40OYzdZ/": {
+    "defaultMessage": "Projet approuvé"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filtres"
@@ -1426,6 +1435,9 @@
   },
   "0xs+BR2vTX": {
     "defaultMessage": "Impossible d'enregistrer les paramètres d'automatisation."
+  },
+  "0yPPbm/1Fr": {
+    "defaultMessage": "Identique à la source"
   },
   "0yR+TXg23A": {
     "defaultMessage": "Nom de l’identifiant"
@@ -2366,6 +2378,9 @@
   "3/ebdpqqmW": {
     "defaultMessage": "Téléchargement du fichier et lancement de l’importation..."
   },
+  "3/uQHFvlcM": {
+    "defaultMessage": "Identique à la source"
+  },
   "304a0qYa4S": {
     "defaultMessage": "En attente d’enregistrement"
   },
@@ -2431,6 +2446,9 @@
   },
   "36xVSohq0P": {
     "defaultMessage": "Brèves sur les textes sources nouveaux ou mis à jour, avec contexte."
+  },
+  "36xZffJVIP": {
+    "defaultMessage": "Supprimer les entrées sélectionnées ?"
   },
   "37SGIX021g": {
     "defaultMessage": "Remarque"
@@ -3632,6 +3650,9 @@
   "5iWVkPCngl": {
     "defaultMessage": "Aucune requête de la Search Console pour cette période."
   },
+  "5ilEKzvkRa": {
+    "defaultMessage": "Commencer gratuitement"
+  },
   "5jQYM3pK9b": {
     "defaultMessage": "Définition"
   },
@@ -3844,6 +3865,9 @@
   },
   "6E7bAH/1Ep": {
     "defaultMessage": "Sélectionnez un projet ci-dessus pour charger les mémoires de traduction en temps réel depuis votre fournisseur connecté."
+  },
+  "6EJKMtXG+O": {
+    "defaultMessage": "Un test commence lorsque vous identifiez le contenu ou l’expérience utilisateur qui devrait varier selon le marché : un titre sur la page d’accueil, une étape du paiement, un texte sur les tarifs ou un indicateur de fonctionnalité lié à une langue ou une région. Vous choisissez l’audience (par exemple, le Japon uniquement), définissez les variantes et déterminez pendant combien de temps collecter des données. Hyperlab veille à ce que le reste de votre site reste stable, afin que vous n’ayez pas à vous fier à des moyennes mondiales. Au sein de l’expérience, le trafic est réparti selon vos règles, tandis que Domains et les outils d’analyse produit apportent du contexte. Vous pouvez consulter l’engagement, les conversions et les indices qualitatifs pour chaque variante, sans reconstruire la page dans un outil distinct. Lorsque Automation Workflow est connecté, le texte gagnant peut devenir la chaîne par défaut pour cette langue ou région, tandis que les autres marchés conservent la version de contrôle. Les résultats vous indiquent quelle version conserver et comment la déployer. Les tableaux de bord comparent les variantes avec des indicateurs de confiance, renvoient aux chaînes correspondantes dans Content Studio et consignent l’identité des personnes ayant approuvé la modification. Les versions gagnantes peuvent être publiées en production pour ce seul marché, synchronisées dans Guidelines en tant que préférence consignée, ou déclencher une localisation plus large lorsque les enseignements s’appliquent à d’autres langues."
   },
   "6ETzpV6b95": {
     "defaultMessage": "Apprentissage"
@@ -4244,6 +4268,9 @@
   "76aHgfoqyy": {
     "defaultMessage": "La demande de validation du segment a échoué."
   },
+  "76p0N2h6Ed": {
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo pour découvrir comment votre équipe peut maintenir à jour le contenu d’assistance dans toutes les langues et régions."
+  },
   "76uDSBNqg0": {
     "defaultMessage": "vrai"
   },
@@ -4297,6 +4324,9 @@
   },
   "7BA/WdUPFq": {
     "defaultMessage": "L’intégration de l’application GitHub n’est pas configurée pour cet environnement."
+  },
+  "7BNesLRShh": {
+    "defaultMessage": "Impossible de mettre à jour les entrées sélectionnées."
   },
   "7CPu6D68D+": {
     "defaultMessage": "Score de localisation"
@@ -4486,6 +4516,9 @@
   },
   "7h7yO8hu3a": {
     "defaultMessage": "Utilisateur"
+  },
+  "7hdb/IRr/l": {
+    "defaultMessage": "Sélectionner toutes les entrées visibles"
   },
   "7itDAFKmls": {
     "defaultMessage": "La création d’un espace de travail nécessite que la gestion des organisations WorkOS soit configurée."
@@ -6482,6 +6515,9 @@
   "BuW96vtm0m": {
     "defaultMessage": "Clés API"
   },
+  "BuyfK8oOrG": {
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et découvrez comment votre équipe opérationnelle peut orchestrer la localisation sans remplacer ses outils actuels."
+  },
   "BvipsKvoDg": {
     "defaultMessage": "Type"
   },
@@ -6643,6 +6679,9 @@
   },
   "CE4Mjxv5Pv": {
     "defaultMessage": "Les membres invités sont ajoutés à cette équipe afin de pouvoir accéder aux projets."
+  },
+  "CEaPOoMSXx": {
+    "defaultMessage": "Delete"
   },
   "CFK4BGiWin": {
     "defaultMessage": "État de l’avis"
@@ -7709,6 +7748,9 @@
   "EReC/afPt5": {
     "defaultMessage": "Fichiers source"
   },
+  "ERhdtCoB3w": {
+    "defaultMessage": "Delete"
+  },
   "ERiH8D9Q+l": {
     "defaultMessage": "Quel est le contexte de « {source} » ?"
   },
@@ -7873,6 +7915,9 @@
   },
   "Erp8YPXBb/": {
     "defaultMessage": "{count} lignes"
+  },
+  "Es+ucDoi27": {
+    "defaultMessage": "Examiner les brouillons"
   },
   "EsHwflBzPz": {
     "defaultMessage": "Suivre la couverture des révisions et l’état d’approbation"
@@ -8197,6 +8242,9 @@
   },
   "FXDqvAOc70": {
     "defaultMessage": "Créé"
+  },
+  "FXvq+2/Qcr": {
+    "defaultMessage": "Adopté par des équipes chez"
   },
   "FXyyu0UtlW": {
     "defaultMessage": "Appliquer"
@@ -8666,6 +8714,9 @@
   "GftwLzyFL4": {
     "defaultMessage": "Today"
   },
+  "GftyFc6QcS": {
+    "defaultMessage": "{count, plural, one {Cette opération supprime définitivement # entrée sélectionnée.} other {Cette opération supprime définitivement # entrées sélectionnées.}}"
+  },
   "GgAZPvlKF6": {
     "defaultMessage": "{current}/{count}"
   },
@@ -8780,6 +8831,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Échéance {due}"
   },
+  "GvmhHrQBlr": {
+    "defaultMessage": "Rejeté"
+  },
   "Gw6z856Urj": {
     "defaultMessage": "Could not save notification preferences."
   },
@@ -8794,6 +8848,9 @@
   },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
+  },
+  "Gwl9Xy1ZJk": {
+    "defaultMessage": "Sélectionner l’entrée {sourceText}"
   },
   "GwpF6lZmgi": {
     "defaultMessage": "Un message de chat web arrive"
@@ -9614,6 +9671,9 @@
   "ImtoSoLxJY": {
     "defaultMessage": "ID du projet (facultatif)"
   },
+  "In7j8i2QDa": {
+    "defaultMessage": "Nettoyage"
+  },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# tâche créée} other {# tâches créées}} avant l’erreur. Actualisez la liste des tâches avant de réessayer pour éviter les doublons."
   },
@@ -9661,6 +9721,9 @@
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
+  },
+  "IrifQRmlhp": {
+    "defaultMessage": "Tâche de traduction"
   },
   "Is9VBW0Pl3": {
     "defaultMessage": "Clé"
@@ -9913,6 +9976,9 @@
   },
   "JOEjtzHHyY": {
     "defaultMessage": "Vous"
+  },
+  "JOF5bl34kw": {
+    "defaultMessage": "Demander une démo"
   },
   "JOyIQ9rRB7": {
     "defaultMessage": "Déconnexion…"
@@ -10846,6 +10912,9 @@
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Connectez des serveurs MCP distants pour les outils d’automatisation."
+  },
+  "LgcNXumCl8": {
+    "defaultMessage": "Comment ça marche"
   },
   "LguOyBNnte": {
     "defaultMessage": "Sources des directives"
@@ -12040,6 +12109,9 @@
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent} % du test"
+  },
+  "OC0Ni4OgkT": {
+    "defaultMessage": "Une exécution démarre dès qu’un élément de votre écosystème connecté nécessite un travail multilingue : une page mise à jour dans Contentful, un brief déposé dans Notion, un message envoyé sur Slack ou une pull request ouverte dans GitHub. Lorsque vous créez le workflow, vous définissez ces déclencheurs, ainsi que les langues, les responsables et les règles d’approbation à appliquer à chaque parcours. Hyperlocalise surveille ces sources, regroupe le contenu modifié et son contexte, puis lance une exécution pour éviter qu’une même campagne ne reste bloquée dans la boîte de réception de quelqu’un. Au cours de l’exécution, les agents suivent les étapes que vous avez définies sur le canevas : ils rédigent ou adaptent le contenu en s’appuyant sur vos consignes et votre glossaire, transmettent les chaînes à des réviseurs humains lorsque le niveau de confiance est faible et créent des branches par marché lorsque Hyperlab ou Domains indique un besoin propre à une locale. Chaque étape laisse une trace d’audit — qui a modifié quoi, quel modèle ou quelle règle a été déclenché et si le résultat a passé vos contrôles — afin que les responsables de la localisation puissent suivre l’avancement sans avoir à courir après les mises à jour dans différents outils. Les résultats sont intégrés aux outils que votre équipe utilise déjà. Les chaînes approuvées sont synchronisées avec votre CMS ou le dépôt de votre site, les notifications sont publiées sur Slack, le contenu d’aide est mis à jour dans Intercom et des exportations parallèles peuvent toujours être envoyées vers Crowdin, Lokalise, Phrase ou Smartling si vous utilisez une infrastructure hybride. Au prochain lancement suivant le même workflow, toutes les langues suivront automatiquement le même parcours, et les équipes n’interviendront qu’en cas de problème."
   },
   "OC0jExzrXg": {
     "defaultMessage": "Attribuez les articles aux bons relecteurs en fonction du sujet, de la langue ou de l’expertise."
@@ -13940,6 +14012,9 @@
   "SRAb4hnti/": {
     "defaultMessage": "Page produit JP"
   },
+  "SRM30InJ7k": {
+    "defaultMessage": "Reject"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "Collaboration"
   },
@@ -15689,6 +15764,9 @@
   "WGmc876gab": {
     "defaultMessage": "Utilisez les directives de l’espace de travail comme référence pour cette automatisation."
   },
+  "WHOyA1uTn/": {
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo, et intégrez les contrôles de localisation à votre pipeline de mise en production."
+  },
   "WHrTXX3A2/": {
     "defaultMessage": "Ouvrir les conseils du glossaire"
   },
@@ -16237,6 +16315,9 @@
   },
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise natif"
+  },
+  "XTuALgEqF+": {
+    "defaultMessage": "Impossible de supprimer les entrées sélectionnées."
   },
   "XUGFGcmuvI": {
     "defaultMessage": "Chargement des segments"
@@ -18023,6 +18104,9 @@
   "bHCCUqEOmY": {
     "defaultMessage": "Les valeurs de la politique de nouvelle tentative sont hors limites."
   },
+  "bHKZwn0sWu": {
+    "defaultMessage": "Le travail commence lorsque vous importez des contenus sources dans le studio : un brief de campagne, un Google Doc, des diapositives depuis Drive, des captures d’écran ou une vidéo avec sa transcription. Vous choisissez les langues cibles et ajoutez des consignes, des glossaires et des notes sur les marchés pour que chaque adaptation parte des mêmes règles. Le studio rassemble le contexte créatif au même endroit, au lieu de disperser les commentaires entre e-mails et discussions. Dans l’espace de travail, vous et les agents suivez le même processus pour chaque type de contenu. Les blocs de texte sont rédigés ou traduits avec une terminologie contrôlée ; les documents et les présentations conservent leur mise en page tandis que le texte est adapté à chaque langue ; les images et les vidéos reçoivent des textes alternatifs, des textes à l’écran et des sous-titres fidèles à votre ton. Les relecteurs commentent directement dans le contexte, comparent avec la source et approuvent des segments précis ou les renvoient pour révision, sans exporter de fichiers. Les contenus sont prêts pour la prochaine étape de votre chaîne de production. Les textes finalisés peuvent être transmis à Automation Workflow pour les vérifications avant publication, exportés vers votre TMS ou téléchargés pour validation juridique. Comme toutes les langues partagent le même fil de projet, vous savez toujours quelle version est à jour et quels éléments doivent encore être vérifiés par une personne avant le lancement."
+  },
   "bHXY88TkOe": {
     "defaultMessage": "Afficher les anomalies"
   },
@@ -18896,6 +18980,9 @@
   "d7yqWFV1zN": {
     "defaultMessage": "Alerte d’assurance qualité"
   },
+  "d8SUTrtkQm": {
+    "defaultMessage": "{count, plural, one {# sélectionnée} other {# sélectionnées}}"
+  },
   "d8Vs3k3UER": {
     "defaultMessage": "Cette conversation n’est plus disponible."
   },
@@ -19144,6 +19231,9 @@
   },
   "dbIHLj/rDN": {
     "defaultMessage": "Fusionner les chaînes identiques ?"
+  },
+  "dbUlLM1Oqq": {
+    "defaultMessage": "Les tâches de traduction enregistrent les suggestions sous forme de brouillons. Approuvez-les avant qu’elles puissent être réutilisées."
   },
   "dbtTNEaJX2": {
     "defaultMessage": "Score de {score} sur 100"
@@ -19598,6 +19688,9 @@
   "eTERhCaPbB": {
     "defaultMessage": "Ouvrir la facturation"
   },
+  "eTWHD/yEhf": {
+    "defaultMessage": "Approuver"
+  },
   "eTaaI/udxD": {
     "defaultMessage": "Autorisations : {permissions}"
   },
@@ -19750,6 +19843,9 @@
   },
   "eogv8qHzO7": {
     "defaultMessage": "Veuillez fournir le texte à traduire."
+  },
+  "epsUQC31kr": {
+    "defaultMessage": "Créez dès aujourd’hui un espace de travail gratuit ou demandez une démo, et découvrez comment votre équipe peut lancer plus rapidement du contenu produit à l’international sans remplacer vos outils existants."
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Créez votre premier projet de localisation"
@@ -20450,6 +20546,9 @@
   "gFvQ/JVP4A": {
     "defaultMessage": "Erreurs et avertissements au fil du temps"
   },
+  "gHUxugs0eg": {
+    "defaultMessage": "Conçu pour les équipes de localisation. Commencez gratuitement dès aujourd’hui."
+  },
   "gHgMNG7oQS": {
     "defaultMessage": "Acheminez le travail vers les réviseurs au sein de votre flux de travail existant"
   },
@@ -20539,6 +20638,9 @@
   },
   "gRhG9VDHId": {
     "defaultMessage": "Copy"
+  },
+  "gSGjmPxLZ8": {
+    "defaultMessage": "{planName} : {priceLabel}"
   },
   "gSVYd4jPtI": {
     "defaultMessage": "fichier"
@@ -20962,6 +21064,9 @@
   },
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# mémoire} other {# mémoires}}"
+  },
+  "hInJax4uyv": {
+    "defaultMessage": "{count, plural, one {Entrée # rejetée} other {Entrées # rejetées}}"
   },
   "hKPqpZwImM": {
     "defaultMessage": "{count} échoués"
@@ -21836,6 +21941,9 @@
   "j53Gofjd1b": {
     "defaultMessage": "Lancement web"
   },
+  "j6HO+OwVD0": {
+    "defaultMessage": "Wall St. Rank"
+  },
   "j6Jw8eFz2s": {
     "defaultMessage": "Cancel"
   },
@@ -21971,6 +22079,9 @@
   "jOtw3PC362": {
     "defaultMessage": "Par défaut (prose générale)"
   },
+  "jP0mfL7DgW": {
+    "defaultMessage": "{planName} : {priceLabel} par mois"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "Aucun fichier source n’est associé à cette tâche."
   },
@@ -22084,6 +22195,9 @@
   },
   "jd3LwSKaUe": {
     "defaultMessage": "Membre retiré de l’équipe"
+  },
+  "jdB1QCPixr": {
+    "defaultMessage": "{count, plural, one {# entrée approuvée} other {# entrées approuvées}}"
   },
   "jdk6igRynG": {
     "defaultMessage": "Unavailable"
@@ -22444,6 +22558,9 @@
   },
   "kMsw+6lY8Y": {
     "defaultMessage": "Voir un test de marché"
+  },
+  "kMySdc7EDT": {
+    "defaultMessage": "Annuler"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "À vérifier"
@@ -23344,6 +23461,9 @@
   },
   "mHug8Cyl7z": {
     "defaultMessage": "Agent IA"
+  },
+  "mJEqo1QFTM": {
+    "defaultMessage": "La surveillance commence dès que votre site multilingue est en ligne : Domains récupère les URL depuis votre sitemap ou votre connexion au CMS et associe chaque page à ses variantes locales. Vous indiquez les domaines qui vous intéressent, définissez la fréquence des nouvelles analyses et choisissez d’inclure ou non la préproduction ou la production. Le produit considère chaque langue comme un espace à part entière, et non comme une simple réflexion après coup greffée sur un audit destiné à un seul marché. Lors de chaque analyse, Domains compare ce que les moteurs de recherche et les assistants IA peuvent réellement récupérer à ce que vous aviez l’intention de publier. Il vérifie les associations hreflang, les balises canoniques, l’indexabilité, les données structurées et si les titres et extraits traduits correspondent toujours au contenu de la page. Lorsqu’une langue disparaît des résultats ou qu’une réponse générée par IA cite la mauvaise URL, le problème est associé à la page et à la langue concernées afin que les rédacteurs sachent quoi corriger. Les résultats alimentent un backlog priorisé sur lequel votre équipe peut agir. Vous voyez les variantes alternatives défectueuses, les traductions peu étoffées et les métadonnées manquantes, classées selon le trafic et la gravité, avec des liens vers l’URL en ligne et des suggestions de modifications rédactionnelles. Les corrections peuvent être intégrées à Content Studio ou à Automation Workflow afin qu’elles soient déployées dans toutes les langues, et pas seulement sur le marché où le problème a été repéré en premier."
   },
   "mJWxbqwGL6": {
     "defaultMessage": "Impossible de charger la recherche de domaine."
@@ -25331,6 +25451,9 @@
   "qFvm5jLVh9": {
     "defaultMessage": "Activez-le. Conservez la version qui fonctionne."
   },
+  "qGKp4CkdHO": {
+    "defaultMessage": "Provenant des tâches de traduction"
+  },
   "qGSAjtA2ao": {
     "defaultMessage": "Votre rôle ne permet pas d’enregistrer les traductions."
   },
@@ -25801,6 +25924,9 @@
   },
   "rHxmEAsvVD": {
     "defaultMessage": "L’enregistrement d’une traduction met à jour uniquement les chaînes qui la partagent. Utilisez « Appliquer à tout » pour harmoniser toutes les occurrences."
+  },
+  "rHzxDmrDRL": {
+    "defaultMessage": "Brouillon"
   },
   "rI3RUd2o85": {
     "defaultMessage": "Gérer les projets"
@@ -26876,6 +27002,9 @@
   "tcEBE8+x0p": {
     "defaultMessage": "Mo octets"
   },
+  "tcR6O6Wybu": {
+    "defaultMessage": "{count, plural, one {# entrée supprimée} other {# entrées supprimées}}"
+  },
   "tdAVe+ZkeJ": {
     "defaultMessage": "Importation · {filename}"
   },
@@ -27154,6 +27283,9 @@
   },
   "uJX/OOWNsW": {
     "defaultMessage": "Corrigez les erreurs de contrôle qualité avant d’enregistrer : {checks}"
+  },
+  "uJcPfJRQmM": {
+    "defaultMessage": "{count, plural, one {# entrée de brouillon doit être vérifiée} other {# entrées de brouillon doivent être vérifiées}}"
   },
   "uJhgTrf87d": {
     "defaultMessage": "Réponses actualisées pour ce marché."
@@ -27614,6 +27746,9 @@
   "vFJiS8I8Kx": {
     "defaultMessage": "Conçu pour les opérations de localisation à grande échelle"
   },
+  "vFLD5uz9RF": {
+    "defaultMessage": "Créez un espace de travail gratuit ou demandez une démo pour détecter les dérives de traduction avant qu’elles n’atteignent vos clients."
+  },
   "vFR3uUyEFs": {
     "defaultMessage": "Réessayer"
   },
@@ -27940,6 +28075,9 @@
   },
   "vv8/iiR38E": {
     "defaultMessage": "Paramètres régionaux cibles"
+  },
+  "vvIzxKmwpF": {
+    "defaultMessage": "Brouillons"
   },
   "vvT35LUoRE": {
     "defaultMessage": "Aucun membre de l’organisation disponible."

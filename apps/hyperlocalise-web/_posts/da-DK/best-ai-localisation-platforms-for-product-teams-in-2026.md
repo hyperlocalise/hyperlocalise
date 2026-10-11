@@ -1,8 +1,8 @@
 ---
-title: Best AI Localisation Platforms for Product Teams in 2026
+title: De bedste AI-lokaliseringsplatforme til produktteams i 2026
 date: 2026-07-25T00:00:00.000Z
-excerpt: Compare five leading AI localisation platforms for product teams — Hyperlocalise, Crowdin, Phrase, Lokalise, and LILT — and how to choose the right one for continuous product releases.
-category: Product
+excerpt: Sammenlign fem førende AI-lokaliseringsplatforme til produktteams — Hyperlocalise, Crowdin, Phrase, Lokalise og LILT — og se, hvordan du vælger den rette til løbende produktudgivelser.
+category: Produkt
 tags:
   - AI localisation
   - AI localization
@@ -20,15 +20,18 @@ tags:
   - release readiness
   - localisation platforms
 ---
-AI has changed what product teams should expect from localisation software.
 
-Traditional translation management systems were designed to store strings, assign translation tasks, and move content between translators and reviewers. Those capabilities remain important, but they no longer solve the entire problem.
+Hvis du evaluerer lokaliseringsplatforme til løbende produktarbejde, så tag udgangspunkt i kriterierne i [Sådan vælger du et løbende lokaliseringsworkflow](/blog/how-to-choose-a-continuous-localisation-workflow) frem for en rangordnet liste over leverandører. Ranglister, også denne, er et svagere pejlemærke end, om en teknologistak kan finde produktkontekst, lade mennesker gennemgå indholdet, fungere sammen med dit TMS og fortælle dig, hvornår en sprogversion er klar til udgivelse.
 
-Modern product teams ship continuously. Copy changes inside pull requests, designs, help centres, release notes, campaigns, and product experiments. Localisation teams must understand where that content appears, why it changed, which markets it affects, and whether every locale is ready to ship.
+AI har ændret, hvad produktteams bør forvente af lokaliseringssoftware.
 
-The best AI localisation platforms therefore do more than generate translations. They gather context, coordinate work, apply terminology and brand guidance, involve human reviewers where their judgement matters, and keep multilingual releases moving alongside product development.
+Traditionelle oversættelsesstyringssystemer blev udviklet til at gemme strenge, tildele oversættelsesopgaver og flytte indhold mellem oversættere og korrekturlæsere. Disse funktioner er stadig vigtige, men de løser ikke længere hele problemet.
 
-This guide compares five leading AI localisation platforms for product teams:
+Moderne produktteams udgiver løbende. Tekst ændres i pull requests, designs, hjælpecentre, udgivelsesnoter, kampagner og produkteksperimenter. Lokaliseringsteams skal forstå, hvor indholdet vises, hvorfor det er ændret, hvilke markeder det påvirker, og om alle sprogversioner er klar til udgivelse.
+
+De bedste AI-lokaliseringsplatforme gør derfor mere end at generere oversættelser. De indsamler kontekst, koordinerer arbejdet, anvender terminologi og brandretningslinjer, inddrager menneskelige korrekturlæsere, hvor deres vurdering er vigtig, og sørger for, at flersprogede udgivelser følger med produktudviklingen.
+
+Denne guide sammenligner fem førende AI-lokaliseringsplatforme for produktteams:
 
 1. Hyperlocalise
 2. Crowdin
@@ -36,366 +39,366 @@ This guide compares five leading AI localisation platforms for product teams:
 4. Lokalise
 5. LILT
 
-Smartling has intentionally not been included in this comparison.
+Smartling er bevidst ikke medtaget i denne sammenligning.
 
-## The best AI localisation platforms at a glance
+## De bedste AI-lokaliseringsplatforme – et hurtigt overblik
 
-| Platform          | Best for                                                                                 | Main strength                                                                                             | Important consideration                                                                      |
+| Platform          | Bedst til                                                                                 | Vigtigste styrke                                                                                         | Vigtig overvejelse                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Hyperlocalise** | Product teams that want agent-native localisation without replacing their existing tools | AI agents, automatic context discovery, TMS interoperability, human review, and release intelligence      | A newer platform that is still expanding availability                                        |
-| **Crowdin**       | Developer-led teams that value integrations and extensibility                            | Large integration ecosystem, software localisation workflows, APIs, branching, and flexible AI providers  | Advanced workflows can require configuration across multiple apps and providers              |
-| **Phrase**        | Large enterprises with complex localisation infrastructure                               | Enterprise orchestration, governance, AI engine selection, quality estimation, and broad content coverage | Its breadth may be more than smaller product teams need                                      |
-| **Lokalise**      | Product and design teams that want an approachable central localisation workspace        | Figma workflows, visual context, over-the-air updates, automation, and product-friendly collaboration     | Its newer agentic capabilities are still evolving                                            |
-| **LILT**          | Enterprises that want adaptive AI combined with professional human validation            | Continuously adapting AI models and an AI-plus-human delivery model                                       | Often better suited to managed enterprise programmes than lightweight self-service workflows |
+| **Hyperlocalise** | Produktteams, der ønsker agent-native lokalisering uden at udskifte deres eksisterende værktøjer | AI-agenter, automatisk kontekstregistrering, interoperabilitet med TMS, menneskelig gennemgang og releaseindsigt | En nyere platform, der stadig udvider sin tilgængelighed |
+| **Crowdin**       | Udviklerledede teams, der værdsætter integrationer og udvidelsesmuligheder | Stort integrationsøkosystem, workflows til softwarelokalisering, API'er, branching og fleksible AI-udbydere | Avancerede workflows kan kræve konfiguration på tværs af flere apps og udbydere              |
+| **Udtryk**        | Store virksomheder med kompleks lokaliseringsinfrastruktur                               | Orkestrering på virksomhedsniveau, styring, valg af AI-motor, kvalitetsestimering og bred indholdsdækning | Den brede funktionalitet kan være mere, end mindre produktteams har brug for                                      |
+| **Lokalise**      | Produkt- og designteams, der ønsker et tilgængeligt centralt arbejdsområde til lokalisering        | Figma-workflows, visuel kontekst, over-the-air-opdateringer, automatisering og produkttilpasset samarbejde     | De nyere agentiske funktioner er stadig under udvikling                                            |
+| **LILT**          | Virksomheder, der ønsker adaptiv AI kombineret med professionel menneskelig validering            | AI-modeller, der løbende tilpasser sig, og en leveringsmodel med AI og mennesker                                       | Ofte bedre egnet til administrerede virksomhedsprogrammer end lette selvbetjeningsarbejdsgange |
 
-## How we evaluated the platforms
+## Sådan evaluerede vi platformene
 
-This article is published by Hyperlocalise, so it is important to explain how the ranking was determined.
+Denne artikel er udgivet af Hyperlocalise, så det er vigtigt at forklare, hvordan rangeringen blev fastlagt.
 
-We evaluated each platform from the perspective of a modern product team rather than comparing feature checklists alone. The ranking considers six questions:
+Vi evaluerede hver platform ud fra et moderne produktteams perspektiv i stedet for kun at sammenligne funktionslister. Rangeringen tager højde for seks spørgsmål:
 
-### 1. Does localisation fit into product development?
+### 1. Passer lokalisering ind i produktudvikling?
 
-Localisation should begin while a feature is being designed and built, not after the source-language release is complete. Strong platforms connect with repositories, design tools, content systems, communication tools, and release workflows.
+Lokalisering bør begynde, mens en funktion bliver designet og udviklet, ikke efter at udgivelsen på kildesproget er færdig. Stærke platforme integrerer med kodearkiver, designværktøjer, indholdssystemer, kommunikationsværktøjer og udgivelsesworkflows.
 
-### 2. Can the AI understand product context?
+### 2. Kan AI'en forstå produktkonteksten?
 
-A sentence can mean different things depending on where it appears. A button label, onboarding message, error notification, and marketing headline require different decisions.
+En sætning kan betyde forskellige ting afhængigt af, hvor den vises. En knaptekst, en introduktionsmeddelelse, en fejlmeddelelse og en markedsføringsoverskrift kræver forskellige valg.
 
-An AI localisation platform should be able to use surrounding strings, screenshots, repository information, terminology, style guidance, previous translations, and market-specific instructions.
+En AI-lokaliseringsplatform bør kunne bruge tilstødende strenge, skærmbilleder, oplysninger om kodearkivet, terminologi, stilvejledning, tidligere oversættelser og markedsspecifikke instruktioner.
 
-### 3. Can it do more than produce a first draft?
+### 3. Kan den mere end at lave et første udkast?
 
-Translation generation is only one step. Product teams also need work to be created, assigned, reviewed, synchronised, tested, and prepared for release.
+Generering af oversættelser er kun ét trin. Produktteams har også brug for, at arbejdet bliver oprettet, tildelt, gennemgået, synkroniseret, testet og klargjort til udgivelse.
 
-The strongest platforms use AI to reduce operational work across the entire localisation lifecycle.
+De stærkeste platforme bruger AI til at mindske det operationelle arbejde gennem hele lokaliseringslivscyklussen.
 
-### 4. Does it preserve human control?
+### 4. Bevarer det menneskelig kontrol?
 
-AI should reduce repetitive work without removing linguistic accountability. Human reviewers still need clear ways to inspect important content, make market-specific decisions, and improve future output.
+AI bør reducere gentaget arbejde uden at fjerne det sproglige ansvar. Menneskelige korrekturlæsere skal stadig have tydelige muligheder for at gennemgå vigtigt indhold, træffe markedsspecifikke beslutninger og forbedre fremtidige resultater.
 
-### 5. Can it work with the existing technology stack?
+### 5. Kan det fungere med den eksisterende teknologistak?
 
-Many companies already use a TMS, repository workflow, content management system, or language service provider. Replacing all of that infrastructure can create more work than it removes.
+Mange virksomheder bruger allerede et TMS, et repository-workflow, et indholdsstyringssystem eller en sprogudbyder. At udskifte hele denne infrastruktur kan skabe mere arbejde, end det fjerner.
 
-Interoperability is therefore a major advantage.
+Interoperabilitet er derfor en stor fordel.
 
-### 6. Does it help teams decide when a locale is ready?
+### 6. Hjælper det teams med at afgøre, hvornår en sprogversion er klar?
 
-Completing a translation task does not necessarily mean a release is safe. Teams need visibility into missing content, review debt, terminology failures, quality changes, sync problems, and market-specific blockers.
+Det betyder ikke nødvendigvis, at en udgivelse er sikker, når en oversættelsesopgave er fuldført. Teams har brug for indsigt i manglende indhold, uafklarede gennemgange, terminologifejl, kvalitetsændringer, synkroniseringsproblemer og markedsspecifikke blokeringer.
 
-## 1. Hyperlocalise: Best overall AI localisation platform for product teams
+## 1. Hyperlocalise: Den bedste AI-lokaliseringsplatform til produktteams samlet set
 
-Hyperlocalise ranks first because it is designed around the operating model product teams are moving towards: localisation work performed by specialised AI agents, guided by shared knowledge, connected to existing tools, and governed by human reviewers.
+Hyperlocalise ligger øverst, fordi platformen er designet til den driftsmodel, som produktteams bevæger sig hen imod: lokaliseringsarbejde udført af specialiserede AI-agenter, vejledt af fælles viden, forbundet med eksisterende værktøjer og under menneskelig kontrol.
 
-Instead of treating AI as another machine translation provider inside a traditional TMS, Hyperlocalise treats localisation as an agentic workflow.
+I stedet for at behandle AI som endnu en maskinoversættelsesudbyder i et traditionelt TMS behandler Hyperlocalise lokalisering som et agentisk workflow.
 
-Agents can gather source context, translate content, review output, coordinate synchronisation, and check release quality. Human linguists and localisation managers remain involved where their judgement produces the greatest value.
+Agenter kan indsamle kontekst fra kilder, oversætte indhold, gennemgå output, koordinere synkronisering og kontrollere udgivelseskvaliteten. Menneskelige lingvister og lokaliseringsansvarlige er fortsat involveret dér, hvor deres vurdering skaber størst værdi.
 
-Hyperlocalise is also designed to work with existing TMS platforms rather than requiring companies to replace them. Product teams can introduce agent workflows, context discovery, and localisation intelligence while continuing to use systems such as Crowdin, Phrase, or Lokalise for established translation and review processes.
+Hyperlocalise er også designet til at fungere sammen med eksisterende TMS-platforme, så virksomheder ikke behøver at udskifte dem. Produktteams kan indføre agentbaserede arbejdsgange, kontekstopdagelse og lokaliseringsintelligens, samtidig med at de fortsat bruger systemer som Crowdin, Phrase eller Lokalise til etablerede oversættelses- og korrekturprocesser.
 
-### Why Hyperlocalise is different
+### Hvorfor Hyperlocalise er anderledes
 
-Most localisation platforms begin with a central database of strings. Hyperlocalise begins with the work happening around those strings.
+De fleste lokaliseringsplatforme begynder med en central database med tekststrenge. Hyperlocalise begynder med arbejdet, der foregår omkring disse tekststrenge.
 
-A pull request contains information about what changed. A Slack request contains urgency and launch timing. A design explains where the text appears. A repository contains related components and product terminology. A previous release contains evidence about which translations were accepted or corrected.
+En pull request indeholder oplysninger om, hvad der er ændret. En Slack-anmodning indeholder oplysninger om, hvor presserende den er, og hvornår lanceringen finder sted. Et design forklarer, hvor teksten vises. Et repository indeholder relaterede komponenter og produkterminologi. En tidligere udgivelse indeholder dokumentation for, hvilke oversættelser der blev godkendt eller rettet.
 
-Hyperlocalise agents are designed to collect that information and attach it to the localisation workflow automatically.
+Hyperlocalise-agenter er designet til at indsamle disse oplysninger og automatisk knytte dem til lokaliseringsarbejdsgangen.
 
-This reduces one of the most persistent causes of poor localisation: translators receiving isolated strings with little explanation of what they mean.
+Dette reducerer en af de mest vedvarende årsager til dårlig lokalisering: at oversættere modtager isolerede strenge med ringe forklaring på, hvad de betyder.
 
-### Built for product release velocity
+### Skabt til hurtigere produktudgivelser
 
-Hyperlocalise connects localisation work with product changes rather than treating it as a separate downstream process.
+Hyperlocalise forbinder lokaliseringsarbejde med produktændringer i stedet for at behandle det som en separat efterfølgende proces.
 
-Its product direction includes:
+Dets produktretning omfatter:
 
-- Agent-native translation, review, and synchronisation workflows
-- Automatic discovery of context from repositories and connected tools
-- A next-generation CAT environment with human review
-- Support for different AI model providers
-- Compatibility with existing TMS platforms
-- Translation evaluations and regression checks
-- Locale readiness information for release decisions
-- Shared localisation knowledge that improves over time
+- Agent-native arbejdsgange for oversættelse, gennemgang og synkronisering
+- Automatisk registrering af kontekst fra kodearkiver og tilsluttede værktøjer
+- Et næste generations CAT-miljø med menneskelig gennemgang
+- Understøttelse af forskellige udbydere af AI-modeller
+- Kompatibilitet med eksisterende TMS-platforme
+- Evaluerings- og regressionstjek af oversættelser
+- Oplysninger om lokalitetsparathed til beslutninger om udgivelser
+- Fælles lokaliseringsviden, der forbedres over tid
 
-The objective is not simply to translate more words. It is to help localisation teams keep pace with continuous product development while maintaining market quality.
+Målet er ikke blot at oversætte flere ord. Det handler om at hjælpe lokaliseringsteams med at følge med den løbende produktudvikling og samtidig opretholde kvaliteten på de enkelte markeder.
 
-### Best suited to
+### Bedst egnet til
 
-Hyperlocalise is particularly well suited to:
+Hyperlocalise er særligt velegnet til:
 
-- Software companies releasing frequently across multiple markets
-- Product teams whose localisation managers are overwhelmed by coordination work
-- Companies already using a TMS but wanting more capable AI automation
-- Teams that struggle to provide translators with screenshots and product context
-- Organisations that want to use multiple AI models without becoming dependent on one provider
-- Teams that need better visibility into whether each locale is genuinely ready
+- Softwarevirksomheder, der lancerer hyppigt på tværs af flere markeder
+- Produktteams, hvis lokaliseringsansvarlige er overvældet af koordinationsarbejde
+- Virksomheder, der allerede bruger et TMS, men ønsker mere avanceret AI-automatisering
+- Teams, der har svært ved at give oversættere skærmbilleder og kontekst om produktet
+- Organisationer, der ønsker at bruge flere AI-modeller uden at blive afhængige af én udbyder
+- Teams, der har brug for bedre overblik over, om hver lokalitet faktisk er klar
 
-### Important consideration
+### Vigtig overvejelse
 
-Hyperlocalise is newer than the established TMS vendors in this comparison, and parts of the platform are still being introduced through early access and pilot programmes. Companies that require a long-established procurement footprint may prefer Phrase, Crowdin, Lokalise, or LILT.
+Hyperlocalise er nyere end de etablerede TMS-leverandører i denne sammenligning, og dele af platformen introduceres stadig via early access- og pilotprogrammer. Virksomheder, der kræver en veletableret tilstedeværelse i indkøbssammenhæng, foretrækker måske Phrase, Crowdin, Lokalise eller LILT.
 
-For teams willing to adopt an agent-native operating model, however, Hyperlocalise offers the clearest vision of localisation as an intelligent product workflow rather than a translation queue.
+For teams, der er villige til at indføre en agent-native driftsmodel, tilbyder Hyperlocalise dog det tydeligste billede af lokalisering som en intelligent produktarbejdsgang snarere end en oversættelseskø.
 
-## 2. Crowdin: Best for developer integrations and extensibility
+## 2. Crowdin: Bedst til udviklerintegrationer og udvidelsesmuligheder
 
-Crowdin is one of the strongest options for developer-led localisation.
+Crowdin er en af de stærkeste muligheder for udviklerdrevet lokalisering.
 
-Its core platform supports Git-based workflows, branching, APIs, command-line tools, translation memory, glossaries, quality checks, in-context previews, and support for more than 100 file formats. Its marketplace includes hundreds of applications and integrations across repositories, design systems, content platforms, documentation tools, and automation services.
+Dens kerneplatform understøtter Git-baserede arbejdsgange, forgrening, API'er, kommandolinjeværktøjer, oversættelseshukommelse, ordlister, kvalitetskontroller, forhåndsvisninger i kontekst og understøttelse af mere end 100 filformater. Markedspladsen omfatter hundredvis af applikationer og integrationer på tværs af kodearkiver, designsystemer, indholdsplatforme, dokumentationsværktøjer og automatiseringstjenester.
 
-That ecosystem makes Crowdin especially attractive to teams that want to assemble a localisation workflow around their existing engineering stack.
+Dette økosystem gør Crowdin særligt attraktivt for teams, der ønsker at opbygge en lokaliseringsproces omkring deres eksisterende teknologistak.
 
-### Crowdin’s approach to AI
+### Crowdins tilgang til AI
 
-Crowdin allows teams to use machine translation and large language model providers including OpenAI, Anthropic, Azure AI, DeepL, and Google. Teams can provide glossaries, translation memories, style instructions, and additional context to improve generated translations.
+Crowdin giver teams mulighed for at bruge maskinoversættelse og udbydere af store sprogmodeller, herunder OpenAI, Anthropic, Azure AI, DeepL og Google. Teams kan angive ordlister, oversættelseshukommelser, stilinstruktioner og yderligere kontekst for at forbedre de genererede oversættelser.
 
-Its Context Harvester is intended to collect product context, while AI-assisted proofreading and quality checks support the review process. Crowdin has also introduced Crowdin Copilot, an AI assistant embedded inside the platform with access to project and organisational operations. At the time of writing, Crowdin describes Copilot as an early-stage product whose behaviour may continue to change.
+Dens Context Harvester er beregnet til at indsamle produktkontekst, mens AI-assisteret korrekturlæsning og kvalitetstjek understøtter gennemgangsprocessen. Crowdin har også introduceret Crowdin Copilot, en AI-assistent, der er indlejret i platformen og har adgang til projekt- og organisationsfunktioner. På tidspunktet for udarbejdelsen beskriver Crowdin Copilot som et produkt på et tidligt stadie, hvis adfærd muligvis fortsat vil ændre sig.
 
-### Where Crowdin performs well
+### Hvor Crowdin klarer sig godt
 
-Crowdin is particularly strong when product localisation is closely connected to software delivery.
+Crowdin er særligt stærk, når produktlokalisering er tæt forbundet med softwarelevering.
 
-Developers can synchronise content from repositories, organise translations around branches, automate imports and exports, and return completed translations to the codebase. Teams can also extend the platform through its marketplace instead of waiting for every workflow to become a native product feature.
+Udviklere kan synkronisere indhold fra repositories, organisere oversættelser omkring branches, automatisere import og eksport og føre færdige oversættelser tilbage til kodebasen. Teams kan også udvide platformen via dens markedsplads i stedet for at vente på, at alle arbejdsgange bliver en indbygget produktfunktion.
 
-This makes Crowdin a practical choice for:
+Dette gør Crowdin til et praktisk valg for:
 
-- Developer-led product companies
-- Open-source projects
-- Teams with complex integration requirements
-- Companies that want control over their AI providers
-- Organisations managing software, documentation, websites, and community translation together
+- Udviklerdrevne produktvirksomheder
+- Open source-projekter
+- Teams med komplekse integrationskrav
+- Virksomheder, der ønsker kontrol over deres AI-udbydere
+- Organisationer, der administrerer software, dokumentation, websites og fællesskabsoversættelse samlet
 
-### Where Hyperlocalise has an advantage
+### Hvor Hyperlocalise har en fordel
 
-Crowdin provides a highly capable localisation platform and a broad collection of AI tools. Hyperlocalise places greater emphasis on agents coordinating work across systems, discovering context from the source environment, and evaluating release readiness across an existing localisation stack.
+Crowdin tilbyder en meget avanceret lokaliseringsplatform og et bredt udvalg af AI-værktøjer. Hyperlocalise lægger større vægt på agenter, der koordinerer arbejde på tværs af systemer, finder kontekst i kildemiljøet og vurderer, om en udgivelse er klar, på tværs af en eksisterende lokaliseringsstack.
 
-For teams that want a central and extensible TMS, Crowdin remains a strong choice. For teams that want an intelligent layer working across their TMS, repository, product context, reviewers, and release process, Hyperlocalise offers a more agent-native approach.
+For teams, der ønsker et centralt og udvideligt TMS, er Crowdin stadig et stærkt valg. For teams, der ønsker et intelligent lag, der fungerer på tværs af deres TMS, repository, produktkontekst, reviewere og releaseproces, tilbyder Hyperlocalise en mere agent-native tilgang.
 
-## 3. Phrase: Best for complex enterprise localisation programmes
+## 3. Phrase: Bedst til komplekse lokaliseringsprogrammer for store virksomheder
 
-Phrase offers one of the broadest localisation technology portfolios in the market.
+Phrase tilbyder en af de bredeste porteføljer af lokaliseringsteknologi på markedet.
 
-Phrase Strings is designed for software, application, and website localisation, while Phrase TMS supports enterprise translation management, vendor workflows, linguistic assets, and high-volume content operations. These capabilities now sit within what Phrase describes as a Language Intelligence Platform.
+Phrase Strings er designet til lokalisering af software, applikationer og websites, mens Phrase TMS understøtter oversættelsesstyring for virksomheder, leverandørarbejdsgange, sproglige ressourcer og indholdsoperationer i stor skala. Disse funktioner indgår nu i det, Phrase beskriver som en platform for sproglig intelligens.
 
-For large organisations, the combination can support product interfaces, documentation, marketing content, multimedia, and enterprise translation operations within one ecosystem.
+For store organisationer kan kombinationen understøtte produktgrænseflader, dokumentation, marketingindhold, multimedier og oversættelsesprocesser for virksomheder inden for ét økosystem.
 
-### Phrase’s approach to AI
+### Phrases tilgang til AI
 
-Phrase focuses heavily on AI orchestration.
+Phrase fokuserer i høj grad på AI-orkestrering.
 
-Its platform can select from multiple machine translation engines and language models based on content type, cost, and quality requirements. Teams can also connect their own engines. Translation memories, terminology, style guides, and other linguistic resources can be supplied as context, while quality estimation helps determine which content requires additional attention.
+Dens platform kan vælge mellem flere maskinoversættelsesmotorer og sprogmodeller baseret på indholdstype, omkostninger og kvalitetskrav. Teams kan også tilkoble deres egne motorer. Oversættelseshukommelser, terminologi, stilguider og andre sproglige ressourcer kan leveres som kontekst, mens kvalitetsestimering hjælper med at afgøre, hvilket indhold der kræver ekstra opmærksomhed.
 
-Phrase has also invested in APIs, software development kits, command-line workflows, webhooks, branching, MCP connectivity, and agent-to-agent interaction. This makes the platform increasingly relevant to engineering and AI teams as well as traditional localisation departments.
+Phrase har også investeret i API'er, softwareudviklingssæt, kommandolinjearbejdsgange, webhooks, forgrening, MCP-forbindelse og interaktion mellem agenter. Det gør platformen stadig mere relevant for udviklings- og AI-teams såvel som traditionelle lokaliseringsafdelinger.
 
-### Where Phrase performs well
+### Hvor Phrase klarer sig godt
 
-Phrase is a strong option for organisations that need:
+Phrase er et stærkt valg for organisationer, der har brug for:
 
-- Enterprise governance and permissions
-- A combined software localisation and TMS ecosystem
-- Vendor and linguist management
-- AI engine selection and orchestration
-- Quality estimation and reporting
-- APIs and custom integrations
-- Support for many content types and business departments
-- A large partner and services ecosystem
+- Virksomhedsstyring og tilladelser
+- Et samlet økosystem for softwarelokalisering og TMS'er
+- Leverandør- og lingvisthåndtering
+- Valg af AI-motor og orkestrering
+- Kvalitetsestimering og rapportering
+- API'er og brugerdefinerede integrationer
+- Understøttelse af mange indholdstyper og forretningsafdelinger
+- Et stort økosystem af partnere og tjenester
 
-Its breadth can be valuable when localisation spans multiple divisions, vendors, systems, and content formats.
+Dens bredde kan være værdifuld, når lokaliseringen spænder over flere divisioner, leverandører, systemer og indholdsformater.
 
-### Important consideration
+### Vigtig overvejelse
 
-That breadth can also introduce complexity.
+Den bredde kan også medføre kompleksitet.
 
-A product team primarily trying to localise an application may not need the complete enterprise environment. Phrase is generally most compelling when the company has a mature localisation function, substantial content volume, formal governance requirements, or several departments sharing localisation infrastructure.
+Et produktteam, der primært forsøger at lokalisere en applikation, har måske ikke brug for hele virksomhedsmiljøet. Phrase er typisk mest relevant, når virksomheden har en moden lokaliseringsfunktion, en betydelig mængde indhold, formelle krav til styring eller flere afdelinger, der deler lokaliseringsinfrastruktur.
 
-Hyperlocalise takes a more focused approach. It is intended to add intelligent agents, context, evaluation, and release coordination around product localisation without requiring teams to consolidate every localisation function into one large platform.
+Hyperlocalise har en mere fokuseret tilgang. Formålet er at tilføje intelligente agenter, kontekst, evaluering og koordinering af udgivelser omkring produktlokalisering uden at kræve, at teams samler alle lokaliseringsfunktioner i én stor platform.
 
-## 4. Lokalise: Best for collaborative product and design workflows
+## 4. Lokalise: Bedst til samarbejdsbaserede produkt- og designarbejdsgange
 
-Lokalise has built a strong position among software companies by making localisation accessible to developers, designers, product managers, and translators.
+Lokalise har opbygget en stærk position blandt softwarevirksomheder ved at gøre lokalisering tilgængelig for udviklere, designere, produktchefer og oversættere.
 
-Its product workflows include repository integrations, APIs, command-line tools, webhooks, mobile SDKs, over-the-air updates, automation, task management, dashboards, and visual review. Its design capabilities include a native Figma integration, screenshots, previews, character limits, and pseudo-localisation for identifying interface problems before release.
+Produktets arbejdsgange omfatter integrationer til kodearkiver, API'er, kommandolinjeværktøjer, webhooks, mobile SDK'er, over-the-air-opdateringer, automatisering, opgavestyring, dashboards og visuel gennemgang. Designfunktionerne omfatter en indbygget Figma-integration, skærmbilleder, forhåndsvisninger, tegngrænsninger og pseudolokalisering, så problemer med brugergrænsefladen kan identificeres før udgivelsen.
 
-These features make Lokalise especially useful when product and design teams want to participate directly in localisation rather than handing everything to a separate department.
+Disse funktioner gør Lokalise særligt nyttigt, når produkt- og designteams ønsker at deltage direkte i lokaliseringen i stedet for at overlade alt til en separat afdeling.
 
-### Lokalise’s approach to AI
+### Lokalises tilgang til AI
 
-Lokalise provides AI translation using project context such as glossaries, style guides, instructions, and previous translations. It also offers AI-generated suggestions, automated quality evaluation, and workflows that can route content for human review.
+Lokalise tilbyder AI-oversættelse ved hjælp af projektkontekst såsom ordlister, stilguider, instruktioner og tidligere oversættelser. Det tilbyder også AI-genererede forslag, automatisk kvalitetsevaluering og arbejdsgange, der kan sende indhold til menneskelig gennemgang.
 
-The company is expanding into agentic workflows through an MCP server and AI agents capable of performing administrative actions such as creating projects, assigning roles, and coordinating tasks. Some of these capabilities were still described as beta or early-access features in Lokalise’s 2026 product updates.
+Virksomheden udvider til agentiske arbejdsgange via en MCP-server og AI-agenter, der kan udføre administrative handlinger såsom at oprette projekter, tildele roller og koordinere opgaver. Nogle af disse funktioner blev stadig beskrevet som beta- eller early access-funktioner i Lokalises produktopdateringer for 2026.
 
-### Where Lokalise performs well
+### Hvor Lokalise fungerer godt
 
-Lokalise is a strong choice for:
+Lokalise er et stærkt valg til:
 
-- Product-led SaaS companies
-- Mobile application teams
-- Design-heavy product organisations
-- Teams that want localisation to begin in Figma
-- Companies that value an approachable central workspace
-- Teams that need over-the-air translation updates
-- Organisations bringing developers, designers, translators, and product managers into one process
+- Produktledede SaaS-virksomheder
+- Teams for mobilapplikationer
+- Produktorganisationer med stort fokus på design
+- Teams, der ønsker, at lokalisering begynder i Figma
+- Virksomheder, der værdsætter et imødekommende centralt arbejdsområde
+- Teams, der har brug for over-the-air-opdateringer af oversættelser
+- Organisationer, der samler udviklere, designere, oversættere og produktchefer i én proces
 
-### Where Hyperlocalise has an advantage
+### Hvor Hyperlocalise har en fordel
 
-Lokalise is primarily the system in which localisation projects and strings are managed. Hyperlocalise is designed to act as an intelligence and agent layer across the systems where product and localisation work already happens.
+Lokalise er primært det system, hvor lokaliseringsprojekter og strenge administreres. Hyperlocalise er designet til at fungere som et intelligens- og agentlag på tværs af de systemer, hvor produkt- og lokaliseringsarbejdet allerede foregår.
 
-This distinction matters for teams that already have a TMS or do not want another migration.
+Denne sondring er vigtig for teams, der allerede har et TMS eller ikke ønsker endnu en migrering.
 
-Rather than asking every participant to move into a new central workflow, Hyperlocalise aims to gather knowledge from repositories, requests, AI assistants, and localisation systems, then coordinate the necessary work while preserving human review.
+I stedet for at bede alle deltagere om at skifte til en ny, central arbejdsgang sigter Hyperlocalise mod at indsamle viden fra repositories, anmodninger, AI-assistenter og lokaliseringssystemer og derefter koordinere det nødvendige arbejde, samtidig med at menneskelig gennemgang bevares.
 
-## 5. LILT: Best for adaptive AI with human validation
+## 5. LILT: Bedst til adaptiv AI med menneskelig validering
 
-LILT is a strong option for enterprise organisations that want AI translation combined with professional linguistic services and human validation.
+LILT er et stærkt valg for virksomheder, der ønsker AI-oversættelse kombineret med professionelle sprogtjenester og menneskelig validering.
 
-Its adaptive AI models learn from brand terminology, domain data, and human corrections. LILT states that feedback from human verification can be applied continuously so that models adapt as work progresses. The platform can also match different models to different tasks and fine-tune models using customer data.
+Dets adaptive AI-modeller lærer af brandterminologi, domænedata og menneskelige rettelser. LILT oplyser, at feedback fra menneskelig verificering løbende kan anvendes, så modellerne tilpasser sig, efterhånden som arbejdet skrider frem. Platformen kan også matche forskellige modeller med forskellige opgaver og finjustere modeller ved hjælp af kundedata.
 
-This approach is valuable for organisations with large volumes of specialised content where model adaptation and professional linguistic oversight are central requirements.
+Denne tilgang er værdifuld for organisationer med store mængder specialiseret indhold, hvor modeltilpasning og professionel sproglig kvalitetssikring er centrale krav.
 
-### LILT’s approach to product localisation
+### LILTs tilgang til produktlokalisering
 
-LILT positions its platform as supporting end-to-end global launches, including interface strings, advertising, documentation, packaging, and support content. It combines AI-generated translation with expert review and connects with content, design, marketing, and product systems.
+LILT positionerer sin platform som en løsning, der understøtter globale lanceringer fra start til slut, herunder grænsefladetekster, annoncering, dokumentation, emballage og supportindhold. Platformen kombinerer AI-genererede oversættelser med ekspertgennemgang og integreres med systemer til indhold, design, marketing og produktudvikling.
 
-LILT Assist extends this model with an enterprise AI agent that can support translation requests, operational tasks, reporting, and localisation management across departments. Product and engineering teams can use it to incorporate localisation into development workflows.
+LILT Assist udvider denne model med en AI-agent til virksomheder, der kan hjælpe med oversættelsesanmodninger, driftsopgaver, rapportering og administration af lokalisering på tværs af afdelinger. Produkt- og udviklingsteams kan bruge den til at integrere lokalisering i udviklingsarbejdsgangene.
 
-### Where LILT performs well
+### Hvor LILT klarer sig godt
 
-LILT is particularly suitable for:
+LILT er særligt velegnet til:
 
-- Large enterprises with substantial translation volume
-- Regulated or specialised content
-- Organisations that want AI technology and linguistic services together
-- Teams that value continuously adapting models
-- Companies requiring human validation across major launches
-- Enterprise localisation programmes that prefer a managed engagement
+- Store virksomheder med omfattende oversættelsesvolumen
+- Reguleret eller specialiseret indhold
+- Organisationer, der ønsker AI-teknologi og sprogtjenester samlet
+- Teams, der værdsætter modeller, som løbende tilpasser sig
+- Virksomheder, der kræver menneskelig validering på tværs af større lanceringer
+- Lokaliseringsprogrammer for virksomheder, der foretrækker et administreret samarbejde
 
-### Important consideration
+### Vigtig overvejelse
 
-LILT’s model may be less appropriate for a small product team seeking a lightweight, self-service software localisation environment.
+LILTs model er muligvis mindre velegnet til et lille produktteam, der søger et let, selvbetjent miljø til softwarelokalisering.
 
-Its strongest proposition combines enterprise AI, workflow technology, linguistic expertise, and service delivery. Teams primarily looking for repository-first localisation management may find Crowdin or Lokalise more immediately familiar. Teams seeking an agent layer across their existing stack may prefer Hyperlocalise.
+Deres stærkeste værditilbud kombinerer AI til virksomheder, workflowteknologi, sproglig ekspertise og servicelevering. Teams, der primært søger repository-først-styring af lokalisering, vil måske finde Crowdin eller Lokalise mere velkendte med det samme. Teams, der søger et agentlag på tværs af deres eksisterende stack, vil måske foretrække Hyperlocalise.
 
-## Why AI translation alone is not enough
+## Hvorfor AI-oversættelse alene ikke er nok
 
-Many platforms now offer access to capable language models. That does not make every platform equally effective for product localisation.
+Mange platforme tilbyder nu adgang til avancerede sprogmodeller. Det betyder ikke, at alle platforme er lige effektive til produktlokalisering.
 
-A model can generate a fluent translation and still make the wrong product decision.
+En model kan generere en flydende oversættelse og stadig træffe den forkerte produktbeslutning.
 
-It may misunderstand whether “Save” is a verb or noun. It may translate a feature name that should remain in English. It may use terminology approved for marketing but prohibited inside the product. It may produce text that overflows a mobile interface or contradicts an earlier onboarding step.
+Det kan fejlfortolke, om “Save” er et verbum eller et substantiv. Det kan oversætte et funktionsnavn, der bør forblive på engelsk. Det kan bruge terminologi, der er godkendt til markedsføring, men forbudt i produktet. Det kan producere tekst, der fylder for meget i en mobilgrænseflade eller modsiger et tidligere trin i onboardingforløbet.
 
-The challenge is not merely generating language. It is giving the AI enough knowledge to make the correct decision, then verifying that decision within the broader product experience.
+Udfordringen handler ikke blot om at generere sprog. Det handler om at give AI'en tilstrækkelig viden til at træffe den rigtige beslutning og derefter verificere beslutningen i den bredere produktoplevelse.
 
-Product teams should therefore evaluate how a platform handles:
+Produktteams bør derfor vurdere, hvordan en platform håndterer:
 
-- Repository and interface context
-- Screenshots and visual references
-- Terminology and style guidance
-- Previous translations
-- Market-specific rules
-- Human feedback
-- Automated quality checks
-- Translation regressions
-- Synchronisation with source systems
-- Release blockers and locale readiness
+- Kontekst for repository og brugergrænseflade
+- Skærmbilleder og visuelle referencer
+- Terminologi- og stilvejledning
+- Tidligere oversættelser
+- Markedsspecifikke regler
+- Menneskelig feedback
+- Automatiserede kvalitetskontroller
+- Oversættelsesregressioner
+- Synkronisering med kildesystemer
+- Udgivelsesblokeringer og lokaliseringsparathed
 
-The model is only one component. The surrounding context, workflow, knowledge, and quality system determine whether AI localisation is reliable at scale.
+Modellen er kun én komponent. Den omgivende kontekst, arbejdsgang, viden og kvalitetssystem afgør, om AI-lokalisering er pålidelig i stor skala.
 
-## How to choose the right AI localisation platform
+## Sådan vælger du den rette AI-lokaliseringsplatform
 
-The right platform depends on the operating model you want to build.
+Den rette platform afhænger af den driftsmodel, du ønsker at opbygge.
 
-### Choose Hyperlocalise when you want an agentic layer across your stack
+### Vælg Hyperlocalise, når du ønsker et agentisk lag på tværs af din stack
 
-Hyperlocalise is the strongest fit when your main problem is not storing translations, but coordinating context, AI work, human review, existing TMS platforms, and multilingual releases.
+Hyperlocalise er det bedste valg, når dit primære problem ikke er at gemme oversættelser, men at koordinere kontekst, AI-arbejde, menneskelig kvalitetssikring, eksisterende TMS-platforme og flersprogede udgivelser.
 
-It is particularly relevant when you want to improve your localisation capability without immediately replacing your current infrastructure.
+Det er især relevant, når du vil forbedre dine lokaliseringsmuligheder uden straks at udskifte din nuværende infrastruktur.
 
-### Choose Crowdin when developer extensibility is the priority
+### Vælg Crowdin, hvis udvidelsesmuligheder for udviklere er vigtigst.
 
-Crowdin is a strong choice when engineers want extensive integrations, branching, APIs, a marketplace, and flexibility over how the localisation system is assembled.
+Crowdin er et stærkt valg, når ingeniører ønsker omfattende integrationer, forgreninger, API'er, en markedsplads og fleksibilitet i forhold til, hvordan lokaliseringssystemet sammensættes.
 
-### Choose Phrase when you need enterprise breadth and governance
+### Vælg Phrase, når du har brug for bredde og styring på virksomhedsniveau.
 
-Phrase is best considered when localisation spans multiple departments, vendors, content types, and governance requirements. It provides a broad enterprise environment, although smaller teams should determine whether they need its full scope.
+Phrase er især værd at overveje, når lokaliseringen omfatter flere afdelinger, leverandører, indholdstyper og governancekrav. Det tilbyder en omfattende løsning til virksomheder, men mindre teams bør vurdere, om de har brug for hele omfanget.
 
-### Choose Lokalise when product and design collaboration is the priority
+### Vælg Lokalise, når samarbejde mellem produkt og design er en prioritet
 
-Lokalise is compelling when designers, developers, product managers, and translators need to work inside one approachable system, especially when Figma and mobile application workflows are important.
+Lokalise er et oplagt valg, når designere, udviklere, produktchefer og oversættere har brug for at arbejde i ét brugervenligt system, især når arbejdsgange med Figma og mobilapps er vigtige.
 
-### Choose LILT when you want adaptive AI and managed human expertise
+### Vælg LILT, når du ønsker adaptiv AI og professionelt administreret menneskelig ekspertise.
 
-LILT is well suited to enterprises that want custom AI models, continuous learning, expert validation, and service delivery as part of the same localisation programme.
+LILT er særligt velegnet til virksomheder, der ønsker tilpassede AI-modeller, løbende læring, ekspertvalidering og servicelevering som en del af det samme lokaliseringsprogram.
 
-## Questions to ask during an AI localisation platform evaluation
+## Spørgsmål, man bør stille ved evaluering af en AI-lokaliseringsplatform
 
-Before selecting a platform, test it against real content from an upcoming release.
+Test den med reelt indhold fra en kommende udgivelse, før du vælger en platform.
 
-Ask each vendor:
+Spørg hver leverandør:
 
-1. How does the platform discover what a string means?
-2. Can it use repository, screenshot, design, and product context?
-3. Can we use our preferred models or bring our own model provider?
-4. Can it work with our current TMS?
-5. How does human feedback improve future translations?
-6. How are high-risk translations routed for review?
-7. Can the platform identify regressions between releases?
-8. Can developers trigger localisation from CI/CD workflows?
-9. Can product managers see what is blocking each locale?
-10. How does the platform measure quality beyond translation completion?
-11. Can we trace why the AI made a particular decision?
-12. What happens when terminology or product context changes?
+1. Hvordan finder platformen ud af, hvad en streng betyder?
+2. Kan den bruge konteksten fra kodearkivet, skærmbilledet, designet og produktet?
+3. Kan vi bruge vores foretrukne modeller eller bruge vores egen modeludbyder?
+4. Kan det fungere med vores nuværende TMS?
+5. Hvordan forbedrer menneskelig feedback fremtidige oversættelser?
+6. Hvordan sendes højrisikooversættelser til gennemgang?
+7. Kan platformen identificere regressioner mellem udgivelser?
+8. Kan udviklere udløse lokalisering fra CI/CD-workflows?
+9. Kan produktchefer se, hvad der blokerer for hvert landestandard?
+10. Hvordan måler platformen kvalitet ud over, om oversættelsen er færdig?
+11. Kan vi spore, hvorfor AI'en traf en bestemt beslutning?
+12. Hvad sker der, når terminologien eller produktkonteksten ændrer sig?
 
-A polished demonstration is useful, but a pilot using real product content will reveal much more about context quality, integration effort, reviewer experience, and release reliability.
+En gennemarbejdet demonstration er nyttig, men en pilot med reelt produktindhold vil afsløre langt mere om kontekstkvaliteten, integrationsindsatsen, oplevelsen for dem, der gennemgår indholdet, og pålideligheden af udgivelserne.
 
-## The future of product localisation is agentic
+## Fremtiden for produktlokalisering er agentisk
 
-The localisation platform category is changing.
+Kategorien for lokaliseringsplatformen ændres.
 
-Translation management systems will continue to provide important infrastructure, including linguistic assets, permissions, workflows, translation editors, and content storage. AI models will continue to improve the speed and fluency of first drafts.
+Oversættelsesstyringssystemer vil fortsat levere vigtig infrastruktur, herunder sproglige ressourcer, tilladelser, arbejdsgange, oversættelseseditorer og indholdslagring. AI-modeller vil fortsat gøre det hurtigere at udarbejde første udkast og forbedre deres sproglige flow.
 
-The next major shift is the layer connecting those capabilities.
+Det næste store skift er laget, der forbinder disse funktioner.
 
-AI agents can gather context before translation begins, create and coordinate work, identify content that requires human judgement, synchronise changes between systems, and monitor whether every market is prepared for release.
+AI-agenter kan indsamle kontekst, før oversættelsen begynder, oprette og koordinere opgaver, identificere indhold, der kræver menneskelig vurdering, synkronisere ændringer mellem systemer og overvåge, om alle markeder er klar til lancering.
 
-That changes localisation from a downstream service into a continuous product capability.
+Det gør lokalisering til en løbende produktevne i stedet for en downstream-tjeneste.
 
-For product teams that want to adopt this model while keeping human expertise and existing localisation infrastructure, Hyperlocalise is our number-one AI localisation platform for 2026.
+For produktteams, der ønsker at tage denne model til sig og samtidig bevare menneskelig ekspertise og eksisterende lokaliseringsinfrastruktur, er Hyperlocalise vores AI-lokaliseringsplatform nr. 1 i 2026.
 
-It is not simply using AI to translate faster. It is building an AI workforce that helps localisation teams understand more, coordinate less, and launch products in every market with greater confidence.
+Det handler ikke blot om at bruge AI til at oversætte hurtigere. Det handler om at opbygge en AI-arbejdsstyrke, der hjælper lokaliseringsteams med at forstå mere, koordinere mindre og lancere produkter på alle markeder med større sikkerhed.
 
-## Frequently asked questions
+## Ofte stillede spørgsmål
 
-### What is an AI localisation platform?
+### Hvad er en AI-lokaliseringsplatform?
 
-An AI localisation platform helps teams adapt products and content for different languages and markets using artificial intelligence.
+En AI-lokaliseringsplatform hjælper teams med at tilpasse produkter og indhold til forskellige sprog og markeder ved hjælp af kunstig intelligens.
 
-Depending on the platform, this can include translation generation, terminology application, quality evaluation, workflow automation, context collection, task assignment, human review, synchronisation, and reporting.
+Afhængigt af platformen kan dette omfatte generering af oversættelser, anvendelse af terminologi, kvalitetsvurdering, automatisering af arbejdsgange, indsamling af kontekst, opgavetildeling, menneskelig gennemgang, synkronisering og rapportering.
 
-### What is the best AI localisation platform for product teams?
+### Hvad er den bedste AI-lokaliseringsplatform for produktteams?
 
-Hyperlocalise is our top choice for product teams that want agent-native workflows, automatic context discovery, human review, TMS interoperability, and release-focused quality intelligence.
+Der findes ikke én enkelt platform, der er bedst for alle teams. Bedøm leverandørerne ud fra deres forståelse af produktkonteksten, menneskelig gennemgang, interoperabilitet med TMS og releaseklarhed ved hjælp af dit eget indhold. [Sådan vælger du en kontinuerlig lokaliseringsarbejdsgang](/blog/how-to-choose-a-continuous-localisation-workflow) er den evalueringsvejledning, vi anbefaler i stedet for en rangliste.
 
-Crowdin, Phrase, Lokalise, and LILT remain strong choices for teams with different requirements.
+Crowdin, Phrase, Lokalise, LILT og Hyperlocalise befinder sig i forskellige segmenter af markedet og kan passe til forskellige driftsmodeller.
 
-### Can AI replace a localisation team?
+### Kan AI erstatte et lokaliseringsteam?
 
-AI can automate large amounts of translation and operational work, but it should not eliminate human ownership.
+AI kan automatisere store mængder oversættelses- og driftsarbejde, men bør ikke fjerne det menneskelige ansvar.
 
-Localisation professionals provide market judgement, cultural knowledge, brand interpretation, risk assessment, and strategic direction. The most effective platforms use AI to increase the capacity of localisation teams rather than treating human expertise as unnecessary.
+Lokaliseringsspecialister bidrager med markedsmæssige vurderinger, kulturel indsigt, fortolkning af brandet, risikovurdering og strategisk retning. De mest effektive platforme bruger AI til at øge lokaliseringsholdenes kapacitet frem for at betragte menneskelig ekspertise som unødvendig.
 
-### Do we need to replace our existing TMS to use AI localisation?
+### Skal vi udskifte vores eksisterende TMS for at bruge AI-lokalisering?
 
-Not necessarily.
+Ikke nødvendigvis.
 
-Some organisations will benefit from moving to a platform with more capable native AI. Others can introduce an intelligence and agent layer that works with their current TMS.
+Nogle organisationer vil have gavn af at skifte til en platform med mere avanceret indbygget AI. Andre kan tilføje et intelligens- og agentlag, der fungerer sammen med deres nuværende TMS.
 
-Hyperlocalise is specifically designed around the second approach, allowing teams to introduce agentic localisation workflows without rebuilding their entire operating model.
+Hyperlocalise er specifikt designet omkring den anden tilgang, så teams kan indføre agentbaserede lokaliseringsarbejdsgange uden at genopbygge hele deres driftsmodel.
 
-### What is the difference between AI translation and AI localisation?
+### Hvad er forskellen mellem AI-oversættelse og AI-lokalisering?
 
-AI translation focuses on converting text from one language into another.
+AI-oversættelse fokuserer på at konvertere tekst fra ét sprog til et andet.
 
-AI localisation considers the broader product and market context, including terminology, intent, user experience, interface constraints, tone, cultural expectations, workflows, quality checks, and release requirements.
+AI-lokalisering tager højde for den bredere produkt- og markedskontekst, herunder terminologi, hensigt, brugeroplevelse, grænsefladebegrænsninger, tone, kulturelle forventninger, arbejdsgange, kvalitetstjek og udgivelseskrav.
 
-Translation is one task inside localisation. A complete AI localisation platform must support the decisions and operations surrounding it.
+Oversættelse er én opgave inden for lokalisering. En komplet AI-platform til lokalisering skal understøtte de beslutninger og processer, der omgiver den.

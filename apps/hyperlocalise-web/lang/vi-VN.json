@@ -170,6 +170,9 @@
   "+HZaUMLm0i": {
     "defaultMessage": "Lưu thay đổi"
   },
+  "+Hatz1jNOF": {
+    "defaultMessage": "Guidelines phát huy tác dụng khi bạn kết nối các tài liệu mà nhóm đã duy trì — sổ tay thương hiệu trên Google Drive, trang hướng dẫn giọng điệu trên Notion, tiêu chuẩn pháp lý trên SharePoint hoặc các quy tắc được nhập trực tiếp vào Hyperlocalise. Bạn chọn bộ tài liệu nào áp dụng cho từng không gian làm việc và ngôn ngữ, còn hệ thống sẽ liên tục lập chỉ mục khi các nguồn thay đổi. Nhân viên mới và các tác nhân AI cùng đọc một bộ tài liệu thay vì phải tìm kiếm bản PDF mới nhất. Trong mỗi bản nháp, Guidelines hoạt động như một bước kiểm tra liên tục, chứ không phải chỉ nhập một lần. Các tác nhân AI truy xuất những đoạn liên quan đến loại nội dung và thị trường, đối chiếu nội dung được đề xuất với các quy tắc về giọng điệu, thuật ngữ và tuân thủ, rồi nêu những điểm chưa khớp kèm trích dẫn đến tài liệu nguồn. Người đánh giá có thể thấy lý do một cụm từ bị gắn cờ và chấp nhận đề xuất sửa, ghi đè kèm ghi chú hoặc cập nhật quy tắc gốc khi thương hiệu thay đổi. Kết quả xuất hiện ngay tại nơi mọi người vốn đã viết nội dung. Các đoạn bị gắn cờ xuất hiện trong Content Studio và các lần chạy Automation Workflow, chặn bước xuất bản cho đến khi các vấn đề nghiêm trọng được xử lý hoặc người phụ trách phê duyệt ngoại lệ. Theo thời gian, các quyết định được chấp nhận sẽ được cập nhật trở lại cơ sở tri thức để chiến dịch tiếp theo bắt đầu sát với thương hiệu hơn, đồng thời ban lãnh đạo có thể kiểm tra những quy tắc nào được áp dụng thường xuyên nhất ở từng thị trường và ngôn ngữ."
+  },
   "+HuJAuB0t9": {
     "defaultMessage": "{prefix}••••••••"
   },
@@ -373,6 +376,9 @@
   },
   "+ngHznLyUe": {
     "defaultMessage": "Tiếng Hungary (Hungary)"
+  },
+  "+oxkFsrFr8": {
+    "defaultMessage": "Bắt đầu sử dụng không gian làm việc miễn phí hoặc yêu cầu bản demo, rồi triển khai các chiến dịch toàn cầu với quy trình bản địa hóa đảm bảo an toàn cho thương hiệu."
   },
   "+pwP0Po+Io": {
     "defaultMessage": "Lỗi thời"
@@ -754,6 +760,9 @@
   },
   "/Y9GJUEqGi": {
     "defaultMessage": "Trích xuất văn bản tại đầu phát"
+  },
+  "/Z40OYzdZ/": {
+    "defaultMessage": "Dự án đã được phê duyệt"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Bộ lọc"
@@ -1426,6 +1435,9 @@
   },
   "0xs+BR2vTX": {
     "defaultMessage": "Không thể lưu cài đặt tự động hóa."
+  },
+  "0yPPbm/1Fr": {
+    "defaultMessage": "Giống như bản gốc"
   },
   "0yR+TXg23A": {
     "defaultMessage": "Tên thông tin xác thực"
@@ -2366,6 +2378,9 @@
   "3/ebdpqqmW": {
     "defaultMessage": "Đang tải tệp lên và bắt đầu nhập..."
   },
+  "3/uQHFvlcM": {
+    "defaultMessage": "Giống như bản gốc"
+  },
   "304a0qYa4S": {
     "defaultMessage": "Đang chờ đăng ký"
   },
@@ -2431,6 +2446,9 @@
   },
   "36xVSohq0P": {
     "defaultMessage": "Tóm tắt về nội dung nguồn mới hoặc được cập nhật, kèm theo ngữ cảnh."
+  },
+  "36xZffJVIP": {
+    "defaultMessage": "Xóa các mục đã chọn?"
   },
   "37SGIX021g": {
     "defaultMessage": "Ghi chú"
@@ -3632,6 +3650,9 @@
   "5iWVkPCngl": {
     "defaultMessage": "Không có truy vấn Search Console nào trong khoảng thời gian này."
   },
+  "5ilEKzvkRa": {
+    "defaultMessage": "Bắt đầu miễn phí"
+  },
   "5jQYM3pK9b": {
     "defaultMessage": "Định nghĩa"
   },
@@ -3844,6 +3865,9 @@
   },
   "6E7bAH/1Ep": {
     "defaultMessage": "Chọn một dự án ở trên để tải các bộ nhớ dịch trực tiếp từ nhà cung cấp đã kết nối của bạn."
+  },
+  "6EJKMtXG+O": {
+    "defaultMessage": "Một thử nghiệm bắt đầu khi bạn đánh dấu nội dung hoặc trải nghiệm người dùng cần khác biệt theo từng thị trường — chẳng hạn như tiêu đề trên trang chủ, một bước thanh toán, nội dung về giá hoặc một cờ tính năng gắn với ngôn ngữ và khu vực. Bạn chọn đối tượng (ví dụ: chỉ Nhật Bản), xác định các phiên bản và đặt khoảng thời gian thu thập tín hiệu. Hyperlab giữ ổn định những phần còn lại của trang web để bạn không phải phỏng đoán dựa trên các số liệu trung bình toàn cầu. Trong thử nghiệm, lưu lượng truy cập được phân chia theo quy tắc của bạn, trong khi Domains và công cụ phân tích sản phẩm bổ sung bối cảnh. Bạn có thể xem mức độ tương tác, chuyển đổi và các dấu hiệu định tính của từng phiên bản mà không cần dựng lại trang bằng một công cụ riêng. Khi Automation Workflow được kết nối, nội dung hiệu quả nhất có thể trở thành chuỗi mặc định cho ngôn ngữ và khu vực đó, trong khi các thị trường khác vẫn giữ nguyên phiên bản đối chứng. Kết quả cho bạn biết nên giữ phiên bản nào và triển khai ra sao. Trang tổng quan so sánh các phiên bản kèm dấu hiệu về độ tin cậy, liên kết đến các chuỗi liên quan trong Content Studio và ghi lại ai đã phê duyệt thay đổi. Phiên bản hiệu quả nhất có thể được xuất bản lên môi trường production chỉ dành cho thị trường đó, đồng bộ vào Guidelines dưới dạng tùy chọn đã ghi nhận hoặc kích hoạt một đợt bản địa hóa rộng hơn khi kết quả áp dụng được cho các ngôn ngữ khác."
   },
   "6ETzpV6b95": {
     "defaultMessage": "Học tập"
@@ -4244,6 +4268,9 @@
   "76aHgfoqyy": {
     "defaultMessage": "Yêu cầu xác thực phân đoạn không thành công."
   },
+  "76p0N2h6Ed": {
+    "defaultMessage": "Bắt đầu một không gian làm việc miễn phí hoặc yêu cầu bản demo để xem cách nhóm của bạn có thể duy trì nội dung hỗ trợ luôn cập nhật ở mọi ngôn ngữ."
+  },
   "76uDSBNqg0": {
     "defaultMessage": "true"
   },
@@ -4297,6 +4324,9 @@
   },
   "7BA/WdUPFq": {
     "defaultMessage": "Tích hợp GitHub App chưa được cấu hình cho môi trường này."
+  },
+  "7BNesLRShh": {
+    "defaultMessage": "Không thể cập nhật các mục đã chọn."
   },
   "7CPu6D68D+": {
     "defaultMessage": "Điểm bản địa hóa"
@@ -4486,6 +4516,9 @@
   },
   "7h7yO8hu3a": {
     "defaultMessage": "Người dùng"
+  },
+  "7hdb/IRr/l": {
+    "defaultMessage": "Chọn tất cả mục hiển thị"
   },
   "7itDAFKmls": {
     "defaultMessage": "Việc tạo không gian làm việc yêu cầu phải cấu hình quản lý tổ chức WorkOS."
@@ -6482,6 +6515,9 @@
   "BuW96vtm0m": {
     "defaultMessage": "Khóa API"
   },
+  "BuyfK8oOrG": {
+    "defaultMessage": "Bắt đầu sử dụng không gian làm việc miễn phí hoặc yêu cầu bản demo để xem đội ngũ vận hành của bạn có thể điều phối hoạt động bản địa hóa mà không cần thay thế các công cụ hiện có."
+  },
   "BvipsKvoDg": {
     "defaultMessage": "Type"
   },
@@ -6643,6 +6679,9 @@
   },
   "CE4Mjxv5Pv": {
     "defaultMessage": "Các thành viên được mời sẽ được thêm vào nhóm này để họ có thể truy cập các dự án."
+  },
+  "CEaPOoMSXx": {
+    "defaultMessage": "Xóa"
   },
   "CFK4BGiWin": {
     "defaultMessage": "Trạng thái đánh giá"
@@ -7709,6 +7748,9 @@
   "EReC/afPt5": {
     "defaultMessage": "Tệp nguồn"
   },
+  "ERhdtCoB3w": {
+    "defaultMessage": "Xóa"
+  },
   "ERiH8D9Q+l": {
     "defaultMessage": "Ngữ cảnh của \"{source}\" là gì?"
   },
@@ -7873,6 +7915,9 @@
   },
   "Erp8YPXBb/": {
     "defaultMessage": "{count} hàng"
+  },
+  "Es+ucDoi27": {
+    "defaultMessage": "Xem lại bản nháp"
   },
   "EsHwflBzPz": {
     "defaultMessage": "Theo dõi phạm vi đánh giá và trạng thái phê duyệt"
@@ -8197,6 +8242,9 @@
   },
   "FXDqvAOc70": {
     "defaultMessage": "Đã tạo"
+  },
+  "FXvq+2/Qcr": {
+    "defaultMessage": "Được các đội ngũ tại tin dùng"
   },
   "FXyyu0UtlW": {
     "defaultMessage": "Áp dụng"
@@ -8666,6 +8714,9 @@
   "GftwLzyFL4": {
     "defaultMessage": "Today"
   },
+  "GftyFc6QcS": {
+    "defaultMessage": "{count, plural, one {Thao tác này sẽ xóa vĩnh viễn # mục đã chọn.} other {Thao tác này sẽ xóa vĩnh viễn # mục đã chọn.}}"
+  },
   "GgAZPvlKF6": {
     "defaultMessage": "{current}/{count}"
   },
@@ -8780,6 +8831,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Đến hạn {due}"
   },
+  "GvmhHrQBlr": {
+    "defaultMessage": "Bị từ chối"
+  },
   "Gw6z856Urj": {
     "defaultMessage": "Could not save notification preferences."
   },
@@ -8794,6 +8848,9 @@
   },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
+  },
+  "Gwl9Xy1ZJk": {
+    "defaultMessage": "Chọn mục {sourceText}"
   },
   "GwpF6lZmgi": {
     "defaultMessage": "Một tin nhắn trò chuyện trên web được gửi đến"
@@ -9614,6 +9671,9 @@
   "ImtoSoLxJY": {
     "defaultMessage": "ID dự án (tùy chọn)"
   },
+  "In7j8i2QDa": {
+    "defaultMessage": "Dọn dẹp"
+  },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# công việc} other {# công việc}} đã được tạo trước khi xảy ra lỗi. Hãy làm mới danh sách công việc trước khi thử lại để tránh trùng lặp."
   },
@@ -9661,6 +9721,9 @@
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
+  },
+  "IrifQRmlhp": {
+    "defaultMessage": "Tác vụ dịch thuật"
   },
   "Is9VBW0Pl3": {
     "defaultMessage": "Key"
@@ -9913,6 +9976,9 @@
   },
   "JOEjtzHHyY": {
     "defaultMessage": "You"
+  },
+  "JOF5bl34kw": {
+    "defaultMessage": "Yêu cầu bản demo"
   },
   "JOyIQ9rRB7": {
     "defaultMessage": "Đang ngắt kết nối…"
@@ -10846,6 +10912,9 @@
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Kết nối các máy chủ MCP từ xa cho các công cụ tự động hóa."
+  },
+  "LgcNXumCl8": {
+    "defaultMessage": "Cách hoạt động"
   },
   "LguOyBNnte": {
     "defaultMessage": "Nguồn hướng dẫn"
@@ -12040,6 +12109,9 @@
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% bài kiểm thử"
+  },
+  "OC0Ni4OgkT": {
+    "defaultMessage": "Một lượt chạy bắt đầu khi có nội dung nào đó trong hệ thống kết nối của bạn cần được xử lý đa ngôn ngữ — một trang được cập nhật trong Contentful, một bản tóm tắt được đưa lên Notion, một tin nhắn trong Slack hoặc một pull request được mở trên GitHub. Khi xây dựng quy trình, bạn xác định các yếu tố kích hoạt này, cùng với ngôn ngữ, người phụ trách và quy tắc phê duyệt áp dụng cho từng nhánh. Hyperlocalise theo dõi các nguồn đó, đóng gói nội dung đã thay đổi cùng ngữ cảnh xung quanh, rồi mở một lượt chạy để chiến dịch không bị đình trệ trong hộp thư của ai đó. Trong lượt chạy, các tác nhân làm theo những bước bạn đã vạch ra trên canvas: soạn thảo hoặc điều chỉnh nội dung với Guidelines và bảng thuật ngữ đính kèm, chuyển các chuỗi cho người đánh giá khi độ tin cậy thấp, và phân nhánh theo thị trường khi Hyperlab hoặc Domains báo hiệu nhu cầu riêng theo ngôn ngữ và khu vực. Mỗi bước đều ghi lại dấu vết kiểm tra — ai đã xử lý nội dung nào, mô hình hoặc quy tắc nào được kích hoạt, và đầu ra có vượt qua các bước kiểm tra của bạn hay không — để người quản lý bản địa hóa có thể theo dõi tiến độ mà không phải chạy theo cập nhật trên nhiều công cụ. Kết quả được đưa trở lại nơi nhóm của bạn vẫn thường làm việc. Các chuỗi đã được phê duyệt sẽ đồng bộ với CMS hoặc kho mã nguồn trang web của bạn, thông báo được đăng lên Slack, nội dung trợ giúp được cập nhật trong Intercom, và các bản xuất song song vẫn có thể được gửi đến Crowdin, Lokalise, Phrase hoặc Smartling nếu bạn dùng hệ thống kết hợp. Khi đợt ra mắt tiếp theo áp dụng cùng một quy trình, mọi ngôn ngữ sẽ tự động đi theo cùng một lộ trình, và mọi người chỉ cần can thiệp khi có vấn đề."
   },
   "OC0jExzrXg": {
     "defaultMessage": "Gán bài viết cho đúng người duyệt dựa trên chủ đề, ngôn ngữ, hoặc chuyên môn."
@@ -13940,6 +14012,9 @@
   "SRAb4hnti/": {
     "defaultMessage": "Trang sản phẩm JP"
   },
+  "SRM30InJ7k": {
+    "defaultMessage": "Reject"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "Hợp tác"
   },
@@ -15689,6 +15764,9 @@
   "WGmc876gab": {
     "defaultMessage": "Sử dụng hướng dẫn của không gian làm việc để định hướng cho quá trình tự động hóa này."
   },
+  "WHOyA1uTn/": {
+    "defaultMessage": "Bắt đầu sử dụng không gian làm việc miễn phí hoặc yêu cầu bản demo, và đưa các bước kiểm tra bản địa hóa vào quy trình phát hành của bạn."
+  },
   "WHrTXX3A2/": {
     "defaultMessage": "Mở hướng dẫn bảng thuật ngữ"
   },
@@ -16237,6 +16315,9 @@
   },
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise gốc"
+  },
+  "XTuALgEqF+": {
+    "defaultMessage": "Không thể xóa các mục đã chọn."
   },
   "XUGFGcmuvI": {
     "defaultMessage": "Đang tải các phân đoạn"
@@ -17964,7 +18045,7 @@
     "defaultMessage": "Xóa"
   },
   "bAOOxyyl8P": {
-    "defaultMessage": "Yêu cầu dùng thử bản demo"
+    "defaultMessage": "Yêu cầu bản demo"
   },
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise"
@@ -18022,6 +18103,9 @@
   },
   "bHCCUqEOmY": {
     "defaultMessage": "Các giá trị của chính sách thử lại nằm ngoài phạm vi cho phép."
+  },
+  "bHKZwn0sWu": {
+    "defaultMessage": "Quy trình bắt đầu khi bạn đưa tài liệu nguồn vào studio — bản tóm tắt chiến dịch, Google Doc, trang trình bày từ Drive, ảnh chụp màn hình hoặc video kèm bản chép lời. Bạn chọn ngôn ngữ đích và đính kèm Hướng dẫn, bảng thuật ngữ cùng ghi chú thị trường để mọi bản chuyển thể đều tuân theo cùng một bộ quy tắc. Studio tập trung ngữ cảnh sáng tạo ở một nơi thay vì để các bình luận rải rác trong email và cuộc trò chuyện. Trong không gian làm việc, bạn và các agent cùng xử lý theo một trình tự cho từng loại tài sản. Các khối văn bản được soạn thảo hoặc dịch với thuật ngữ được thống nhất; tài liệu và bộ trang trình bày giữ nguyên bố cục trong khi nội dung được cập nhật theo từng ngôn ngữ và khu vực; hình ảnh và video được bổ sung văn bản thay thế, văn bản hiển thị trên màn hình và phụ đề phù hợp với giọng điệu thương hiệu. Người đánh giá bình luận ngay trong ngữ cảnh, đối chiếu với bản nguồn và phê duyệt hoặc gửi lại các phân đoạn cụ thể mà không cần xuất tệp. Sản phẩm đầu ra đã sẵn sàng cho bước tiếp theo trong hệ thống của bạn. Nội dung đã hoàn thiện có thể được chuyển sang Automation Workflow để kiểm tra trước khi xuất bản, xuất sang TMS hoặc tải xuống để bộ phận pháp lý phê duyệt. Vì mọi ngôn ngữ đều nằm trong cùng một luồng dự án, bạn luôn biết phiên bản nào đang hiện hành và nội dung nào vẫn cần con người rà soát trước khi ra mắt."
   },
   "bHXY88TkOe": {
     "defaultMessage": "Xem các phát hiện"
@@ -18896,6 +18980,9 @@
   "d7yqWFV1zN": {
     "defaultMessage": "Cảnh báo QA"
   },
+  "d8SUTrtkQm": {
+    "defaultMessage": "{count, plural, one {# đã chọn} other {# đã chọn}}"
+  },
   "d8Vs3k3UER": {
     "defaultMessage": "Cuộc trò chuyện này không còn khả dụng."
   },
@@ -19144,6 +19231,9 @@
   },
   "dbIHLj/rDN": {
     "defaultMessage": "Hợp nhất các chuỗi giống nhau?"
+  },
+  "dbUlLM1Oqq": {
+    "defaultMessage": "Các tác vụ dịch lưu các đề xuất dưới dạng bản nháp. Hãy phê duyệt chúng trước khi có thể sử dụng lại."
   },
   "dbtTNEaJX2": {
     "defaultMessage": "Điểm {score} trên 100"
@@ -19598,6 +19688,9 @@
   "eTERhCaPbB": {
     "defaultMessage": "Mở trang thanh toán"
   },
+  "eTWHD/yEhf": {
+    "defaultMessage": "Phê duyệt"
+  },
   "eTaaI/udxD": {
     "defaultMessage": "Quyền: {permissions}"
   },
@@ -19750,6 +19843,9 @@
   },
   "eogv8qHzO7": {
     "defaultMessage": "Cách diễn đạt CTA SaaS bằng tiếng Pháp, trực tiếp và quen thuộc."
+  },
+  "epsUQC31kr": {
+    "defaultMessage": "Bắt đầu sử dụng không gian làm việc miễn phí ngay hôm nay hoặc yêu cầu bản demo để xem cách nhóm của bạn có thể đưa nội dung sản phẩm ra toàn cầu nhanh hơn mà không cần thay thế các công cụ hiện có."
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Tạo dự án bản địa hóa đầu tiên của bạn"
@@ -20450,6 +20546,9 @@
   "gFvQ/JVP4A": {
     "defaultMessage": "Lỗi và cảnh báo theo thời gian"
   },
+  "gHUxugs0eg": {
+    "defaultMessage": "Được thiết kế dành cho các nhóm bản địa hóa. Bắt đầu miễn phí ngay hôm nay."
+  },
   "gHgMNG7oQS": {
     "defaultMessage": "Chuyển công việc đến người duyệt trong quy trình làm việc hiện có của bạn"
   },
@@ -20539,6 +20638,9 @@
   },
   "gRhG9VDHId": {
     "defaultMessage": "Sao chép"
+  },
+  "gSGjmPxLZ8": {
+    "defaultMessage": "{planName}: {priceLabel}"
   },
   "gSVYd4jPtI": {
     "defaultMessage": "file"
@@ -20962,6 +21064,9 @@
   },
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# bộ nhớ dịch} other {# bộ nhớ dịch}}"
+  },
+  "hInJax4uyv": {
+    "defaultMessage": "{count, plural, one {Đã từ chối # mục} other {Đã từ chối # mục}}"
   },
   "hKPqpZwImM": {
     "defaultMessage": "{count} lỗi"
@@ -21836,6 +21941,9 @@
   "j53Gofjd1b": {
     "defaultMessage": "Ra mắt web"
   },
+  "j6HO+OwVD0": {
+    "defaultMessage": "Wall St. Rank"
+  },
   "j6Jw8eFz2s": {
     "defaultMessage": "Hủy"
   },
@@ -21971,6 +22079,9 @@
   "jOtw3PC362": {
     "defaultMessage": "Mặc định (văn xuôi thông thường)"
   },
+  "jP0mfL7DgW": {
+    "defaultMessage": "{planName}: {priceLabel} mỗi tháng"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "Không có tệp nguồn nào được liên kết với tác vụ này."
   },
@@ -22084,6 +22195,9 @@
   },
   "jd3LwSKaUe": {
     "defaultMessage": "Đã xóa thành viên khỏi nhóm"
+  },
+  "jdB1QCPixr": {
+    "defaultMessage": "{count, plural, one {Đã phê duyệt # mục} other {Đã phê duyệt # mục}}"
   },
   "jdk6igRynG": {
     "defaultMessage": "Unavailable"
@@ -22444,6 +22558,9 @@
   },
   "kMsw+6lY8Y": {
     "defaultMessage": "Xem thử nghiệm thị trường"
+  },
+  "kMySdc7EDT": {
+    "defaultMessage": "Hủy"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "Cần xem xét"
@@ -23344,6 +23461,9 @@
   },
   "mHug8Cyl7z": {
     "defaultMessage": "Tác nhân AI"
+  },
+  "mJEqo1QFTM": {
+    "defaultMessage": "Việc giám sát bắt đầu khi trang web đa ngôn ngữ của bạn đi vào hoạt động — Domains thu thập URL từ sơ đồ trang web hoặc kết nối CMS của bạn, rồi ánh xạ từng trang với các phiên bản theo ngôn ngữ và khu vực. Bạn chỉ định những tên miền cần theo dõi, đặt tần suất quét lại và chọn có đưa môi trường staging hoặc production vào hay không. Sản phẩm xem mỗi ngôn ngữ là một bề mặt độc lập, không phải phần bổ sung được gắn vào sau một đợt kiểm tra chỉ dành cho một thị trường. Trong mỗi lần quét, Domains so sánh nội dung mà công cụ tìm kiếm và trợ lý AI thực sự có thể truy xuất với nội dung bạn dự định xuất bản. Sản phẩm kiểm tra các cặp hreflang, thẻ canonical, khả năng được lập chỉ mục, dữ liệu có cấu trúc, cũng như mức độ khớp giữa tiêu đề và đoạn trích đã dịch với nội dung trên trang. Khi một phiên bản theo ngôn ngữ và khu vực không còn xuất hiện trong kết quả hoặc câu trả lời của AI trích dẫn sai URL, vấn đề sẽ được gắn với trang và ngôn ngữ cụ thể để người viết biết cần sửa gì. Kết quả được tổng hợp thành danh sách công việc ưu tiên để nhóm của bạn xử lý. Bạn có thể xem các phiên bản thay thế bị lỗi, bản dịch sơ sài và siêu dữ liệu còn thiếu được xếp hạng theo lưu lượng truy cập và mức độ nghiêm trọng, kèm liên kết đến URL đang hoạt động và đề xuất chỉnh sửa nội dung. Các bản sửa lỗi có thể được chuyển sang Content Studio hoặc Automation Workflow để cập nhật được triển khai bằng mọi ngôn ngữ, chứ không chỉ ở thị trường nơi có người đầu tiên phát hiện ra vấn đề."
   },
   "mJWxbqwGL6": {
     "defaultMessage": "Không thể tải nghiên cứu tên miền."
@@ -25331,6 +25451,9 @@
   "qFvm5jLVh9": {
     "defaultMessage": "Bật nó lên. Giữ lại phiên bản hoạt động."
   },
+  "qGKp4CkdHO": {
+    "defaultMessage": "Từ các tác vụ dịch thuật"
+  },
   "qGSAjtA2ao": {
     "defaultMessage": "Vai trò của bạn không có quyền ghi bản dịch trở lại."
   },
@@ -25801,6 +25924,9 @@
   },
   "rHxmEAsvVD": {
     "defaultMessage": "Lưu bản dịch chỉ cập nhật các chuỗi dùng chung bản dịch đó. Chọn Áp dụng cho tất cả để cập nhật mọi lần xuất hiện."
+  },
+  "rHzxDmrDRL": {
+    "defaultMessage": "Bản nháp"
   },
   "rI3RUd2o85": {
     "defaultMessage": "Quản lý dự án"
@@ -26876,6 +27002,9 @@
   "tcEBE8+x0p": {
     "defaultMessage": "MB"
   },
+  "tcR6O6Wybu": {
+    "defaultMessage": "{count, plural, one {Đã xóa # mục} other {Đã xóa # mục}}"
+  },
   "tdAVe+ZkeJ": {
     "defaultMessage": "Nhập · {filename}"
   },
@@ -27154,6 +27283,9 @@
   },
   "uJX/OOWNsW": {
     "defaultMessage": "Khắc phục các lỗi QA trước khi lưu: {checks}"
+  },
+  "uJcPfJRQmM": {
+    "defaultMessage": "{count, plural, one {# mục bản nháp cần xem xét} other {# mục bản nháp cần xem xét}}"
   },
   "uJhgTrf87d": {
     "defaultMessage": "Câu trả lời đã được làm mới cho thị trường này."
@@ -27614,6 +27746,9 @@
   "vFJiS8I8Kx": {
     "defaultMessage": "Được xây dựng cho các hoạt động bản địa hóa ở quy mô lớn"
   },
+  "vFLD5uz9RF": {
+    "defaultMessage": "Bắt đầu sử dụng không gian làm việc miễn phí hoặc yêu cầu bản demo để phát hiện sự sai lệch trong bản dịch trước khi khách hàng của bạn nhận thấy."
+  },
   "vFR3uUyEFs": {
     "defaultMessage": "Thử lại"
   },
@@ -27940,6 +28075,9 @@
   },
   "vv8/iiR38E": {
     "defaultMessage": "Ngôn ngữ đích"
+  },
+  "vvIzxKmwpF": {
+    "defaultMessage": "Bản nháp"
   },
   "vvT35LUoRE": {
     "defaultMessage": "Không có thành viên tổ chức nào."
