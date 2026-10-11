@@ -24,9 +24,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./knowledge-memory-api", async () => {
-  const actual = await vi.importActual<typeof import("./knowledge-memory-api")>(
-    "./knowledge-memory-api",
-  );
+  const actual =
+    await vi.importActual<typeof import("./knowledge-memory-api")>("./knowledge-memory-api");
   return {
     ...actual,
     getKnowledgeMemory: mocks.getKnowledgeMemory,

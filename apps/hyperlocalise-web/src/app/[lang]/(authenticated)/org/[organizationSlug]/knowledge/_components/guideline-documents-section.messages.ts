@@ -22,7 +22,7 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   description: {
     defaultMessage: "Hyperlocalise reads these files and uses them for guideline checks.",
-    id: "kLU1GvKRGe",
+    id: "1piQlMbA0v",
     description: "Explanation shown above the list of uploaded guideline documents",
   },
   loadFailed: {
@@ -82,7 +82,7 @@ export const guidelineDocumentsSectionMessages = defineMessages({
   },
   deleteBody: {
     defaultMessage: "{title} will no longer be used for guideline checks.",
-    id: "cFmrFVXzNK",
+    id: "WASARqpuMh",
     description: "Body of the dialog confirming deletion of a guideline document",
   },
   cancel: {
