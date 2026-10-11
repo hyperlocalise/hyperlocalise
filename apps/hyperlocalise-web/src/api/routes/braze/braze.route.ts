@@ -21,7 +21,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
-import { getBrazePipesConnectionStatus } from "@/lib/braze/pipes";
+import { getBrazePipesConnectionStatus, saveBrazePipesApiKey } from "@/lib/braze/pipes";
 import {
   deleteBrazeConnectionSettings,
   getBrazeConnectionSettings,
@@ -43,6 +43,9 @@ function canWriteBraze(role: AuthVariables["auth"]["membership"]["role"]) {
 function mapBrazePipesError(c: Parameters<typeof badRequestResponse>[0], error: BrazePipesError) {
   if (error.code === "braze_pipes_unavailable") {
     return serviceUnavailableResponse(c, error.code, error.message);
+  }
+  if (error.code === "braze_api_key_required") {
+    return badRequestResponse(c, error.code, error.message);
   }
   return notFoundResponse(c, error.code, error.message);
 }
@@ -96,6 +99,8 @@ export function createBrazeRoutes() {
 
       const localOrganizationId = c.var.auth.organization.localOrganizationId;
       const workosUserId = c.var.auth.user.workosUserId;
+      const { restEndpoint, apiKey } = c.req.valid("json");
+      const trimmedApiKey = apiKey?.trim() ?? "";
       const statusResult = await getBrazePipesConnectionStatus({
         localOrganizationId,
         workosUserId,
@@ -103,15 +108,25 @@ export function createBrazeRoutes() {
       if (isErr(statusResult)) {
         return mapBrazePipesError(c, statusResult.error);
       }
-      if (!statusResult.value.connected) {
-        return notFoundResponse(
+      if (!statusResult.value.connected && !trimmedApiKey) {
+        return badRequestResponse(
           c,
-          "braze_not_connected",
-          "Connect Braze in Integrations before saving a REST cluster.",
+          "braze_api_key_required",
+          "Paste a Braze REST API key to connect.",
         );
       }
 
-      const { restEndpoint } = c.req.valid("json");
+      if (trimmedApiKey) {
+        const keyResult = await saveBrazePipesApiKey({
+          localOrganizationId,
+          workosUserId,
+          apiKey: trimmedApiKey,
+        });
+        if (isErr(keyResult)) {
+          return mapBrazePipesError(c, keyResult.error);
+        }
+      }
+
       const result = await upsertBrazeConnectionSettings({
         localOrganizationId,
         workosUserId,

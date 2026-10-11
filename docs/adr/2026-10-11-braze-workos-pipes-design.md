@@ -18,20 +18,21 @@ cluster key on `braze_connection_settings`, keyed by
 `(organization_id, workos_user_id)`.
 
 - Add slug `braze` to `PIPES_PROVIDER_SLUGS`.
-- Render `BrazeConnectionPanel`: WorkOS `<Pipes>` widget for the key, plus a
-  cluster picker.
+- Render `BrazeConnectionPanel` like Crowdin: Connect expands an inline form
+  with the API key and REST cluster. Save writes the key with
+  `workos.pipes.updateDataIntegrationApiKey` and the cluster locally.
 - Reuse `GET /api/orgs/:slug/pipes/braze` for connection status. Do not change
   `PipesConnectionStatus`.
-- Add `GET` / `PUT` / `DELETE /api/orgs/:slug/braze` for the host.
-- Disconnect (widget or `DELETE /pipes/braze`) deletes that user's settings row.
+- `PUT /api/orgs/:slug/braze` accepts `restEndpoint` and an optional `apiKey`.
+  The key is required when Pipes is not connected. Do not persist `apiKey`.
+- Disconnect (`DELETE /pipes/braze`) deletes that user's settings row.
 - Later automations load `loadPipesApiKey("braze")` and the stored host.
 
 Do not store the API key in Postgres. Do not call Braze to validate the key in
-this change.
+this change. Do not embed the Pipes widget or start the authorize redirect.
 
 ## Consequences
 
 - Dashboard setup is required: enable Braze as an API-key data integration with
-  slug `braze`. Request a custom slug if WorkOS has no catalog entry. Widget
-  origin and Pipes widget permission already apply to other providers.
+  slug `braze`. Request a custom slug if WorkOS has no catalog entry.
 - Campaign, Canvas, and email-template import stay on later tickets.

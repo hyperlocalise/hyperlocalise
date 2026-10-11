@@ -13,7 +13,7 @@
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
-import { getPipesAccountStatus, loadPipesApiKey } from "@/lib/pipes/accounts";
+import { getPipesAccountStatus, loadPipesApiKey, upsertPipesApiKey } from "@/lib/pipes/accounts";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { BRAZE_PIPES_SLUG } from "./constants";
@@ -27,6 +27,11 @@ const PIPES_UNAVAILABLE: BrazePipesError = {
 const BRAZE_NOT_CONNECTED: BrazePipesError = {
   code: "braze_not_connected",
   message: "Connect Braze in Integrations before using it.",
+};
+
+const BRAZE_API_KEY_REQUIRED: BrazePipesError = {
+  code: "braze_api_key_required",
+  message: "Paste a Braze REST API key to connect.",
 };
 
 const BRAZE_NEEDS_REAUTHORIZATION: BrazePipesError = {
@@ -89,6 +94,27 @@ export async function loadBrazePipesApiKey(input: {
     provider: BRAZE_PIPES_SLUG,
     localOrganizationId: input.localOrganizationId,
     workosUserId: input.workosUserId,
+  });
+  if (isErr(result)) {
+    return err(mapPipesError(result.error.code));
+  }
+  return ok(result.value);
+}
+
+export async function saveBrazePipesApiKey(input: {
+  localOrganizationId: string;
+  workosUserId: string;
+  apiKey: string;
+}): Promise<Result<BrazePipesConnectionStatus, BrazePipesError>> {
+  if (!input.apiKey.trim()) {
+    return err(BRAZE_API_KEY_REQUIRED);
+  }
+
+  const result = await upsertPipesApiKey({
+    provider: BRAZE_PIPES_SLUG,
+    localOrganizationId: input.localOrganizationId,
+    workosUserId: input.workosUserId,
+    secret: input.apiKey,
   });
   if (isErr(result)) {
     return err(mapPipesError(result.error.code));

@@ -14,14 +14,16 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { err, isErr, isOk, ok } from "@/lib/primitives/result/results";
 
-const { getPipesAccountStatus, loadPipesApiKey } = vi.hoisted(() => ({
+const { getPipesAccountStatus, loadPipesApiKey, upsertPipesApiKey } = vi.hoisted(() => ({
   getPipesAccountStatus: vi.fn(),
   loadPipesApiKey: vi.fn(),
+  upsertPipesApiKey: vi.fn(),
 }));
 
 vi.mock("@/lib/pipes/accounts", () => ({
   getPipesAccountStatus,
   loadPipesApiKey,
+  upsertPipesApiKey,
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -40,6 +42,7 @@ import {
   getBrazePipesConnectionStatus,
   loadBrazePipesApiKey,
   resolveBrazePipesWorkosUserId,
+  saveBrazePipesApiKey,
 } from "./pipes";
 
 describe("resolveBrazePipesWorkosUserId", () => {
@@ -155,5 +158,42 @@ describe("Braze Pipes error mapping", () => {
       localOrganizationId: "org-1",
       workosUserId: "user_123",
     });
+  });
+
+  it("upserts a Braze API key through Pipes", async () => {
+    upsertPipesApiKey.mockResolvedValue(
+      ok({ connected: true, needsReauthorization: false, apiKeyLast4: "cdef" }),
+    );
+
+    const result = await saveBrazePipesApiKey({
+      localOrganizationId: "org-1",
+      workosUserId: "user_123",
+      apiKey: "  braze-rest-key  ",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.apiKeyLast4).toBe("cdef");
+    }
+    expect(upsertPipesApiKey).toHaveBeenCalledWith({
+      provider: "braze",
+      localOrganizationId: "org-1",
+      workosUserId: "user_123",
+      secret: "  braze-rest-key  ",
+    });
+  });
+
+  it("rejects an empty Braze API key before calling Pipes", async () => {
+    const result = await saveBrazePipesApiKey({
+      localOrganizationId: "org-1",
+      workosUserId: "user_123",
+      apiKey: "   ",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.code).toBe("braze_api_key_required");
+    }
+    expect(upsertPipesApiKey).not.toHaveBeenCalled();
   });
 });

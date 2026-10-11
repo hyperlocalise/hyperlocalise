@@ -16,4 +16,5 @@ import { BRAZE_REST_ENDPOINTS } from "@/lib/braze/constants";
 
 export const upsertBrazeConnectionBodySchema = z.object({
   restEndpoint: z.enum(BRAZE_REST_ENDPOINTS),
+  apiKey: z.string().optional(),
 });

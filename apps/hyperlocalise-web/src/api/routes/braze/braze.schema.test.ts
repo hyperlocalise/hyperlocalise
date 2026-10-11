@@ -21,6 +21,18 @@ describe("upsertBrazeConnectionBodySchema", () => {
     });
   });
 
+  it("accepts an optional API key with the cluster", () => {
+    expect(
+      upsertBrazeConnectionBodySchema.parse({
+        restEndpoint: "iad-03",
+        apiKey: "braze-rest-key",
+      }),
+    ).toEqual({
+      restEndpoint: "iad-03",
+      apiKey: "braze-rest-key",
+    });
+  });
+
   it("rejects URLs and unknown cluster keys", () => {
     expect(upsertBrazeConnectionBodySchema.safeParse({ restEndpoint: "iad-99" }).success).toBe(
       false,

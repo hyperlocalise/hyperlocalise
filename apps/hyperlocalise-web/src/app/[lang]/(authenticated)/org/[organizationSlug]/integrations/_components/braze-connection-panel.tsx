@@ -12,15 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useAccessToken } from "@workos-inc/authkit-nextjs/components";
-import { Pipes, WorkOsWidgets } from "@workos-inc/widgets";
+import { useEffect, useId, useMemo, useState } from "react";
+import { FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -44,9 +44,6 @@ import { CollapsibleIntegrationRow } from "./integration-row";
 import { pipesConnectionPanelMessages } from "./pipes-connection-panel.messages";
 import { usePipesStatus } from "./pipes-connection-panel";
 
-import "@radix-ui/themes/styles.css";
-import "@workos-inc/widgets/styles.css";
-
 const api = createApiClient();
 
 export function BrazeConnectionPanel({
@@ -60,15 +57,17 @@ export function BrazeConnectionPanel({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const { getAccessToken, loading: accessTokenLoading } = useAccessToken();
+  const apiKeyFieldId = useId();
   const [expanded, setExpanded] = useState(false);
+  const [apiKey, setApiKey] = useState("");
   const [selectedEndpoint, setSelectedEndpoint] = useState<BrazeRestEndpoint | null>(null);
   const statusQuery = usePipesStatus(organizationSlug, BRAZE_PIPES_SLUG, expanded);
   const summary = useMemo(() => resolveWorkspaceIntegrationSummary(intl, BRAZE_PIPES_SLUG), [intl]);
   const providerName = summary?.name ?? "Braze";
+  const userCanManage = !disabled;
   const isConnected = Boolean(statusQuery.data?.connected);
   const needsReauthorization = Boolean(statusQuery.data?.needsReauthorization);
-  const wasConnectedRef = useRef(false);
+  const apiKeyLast4 = statusQuery.data?.apiKeyLast4 ?? null;
 
   const settingsQuery = useQuery({
     queryKey: ["braze", organizationSlug],
@@ -101,37 +100,58 @@ export function BrazeConnectionPanel({
     setSelectedEndpoint(settingsQuery.data.restEndpoint);
   }, [settingsQuery.data?.restEndpoint]);
 
-  useEffect(() => {
-    if (isConnected) {
-      wasConnectedRef.current = true;
-      return;
-    }
-    if (!wasConnectedRef.current) {
-      return;
-    }
-    wasConnectedRef.current = false;
-    setSelectedEndpoint(null);
-    void api.api.orgs[":organizationSlug"].braze.$delete({ param: { organizationSlug } }).then(() =>
-      queryClient.invalidateQueries({
-        queryKey: ["braze", organizationSlug],
-      }),
-    );
-  }, [isConnected, organizationSlug, queryClient]);
+  const disconnect = useMutation({
+    mutationFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$delete({
+        param: { organizationSlug, provider: BRAZE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error(intl.formatMessage(brazeConnectionPanelMessages.disconnectFailed));
+      }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["braze", organizationSlug],
+        }),
+      ]);
+      setApiKey("");
+      setSelectedEndpoint(null);
+      setExpanded(false);
+      toast.success(intl.formatMessage(brazeConnectionPanelMessages.disconnectedToast));
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(brazeConnectionPanelMessages.disconnectFailed),
+      );
+    },
+  });
 
-  const saveCluster = useMutation({
-    mutationFn: async (restEndpoint: BrazeRestEndpoint) => {
+  const saveConnection = useMutation({
+    mutationFn: async (payload: { restEndpoint: BrazeRestEndpoint; apiKey?: string }) => {
       const response = await api.api.orgs[":organizationSlug"].braze.$put({
         param: { organizationSlug },
-        json: { restEndpoint },
+        json: payload,
       });
       if (!response.ok) {
         throw new Error(intl.formatMessage(brazeConnectionPanelMessages.saveFailed));
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["braze", organizationSlug],
-      });
+      setApiKey("");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["braze", organizationSlug],
+        }),
+      ]);
       toast.success(intl.formatMessage(brazeConnectionPanelMessages.savedToast));
     },
     onError: (error) => {
@@ -143,37 +163,33 @@ export function BrazeConnectionPanel({
     },
   });
 
-  async function resolvePipesAuthToken() {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error(
-        intl.formatMessage(pipesConnectionPanelMessages.tokenRequired, { providerName }),
-      );
-    }
-    return token;
-  }
-
+  const trimmedApiKey = apiKey.trim();
   const savedEndpoint = settingsQuery.data?.restEndpoint ?? null;
   const canSave =
-    !disabled &&
-    isConnected &&
+    userCanManage &&
     selectedEndpoint != null &&
-    selectedEndpoint !== savedEndpoint &&
-    !saveCluster.isPending;
+    !saveConnection.isPending &&
+    (trimmedApiKey.length > 0 || (isConnected && selectedEndpoint !== savedEndpoint));
 
   return (
     <CollapsibleIntegrationRow
       name={providerName}
-      description={summary?.detail ?? ""}
-      icon={summary?.logoSrc ? <IntegrationLogo src={summary.logoSrc} /> : null}
+      description={
+        statusQuery.isError
+          ? intl.formatMessage(brazeConnectionPanelMessages.loadErrorDescription)
+          : needsReauthorization
+            ? intl.formatMessage(pipesConnectionPanelMessages.reconnectHint, { providerName })
+            : (summary?.detail ?? "")
+      }
+      icon={<IntegrationLogo src={summary?.logoSrc ?? "/images/braze-logo.svg"} />}
       isConnected={isConnected}
-      userIsAdmin={!disabled}
+      userIsAdmin={userCanManage}
       expanded={expanded}
       onExpandedChange={setExpanded}
-      isLoading={statusQuery.isLoading || accessTokenLoading}
+      isLoading={statusQuery.isLoading}
       isLast={isLast}
     >
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-3">
         {needsReauthorization ? (
           <p className="text-xs text-muted-foreground">
             <FormattedMessage
@@ -182,65 +198,108 @@ export function BrazeConnectionPanel({
             />
           </p>
         ) : null}
-        <WorkOsWidgets queryClient={queryClient}>
-          <Pipes authToken={resolvePipesAuthToken} filter={{ slugs: [BRAZE_PIPES_SLUG] }} />
-        </WorkOsWidgets>
-        {isConnected ? (
-          <Field>
-            <FieldLabel>
-              <FormattedMessage {...brazeConnectionPanelMessages.clusterLabel} />
-            </FieldLabel>
-            <Select
-              value={selectedEndpoint ?? undefined}
-              disabled={disabled || saveCluster.isPending}
-              onValueChange={(value) => {
-                if (typeof value !== "string" || !isBrazeRestEndpoint(value)) {
-                  return;
-                }
-                setSelectedEndpoint(value);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {BRAZE_REST_ENDPOINTS.map((endpoint) => (
-                  <SelectItem
-                    key={endpoint}
-                    value={endpoint}
-                    label={brazeRestEndpointOptionLabel(endpoint)}
-                  >
-                    {brazeRestEndpointOptionLabel(endpoint)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              <FormattedMessage {...brazeConnectionPanelMessages.clusterHint} />
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              disabled={!canSave}
-              onClick={() => {
-                if (selectedEndpoint) {
-                  saveCluster.mutate(selectedEndpoint);
-                }
-              }}
-            >
-              {saveCluster.isPending ? (
-                <FormattedMessage {...brazeConnectionPanelMessages.savingCluster} />
-              ) : (
-                <FormattedMessage {...brazeConnectionPanelMessages.saveCluster} />
-              )}
-            </Button>
-          </Field>
-        ) : (
+        {isConnected && apiKeyLast4 ? (
           <p className="text-xs text-muted-foreground">
-            <FormattedMessage {...brazeConnectionPanelMessages.connectKeyFirst} />
+            {intl.formatMessage(brazeConnectionPanelMessages.tokenSuffix, {
+              suffix: apiKeyLast4,
+            })}
+          </p>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            <FormattedMessage {...brazeConnectionPanelMessages.connectIntro} />
           </p>
         )}
+        <Field>
+          <FieldLabel htmlFor={apiKeyFieldId}>
+            <FormattedMessage {...brazeConnectionPanelMessages.apiKeyLabel} />
+          </FieldLabel>
+          <Input
+            id={apiKeyFieldId}
+            type="password"
+            autoComplete="off"
+            value={apiKey}
+            disabled={!userCanManage || saveConnection.isPending}
+            onChange={(event) => setApiKey(event.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage
+              {...(isConnected
+                ? brazeConnectionPanelMessages.apiKeyRotateHint
+                : brazeConnectionPanelMessages.apiKeyHint)}
+            />
+          </p>
+        </Field>
+        <Field>
+          <FieldLabel>
+            <FormattedMessage {...brazeConnectionPanelMessages.clusterLabel} />
+          </FieldLabel>
+          <Select
+            value={selectedEndpoint ?? undefined}
+            disabled={!userCanManage || saveConnection.isPending}
+            onValueChange={(value) => {
+              if (typeof value !== "string" || !isBrazeRestEndpoint(value)) {
+                return;
+              }
+              setSelectedEndpoint(value);
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BRAZE_REST_ENDPOINTS.map((endpoint) => (
+                <SelectItem
+                  key={endpoint}
+                  value={endpoint}
+                  label={brazeRestEndpointOptionLabel(endpoint)}
+                >
+                  {brazeRestEndpointOptionLabel(endpoint)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage {...brazeConnectionPanelMessages.clusterHint} />
+          </p>
+        </Field>
+        {userCanManage ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            {isConnected ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={disconnect.isPending || saveConnection.isPending}
+                onClick={() => disconnect.mutate()}
+              >
+                {disconnect.isPending ? (
+                  <FormattedMessage {...brazeConnectionPanelMessages.disconnecting} />
+                ) : (
+                  <FormattedMessage {...brazeConnectionPanelMessages.disconnect} />
+                )}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              disabled={!canSave}
+              onClick={() => {
+                if (!selectedEndpoint) {
+                  return;
+                }
+                saveConnection.mutate({
+                  restEndpoint: selectedEndpoint,
+                  ...(trimmedApiKey ? { apiKey: trimmedApiKey } : {}),
+                });
+              }}
+            >
+              <FloppyDiskIcon />
+              {saveConnection.isPending ? (
+                <FormattedMessage {...brazeConnectionPanelMessages.saving} />
+              ) : (
+                <FormattedMessage {...brazeConnectionPanelMessages.save} />
+              )}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </CollapsibleIntegrationRow>
   );

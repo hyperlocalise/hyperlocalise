@@ -31,8 +31,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   brazeGet: vi.fn(),
   brazePut: vi.fn(),
-  brazeDelete: vi.fn(),
-  getAccessToken: vi.fn(),
+  disconnectDelete: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -42,18 +41,6 @@ vi.mock("sonner", () => ({
     success: (...args: unknown[]) => mocks.toastSuccess(...args),
     error: (...args: unknown[]) => mocks.toastError(...args),
   },
-}));
-
-vi.mock("@workos-inc/authkit-nextjs/components", () => ({
-  useAccessToken: () => ({
-    getAccessToken: mocks.getAccessToken,
-    loading: false,
-  }),
-}));
-
-vi.mock("@workos-inc/widgets", () => ({
-  WorkOsWidgets: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  Pipes: () => <div>Braze Pipes widget</div>,
 }));
 
 vi.mock("./pipes-connection-panel", () => ({
@@ -69,10 +56,14 @@ vi.mock("@/lib/api-client", () => ({
     api: {
       orgs: {
         ":organizationSlug": {
+          pipes: {
+            ":provider": {
+              $delete: (...args: unknown[]) => mocks.disconnectDelete(...args),
+            },
+          },
           braze: {
             $get: (...args: unknown[]) => mocks.brazeGet(...args),
             $put: (...args: unknown[]) => mocks.brazePut(...args),
-            $delete: (...args: unknown[]) => mocks.brazeDelete(...args),
           },
         },
       },
@@ -80,14 +71,14 @@ vi.mock("@/lib/api-client", () => ({
   }),
 }));
 
-function renderPanel() {
+function renderPanel({ disabled = false }: { disabled?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <IntlProvider locale="en">
       <QueryClientProvider client={queryClient}>
-        <BrazeConnectionPanel organizationSlug="acme" />
+        <BrazeConnectionPanel organizationSlug="acme" disabled={disabled} />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -101,50 +92,98 @@ describe("BrazeConnectionPanel", () => {
       apiKeyLast4: null,
     };
     mocks.isLoading = false;
+    mocks.isError = false;
     mocks.brazeGet.mockReset();
     mocks.brazePut.mockReset();
-    mocks.brazeDelete.mockReset();
+    mocks.disconnectDelete.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
-    mocks.getAccessToken.mockResolvedValue("token");
     mocks.brazeGet.mockResolvedValue({
       ok: true,
-      json: async () => ({ braze: null }),
+      json: async () => ({ braze: { restEndpoint: "iad-03" } }),
     });
     mocks.brazePut.mockResolvedValue({
       ok: true,
       json: async () => ({ braze: { restEndpoint: "iad-03" } }),
     });
-    mocks.brazeDelete.mockResolvedValue({ ok: true });
   });
 
-  it("asks the user to connect a key before choosing a cluster", async () => {
+  it("expands Connect into an inline API key and cluster form", async () => {
     renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
     expect(
       await screen.findByText(
-        "Connect a Braze API key, then choose the REST cluster for that instance.",
+        "Paste a Braze REST API key and choose the REST cluster for that instance.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("Braze Pipes widget")).toBeInTheDocument();
-    expect(screen.queryByText("REST cluster")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("API key")).toBeInTheDocument();
+    expect(screen.getByText("REST cluster")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.queryByText("Braze Pipes widget")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
   });
 
-  it("shows the cluster picker after Pipes is connected", async () => {
+  it("saves a new API key against the stored cluster", async () => {
     mocks.status = {
       connected: true,
       needsReauthorization: false,
       apiKeyLast4: "abcd",
     };
-    renderPanel();
 
+    renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Manage" }));
 
-    expect(await screen.findByText("REST cluster")).toBeInTheDocument();
+    expect(await screen.findByText("Token ending in abcd")).toBeInTheDocument();
     await waitFor(() => {
       expect(mocks.brazeGet).toHaveBeenCalled();
     });
+
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "braze-rest-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.brazePut).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme" },
+        json: { restEndpoint: "iad-03", apiKey: "braze-rest-key" },
+      });
+    });
+    await waitFor(() => {
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("Braze connection saved.");
+    });
+  });
+
+  it("lets an admin disconnect from Manage", async () => {
+    mocks.status = {
+      connected: true,
+      needsReauthorization: false,
+      apiKeyLast4: "abcd",
+    };
+    mocks.disconnectDelete.mockResolvedValue({ ok: true });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Disconnect" }));
+
+    await waitFor(() => {
+      expect(mocks.disconnectDelete).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", provider: "braze" },
+      });
+    });
+    await waitFor(() => {
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("Braze disconnected.");
+    });
+  });
+
+  it("keeps disconnected rows collapsed for read-only users", () => {
+    renderPanel({ disabled: true });
+
+    expect(screen.getByText("Admins can connect")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
   });
 });

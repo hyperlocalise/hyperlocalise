@@ -23,7 +23,8 @@ export type BrazeConnectionSettings = {
 export type BrazePipesError =
   | { code: "braze_pipes_unavailable"; message: string }
   | { code: "braze_not_connected"; message: string }
-  | { code: "braze_pipes_needs_reauthorization"; message: string };
+  | { code: "braze_pipes_needs_reauthorization"; message: string }
+  | { code: "braze_api_key_required"; message: string };
 
 export type BrazeSettingsError =
   | BrazePipesError

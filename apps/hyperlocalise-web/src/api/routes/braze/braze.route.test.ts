@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   getBrazePipesConnectionStatus: vi.fn(),
+  saveBrazePipesApiKey: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -39,6 +40,7 @@ vi.mock("@/lib/braze/pipes", async (importOriginal) => {
     ...actual,
     getBrazePipesConnectionStatus: (...args: unknown[]) =>
       mocks.getBrazePipesConnectionStatus(...args),
+    saveBrazePipesApiKey: (...args: unknown[]) => mocks.saveBrazePipesApiKey(...args),
   };
 });
 
@@ -58,11 +60,19 @@ describe("brazeRoutes", () => {
 
   beforeEach(() => {
     mocks.getBrazePipesConnectionStatus.mockReset();
+    mocks.saveBrazePipesApiKey.mockReset();
     mocks.getBrazePipesConnectionStatus.mockResolvedValue(
       ok({
         connected: true,
         needsReauthorization: false,
         apiKeyLast4: "abcd",
+      }),
+    );
+    mocks.saveBrazePipesApiKey.mockResolvedValue(
+      ok({
+        connected: true,
+        needsReauthorization: false,
+        apiKeyLast4: "cdef",
       }),
     );
   });
@@ -98,6 +108,38 @@ describe("brazeRoutes", () => {
     expect(await getResponse.json()).toEqual({
       braze: { restEndpoint: "iad-03" },
     });
+    expect(mocks.saveBrazePipesApiKey).not.toHaveBeenCalled();
+  });
+
+  it("saves a Pipes API key with the cluster when disconnected", async () => {
+    mocks.getBrazePipesConnectionStatus.mockResolvedValue(
+      ok({
+        connected: false,
+        needsReauthorization: false,
+        apiKeyLast4: null,
+      }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "";
+
+    const putResponse = await client.api.orgs[":organizationSlug"].braze.$put(
+      {
+        param: { organizationSlug },
+        json: { restEndpoint: "iad-03", apiKey: "braze-rest-key" },
+      },
+      { headers },
+    );
+
+    expect(putResponse.status).toBe(200);
+    expect(await putResponse.json()).toEqual({
+      braze: { restEndpoint: "iad-03" },
+    });
+    expect(mocks.saveBrazePipesApiKey).toHaveBeenCalledWith({
+      localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      workosUserId: identity.user.workosUserId,
+      apiKey: "braze-rest-key",
+    });
   });
 
   it("rejects an unknown cluster key", async () => {
@@ -116,7 +158,7 @@ describe("brazeRoutes", () => {
     expect(await response.json()).toMatchObject({ error: "invalid_braze_endpoint" });
   });
 
-  it("returns not found when saving a cluster without a Pipes connection", async () => {
+  it("rejects a cluster save without a Pipes key when disconnected", async () => {
     mocks.getBrazePipesConnectionStatus.mockResolvedValue(
       ok({
         connected: false,
@@ -135,8 +177,9 @@ describe("brazeRoutes", () => {
       { headers },
     );
 
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ error: "braze_not_connected" });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "braze_api_key_required" });
+    expect(mocks.saveBrazePipesApiKey).not.toHaveBeenCalled();
   });
 
   it("clears a stale cluster when Pipes is disconnected", async () => {

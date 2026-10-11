@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   createDataIntegrationCredential: vi.fn(),
   getAccessToken: vi.fn(),
   authorizeDataIntegration: vi.fn(),
+  updateDataIntegrationApiKey: vi.fn(),
   deleteUserConnectedAccount: vi.fn(),
   organizationSelect: vi.fn(),
 }));
@@ -51,6 +52,7 @@ import {
   getPipesAccountStatus,
   loadPipesAccessToken,
   loadPipesApiKey,
+  upsertPipesApiKey,
 } from "./accounts";
 
 describe("pipes accounts", () => {
@@ -63,6 +65,7 @@ describe("pipes accounts", () => {
         createDataIntegrationCredential: mocks.createDataIntegrationCredential,
         getAccessToken: mocks.getAccessToken,
         authorizeDataIntegration: mocks.authorizeDataIntegration,
+        updateDataIntegrationApiKey: mocks.updateDataIntegrationApiKey,
         deleteUserConnectedAccount: mocks.deleteUserConnectedAccount,
       },
     });
@@ -291,6 +294,52 @@ describe("pipes accounts", () => {
       throw new Error("expected err result");
     }
     expect(result.error.code).toBe("pipes_unavailable");
+  });
+
+  it("upserts an API key on a Pipes provider", async () => {
+    mocks.updateDataIntegrationApiKey.mockResolvedValue({
+      state: "connected",
+      apiKeyLast4: "cdef",
+    });
+
+    const result = await upsertPipesApiKey({
+      provider: "braze",
+      localOrganizationId: "org-local",
+      workosUserId: "user_workos",
+      secret: "  braze-rest-key  ",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      throw new Error("expected ok result");
+    }
+    expect(result.value).toEqual({
+      connected: true,
+      needsReauthorization: false,
+      apiKeyLast4: "cdef",
+    });
+    expect(mocks.updateDataIntegrationApiKey).toHaveBeenCalledWith({
+      slug: "braze",
+      userId: "user_workos",
+      organizationId: "org_workos",
+      secret: "braze-rest-key",
+    });
+  });
+
+  it("maps an empty API key to pipes_not_connected", async () => {
+    const result = await upsertPipesApiKey({
+      provider: "braze",
+      localOrganizationId: "org-local",
+      workosUserId: "user_workos",
+      secret: "   ",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      throw new Error("expected err result");
+    }
+    expect(result.error.code).toBe("pipes_not_connected");
+    expect(mocks.updateDataIntegrationApiKey).not.toHaveBeenCalled();
   });
 
   it("deletes a user connected account", async () => {

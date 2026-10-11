@@ -15,6 +15,37 @@
 import { defineMessages } from "react-intl";
 
 export const brazeConnectionPanelMessages = defineMessages({
+  loadErrorDescription: {
+    defaultMessage: "Unable to load the Braze connection right now.",
+    id: "rJ/bOBdZ+R",
+    description: "Braze integration row description when connection status fails to load",
+  },
+  connectIntro: {
+    defaultMessage: "Paste a Braze REST API key and choose the REST cluster for that instance.",
+    id: "qQRYeCWT2J",
+    description: "Intro text shown before a Braze API key is saved",
+  },
+  tokenSuffix: {
+    defaultMessage: "Token ending in {suffix}",
+    id: "hIBcZdGd0e",
+    description: "Secondary Braze connection detail showing the stored token suffix",
+  },
+  apiKeyLabel: {
+    defaultMessage: "API key",
+    id: "usfuALDVe8",
+    description: "Label for the Braze REST API key field",
+  },
+  apiKeyHint: {
+    defaultMessage:
+      "Create a REST API key in Braze Settings → APIs and Identifiers. The key needs campaigns, Canvas, Content Blocks, email, and templates.",
+    id: "PJb5ZQPovA",
+    description: "Hint describing where to create a Braze REST API key and required permissions",
+  },
+  apiKeyRotateHint: {
+    defaultMessage: "Leave blank to keep the current key.",
+    id: "U4ehpvU/9G",
+    description: "Hint that a connected Braze key can be rotated by pasting a new value",
+  },
   clusterLabel: {
     defaultMessage: "REST cluster",
     id: "IyYEob9ejo",
@@ -27,34 +58,49 @@ export const brazeConnectionPanelMessages = defineMessages({
     description:
       "Hint describing where to find the Braze REST cluster and required key permissions",
   },
-  saveCluster: {
-    defaultMessage: "Save cluster",
-    id: "wrS4bTEpmC",
-    description: "Button to save the selected Braze REST cluster",
+  save: {
+    defaultMessage: "Save",
+    id: "J5c/CjjG4+",
+    description: "Button to save the Braze API key and REST cluster",
   },
-  savingCluster: {
+  saving: {
     defaultMessage: "Saving…",
-    id: "a1Wl78eFss",
-    description: "Button label while the Braze REST cluster is being saved",
+    id: "eqPSkXPnrW",
+    description: "Button label while the Braze connection is being saved",
   },
   savedToast: {
-    defaultMessage: "Braze REST cluster saved.",
-    id: "5hI3oH45Sm",
-    description: "Toast after the Braze REST cluster is saved",
+    defaultMessage: "Braze connection saved.",
+    id: "bQ5ORexI9e",
+    description: "Toast after the Braze API key and REST cluster are saved",
   },
   saveFailed: {
-    defaultMessage: "Failed to save the Braze REST cluster.",
-    id: "mQC2dLbQGO",
-    description: "Error when the Braze REST cluster cannot be saved",
+    defaultMessage: "Failed to save the Braze connection.",
+    id: "VfFxpBKOOP",
+    description: "Error when the Braze connection cannot be saved",
   },
   loadFailed: {
     defaultMessage: "Failed to load the Braze REST cluster.",
     id: "hzrUUPWRn2",
     description: "Error when the Braze REST cluster cannot be loaded",
   },
-  connectKeyFirst: {
-    defaultMessage: "Connect a Braze API key, then choose the REST cluster for that instance.",
-    id: "2EzZ+CChlm",
-    description: "Hint shown before a Braze Pipes key is connected",
+  disconnect: {
+    defaultMessage: "Disconnect",
+    id: "typi8awoP0",
+    description: "Button label to disconnect Braze",
+  },
+  disconnecting: {
+    defaultMessage: "Disconnecting…",
+    id: "N8dLBFv91a",
+    description: "Disconnect button label while Braze is being disconnected",
+  },
+  disconnectedToast: {
+    defaultMessage: "Braze disconnected.",
+    id: "UhABVcjd+v",
+    description: "Toast after Braze is disconnected",
+  },
+  disconnectFailed: {
+    defaultMessage: "Failed to disconnect Braze.",
+    id: "YLbt57UkC5",
+    description: "Toast when Braze disconnect fails",
   },
 });
