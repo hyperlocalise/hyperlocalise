@@ -78,6 +78,7 @@ vi.mock("@/lib/agents/github/app", () => ({
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/agents/github/repositories", async (importOriginal) => {

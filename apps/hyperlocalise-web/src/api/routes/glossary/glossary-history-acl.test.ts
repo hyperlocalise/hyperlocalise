@@ -38,6 +38,7 @@ vi.mock("@/lib/activity-log/activity-log-writer", () => ({
     ok: true,
     value: { createdAt: new Date(), id: "activity-event-1" },
   }),
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 import { createApp } from "@/api/app";

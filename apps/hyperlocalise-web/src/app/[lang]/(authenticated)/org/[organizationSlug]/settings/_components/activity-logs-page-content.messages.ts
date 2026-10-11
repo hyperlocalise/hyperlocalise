@@ -80,6 +80,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "e/c1fGj/DO",
     description: "Activity log event type label for resent member invitations",
   },
+  memberInviteRevokedEventType: {
+    defaultMessage: "Member Invite Revoked",
+    id: "ewyaR7flkI",
+    description: "Activity log event type label for revoked member invitations",
+  },
+  memberJoinedEventType: {
+    defaultMessage: "Member Joined",
+    id: "YWltwemH+8",
+    description: "Activity log event type label for members joining the workspace",
+  },
   memberRoleChangedEventType: {
     defaultMessage: "Member Role Changed",
     id: "E0iZCqdGpv",
@@ -94,6 +104,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Workspace Updated",
     id: "Q3Ax2I3isM",
     description: "Activity log event type label for workspace updates",
+  },
+  workspaceArchivedEventType: {
+    defaultMessage: "Workspace Archived",
+    id: "JgUJ2cfTOt",
+    description: "Activity log event type label for archived workspaces",
   },
   personalAccessTokenCreatedEventType: {
     defaultMessage: "Personal Access Token Created",
@@ -114,6 +129,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Integration Disconnected",
     id: "mVt29nZn4/",
     description: "Activity log event type label for disconnected integrations",
+  },
+  integrationCredentialRevealedEventType: {
+    defaultMessage: "Integration Credential Revealed",
+    id: "7tupY+pWK7",
+    description: "Activity log event type label for revealed integration credentials",
+  },
+  integrationCredentialRotatedEventType: {
+    defaultMessage: "Integration Credential Rotated",
+    id: "fxhMfbdDxC",
+    description: "Activity log event type label for rotated integration credentials",
   },
   projectCreatedEventType: {
     defaultMessage: "Project Created",
@@ -585,6 +610,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "C2s1+2PcGk",
     description: "Action for a resent member invitation activity",
   },
+  memberInviteRevokedAction: {
+    defaultMessage: "revoked a member invitation",
+    id: "QpVjJkSa/W",
+    description: "Action for a revoked member invitation activity",
+  },
+  memberJoinedAction: {
+    defaultMessage: "joined the workspace",
+    id: "TjhkeaKNqh",
+    description: "Action for a member joined activity",
+  },
   memberRoleChangedAction: {
     defaultMessage: "changed a member's role",
     id: "ZJldmeEodt",
@@ -599,6 +634,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "updated workspace settings",
     id: "QJD09qoHFD",
     description: "Action for a workspace settings activity",
+  },
+  workspaceArchivedAction: {
+    defaultMessage: "archived the workspace",
+    id: "MAb2UWyPPS",
+    description: "Action for a workspace archived activity",
   },
   personalAccessTokenCreatedAction: {
     defaultMessage: "created a personal access token",
@@ -619,6 +659,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "disconnected an integration",
     id: "d7IQwgk/dt",
     description: "Action for an integration disconnection activity",
+  },
+  integrationCredentialRevealedAction: {
+    defaultMessage: "revealed an integration credential",
+    id: "+S1jk6jfe8",
+    description: "Action for an integration credential reveal activity",
+  },
+  integrationCredentialRotatedAction: {
+    defaultMessage: "rotated an integration credential",
+    id: "5oTR8PfQti",
+    description: "Action for an integration credential rotation activity",
   },
   projectCreatedAction: {
     defaultMessage: "created a project",

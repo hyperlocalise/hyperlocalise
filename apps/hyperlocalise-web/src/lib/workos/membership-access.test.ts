@@ -34,6 +34,11 @@ describe("resolveOrganizationMembershipAccessSource", () => {
     expect(resolveOrganizationMembershipAccessSource(REPLACING_WORKOS_MEMBERSHIP_ID)).toBe(
       "replacing_invite",
     );
+    expect(
+      resolveOrganizationMembershipAccessSource(
+        `${REPLACING_WORKOS_MEMBERSHIP_ID}:11111111-1111-4111-8111-111111111111`,
+      ),
+    ).toBe("replacing_invite");
     expect(grantsOrganizationAccess("replacing_invite")).toBe(false);
   });
 });

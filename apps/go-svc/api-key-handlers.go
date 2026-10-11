@@ -252,6 +252,7 @@ func (api *apiKeyAPI) createAPIKey(ctx context.Context, actor organizationActor,
         select 1 from organization_memberships
         where organization_id=$1 and user_id=$2
           and workos_membership_id is not null and workos_membership_id not in ('', 'replacing')
+          and workos_membership_id not like 'replacing:%'
         for share`, actor.organizationID, actor.userID).Scan(&locked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return created, apiKeyFailure(http.StatusForbidden, "organization_access_denied", organizationAccessMessage("organization_access_denied"))

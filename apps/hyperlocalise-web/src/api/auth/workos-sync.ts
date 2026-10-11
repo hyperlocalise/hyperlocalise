@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -28,7 +28,9 @@ import {
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
+  isReplacingWorkosMembership,
   REPLACING_WORKOS_MEMBERSHIP_ID,
+  replacingWorkosMembershipId,
 } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
@@ -74,11 +76,76 @@ export type WorkosSyncResult = {
   };
 };
 
+function isActiveWorkosMembershipId(workosMembershipId: string | null | undefined) {
+  return Boolean(workosMembershipId) && !isReplacingWorkosMembership(workosMembershipId);
+}
+
+function membershipSyncActivityEvents(input: {
+  organizationId: string;
+  userId: string;
+  membershipId: string;
+  previous: { role: OrganizationMembershipRole; workosMembershipId: string | null } | undefined;
+  nextRole: OrganizationMembershipRole;
+  nextWorkosMembershipId: string | null;
+}): ActivityLogEventInput[] {
+  const joined =
+    isActiveWorkosMembershipId(input.nextWorkosMembershipId) &&
+    !isActiveWorkosMembershipId(input.previous?.workosMembershipId);
+
+  if (joined) {
+    return [
+      {
+        actorCredentialId: null,
+        actorKind: "user",
+        actorUserId: input.userId,
+        eventType: "member_joined",
+        organizationId: input.organizationId,
+        payload: {
+          memberUserId: input.userId,
+          membershipId: input.membershipId,
+          role: input.nextRole,
+        },
+        targetId: input.membershipId,
+        targetKind: "membership",
+      },
+    ];
+  }
+
+  if (input.previous && input.previous.role !== input.nextRole) {
+    return [
+      {
+        actorCredentialId: null,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "member_role_changed",
+        organizationId: input.organizationId,
+        payload: {
+          memberUserId: input.userId,
+          membershipId: input.membershipId,
+          nextRole: input.nextRole,
+          previousRole: input.previous.role,
+        },
+        targetId: input.membershipId,
+        targetKind: "membership",
+      },
+    ];
+  }
+
+  return [];
+}
+
+/**
+ * Pass `recordActivity` from paths that mirror WorkOS state (webhook, login reconcile)
+ * so joins and WorkOS-side role changes reach the activity log. In-app role changes
+ * update the local row before WorkOS, so they never look like a change here.
+ */
 export async function syncWorkosIdentity(
   database: DatabaseClient,
   identity: WorkosIdentitySyncInput,
+  options: { recordActivity?: boolean } = {},
 ): Promise<WorkosSyncResult> {
-  return database.transaction(async (tx) => {
+  const activityLogEvents: ActivityLogEventInput[] = [];
+  const result = await database.transaction(async (tx) => {
     const now = new Date();
 
     const [user] = await tx
@@ -128,6 +195,22 @@ export async function syncWorkosIdentity(
         workosOrganizationId: schema.organizations.workosOrganizationId,
       });
 
+    const [previousMembership] = options.recordActivity
+      ? await tx
+          .select({
+            role: schema.organizationMemberships.role,
+            workosMembershipId: schema.organizationMemberships.workosMembershipId,
+          })
+          .from(schema.organizationMemberships)
+          .where(
+            and(
+              eq(schema.organizationMemberships.organizationId, organization.id),
+              eq(schema.organizationMemberships.userId, user.id),
+            ),
+          )
+          .limit(1)
+      : [];
+
     const [membership] = await tx
       .insert(schema.organizationMemberships)
       .values({
@@ -148,16 +231,37 @@ export async function syncWorkosIdentity(
         },
       })
       .returning({
+        id: schema.organizationMemberships.id,
         role: schema.organizationMemberships.role,
         workosMembershipId: schema.organizationMemberships.workosMembershipId,
       });
 
+    if (options.recordActivity) {
+      activityLogEvents.push(
+        ...membershipSyncActivityEvents({
+          organizationId: organization.id,
+          userId: user.id,
+          membershipId: membership.id,
+          previous: previousMembership,
+          nextRole: membership.role,
+          nextWorkosMembershipId: membership.workosMembershipId,
+        }),
+      );
+    }
+
     return {
       user,
       organization,
-      membership,
+      membership: {
+        role: membership.role,
+        workosMembershipId: membership.workosMembershipId,
+      },
     };
   });
+
+  await enqueueActivityLogEvents(activityLogEvents);
+
+  return result;
 }
 
 export async function promoteInvitedPlaceholderUser(
@@ -276,7 +380,7 @@ export async function markPendingMembershipReplacingInvitation(
 ): Promise<boolean> {
   const result = await database
     .update(schema.organizationMemberships)
-    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .set({ workosMembershipId: replacingWorkosMembershipId(membershipId) })
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
@@ -297,14 +401,20 @@ export async function clearPendingMembershipReplacingInvitation(
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
-        eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        or(
+          eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+          eq(
+            schema.organizationMemberships.workosMembershipId,
+            replacingWorkosMembershipId(membershipId),
+          ),
+        ),
       ),
     );
 }
 
 export async function removePendingOrganizationMembershipForInvite(
   database: DatabaseClient,
-  input: { workosOrganizationId: string; email: string },
+  input: { workosOrganizationId: string; email: string; recordActivity?: boolean },
 ): Promise<number> {
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -331,7 +441,7 @@ export async function removePendingOrganizationMembershipForInvite(
     return 0;
   }
 
-  const result = await database
+  const revokedInvitations = await database
     .delete(schema.organizationMemberships)
     .where(
       and(
@@ -339,9 +449,25 @@ export async function removePendingOrganizationMembershipForInvite(
         eq(schema.organizationMemberships.userId, user.id),
         isNull(schema.organizationMemberships.workosMembershipId),
       ),
-    );
+    )
+    .returning({ id: schema.organizationMemberships.id });
 
-  if (isInvitedPlaceholderWorkosUserId(user.workosUserId) && Number(result.rowCount ?? 0) > 0) {
+  if (input.recordActivity) {
+    await enqueueActivityLogEvents(
+      revokedInvitations.map((invitation) => ({
+        actorCredentialId: null,
+        actorKind: "system",
+        actorUserId: null,
+        eventType: "member_invite_revoked",
+        organizationId: organization.id,
+        payload: { invitationId: invitation.id },
+        targetId: invitation.id,
+        targetKind: "invitation",
+      })),
+    );
+  }
+
+  if (isInvitedPlaceholderWorkosUserId(user.workosUserId) && revokedInvitations.length > 0) {
     await database.delete(schema.users).where(
       and(
         eq(schema.users.id, user.id),
@@ -355,7 +481,7 @@ export async function removePendingOrganizationMembershipForInvite(
     );
   }
 
-  return Number(result.rowCount ?? 0);
+  return revokedInvitations.length;
 }
 
 export async function removeWorkosMembership(

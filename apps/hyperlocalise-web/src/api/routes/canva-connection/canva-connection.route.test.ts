@@ -100,6 +100,51 @@ describe("canvaConnectionRoutes", () => {
     expect(body.canvaConnection.connectionTokenPrefix).toBe(body.connectionToken.slice(0, 12));
   });
 
+  it("records a credential rotation when the connection token is regenerated", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva Rotation Key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["canva-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Rotating Canva",
+          apiKeyId: apiKey.id,
+          projectId: projectBody.project.id,
+          sourceLocale: "en",
+          targetLocales: ["es"],
+        },
+      },
+      { headers },
+    );
+    const created = (await createResponse.json()) as { canvaConnection: { id: string } };
+    mocks.enqueueActivityLogEventMock.mockClear();
+
+    const response = await client.api.orgs[":organizationSlug"]["canva-connections"][
+      ":connectionId"
+    ]["regenerate-token"].$post(
+      { param: { organizationSlug, connectionId: created.canvaConnection.id } },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_credential_rotated",
+        payload: { connectionId: created.canvaConnection.id, integrationKind: "canva" },
+        targetId: created.canvaConnection.id,
+        targetKind: "integration",
+      }),
+    );
+  });
+
   it("rejects Canva connection creation for members without write access", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("member");
     const headers = await apiKeyFixture.authHeadersFor(identity);

@@ -143,6 +143,7 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     await removePendingOrganizationMembershipForInvite(db, {
       workosOrganizationId,
       email,
+      recordActivity: true,
     });
 
     return;
@@ -303,24 +304,28 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       throw error;
     }
 
-    await syncWorkosIdentity(db, {
-      user: {
-        workosUserId,
-        email: existingUser.email,
-        firstName: readString(data, "first_name", "firstName", "user_first_name"),
-        lastName: readString(data, "last_name", "lastName", "user_last_name"),
-        avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
+    await syncWorkosIdentity(
+      db,
+      {
+        user: {
+          workosUserId,
+          email: existingUser.email,
+          firstName: readString(data, "first_name", "firstName", "user_first_name"),
+          lastName: readString(data, "last_name", "lastName", "user_last_name"),
+          avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
+        },
+        organization: {
+          workosOrganizationId,
+          name: existingOrg.name,
+          slug: existingOrg.slug ?? undefined,
+        },
+        membership: {
+          workosMembershipId,
+          role,
+        },
       },
-      organization: {
-        workosOrganizationId,
-        name: existingOrg.name,
-        slug: existingOrg.slug ?? undefined,
-      },
-      membership: {
-        workosMembershipId,
-        role,
-      },
-    });
+      { recordActivity: true },
+    );
   }
 }
 

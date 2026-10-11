@@ -255,6 +255,10 @@
     "defaultMessage": "You",
     "description": "Badge marking the current user in the members list"
   },
+  "+S1jk6jfe8": {
+    "defaultMessage": "revealed an integration credential",
+    "description": "Action for an integration credential reveal activity"
+  },
   "+ShkkHu7T/": {
     "defaultMessage": "Detect terminology drift and glossary violations",
     "description": "Capability 2 title for the localisation-quality-monitoring use case"
@@ -4183,6 +4187,10 @@
     "defaultMessage": "{selected} / {total} selected",
     "description": "Selected item count in a Content Studio format mock"
   },
+  "5oTR8PfQti": {
+    "defaultMessage": "rotated an integration credential",
+    "description": "Action for an integration credential rotation activity"
+  },
   "5orwY/wNVx": {
     "defaultMessage": "Workspace",
     "description": "Badge for a native workspace glossary"
@@ -5218,6 +5226,10 @@
   "7tPiM+8vOJ": {
     "defaultMessage": "Applied to this draft",
     "description": "Status on the campaign context mock card"
+  },
+  "7tupY+pWK7": {
+    "defaultMessage": "Integration Credential Revealed",
+    "description": "Activity log event type label for revealed integration credentials"
   },
   "7u4XqrtDZ0": {
     "defaultMessage": "Translation Memory Exported",
@@ -11531,6 +11543,10 @@
     "defaultMessage": "Set type",
     "description": "More menu action to set issue type"
   },
+  "JgUJ2cfTOt": {
+    "defaultMessage": "Workspace Archived",
+    "description": "Activity log event type label for archived workspaces"
+  },
   "Jh6eXznG+8": {
     "defaultMessage": "Export as TBX",
     "description": "Glossary action to export all concepts as TBX"
@@ -12738,6 +12754,10 @@
   "M9z6IP66I+": {
     "defaultMessage": "Download the full memory, or limit the file to one source and target locale pair. Choose CSV or TMX.",
     "description": "Description for the translation memory export dialog"
+  },
+  "MAb2UWyPPS": {
+    "defaultMessage": "archived the workspace",
+    "description": "Action for a workspace archived activity"
   },
   "MAhf92hF3b": {
     "defaultMessage": "Leave without saving",
@@ -15235,6 +15255,10 @@
     "defaultMessage": "A pricing page refactor opens a pull request on Tuesday",
     "description": "Scenario section title for the github-release-localisation use case"
   },
+  "QpVjJkSa/W": {
+    "defaultMessage": "revoked a member invitation",
+    "description": "Action for a revoked member invitation activity"
+  },
   "QqEr64QiAA": {
     "defaultMessage": "Brand",
     "description": "App shell breadcrumb title for domain AI brand lookup"
@@ -16706,6 +16730,10 @@
   "TjFXSXtMQ3": {
     "defaultMessage": "Timing preserved",
     "description": "Status line in the video format mock"
+  },
+  "TjhkeaKNqh": {
+    "defaultMessage": "joined the workspace",
+    "description": "Action for a member joined activity"
   },
   "Tl0CYs/kQf": {
     "defaultMessage": "Scheduled run · 1st of month",
@@ -19234,6 +19262,10 @@
   "YWi5RNeyc2": {
     "defaultMessage": "Target, split, and ship without another vendor",
     "description": "Feature teaser early access title for Hyperlab"
+  },
+  "YWltwemH+8": {
+    "defaultMessage": "Member Joined",
+    "description": "Activity log event type label for members joining the workspace"
   },
   "YXFxRGJgKh": {
     "defaultMessage": "Help Centers",
@@ -22763,6 +22795,10 @@
     "defaultMessage": "Create a test, pick who sees it, then turn it on when you are ready.",
     "description": "Empty state for the experiments list"
   },
+  "ewyaR7flkI": {
+    "defaultMessage": "Member Invite Revoked",
+    "description": "Activity log event type label for revoked member invitations"
+  },
   "exjYr2VS99": {
     "defaultMessage": "Move output {index} down",
     "description": "Move a Sequence output downward"
@@ -23298,6 +23334,10 @@
   "fxgs/d7//D": {
     "defaultMessage": "Create a project first, then import issues into Queries.",
     "description": "Empty state when there are no projects to import issues into"
+  },
+  "fxhMfbdDxC": {
+    "defaultMessage": "Integration Credential Rotated",
+    "description": "Activity log event type label for rotated integration credentials"
   },
   "fxjFqNjim9": {
     "defaultMessage": "Your account",

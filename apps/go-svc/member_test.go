@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -427,6 +429,62 @@ func TestMemberInviteAlreadyExists(t *testing.T) {
 	rec := memberRequest(api, scope, http.MethodPost, scope.OrgPath("/members"), `{"email":"exists@example.com","role":"member"}`)
 	require.Equal(t, 409, rec.Code)
 	require.Contains(t, rec.Body.String(), `"member_already_exists"`)
+}
+
+func TestConcurrentPendingInvitationRemoveAndRoleReplaceDoNotCollide(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	_, removeUser := mustInvitedMember(t, scope, uniqueTestEmail("pending-remove"), "member")
+	_, replaceUser := mustInvitedMember(t, scope, uniqueTestEmail("pending-replace"), "member")
+	workos.pendingID = "invitation_shared_stub"
+
+	errCh := make(chan error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+removeUser), "")
+		if rec.Code != http.StatusNoContent {
+			errCh <- fmt.Errorf("delete status %d: %s", rec.Code, rec.Body.String())
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		rec := memberRequest(api, scope, http.MethodPatch, scope.OrgPath("/members/"+replaceUser), `{"role":"translator"}`)
+		if rec.Code != http.StatusOK {
+			errCh <- fmt.Errorf("replace status %d: %s", rec.Code, rec.Body.String())
+		}
+	}()
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
+}
+
+func TestConcurrentPendingInvitationRemovalsDoNotCollide(t *testing.T) {
+	api, scope, workos := memberTestAPI(t, "admin")
+	_, workosUserA := mustInvitedMember(t, scope, uniqueTestEmail("pending-a"), "member")
+	_, workosUserB := mustInvitedMember(t, scope, uniqueTestEmail("pending-b"), "member")
+	workos.pendingID = "invitation_shared_stub"
+
+	errCh := make(chan error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for _, workosUserID := range []string{workosUserA, workosUserB} {
+		workosUserID := workosUserID
+		go func() {
+			defer wg.Done()
+			rec := memberRequest(api, scope, http.MethodDelete, scope.OrgPath("/members/"+workosUserID), "")
+			if rec.Code != http.StatusNoContent {
+				errCh <- fmt.Errorf("status %d: %s", rec.Code, rec.Body.String())
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 }
 
 func TestMemberPendingRoleUpdateReplacesInvitation(t *testing.T) {

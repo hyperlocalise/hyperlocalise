@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
@@ -19,7 +19,7 @@ import {
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
 import { db, schema } from "@/lib/database/client";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { excludeReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import type { CrowdinEmbedSessionPayload } from "@/lib/crowdin-app/embed-session";
 
@@ -79,7 +79,7 @@ export async function resolveApiAuthContextFromCrowdinEmbed(
         eq(schema.organizations.id, session.hlOrganizationId),
         eq(schema.organizations.lifecycleStatus, "active"),
         isNotNull(schema.organizationMemberships.workosMembershipId),
-        ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        excludeReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
       ),
     )
     .limit(1);

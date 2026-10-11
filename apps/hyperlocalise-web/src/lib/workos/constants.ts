@@ -10,13 +10,33 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { sql, type SQLWrapper } from "drizzle-orm";
+
 export const INVITED_WORKOS_USER_ID_PREFIX = "invited_user_";
 
-/** Local-only marker while an in-flight invite replace revokes the prior WorkOS invitation. */
+/** Legacy shared marker; new writes use a per-membership id under this prefix. */
 export const REPLACING_WORKOS_MEMBERSHIP_ID = "replacing";
 
+/** Prefix for local-only markers while an invite replace/revoke is in flight. */
+export const REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX = "replacing:";
+
+export function replacingWorkosMembershipId(membershipId: string) {
+  return `${REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX}${membershipId}`;
+}
+
 export function isReplacingWorkosMembership(workosMembershipId: string | null | undefined) {
-  return workosMembershipId === REPLACING_WORKOS_MEMBERSHIP_ID;
+  return (
+    workosMembershipId === REPLACING_WORKOS_MEMBERSHIP_ID ||
+    (workosMembershipId?.startsWith(REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX) ?? false)
+  );
+}
+
+export function isReplacingWorkosMembershipSql(column: SQLWrapper) {
+  return sql`(${column} = ${REPLACING_WORKOS_MEMBERSHIP_ID} or ${column} like ${`${REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX}%`})`;
+}
+
+export function excludeReplacingWorkosMembershipSql(column: SQLWrapper) {
+  return sql`${column} <> ${REPLACING_WORKOS_MEMBERSHIP_ID} and ${column} not like ${`${REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX}%`}`;
 }
 
 /** WorkOS has confirmed organization membership (invite accepted). */

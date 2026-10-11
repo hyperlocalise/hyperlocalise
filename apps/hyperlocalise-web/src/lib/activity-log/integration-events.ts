@@ -53,3 +53,31 @@ export async function enqueueIntegrationDisconnectedActivity(input: IntegrationA
     targetKind: "integration",
   });
 }
+
+export async function enqueueIntegrationCredentialRevealedActivity(
+  input: IntegrationActivityInput,
+) {
+  return enqueueActivityLogEvent({
+    actorCredentialId: input.actorCredentialId,
+    actorKind: input.actorKind,
+    actorUserId: input.actorUserId,
+    eventType: "integration_credential_revealed",
+    organizationId: input.organizationId,
+    payload: integrationPayload(input),
+    targetId: input.connectionId,
+    targetKind: "integration",
+  });
+}
+
+export async function enqueueIntegrationCredentialRotatedActivity(input: IntegrationActivityInput) {
+  return enqueueActivityLogEvent({
+    actorCredentialId: input.actorCredentialId,
+    actorKind: input.actorKind,
+    actorUserId: input.actorUserId,
+    eventType: "integration_credential_rotated",
+    organizationId: input.organizationId,
+    payload: integrationPayload(input),
+    targetId: input.connectionId,
+    targetKind: "integration",
+  });
+}

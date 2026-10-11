@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { mockAudit } from "evlog";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   clearPendingMembershipReplacingInvitation,
@@ -34,20 +34,98 @@ import {
   ACCESS_TOKEN_AUDIT_ACTIONS,
   ACCESS_TOKEN_REVOKE_REASONS,
 } from "@/lib/security/access-token-audit";
-import {
-  INVITED_WORKOS_USER_ID_PREFIX,
-  REPLACING_WORKOS_MEMBERSHIP_ID,
-} from "@/lib/workos/constants";
+import { INVITED_WORKOS_USER_ID_PREFIX, replacingWorkosMembershipId } from "@/lib/workos/constants";
+
+const { enqueueActivityLogEventsMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
+}));
 
 const { createWorkosIdentity, createWorkosIdentityForOrganization, cleanup, trackWorkosUserId } =
   createAuthTestFixture();
+
+function enqueuedActivityEvents() {
+  return enqueueActivityLogEventsMock.mock.calls.flatMap(([events]) => events);
+}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  enqueueActivityLogEventsMock.mockClear();
+});
+
 afterEach(async () => {
   await cleanup();
+});
+
+describe("syncWorkosIdentity activity", () => {
+  it("records member_joined when a pending invite becomes an active membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const invitedIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, {
+      ...invitedIdentity,
+      membership: { role: "translator" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(db, invitedIdentity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "user",
+        actorUserId: synced.user.id,
+        eventType: "member_joined",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ memberUserId: synced.user.id, role: "translator" }),
+        targetKind: "membership",
+      }),
+    ]);
+  });
+
+  it("records member_role_changed when WorkOS changes an active member role", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, memberIdentity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(
+      db,
+      { ...memberIdentity, membership: { ...memberIdentity.membership, role: "reviewer" } },
+      { recordActivity: true },
+    );
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_role_changed",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ nextRole: "reviewer", previousRole: "translator" }),
+      }),
+    ]);
+  });
+
+  it("records nothing when an active membership is re-synced unchanged", async () => {
+    const identity = createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    await syncWorkosIdentity(db, identity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([]);
+  });
 });
 
 describe("removePendingOrganizationMembershipForInvite", () => {
@@ -103,12 +181,80 @@ describe("removePendingOrganizationMembershipForInvite", () => {
       .where(eq(schema.organizationMemberships.id, membership.id))
       .limit(1);
 
-    expect(remaining?.workosMembershipId).toBe(REPLACING_WORKOS_MEMBERSHIP_ID);
+    expect(remaining?.workosMembershipId).toBe(replacingWorkosMembershipId(membership.id));
 
     await clearPendingMembershipReplacingInvitation(db, membership.id);
     await db
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, membership.id));
+  });
+
+  it("marks two pending memberships replacing without colliding on the unique index", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const firstInvite = createWorkosIdentity();
+    const secondInvite = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    await syncWorkosIdentity(db, firstInvite);
+    await syncWorkosIdentity(db, secondInvite);
+
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+
+    const [firstUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, firstInvite.user.workosUserId))
+      .limit(1);
+    const [secondUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, secondInvite.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(firstUser).toBeDefined();
+    expect(secondUser).toBeDefined();
+
+    const [firstMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: firstUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+    const [secondMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: secondUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+
+    const [firstMarked, secondMarked] = await Promise.all([
+      markPendingMembershipReplacingInvitation(db, firstMembership.id),
+      markPendingMembershipReplacingInvitation(db, secondMembership.id),
+    ]);
+    expect(firstMarked).toBe(true);
+    expect(secondMarked).toBe(true);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.id, firstMembership.id));
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.id, secondMembership.id));
   });
 
   it("removes pending invite rows for revoked invitations", async () => {
@@ -137,6 +283,37 @@ describe("removePendingOrganizationMembershipForInvite", () => {
     });
 
     expect(deleted).toBe(1);
+  });
+
+  it("records member_invite_revoked for each revoked pending invite", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const owner = await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `revoked-${randomUUID()}@example.com`;
+    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+    trackWorkosUserId(placeholderUserId);
+
+    await syncWorkosIdentity(db, {
+      user: { workosUserId: placeholderUserId, email: pendingEmail },
+      organization: ownerIdentity.organization,
+      membership: { role: "member" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      email: pendingEmail,
+      recordActivity: true,
+    });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_invite_revoked",
+        organizationId: owner.organization.id,
+        targetKind: "invitation",
+      }),
+    ]);
   });
 });
 
