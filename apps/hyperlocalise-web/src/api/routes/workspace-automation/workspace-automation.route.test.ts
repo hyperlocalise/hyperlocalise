@@ -17,10 +17,14 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  enqueueAutomationCreatedActivityMock,
+  enqueueAutomationDeletedActivityMock,
   enqueueAutomationStatusActivityMock,
   resolveApiAuthContextFromSessionMock,
   workspaceAutomationExecutionEnqueueMock,
 } = vi.hoisted(() => ({
+  enqueueAutomationCreatedActivityMock: vi.fn(),
+  enqueueAutomationDeletedActivityMock: vi.fn(),
   enqueueAutomationStatusActivityMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -32,6 +36,8 @@ const {
 }));
 
 vi.mock("@/lib/activity-log/job-automation-events", () => ({
+  enqueueAutomationCreatedActivity: enqueueAutomationCreatedActivityMock,
+  enqueueAutomationDeletedActivity: enqueueAutomationDeletedActivityMock,
   enqueueAutomationRunStartedActivity: vi.fn(),
   enqueueAutomationStatusActivity: enqueueAutomationStatusActivityMock,
 }));
@@ -184,6 +190,14 @@ describe("workspace automation routes", () => {
         status: "paused",
       }),
     );
+    expect(enqueueAutomationCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: created.automation.id,
+        name: "Daily localization check",
+        status: "active",
+      }),
+    );
     expect(enqueueAutomationStatusActivityMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -279,6 +293,21 @@ describe("workspace automation routes", () => {
     );
     expect(deletedResponse.status).toBe(204);
     await expect(deletedResponse.text()).resolves.toBe("");
+    expect(enqueueAutomationCreatedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: createdBody.automation.id,
+        name: "Repository translation check",
+        status: "active",
+      }),
+    );
+    expect(enqueueAutomationDeletedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "user",
+        automationId: createdBody.automation.id,
+        name: "Repository translation check",
+      }),
+    );
   });
 
   it("creates and updates the selected automation model without versioning config", async () => {

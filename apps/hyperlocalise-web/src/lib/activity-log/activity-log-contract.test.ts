@@ -21,6 +21,7 @@ import {
   LATER_ACTIVITY_EVENT_TYPES,
   RESERVED_ACTIVITY_EVENT_TYPES,
   V1_ACTIVITY_EVENT_TYPES,
+  VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
 } from "./activity-log-contract";
 
 describe("activity log contract", () => {
@@ -41,6 +42,7 @@ describe("activity log contract", () => {
       "translation_memory",
       "job",
       "automation",
+      "visual_workflow",
       "file",
       "string_segment",
     ]);
@@ -60,9 +62,19 @@ describe("activity log contract", () => {
       "job_created",
       "job_cancelled",
       "job_failed",
+      "automation_created",
+      "automation_deleted",
       "automation_run_started",
       "automation_enabled",
       "automation_disabled",
+    ]);
+    expect(VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES).toEqual([
+      "visual_workflow_created",
+      "visual_workflow_deleted",
+      "visual_workflow_published",
+      "visual_workflow_enabled",
+      "visual_workflow_disabled",
+      "visual_workflow_run_started",
     ]);
     expect(FILE_SEGMENT_ACTIVITY_EVENT_TYPES).toEqual([
       "file_uploaded",

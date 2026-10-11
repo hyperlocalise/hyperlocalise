@@ -26,6 +26,8 @@ func activityLogTargetKey(kind, id string) string {
 		return "job:" + id
 	case "automation":
 		return "automation:" + id
+	case "visual_workflow":
+		return "visual_workflow:" + id
 	case "membership":
 		return "membership:" + id
 	case "file":
@@ -122,6 +124,7 @@ func loadActivityLogTargetViews(
 	memoryIDs := unique(idsByKind["translation_memory"])
 	jobIDs := unique(idsByKind["job"])
 	automationIDs := unique(idsByKind["automation"])
+	visualWorkflowIDs := unique(idsByKind["visual_workflow"])
 	membershipIDs := unique(idsByKind["membership"])
 
 	payloadMemberUserIDs := make([]string, 0)
@@ -269,6 +272,33 @@ func loadActivityLogTargetViews(
 				Href:        stringPtr("/org/" + organizationSlug + "/automations/" + id),
 				ID:          id,
 				Kind:        "automation",
+			}
+		}
+		err = queryRows.Err()
+		queryRows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(visualWorkflowIDs) > 0 {
+		queryRows, err := pool.Query(ctx, `
+            select id, name from visual_workflows
+            where organization_id = $1 and id = any($2::uuid[])`, organizationID, visualWorkflowIDs)
+		if err != nil {
+			return nil, err
+		}
+		for queryRows.Next() {
+			var id, name string
+			if err := queryRows.Scan(&id, &name); err != nil {
+				queryRows.Close()
+				return nil, err
+			}
+			views[activityLogTargetKey("visual_workflow", id)] = activityLogTargetView{
+				DisplayName: stringPtr(name),
+				Href:        stringPtr("/org/" + organizationSlug + "/automations/visual-workflows/" + id),
+				ID:          id,
+				Kind:        "visual_workflow",
 			}
 		}
 		err = queryRows.Err()

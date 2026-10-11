@@ -15,6 +15,14 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { enqueueVisualWorkflowRunStartedActivityMock } = vi.hoisted(() => ({
+  enqueueVisualWorkflowRunStartedActivityMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowRunStartedActivity: enqueueVisualWorkflowRunStartedActivityMock,
+}));
+
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
@@ -44,6 +52,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  enqueueVisualWorkflowRunStartedActivityMock.mockClear();
   await fixture.cleanup();
 });
 
@@ -283,6 +292,29 @@ describe("visual workflow runs", () => {
 
     expect(second.id).toBe(first.id);
     expect(second.inputSnapshot).toMatchObject({ lead: "Ada" });
+    expect(enqueueVisualWorkflowRunStartedActivityMock).toHaveBeenCalledTimes(1);
+    expect(enqueueVisualWorkflowRunStartedActivityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorKind: "system",
+        runId: first.id,
+        triggerSource: "manual",
+        visualWorkflowId: workflow.id,
+      }),
+    );
+  });
+
+  it("skips activity for mock and test runs", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+
+    await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: scheduledWorkflowDefinition("Test run"),
+    });
+
+    expect(enqueueVisualWorkflowRunStartedActivityMock).not.toHaveBeenCalled();
   });
 
   it("enqueues at most once and clears the marker when enqueue fails", async () => {

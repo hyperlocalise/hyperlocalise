@@ -13,7 +13,11 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
+  enqueueVisualWorkflowRunStartedActivity: vi.fn(),
+}));
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";

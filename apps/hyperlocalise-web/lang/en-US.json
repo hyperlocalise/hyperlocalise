@@ -247,6 +247,10 @@
     "defaultMessage": "Can I change plans later?",
     "description": "Pricing FAQ question about changing plans"
   },
+  "+RFsBEni8d": {
+    "defaultMessage": "Visual Workflow Created",
+    "description": "Activity log event type label for creating visual workflows"
+  },
   "+RWDHuTqY1": {
     "defaultMessage": "You",
     "description": "Badge marking the current user in the members list"
@@ -811,6 +815,10 @@
     "defaultMessage": "Publish localized drafts to staging.",
     "description": "CMS tool description in content ops agent setup mock"
   },
+  "/SBxHj0JY1": {
+    "defaultMessage": "Visual Workflow Deleted",
+    "description": "Activity log event type label for deleting visual workflows"
+  },
   "/SJnfuawRk": {
     "defaultMessage": "You want a second writer for longer text.",
     "description": "Situation for Claude Sonnet on the pricing page"
@@ -950,6 +958,10 @@
   "/iIPpWEOXd": {
     "defaultMessage": "Finding {detail}",
     "description": "Live explore status when the agent is listing files with a pattern"
+  },
+  "/jSn20wHsp": {
+    "defaultMessage": "Visual Workflow Run Started",
+    "description": "Activity log event type label for visual workflow runs"
   },
   "/kd5MBjE0F": {
     "defaultMessage": "Then take it further",
@@ -4023,6 +4035,10 @@
     "defaultMessage": "Try again to load the latest glossary history.",
     "description": "Glossary history error state description"
   },
+  "5ZRJIF2YEf": {
+    "defaultMessage": "Visual Workflow Published",
+    "description": "Activity log event type label for publishing visual workflows"
+  },
   "5ZZS0Al3rv": {
     "defaultMessage": "Pause until a duration, timestamp, or condition",
     "description": "Wait node picker hint"
@@ -4126,6 +4142,10 @@
   "5lnOyXIzKl": {
     "defaultMessage": "Request a Demo",
     "description": "Primary call-to-action button on the marketing homepage hero"
+  },
+  "5lw2B8GGrH": {
+    "defaultMessage": "started a visual workflow run",
+    "description": "Action for starting a visual workflow run"
   },
   "5mXIwOpOHZ": {
     "defaultMessage": "Placeholders & ICU",
@@ -5675,6 +5695,10 @@
     "defaultMessage": "Manage credentials",
     "description": "Permission row for managing provider credentials"
   },
+  "8jiuCoyVpa": {
+    "defaultMessage": "Automation Created",
+    "description": "Activity log event type label for creating automations"
+  },
   "8jmFMvrCLC": {
     "defaultMessage": "revision {revision}",
     "description": "File metadata fragment showing the revision identifier"
@@ -5954,6 +5978,10 @@
   "9CrGAdF92d": {
     "defaultMessage": "Q3 localisation volume",
     "description": "Reports mock UI dashboard panel title"
+  },
+  "9Cs6CzvjiC": {
+    "defaultMessage": "created an automation",
+    "description": "Action for creating an automation"
   },
   "9D2YjR59lt": {
     "defaultMessage": "Keys",
@@ -8043,6 +8071,10 @@
     "defaultMessage": "Choose the verification method that works best for your site.",
     "description": "Verification help"
   },
+  "Cz30wjZvqz": {
+    "defaultMessage": "enabled a visual workflow",
+    "description": "Action for enabling a visual workflow"
+  },
   "CzEPtyNc5S": {
     "defaultMessage": "{count, plural, one {# pending action} other {# pending actions}}",
     "description": "Overview hero badge showing how many pending actions remain"
@@ -10018,6 +10050,10 @@
   "GkBUFyeO69": {
     "defaultMessage": "Schedule hour",
     "description": "Accessible label for the schedule hour selector"
+  },
+  "Gl+LobSOlL": {
+    "defaultMessage": "deleted an automation",
+    "description": "Action for deleting an automation"
   },
   "GlcR7TOaql": {
     "defaultMessage": "Job Created",
@@ -18607,6 +18643,10 @@
     "defaultMessage": "Audit criteria",
     "description": "Heading for the criteria list on a localisation audit result"
   },
+  "XOFGS0/TGY": {
+    "defaultMessage": "deleted a visual workflow",
+    "description": "Action for deleting a visual workflow"
+  },
   "XOLvGAW68Q": {
     "defaultMessage": "Integrations",
     "description": "App shell breadcrumb title for the integrations page"
@@ -19739,6 +19779,10 @@
     "defaultMessage": "Glossaries failed to load.",
     "description": "Error heading when glossaries fail to load"
   },
+  "ZdtDJMNEWA": {
+    "defaultMessage": "Automation Deleted",
+    "description": "Activity log event type label for deleting automations"
+  },
   "Ze+mVOXG0h": {
     "defaultMessage": "TMS jobs",
     "description": "Section title for live TMS provider jobs"
@@ -20262,6 +20306,10 @@
   "aUtNGn1QYX": {
     "defaultMessage": "It joins the memory layer, tagged by type and market",
     "description": "Knowledge mock UI stage 3 description"
+  },
+  "aV3ehfeMLX": {
+    "defaultMessage": "Visual workflows",
+    "description": "Activity log event type group for visual workflows"
   },
   "aVyIT73gXH": {
     "defaultMessage": "Get to know each product—and how it contributes to your content operations.",
@@ -22098,6 +22146,10 @@
   "du55QFnCON": {
     "defaultMessage": "Flags",
     "description": "Hyperlab mock UI nav tab"
+  },
+  "du6Z5VSDjw": {
+    "defaultMessage": "disabled a visual workflow",
+    "description": "Action for disabling a visual workflow"
   },
   "duqEj6Omtc": {
     "defaultMessage": "Column type",
@@ -26427,6 +26479,10 @@
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect GitHub"
   },
+  "lkRSWA3RCX": {
+    "defaultMessage": "Visual Workflow Enabled",
+    "description": "Activity log event type label for enabling visual workflows"
+  },
   "lkoT8UVKCp": {
     "defaultMessage": "Notify #gtm when drafts are ready for review.",
     "description": "Slack tool description in campaign agent setup mock"
@@ -29083,6 +29139,10 @@
     "defaultMessage": "Included",
     "description": "Badge and filter for a model included with paid plans"
   },
+  "qF8Df1EKi9": {
+    "defaultMessage": "published a visual workflow",
+    "description": "Action for publishing a visual workflow"
+  },
   "qFVbPH/1i/": {
     "defaultMessage": "Failed to load spellcheck dictionaries.",
     "description": "Error when CAT cannot load the project spellcheck allow-list"
@@ -30046,6 +30106,10 @@
   "s2Vo5Fg6Dj": {
     "defaultMessage": "Apply glossaries, tone guides, and do-not-translate rules before drafts reach reviewers.",
     "description": "Capability 2 description for the marketing-localisation use case"
+  },
+  "s2nhkcZKAr": {
+    "defaultMessage": "Visual Workflow Disabled",
+    "description": "Activity log event type label for disabling visual workflows"
   },
   "s3o6M+OdZX": {
     "defaultMessage": "Remove",
@@ -32062,6 +32126,10 @@
   "vwVyosrRNf": {
     "defaultMessage": "Trigger",
     "description": "Accessible label for the lightning badge on trigger nodes"
+  },
+  "vwjPgomhSV": {
+    "defaultMessage": "created a visual workflow",
+    "description": "Action for creating a visual workflow"
   },
   "vxm9RJy+2w": {
     "defaultMessage": "QA scan started.",
