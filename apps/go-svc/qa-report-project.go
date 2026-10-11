@@ -593,6 +593,7 @@ func (api *qaReportAPI) promoteProjectFindings(ctx context.Context, actor qaRepo
 		if err != nil {
 			return nil, 0, err
 		}
+		api.publishQueryCreated(ctx, actor, finding.ProjectID, result)
 		results = append(results, result)
 	}
 	return map[string]any{"results": results}, 200, nil

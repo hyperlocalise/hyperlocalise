@@ -36,9 +36,10 @@ func (c autumnClientChecker) BooleanFeatureEnabled(ctx context.Context, organiza
 }
 
 type issueSheetAPI struct {
-	pool       dictionaryPool
-	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
-	autumn     autumnChecker
+	pool        dictionaryPool
+	membership  func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	autumn      autumnChecker
+	activityLog activityLogPublisher
 
 	testForceBulkActionError func() error
 	testAfterBulkCommit      func()

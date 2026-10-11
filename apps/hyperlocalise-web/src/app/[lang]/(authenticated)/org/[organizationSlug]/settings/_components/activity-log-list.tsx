@@ -25,6 +25,7 @@ import {
   DatabaseIcon,
   FileIcon,
   GitBranchIcon,
+  ChatCircleIcon,
   TextTIcon,
 } from "@phosphor-icons/react";
 
@@ -65,6 +66,8 @@ const eventActions = {
   workspace_archived: messages.workspaceArchivedAction,
   personal_access_token_created: messages.personalAccessTokenCreatedAction,
   personal_access_token_revoked: messages.personalAccessTokenRevokedAction,
+  organization_api_key_created: messages.organizationApiKeyCreatedAction,
+  organization_api_key_revoked: messages.organizationApiKeyRevokedAction,
   integration_connected: messages.integrationConnectedAction,
   integration_disconnected: messages.integrationDisconnectedAction,
   integration_credential_revealed: messages.integrationCredentialRevealedAction,
@@ -99,6 +102,9 @@ const eventActions = {
   visual_workflow_enabled: messages.visualWorkflowEnabledAction,
   visual_workflow_disabled: messages.visualWorkflowDisabledAction,
   visual_workflow_run_started: messages.visualWorkflowRunStartedAction,
+  query_created: messages.queryCreatedAction,
+  query_deleted: messages.queryDeletedAction,
+  query_imported: messages.queryImportedAction,
   file_uploaded: messages.fileUploadedAction,
   file_translations_imported: messages.fileTranslationsImportedAction,
   string_segment_translation_updated: messages.stringSegmentTranslationUpdatedAction,
@@ -125,7 +131,10 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   if (eventType.startsWith("workspace_")) {
     return { icon: BuildingOfficeIcon, className: "bg-primary/10 text-primary" };
   }
-  if (eventType.startsWith("personal_access_token_")) {
+  if (
+    eventType.startsWith("personal_access_token_") ||
+    eventType.startsWith("organization_api_key_")
+  ) {
     return { icon: KeyIcon, className: "bg-warning/10 text-warning" };
   }
   if (eventType.startsWith("integration_")) {
@@ -142,6 +151,9 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   }
   if (eventType.startsWith("visual_workflow_")) {
     return { icon: GitBranchIcon, className: "bg-primary/10 text-primary" };
+  }
+  if (eventType.startsWith("query_")) {
+    return { icon: ChatCircleIcon, className: "bg-info/10 text-info" };
   }
   if (eventType.startsWith("file_")) {
     return { icon: FileIcon, className: "bg-primary/10 text-primary" };
@@ -176,7 +188,9 @@ function targetDisplayName(item: ActivityLogItem): string | null {
   }
   if (
     (item.eventType === "personal_access_token_created" ||
-      item.eventType === "personal_access_token_revoked") &&
+      item.eventType === "personal_access_token_revoked" ||
+      item.eventType === "organization_api_key_created" ||
+      item.eventType === "organization_api_key_revoked") &&
     typeof item.payload.keyPrefix === "string"
   ) {
     return item.payload.keyPrefix;

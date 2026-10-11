@@ -21,8 +21,9 @@ const (
 )
 
 type qaReportAPI struct {
-	pool       dictionaryPool
-	membership func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	pool        dictionaryPool
+	membership  func(context.Context, string) (*workos.UserOrganizationMembership, error)
+	activityLog activityLogPublisher
 }
 
 type qaReportActor struct {

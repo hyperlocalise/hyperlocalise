@@ -42,9 +42,10 @@ V1 includes the following event types:
 | Glossaries | `glossary_created`, `glossary_deleted`, `glossary_imported`, `glossary_exported`, `glossary_project_attached`, `glossary_project_detached` |
 | Translation memory | `translation_memory_created`, `translation_memory_deleted`, `translation_memory_imported`, `translation_memory_exported`, `translation_memory_project_attached`, `translation_memory_project_detached` |
 
-The current `organization_api_keys` table is the implementation behind personal access tokens. The
-contract reserves `organization_api_key_created` and `organization_api_key_revoked`, but current
-writers emit the personal-access-token events until the data model distinguishes the two resources.
+The current `organization_api_keys` table is the implementation behind Settings → API keys. Writers
+now emit `organization_api_key_created` and `organization_api_key_revoked`. Historical personal-access-token
+rows remain implemented so older activity still renders. See
+`2026-10-11-organization-api-key-activity-events-design.md`.
 
 Job and automation events are later additions: `job_created`, `job_cancelled`, `job_failed`,
 `automation_run_started`, `automation_enabled`, and `automation_disabled`.

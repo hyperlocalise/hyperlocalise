@@ -54,7 +54,27 @@ func TestIsImplementedEventType(t *testing.T) {
 	require.True(t, IsImplementedEventType("string_segment_translation_updated"))
 	require.True(t, IsImplementedEventType("automation_created"))
 	require.True(t, IsImplementedEventType("visual_workflow_published"))
-	require.False(t, IsImplementedEventType("organization_api_key_created"))
+	require.True(t, IsImplementedEventType("query_created"))
+	require.True(t, IsImplementedEventType("organization_api_key_created"))
+	require.True(t, IsImplementedEventType("organization_api_key_revoked"))
+}
+
+func TestValidateMessageAcceptsOrganizationAPIKeyCreated(t *testing.T) {
+	message := validMessage()
+	message.Event.EventType = "organization_api_key_created"
+	message.Event.TargetKind = "organization_api_key"
+	message.Event.Payload = json.RawMessage(`{"apiKeyId":"key-1","keyPrefix":"hl_AbCd","name":"CI deploy","permissions":["jobs:read"]}`)
+
+	require.NoError(t, ValidateMessage(message))
+}
+
+func TestValidateMessageAcceptsQueryCreated(t *testing.T) {
+	message := validMessage()
+	message.Event.EventType = "query_created"
+	message.Event.TargetKind = "query"
+	message.Event.Payload = json.RawMessage(`{"identifier":"WEB-21","name":"WEB-21","projectId":"project-1","queryId":"query-1","source":"manual"}`)
+
+	require.NoError(t, ValidateMessage(message))
 }
 
 func TestValidateMessageAcceptsTranslationUpdated(t *testing.T) {

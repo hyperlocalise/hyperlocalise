@@ -120,6 +120,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "OD2Mw78kw/",
     description: "Activity log event type label for personal access token revocation",
   },
+  organizationApiKeyCreatedEventType: {
+    defaultMessage: "API Key Created",
+    id: "JrA+jNfHXy",
+    description: "Activity log event type label for creating an organization API key",
+  },
+  organizationApiKeyRevokedEventType: {
+    defaultMessage: "API Key Revoked",
+    id: "v5xbuERHHQ",
+    description: "Activity log event type label for revoking an organization API key",
+  },
   integrationConnectedEventType: {
     defaultMessage: "Integration Connected",
     id: "qsKNiCPt7J",
@@ -290,6 +300,21 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "/jSn20wHsp",
     description: "Activity log event type label for visual workflow runs",
   },
+  queryCreatedEventType: {
+    defaultMessage: "Query Created",
+    id: "Ds+zJSK1Kp",
+    description: "Activity log event type label for creating a Query",
+  },
+  queryDeletedEventType: {
+    defaultMessage: "Query Deleted",
+    id: "VSw3JkkdYk",
+    description: "Activity log event type label for deleting a Query",
+  },
+  queryImportedEventType: {
+    defaultMessage: "Queries Imported",
+    id: "HsTC/VyFCY",
+    description: "Activity log event type label for importing Queries",
+  },
   fileUploadedEventType: {
     defaultMessage: "File Uploaded",
     id: "b0hzgbcjSl",
@@ -389,6 +414,11 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Visual workflows",
     id: "aV3ehfeMLX",
     description: "Activity log event type group for visual workflows",
+  },
+  queryEventGroup: {
+    defaultMessage: "Queries",
+    id: "c2AEweY0yB",
+    description: "Activity log event type group for Queries",
   },
   fileEventGroup: {
     defaultMessage: "Files",
@@ -650,6 +680,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "KUk2sS3WzB",
     description: "Action for a personal access token revocation activity",
   },
+  organizationApiKeyCreatedAction: {
+    defaultMessage: "created an API key",
+    id: "G03HnOcSA7",
+    description: "Action for an organization API key creation activity",
+  },
+  organizationApiKeyRevokedAction: {
+    defaultMessage: "revoked an API key",
+    id: "0iCmLfILOO",
+    description: "Action for an organization API key revocation activity",
+  },
   integrationConnectedAction: {
     defaultMessage: "connected an integration",
     id: "GMqTpOh8aZ",
@@ -819,6 +859,21 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "started a visual workflow run",
     id: "5lw2B8GGrH",
     description: "Action for starting a visual workflow run",
+  },
+  queryCreatedAction: {
+    defaultMessage: "created a query",
+    id: "BAB3xRzd3f",
+    description: "Action for creating a Query",
+  },
+  queryDeletedAction: {
+    defaultMessage: "deleted a query",
+    id: "eD/DPyafBd",
+    description: "Action for deleting a Query",
+  },
+  queryImportedAction: {
+    defaultMessage: "imported queries",
+    id: "DuGUFMT/N4",
+    description: "Action for importing Queries",
   },
   fileUploadedAction: {
     defaultMessage: "uploaded a file",

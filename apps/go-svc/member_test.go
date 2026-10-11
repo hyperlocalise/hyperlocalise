@@ -260,7 +260,7 @@ func TestMemberRemoveEmitsPatRevokedAudit(t *testing.T) {
 	var activity int
 	err = scope.Pool.QueryRow(t.Context(), `
         select count(*)::int from organization_activity_events
-        where organization_id=$1 and event_type='personal_access_token_revoked' and target_id=$2`,
+        where organization_id=$1 and event_type='organization_api_key_revoked' and target_id=$2`,
 		scope.OrganizationID, tokenID).Scan(&activity)
 	require.NoError(t, err)
 	require.Equal(t, 1, activity)

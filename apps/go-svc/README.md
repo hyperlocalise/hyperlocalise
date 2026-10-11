@@ -657,9 +657,10 @@ also list and revoke other members' tokens through `api_keys:read` and
 - **Listing.** Tokens are ordered by `created_at`, then `id`. Ownerless legacy
   tokens are reported as revoked.
 
-Create and revoke publish `personal_access_token_created` and
-`personal_access_token_revoked` activity events. Publishing failures are logged
-without failing the request.
+Create and revoke publish `organization_api_key_created` and
+`organization_api_key_revoked` activity events. Publishing failures are logged
+without failing the request. Historical rows may still use the personal-access-token
+event names.
 
 Tests cover authorization, validation, audit failure, log hygiene, concurrent
 revocation, and membership-removal races:
