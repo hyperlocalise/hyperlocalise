@@ -129,6 +129,7 @@ describe("GuidelineDocumentsSection", () => {
       guidelineDocument({
         id: "doc-3",
         title: "Still indexing",
+        locale: "ja-JP",
         status: "ready",
         indexed: false,
       }),
