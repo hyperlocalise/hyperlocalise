@@ -23,15 +23,10 @@ import { type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 
-const { goSvcFetchMock } = vi.hoisted(() => ({
-  goSvcFetchMock: vi.fn(async () => new Response(null, { status: 204 })),
-}));
-
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   useGoSvcClient: () => ({
     client: new GoSvcClient({
       getAccessToken: () => "access-token",
-      fetch: goSvcFetchMock as unknown as typeof fetch,
     }),
     loading: false,
   }),
@@ -91,6 +86,7 @@ function createWrapper(queryClient: QueryClient) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("useIssueDetailMutations", () => {
@@ -292,8 +288,8 @@ describe("useIssueDetailMutations", () => {
   });
 
   it("deletes the issue and notifies the caller", async () => {
-    goSvcFetchMock.mockClear();
-    goSvcFetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
     const onDeleted = vi.fn();
 
     const queryClient = new QueryClient({
@@ -320,8 +316,8 @@ describe("useIssueDetailMutations", () => {
       await result.current.deleteIssue.mutateAsync();
     });
 
-    expect(goSvcFetchMock).toHaveBeenCalledTimes(1);
-    expect(goSvcFetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
       `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issue.identifier}`,
       expect.objectContaining({ method: "DELETE" }),
     );

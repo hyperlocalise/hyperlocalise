@@ -699,6 +699,48 @@ describe("GoSvcClient", () => {
     expect(init.method).toBe("DELETE");
   });
 
+  it("lists organization issues and runs bulk actions on org routes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ issues: [], total: 0, summary: { total: 0 } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          bulkAction: {
+            action: "unassign",
+            requested: 1,
+            succeeded: 1,
+            failed: 0,
+            unchanged: 0,
+            results: [],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ issues: [] }))
+      .mockResolvedValueOnce(Response.json({ issue: { id: "issue_1" } }));
+    const client = clientWith(fetchMock);
+
+    await client.issueSheet.listOrg("acme / eu", { status: "open", projectId: "project/1" });
+    await client.issueSheet.bulkActions("acme / eu", {
+      action: "unassign",
+      issues: [{ issueId: "11111111-1111-4111-8111-111111111111", projectId: "project/1" }],
+    });
+    await client.issueSheet.searchOrg("acme / eu", { q: "copy", limit: 20 });
+    await client.issueSheet.getOrg("acme / eu", "WEB-1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues?status=open&projectId=project%2F1`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues/bulk-actions`, "POST"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/search?q=copy&limit=20`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/WEB-1`, "GET"],
+    ]);
+  });
+
   it("encodes organization and issue-sheet path segments", () => {
     expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
       "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",

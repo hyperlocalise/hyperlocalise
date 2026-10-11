@@ -19,8 +19,9 @@ describe("createApiClient", () => {
   const org = client.api.orgs[":organizationSlug"];
 
   it("exposes org, v1, and auth RPC paths as callable methods", () => {
-    expect(typeof org.issues.$get).toBe("function");
-    expect(typeof org["issue-sheet"].search.$get).toBe("function");
+    expect(typeof org.projects[":projectId"]["issue-sheet"].import.$post).toBe("function");
+    expect("issues" in org).toBe(false);
+    expect("issue-sheet" in org).toBe(false);
     expect(typeof org.notifications.$get).toBe("function");
     expect(typeof org["notification-preferences"].$get).toBe("function");
     expect(typeof org.mentions.$get).toBe("function");

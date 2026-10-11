@@ -16,6 +16,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database/client";
+import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import { createProjectTestFixture } from "../project/project.fixture";
 
@@ -55,27 +56,21 @@ afterEach(async () => {
 
 describe("Mention suggestions routes", () => {
   it("returns users and issues matching the query", async () => {
-    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createIssueResponse = await app.request(
-      `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(project.id)}/issue-sheet`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...Object.fromEntries(new Headers(headers).entries()),
-        },
-        body: JSON.stringify({
-          title: "Mentionable Alpha",
-          issueType: "general_question",
-          externalRef: "HL-508",
-        }),
+    const created = await new IssueSheetService().createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: {
+        title: "Mentionable Alpha",
+        issueType: "general_question",
+        externalRef: "HL-508",
       },
-    );
-    expect(createIssueResponse.status).toBe(201);
-    const created = (await createIssueResponse.json()) as { issue: { id: string } };
+    });
 
     const response = await app.request(
       `/api/orgs/${encodeURIComponent(organizationSlug)}/mentions?q=&projectId=${encodeURIComponent(project.id)}&limit=5`,
@@ -94,14 +89,14 @@ describe("Mention suggestions routes", () => {
     expect(actorMember?.email).toBe(user.email);
     expect(body.mentionSuggestions.issues).toEqual([
       expect.objectContaining({
-        issueId: created.issue.id,
+        issueId: created.id,
         displayKey: "HL-508",
         title: "Mentionable Alpha",
       }),
     ]);
 
     const excluded = await app.request(
-      `/api/orgs/${encodeURIComponent(organizationSlug)}/mentions?q=Alpha&projectId=${encodeURIComponent(project.id)}&issueId=${encodeURIComponent(created.issue.id)}`,
+      `/api/orgs/${encodeURIComponent(organizationSlug)}/mentions?q=Alpha&projectId=${encodeURIComponent(project.id)}&issueId=${encodeURIComponent(created.id)}`,
       { headers },
     );
     expect(excluded.status).toBe(200);
@@ -122,7 +117,7 @@ describe("Mention suggestions routes", () => {
     };
     expect(byKeyBody.mentionSuggestions.issues).toEqual([
       expect.objectContaining({
-        issueId: created.issue.id,
+        issueId: created.id,
         displayKey: "HL-508",
         title: "Mentionable Alpha",
       }),
