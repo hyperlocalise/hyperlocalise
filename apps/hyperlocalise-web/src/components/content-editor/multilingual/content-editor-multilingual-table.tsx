@@ -201,6 +201,7 @@ const TranslationCell = observer(function TranslationCell({
           sourceText={segment.sourceText}
           value={draft.text}
           maxLength={segment.maxLength}
+          messageFormat={segment.messageFormat}
           onChange={(text) => draft.change(text)}
           compact
           inline

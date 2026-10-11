@@ -73,6 +73,81 @@ describe("cat message format utilities", () => {
     expect(analysis.parseError?.message).toBeTruthy();
   });
 
+  it("treats i18next interpolations as placeholders instead of ICU parse errors", () => {
+    const analysis = analyzeCatMessageFormat("Hello {{name, uppercase}}");
+
+    expect(analysis.parseError).toBeUndefined();
+    expect(analysis.placeholders).toEqual([
+      expect.objectContaining({
+        kind: "argument",
+        name: "name",
+        literal: "{{name, uppercase}}",
+      }),
+    ]);
+  });
+
+  it("keeps i18next interpolations as ICU parse errors in icu mode", () => {
+    const analysis = analyzeCatMessageFormat("Hello {{name}}", { messageFormat: "icu" });
+
+    expect(analysis.parseError?.message).toBeTruthy();
+    expect(analysis.placeholders).toEqual([]);
+  });
+
+  it("treats single braces as text in i18next mode", () => {
+    const analysis = analyzeCatMessageFormat("{count, plural, one {#} other {#}} {{name}}", {
+      messageFormat: "i18next",
+    });
+
+    expect(analysis.parseError).toBeUndefined();
+    expect(analysis.icuBlocks).toEqual([]);
+    expect(analysis.placeholders).toEqual([
+      expect.objectContaining({ kind: "argument", name: "name", literal: "{{name}}" }),
+    ]);
+  });
+
+  it("reports missing i18next interpolations", () => {
+    const issues = compare("Hello {{name}}", "Bonjour");
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "missing-token",
+        tokens: ["{{name}}"],
+      }),
+    );
+  });
+
+  it("does not treat {{name}} and {name} as the same placeholder", () => {
+    const issues = compare("Hello {{name}}", "Bonjour {name}");
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "missing-token", tokens: ["{{name}}"] }),
+        expect.objectContaining({ kind: "extra-token", tokens: ["{name}"] }),
+      ]),
+    );
+  });
+
+  it("keeps nested ICU select messages out of interpolation fallback", () => {
+    const analysis = analyzeCatMessageFormat(
+      "{gender, select, male {{count, plural, one {# item} other {# items}}} other {x}}",
+    );
+
+    expect(analysis.parseError).toBeUndefined();
+    expect(analysis.icuBlocks.map((block) => block.type).toSorted()).toEqual(["plural", "select"]);
+  });
+
+  it("merges ICU blocks with nearby i18next interpolations", () => {
+    const analysis = analyzeCatMessageFormat(
+      "{count, plural, one {item} other {items}} for {{user_name}}",
+    );
+
+    expect(analysis.parseError).toBeUndefined();
+    expect(analysis.placeholders).toEqual([
+      expect.objectContaining({ kind: "argument", name: "user_name" }),
+    ]);
+    expect(analysis.icuBlocks).toEqual([expect.objectContaining({ arg: "count", type: "plural" })]);
+  });
+
   it("does not pass format checks when source ICU syntax cannot be parsed", () => {
     const issues = compare("{count, plural, one {# file}}", "1 file");
 

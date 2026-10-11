@@ -73,6 +73,20 @@ Argument position can change to fit the sentence. Argument names must match the
 source. In a [FormatJS catalog](/cli/reference/formats/formatjs), edit the entry's
 `defaultMessage` rather than replacing the descriptor object.
 
+i18next and mustache catalogs use interpolation instead of ICU. Keep the double
+braces and the placeholder name:
+
+```json
+{
+    "home.greeting": "Hello, {{name}}!"
+}
+```
+
+Broken target `{nombre}` or `{name}` is not the same placeholder. Restore
+`{{name}}`. Formats (`{{val, number}}`), unescape prefixes (`{{- html}}`), and
+nesting calls (`$t(help.link)`) must also match the source. See
+[i18next and interpolation placeholders](/platform/tutorials/i18next).
+
 ## Restore a missing plural branch
 
 Source:

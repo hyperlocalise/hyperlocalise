@@ -53,6 +53,7 @@ import {
   type ContentEditorQueueSort,
 } from "@/components/content-editor/queue/content-editor-queue-filter";
 import type { ContentEditorAdvancedQueueFilter } from "@/lib/projects/content-editor/content-editor-advanced-queue-filter";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { glossaryFormatChecksForSegment } from "@/components/content-editor/intelligence/content-editor-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/content-editor/segment/content-editor-segment-share-link";
 import type {
@@ -441,6 +442,7 @@ export function ProjectFileContentEditorWorkspace({
 
     return projectFileCatToWorkspaceState(contentEditorFile, sourceLocale, intl);
   }, [contentEditorFile, intl, sourceLocale]);
+  const fileMessageFormat = contentEditorFile?.messageFormat;
 
   const validateFormat = useCallback(
     async (
@@ -456,6 +458,7 @@ export function ProjectFileContentEditorWorkspace({
           sourcePath: segment.sourcePath?.trim() || sourcePath,
           targetLocale: segment.targetLocale,
           maxLength: segment.maxLength,
+          messageFormat: segment.messageFormat ?? fileMessageFormat,
           acceptedWords: spellcheckDictionary.acceptedWords,
           signal: options?.signal,
           intl,
@@ -494,7 +497,14 @@ export function ProjectFileContentEditorWorkspace({
         ),
       ];
     },
-    [goSvcClient, intl, qaPolicy, sourcePath, spellcheckDictionary.acceptedWords],
+    [
+      fileMessageFormat,
+      goSvcClient,
+      intl,
+      qaPolicy,
+      sourcePath,
+      spellcheckDictionary.acceptedWords,
+    ],
   );
 
   const isNativeProject = isNativeContentEditorFile(contentEditorFile);
@@ -520,7 +530,12 @@ export function ProjectFileContentEditorWorkspace({
   );
   const assertQaSaveAllowed = useCallback(
     async (
-      segment: { sourceText: string; sourcePath?: string | null; maxLength?: number | null },
+      segment: {
+        sourceText: string;
+        sourcePath?: string | null;
+        maxLength?: number | null;
+        messageFormat?: MessageFormat | null;
+      },
       locale: string,
       value: string,
     ) => {
@@ -537,6 +552,7 @@ export function ProjectFileContentEditorWorkspace({
           sourcePath: segment.sourcePath ?? sourcePath,
           targetLocale: locale,
           maxLength: segment.maxLength ?? undefined,
+          messageFormat: segment.messageFormat ?? fileMessageFormat,
           acceptedWords: spellcheckDictionary.acceptedWords,
           intl,
           policy,
@@ -570,6 +586,7 @@ export function ProjectFileContentEditorWorkspace({
       }
     },
     [
+      fileMessageFormat,
       goSvcClient,
       glossaryTermsForQaGate,
       intl,
@@ -1137,6 +1154,7 @@ export function ProjectFileContentEditorWorkspace({
             sourceText: segment.sourceText,
             sourcePath: occurrence.sourcePath,
             maxLength: occurrence.maxLength,
+            messageFormat: segment.messageFormat,
           },
           locale,
           text,

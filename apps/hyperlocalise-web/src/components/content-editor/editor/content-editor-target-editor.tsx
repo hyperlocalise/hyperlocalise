@@ -22,6 +22,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -602,11 +603,13 @@ export function ContentEditorTargetEditor({
   highlightTokens,
   highlightStatus = "warn",
   highlightWholeTerm = false,
+  messageFormat,
   onChange,
 }: {
   sourceText: string;
   value: string;
   maxLength?: number;
+  messageFormat?: MessageFormat | null;
   disabled?: boolean;
   compact?: boolean;
   inline?: boolean;
@@ -641,8 +644,14 @@ export function ContentEditorTargetEditor({
     status: highlightStatus,
     wholeTerm: highlightWholeTerm,
   };
-  const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
-  const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
+  const sourceAnalysis = useMemo(
+    () => analyzeCatMessageFormat(sourceText, { messageFormat }),
+    [messageFormat, sourceText],
+  );
+  const targetAnalysis = useMemo(
+    () => analyzeCatMessageFormat(value, { messageFormat }),
+    [messageFormat, value],
+  );
   const parityIssues = useMemo(
     () => compareCatMessageFormats(sourceAnalysis, targetAnalysis),
     [sourceAnalysis, targetAnalysis],

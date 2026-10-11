@@ -29,7 +29,17 @@ type BlockSignature struct {
 // common path allocates once. Messages with more occurrences grow the slice.
 const PLACEHOLDER_SLICE_CAP = 4
 
+type InvariantOptions struct {
+	// StrictICU disables the mustache/i18next fallback, so {{name}} is a parse
+	// error instead of an argument.
+	StrictICU bool
+}
+
 func ParseInvariant(s string) (Invariant, error) {
+	return ParseInvariantWithOptions(s, InvariantOptions{})
+}
+
+func ParseInvariantWithOptions(s string, opts InvariantOptions) (Invariant, error) {
 	// BOLT OPTIMIZATION: Fast path for plain text containing no ICU AST signal characters.
 	if !strings.ContainsAny(s, "{#<}'}") {
 		return Invariant{}, nil
@@ -37,6 +47,9 @@ func ParseInvariant(s string) (Invariant, error) {
 
 	elems, err := Parse(s, nil)
 	if err != nil {
+		if opts.StrictICU {
+			return Invariant{}, err
+		}
 		normalized := normalizeMustachePlaceholders(s)
 		elems, err = Parse(normalized, nil)
 		if err != nil {
@@ -187,12 +200,12 @@ func normalizeMustachePlaceholders(s string) string {
 			}
 
 			if match {
-				name := strings.TrimSpace(s[i+braceCount : j])
-				if isPlaceholderName(name) {
-					// Convert moustache placeholders to ICU-style arguments for fallback parsing.
-					b.WriteByte('{')
-					b.WriteString(name)
-					b.WriteByte('}')
+				// Convert mustache/i18next interpolations to ICU arguments so
+				// {{name}}, {{- name}}, and {{name, uppercase}} participate in
+				// placeholder parity. Nested ICU ({{count, plural, ...}}) is left
+				// unchanged.
+				if rewrite, ok := interpolationRewrite(s[i+braceCount : j]); ok {
+					b.WriteString(rewrite)
 					i = j + braceCount
 					continue
 				}

@@ -8,19 +8,19 @@ import (
 	"unicode/utf8"
 )
 
-func validateProfileParityWithTokens(source, translated string) (bool, error) {
+func validateProfileParityWithTokens(format MessageFormat, source, translated string) (bool, error) {
 	// BOLT OPTIMIZATION: If source and translated are identical, we only extract and verify on the source.
 	// This avoids duplicate placeholder extraction, duplicate special characters scanning, and
 	// duplicate whitespace profiling of the translated string entirely.
 	if source == translated {
-		hasExtra := len(extractExtraPlaceholders(source)) > 0
+		hasExtra := len(extractExtraPlaceholdersFor(format, source)) > 0
 		sourceNorm := normalizeProfileText(source)
 		hasWS := hasProfileWhitespaceSignals(sourceNorm)
 		hasSpecial := len(extractSpecialCharLiterals(source)) > 0
 		return hasExtra || hasWS || hasSpecial, nil
 	}
 
-	hasExtra, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	hasExtra, err := validateExtraPlaceholderParityWithTokens(format, source, translated)
 	if err != nil {
 		return false, err
 	}
@@ -351,8 +351,8 @@ func isHexByte(b byte) bool {
 }
 
 // profileHasFormatTokens reports whether the segment contains profile-managed tokens.
-func profileHasFormatTokens(source string) bool {
-	return len(extractExtraPlaceholders(source)) > 0 ||
+func profileHasFormatTokens(format MessageFormat, source string) bool {
+	return len(extractExtraPlaceholdersFor(format, source)) > 0 ||
 		len(extractSpecialCharLiterals(source)) > 0 ||
 		hasProfileWhitespaceSignals(source)
 }

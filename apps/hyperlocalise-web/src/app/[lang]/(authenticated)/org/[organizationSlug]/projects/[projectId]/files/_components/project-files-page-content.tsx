@@ -57,7 +57,12 @@ import { useProjectFileActions } from "./use-project-file-actions";
 const FILE_ACCEPT = getSupportedSourceUploadAccept();
 const MAX_UPLOAD_FILES = 10;
 
-type PendingFileDialogAction = "translate" | "import" | "download" | "segmentation";
+type PendingFileDialogAction =
+  | "translate"
+  | "import"
+  | "download"
+  | "segmentation"
+  | "messageFormat";
 
 function ProjectFileDialogHost({
   file,
@@ -95,9 +100,11 @@ function ProjectFileDialogHost({
   const {
     downloadDialogOpen,
     importDialogOpen,
+    messageFormatDialogOpen,
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
     translateDialogOpen,
@@ -113,6 +120,7 @@ function ProjectFileDialogHost({
       import: () => setImportDialogOpen(true),
       download: () => setDownloadDialogOpen(true),
       segmentation: () => setSegmentationDialogOpen(true),
+      messageFormat: () => setMessageFormatDialogOpen(true),
     }[initialAction];
     openDialog();
     setHasOpened(true);
@@ -121,6 +129,7 @@ function ProjectFileDialogHost({
     initialAction,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
   ]);
@@ -131,7 +140,11 @@ function ProjectFileDialogHost({
     }
 
     const anyOpen =
-      translateDialogOpen || importDialogOpen || downloadDialogOpen || segmentationDialogOpen;
+      translateDialogOpen ||
+      importDialogOpen ||
+      downloadDialogOpen ||
+      segmentationDialogOpen ||
+      messageFormatDialogOpen;
     if (!anyOpen) {
       onClose();
     }
@@ -139,6 +152,7 @@ function ProjectFileDialogHost({
     downloadDialogOpen,
     hasOpened,
     importDialogOpen,
+    messageFormatDialogOpen,
     onClose,
     segmentationDialogOpen,
     translateDialogOpen,
@@ -447,6 +461,7 @@ export function ProjectFilesPageContent({
       onImportFile: (file) => openFileDialog(file, "import"),
       onDownloadFile: (file) => openFileDialog(file, "download"),
       onSegmentationSettings: (file) => openFileDialog(file, "segmentation"),
+      onMessageFormatSettings: (file) => openFileDialog(file, "messageFormat"),
     }),
     [
       highlightLocale,

@@ -477,6 +477,8 @@ export type ValidateSegmentBody = {
   targetText: string;
   sourcePath: string;
   maxLength?: number;
+  /** auto | icu | i18next; omitted means auto. */
+  messageFormat?: string;
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];

@@ -995,6 +995,13 @@
       "when": 1791535986377,
       "tag": "0141_automation_assistant_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1791715530337,
+      "tag": "0142_lowly_synch",
+      "breakpoints": true
     }
   ]
 }

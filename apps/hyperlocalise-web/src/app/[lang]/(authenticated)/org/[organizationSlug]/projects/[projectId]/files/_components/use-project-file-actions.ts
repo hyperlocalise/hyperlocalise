@@ -111,6 +111,7 @@ export function useProjectFileActions({
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
   const [segmentationDialogOpen, setSegmentationDialogOpen] = useState(false);
+  const [messageFormatDialogOpen, setMessageFormatDialogOpen] = useState(false);
 
   const {
     canOpenCat,
@@ -141,12 +142,14 @@ export function useProjectFileActions({
     highlightLocale,
     importDialogOpen,
     isNativeFile,
+    messageFormatDialogOpen,
     nativeSourcePaths,
     organizationSlug,
     projectId,
     segmentationDialogOpen,
     setDownloadDialogOpen,
     setImportDialogOpen,
+    setMessageFormatDialogOpen,
     setSegmentationDialogOpen,
     setTranslateDialogOpen,
     sourceLocale,

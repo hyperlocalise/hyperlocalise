@@ -227,6 +227,7 @@
                           "platform/tutorials/github-localisation-workflow",
                           "platform/tutorials/react-intl-icu",
                           "platform/tutorials/vue-i18n",
+                          "platform/tutorials/i18next",
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
                           "platform/tutorials/gettext-pot-po",
