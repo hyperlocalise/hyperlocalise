@@ -70,7 +70,8 @@ func resolveOrganizationActor(
 	err := db.QueryRow(ctx, `select u.id, o.id, m.workos_membership_id, o.workos_organization_id
         from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
         where u.workos_user_id=$1 and o.slug=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`,
+        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')
+        and m.workos_membership_id not like 'replacing:%'`,
 		claims.UserID, slug).Scan(&actor.userID, &actor.organizationID, &membershipID, &workosOrg)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return actor, organizationAccessDenied()
@@ -93,7 +94,8 @@ func resolveOrganizationActorByID(
 	err := db.QueryRow(ctx, `select u.id, o.id, u.workos_user_id, m.workos_membership_id, o.workos_organization_id
         from users u join organization_memberships m on m.user_id=u.id join organizations o on o.id=m.organization_id
         where u.id=$1 and o.id=$2 and o.lifecycle_status='active'
-        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')`,
+        and m.workos_membership_id is not null and m.workos_membership_id not in ('', 'replacing')
+        and m.workos_membership_id not like 'replacing:%'`,
 		localUserID, organizationID).Scan(&actor.userID, &actor.organizationID, &workosUserID, &membershipID, &workosOrg)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return organizationActor{}, organizationAccessDenied()

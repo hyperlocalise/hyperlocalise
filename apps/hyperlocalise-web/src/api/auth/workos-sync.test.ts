@@ -34,10 +34,7 @@ import {
   ACCESS_TOKEN_AUDIT_ACTIONS,
   ACCESS_TOKEN_REVOKE_REASONS,
 } from "@/lib/security/access-token-audit";
-import {
-  INVITED_WORKOS_USER_ID_PREFIX,
-  REPLACING_WORKOS_MEMBERSHIP_ID,
-} from "@/lib/workos/constants";
+import { INVITED_WORKOS_USER_ID_PREFIX, replacingWorkosMembershipId } from "@/lib/workos/constants";
 
 const { enqueueActivityLogEventsMock } = vi.hoisted(() => ({
   enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
@@ -184,12 +181,82 @@ describe("removePendingOrganizationMembershipForInvite", () => {
       .where(eq(schema.organizationMemberships.id, membership.id))
       .limit(1);
 
-    expect(remaining?.workosMembershipId).toBe(REPLACING_WORKOS_MEMBERSHIP_ID);
+    expect(remaining?.workosMembershipId).toBe(replacingWorkosMembershipId(membership.id));
 
     await clearPendingMembershipReplacingInvitation(db, membership.id);
     await db
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, membership.id));
+  });
+
+  it("marks two pending memberships replacing without colliding on the unique index", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const firstInvite = createWorkosIdentity();
+    const secondInvite = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    await syncWorkosIdentity(db, firstInvite);
+    await syncWorkosIdentity(db, secondInvite);
+
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+
+    const [firstUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, firstInvite.user.workosUserId))
+      .limit(1);
+    const [secondUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, secondInvite.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(firstUser).toBeDefined();
+    expect(secondUser).toBeDefined();
+
+    const [firstMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: firstUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+    const [secondMembership] = await db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: organization!.id,
+        userId: secondUser!.id,
+        role: "member",
+        workosMembershipId: null,
+      })
+      .returning({ id: schema.organizationMemberships.id });
+
+    const [firstMarked, secondMarked] = await Promise.all([
+      markPendingMembershipReplacingInvitation(db, firstMembership.id),
+      markPendingMembershipReplacingInvitation(db, secondMembership.id),
+    ]);
+    expect(firstMarked).toBe(true);
+    expect(secondMarked).toBe(true);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        eq(schema.organizationMemberships.id, firstMembership.id),
+      );
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.id, secondMembership.id));
   });
 
   it("removes pending invite rows for revoked invitations", async () => {

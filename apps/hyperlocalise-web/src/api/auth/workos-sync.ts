@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -28,7 +28,9 @@ import {
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
+  isReplacingWorkosMembership,
   REPLACING_WORKOS_MEMBERSHIP_ID,
+  replacingWorkosMembershipId,
 } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
@@ -75,7 +77,7 @@ export type WorkosSyncResult = {
 };
 
 function isActiveWorkosMembershipId(workosMembershipId: string | null | undefined) {
-  return Boolean(workosMembershipId) && workosMembershipId !== REPLACING_WORKOS_MEMBERSHIP_ID;
+  return Boolean(workosMembershipId) && !isReplacingWorkosMembership(workosMembershipId);
 }
 
 function membershipSyncActivityEvents(input: {
@@ -378,7 +380,7 @@ export async function markPendingMembershipReplacingInvitation(
 ): Promise<boolean> {
   const result = await database
     .update(schema.organizationMemberships)
-    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .set({ workosMembershipId: replacingWorkosMembershipId(membershipId) })
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
@@ -399,7 +401,13 @@ export async function clearPendingMembershipReplacingInvitation(
     .where(
       and(
         eq(schema.organizationMemberships.id, membershipId),
-        eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+        or(
+          eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+          eq(
+            schema.organizationMemberships.workosMembershipId,
+            replacingWorkosMembershipId(membershipId),
+          ),
+        ),
       ),
     );
 }

@@ -10,10 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import {
+  isReplacingWorkosMembershipSql,
+  REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX,
+} from "@/lib/workos/constants";
 
 type QueryClient = {
   query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
@@ -35,23 +38,23 @@ async function idsForWorkosIds(
   return result.rows.map((row) => row.id);
 }
 
-/** Clears the global replacing sentinel so parallel DB tests do not collide on the unique index. */
+/** Clears leftover replacing markers so tests do not inherit in-flight invite state. */
 export async function clearReplacingWorkosMembershipSentinel(database: DatabaseClient) {
   await database
     .update(schema.organizationMemberships)
     .set({ workosMembershipId: null })
-    .where(eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID));
+    .where(isReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId));
 }
 
 export async function setMembershipReplacingSentinelForTest(
   database: DatabaseClient,
   input: { organizationId: string; userId: string },
 ) {
-  await clearReplacingWorkosMembershipSentinel(database);
-
   await database
     .update(schema.organizationMemberships)
-    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .set({
+      workosMembershipId: sql`${REPLACING_WORKOS_MEMBERSHIP_ID_PREFIX} || ${schema.organizationMemberships.id}`,
+    })
     .where(
       and(
         eq(schema.organizationMemberships.organizationId, input.organizationId),

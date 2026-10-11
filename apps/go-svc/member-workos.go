@@ -226,7 +226,7 @@ func (api *memberAPI) markPendingMembershipReplacingInvitation(ctx context.Conte
         update organization_memberships
         set workos_membership_id=$2
         where id=$1 and workos_membership_id is null`,
-		membershipID, replacingWorkosMembershipID)
+		membershipID, replacingWorkosMembershipMarker(membershipID))
 	if err != nil {
 		return false, err
 	}
@@ -237,7 +237,7 @@ func (api *memberAPI) clearPendingMembershipReplacingInvitation(ctx context.Cont
 	_, err := api.pool.Exec(ctx, `
         update organization_memberships
         set workos_membership_id=null
-        where id=$1 and workos_membership_id=$2`,
-		membershipID, replacingWorkosMembershipID)
+        where id=$1 and (workos_membership_id=$2 or workos_membership_id=$3)`,
+		membershipID, replacingWorkosMembershipID, replacingWorkosMembershipMarker(membershipID))
 	return err
 }
