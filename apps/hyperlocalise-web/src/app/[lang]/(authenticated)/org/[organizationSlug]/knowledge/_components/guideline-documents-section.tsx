@@ -53,13 +53,30 @@ const ENQUEUE_RECOVERY_POLL_MS = 15_000;
 /** Transient SQS publish failure; go-svc sweep moves these back to processing. */
 export const GUIDELINE_INGEST_ENQUEUE_FAILED = "guideline_ingest_enqueue_failed";
 
+export function guidelineDocumentIsIndexing(document: GuidelineDocument): boolean {
+  return document.status === "ready" && !document.indexed;
+}
+
+export function guidelineDocumentDisplayStatus(
+  document: GuidelineDocument,
+): GuidelineDocument["status"] {
+  if (guidelineDocumentIsIndexing(document)) {
+    return "processing";
+  }
+  return document.status;
+}
+
 export function guidelineDocumentsRefetchInterval(
   documents: GuidelineDocument[] | undefined,
 ): number | false {
   if (!documents) {
     return false;
   }
-  if (documents.some((document) => document.status === "processing")) {
+  if (
+    documents.some(
+      (document) => document.status === "processing" || guidelineDocumentIsIndexing(document),
+    )
+  ) {
     return PROCESSING_POLL_MS;
   }
   if (
@@ -183,13 +200,13 @@ function GuidelineDocumentRow({
       <ItemContent className="min-w-0">
         <ItemTitle className="flex flex-wrap items-center gap-2">
           <span className="truncate">{document.title}</span>
-          <StatusBadge status={document.status} />
+          <StatusBadge status={guidelineDocumentDisplayStatus(document)} />
         </ItemTitle>
         <ItemDescription className="flex flex-wrap gap-x-2">
           <span className="truncate">{document.filename}</span>
           <span aria-hidden="true">·</span>
           <span>{document.locale ?? <FormattedMessage {...messages.allLocales} />}</span>
-          {document.status === "ready" ? (
+          {document.status === "ready" && document.indexed ? (
             <>
               <span aria-hidden="true">·</span>
               <FormattedMessage
@@ -204,7 +221,7 @@ function GuidelineDocumentRow({
             <FormattedMessage {...errorMessage(document.errorCode)} />
           </p>
         ) : null}
-        {document.status === "ready" && document.truncated ? (
+        {document.status === "ready" && document.indexed && document.truncated ? (
           <p className="text-xs text-muted-foreground">
             <FormattedMessage {...messages.truncated} />
           </p>

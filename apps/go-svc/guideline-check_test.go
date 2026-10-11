@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 	"github.com/hyperlocalise/hyperlocalise/internal/guidelines"
@@ -140,6 +141,26 @@ func TestGuidelineCheckValidationAndLimits(t *testing.T) {
 	require.Equal(t, http.StatusOK, ok.Code, ok.Body.String())
 	require.Contains(t, ok.Body.String(), `"findings":[]`)
 	require.Zero(t, model.calls)
+}
+
+func TestGuidelineCheckRejectsUnreadableModelOutput(t *testing.T) {
+	env := newGuidelineTestEnv(t, "admin")
+	seedReadyGuideline(t, env, env.scope.OrgPath("/guidelines/documents"), "Address readers formally with vous.")
+	model := &fixedGuidelineModel{output: "not json"}
+	meter := &recordingGuidelineMeter{allowed: true}
+	withGuidelineCheck(env, model, meter)
+
+	rec := env.json(http.MethodPost, env.scope.OrgPath("/guidelines/check"),
+		`{"segments":[{"id":"s1","target":"Peux-tu aider ?"}]}`)
+	require.Equal(t, http.StatusBadGateway, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "guideline_check_failed")
+	require.Equal(t, 1, model.calls)
+	require.Empty(t, meter.tracks)
+}
+
+func TestGuidelineCheckWriteDeadlineExceedsWork(t *testing.T) {
+	require.Greater(t, guidelineCheckTimeout+guidelineCheckWriteSlack, serverWriteTimeout)
+	require.GreaterOrEqual(t, guidelineCheckWriteSlack, 5*time.Second)
 }
 
 func TestGuidelineCheckInternalRoute(t *testing.T) {

@@ -73,8 +73,12 @@ export function KnowledgePageContent({
       return;
     }
 
+    if (!canUpdateKnowledgeMemory) {
+      setViewMode("editor");
+      return;
+    }
     setViewMode(hasExistingKnowledge ? "editor" : "upload");
-  }, [hasExistingKnowledge, knowledgeMemoryQuery.data, viewMode]);
+  }, [canUpdateKnowledgeMemory, hasExistingKnowledge, knowledgeMemoryQuery.data, viewMode]);
 
   const openEditor = (seed?: string) => {
     isAddingSources.current = false;
@@ -93,7 +97,7 @@ export function KnowledgePageContent({
       <KnowledgePageHeader
         scope={projectId ? "project" : "organization"}
         onAddSources={
-          resolvedMode === "editor"
+          canUpdateKnowledgeMemory && resolvedMode === "editor"
             ? () => {
                 isAddingSources.current = true;
                 setViewMode("upload");
@@ -104,7 +108,7 @@ export function KnowledgePageContent({
 
       {resolvedMode === "loading" ? <KnowledgePageSkeleton /> : null}
 
-      {resolvedMode === "upload" ? (
+      {resolvedMode === "upload" && canUpdateKnowledgeMemory ? (
         <KnowledgeUploadSection
           onStartMarkdownText={() => openEditor()}
           onFilesSelected={(files) => {

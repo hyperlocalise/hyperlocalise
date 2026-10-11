@@ -90,12 +90,15 @@ afterEach(() => {
 });
 
 describe("guidelineDocumentsRefetchInterval", () => {
-  it("polls while processing or awaiting enqueue recovery", () => {
+  it("polls while processing, indexing, or awaiting enqueue recovery", () => {
     expect(guidelineDocumentsRefetchInterval(undefined)).toBe(false);
     expect(guidelineDocumentsRefetchInterval([guidelineDocument()])).toBe(false);
     expect(guidelineDocumentsRefetchInterval([guidelineDocument({ status: "processing" })])).toBe(
       3000,
     );
+    expect(
+      guidelineDocumentsRefetchInterval([guidelineDocument({ status: "ready", indexed: false })]),
+    ).toBe(3000);
     expect(
       guidelineDocumentsRefetchInterval([
         guidelineDocument({
@@ -123,6 +126,12 @@ describe("GuidelineDocumentsSection", () => {
         status: "failed",
         errorCode: "no_text",
       }),
+      guidelineDocument({
+        id: "doc-3",
+        title: "Still indexing",
+        status: "ready",
+        indexed: false,
+      }),
     ]);
 
     render(<GuidelineDocumentsSection organizationSlug="acme" projectId="project_1" canUpdate />, {
@@ -133,6 +142,8 @@ describe("GuidelineDocumentsSection", () => {
     expect(screen.getByText("Ready")).toBeTruthy();
     expect(screen.getByText("fr-FR")).toBeTruthy();
     expect(screen.getByText("Failed")).toBeTruthy();
+    expect(screen.getByText("Still indexing")).toBeTruthy();
+    expect(screen.getAllByText("Processing")).toHaveLength(1);
     expect(screen.getByText("All locales")).toBeTruthy();
     expect(screen.getByText("No readable text was found in this file.")).toBeTruthy();
     expect(mocks.listDocuments).toHaveBeenCalledWith("acme", "project_1", expect.anything());
