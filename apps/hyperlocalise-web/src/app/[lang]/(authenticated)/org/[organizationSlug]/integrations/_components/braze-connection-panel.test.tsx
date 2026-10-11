@@ -120,6 +120,18 @@ describe("BrazeConnectionPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("API key")).toBeInTheDocument();
     expect(screen.getByText("REST cluster")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "REST cluster" }));
+    fireEvent.change(screen.getByLabelText("Search or paste a REST endpoint"), {
+      target: { value: "https://rest.iad-03.braze.com/" },
+    });
+    expect(screen.getByRole("option", { name: "US-03 · https://rest.iad-03.braze.com" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "US-01 · https://rest.iad-01.braze.com" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: "US-03 · https://rest.iad-03.braze.com" }));
+    expect(screen.getByRole("button", { name: "REST cluster" })).toHaveTextContent(
+      "US-03 · https://rest.iad-03.braze.com",
+    );
     expect(screen.getByLabelText("API key")).toHaveAttribute("type", "password");
     fireEvent.click(screen.getByRole("button", { name: "Show API key" }));
     expect(screen.getByLabelText("API key")).toHaveAttribute("type", "text");
@@ -144,6 +156,9 @@ describe("BrazeConnectionPanel", () => {
     await waitFor(() => {
       expect(mocks.brazeGet).toHaveBeenCalled();
     });
+    expect(await screen.findByRole("button", { name: "REST cluster" })).toHaveTextContent(
+      "US-03 · https://rest.iad-03.braze.com",
+    );
 
     fireEvent.change(screen.getByLabelText("API key"), {
       target: { value: "braze-rest-key" },
@@ -158,6 +173,61 @@ describe("BrazeConnectionPanel", () => {
     });
     await waitFor(() => {
       expect(mocks.toastSuccess).toHaveBeenCalledWith("Braze connection saved.");
+    });
+  });
+
+  it("shows an empty state when the pasted cluster does not match", async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(await screen.findByRole("button", { name: "REST cluster" }));
+    fireEvent.change(screen.getByLabelText("Search or paste a REST endpoint"), {
+      target: { value: "https://dashboard.braze.com" },
+    });
+    expect(screen.getByText("No REST cluster matches.")).toBeInTheDocument();
+  });
+
+  it("saves a cluster change without rotating the API key", async () => {
+    mocks.status = {
+      connected: true,
+      needsReauthorization: false,
+      apiKeyLast4: "abcd",
+    };
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "REST cluster" })).toHaveTextContent(
+        "US-03 · https://rest.iad-03.braze.com",
+      );
+    });
+    fireEvent.click(screen.getByRole("button", { name: "REST cluster" }));
+    fireEvent.change(screen.getByLabelText("Search or paste a REST endpoint"), {
+      target: { value: "https://rest.fra-02.braze.eu" },
+    });
+    fireEvent.click(screen.getByRole("option", { name: "EU-02 · https://rest.fra-02.braze.eu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.brazePut).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme" },
+        json: { restEndpoint: "fra-02" },
+      });
+    });
+  });
+
+  it("surfaces a save error", async () => {
+    mocks.brazePut.mockResolvedValue({ ok: false });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.change(await screen.findByLabelText("API key"), {
+      target: { value: "braze-rest-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "REST cluster" }));
+    fireEvent.click(screen.getByRole("option", { name: "US-01 · https://rest.iad-01.braze.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("Failed to save the Braze connection.");
     });
   });
 

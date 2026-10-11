@@ -99,4 +99,6 @@ not `en-GB`, `zh-CN` is not `zh-TW`, `pt` is not `pt-BR`).
 - The workspace skill `translate-braze-email-templates.md` is the operator
   contract for the agent.
 - Email-template localisation is this skill, not `kind: "content_sync"`.
-- Campaigns and Canvas remain HL-862.
+- Campaigns and Canvas remain HL-862. Product docs treat them as a
+  second, upcoming model. See
+  [Braze localisation models](./2026-10-11-braze-localisation-models.md).

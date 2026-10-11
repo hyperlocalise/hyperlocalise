@@ -35,6 +35,8 @@ this change. Do not embed the Pipes widget or start the authorize redirect.
 
 - Dashboard setup is required: enable Braze as an API-key data integration with
   slug `braze`. Request a custom slug if WorkOS has no catalog entry.
+- One Pipes connection serves both Crowdin-shaped Braze skills. See
+  [Braze localisation models](./2026-10-11-braze-localisation-models.md).
 - Email-template import and **Push to Braze** shipped as
   `translate-braze-email-templates`. See
   [Braze Email Templates](./2026-10-11-braze-email-templates.md).

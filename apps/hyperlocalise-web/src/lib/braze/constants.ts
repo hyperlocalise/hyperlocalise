@@ -89,8 +89,33 @@ export function brazeRestEndpointLabel(restEndpoint: BrazeRestEndpoint): string 
 }
 
 export function brazeRestEndpointOptionLabel(restEndpoint: BrazeRestEndpoint): string {
-  const host = BRAZE_REST_ENDPOINT_BASE_URLS[restEndpoint].replace(/^https:\/\//, "");
-  return `${BRAZE_REST_ENDPOINT_LABELS[restEndpoint]} · ${host}`;
+  return `${BRAZE_REST_ENDPOINT_LABELS[restEndpoint]} · ${BRAZE_REST_ENDPOINT_BASE_URLS[restEndpoint]}`;
+}
+
+function normalizeBrazeRestEndpointQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+}
+
+export function brazeRestEndpointMatchesQuery(
+  restEndpoint: BrazeRestEndpoint,
+  query: string,
+): boolean {
+  const needle = normalizeBrazeRestEndpointQuery(query);
+  if (!needle) {
+    return true;
+  }
+  const haystacks = [
+    restEndpoint,
+    BRAZE_REST_ENDPOINT_LABELS[restEndpoint],
+    BRAZE_REST_ENDPOINT_BASE_URLS[restEndpoint],
+  ].map((value) => normalizeBrazeRestEndpointQuery(value));
+  return haystacks.some((haystack) => haystack.includes(needle));
+}
+
+export function filterBrazeRestEndpoints(query: string): BrazeRestEndpoint[] {
+  return BRAZE_REST_ENDPOINTS.filter((endpoint) =>
+    brazeRestEndpointMatchesQuery(endpoint, query),
+  );
 }
 
 /** Official Templates API list page size. Default 100, maximum 1000. */

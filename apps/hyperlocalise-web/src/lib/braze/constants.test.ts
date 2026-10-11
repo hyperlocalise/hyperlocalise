@@ -15,7 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   BRAZE_PIPES_SLUG,
   brazeRestEndpointLabel,
+  brazeRestEndpointMatchesQuery,
   brazeRestEndpointOptionLabel,
+  filterBrazeRestEndpoints,
   isBrazeRestEndpoint,
   resolveBrazeRestBaseUrl,
 } from "./constants";
@@ -40,6 +42,18 @@ describe("braze constants", () => {
 
   it("labels clusters for the picker", () => {
     expect(brazeRestEndpointLabel("iad-03")).toBe("US-03");
-    expect(brazeRestEndpointOptionLabel("iad-03")).toBe("US-03 · rest.iad-03.braze.com");
+    expect(brazeRestEndpointOptionLabel("iad-03")).toBe("US-03 · https://rest.iad-03.braze.com");
+  });
+
+  it("matches pasted cluster keys, labels, and REST URLs", () => {
+    expect(brazeRestEndpointMatchesQuery("iad-03", "https://rest.iad-03.braze.com/")).toBe(true);
+    expect(brazeRestEndpointMatchesQuery("iad-03", "REST.IAD-03.BRAZE.COM")).toBe(true);
+    expect(brazeRestEndpointMatchesQuery("iad-03", "US-03")).toBe(true);
+    expect(brazeRestEndpointMatchesQuery("iad-03", "iad-03")).toBe(true);
+    expect(brazeRestEndpointMatchesQuery("iad-03", "fra-01")).toBe(false);
+    expect(filterBrazeRestEndpoints("https://rest.fra-01.braze.eu")).toEqual(["fra-01"]);
+    expect(filterBrazeRestEndpoints("").length).toBeGreaterThan(1);
+    expect(filterBrazeRestEndpoints("dashboard.braze.com")).toEqual([]);
+    expect(filterBrazeRestEndpoints("us-10")).toEqual(["us-10"]);
   });
 });

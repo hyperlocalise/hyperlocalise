@@ -13,26 +13,28 @@
  * Version 2.0 or later.
  */
 import { useEffect, useId, useMemo, useState } from "react";
-import { EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
+import { CaretUpDownIcon, EyeIcon, EyeSlashIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createApiClient } from "@/lib/api-client";
 import {
   BRAZE_PIPES_SLUG,
-  BRAZE_REST_ENDPOINTS,
   brazeRestEndpointOptionLabel,
+  filterBrazeRestEndpoints,
   isBrazeRestEndpoint,
   type BrazeRestEndpoint,
 } from "@/lib/braze/constants";
@@ -252,31 +254,11 @@ export function BrazeConnectionPanel({
           <FieldLabel>
             <FormattedMessage {...brazeConnectionPanelMessages.clusterLabel} />
           </FieldLabel>
-          <Select
-            value={selectedEndpoint ?? undefined}
+          <BrazeRestEndpointSelect
+            value={selectedEndpoint}
             disabled={!userCanManage || saveConnection.isPending}
-            onValueChange={(value) => {
-              if (typeof value !== "string" || !isBrazeRestEndpoint(value)) {
-                return;
-              }
-              setSelectedEndpoint(value);
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {BRAZE_REST_ENDPOINTS.map((endpoint) => (
-                <SelectItem
-                  key={endpoint}
-                  value={endpoint}
-                  label={brazeRestEndpointOptionLabel(endpoint)}
-                >
-                  {brazeRestEndpointOptionLabel(endpoint)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onValueChange={setSelectedEndpoint}
+          />
           <p className="text-xs text-muted-foreground">
             <FormattedMessage {...brazeConnectionPanelMessages.clusterHint} />
           </p>
@@ -321,5 +303,85 @@ export function BrazeConnectionPanel({
         ) : null}
       </div>
     </CollapsibleIntegrationRow>
+  );
+}
+
+function BrazeRestEndpointSelect({
+  value,
+  disabled,
+  onValueChange,
+}: {
+  value: BrazeRestEndpoint | null;
+  disabled?: boolean;
+  onValueChange: (value: BrazeRestEndpoint) => void;
+}) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const options = useMemo(() => filterBrazeRestEndpoints(search), [search]);
+  const searchPlaceholder = intl.formatMessage(brazeConnectionPanelMessages.clusterSearchPlaceholder);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          setSearch("");
+        }
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-label={intl.formatMessage(brazeConnectionPanelMessages.clusterLabel)}
+            className="h-auto min-h-9 w-full justify-between gap-1.5 rounded-lg border-input bg-input/30 px-3 py-2 font-normal"
+          />
+        }
+      >
+        <span className="min-w-0 flex-1 whitespace-normal text-left">
+          {value
+            ? brazeRestEndpointOptionLabel(value)
+            : intl.formatMessage(brazeConnectionPanelMessages.clusterPlaceholder)}
+        </span>
+        <CaretUpDownIcon data-icon="inline-end" className="size-4 shrink-0 text-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[var(--anchor-width)] p-0" sideOffset={4}>
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+          />
+          <CommandList>
+            <CommandEmpty>
+              <FormattedMessage {...brazeConnectionPanelMessages.clusterEmpty} />
+            </CommandEmpty>
+            <CommandGroup>
+              {options.map((endpoint) => (
+                <CommandItem
+                  key={endpoint}
+                  value={endpoint}
+                  data-checked={value === endpoint || undefined}
+                  onSelect={() => {
+                    onValueChange(endpoint);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  <span className="whitespace-normal">{brazeRestEndpointOptionLabel(endpoint)}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
