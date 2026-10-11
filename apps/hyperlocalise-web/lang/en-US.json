@@ -443,6 +443,10 @@
     "defaultMessage": "Save",
     "description": "Button label to save a native segment max length"
   },
+  "+qsnClk20i": {
+    "defaultMessage": "Auto-detect",
+    "description": "Placeholder syntax option that detects ICU and i18next placeholders"
+  },
   "+rMSGgCA8X": {
     "defaultMessage": "TMS project",
     "description": "Label for the live TMS project picker field"
@@ -890,6 +894,10 @@
   "/Y9GJUEqGi": {
     "defaultMessage": "Extract text at playhead",
     "description": "Video refinement workspace: extract"
+  },
+  "/Z40OYzdZ/": {
+    "defaultMessage": "Approved project",
+    "description": "Origin for entries promoted from approved project translations"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filters",
@@ -1475,6 +1483,10 @@
     "defaultMessage": "GTM brief",
     "description": "Flow node label"
   },
+  "0iCmLfILOO": {
+    "defaultMessage": "revoked an API key",
+    "description": "Action for an organization API key revocation activity"
+  },
   "0iQPMSh0Vj": {
     "defaultMessage": "Task rate",
     "description": "Translation reporting label"
@@ -1626,6 +1638,10 @@
   "0xs+BR2vTX": {
     "defaultMessage": "Could not save automation settings.",
     "description": "Fallback error when automation settings save fails without a specific message"
+  },
+  "0yPPbm/1Fr": {
+    "defaultMessage": "Same as source",
+    "description": "Chip label for the same-as-source cleanup filter"
   },
   "0yR+TXg23A": {
     "defaultMessage": "Credential name",
@@ -2699,6 +2715,10 @@
     "defaultMessage": "Uploading the file and starting the import...",
     "description": "Status while a translation memory import file uploads and queues processing"
   },
+  "3/uQHFvlcM": {
+    "defaultMessage": "Same as source",
+    "description": "Cleanup shortcut that shows entries whose target copies the source"
+  },
   "304a0qYa4S": {
     "defaultMessage": "Pending registration",
     "description": "Webhook registration status before registration completes"
@@ -2750,6 +2770,10 @@
   "36xVSohq0P": {
     "defaultMessage": "Briefs on new or updated source copy, with context.",
     "description": "AI feature capability body: recent change briefs"
+  },
+  "36xZffJVIP": {
+    "defaultMessage": "Delete selected entries?",
+    "description": "Title for the bulk translation memory delete confirmation"
   },
   "37SGIX021g": {
     "defaultMessage": "Note",
@@ -4903,6 +4927,10 @@
     "defaultMessage": "GitHub App integration is not configured for this environment.",
     "description": "GitHub connect error when GitHub App credentials are not configured"
   },
+  "7BNesLRShh": {
+    "defaultMessage": "Unable to update the selected entries.",
+    "description": "Error shown when bulk translation memory review fails"
+  },
   "7CPu6D68D+": {
     "defaultMessage": "Localisation score",
     "description": "Label above the overall localisation audit score"
@@ -5122,6 +5150,10 @@
   "7h7yO8hu3a": {
     "defaultMessage": "User",
     "description": "Fallback display name when a conversation participant has no name or email"
+  },
+  "7hdb/IRr/l": {
+    "defaultMessage": "Select all visible entries",
+    "description": "Accessible label for selecting every visible translation memory entry"
   },
   "7itDAFKmls": {
     "defaultMessage": "Workspace creation requires WorkOS organization management to be configured.",
@@ -7051,6 +7083,10 @@
     "defaultMessage": "Open",
     "description": "Issue status open"
   },
+  "BAB3xRzd3f": {
+    "defaultMessage": "created a query",
+    "description": "Action for creating a Query"
+  },
   "BBEyVbRR3L": {
     "defaultMessage": "Could not request the report email.",
     "description": "Error shown when requesting a localisation audit summary email fails"
@@ -7670,6 +7706,10 @@
   "CE4Mjxv5Pv": {
     "defaultMessage": "Invited members are added to this team so they can access projects.",
     "description": "Help text for the invite member team field"
+  },
+  "CEaPOoMSXx": {
+    "defaultMessage": "Delete",
+    "description": "Bulk action that deletes selected translation memory entries"
   },
   "CFK4BGiWin": {
     "defaultMessage": "Review state",
@@ -8547,6 +8587,10 @@
     "defaultMessage": "Emerging signal",
     "description": "Market tier"
   },
+  "Ds+zJSK1Kp": {
+    "defaultMessage": "Query Created",
+    "description": "Activity log event type label for creating a Query"
+  },
   "DsCAD1RMQU": {
     "defaultMessage": "Actor",
     "description": "Label for the activity log actor filter"
@@ -8570,6 +8614,10 @@
   "DtVOLEpfXB": {
     "defaultMessage": "Long text",
     "description": "Issue column type label for long text"
+  },
+  "DuGUFMT/N4": {
+    "defaultMessage": "imported queries",
+    "description": "Action for importing Queries"
   },
   "DuOVHqu/z3": {
     "defaultMessage": "Details",
@@ -8871,6 +8919,10 @@
     "defaultMessage": "Source files",
     "description": "Heading for the job source files panel"
   },
+  "ERhdtCoB3w": {
+    "defaultMessage": "Delete",
+    "description": "Confirms permanent deletion of selected translation memory entries"
+  },
   "ERiH8D9Q+l": {
     "defaultMessage": "What's the context of \"{source}\"?",
     "description": "Prefilled prompt when asking for context of the selected CAT segment source string"
@@ -9074,6 +9126,10 @@
   "Erp8YPXBb/": {
     "defaultMessage": "{count} rows",
     "description": "Badge showing total CSV rows in the import preview"
+  },
+  "Es+ucDoi27": {
+    "defaultMessage": "Review drafts",
+    "description": "Button that filters the explorer to draft translation memory entries"
   },
   "EsHwflBzPz": {
     "defaultMessage": "Track review coverage and approval status",
@@ -9419,6 +9475,10 @@
     "defaultMessage": "Your role cannot resolve issues in the provider.",
     "description": "Error when the user tries to resolve an issue without write permission"
   },
+  "FNVuLRr9pO": {
+    "defaultMessage": "Checks double-brace interpolations and nesting only. Single braces are treated as plain text and ICU plurals are not parsed.",
+    "description": "Explanation of the i18next placeholder syntax"
+  },
   "FNmh/WsutT": {
     "defaultMessage": "Failed",
     "description": "Status label for a failed job on project overview"
@@ -9710,6 +9770,10 @@
   "G/cuKsdPte": {
     "defaultMessage": "Write, or press / for commands",
     "description": "Document editor: placeholder for an empty block"
+  },
+  "G03HnOcSA7": {
+    "defaultMessage": "created an API key",
+    "description": "Action for an organization API key creation activity"
   },
   "G052FcCXn0": {
     "defaultMessage": "Seed a query to expand ideas",
@@ -10015,6 +10079,10 @@
     "defaultMessage": "Contact support",
     "description": "Link from a route error to email customer support"
   },
+  "GftyFc6QcS": {
+    "defaultMessage": "{count, plural, one {This permanently deletes # selected entry.} other {This permanently deletes # selected entries.}}",
+    "description": "Explains that bulk translation memory delete cannot be undone"
+  },
   "GgAZPvlKF6": {
     "defaultMessage": "{current}/{count}",
     "description": "Citation carousel page indicator showing current index and total pages"
@@ -10147,6 +10215,10 @@
     "defaultMessage": "Due {due}",
     "description": "Relative due date under job task details"
   },
+  "GvmhHrQBlr": {
+    "defaultMessage": "Rejected",
+    "description": "Cleanup shortcut that shows rejected translation memory entries"
+  },
   "GwJAxTSF4k": {
     "defaultMessage": "SOURCE",
     "description": "Badge identifying the glossary source locale"
@@ -10158,6 +10230,10 @@
   "Gwb99kw7HD": {
     "defaultMessage": "Origin",
     "description": "Label for the origin provenance field"
+  },
+  "Gwl9Xy1ZJk": {
+    "defaultMessage": "Select entry {sourceText}",
+    "description": "Accessible label for selecting a translation memory entry"
   },
   "GwpF6lZmgi": {
     "defaultMessage": "A web chat message arrives",
@@ -10463,10 +10539,6 @@
     "defaultMessage": "The impact goes far beyond operational efficiency. Companies can enter new markets sooner, launch every release globally with confidence, and unlock the return that comes from serving customers in their own language and cultural context. The faster products evolve, the more important this becomes.",
     "description": "Ninth paragraph of the founders note on the company page"
   },
-  "HXvIFMFODd": {
-    "defaultMessage": "Pending",
-    "description": "Pending review status for a translation memory entry"
-  },
   "HYHV9OorEn": {
     "defaultMessage": "Send localized transactional email through Resend.",
     "description": "Resend integration description on the integrations page"
@@ -10639,6 +10711,10 @@
     "defaultMessage": "exported translation memory",
     "description": "Action for a translation memory export activity"
   },
+  "HsTC/VyFCY": {
+    "defaultMessage": "Queries Imported",
+    "description": "Activity log event type label for importing Queries"
+  },
   "Hsz2q13V4l": {
     "defaultMessage": "Loading jobs",
     "description": "Accessible label while the grouped jobs list is loading"
@@ -10710,6 +10786,10 @@
   "I/IBBrTtGZ": {
     "defaultMessage": "Off-brand — too formal and jargon-heavy for DE checkout.",
     "description": "Verdict body in brand chat answer"
+  },
+  "I0ZnPk3SeC": {
+    "defaultMessage": "ICU MessageFormat",
+    "description": "Placeholder syntax option for strict ICU MessageFormat"
   },
   "I0cuFjmafA": {
     "defaultMessage": "Query could not be linked.",
@@ -11083,6 +11163,10 @@
     "defaultMessage": "Project ID (optional)",
     "description": "Optional project filter for source upload trigger"
   },
+  "In7j8i2QDa": {
+    "defaultMessage": "Cleanup",
+    "description": "Button that opens translation memory cleanup shortcuts"
+  },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# job} other {# jobs}} created before the error. Refresh the jobs list before retrying to avoid duplicates.",
     "description": "Warning toast when some jobs were created before an error"
@@ -11146,6 +11230,10 @@
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna",
     "description": "Label for the OpenAI GPT-5.6 Luna automation model"
+  },
+  "IrifQRmlhp": {
+    "defaultMessage": "Translation job",
+    "description": "Origin for entries written by a file translation job"
   },
   "Is9VBW0Pl3": {
     "defaultMessage": "Key",
@@ -11626,6 +11714,10 @@
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
     "description": "Label above the sample native project i18n.yml config"
+  },
+  "JrA+jNfHXy": {
+    "defaultMessage": "API Key Created",
+    "description": "Activity log event type label for creating an organization API key"
   },
   "JrFNiTkZaR": {
     "defaultMessage": "This file format is not supported for translation import.",
@@ -12247,6 +12339,10 @@
     "defaultMessage": "Works across product, marketing, support, and engineering",
     "description": "Differentiator point 6 for the localisation-quality-monitoring use case"
   },
+  "LFyUVsCgBE": {
+    "defaultMessage": "Could not save placeholder format.",
+    "description": "Error when saving per-file placeholder format fails"
+  },
   "LGsstatwcF": {
     "defaultMessage": "Pro · 12k strings remaining",
     "description": "Footer plan summary in marketing app shell mock"
@@ -12358,6 +12454,10 @@
   "LSOvRPa3l7": {
     "defaultMessage": "Extracting segments…",
     "description": "Empty CAT queue while source-file ingest is still extracting keys"
+  },
+  "LSlfg5k13a": {
+    "defaultMessage": "Checks ICU arguments, plurals, and selects only. Double braces and nesting such as $t(key) are treated as plain text.",
+    "description": "Explanation of the strict ICU placeholder syntax"
   },
   "LSs2GWeMba": {
     "defaultMessage": "Live Google results in {market}. Your domain is highlighted when it appears.",
@@ -16035,6 +16135,10 @@
     "defaultMessage": "JP product page",
     "description": "Japanese finding target on the daily compliance audit mock card"
   },
+  "SRM30InJ7k": {
+    "defaultMessage": "Reject",
+    "description": "Bulk action that rejects selected translation memory drafts"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "Collaboration",
     "description": "Integrations page section heading for collaboration tools"
@@ -16626,6 +16730,10 @@
   "TWs2x7bzrZ": {
     "defaultMessage": "Unable to export glossary",
     "description": "Fallback error when glossary export fails"
+  },
+  "TWttJ3vuVB": {
+    "defaultMessage": "Placeholder format",
+    "description": "Dialog title for per-file placeholder (message format) settings"
   },
   "TXP1gdWAFX": {
     "defaultMessage": "Fix SRX rule errors before saving: {detail}",
@@ -17719,6 +17827,10 @@
     "defaultMessage": "Hide secret",
     "description": "Aria label for hiding a credential secret field"
   },
+  "VSw3JkkdYk": {
+    "defaultMessage": "Query Deleted",
+    "description": "Activity log event type label for deleting a Query"
+  },
   "VT7w1Xk0pf": {
     "defaultMessage": "Open project guideline",
     "description": "Link to project guideline page"
@@ -18718,6 +18830,10 @@
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise native",
     "description": "Integration type label for built-in Hyperlocalise products"
+  },
+  "XTuALgEqF+": {
+    "defaultMessage": "Unable to delete the selected entries.",
+    "description": "Error shown when bulk translation memory delete fails"
   },
   "XUGFGcmuvI": {
     "defaultMessage": "Loading segments",
@@ -20491,6 +20607,10 @@
     "defaultMessage": "Column order saved",
     "description": "Toast after reordering issue columns"
   },
+  "apPctURphV": {
+    "defaultMessage": "Save",
+    "description": "Save button in the placeholder format dialog"
+  },
   "auA819r7rs": {
     "defaultMessage": "Loading job",
     "description": "Accessible label for the job detail loading skeleton"
@@ -21143,6 +21263,10 @@
     "defaultMessage": "Table",
     "description": "Document editor: block type"
   },
+  "c2AEweY0yB": {
+    "defaultMessage": "Queries",
+    "description": "Activity log event type group for Queries"
+  },
   "c2QYSQJf6k": {
     "defaultMessage": "File activity",
     "description": "Overflow menu item that opens the file activity log"
@@ -21739,6 +21863,10 @@
     "defaultMessage": "QA alert",
     "description": "Accessible label for the QA alert panel in the inbox"
   },
+  "d8SUTrtkQm": {
+    "defaultMessage": "{count, plural, one {# selected} other {# selected}}",
+    "description": "How many translation memory entries are selected for a bulk action"
+  },
   "d8Vs3k3UER": {
     "defaultMessage": "This conversation is no longer available.",
     "description": "Toast when a docked conversation returns 404"
@@ -21750,6 +21878,10 @@
   "d8sLFKKZce": {
     "defaultMessage": "Apply a search or filter above to enable filtered export.",
     "description": "Hint when filtered export is unavailable"
+  },
+  "d8y6MaSCHF": {
+    "defaultMessage": "Checks ICU arguments, plurals, and selects, plus double-brace interpolations used by i18next and Mustache.",
+    "description": "Explanation of the auto-detect placeholder syntax"
   },
   "d9+py8mf04": {
     "defaultMessage": "Export filtered as XLSX",
@@ -22034,6 +22166,10 @@
   "dbIHLj/rDN": {
     "defaultMessage": "Merge identical strings?",
     "description": "Enable merging confirmation title"
+  },
+  "dbUlLM1Oqq": {
+    "defaultMessage": "Translation jobs save suggestions as drafts. Approve them before they can be reused.",
+    "description": "Explains why translation memory drafts are held out of matching"
   },
   "dbtTNEaJX2": {
     "defaultMessage": "Score {score} out of 100",
@@ -22431,6 +22567,10 @@
     "defaultMessage": "Choose column icon",
     "description": "Accessible label for the custom issue column icon picker trigger"
   },
+  "eD/DPyafBd": {
+    "defaultMessage": "deleted a query",
+    "description": "Action for deleting a Query"
+  },
   "eDTK5TLRPI": {
     "defaultMessage": "From the first draft to the final review.",
     "description": "Caption under the Content Studio preview"
@@ -22571,6 +22711,10 @@
     "defaultMessage": "Open billing",
     "description": "Link to the billing page from the plan usage dialog"
   },
+  "eTWHD/yEhf": {
+    "defaultMessage": "Approve",
+    "description": "Bulk action that approves selected translation memory drafts"
+  },
   "eTfP1zMvKR": {
     "defaultMessage": "No project locales configured",
     "description": "Shown when a project has no target locales for the picker"
@@ -22650,6 +22794,10 @@
   "ecG+jsddyC": {
     "defaultMessage": "Email support",
     "description": "Accessible label for the support email button in the app shell footer"
+  },
+  "ecdy8QZiYq": {
+    "defaultMessage": "Placeholder format saved.",
+    "description": "Toast after saving per-file placeholder format"
   },
   "ecuiDTvUrZ": {
     "defaultMessage": "Poor",
@@ -23086,6 +23234,10 @@
   "fQnyk9TobX": {
     "defaultMessage": "Domains hosts your multilingual pages and checks that each language, search snippet, and AI answer points to the right place.",
     "description": "Details section summary for the Domains product page"
+  },
+  "fRpdPlIg3w": {
+    "defaultMessage": "i18next",
+    "description": "Placeholder syntax option for i18next interpolation"
   },
   "fSTcFbGhuZ": {
     "defaultMessage": "deleted a project",
@@ -23627,6 +23779,10 @@
     "defaultMessage": "Team",
     "description": "Resource type badge for a team-controlled Hyperlocalise glossary"
   },
+  "gNwdZXjHEr": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button in the placeholder format dialog"
+  },
   "gO74VPwdhY": {
     "defaultMessage": "Sample data · Seven-day trends are illustrative.",
     "description": "Disclosure for prototype domain metrics"
@@ -24162,6 +24318,10 @@
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# memory} other {# memories}}",
     "description": "Status label showing how many translation memories exist"
+  },
+  "hInJax4uyv": {
+    "defaultMessage": "{count, plural, one {Rejected # entry} other {Rejected # entries}}",
+    "description": "Toast after rejecting translation memory entries"
   },
   "hKPqpZwImM": {
     "defaultMessage": "{count} failed",
@@ -24883,6 +25043,10 @@
     "defaultMessage": "Localized video generation and regeneration for on-screen text and spoken audio.",
     "description": "Hyperlocalise Agent video generation capability description"
   },
+  "iaUn+Dn3Pk": {
+    "defaultMessage": "Could not load placeholder format.",
+    "description": "Error when loading per-file placeholder format fails"
+  },
   "iagx5dCcQh": {
     "defaultMessage": "One visual.\nA local point of view.",
     "description": "Title for the images format panel"
@@ -25443,6 +25607,10 @@
     "defaultMessage": "Member removed from team",
     "description": "Toast after a member is removed from a team"
   },
+  "jdB1QCPixr": {
+    "defaultMessage": "{count, plural, one {Approved # entry} other {Approved # entries}}",
+    "description": "Toast after approving translation memory entries"
+  },
   "jdk6igRynG": {
     "defaultMessage": "Unavailable",
     "description": "Translation reporting label"
@@ -25830,6 +25998,10 @@
   "kMsw+6lY8Y": {
     "defaultMessage": "See a market test",
     "description": "Anchor link from the Hyperlab hero to the product preview"
+  },
+  "kMySdc7EDT": {
+    "defaultMessage": "Cancel",
+    "description": "Cancels bulk deletion of translation memory entries"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "Needs review",
@@ -28107,6 +28279,10 @@
     "defaultMessage": "Export CSV",
     "description": "Translation reporting label"
   },
+  "oWWUWUJy85": {
+    "defaultMessage": "Choose the placeholder syntax used by this file. Translation checks compare placeholders between source and target using this syntax. Import and export are not affected.",
+    "description": "Intro text for the per-file placeholder format dialog"
+  },
   "oXTxX56WPY": {
     "defaultMessage": "Launch copy to staging and notify the team when review clears.",
     "description": "Workflow description for campaign template in content ops mock"
@@ -28138,22 +28314,6 @@
   "oaEdG+7zwQ": {
     "defaultMessage": "Built-in rules",
     "description": "Label for built-in SRX template select"
-  },
-  "oakCrdAct03": {
-    "defaultMessage": "created an API key",
-    "description": "Action for an organization API key creation activity"
-  },
-  "oakCrdEvT01": {
-    "defaultMessage": "API Key Created",
-    "description": "Activity log event type label for creating an organization API key"
-  },
-  "oakRevAct04": {
-    "defaultMessage": "revoked an API key",
-    "description": "Action for an organization API key revocation activity"
-  },
-  "oakRevEvT02": {
-    "defaultMessage": "API Key Revoked",
-    "description": "Activity log event type label for revoking an organization API key"
   },
   "oayHNZPeA1": {
     "defaultMessage": "Save check settings",
@@ -29207,6 +29367,10 @@
     "defaultMessage": "Turn it on. Keep the version that works.",
     "description": "Hyperlab home how-it-works step 4"
   },
+  "qGKp4CkdHO": {
+    "defaultMessage": "From translation jobs",
+    "description": "Cleanup shortcut that shows entries written by translation jobs"
+  },
   "qGSAjtA2ao": {
     "defaultMessage": "Your role cannot write translations back.",
     "description": "Error when the user tries to save or approve without write permission"
@@ -29747,6 +29911,10 @@
     "defaultMessage": "Saving a translation updates only the strings that share it. Use Apply to all to make every occurrence match.",
     "description": "Explains how saving a translation variant works"
   },
+  "rHzxDmrDRL": {
+    "defaultMessage": "Draft",
+    "description": "Draft review status for an unreviewed translation memory entry"
+  },
   "rI3RUd2o85": {
     "defaultMessage": "Manage projects",
     "description": "Permission row for managing projects"
@@ -29986,6 +30154,10 @@
   "rkvIw30td+": {
     "defaultMessage": "Workflow name",
     "description": "Accessible label for the editable workflow name field"
+  },
+  "rlF044R+WV": {
+    "defaultMessage": "Try again",
+    "description": "Retry button after placeholder format failed to load"
   },
   "rlIyD6nUs1": {
     "defaultMessage": "Labels: Include All",
@@ -30895,6 +31067,10 @@
     "defaultMessage": "Choose file",
     "description": "Button to open the file picker for importing translations"
   },
+  "tYBVGxIBlg": {
+    "defaultMessage": "Syntax",
+    "description": "Label for the placeholder syntax select"
+  },
   "tYvhpR2krg": {
     "defaultMessage": "Coming soon",
     "description": "Badge shown next to the Video Editor navigation item"
@@ -30930,6 +31106,10 @@
   "tcEBE8+x0p": {
     "defaultMessage": "MB",
     "description": "Megabyte size unit abbreviation"
+  },
+  "tcR6O6Wybu": {
+    "defaultMessage": "{count, plural, one {Deleted # entry} other {Deleted # entries}}",
+    "description": "Toast after deleting translation memory entries"
   },
   "tdAVe+ZkeJ": {
     "defaultMessage": "Import · {filename}",
@@ -31266,6 +31446,10 @@
   "uJX/OOWNsW": {
     "defaultMessage": "Fix the QA errors before saving: {checks}",
     "description": "Error shown when an enabled QA Error check blocks a translation save"
+  },
+  "uJcPfJRQmM": {
+    "defaultMessage": "{count, plural, one {# draft entry needs review} other {# draft entries need review}}",
+    "description": "Banner title showing how many translation memory drafts need review"
   },
   "uJhgTrf87d": {
     "defaultMessage": "Answers refreshed for this market.",
@@ -31743,6 +31927,10 @@
     "defaultMessage": "Members & Teams",
     "description": "Settings nav group label for members and teams"
   },
+  "v5xbuERHHQ": {
+    "defaultMessage": "API Key Revoked",
+    "description": "Activity log event type label for revoking an organization API key"
+  },
   "v6QIe3eb5N": {
     "defaultMessage": "Failed to load segment comments",
     "description": "Fallback error when loading CAT segment comments fails"
@@ -32167,6 +32355,10 @@
     "defaultMessage": "Target locales",
     "description": "Label for the project target locales picker"
   },
+  "vvIzxKmwpF": {
+    "defaultMessage": "Drafts",
+    "description": "Cleanup shortcut that shows draft translation memory entries"
+  },
   "vvT35LUoRE": {
     "defaultMessage": "No organization members available.",
     "description": "Empty state when organization members cannot be listed"
@@ -32414,6 +32606,10 @@
   "wJ0RllAJ9H": {
     "defaultMessage": "Completed",
     "description": "Translation reporting label"
+  },
+  "wJXdRoVqtA": {
+    "defaultMessage": "Placeholder format",
+    "description": "Context menu action to choose the placeholder syntax used to validate a file"
   },
   "wJduDnIsm8": {
     "defaultMessage": "Created",
@@ -34454,33 +34650,5 @@
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
     "description": "Screen reader label for the repository enabled checkbox column"
-  },
-  "qryCrdAct05": {
-    "defaultMessage": "created a query",
-    "description": "Action for creating a Query"
-  },
-  "qryCrdEvT01": {
-    "defaultMessage": "Query Created",
-    "description": "Activity log event type label for creating a Query"
-  },
-  "qryDelAct06": {
-    "defaultMessage": "deleted a query",
-    "description": "Action for deleting a Query"
-  },
-  "qryDelEvT02": {
-    "defaultMessage": "Query Deleted",
-    "description": "Activity log event type label for deleting a Query"
-  },
-  "qryGrpLbl04": {
-    "defaultMessage": "Queries",
-    "description": "Activity log event type group for Queries"
-  },
-  "qryImpAct07": {
-    "defaultMessage": "imported queries",
-    "description": "Action for importing Queries"
-  },
-  "qryImpEvT03": {
-    "defaultMessage": "Queries Imported",
-    "description": "Activity log event type label for importing Queries"
   }
 }

@@ -170,6 +170,9 @@
   "+HZaUMLm0i": {
     "defaultMessage": "Änderungen speichern"
   },
+  "+Hatz1jNOF": {
+    "defaultMessage": "Richtlinien werden wirksam, sobald Sie die Dokumente verknüpfen, die Ihr Team bereits pflegt – Markenhandbücher in Google Drive, Seiten zu Tonalität und Sprache in Notion, Rechtsstandards in SharePoint oder direkt in Hyperlocalise eingegebene Regeln. Sie wählen aus, welche Sammlungen für welche Arbeitsbereiche und Sprachen gelten, und das System hält sie indexiert, während sich die Quellen ändern. Neue Mitarbeitende und Agents greifen auf denselben Wissensbestand zu, statt nach dem neuesten PDF suchen zu müssen. Bei jedem Entwurf laufen die Richtlinien kontinuierlich mit – statt nur einmal importiert zu werden. Agents ziehen relevante Passagen für den jeweiligen Inhaltstyp und Markt heran, gleichen vorgeschlagene Texte mit Regeln zu Tonalität, Terminologie und Compliance ab und weisen mit Quellenangaben auf Abweichungen hin. Prüfende sehen, warum eine Formulierung markiert wurde, und können eine Korrektur übernehmen, sie mit einer Notiz außer Kraft setzen oder die zugrunde liegende Regel aktualisieren, wenn sich die Marke weiterentwickelt. Die Ergebnisse erscheinen dort, wo ohnehin geschrieben wird. Markierte Textabschnitte werden in Content Studio und in Ausführungen des Automation Workflow angezeigt und blockieren Veröffentlichungsschritte, bis kritische Probleme behoben sind oder eine verantwortliche Person eine Ausnahme genehmigt. Mit der Zeit fließen angenommene Entscheidungen in die Wissensdatenbank zurück, sodass die nächste Kampagne von Anfang an besser zur Marke passt und die Führungsebene prüfen kann, welche Regeln in den einzelnen Sprach- und Ländervarianten am häufigsten greifen."
+  },
   "+HuJAuB0t9": {
     "defaultMessage": "{prefix}••••••••"
   },
@@ -373,6 +376,9 @@
   },
   "+ngHznLyUe": {
     "defaultMessage": "Ungarisch (Ungarn)"
+  },
+  "+oxkFsrFr8": {
+    "defaultMessage": "Starten Sie einen kostenlosen Workspace oder fordern Sie eine Demo an und starten Sie globale Kampagnen mit markenkonformen Lokalisierungs-Workflows."
   },
   "+pwP0Po+Io": {
     "defaultMessage": "Veraltet"
@@ -754,6 +760,9 @@
   },
   "/Y9GJUEqGi": {
     "defaultMessage": "Text am Abspielkopf extrahieren"
+  },
+  "/Z40OYzdZ/": {
+    "defaultMessage": "Genehmigtes Projekt"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filter"
@@ -1426,6 +1435,9 @@
   },
   "0xs+BR2vTX": {
     "defaultMessage": "Automatisierungseinstellungen konnten nicht gespeichert werden."
+  },
+  "0yPPbm/1Fr": {
+    "defaultMessage": "Wie im Ausgangstext"
   },
   "0yR+TXg23A": {
     "defaultMessage": "Anmeldedatenname"
@@ -2366,6 +2378,9 @@
   "3/ebdpqqmW": {
     "defaultMessage": "Datei wird hochgeladen und Import wird gestartet..."
   },
+  "3/uQHFvlcM": {
+    "defaultMessage": "Wie im Ausgangstext"
+  },
   "304a0qYa4S": {
     "defaultMessage": "Ausstehende Registrierung"
   },
@@ -2431,6 +2446,9 @@
   },
   "36xVSohq0P": {
     "defaultMessage": "Kurzbeschreibungen zu neuen oder aktualisierten Quelltexten mit Kontext."
+  },
+  "36xZffJVIP": {
+    "defaultMessage": "Ausgewählte Einträge löschen?"
   },
   "37SGIX021g": {
     "defaultMessage": "Hinweis"
@@ -3632,6 +3650,9 @@
   "5iWVkPCngl": {
     "defaultMessage": "Keine Search-Console-Suchanfragen in diesem Zeitraum."
   },
+  "5ilEKzvkRa": {
+    "defaultMessage": "Kostenlos starten"
+  },
   "5jQYM3pK9b": {
     "defaultMessage": "Definition"
   },
@@ -3844,6 +3865,9 @@
   },
   "6E7bAH/1Ep": {
     "defaultMessage": "Wählen Sie oben ein Projekt aus, um Live-Übersetzungsspeicher von Ihrem verbundenen Anbieter zu laden."
+  },
+  "6EJKMtXG+O": {
+    "defaultMessage": "Ein Test beginnt, wenn du Inhalte oder UX-Elemente markierst, die sich je nach Markt unterscheiden sollen – etwa eine Überschrift auf der Startseite, einen Schritt im Checkout, einen Preistext oder ein an eine Locale gebundenes Feature-Flag. Du wählst die Zielgruppe aus (zum Beispiel ausschließlich Japan), legst die Varianten fest und bestimmst, wie lange Daten gesammelt werden sollen. Hyperlab hält den Rest deiner Website stabil, damit du nicht auf Basis globaler Durchschnittswerte raten musst. Innerhalb des Experiments wird der Traffic gemäß deinen Regeln aufgeteilt, während Domains und Produktanalysen zusätzlichen Kontext liefern. Du siehst Engagement, Conversion und qualitative Hinweise für jede Variante, ohne die Seite in einem separaten Tool neu erstellen zu müssen. Wenn Automation Workflow verbunden ist, kann der erfolgreiche Text zur Standardzeichenfolge für diese Locale werden, während andere Märkte bei der Kontrollvariante bleiben. Die Ergebnisse zeigen dir, welche Version du beibehalten und wie du sie ausrollen solltest. Dashboards vergleichen die Varianten mit Konfidenzindikatoren, verlinken zu den zugrunde liegenden Zeichenfolgen in Content Studio und dokumentieren, wer die Änderung genehmigt hat. Erfolgreiche Varianten können ausschließlich für diesen Markt in der Produktion veröffentlicht, als dokumentierte Präferenz mit Guidelines synchronisiert oder eine umfassendere Lokalisierungsrunde auslösen, wenn die Erkenntnisse auch für weitere Sprachen relevant sind."
   },
   "6ETzpV6b95": {
     "defaultMessage": "Lernen"
@@ -4244,6 +4268,9 @@
   "76aHgfoqyy": {
     "defaultMessage": "Segmentvalidierungsanfrage fehlgeschlagen."
   },
+  "76p0N2h6Ed": {
+    "defaultMessage": "Starten Sie einen kostenlosen Workspace oder fordern Sie eine Demo an und erfahren Sie, wie Ihr Team Support-Inhalte in allen Sprachversionen aktuell halten kann."
+  },
   "76uDSBNqg0": {
     "defaultMessage": "wahr"
   },
@@ -4297,6 +4324,9 @@
   },
   "7BA/WdUPFq": {
     "defaultMessage": "Die GitHub-App-Integration ist für diese Umgebung nicht konfiguriert."
+  },
+  "7BNesLRShh": {
+    "defaultMessage": "Die ausgewählten Einträge konnten nicht aktualisiert werden."
   },
   "7CPu6D68D+": {
     "defaultMessage": "Lokalisierungsbewertung"
@@ -4486,6 +4516,9 @@
   },
   "7h7yO8hu3a": {
     "defaultMessage": "Benutzer"
+  },
+  "7hdb/IRr/l": {
+    "defaultMessage": "Alle sichtbaren Einträge auswählen"
   },
   "7itDAFKmls": {
     "defaultMessage": "Die Erstellung eines Arbeitsbereichs erfordert, dass die WorkOS-Organisationsverwaltung konfiguriert ist."
@@ -6482,6 +6515,9 @@
   "BuW96vtm0m": {
     "defaultMessage": "API-Schlüssel"
   },
+  "BuyfK8oOrG": {
+    "defaultMessage": "Starten Sie einen kostenlosen Workspace oder fordern Sie eine Demo an und sehen Sie, wie Ihr Operations-Team die Lokalisierung orchestrieren kann, ohne Ihre bestehenden Tools zu ersetzen."
+  },
   "BvipsKvoDg": {
     "defaultMessage": "Typ"
   },
@@ -6643,6 +6679,9 @@
   },
   "CE4Mjxv5Pv": {
     "defaultMessage": "Eingeladene Mitglieder werden diesem Team hinzugefügt, damit sie auf Projekte zugreifen können."
+  },
+  "CEaPOoMSXx": {
+    "defaultMessage": "Löschen"
   },
   "CFK4BGiWin": {
     "defaultMessage": "Bewertungsstatus"
@@ -7709,6 +7748,9 @@
   "EReC/afPt5": {
     "defaultMessage": "Quelldateien"
   },
+  "ERhdtCoB3w": {
+    "defaultMessage": "Löschen"
+  },
   "ERiH8D9Q+l": {
     "defaultMessage": "Was ist der Kontext von „{source}“?"
   },
@@ -7873,6 +7915,9 @@
   },
   "Erp8YPXBb/": {
     "defaultMessage": "{count} Zeilen"
+  },
+  "Es+ucDoi27": {
+    "defaultMessage": "Entwürfe überprüfen"
   },
   "EsHwflBzPz": {
     "defaultMessage": "Prüfe den Abdeckungsgrad und den Genehmigungsstatus von Rezensionen"
@@ -8197,6 +8242,9 @@
   },
   "FXDqvAOc70": {
     "defaultMessage": "Erstellt"
+  },
+  "FXvq+2/Qcr": {
+    "defaultMessage": "Vertraut von Teams bei"
   },
   "FXyyu0UtlW": {
     "defaultMessage": "Anwenden"
@@ -8666,6 +8714,9 @@
   "GftwLzyFL4": {
     "defaultMessage": "Heute"
   },
+  "GftyFc6QcS": {
+    "defaultMessage": "{count, plural, one {Dadurch wird # ausgewählter Eintrag dauerhaft gelöscht.} other {Dadurch werden # ausgewählte Einträge dauerhaft gelöscht.}}"
+  },
   "GgAZPvlKF6": {
     "defaultMessage": "{current}/{count}"
   },
@@ -8780,6 +8831,9 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Fällig {due}"
   },
+  "GvmhHrQBlr": {
+    "defaultMessage": "Abgelehnt"
+  },
   "Gw6z856Urj": {
     "defaultMessage": "Could not save notification preferences."
   },
@@ -8794,6 +8848,9 @@
   },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise wird von Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667, betrieben."
+  },
+  "Gwl9Xy1ZJk": {
+    "defaultMessage": "Eintrag {sourceText} auswählen"
   },
   "GwpF6lZmgi": {
     "defaultMessage": "Eine Nachricht aus dem Webchat trifft ein."
@@ -9614,6 +9671,9 @@
   "ImtoSoLxJY": {
     "defaultMessage": "Projekt-ID (optional)"
   },
+  "In7j8i2QDa": {
+    "defaultMessage": "Bereinigen"
+  },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# Auftrag} other {# Aufträge}} wurden vor dem Fehler erstellt. Aktualisieren Sie die Auftragsliste, bevor Sie es erneut versuchen, um Duplikate zu vermeiden."
   },
@@ -9661,6 +9721,9 @@
   },
   "IrSQ6vE36K": {
     "defaultMessage": "GPT-5.6 Luna"
+  },
+  "IrifQRmlhp": {
+    "defaultMessage": "Übersetzungsauftrag"
   },
   "Is9VBW0Pl3": {
     "defaultMessage": "Schlüssel"
@@ -9913,6 +9976,9 @@
   },
   "JOEjtzHHyY": {
     "defaultMessage": "Du"
+  },
+  "JOF5bl34kw": {
+    "defaultMessage": "Demo anfordern"
   },
   "JOyIQ9rRB7": {
     "defaultMessage": "Verbindung wird getrennt …"
@@ -10846,6 +10912,9 @@
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Verbinden Sie entfernte MCP-Server für Automatisierungstools."
+  },
+  "LgcNXumCl8": {
+    "defaultMessage": "So funktioniert es"
   },
   "LguOyBNnte": {
     "defaultMessage": "Richtlinienquellen"
@@ -12040,6 +12109,9 @@
   },
   "OBw52VUo2G": {
     "defaultMessage": "{percent}% des Tests"
+  },
+  "OC0Ni4OgkT": {
+    "defaultMessage": "Ein Durchlauf startet, sobald in deinem angebundenen Stack mehrsprachige Arbeit anfällt – etwa wenn eine Seite in Contentful aktualisiert, ein Briefing in Notion abgelegt, eine Nachricht in Slack gesendet oder ein Pull Request in GitHub eröffnet wird. Beim Erstellen des Workflows legst du diese Auslöser sowie die Sprachen, Verantwortlichen und Freigaberegeln für jeden Pfad fest. Hyperlocalise überwacht diese Quellen, bündelt geänderte Inhalte samt Kontext und startet einen Durchlauf, damit dieselbe Kampagne nicht im Posteingang hängen bleibt. Innerhalb des Durchlaufs folgen die Agents den Schritten, die du auf der Canvas angelegt hast: Sie erstellen oder adaptieren Texte unter Einbeziehung deiner Guidelines und deines Glossars, leiten Strings bei geringer Zuversicht an menschliche Reviewer weiter und verzweigen nach Markt, wenn Hyperlab oder Domains einen Bedarf für eine bestimmte Locale erkennen. Bei jedem Schritt wird ein Prüfpfad erstellt – wer was bearbeitet hat, welches Modell oder welche Regel zum Einsatz kam und ob die Ausgabe deine Prüfungen bestanden hat. So behalten Localization Manager den Fortschritt im Blick, ohne Updates in verschiedenen Tools nachverfolgen zu müssen. Die Ergebnisse landen dort, wo dein Team ohnehin arbeitet. Freigegebene Strings werden mit deinem CMS oder Site-Repo synchronisiert, Benachrichtigungen in Slack gepostet und Hilfeinhalte in Intercom aktualisiert. Parallel dazu können Exporte weiterhin an Crowdin, Lokalise, Phrase oder Smartling übertragen werden, wenn du einen hybriden Stack nutzt. Beim nächsten Launch läuft jede Sprache automatisch durch denselben Workflow, und Menschen greifen nur ein, wenn etwas nicht stimmt."
   },
   "OC0jExzrXg": {
     "defaultMessage": "Artikel den richtigen Gutachtern zuweisen, basierend auf Thema, Gebietsschema oder Fachwissen."
@@ -13940,6 +14012,9 @@
   "SRAb4hnti/": {
     "defaultMessage": "JP-Produktseite"
   },
+  "SRM30InJ7k": {
+    "defaultMessage": "Ablehnen"
+  },
   "SRrmrnZCsA": {
     "defaultMessage": "Zusammenarbeit"
   },
@@ -15689,6 +15764,9 @@
   "WGmc876gab": {
     "defaultMessage": "Verwenden Sie die Workspace-Richtlinie als Leitfaden für diese Automatisierung."
   },
+  "WHOyA1uTn/": {
+    "defaultMessage": "Starten Sie einen kostenlosen Workspace oder fordern Sie eine Demo an und integrieren Sie Lokalisierungsprüfungen in Ihre Release-Pipeline."
+  },
   "WHrTXX3A2/": {
     "defaultMessage": "Glossarhilfe öffnen"
   },
@@ -16237,6 +16315,9 @@
   },
   "XTqDUMqK14": {
     "defaultMessage": "Hyperlocalise nativ"
+  },
+  "XTuALgEqF+": {
+    "defaultMessage": "Die ausgewählten Einträge konnten nicht gelöscht werden."
   },
   "XUGFGcmuvI": {
     "defaultMessage": "Segmente werden geladen"
@@ -18023,6 +18104,9 @@
   "bHCCUqEOmY": {
     "defaultMessage": "Die Werte der Wiederholungsrichtlinie liegen außerhalb des zulässigen Bereichs."
   },
+  "bHKZwn0sWu": {
+    "defaultMessage": "Die Arbeit beginnt, wenn du Ausgangsmaterial ins Studio bringst – ein Kampagnenbriefing, ein Google Doc, Folien aus Drive, Screenshots oder Videos mit Transkripten. Du wählst die Zielsprachen aus und fügst Richtlinien, Glossare und Marktnotizen hinzu, damit jede Adaption auf denselben Regeln basiert. Das Studio bündelt den kreativen Kontext an einem Ort, statt Kommentare über E-Mail und Chat zu verstreuen. Im Workspace arbeiten du und die Agents für jeden Asset-Typ dieselbe Abfolge durch. Textblöcke werden mit festgelegter Terminologie entworfen oder übersetzt; Dokumente und Präsentationen behalten ihr Layout, während die Texte für jede Locale aktualisiert werden; Bilder und Videos erhalten Alternativtexte, Bildschirmtexte und Untertitel, die auf deine Markenstimme abgestimmt sind. Reviewer kommentieren direkt im Kontext, vergleichen mit der Quelle und geben bestimmte Segmente frei oder zur Überarbeitung zurück, ohne Dateien exportieren zu müssen. Die Ergebnisse sind bereit für den nächsten Schritt in deinem Workflow. Fertige Texte lassen sich zur Prüfung vor der Veröffentlichung an Automation Workflow übergeben, in dein TMS exportieren oder für die juristische Freigabe herunterladen. Da alle Sprachen im selben Projektverlauf zusammenlaufen, weißt du immer, welche Version aktuell ist und was vor dem Launch noch von einem Menschen geprüft werden muss."
+  },
   "bHXY88TkOe": {
     "defaultMessage": "Ergebnisse anzeigen"
   },
@@ -18896,6 +18980,9 @@
   "d7yqWFV1zN": {
     "defaultMessage": "QA-Warnung"
   },
+  "d8SUTrtkQm": {
+    "defaultMessage": "{count, plural, one {# ausgewählt} other {# ausgewählt}}"
+  },
   "d8Vs3k3UER": {
     "defaultMessage": "Diese Unterhaltung ist nicht mehr verfügbar."
   },
@@ -19144,6 +19231,9 @@
   },
   "dbIHLj/rDN": {
     "defaultMessage": "Identische Zeichenfolgen zusammenführen?"
+  },
+  "dbUlLM1Oqq": {
+    "defaultMessage": "Übersetzungsaufträge speichern Vorschläge als Entwürfe. Genehmigen Sie sie, bevor sie wiederverwendet werden können."
   },
   "dbtTNEaJX2": {
     "defaultMessage": "Punktzahl {score} von 100"
@@ -19598,6 +19688,9 @@
   "eTERhCaPbB": {
     "defaultMessage": "Abrechnung öffnen"
   },
+  "eTWHD/yEhf": {
+    "defaultMessage": "Approve"
+  },
   "eTaaI/udxD": {
     "defaultMessage": "Berechtigungen: {permissions}"
   },
@@ -19750,6 +19843,9 @@
   },
   "eogv8qHzO7": {
     "defaultMessage": "Direkte und vertraute französische SaaS-CTA-Formulierung."
+  },
+  "epsUQC31kr": {
+    "defaultMessage": "Starten Sie noch heute einen kostenlosen Workspace oder fordern Sie eine Demo an und erfahren Sie, wie Ihr Team globale Produktinhalte schneller bereitstellen kann, ohne Ihre bestehenden Tools zu ersetzen."
   },
   "eq+MOWqVs2": {
     "defaultMessage": "Erstellen Sie Ihr erstes Lokalisierungsprojekt"
@@ -20450,6 +20546,9 @@
   "gFvQ/JVP4A": {
     "defaultMessage": "Fehler und Warnungen im Zeitverlauf"
   },
+  "gHUxugs0eg": {
+    "defaultMessage": "Für Lokalisierungsteams entwickelt. Starten Sie noch heute kostenlos."
+  },
   "gHgMNG7oQS": {
     "defaultMessage": "Leite die Arbeit an Prüfer innerhalb deines bestehenden Workflows weiter"
   },
@@ -20539,6 +20638,9 @@
   },
   "gRhG9VDHId": {
     "defaultMessage": "Kopieren"
+  },
+  "gSGjmPxLZ8": {
+    "defaultMessage": "{planName}: {priceLabel}"
   },
   "gSVYd4jPtI": {
     "defaultMessage": "Datei"
@@ -20962,6 +21064,9 @@
   },
   "hIXJeNB+nI": {
     "defaultMessage": "{count, plural, one {# Übersetzungsspeicher} other {# Übersetzungsspeicher}}"
+  },
+  "hInJax4uyv": {
+    "defaultMessage": "{count, plural, one {# Eintrag abgelehnt} other {# Einträge abgelehnt}}"
   },
   "hKPqpZwImM": {
     "defaultMessage": "{count} fehlgeschlagen"
@@ -21836,6 +21941,9 @@
   "j53Gofjd1b": {
     "defaultMessage": "Web-Launch"
   },
+  "j6HO+OwVD0": {
+    "defaultMessage": "Wall St. Rank"
+  },
   "j6Jw8eFz2s": {
     "defaultMessage": "Abbrechen"
   },
@@ -21971,6 +22079,9 @@
   "jOtw3PC362": {
     "defaultMessage": "Standard (allgemeine Prosa)"
   },
+  "jP0mfL7DgW": {
+    "defaultMessage": "{planName}: {priceLabel} pro Monat"
+  },
   "jPddLz1mvi": {
     "defaultMessage": "Keine Quelldateien mit diesem Job verknüpft."
   },
@@ -22084,6 +22195,9 @@
   },
   "jd3LwSKaUe": {
     "defaultMessage": "Mitglied aus dem Team entfernt"
+  },
+  "jdB1QCPixr": {
+    "defaultMessage": "{count, plural, one {# Eintrag genehmigt} other {# Einträge genehmigt}}"
   },
   "jdk6igRynG": {
     "defaultMessage": "Nicht verfügbar"
@@ -22444,6 +22558,9 @@
   },
   "kMsw+6lY8Y": {
     "defaultMessage": "Einen Markttest ansehen"
+  },
+  "kMySdc7EDT": {
+    "defaultMessage": "Abbrechen"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "Überprüfung erforderlich"
@@ -23344,6 +23461,9 @@
   },
   "mHug8Cyl7z": {
     "defaultMessage": "KI-Agent"
+  },
+  "mJEqo1QFTM": {
+    "defaultMessage": "Das Monitoring beginnt, sobald Ihre mehrsprachige Website live ist: Domains übernimmt URLs aus Ihrer Sitemap oder CMS-Verbindung und ordnet jede Seite ihren Sprachvarianten zu. Sie geben die Domains an, die Sie überwachen möchten, legen fest, wie oft sie erneut gescannt werden sollen, und entscheiden, ob Staging- oder Produktionsumgebungen einbezogen werden. Das Produkt behandelt jede Sprache als eigenständige Prüfoberfläche und nicht als nachträglichen Zusatz zu einem Audit für einen einzelnen Markt.\n\nBei jedem Scan vergleicht Domains, was Suchmaschinen und KI-Assistenten tatsächlich abrufen können, mit dem, was Sie veröffentlichen wollten. Das Tool prüft hreflang-Paare, Canonical-Tags, die Indexierbarkeit, strukturierte Daten und ob übersetzte Titel und Snippets noch mit dem Text auf der Seite übereinstimmen. Wenn eine Sprachversion aus den Suchergebnissen verschwindet oder eine KI-Antwort die falsche URL zitiert, wird das Problem der jeweiligen Seite und Sprache zugeordnet, damit Autorinnen und Autoren wissen, was zu beheben ist.\n\nDie Ergebnisse fließen in einen priorisierten Backlog ein, den Ihr Team abarbeiten kann. Sie sehen fehlerhafte Sprachalternativen, inhaltlich dünne Übersetzungen und fehlende Metadaten, sortiert nach Traffic und Schweregrad, mit Links zur Live-URL und vorgeschlagenen Textänderungen. Korrekturen können in Content Studio oder Automation Workflow übernommen werden, damit sie in allen Sprachen umgesetzt werden – nicht nur in dem Markt, in dem das Problem zuerst aufgefallen ist."
   },
   "mJWxbqwGL6": {
     "defaultMessage": "Domain-Recherche konnte nicht geladen werden."
@@ -25331,6 +25451,9 @@
   "qFvm5jLVh9": {
     "defaultMessage": "Schalte es ein. Behalte die Version, die funktioniert."
   },
+  "qGKp4CkdHO": {
+    "defaultMessage": "Aus Übersetzungsaufträgen"
+  },
   "qGSAjtA2ao": {
     "defaultMessage": "Ihre Rolle kann Übersetzungen nicht zurückschreiben."
   },
@@ -25801,6 +25924,9 @@
   },
   "rHxmEAsvVD": {
     "defaultMessage": "Beim Speichern einer Übersetzung werden nur die Zeichenfolgen aktualisiert, die sie gemeinsam verwenden. Verwenden Sie „Auf alle anwenden“, damit alle Vorkommen übereinstimmen."
+  },
+  "rHzxDmrDRL": {
+    "defaultMessage": "Entwurf"
   },
   "rI3RUd2o85": {
     "defaultMessage": "Projekte verwalten"
@@ -26876,6 +27002,9 @@
   "tcEBE8+x0p": {
     "defaultMessage": "MB"
   },
+  "tcR6O6Wybu": {
+    "defaultMessage": "{count, plural, one {# Eintrag gelöscht} other {# Einträge gelöscht}}"
+  },
   "tdAVe+ZkeJ": {
     "defaultMessage": "Import · {filename}"
   },
@@ -27154,6 +27283,9 @@
   },
   "uJX/OOWNsW": {
     "defaultMessage": "Beheben Sie die QA-Fehler, bevor Sie speichern: {checks}"
+  },
+  "uJcPfJRQmM": {
+    "defaultMessage": "{count, plural, one {# Entwurfseintrag muss überprüft werden} other {# Entwurfseinträge müssen überprüft werden}}"
   },
   "uJhgTrf87d": {
     "defaultMessage": "Antworten für diesen Markt aktualisiert."
@@ -27614,6 +27746,9 @@
   "vFJiS8I8Kx": {
     "defaultMessage": "Für Lokalisierungsoperationen in großem Maßstab entwickelt"
   },
+  "vFLD5uz9RF": {
+    "defaultMessage": "Starten Sie kostenlos einen Workspace oder fordern Sie eine Demo an und erkennen Sie Abweichungen in Übersetzungen, bevor sie Ihre Kunden erreichen."
+  },
   "vFR3uUyEFs": {
     "defaultMessage": "Erneut versuchen"
   },
@@ -27940,6 +28075,9 @@
   },
   "vv8/iiR38E": {
     "defaultMessage": "Ziellokalisierungen"
+  },
+  "vvIzxKmwpF": {
+    "defaultMessage": "Entwürfe"
   },
   "vvT35LUoRE": {
     "defaultMessage": "Keine Organisationsmitglieder verfügbar."
