@@ -458,7 +458,7 @@ function DeleteToolButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+      className="size-8 rounded-lg text-muted-foreground hover:text-destructive"
     >
       <TrashIcon className="size-4" />
     </Button>

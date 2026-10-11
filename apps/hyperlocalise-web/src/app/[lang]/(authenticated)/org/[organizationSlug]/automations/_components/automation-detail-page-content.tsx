@@ -501,7 +501,7 @@ export function AutomationDetailPageContent({
   const editorActions = (
     <>
       <Button
-        variant="outline"
+        variant="destructive"
         onClick={() => {
           if (writeInFlight) {
             return;
