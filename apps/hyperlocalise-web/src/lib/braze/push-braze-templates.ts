@@ -76,6 +76,56 @@ export function shouldSkipUnchangedBrazePush(
   return lastHash === contentHash;
 }
 
+const LAST_PUSHED_AT_BY_LOCALE_KEY = "lastPushedAtByLocale";
+
+function readLastPushedAtByLocale(
+  extra: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  const raw = extra?.[LAST_PUSHED_AT_BY_LOCALE_KEY];
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {};
+  }
+  const next: Record<string, string> = {};
+  for (const [suffix, value] of Object.entries(raw)) {
+    if (typeof value === "string" && value.trim()) {
+      next[suffix] = value;
+    }
+  }
+  return next;
+}
+
+export function lastPushedAtForBrazeLocale(
+  mapping: {
+    lastPushedAt: Date | null;
+    extra?: Record<string, unknown> | null;
+  },
+  suffix: string,
+): Date | null {
+  const raw = readLastPushedAtByLocale(mapping.extra)[suffix];
+  if (raw) {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  return mapping.lastPushedAt;
+}
+
+export function shouldSkipBrazeLocalePush(input: {
+  lastHash: string | undefined;
+  contentHash: string;
+  overwriteWhenRemoteNewer: boolean;
+  remoteUpdatedAt?: string;
+  lastPushedAt: Date | null;
+}): boolean {
+  const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
+  const remoteNewer = isRemoteNewer(input.remoteUpdatedAt, input.lastPushedAt);
+  if (unchanged) {
+    return !input.overwriteWhenRemoteNewer || !remoteNewer;
+  }
+  return !input.overwriteWhenRemoteNewer && remoteNewer;
+}
+
 export function countMappedBrazeTargetLocales(localeMapping: {
   jobTargetLocales: readonly string[];
   brazeSuffixes: readonly string[];
@@ -209,7 +259,7 @@ export async function runPushBrazeTemplates(input: {
         const translatedHtml = applyHtmlIngestTranslations(sourceHtml, approved.prefilled);
         const contentHash = hashBrazeContent(translatedHtml);
         const lastHash = (mapping.lastPushContentHash ?? {})[suffix];
-        if (shouldSkipUnchangedBrazePush(lastHash, contentHash)) {
+        if (shouldSkipUnchangedBrazePush(lastHash, contentHash) && !overwriteWhenRemoteNewer) {
           result.skippedLocales += 1;
           continue;
         }
@@ -221,6 +271,8 @@ export async function runPushBrazeTemplates(input: {
                 mapping,
                 suffix,
                 html: translatedHtml,
+                lastHash,
+                contentHash,
                 overwriteWhenRemoteNewer,
               })
             : await pushContentBlockCopy({
@@ -228,6 +280,8 @@ export async function runPushBrazeTemplates(input: {
                 mapping,
                 suffix,
                 html: translatedHtml,
+                lastHash,
+                contentHash,
                 overwriteWhenRemoteNewer,
               });
         if (copyResult.status === "skipped") {
@@ -281,6 +335,8 @@ async function pushEmailCopy(input: {
   mapping: typeof schema.brazeTemplateSyncStates.$inferSelect;
   suffix: string;
   html: string;
+  lastHash: string | undefined;
+  contentHash: string;
   overwriteWhenRemoteNewer: boolean;
 }): Promise<BrazePushCopyResult> {
   const fields = restoreBrazeEmailEnvelope(
@@ -294,9 +350,21 @@ async function pushEmailCopy(input: {
   };
   let copyId = input.mapping.localeCopyIds?.[input.suffix];
   if (copyId) {
-    if (!input.overwriteWhenRemoteNewer) {
+    const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
+    if (unchanged && !input.overwriteWhenRemoteNewer) {
+      return { status: "skipped" };
+    }
+    if (!input.overwriteWhenRemoteNewer || unchanged) {
       const remote = await input.client.getEmailTemplate(copyId);
-      if (isRemoteNewer(remote.updated_at, input.mapping.lastPushedAt)) {
+      if (
+        shouldSkipBrazeLocalePush({
+          lastHash: input.lastHash,
+          contentHash: input.contentHash,
+          overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
+          remoteUpdatedAt: remote.updated_at,
+          lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
+        })
+      ) {
         return { status: "skipped" };
       }
     }
@@ -330,6 +398,8 @@ async function pushContentBlockCopy(input: {
   mapping: typeof schema.brazeTemplateSyncStates.$inferSelect;
   suffix: string;
   html: string;
+  lastHash: string | undefined;
+  contentHash: string;
   overwriteWhenRemoteNewer: boolean;
 }): Promise<BrazePushCopyResult> {
   const fields = restoreBrazeContentBlockEnvelope(
@@ -339,9 +409,21 @@ async function pushContentBlockCopy(input: {
   const copyName = brazeContentBlockCopyName(input.mapping.sourceName, input.suffix);
   let copyId = input.mapping.localeCopyIds?.[input.suffix];
   if (copyId) {
-    if (!input.overwriteWhenRemoteNewer) {
+    const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
+    if (unchanged && !input.overwriteWhenRemoteNewer) {
+      return { status: "skipped" };
+    }
+    if (!input.overwriteWhenRemoteNewer || unchanged) {
       const remote = await input.client.getContentBlock(copyId);
-      if (isRemoteNewer(remote.last_edited, input.mapping.lastPushedAt)) {
+      if (
+        shouldSkipBrazeLocalePush({
+          lastHash: input.lastHash,
+          contentHash: input.contentHash,
+          overwriteWhenRemoteNewer: input.overwriteWhenRemoteNewer,
+          remoteUpdatedAt: remote.last_edited,
+          lastPushedAt: lastPushedAtForBrazeLocale(input.mapping, input.suffix),
+        })
+      ) {
         return { status: "skipped" };
       }
     }
@@ -390,10 +472,18 @@ function rememberCopy(
   copyName: string,
   contentHash: string,
 ) {
+  const pushedAt = new Date();
   mapping.localeCopyIds = { ...mapping.localeCopyIds, [suffix]: copyId };
   mapping.localeCopyNames = { ...mapping.localeCopyNames, [suffix]: copyName };
   mapping.lastPushContentHash = { ...mapping.lastPushContentHash, [suffix]: contentHash };
-  mapping.lastPushedAt = new Date();
+  mapping.lastPushedAt = pushedAt;
+  mapping.extra = {
+    ...mapping.extra,
+    [LAST_PUSHED_AT_BY_LOCALE_KEY]: {
+      ...readLastPushedAtByLocale(mapping.extra),
+      [suffix]: pushedAt.toISOString(),
+    },
+  };
 }
 
 async function persistCopySuccess(
@@ -409,7 +499,8 @@ async function persistCopySuccess(
       localeCopyIds: { ...mapping.localeCopyIds, [suffix]: copyId },
       localeCopyNames: { ...mapping.localeCopyNames, [suffix]: copyName },
       lastPushContentHash: { ...mapping.lastPushContentHash, [suffix]: contentHash },
-      lastPushedAt: new Date(),
+      lastPushedAt: mapping.lastPushedAt,
+      extra: mapping.extra ?? {},
       status: "active",
       lastError: null,
       updatedAt: new Date(),

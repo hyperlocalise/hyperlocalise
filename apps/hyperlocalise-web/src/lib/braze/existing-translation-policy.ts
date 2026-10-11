@@ -37,6 +37,18 @@ export type BrazeLocaleTranslationPresence = {
   contentHash: string | null;
 };
 
+export function brazeTranslationPresence(input: {
+  importedHash?: string;
+  translatedKeyCount: number;
+}): BrazeLocaleTranslationPresence {
+  const hasExistingTranslation = input.translatedKeyCount > 0;
+  return {
+    hasExistingTranslation,
+    importProvenanceOnly: hasExistingTranslation && Boolean(input.importedHash),
+    contentHash: input.importedHash ?? null,
+  };
+}
+
 export function decideBrazeExistingTranslationAction(input: {
   policy: BrazeExistingTranslationPolicy;
   presence: BrazeLocaleTranslationPresence;

@@ -23,7 +23,10 @@ import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
 } from "@/lib/projects/jobs/enqueue-file-translation-job";
-import { importApprovedProjectTranslationsFromEntries } from "@/lib/projects/translations/project-translation-service";
+import {
+  ProjectTranslationService,
+  importApprovedProjectTranslationsFromEntries,
+} from "@/lib/projects/translations/project-translation-service";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import {
@@ -35,6 +38,12 @@ import {
 } from "./client";
 import { collectKnownBrazeCopyIds } from "./copy-filter";
 import {
+  brazeLibraryNeedsFullCopyScan,
+  discoverBrazeLocaleCopies,
+  mergeBrazeLocaleCopies,
+  remainingBrazeJobLocales,
+} from "./discover-locale-copies";
+import {
   mergeBrazeImportTargets,
   nextBrazeWatermark,
   shouldListBrazeWithoutWatermark,
@@ -42,9 +51,11 @@ import {
 import { loadBrazeAutomationClient } from "./credentials";
 import {
   DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY,
+  brazeTranslationPresence,
   decideBrazeExistingTranslationAction,
   isBrazeExistingTranslationPolicy,
 } from "./existing-translation-policy";
+import { brazeContentBlockCopyName, brazeEmailCopyName } from "./names";
 import {
   buildBrazeContentBlockSourcePath,
   buildBrazeEmailSourcePath,
@@ -149,16 +160,26 @@ export async function runImportBrazeTemplates(input: {
   const templateFilter = new Set(braze.templateIds ?? []);
   const blockFilter = new Set(braze.contentBlockIds ?? []);
 
+  const listTemplatesWithoutWatermark = shouldListBrazeWithoutWatermark(templateFilter);
+  const listBlocksWithoutWatermark = shouldListBrazeWithoutWatermark(blockFilter);
   const listedTemplates = await listAllBrazeEmailTemplates(client, {
-    modifiedAfter: shouldListBrazeWithoutWatermark(templateFilter)
+    modifiedAfter: listTemplatesWithoutWatermark
       ? null
       : isoWatermark(cursor?.emailWatermarkUpdatedAt),
   });
   const listedBlocks = await listAllBrazeContentBlocks(client, {
-    modifiedAfter: shouldListBrazeWithoutWatermark(blockFilter)
+    modifiedAfter: listBlocksWithoutWatermark
       ? null
       : isoWatermark(cursor?.contentBlockWatermarkUpdatedAt),
   });
+  const listedTemplateItems = listedTemplates.map((item) => ({
+    id: item.email_template_id,
+    name: item.template_name,
+  }));
+  const listedBlockItems = listedBlocks.map((item) => ({
+    id: item.content_block_id,
+    name: item.name,
+  }));
 
   const templates = mergeBrazeImportTargets({
     listed: listedTemplates.map((item) => ({
@@ -195,6 +216,51 @@ export async function runImportBrazeTemplates(input: {
     suffixes: localeMapping.brazeSuffixes,
   });
 
+  const emailExistingByName = new Map(
+    existingMappings
+      .filter((row) => row.resourceKind === "email_template")
+      .map((row) => [row.sourceName, row.localeCopyIds ?? {}]),
+  );
+  const blockExistingByName = new Map(
+    existingMappings
+      .filter((row) => row.resourceKind === "content_block")
+      .map((row) => [row.sourceName, row.localeCopyIds ?? {}]),
+  );
+  let templateLibrary = listedTemplateItems;
+  if (
+    !listTemplatesWithoutWatermark &&
+    cursor?.emailWatermarkUpdatedAt &&
+    brazeLibraryNeedsFullCopyScan({
+      sourceNames: templates.map((item) => item.name),
+      suffixes: localeMapping.brazeSuffixes,
+      library: templateLibrary,
+      existingCopyIdsBySourceName: emailExistingByName,
+      copyName: brazeEmailCopyName,
+    })
+  ) {
+    templateLibrary = (await listAllBrazeEmailTemplates(client)).map((item) => ({
+      id: item.email_template_id,
+      name: item.template_name,
+    }));
+  }
+  let blockLibrary = listedBlockItems;
+  if (
+    !listBlocksWithoutWatermark &&
+    cursor?.contentBlockWatermarkUpdatedAt &&
+    brazeLibraryNeedsFullCopyScan({
+      sourceNames: blocks.map((item) => item.name),
+      suffixes: localeMapping.brazeSuffixes,
+      library: blockLibrary,
+      existingCopyIdsBySourceName: blockExistingByName,
+      copyName: brazeContentBlockCopyName,
+    })
+  ) {
+    blockLibrary = (await listAllBrazeContentBlocks(client)).map((item) => ({
+      id: item.content_block_id,
+      name: item.name,
+    }));
+  }
+
   const result: ImportBrazeTemplatesResult = {
     imported: 0,
     skipped: 0,
@@ -228,6 +294,7 @@ export async function runImportBrazeTemplates(input: {
       localeMapping,
       policy,
       workflowRunId: input.workflowRunId,
+      library: templateLibrary,
       existing: existingMappings.find(
         (row) => row.resourceKind === "email_template" && row.sourceId === template.id,
       ),
@@ -253,6 +320,7 @@ export async function runImportBrazeTemplates(input: {
       localeMapping,
       policy,
       workflowRunId: input.workflowRunId,
+      library: blockLibrary,
       existing: existingMappings.find(
         (row) => row.resourceKind === "content_block" && row.sourceId === block.id,
       ),
@@ -337,6 +405,7 @@ async function importEmailTemplate(input: {
   localeMapping: ReturnType<typeof mapProjectLocalesToBraze>;
   policy: ReturnType<typeof isBrazeExistingTranslationPolicy> extends never ? never : string;
   workflowRunId?: string | null;
+  library: ReadonlyArray<{ id: string; name: string }>;
   existing?: typeof schema.brazeTemplateSyncStates.$inferSelect;
 }) {
   try {
@@ -368,12 +437,21 @@ async function importEmailTemplate(input: {
       throw new Error("braze_source_upload_failed");
     }
 
+    const copies = mergeBrazeLocaleCopies(
+      discoverBrazeLocaleCopies({
+        sourceName: info.template_name || input.templateName,
+        suffixes: input.localeMapping.brazeSuffixes,
+        library: input.library,
+        copyName: brazeEmailCopyName,
+      }),
+      input.existing,
+    );
     const translationResult = await importLocaleCopies({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath,
       localeMapping: input.localeMapping,
-      localeCopyIds: input.existing?.localeCopyIds ?? {},
+      localeCopyIds: copies.localeCopyIds,
       importedHashes: input.existing?.importedTranslationHashes ?? {},
       policy: isBrazeExistingTranslationPolicy(input.policy)
         ? input.policy
@@ -395,7 +473,12 @@ async function importEmailTemplate(input: {
       projectId: input.projectId,
       sourceFileId,
       sourceLocale: input.sourceLocale,
-      targetLocales: remainingJobLocales(input.localeMapping.jobTargetLocales, translationResult),
+      targetLocales: remainingBrazeJobLocales({
+        jobTargetLocales: input.localeMapping.jobTargetLocales,
+        brazeSuffixes: input.localeMapping.brazeSuffixes,
+        importedHashes: translationResult.importedHashes,
+        skippedExistingSuffixes: translationResult.skippedExistingSuffixes,
+      }),
     });
 
     await upsertSyncState({
@@ -410,8 +493,8 @@ async function importEmailTemplate(input: {
       sourceUpdatedAt: input.updatedAt,
       sourceContentHash: hash,
       liquidTokens: serialized.tokensByField,
-      localeCopyIds: input.existing?.localeCopyIds ?? {},
-      localeCopyNames: input.existing?.localeCopyNames ?? {},
+      localeCopyIds: copies.localeCopyIds,
+      localeCopyNames: copies.localeCopyNames,
       importedTranslationHashes: {
         ...input.existing?.importedTranslationHashes,
         ...translationResult.importedHashes,
@@ -485,6 +568,7 @@ async function importContentBlock(input: {
   localeMapping: ReturnType<typeof mapProjectLocalesToBraze>;
   policy: string;
   workflowRunId?: string | null;
+  library: ReadonlyArray<{ id: string; name: string }>;
   existing?: typeof schema.brazeTemplateSyncStates.$inferSelect;
 }) {
   try {
@@ -511,12 +595,21 @@ async function importContentBlock(input: {
       throw new Error("braze_source_upload_failed");
     }
 
+    const copies = mergeBrazeLocaleCopies(
+      discoverBrazeLocaleCopies({
+        sourceName: info.name || input.name,
+        suffixes: input.localeMapping.brazeSuffixes,
+        library: input.library,
+        copyName: brazeContentBlockCopyName,
+      }),
+      input.existing,
+    );
     const translationResult = await importLocaleCopies({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath,
       localeMapping: input.localeMapping,
-      localeCopyIds: input.existing?.localeCopyIds ?? {},
+      localeCopyIds: copies.localeCopyIds,
       importedHashes: input.existing?.importedTranslationHashes ?? {},
       policy: isBrazeExistingTranslationPolicy(input.policy)
         ? input.policy
@@ -533,7 +626,12 @@ async function importContentBlock(input: {
       projectId: input.projectId,
       sourceFileId,
       sourceLocale: input.sourceLocale,
-      targetLocales: remainingJobLocales(input.localeMapping.jobTargetLocales, translationResult),
+      targetLocales: remainingBrazeJobLocales({
+        jobTargetLocales: input.localeMapping.jobTargetLocales,
+        brazeSuffixes: input.localeMapping.brazeSuffixes,
+        importedHashes: translationResult.importedHashes,
+        skippedExistingSuffixes: translationResult.skippedExistingSuffixes,
+      }),
     });
 
     await upsertSyncState({
@@ -548,8 +646,8 @@ async function importContentBlock(input: {
       sourceUpdatedAt: input.updatedAt,
       sourceContentHash: hash,
       liquidTokens: serialized.tokensByField,
-      localeCopyIds: input.existing?.localeCopyIds ?? {},
-      localeCopyNames: input.existing?.localeCopyNames ?? {},
+      localeCopyIds: copies.localeCopyIds,
+      localeCopyNames: copies.localeCopyNames,
       importedTranslationHashes: {
         ...input.existing?.importedTranslationHashes,
         ...translationResult.importedHashes,
@@ -695,11 +793,14 @@ async function importLocaleCopies(input: {
   skipped: number;
   failed: number;
   importedHashes: Record<string, string>;
+  skippedExistingSuffixes: string[];
 }> {
   let imported = 0;
   let skipped = 0;
   let failed = 0;
   const importedHashes: Record<string, string> = {};
+  const skippedExistingSuffixes: string[] = [];
+  const translationService = new ProjectTranslationService();
 
   for (let index = 0; index < input.localeMapping.jobTargetLocales.length; index += 1) {
     const projectLocale = input.localeMapping.jobTargetLocales[index];
@@ -715,17 +816,23 @@ async function importLocaleCopies(input: {
     try {
       const html = await input.loadCopyHtml(copyId);
       const incomingHash = hashBrazeContent(html);
+      const loaded = await translationService.loadAsPrefilledEntries({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: projectLocale,
+      });
       const action = decideBrazeExistingTranslationAction({
         policy: input.policy,
         incomingHash,
-        presence: {
-          hasExistingTranslation: Boolean(input.importedHashes[suffix] || incomingHash),
-          importProvenanceOnly: Boolean(input.importedHashes[suffix]),
-          contentHash: input.importedHashes[suffix] ?? null,
-        },
+        presence: brazeTranslationPresence({
+          importedHash: input.importedHashes[suffix],
+          translatedKeyCount: loaded.translatedKeyCount,
+        }),
       });
       if (action === "skip") {
         skipped += 1;
+        skippedExistingSuffixes.push(suffix);
         continue;
       }
       await importApprovedProjectTranslationsFromEntries({
@@ -749,17 +856,7 @@ async function importLocaleCopies(input: {
     }
   }
 
-  return { imported, skipped, failed, importedHashes };
-}
-
-function remainingJobLocales(
-  jobTargetLocales: readonly string[],
-  translationResult: { importedHashes: Record<string, string> },
-): string[] {
-  if (Object.keys(translationResult.importedHashes).length === 0) {
-    return [...jobTargetLocales];
-  }
-  return [...jobTargetLocales];
+  return { imported, skipped, failed, importedHashes, skippedExistingSuffixes };
 }
 
 async function maybeCreateBrazeJob(input: {
@@ -851,6 +948,8 @@ async function upsertSyncState(input: {
         sourceUpdatedAt: input.sourceUpdatedAt,
         sourceContentHash: input.sourceContentHash,
         liquidTokens: input.liquidTokens,
+        localeCopyIds: input.localeCopyIds,
+        localeCopyNames: input.localeCopyNames,
         importedTranslationHashes: input.importedTranslationHashes,
         extra: input.extra,
         status: input.status,

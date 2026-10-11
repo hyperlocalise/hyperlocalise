@@ -12,9 +12,27 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { decideBrazeExistingTranslationAction } from "./existing-translation-policy";
+import {
+  brazeTranslationPresence,
+  decideBrazeExistingTranslationAction,
+} from "./existing-translation-policy";
 
 describe("braze existing translation policy", () => {
+  it("does not treat the incoming copy hash as an existing translation", () => {
+    expect(brazeTranslationPresence({ importedHash: undefined, translatedKeyCount: 0 })).toEqual({
+      hasExistingTranslation: false,
+      importProvenanceOnly: false,
+      contentHash: null,
+    });
+    expect(
+      decideBrazeExistingTranslationAction({
+        policy: "seed_empty",
+        presence: brazeTranslationPresence({ importedHash: undefined, translatedKeyCount: 0 }),
+        incomingHash: "copy-from-braze",
+      }),
+    ).toBe("import");
+  });
+
   it("seeds only empty locales by default", () => {
     expect(
       decideBrazeExistingTranslationAction({
