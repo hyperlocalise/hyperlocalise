@@ -45,6 +45,7 @@ export * from "./schema/issue-sheet";
 export * from "./schema/repo-tms";
 export * from "./schema/knowledge-memory";
 export * from "./schema/project-file-string-contexts";
+export * from "./schema/project-visual-context";
 export * from "./schema/project-content-editor-string-overlays";
 export * from "./schema/project-content-editor-segment-locks";
 export * from "./schema/billing";

@@ -60,6 +60,9 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     isVisualContextLoading,
     showAgentContext,
     showVisualContext,
+    canUploadVisualContext = false,
+    isUploadingVisualContext = false,
+    onUploadVisualContext,
     canEditTranslations,
     canLookupFreshContext,
     canAddComment,
@@ -96,6 +99,9 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
     isVisualContextLoading: boolean;
     showAgentContext: boolean;
     showVisualContext: boolean;
+    canUploadVisualContext?: boolean;
+    isUploadingVisualContext?: boolean;
+    onUploadVisualContext?: (file: File) => void | Promise<void>;
     canEditTranslations: boolean;
     canLookupFreshContext: boolean;
     canAddComment: boolean;
@@ -204,6 +210,9 @@ export const ContentEditorSideBySideIntelligencePanel = observer(
         isVisualContextLoading={isVisualContextLoading}
         showAgentContext={showAgentContext}
         showVisualContext={showVisualContext}
+        canUploadVisualContext={canUploadVisualContext}
+        isUploadingVisualContext={isUploadingVisualContext}
+        onUploadVisualContext={onUploadVisualContext}
         showMaxLengthEditor={showMaxLengthEditor}
         isMaxLengthSaving={isMaxLengthSaving}
         canEditTranslations={canEditTranslations}

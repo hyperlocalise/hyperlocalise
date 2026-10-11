@@ -219,6 +219,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   isVisualContextLoading,
   showAgentContext,
   showVisualContext,
+  canUploadVisualContext = false,
+  isUploadingVisualContext = false,
+  onUploadVisualContext,
   canLookupFreshContext,
   search = "",
   queueFilter = "all",
@@ -289,6 +292,9 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
   isVisualContextLoading: boolean;
   showAgentContext: boolean;
   showVisualContext: boolean;
+  canUploadVisualContext?: boolean;
+  isUploadingVisualContext?: boolean;
+  onUploadVisualContext?: (segmentId: string, file: File) => void | Promise<void>;
   canLookupFreshContext: boolean;
   search?: string;
   queueFilter?: ContentEditorQueueFilter;
@@ -474,6 +480,13 @@ export const ContentEditorSideBySidePanel = observer(function ContentEditorSideB
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext}
+          isUploadingVisualContext={isUploadingVisualContext}
+          onUploadVisualContext={
+            onUploadVisualContext && intelligenceSegment
+              ? (file) => onUploadVisualContext(intelligenceSegmentId, file)
+              : undefined
+          }
           canEditTranslations={canEditTranslations}
           canLookupFreshContext={canLookupFreshContext}
           canAddComment={canAddComment}

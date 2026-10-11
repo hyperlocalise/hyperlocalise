@@ -12,7 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { UploadSimpleIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { useState } from "react";
 
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,11 +108,20 @@ export function ContentEditorVisualContextPanel({
   visualContext,
   isLoading = false,
   showPanel = false,
+  canUpload = false,
+  isUploading = false,
+  onUpload,
 }: {
   visualContext?: ContentEditorVisualContext;
   isLoading?: boolean;
   showPanel?: boolean;
+  canUpload?: boolean;
+  isUploading?: boolean;
+  onUpload?: (file: File) => void | Promise<void>;
 }) {
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const intl = useIntl();
+
   if (!showPanel) {
     return null;
   }
@@ -141,6 +152,54 @@ export function ContentEditorVisualContextPanel({
           <FormattedMessage {...contentEditorVisualContextPanelMessages.empty} />
         </p>
       )}
+
+      {canUpload && onUpload ? (
+        <div className="space-y-2">
+          <label
+            className={cn(
+              "inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-input bg-background px-2.5 text-xs font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground",
+              isUploading ? "pointer-events-none opacity-50" : "",
+            )}
+          >
+            <UploadSimpleIcon className="size-3" aria-hidden />
+            <FormattedMessage
+              {...(isUploading
+                ? contentEditorVisualContextPanelMessages.uploading
+                : contentEditorVisualContextPanelMessages.upload)}
+            />
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              disabled={isUploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) {
+                  return;
+                }
+                if (
+                  file.type !== "image/png" &&
+                  file.type !== "image/jpeg" &&
+                  file.type !== "image/webp"
+                ) {
+                  setUploadError(
+                    intl.formatMessage(contentEditorVisualContextPanelMessages.invalidFile),
+                  );
+                  return;
+                }
+                setUploadError(null);
+                void Promise.resolve(onUpload(file)).catch(() => {
+                  setUploadError(
+                    intl.formatMessage(contentEditorVisualContextPanelMessages.uploadFailed),
+                  );
+                });
+              }}
+            />
+          </label>
+          {uploadError ? <p className="text-xs text-destructive">{uploadError}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }

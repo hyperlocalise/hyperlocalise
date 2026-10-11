@@ -517,8 +517,9 @@ describe("ContentEditorIntelligenceController", () => {
       expect(workspace.isLoadingVisualContext).toBe(false);
     });
 
-    it("skips visual context lookup for native providers", async () => {
-      const lookupSegmentVisualContext = vi.fn();
+    it("loads visual context for native providers", async () => {
+      const visualContext = { screenshots: [] };
+      const lookupSegmentVisualContext = vi.fn().mockResolvedValue(visualContext);
       const workspace = createTestWorkspace({
         fileContext: {
           sourcePath: "app/page.tsx",
@@ -536,9 +537,10 @@ describe("ContentEditorIntelligenceController", () => {
       });
 
       controller.panelVisible("seg-02");
-      await Promise.resolve();
-
-      expect(lookupSegmentVisualContext).not.toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(workspace.segmentIntelligence["seg-02"]?.visualContext).toEqual(visualContext),
+      );
+      expect(lookupSegmentVisualContext).toHaveBeenCalledOnce();
     });
 
     it("records visual context failures as warn checks", async () => {

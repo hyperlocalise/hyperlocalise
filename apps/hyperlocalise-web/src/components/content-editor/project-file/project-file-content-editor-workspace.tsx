@@ -37,6 +37,7 @@ import {
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
 import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/content-editor-recommendation-mapper";
+import { uploadNativeVisualContextScreenshot } from "@/lib/translation/upload-native-visual-context";
 import { AiFeaturesUpgradeHrefProvider } from "@/lib/billing/ai-features-upgrade-href";
 import { buildAvailablePlansHref } from "@/lib/billing/plan-usage";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
@@ -977,6 +978,23 @@ export function ProjectFileContentEditorWorkspace({
 
   const lookupSegmentVisualContext = useCallback(
     async (segment: ContentEditorSegment) => {
+      if (!contentEditorFile?.provider?.kind || contentEditorFile.provider.kind === "native") {
+        try {
+          const body = await goSvcClient.cat.visualContext(organizationSlug, projectId, {
+            sourcePath,
+            externalStringId: segment.id,
+          });
+          return body.visualContext;
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(
+              error,
+              intl.formatMessage(projectFileCatWorkspaceMessages.failedToLoadVisualContext),
+            ),
+          );
+        }
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat["visual-context"].$post({
@@ -999,7 +1017,7 @@ export function ProjectFileContentEditorWorkspace({
       const body = await response.json();
       return body.visualContext;
     },
-    [intl, organizationSlug, projectId, sourcePath],
+    [contentEditorFile?.provider?.kind, goSvcClient, intl, organizationSlug, projectId, sourcePath],
   );
 
   const generateAiRecommendation = useCallback(
@@ -1383,17 +1401,29 @@ export function ProjectFileContentEditorWorkspace({
                     onUploadImage: async (segmentId, file) => {
                       await uploadImage({ externalStringId: segmentId, file });
                     },
+                    ...(!contentEditorFile?.provider?.kind ||
+                    contentEditorFile.provider.kind === "native"
+                      ? {
+                          onUploadVisualContext: async (segmentId: string, file: File) => {
+                            const visualContext = await uploadNativeVisualContextScreenshot({
+                              client: goSvcClient,
+                              organizationSlug,
+                              projectId,
+                              sourcePath,
+                              externalStringId: segmentId,
+                              file,
+                            });
+                            return visualContext;
+                          },
+                        }
+                      : {}),
                   }}
                   services={{
                     validateFormat,
                     runQaChecks,
                     lookupSegmentConcordance,
                     lookupSegmentContext,
-                    lookupSegmentVisualContext:
-                      contentEditorFile?.provider?.kind &&
-                      contentEditorFile.provider.kind !== "native"
-                        ? lookupSegmentVisualContext
-                        : undefined,
+                    lookupSegmentVisualContext,
                     generateAiRecommendation:
                       aiFeaturesAccess.status === "allowed" ? generateAiRecommendation : undefined,
                   }}

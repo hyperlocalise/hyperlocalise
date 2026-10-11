@@ -378,6 +378,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       ? segmentPosition < totalSegments
       : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
+  const [isUploadingVisualContext, setIsUploadingVisualContext] = useState(false);
   const selectedSegmentIntelligence = resolveSegmentIntelligenceForDisplay(
     {
       intelligence: shell.intelligence,
@@ -412,6 +413,10 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     : null;
   const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
   const isNativeProject = isNativeContentEditorProviderKind(shell.fileContext.providerKind);
+  const canUploadVisualContext =
+    isNativeProject &&
+    Boolean(editing.onUploadVisualContext) &&
+    shell.fileContext.canEditTranslations !== false;
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
   const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
   const editorTranslationKeyId = showNativeIssues
@@ -501,6 +506,20 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             revealedAgentContextSegmentIds?.has(intelligenceSegmentId) ?? showAgentContext
           }
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext}
+          isUploadingVisualContext={isUploadingVisualContext}
+          onUploadVisualContext={
+            editing.onUploadVisualContext
+              ? async (segmentId, file) => {
+                  setIsUploadingVisualContext(true);
+                  try {
+                    await editing.onUploadVisualContext?.(segmentId, file);
+                  } finally {
+                    setIsUploadingVisualContext(false);
+                  }
+                }
+              : undefined
+          }
           canLookupFreshContext={canLookupContext}
           search={queueSearch}
           queueFilter={queueFilter}
@@ -907,6 +926,20 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext && !editorSegment.isLocked}
+          isUploadingVisualContext={isUploadingVisualContext}
+          onUploadVisualContext={
+            editing.onUploadVisualContext
+              ? async (file) => {
+                  setIsUploadingVisualContext(true);
+                  try {
+                    await editing.onUploadVisualContext?.(editorSegment.id, file);
+                  } finally {
+                    setIsUploadingVisualContext(false);
+                  }
+                }
+              : undefined
+          }
           showMaxLengthEditor={isNativeProject}
           isMaxLengthSaving={isMaxLengthSaving}
           canEditTranslations={shell.fileContext.canEditTranslations !== false}

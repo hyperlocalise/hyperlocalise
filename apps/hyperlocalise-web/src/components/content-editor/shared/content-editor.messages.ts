@@ -1356,22 +1356,42 @@ export const contentEditorVisualContextPanelMessages = defineMessages({
   title: {
     defaultMessage: "Visual Context",
     id: "tJeeSJ6Rq1",
-    description: "Section heading for TMS screenshot context in the CAT intelligence panel",
+    description: "Section heading for screenshot context in the CAT intelligence panel",
   },
   description: {
-    defaultMessage: "Screenshots attached in your TMS for this string.",
+    defaultMessage: "Screenshots that show where this string appears.",
     id: "3Td/QL9gLC",
-    description: "Supporting copy for TMS screenshot context in the CAT intelligence panel",
+    description: "Supporting copy for screenshot context in the CAT intelligence panel",
   },
   empty: {
-    defaultMessage: "No screenshots are attached to this string in the provider.",
+    defaultMessage: "No screenshots are attached to this string.",
     id: "ISCo8PAGGI",
-    description: "Empty state when a TMS string has no screenshot context",
+    description: "Empty state when a string has no screenshot context",
   },
   screenshotAltFallback: {
     defaultMessage: "Screenshot context for this string",
     id: "jORzWMtK+S",
-    description: "Accessible fallback label for a TMS screenshot preview image",
+    description: "Accessible fallback label for a screenshot preview image",
+  },
+  upload: {
+    defaultMessage: "Upload screenshot",
+    id: "vcUploadBtn01",
+    description: "Button label for uploading a visual context screenshot",
+  },
+  uploading: {
+    defaultMessage: "Uploading screenshot…",
+    id: "vcUploading01",
+    description: "Status shown while a visual context screenshot is uploading",
+  },
+  uploadFailed: {
+    defaultMessage: "Failed to upload screenshot.",
+    id: "vcUploadFail01",
+    description: "Error when a visual context screenshot upload fails",
+  },
+  invalidFile: {
+    defaultMessage: "Screenshots must be PNG, JPEG, or WebP.",
+    id: "vcInvalidFile1",
+    description: "Error when an unsupported visual context screenshot type is selected",
   },
 });
 

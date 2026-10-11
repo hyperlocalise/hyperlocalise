@@ -125,9 +125,7 @@ export function useContentEditorWorkspaceRuntime({
   const onAskQuestion = reviewOverrides?.onAskQuestion;
 
   const canLookupContext = Boolean(lookupSegmentContext) && canLookupFreshContext;
-  const canLoadVisualContext = Boolean(
-    lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
-  );
+  const canLoadVisualContext = Boolean(lookupSegmentVisualContext && store.providerKind);
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
   const queueView = useMemo(
     () => computed(() => store.getQueuePanelSegments(queueFilter, usesServerQueueFilter)),
@@ -255,6 +253,17 @@ export function useContentEditorWorkspaceRuntime({
         ? { onRegenerateImage: editingOverrides.onRegenerateImage }
         : {}),
       ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
+      ...(editingOverrides?.onUploadVisualContext
+        ? {
+            onUploadVisualContext: async (segmentId: string, file: File) => {
+              const visualContext = await editingOverrides.onUploadVisualContext?.(segmentId, file);
+              if (visualContext) {
+                store.mergeSegmentIntelligence(segmentId, { visualContext });
+              }
+              return visualContext;
+            },
+          }
+        : {}),
       ...(editingOverrides?.onSetMaxLength
         ? { onSetMaxLength: editingOverrides.onSetMaxLength }
         : {}),
@@ -364,6 +373,7 @@ export function useContentEditorWorkspaceRuntime({
     editingOverrides?.onTreatAsImage,
     editingOverrides?.onTreatAsVideo,
     editingOverrides?.onUploadImage,
+    editingOverrides?.onUploadVisualContext,
     generateAiRecommendation,
     hasMoreQueue,
     intelligenceController,

@@ -191,6 +191,7 @@ func main() {
 	}
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
+	h.contentEditor.objects = h.objects
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)

@@ -736,6 +736,59 @@ export const projectFileCatVisualContextResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatVisualContextUploadBodySchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  contentType: z.string().trim().min(1).max(128),
+  name: z.string().trim().max(256).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+  externalStringId: z.string().trim().min(1).max(128).optional(),
+  marker: projectFileCatVisualContextMarkerSchema.optional(),
+});
+
+export const projectFileCatVisualContextBindingSchema = z.object({
+  id: z.string(),
+  screenshotId: z.string(),
+  externalStringId: z.string(),
+  marker: projectFileCatVisualContextMarkerSchema.nullable().optional(),
+});
+
+export const projectFileCatVisualContextUploadResponseSchema = z.object({
+  screenshot: z.object({
+    id: z.string(),
+    name: z.string().nullable().optional(),
+    status: z.literal("upload_pending"),
+  }),
+  binding: projectFileCatVisualContextBindingSchema.nullable().optional(),
+  upload: z.object({
+    url: z.string().min(1),
+    method: z.string().min(1),
+    headers: z.record(z.string(), z.array(z.string())),
+    expiresAt: z.string(),
+  }),
+});
+
+export const projectFileCatVisualContextFinalizeBodySchema = z.object({
+  name: z.string().trim().max(256).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+
+export const projectFileCatVisualContextFinalizeResponseSchema = z.object({
+  screenshot: projectFileCatVisualContextScreenshotSchema,
+});
+
+export const projectFileCatVisualContextBindBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalStringId: z.string().trim().min(1).max(128),
+  marker: projectFileCatVisualContextMarkerSchema.optional(),
+});
+
+export const projectFileCatVisualContextBindResponseSchema = z.object({
+  binding: projectFileCatVisualContextBindingSchema,
+});
+
 export const projectFileCatRecommendationResponseSchema = z.object({
   recommendation: z.object({
     aiSuggestion: z.string(),
@@ -1026,6 +1079,24 @@ export type ProjectFileContentEditorVisualContextBody = z.infer<
 >;
 export type ProjectFileContentEditorVisualContextResponse = z.infer<
   typeof projectFileCatVisualContextResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextUploadBody = z.infer<
+  typeof projectFileCatVisualContextUploadBodySchema
+>;
+export type ProjectFileContentEditorVisualContextUploadResponse = z.infer<
+  typeof projectFileCatVisualContextUploadResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextFinalizeBody = z.infer<
+  typeof projectFileCatVisualContextFinalizeBodySchema
+>;
+export type ProjectFileContentEditorVisualContextFinalizeResponse = z.infer<
+  typeof projectFileCatVisualContextFinalizeResponseSchema
+>;
+export type ProjectFileContentEditorVisualContextBindBody = z.infer<
+  typeof projectFileCatVisualContextBindBodySchema
+>;
+export type ProjectFileContentEditorVisualContextBindResponse = z.infer<
+  typeof projectFileCatVisualContextBindResponseSchema
 >;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;
