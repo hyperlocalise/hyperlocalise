@@ -65,7 +65,7 @@ worker, or a new Lambda artifact under `apps/`.
    filters. Do not refactor upload/provision structure. Never reintroduce
    workflow-wide `concurrency` with `cancel-in-progress: true` while deploy
    jobs are path-skipped.    Set `role-session-name: github-actions-lambda-deploy` on
-   `configure-aws-credentials` (required for every deploy job on `main`; do
+   `configure-aws-credentials` (required for every deploy job on `prod`; do
    not introduce per-worker session names). Do not change concurrency groups
    or deploy steps on existing Lambda jobs when adding a worker. See
    [docs/contributing/lambda-deploy.mdx](../../../docs/contributing/lambda-deploy.mdx)

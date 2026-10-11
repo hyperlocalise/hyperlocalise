@@ -10,7 +10,7 @@ on:
       - .github/workflows/sandbox-image.yml
   push:
     branches:
-      - main
+      - prod
     paths:
       - apps/sandbox-image/**
       - apps/go-svc/build/fetch-dictionaries.sh
@@ -115,7 +115,7 @@ jobs:
           file: apps/sandbox-image/Dockerfile
           platforms: linux/amd64
           # PRs: build-only with a local tag (no registry auth).
-          # main / workflow_dispatch: push sha + latest to VCR.
+          # prod / workflow_dispatch: push sha + latest to VCR.
           push: ${{ steps.meta.outputs.push == 'true' }}
           load: ${{ steps.meta.outputs.push != 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
