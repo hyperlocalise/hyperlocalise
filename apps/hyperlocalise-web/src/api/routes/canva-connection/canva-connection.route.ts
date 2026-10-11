@@ -18,6 +18,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   enqueueIntegrationConnectedActivity,
+  enqueueIntegrationCredentialRotatedActivity,
   enqueueIntegrationDisconnectedActivity,
 } from "@/lib/activity-log/integration-events";
 import { sessionActivityActor } from "@/lib/activity-log/file-segment-events";
@@ -252,6 +253,13 @@ export function createCanvaConnectionRoutes() {
       if (!result) {
         return notFoundResponse(c, "canva_connection_not_found");
       }
+
+      await enqueueIntegrationCredentialRotatedActivity({
+        ...sessionActivityActor(c.var.auth.user.localUserId),
+        connectionId: params.connectionId,
+        integrationKind: "canva",
+        organizationId: c.var.auth.organization.localOrganizationId,
+      });
 
       return c.json(
         {

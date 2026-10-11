@@ -57,13 +57,18 @@ export type ActivityLogItem = {
 const eventActions = {
   member_invited: messages.memberInvitedAction,
   member_invite_resent: messages.memberInviteResentAction,
+  member_invite_revoked: messages.memberInviteRevokedAction,
+  member_joined: messages.memberJoinedAction,
   member_role_changed: messages.memberRoleChangedAction,
   member_removed: messages.memberRemovedAction,
   workspace_updated: messages.workspaceUpdatedAction,
+  workspace_archived: messages.workspaceArchivedAction,
   personal_access_token_created: messages.personalAccessTokenCreatedAction,
   personal_access_token_revoked: messages.personalAccessTokenRevokedAction,
   integration_connected: messages.integrationConnectedAction,
   integration_disconnected: messages.integrationDisconnectedAction,
+  integration_credential_revealed: messages.integrationCredentialRevealedAction,
+  integration_credential_rotated: messages.integrationCredentialRotatedAction,
   project_created: messages.projectCreatedAction,
   project_deleted: messages.projectDeletedAction,
   project_settings_changed: messages.projectSettingsChangedAction,
@@ -117,7 +122,7 @@ function activityVisual(eventType: ImplementedActivityEventType): ActivityVisual
   if (eventType.startsWith("member_")) {
     return { icon: UsersThreeIcon, className: "bg-info/10 text-info" };
   }
-  if (eventType === "workspace_updated") {
+  if (eventType.startsWith("workspace_")) {
     return { icon: BuildingOfficeIcon, className: "bg-primary/10 text-primary" };
   }
   if (eventType.startsWith("personal_access_token_")) {
@@ -164,7 +169,7 @@ function relativeTime(
 function targetDisplayName(item: ActivityLogItem): string | null {
   if (item.target.displayName) return item.target.displayName;
   if (
-    (item.eventType === "integration_connected" || item.eventType === "integration_disconnected") &&
+    item.eventType.startsWith("integration_") &&
     typeof item.payload.integrationKind === "string"
   ) {
     return item.payload.integrationKind;

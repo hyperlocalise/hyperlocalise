@@ -338,24 +338,28 @@ export async function reconcileWorkosMembershipsForUser(
       workosOrganizationId: remoteMembership.organizationId,
     });
 
-    await syncWorkosIdentity(database, {
-      user: {
-        workosUserId: input.workosUserId,
-        email: input.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        avatarUrl: input.avatarUrl,
+    await syncWorkosIdentity(
+      database,
+      {
+        user: {
+          workosUserId: input.workosUserId,
+          email: input.email,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          avatarUrl: input.avatarUrl,
+        },
+        organization: {
+          workosOrganizationId: remoteMembership.organizationId,
+          name: organization.name,
+          slug: organization.slug ?? undefined,
+        },
+        membership: {
+          workosMembershipId: remoteMembership.id,
+          role,
+        },
       },
-      organization: {
-        workosOrganizationId: remoteMembership.organizationId,
-        name: organization.name,
-        slug: organization.slug ?? undefined,
-      },
-      membership: {
-        workosMembershipId: remoteMembership.id,
-        role,
-      },
-    });
+      { recordActivity: true },
+    );
 
     if (!existingMembership) {
       added += 1;

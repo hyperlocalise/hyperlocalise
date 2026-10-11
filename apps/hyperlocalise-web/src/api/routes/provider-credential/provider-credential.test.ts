@@ -292,6 +292,8 @@ describe("providerCredentialRoutes", () => {
       defaultModel: "gpt-5.5",
     });
 
+    enqueueActivityLogEventMock.mockClear();
+
     const revealResponse = await client.api.orgs[":organizationSlug"]["provider-credential"][
       "reveal"
     ].$post(
@@ -314,5 +316,12 @@ describe("providerCredentialRoutes", () => {
         },
       },
     });
+    expect(enqueueActivityLogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "integration_credential_revealed",
+        payload: expect.objectContaining({ integrationKind: "openai" }),
+        targetKind: "integration",
+      }),
+    );
   });
 });

@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { mockAudit } from "evlog";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   clearPendingMembershipReplacingInvitation,
@@ -39,15 +39,96 @@ import {
   REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
 
+const { enqueueActivityLogEventsMock } = vi.hoisted(() => ({
+  enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/activity-log/activity-log-writer", () => ({
+  enqueueActivityLogEvents: enqueueActivityLogEventsMock,
+}));
+
 const { createWorkosIdentity, createWorkosIdentityForOrganization, cleanup, trackWorkosUserId } =
   createAuthTestFixture();
+
+function enqueuedActivityEvents() {
+  return enqueueActivityLogEventsMock.mock.calls.flatMap(([events]) => events);
+}
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  enqueueActivityLogEventsMock.mockClear();
+});
+
 afterEach(async () => {
   await cleanup();
+});
+
+describe("syncWorkosIdentity activity", () => {
+  it("records member_joined when a pending invite becomes an active membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const invitedIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, {
+      ...invitedIdentity,
+      membership: { role: "translator" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(db, invitedIdentity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "user",
+        actorUserId: synced.user.id,
+        eventType: "member_joined",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ memberUserId: synced.user.id, role: "translator" }),
+        targetKind: "membership",
+      }),
+    ]);
+  });
+
+  it("records member_role_changed when WorkOS changes an active member role", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "translator",
+    );
+    await syncWorkosIdentity(db, memberIdentity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    const synced = await syncWorkosIdentity(
+      db,
+      { ...memberIdentity, membership: { ...memberIdentity.membership, role: "reviewer" } },
+      { recordActivity: true },
+    );
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_role_changed",
+        organizationId: synced.organization.id,
+        payload: expect.objectContaining({ nextRole: "reviewer", previousRole: "translator" }),
+      }),
+    ]);
+  });
+
+  it("records nothing when an active membership is re-synced unchanged", async () => {
+    const identity = createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+    enqueueActivityLogEventsMock.mockClear();
+
+    await syncWorkosIdentity(db, identity, { recordActivity: true });
+
+    expect(enqueuedActivityEvents()).toEqual([]);
+  });
 });
 
 describe("removePendingOrganizationMembershipForInvite", () => {
@@ -137,6 +218,37 @@ describe("removePendingOrganizationMembershipForInvite", () => {
     });
 
     expect(deleted).toBe(1);
+  });
+
+  it("records member_invite_revoked for each revoked pending invite", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const owner = await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `revoked-${randomUUID()}@example.com`;
+    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+    trackWorkosUserId(placeholderUserId);
+
+    await syncWorkosIdentity(db, {
+      user: { workosUserId: placeholderUserId, email: pendingEmail },
+      organization: ownerIdentity.organization,
+      membership: { role: "member" },
+    });
+    enqueueActivityLogEventsMock.mockClear();
+
+    await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      email: pendingEmail,
+      recordActivity: true,
+    });
+
+    expect(enqueuedActivityEvents()).toEqual([
+      expect.objectContaining({
+        actorKind: "system",
+        eventType: "member_invite_revoked",
+        organizationId: owner.organization.id,
+        targetKind: "invitation",
+      }),
+    ]);
   });
 });
 

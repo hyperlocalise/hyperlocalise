@@ -35,13 +35,18 @@ export type ActivityTargetKind = (typeof ACTIVITY_TARGET_KINDS)[number];
 export const V1_ACTIVITY_EVENT_TYPES = [
   "member_invited",
   "member_invite_resent",
+  "member_invite_revoked",
+  "member_joined",
   "member_role_changed",
   "member_removed",
   "workspace_updated",
+  "workspace_archived",
   "personal_access_token_created",
   "personal_access_token_revoked",
   "integration_connected",
   "integration_disconnected",
+  "integration_credential_revealed",
+  "integration_credential_rotated",
   "project_created",
   "project_deleted",
   "project_settings_changed",
@@ -173,6 +178,14 @@ export type ActivityPayloadByEventType = {
   member_invite_resent: {
     invitationId: string;
   };
+  member_invite_revoked: {
+    invitationId: string;
+  };
+  member_joined: {
+    memberUserId: string;
+    membershipId: string;
+    role: ActivityMembershipRole;
+  };
   member_role_changed: {
     memberUserId: string;
     membershipId: string;
@@ -187,6 +200,9 @@ export type ActivityPayloadByEventType = {
     changedFields: readonly string[];
     previousName?: string;
     nextName?: string;
+  };
+  workspace_archived: {
+    lifecycleStatus: "archived";
   };
   personal_access_token_created: {
     keyPrefix: string;
@@ -203,6 +219,14 @@ export type ActivityPayloadByEventType = {
     integrationKind: string;
   };
   integration_disconnected: {
+    connectionId: string;
+    integrationKind: string;
+  };
+  integration_credential_revealed: {
+    connectionId: string;
+    integrationKind: string;
+  };
+  integration_credential_rotated: {
     connectionId: string;
     integrationKind: string;
   };
@@ -340,13 +364,18 @@ export type ActivityPayloadByEventType = {
 export type ActivityTargetKindByEventType = {
   member_invited: "invitation";
   member_invite_resent: "invitation";
+  member_invite_revoked: "invitation";
+  member_joined: "membership";
   member_role_changed: "membership";
   member_removed: "membership";
   workspace_updated: "organization";
+  workspace_archived: "organization";
   personal_access_token_created: "personal_access_token";
   personal_access_token_revoked: "personal_access_token";
   integration_connected: "integration";
   integration_disconnected: "integration";
+  integration_credential_revealed: "integration";
+  integration_credential_rotated: "integration";
   project_created: "project";
   project_deleted: "project";
   project_settings_changed: "project";

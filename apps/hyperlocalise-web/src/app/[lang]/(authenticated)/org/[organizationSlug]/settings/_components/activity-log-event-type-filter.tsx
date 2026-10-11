@@ -65,12 +65,19 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: UsersThreeIcon,
     label: messages.membershipEventGroup,
-    eventTypes: ["member_invited", "member_invite_resent", "member_role_changed", "member_removed"],
+    eventTypes: [
+      "member_invited",
+      "member_invite_resent",
+      "member_invite_revoked",
+      "member_joined",
+      "member_role_changed",
+      "member_removed",
+    ],
   },
   {
     icon: BuildingOfficeIcon,
     label: messages.workspaceEventGroup,
-    eventTypes: ["workspace_updated"],
+    eventTypes: ["workspace_updated", "workspace_archived"],
   },
   {
     icon: KeyIcon,
@@ -80,7 +87,12 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: PuzzlePieceIcon,
     label: messages.integrationEventGroup,
-    eventTypes: ["integration_connected", "integration_disconnected"],
+    eventTypes: [
+      "integration_connected",
+      "integration_disconnected",
+      "integration_credential_revealed",
+      "integration_credential_rotated",
+    ],
   },
   {
     icon: FoldersIcon,
@@ -164,13 +176,18 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
 const eventTypeLabels = {
   member_invited: messages.memberInvitedEventType,
   member_invite_resent: messages.memberInviteResentEventType,
+  member_invite_revoked: messages.memberInviteRevokedEventType,
+  member_joined: messages.memberJoinedEventType,
   member_role_changed: messages.memberRoleChangedEventType,
   member_removed: messages.memberRemovedEventType,
   workspace_updated: messages.workspaceUpdatedEventType,
+  workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
   personal_access_token_revoked: messages.personalAccessTokenRevokedEventType,
   integration_connected: messages.integrationConnectedEventType,
   integration_disconnected: messages.integrationDisconnectedEventType,
+  integration_credential_revealed: messages.integrationCredentialRevealedEventType,
+  integration_credential_rotated: messages.integrationCredentialRotatedEventType,
   project_created: messages.projectCreatedEventType,
   project_deleted: messages.projectDeletedEventType,
   project_settings_changed: messages.projectSettingsChangedEventType,
