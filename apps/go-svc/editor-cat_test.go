@@ -145,10 +145,27 @@ func TestEditorCatQueueNative(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Equal(t, "locales/en.json", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, "auto", body.ContentEditorQueue.MessageFormat)
 	require.True(t, body.ContentEditorQueue.CanEditTranslations)
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
 	require.Equal(t, "hello", body.ContentEditorQueue.Segments[0].Key)
 	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+}
+
+func TestEditorCatQueueReturnsPersistedMessageFormat(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "locales/en.json")
+	mustEditorCatKey(t, scope, fileID, "hello", "Hello {{name}}")
+	_, err := scope.Pool.Exec(t.Context(), `update repository_source_files set message_format='i18next' where id=$1`, fileID)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=locales/en.json&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "i18next", body.ContentEditorQueue.MessageFormat)
 }
 
 func TestEditorCatQueueReturnsSourceIngestForEmptyHTML(t *testing.T) {
