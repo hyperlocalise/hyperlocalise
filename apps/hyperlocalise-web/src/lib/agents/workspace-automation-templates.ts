@@ -23,6 +23,7 @@ export type WorkspaceAutomationTemplateCategory =
 export type WorkspaceAutomationTemplate = {
   id: string;
   category: WorkspaceAutomationTemplateCategory;
+  extraCategories?: readonly WorkspaceAutomationTemplateCategory[];
   name: string;
   description: string;
   instructions: string;
@@ -133,6 +134,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
   {
     id: "translate-braze-email-templates",
     category: "popular",
+    extraCategories: ["marketing"],
     name: "Translate Braze Email Templates",
     description:
       "Import Braze email templates and Content Blocks as HTML, localise in Jobs, then push locale-suffixed library copies.",
@@ -1081,6 +1083,19 @@ export function getWorkspaceAutomationTemplateCategoryLabel(
   );
 }
 
+export function listWorkspaceAutomationTemplateCategories(
+  template: WorkspaceAutomationTemplate,
+): WorkspaceAutomationTemplateCategory[] {
+  return [template.category, ...(template.extraCategories ?? [])];
+}
+
+export function workspaceAutomationTemplateMatchesCategory(
+  template: WorkspaceAutomationTemplate,
+  category: WorkspaceAutomationTemplateCategory,
+) {
+  return listWorkspaceAutomationTemplateCategories(template).includes(category);
+}
+
 export function listWorkspaceAutomationTemplates(
   category?: WorkspaceAutomationTemplateCategory,
   templates: WorkspaceAutomationTemplate[] = WORKSPACE_AUTOMATION_TEMPLATES,
@@ -1089,5 +1104,7 @@ export function listWorkspaceAutomationTemplates(
     return templates;
   }
 
-  return templates.filter((template) => template.category === category);
+  return templates.filter((template) =>
+    workspaceAutomationTemplateMatchesCategory(template, category),
+  );
 }

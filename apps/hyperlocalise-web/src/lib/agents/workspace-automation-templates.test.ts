@@ -16,6 +16,7 @@ import {
   formatWorkspaceAutomationTemplateInstructions,
   getWorkspaceAutomationTemplate,
   getWorkspaceAutomationTemplateFlow,
+  listWorkspaceAutomationTemplates,
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
 } from "./workspace-automation-templates";
 
@@ -107,6 +108,19 @@ describe("workspace automation templates", () => {
         { id: "translate-with-agent", label: "Translate with agent" },
       ],
     });
+  });
+
+  it("lists the Braze template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
   });
 
   it("builds the Braze template flow with brand, create job, and translate tools", () => {

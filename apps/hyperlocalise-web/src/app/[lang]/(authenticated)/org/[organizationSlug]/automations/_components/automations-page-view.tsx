@@ -24,9 +24,10 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
-import type {
-  WorkspaceAutomationTemplate,
-  WorkspaceAutomationTemplateCategory,
+import {
+  workspaceAutomationTemplateMatchesCategory,
+  type WorkspaceAutomationTemplate,
+  type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
 import {
   isContentSyncAutomation,
@@ -231,7 +232,10 @@ export function AutomationsPageView({
     [sortedTemplates],
   );
   const filteredTemplates = useMemo(
-    () => sortedTemplates.filter((template) => template.category === templateCategoryFilter),
+    () =>
+      sortedTemplates.filter((template) =>
+        workspaceAutomationTemplateMatchesCategory(template, templateCategoryFilter),
+      ),
     [templateCategoryFilter, sortedTemplates],
   );
 

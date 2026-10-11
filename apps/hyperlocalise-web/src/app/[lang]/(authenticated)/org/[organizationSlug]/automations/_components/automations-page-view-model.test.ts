@@ -17,6 +17,7 @@ import { automationTemplatesFixture, createAutomationSummary } from "./automatio
 import {
   resolveAutomationCreatorName,
   resolveSortedAutomationTemplates,
+  resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
 
@@ -82,5 +83,19 @@ describe("resolveSortedAutomationTemplates", () => {
     expect(popular.map((template) => template.name)).toEqual(
       popular.map((template) => template.name).toSorted((left, right) => left.localeCompare(right)),
     );
+  });
+});
+
+describe("resolveTemplateCategoryTabs", () => {
+  it("shows extra categories for dual-listed templates", () => {
+    const braze = automationTemplatesFixture.find(
+      (template) => template.id === "translate-braze-email-templates",
+    );
+    expect(braze).toBeDefined();
+
+    expect(resolveTemplateCategoryTabs([braze!]).map((tab) => tab.id)).toEqual([
+      "popular",
+      "marketing",
+    ]);
   });
 });
