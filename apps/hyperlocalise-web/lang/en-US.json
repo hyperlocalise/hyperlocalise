@@ -28139,6 +28139,22 @@
     "defaultMessage": "Built-in rules",
     "description": "Label for built-in SRX template select"
   },
+  "oakCrdAct03": {
+    "defaultMessage": "created an API key",
+    "description": "Action for an organization API key creation activity"
+  },
+  "oakCrdEvT01": {
+    "defaultMessage": "API Key Created",
+    "description": "Activity log event type label for creating an organization API key"
+  },
+  "oakRevAct04": {
+    "defaultMessage": "revoked an API key",
+    "description": "Action for an organization API key revocation activity"
+  },
+  "oakRevEvT02": {
+    "defaultMessage": "API Key Revoked",
+    "description": "Activity log event type label for revoking an organization API key"
+  },
   "oayHNZPeA1": {
     "defaultMessage": "Save check settings",
     "description": "Save QA policy"
@@ -34438,5 +34454,33 @@
   "zztNzAuBoJ": {
     "defaultMessage": "Enabled",
     "description": "Screen reader label for the repository enabled checkbox column"
+  },
+  "qryCrdAct05": {
+    "defaultMessage": "created a query",
+    "description": "Action for creating a Query"
+  },
+  "qryCrdEvT01": {
+    "defaultMessage": "Query Created",
+    "description": "Activity log event type label for creating a Query"
+  },
+  "qryDelAct06": {
+    "defaultMessage": "deleted a query",
+    "description": "Action for deleting a Query"
+  },
+  "qryDelEvT02": {
+    "defaultMessage": "Query Deleted",
+    "description": "Activity log event type label for deleting a Query"
+  },
+  "qryGrpLbl04": {
+    "defaultMessage": "Queries",
+    "description": "Activity log event type group for Queries"
+  },
+  "qryImpAct07": {
+    "defaultMessage": "imported queries",
+    "description": "Action for importing Queries"
+  },
+  "qryImpEvT03": {
+    "defaultMessage": "Queries Imported",
+    "description": "Activity log event type label for importing Queries"
   }
 }

@@ -30,7 +30,7 @@ func patAuditActorOf(entry map[string]any) map[string]any {
 func revokedActivity(env *apiKeyTestEnv) []activityLogEventInput {
 	var out []activityLogEventInput
 	for _, event := range env.activity.recorded() {
-		if event.EventType == "personal_access_token_revoked" {
+		if event.EventType == "organization_api_key_revoked" {
 			out = append(out, event)
 		}
 	}
@@ -83,7 +83,12 @@ func TestAPIKeyRevokeAuthorization(t *testing.T) {
 	events := revokedActivity(env)
 	require.Len(t, events, 3)
 	require.Equal(t, env.owner.userID, events[1].ActorUserID)
-	require.Equal(t, map[string]any{"keyPrefix": peerKey.KeyPrefix, "reason": "manual", "tokenId": peerKey.ID}, events[1].Payload)
+	require.Equal(t, map[string]any{
+		"apiKeyId":  peerKey.ID,
+		"keyPrefix": peerKey.KeyPrefix,
+		"name":      peerKey.Name,
+		"reason":    "manual",
+	}, events[1].Payload)
 
 	foreign := newAPIKeyTestEnv(t, "admin")
 	foreignKey := foreign.mustCreate(t, foreign.owner, `{"name":"foreign"}`).APIKey

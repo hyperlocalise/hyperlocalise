@@ -25,6 +25,7 @@ import {
   GitBranchIcon,
   KeyIcon,
   PuzzlePieceIcon,
+  ChatCircleIcon,
   TextTIcon,
   UsersThreeIcon,
 } from "@phosphor-icons/react";
@@ -82,7 +83,12 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
   {
     icon: KeyIcon,
     label: messages.accessEventGroup,
-    eventTypes: ["personal_access_token_created", "personal_access_token_revoked"],
+    eventTypes: [
+      "personal_access_token_created",
+      "personal_access_token_revoked",
+      "organization_api_key_created",
+      "organization_api_key_revoked",
+    ],
   },
   {
     icon: PuzzlePieceIcon,
@@ -153,6 +159,11 @@ const eventTypeGroups: readonly EventTypeGroup[] = [
     ],
   },
   {
+    icon: ChatCircleIcon,
+    label: messages.queryEventGroup,
+    eventTypes: ["query_created", "query_deleted", "query_imported"],
+  },
+  {
     icon: FileIcon,
     label: messages.fileEventGroup,
     eventTypes: ["file_uploaded", "file_translations_imported"],
@@ -184,6 +195,8 @@ const eventTypeLabels = {
   workspace_archived: messages.workspaceArchivedEventType,
   personal_access_token_created: messages.personalAccessTokenCreatedEventType,
   personal_access_token_revoked: messages.personalAccessTokenRevokedEventType,
+  organization_api_key_created: messages.organizationApiKeyCreatedEventType,
+  organization_api_key_revoked: messages.organizationApiKeyRevokedEventType,
   integration_connected: messages.integrationConnectedEventType,
   integration_disconnected: messages.integrationDisconnectedEventType,
   integration_credential_revealed: messages.integrationCredentialRevealedEventType,
@@ -218,6 +231,9 @@ const eventTypeLabels = {
   visual_workflow_enabled: messages.visualWorkflowEnabledEventType,
   visual_workflow_disabled: messages.visualWorkflowDisabledEventType,
   visual_workflow_run_started: messages.visualWorkflowRunStartedEventType,
+  query_created: messages.queryCreatedEventType,
+  query_deleted: messages.queryDeletedEventType,
+  query_imported: messages.queryImportedEventType,
   file_uploaded: messages.fileUploadedEventType,
   file_translations_imported: messages.fileTranslationsImportedEventType,
   string_segment_translation_updated: messages.stringSegmentTranslationUpdatedEventType,

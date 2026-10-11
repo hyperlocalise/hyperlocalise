@@ -146,13 +146,45 @@ func TestIssueSheetMemberCannotDelete(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "forbidden")
 }
 
+func TestIssueSheetCreatePublishesQueryActivity(t *testing.T) {
+	api, scope := issueSheetTestAPI(t, true)
+	publisher := &recordingActivityLogPublisher{}
+	api.activityLog = publisher
+	req := issueSheetAuthedRequest(http.MethodPost, "http://localhost"+issueSheetPath(scope, ""), `{"title":"Needs context"}`)
+	rec := issueSheetServe(api, scope.WorkOSUserID, req)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var body struct {
+		Issue struct {
+			ID         string `json:"id"`
+			Identifier string `json:"identifier"`
+		} `json:"issue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	events := publisher.recorded()
+	require.Len(t, events, 1)
+	require.Equal(t, "query_created", events[0].EventType)
+	require.Equal(t, "query", events[0].TargetKind)
+	require.Equal(t, body.Issue.ID, events[0].TargetID)
+	require.Equal(t, body.Issue.Identifier, events[0].Payload["identifier"])
+	require.Equal(t, "manual", events[0].Payload["source"])
+	require.Equal(t, scope.ProjectID, events[0].Payload["projectId"])
+}
+
 func TestIssueSheetDeleteIssue(t *testing.T) {
 	api, scope := issueSheetTestAPI(t, true)
-	_, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
+	publisher := &recordingActivityLogPublisher{}
+	api.activityLog = publisher
+	id, identifier := mustIssueSheetIssue(t, scope, 1, "Broken")
 	req := issueSheetAuthedRequest(http.MethodDelete, "http://localhost"+issueSheetPath(scope, identifier), "")
 	rec := issueSheetServe(api, scope.WorkOSUserID, req)
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	require.Empty(t, rec.Body.String())
+	events := publisher.recorded()
+	require.Len(t, events, 1)
+	require.Equal(t, "query_deleted", events[0].EventType)
+	require.Equal(t, id, events[0].TargetID)
+	require.Equal(t, identifier, events[0].Payload["identifier"])
 }
 
 func TestIssueSheetDeleteIssueMissing(t *testing.T) {

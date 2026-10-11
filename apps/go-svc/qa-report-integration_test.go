@@ -81,6 +81,8 @@ func TestQaReportUnavailableWithoutPool(t *testing.T) {
 
 func TestQaReportPostgresWorkspaceLifecycle(t *testing.T) {
 	api, scope := qaReportTestAPI(t, "admin")
+	publisher := &recordingActivityLogPublisher{}
+	api.activityLog = publisher
 	ctx := t.Context()
 	providerID := "projqa_" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
 	_, err := scope.Pool.Exec(ctx, `
@@ -138,6 +140,11 @@ func TestQaReportPostgresWorkspaceLifecycle(t *testing.T) {
 	require.Len(t, promoteBody.Results, 1)
 	require.True(t, promoteBody.Results[0].Created)
 	firstIdentifier := promoteBody.Results[0].Identifier
+	events := publisher.recorded()
+	require.Len(t, events, 1)
+	require.Equal(t, "query_created", events[0].EventType)
+	require.Equal(t, firstIdentifier, events[0].Payload["identifier"])
+	require.Equal(t, "qa_promote", events[0].Payload["source"])
 
 	promoteAgain := qaReportRequest(api, scope, http.MethodPost, scope.OrgPath("/qa-reports/findings/promote"),
 		`{"findingIds":["`+findingID+`"]}`)
@@ -145,6 +152,7 @@ func TestQaReportPostgresWorkspaceLifecycle(t *testing.T) {
 	require.NoError(t, json.Unmarshal(promoteAgain.Body.Bytes(), &promoteBody))
 	require.False(t, promoteBody.Results[0].Created)
 	require.Equal(t, firstIdentifier, promoteBody.Results[0].Identifier)
+	require.Len(t, publisher.recorded(), 1)
 
 	var issueCount int
 	require.NoError(t, api.pool.QueryRow(ctx, `select count(*) from issue_sheet_issues where project_id=$1`, scope.ProjectID).Scan(&issueCount))

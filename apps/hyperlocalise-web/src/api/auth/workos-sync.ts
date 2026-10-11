@@ -18,6 +18,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { db, type DatabaseClient } from "@/lib/database/client";
 import { enqueueActivityLogEvents } from "@/lib/activity-log/activity-log-writer";
 import type { ActivityLogEventInput } from "@/lib/activity-log/activity-log-contract";
+import { organizationApiKeyRevokedActivity } from "@/lib/activity-log/organization-api-key-events";
 import {
   ACCESS_TOKEN_REVOKE_REASONS,
   emitPatRevoked,
@@ -639,6 +640,7 @@ async function revokeOrganizationApiKeysForUser(
     .returning({
       id: schema.organizationApiKeys.id,
       keyPrefix: schema.organizationApiKeys.keyPrefix,
+      name: schema.organizationApiKeys.name,
       organizationId: schema.organizationApiKeys.organizationId,
       createdByUserId: schema.organizationApiKeys.createdByUserId,
     });
@@ -655,20 +657,18 @@ async function revokeOrganizationApiKeysForUser(
       keyPrefix: token.keyPrefix,
       reason: ACCESS_TOKEN_REVOKE_REASONS.membershipRemoved,
     });
-    activityLogEvents?.push({
-      actorCredentialId: null,
-      actorKind: actor.type === "user" ? "user" : "system",
-      actorUserId: actor.type === "user" ? actor.id : null,
-      eventType: "personal_access_token_revoked",
-      organizationId: token.organizationId,
-      payload: {
+    activityLogEvents?.push(
+      organizationApiKeyRevokedActivity({
+        actorCredentialId: null,
+        actorKind: actor.type === "user" ? "user" : "system",
+        actorUserId: actor.type === "user" ? actor.id : null,
+        apiKeyId: token.id,
         keyPrefix: token.keyPrefix,
+        name: token.name,
+        organizationId: token.organizationId,
         reason: "membership_removed",
-        tokenId: token.id,
-      },
-      targetId: token.id,
-      targetKind: "personal_access_token",
-    });
+      }),
+    );
   }
 
   return {

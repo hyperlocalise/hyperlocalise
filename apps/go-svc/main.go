@@ -96,14 +96,14 @@ func main() {
 	h.dictionaries = &dictionaryAPI{}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
 	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
-	h.qaReports = &qaReportAPI{}
+	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
-	h.issueSheets = &issueSheetAPI{}
+	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
 	h.contentEditor = &editorCatAPI{}
