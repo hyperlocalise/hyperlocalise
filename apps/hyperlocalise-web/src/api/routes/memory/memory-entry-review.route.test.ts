@@ -113,7 +113,7 @@ describe("memory entry review", () => {
           memoryId: memory.id,
         },
         json: {
-          entryIds: [draft.id],
+          entries: [{ id: draft.id, version: draft.version }],
           reviewStatus: "approved",
         },
       },
@@ -121,7 +121,7 @@ describe("memory entry review", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ updated: 1 });
+    await expect(response.json()).resolves.toEqual({ bulkReview: { updated: 1 } });
 
     const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
@@ -165,7 +165,7 @@ describe("memory entry review", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ deleted: 1 });
+    await expect(response.json()).resolves.toEqual({ bulkDelete: { deleted: 1 } });
 
     const detail = await client.api.orgs[":organizationSlug"]["translation-memories"][
       ":memoryId"
@@ -180,5 +180,52 @@ describe("memory entry review", () => {
       { headers },
     );
     expect(detail.status).toBe(404);
+  });
+
+  it("rejects bulk review when a selected draft changed after it was loaded", async () => {
+    const { identity, memory } = await fixture.createStoredMemoryFixture();
+    const headers = await fixture.authHeadersFor(identity);
+    const draft = await fixture.insertMemoryEntry(memory.id, {
+      sourceText: "Save",
+      targetText: "Guardar",
+      reviewStatus: "pending",
+      provenance: "file_job",
+    });
+
+    const first = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["bulk-review"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          entries: [{ id: draft.id, version: draft.version }],
+          reviewStatus: "rejected",
+        },
+      },
+      { headers },
+    );
+    expect(first.status).toBe(200);
+
+    const stale = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["bulk-review"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          entries: [{ id: draft.id, version: draft.version }],
+          reviewStatus: "approved",
+        },
+      },
+      { headers },
+    );
+
+    expect(stale.status).toBe(409);
+    await expect(stale.json()).resolves.toMatchObject({ error: "stale_memory_entry" });
   });
 });

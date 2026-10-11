@@ -144,7 +144,15 @@ export const promoteMemoryFromProjectBodySchema = z.object({
 });
 
 export const bulkReviewMemoryEntriesBodySchema = z.object({
-  entryIds: z.array(z.string().uuid()).min(1).max(100),
+  entries: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        version: z.number().int().min(1),
+      }),
+    )
+    .min(1)
+    .max(100),
   reviewStatus: z.enum(["approved", "rejected"]),
 });
 
@@ -163,11 +171,15 @@ export const memoryEntryReviewSummaryResponseSchema = z.object({
 });
 
 export const memoryEntryBulkReviewResponseSchema = z.object({
-  updated: z.number().int().nonnegative(),
+  bulkReview: z.object({
+    updated: z.number().int().nonnegative(),
+  }),
 });
 
 export const memoryEntryBulkDeleteResponseSchema = z.object({
-  deleted: z.number().int().nonnegative(),
+  bulkDelete: z.object({
+    deleted: z.number().int().nonnegative(),
+  }),
 });
 
 export const listMemoryImportAttemptsQuerySchema = z.object({

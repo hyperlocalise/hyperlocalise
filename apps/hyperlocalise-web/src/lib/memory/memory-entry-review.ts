@@ -32,13 +32,30 @@ export type MemoryEntryReviewSummary = {
 
 export type MemoryEntryBulkReviewStatus = "approved" | "rejected";
 
+export type MemoryEntryBulkSelection = {
+  id: string;
+  version: number;
+};
+
 export type MemoryEntryBulkMutationError =
   | { code: "memory_entry_read_only"; reason: MemoryEntryReadOnlyReason }
   | { code: "empty_selection" }
-  | { code: "selection_too_large" };
+  | { code: "selection_too_large" }
+  | { code: "stale_memory_entry" };
 
 function uniqueEntryIds(entryIds: string[]) {
   return [...new Set(entryIds.filter((entryId) => entryId.trim().length > 0))];
+}
+
+function uniqueBulkSelections(entries: MemoryEntryBulkSelection[]): MemoryEntryBulkSelection[] {
+  const selections = new Map<string, MemoryEntryBulkSelection>();
+  for (const entry of entries) {
+    if (!entry.id.trim() || selections.has(entry.id)) {
+      continue;
+    }
+    selections.set(entry.id, entry);
+  }
+  return [...selections.values()];
 }
 
 function validateBulkSelection(entryIds: string[]): Result<string[], MemoryEntryBulkMutationError> {
@@ -50,6 +67,19 @@ function validateBulkSelection(entryIds: string[]): Result<string[], MemoryEntry
     return err({ code: "selection_too_large" });
   }
   return ok(uniqueIds);
+}
+
+function validateBulkReviewSelection(
+  entries: MemoryEntryBulkSelection[],
+): Result<MemoryEntryBulkSelection[], MemoryEntryBulkMutationError> {
+  const uniqueEntries = uniqueBulkSelections(entries);
+  if (uniqueEntries.length === 0) {
+    return err({ code: "empty_selection" });
+  }
+  if (uniqueEntries.length > MEMORY_ENTRY_BULK_REVIEW_LIMIT) {
+    return err({ code: "selection_too_large" });
+  }
+  return ok(uniqueEntries);
 }
 
 function writableMemoryOrError(
@@ -89,7 +119,7 @@ export async function getMemoryEntryReviewSummary(
 
 export async function bulkReviewMemoryEntries(input: {
   memory: Memory;
-  entryIds: string[];
+  entries: MemoryEntryBulkSelection[];
   reviewStatus: MemoryEntryBulkReviewStatus;
   actorUserId: string;
 }): Promise<Result<{ updated: number }, MemoryEntryBulkMutationError>> {
@@ -97,12 +127,35 @@ export async function bulkReviewMemoryEntries(input: {
   if (isErr(writable)) {
     return writable;
   }
-  const selection = validateBulkSelection(input.entryIds);
+  const selection = validateBulkReviewSelection(input.entries);
   if (isErr(selection)) {
     return selection;
   }
 
   return db.transaction(async (tx) => {
+    const selectedIds = selection.value.map((entry) => entry.id);
+    const current = await tx
+      .select({
+        id: schema.memoryEntries.id,
+        version: schema.memoryEntries.version,
+      })
+      .from(schema.memoryEntries)
+      .where(
+        and(
+          eq(schema.memoryEntries.memoryId, input.memory.id),
+          inArray(schema.memoryEntries.id, selectedIds),
+        ),
+      )
+      .for("update");
+
+    const currentVersionById = new Map(current.map((entry) => [entry.id, entry.version]));
+    const hasStaleSelection = selection.value.some(
+      (entry) => currentVersionById.get(entry.id) !== entry.version,
+    );
+    if (hasStaleSelection) {
+      return err({ code: "stale_memory_entry" });
+    }
+
     const now = new Date();
     const updated = await tx
       .update(schema.memoryEntries)
@@ -117,7 +170,7 @@ export async function bulkReviewMemoryEntries(input: {
       .where(
         and(
           eq(schema.memoryEntries.memoryId, input.memory.id),
-          inArray(schema.memoryEntries.id, selection.value),
+          inArray(schema.memoryEntries.id, selectedIds),
         ),
       )
       .returning({

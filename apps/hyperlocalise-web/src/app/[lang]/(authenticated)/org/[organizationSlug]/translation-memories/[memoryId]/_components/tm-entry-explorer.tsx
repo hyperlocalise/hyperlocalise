@@ -19,6 +19,16 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import type { MemoryEntryRecord } from "@/api/routes/memory/memory.schema";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +44,7 @@ import { formatLocaleOptionLabel } from "@/lib/i18n/locale-display-names.message
 import { cn } from "@/lib/primitives/cn";
 
 import { tmEntryExplorerMessages as messages } from "./tm-entry-explorer.messages";
+import { TM_ENTRY_DETAIL_QUERY_KEY } from "./tm-entry-detail";
 import { TmEntryDetailSheet } from "./tm-entry-detail-sheet";
 import { TmEntryListToolbar } from "./tm-entry-list-toolbar";
 import {
@@ -94,6 +105,7 @@ export function TmEntryExplorer({
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } =
     useTmEntryListUrlState();
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
   const [cursorNotice, setCursorNotice] = useState<string | null>(null);
@@ -196,9 +208,8 @@ export function TmEntryExplorer({
   const selectedEntry = entries.find((entry) => entry.id === state.entry) ?? null;
   const hasFilters = getActiveTmEntryFilterChips(state).length > 0;
   const visibleEntryIds = entries.map((entry) => entry.id);
-  const selectedVisibleIds = selectedEntryIds.filter((entryId) =>
-    visibleEntryIds.includes(entryId),
-  );
+  const selectedVisibleEntries = entries.filter((entry) => selectedEntryIds.includes(entry.id));
+  const selectedVisibleIds = selectedVisibleEntries.map((entry) => entry.id);
   const allVisibleSelected =
     visibleEntryIds.length > 0 && selectedVisibleIds.length === visibleEntryIds.length;
   const someVisibleSelected = selectedVisibleIds.length > 0 && !allVisibleSelected;
@@ -207,6 +218,28 @@ export function TmEntryExplorer({
     pendingDraftCount > 0 && state.reviewStatus !== "pending" && !state.sameAsSource;
   const canSelectEntries = canReview || canBulkDelete;
 
+  const persistScroll = () => {
+    if (listRef.current) {
+      writeTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId), listRef.current.scrollTop);
+    }
+  };
+
+  const openEntry = (entry: MemoryEntryRecord, options?: { edit?: boolean }) => {
+    persistScroll();
+    setStartInEditMode(Boolean(options?.edit));
+    updateState({ entry: entry.id });
+    listRef.current?.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`)?.focus();
+  };
+
+  const closeEntry = () => {
+    setStartInEditMode(false);
+    updateState({ entry: undefined });
+    const stored = readTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId));
+    if (stored !== null && listRef.current) {
+      listRef.current.scrollTop = stored;
+    }
+  };
+
   const invalidateMemoryEntries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({
@@ -214,6 +247,9 @@ export function TmEntryExplorer({
       }),
       queryClient.invalidateQueries({
         queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: [TM_ENTRY_DETAIL_QUERY_KEY, organizationSlug, memoryId],
       }),
     ]);
     setSelectedEntryIds([]);
@@ -224,7 +260,10 @@ export function TmEntryExplorer({
       bulkReviewTmEntries({
         organizationSlug,
         memoryId,
-        entryIds: selectedVisibleIds,
+        entries: selectedVisibleEntries.map((entry) => ({
+          id: entry.id,
+          version: entry.version,
+        })),
         reviewStatus,
         fallbackMessage: intl.formatMessage(messages.bulkReviewFailed),
       }),
@@ -251,33 +290,15 @@ export function TmEntryExplorer({
         fallbackMessage: intl.formatMessage(messages.bulkDeleteFailed),
       }),
     onSuccess: async (result) => {
+      if (state.entry && selectedVisibleIds.includes(state.entry)) {
+        closeEntry();
+      }
       await invalidateMemoryEntries();
+      setConfirmBulkDeleteOpen(false);
       toast.success(intl.formatMessage(messages.bulkDeleted, { count: result.deleted }));
     },
     onError: (error) => toast.error(error.message),
   });
-
-  const persistScroll = () => {
-    if (listRef.current) {
-      writeTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId), listRef.current.scrollTop);
-    }
-  };
-
-  const openEntry = (entry: MemoryEntryRecord, options?: { edit?: boolean }) => {
-    persistScroll();
-    setStartInEditMode(Boolean(options?.edit));
-    updateState({ entry: entry.id });
-    listRef.current?.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`)?.focus();
-  };
-
-  const closeEntry = () => {
-    setStartInEditMode(false);
-    updateState({ entry: undefined });
-    const stored = readTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId));
-    if (stored !== null && listRef.current) {
-      listRef.current.scrollTop = stored;
-    }
-  };
 
   const goNext = () => {
     const nextCursor = entriesQuery.data?.nextCursor;
@@ -441,7 +462,7 @@ export function TmEntryExplorer({
               size="sm"
               variant="ghost"
               disabled={bulkReview.isPending || bulkDelete.isPending}
-              onClick={() => bulkDelete.mutate()}
+              onClick={() => setConfirmBulkDeleteOpen(true)}
             >
               <FormattedMessage {...messages.deleteSelected} />
             </Button>
@@ -655,6 +676,42 @@ export function TmEntryExplorer({
           })}
         </div>
       ) : null}
+
+      <AlertDialog
+        open={confirmBulkDeleteOpen}
+        onOpenChange={(nextOpen) => {
+          if (bulkDelete.isPending) {
+            return;
+          }
+          setConfirmBulkDeleteOpen(nextOpen);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...messages.confirmBulkDeleteTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(messages.confirmBulkDeleteBody, {
+                count: selectedVisibleIds.length,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDelete.isPending}>
+              <FormattedMessage {...messages.cancelBulkDelete} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              variant="destructive"
+              disabled={bulkDelete.isPending}
+              onClick={() => bulkDelete.mutate()}
+            >
+              <FormattedMessage {...messages.confirmBulkDeleteAction} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <TmEntryDetailSheet
         organizationSlug={organizationSlug}

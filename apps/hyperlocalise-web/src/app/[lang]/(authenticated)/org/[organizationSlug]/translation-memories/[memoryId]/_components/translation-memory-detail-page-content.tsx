@@ -62,6 +62,7 @@ import { TmImportHistory, tmImportAttemptsQueryKey } from "./tm-import-history";
 import { TmImportExportPanel } from "./tm-import-export-panel";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
+import { tmEntryReviewSummaryQueryKey } from "./tm-entry-review";
 import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
 
 type EntryForm = {
@@ -142,9 +143,14 @@ export function TranslationMemoryDetailPageContent({
   });
 
   const invalidateEntries = () =>
-    queryClient.invalidateQueries({
-      queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
+      }),
+    ]);
   const invalidateImports = () =>
     queryClient.invalidateQueries({
       queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),

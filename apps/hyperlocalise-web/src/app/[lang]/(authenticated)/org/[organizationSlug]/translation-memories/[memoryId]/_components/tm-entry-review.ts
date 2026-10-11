@@ -53,10 +53,10 @@ export async function fetchTmEntryReviewSummary(input: {
 export async function bulkReviewTmEntries(input: {
   organizationSlug: string;
   memoryId: string;
-  entryIds: string[];
+  entries: { id: string; version: number }[];
   reviewStatus: "approved" | "rejected";
   fallbackMessage: string;
-}): Promise<MemoryEntryBulkReviewResponse> {
+}): Promise<MemoryEntryBulkReviewResponse["bulkReview"]> {
   const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
     ":memoryId"
   ].entries["bulk-review"].$post({
@@ -65,7 +65,7 @@ export async function bulkReviewTmEntries(input: {
       memoryId: input.memoryId,
     },
     json: {
-      entryIds: input.entryIds,
+      entries: input.entries,
       reviewStatus: input.reviewStatus,
     },
   });
@@ -74,7 +74,8 @@ export async function bulkReviewTmEntries(input: {
     throw await readApiResponseError(response, input.fallbackMessage);
   }
 
-  return (await response.json()) as MemoryEntryBulkReviewResponse;
+  const body = (await response.json()) as MemoryEntryBulkReviewResponse;
+  return body.bulkReview;
 }
 
 export async function bulkDeleteTmEntries(input: {
@@ -82,7 +83,7 @@ export async function bulkDeleteTmEntries(input: {
   memoryId: string;
   entryIds: string[];
   fallbackMessage: string;
-}): Promise<MemoryEntryBulkDeleteResponse> {
+}): Promise<MemoryEntryBulkDeleteResponse["bulkDelete"]> {
   const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
     ":memoryId"
   ].entries["bulk-delete"].$post({
@@ -99,5 +100,6 @@ export async function bulkDeleteTmEntries(input: {
     throw await readApiResponseError(response, input.fallbackMessage);
   }
 
-  return (await response.json()) as MemoryEntryBulkDeleteResponse;
+  const body = (await response.json()) as MemoryEntryBulkDeleteResponse;
+  return body.bulkDelete;
 }

@@ -50,7 +50,7 @@ describe("memory entry review helpers", () => {
   it("rejects empty and oversized bulk selections before touching the database", async () => {
     const empty = await bulkReviewMemoryEntries({
       memory: nativeMemory,
-      entryIds: [],
+      entries: [],
       reviewStatus: "approved",
       actorUserId: "33333333-3333-4333-8333-333333333333",
     });
@@ -79,7 +79,7 @@ describe("memory entry review helpers", () => {
         source: "external_tms",
         capabilityMode: "synced_import",
       },
-      entryIds: ["55555555-5555-4555-8555-555555555555"],
+      entries: [{ id: "55555555-5555-4555-8555-555555555555", version: 1 }],
       reviewStatus: "approved",
       actorUserId: "33333333-3333-4333-8333-333333333333",
     });

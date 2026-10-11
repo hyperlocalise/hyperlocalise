@@ -966,7 +966,7 @@ export function createMemoryRoutes() {
 
         const result = await bulkReviewMemoryEntries({
           memory,
-          entryIds: payload.entryIds,
+          entries: payload.entries,
           reviewStatus: payload.reviewStatus,
           actorUserId: c.var.auth.user.localUserId,
         });
@@ -974,6 +974,14 @@ export function createMemoryRoutes() {
         if (isErr(result)) {
           if (result.error.code === "memory_entry_read_only") {
             return memoryEntryReadOnlyResponse(c, result.error.reason);
+          }
+          if (result.error.code === "stale_memory_entry") {
+            return apiErrorResponse(
+              c,
+              409,
+              "stale_memory_entry",
+              "A selected entry changed after it was loaded",
+            );
           }
           return badRequestResponse(
             c,
@@ -984,7 +992,7 @@ export function createMemoryRoutes() {
           );
         }
 
-        return c.json({ updated: result.value.updated }, 200);
+        return c.json({ bulkReview: { updated: result.value.updated } }, 200);
       },
     )
     .post(
@@ -1017,7 +1025,7 @@ export function createMemoryRoutes() {
           );
         }
 
-        return c.json({ deleted: result.value.deleted }, 200);
+        return c.json({ bulkDelete: { deleted: result.value.deleted } }, 200);
       },
     )
     .get("/:memoryId/entries/:entryId", validateMemoryEntryParams, async (c) => {

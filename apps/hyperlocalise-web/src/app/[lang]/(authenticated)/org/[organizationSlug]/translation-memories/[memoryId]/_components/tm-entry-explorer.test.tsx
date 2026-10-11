@@ -14,7 +14,7 @@
 
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -529,7 +529,7 @@ describe("TmEntryExplorer", () => {
     apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
     apiMocks.bulkReview.mockResolvedValue({
       ok: true,
-      json: async () => ({ updated: 1 }),
+      json: async () => ({ bulkReview: { updated: 1 } }),
     });
 
     renderExplorer({ canReview: true, canBulkDelete: true });
@@ -545,10 +545,95 @@ describe("TmEntryExplorer", () => {
       expect(apiMocks.bulkReview).toHaveBeenCalledWith({
         param: { organizationSlug: "acme", memoryId: "mem_1" },
         json: {
-          entryIds: [draft.id],
+          entries: [{ id: draft.id, version: draft.version }],
           reviewStatus: "approved",
         },
       });
+    });
+  });
+
+  it("refreshes the open entry after bulk review", async () => {
+    const user = userEvent.setup();
+    const draft = createEntry({
+      reviewStatus: "pending",
+      provenance: "file_job",
+      sourceText: "Save",
+      targetText: "Guardar",
+    });
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.getEntry.mockResolvedValue({
+      ok: true,
+      json: async () => createDetail(draft),
+    });
+    apiMocks.bulkReview.mockResolvedValue({
+      ok: true,
+      json: async () => ({ bulkReview: { updated: 1 } }),
+    });
+
+    renderExplorer({ canReview: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open entry Save" }));
+    await waitFor(() => {
+      expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
+    });
+    const detailCallsBeforeReview = apiMocks.getEntry.mock.calls.length;
+
+    await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(apiMocks.getEntry.mock.calls.length).toBeGreaterThan(detailCallsBeforeReview);
+    });
+    expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
+  });
+
+  it("asks for confirmation before deleting selected entries", async () => {
+    const user = userEvent.setup();
+    const draft = createEntry({
+      reviewStatus: "pending",
+      provenance: "file_job",
+      sourceText: "Save",
+      targetText: "Guardar",
+    });
+    apiMocks.getEntries.mockResolvedValue(jsonResponse(createPage([draft])));
+    apiMocks.bulkDelete.mockResolvedValue({
+      ok: true,
+      json: async () => ({ bulkDelete: { deleted: 1 } }),
+    });
+
+    renderExplorer({ canReview: true, canBulkDelete: true });
+
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open entry Save" }));
+    await waitFor(() => {
+      expect(screen.getByText("Translation memory entry")).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("checkbox", { name: "Select entry Save" }));
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]!);
+
+    expect(apiMocks.bulkDelete).not.toHaveBeenCalled();
+    const confirmDialog = screen.getByRole("alertdialog");
+    expect(within(confirmDialog).getByText("Delete selected entries?")).toBeInTheDocument();
+
+    await user.click(within(confirmDialog).getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(apiMocks.bulkDelete).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", memoryId: "mem_1" },
+        json: {
+          entryIds: [draft.id],
+        },
+      });
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("Translation memory entry")).not.toBeInTheDocument();
     });
   });
 });
