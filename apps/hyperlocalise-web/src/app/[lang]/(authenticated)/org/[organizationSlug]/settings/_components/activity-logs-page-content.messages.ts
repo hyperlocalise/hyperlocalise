@@ -430,6 +430,56 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "HAcQZdyjXj",
     description: "Activity log event type group for string segments",
   },
+  dictionaryEventGroup: {
+    defaultMessage: "Dictionaries",
+    id: "TWTIbFfjVV",
+    description: "Activity log event type group for spellcheck dictionaries",
+  },
+  linkedDomainEventGroup: {
+    defaultMessage: "Linked domains",
+    id: "scjKnowuFr",
+    description: "Activity log event type group for linked domains",
+  },
+  dictionaryCreatedEventType: {
+    defaultMessage: "Dictionary Created",
+    id: "vlJmij48Pk",
+    description: "Activity log event type label for dictionary creation",
+  },
+  dictionaryDeletedEventType: {
+    defaultMessage: "Dictionary Deleted",
+    id: "s6NLAIiQ6o",
+    description: "Activity log event type label for dictionary deletion",
+  },
+  dictionaryImportedEventType: {
+    defaultMessage: "Dictionary Imported",
+    id: "vdeP2Xo4gi",
+    description: "Activity log event type label for dictionary word imports",
+  },
+  dictionaryProjectAttachedEventType: {
+    defaultMessage: "Dictionary Project Attached",
+    id: "M20HVGjx7C",
+    description: "Activity log event type label for attaching a dictionary to a project",
+  },
+  linkedDomainCreatedEventType: {
+    defaultMessage: "Linked Domain Created",
+    id: "/rZ4ZyulJi",
+    description: "Activity log event type label for creating a linked domain",
+  },
+  linkedDomainVerifiedEventType: {
+    defaultMessage: "Linked Domain Verified",
+    id: "x/ixOXudXh",
+    description: "Activity log event type label for verifying a linked domain",
+  },
+  linkedDomainCancelledEventType: {
+    defaultMessage: "Linked Domain Cancelled",
+    id: "qBpW7LbE1Z",
+    description: "Activity log event type label for cancelling a linked domain claim",
+  },
+  linkedDomainMarketsChangedEventType: {
+    defaultMessage: "Linked Domain Markets Changed",
+    id: "R/hnP/HG+W",
+    description: "Activity log event type label for changing linked domain markets",
+  },
   actorLabel: {
     defaultMessage: "Actor",
     id: "DsCAD1RMQU",
@@ -924,5 +974,45 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "commented on a string",
     id: "UKiNYTCKL8",
     description: "Action for a string comment activity",
+  },
+  dictionaryCreatedAction: {
+    defaultMessage: "created a dictionary",
+    id: "p+l9yp3+PH",
+    description: "Action for a spellcheck dictionary creation activity",
+  },
+  dictionaryDeletedAction: {
+    defaultMessage: "deleted a dictionary",
+    id: "ids+317avp",
+    description: "Action for a spellcheck dictionary deletion activity",
+  },
+  dictionaryImportedAction: {
+    defaultMessage: "imported dictionary words",
+    id: "Cz3dpIMRmN",
+    description: "Action for a spellcheck dictionary word import activity",
+  },
+  dictionaryProjectAttachedAction: {
+    defaultMessage: "attached a dictionary to a project",
+    id: "lV7c6rxgZX",
+    description: "Action for attaching a spellcheck dictionary to a project",
+  },
+  linkedDomainCreatedAction: {
+    defaultMessage: "created a linked domain",
+    id: "lEmnokrrS2",
+    description: "Action for a linked domain creation activity",
+  },
+  linkedDomainVerifiedAction: {
+    defaultMessage: "verified a linked domain",
+    id: "7K7+VuCgvb",
+    description: "Action for a linked domain verification activity",
+  },
+  linkedDomainCancelledAction: {
+    defaultMessage: "cancelled a linked domain claim",
+    id: "PyDhCP5QIy",
+    description: "Action for a linked domain cancellation activity",
+  },
+  linkedDomainMarketsChangedAction: {
+    defaultMessage: "changed linked domain markets",
+    id: "HzMhwpgFt2",
+    description: "Action for a linked domain market change activity",
   },
 });

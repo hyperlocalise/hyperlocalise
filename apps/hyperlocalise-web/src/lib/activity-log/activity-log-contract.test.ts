@@ -20,6 +20,8 @@ import {
   isV1ActivityEventType,
   LATER_ACTIVITY_EVENT_TYPES,
   ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES,
+  DICTIONARY_ACTIVITY_EVENT_TYPES,
+  LINKED_DOMAIN_ACTIVITY_EVENT_TYPES,
   QUERY_ACTIVITY_EVENT_TYPES,
   V1_ACTIVITY_EVENT_TYPES,
   VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
@@ -47,6 +49,8 @@ describe("activity log contract", () => {
       "query",
       "file",
       "string_segment",
+      "dictionary",
+      "linked_domain",
     ]);
   });
 
@@ -94,6 +98,18 @@ describe("activity log contract", () => {
       "string_segment_locked",
       "string_segment_unlocked",
       "string_segment_commented",
+    ]);
+    expect(DICTIONARY_ACTIVITY_EVENT_TYPES).toEqual([
+      "dictionary_created",
+      "dictionary_deleted",
+      "dictionary_imported",
+      "dictionary_project_attached",
+    ]);
+    expect(LINKED_DOMAIN_ACTIVITY_EVENT_TYPES).toEqual([
+      "linked_domain_created",
+      "linked_domain_verified",
+      "linked_domain_cancelled",
+      "linked_domain_markets_changed",
     ]);
   });
 
