@@ -26,6 +26,14 @@ func TestMemoryActivityEvents(t *testing.T) {
 		require.Equal(t, "Product TM", events[0].Payload["name"])
 		require.Equal(t, "native", events[0].Payload["source"])
 		require.Equal(t, events[0].TargetID, events[0].Payload["resourceId"])
+
+		usage := memoryTestAnalytics(api).snapshot()
+		require.Len(t, usage, 1)
+		require.Equal(t, productUsageMemoryCreatedEvent, usage[0].name)
+		require.Equal(t, map[string]string{
+			"status": productUsageMemoryCreatedStatus,
+			"source": productUsageMemoryCreatedSource,
+		}, usage[0].properties)
 	})
 
 	t.Run("member create is silent", func(t *testing.T) {
@@ -36,6 +44,7 @@ func TestMemoryActivityEvents(t *testing.T) {
 		rec := memoryRequest(api, scope, "POST", scope.OrgPath("/translation-memories"), `{"name":"Product TM"}`)
 		require.Equal(t, 403, rec.Code)
 		require.Empty(t, publisher.recorded())
+		require.Empty(t, memoryTestAnalytics(api).snapshot())
 	})
 
 	t.Run("delete emits translation_memory_deleted", func(t *testing.T) {
@@ -128,6 +137,22 @@ func TestMemoryActivityEvents(t *testing.T) {
 		require.Equal(t, "translation_memory_action_rejected", events[0].EventType)
 		require.Equal(t, "archived", events[0].Payload["reason"])
 	})
+}
+
+func TestTrackMemoryCreated(t *testing.T) {
+	api := &memoryAPI{}
+	api.trackMemoryCreated(t.Context())
+
+	rec := &recordingMemberAnalytics{}
+	api.analytics = rec
+	api.trackMemoryCreated(t.Context())
+	usage := rec.snapshot()
+	require.Len(t, usage, 1)
+	require.Equal(t, productUsageMemoryCreatedEvent, usage[0].name)
+	require.Equal(t, map[string]string{
+		"status": productUsageMemoryCreatedStatus,
+		"source": productUsageMemoryCreatedSource,
+	}, usage[0].properties)
 }
 
 func TestMemoryListSourceAndProjectCount(t *testing.T) {

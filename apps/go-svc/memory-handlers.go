@@ -166,6 +166,7 @@ func (api *memoryAPI) createMemory(r *http.Request, actor memoryActor) (any, int
 	if m.ExternalProviderKind != nil {
 		createdPayload["providerKind"] = *m.ExternalProviderKind
 	}
+	api.trackMemoryCreated(r.Context())
 	api.publishActivity(r.Context(), activityLogEventInput{
 		ActorUserID:    actor.userID,
 		EventType:      "translation_memory_created",
@@ -175,6 +176,16 @@ func (api *memoryAPI) createMemory(r *http.Request, actor memoryActor) (any, int
 		TargetKind:     "translation_memory",
 	})
 	return map[string]any{"memory": m}, 201, nil
+}
+
+func (api *memoryAPI) trackMemoryCreated(ctx context.Context) {
+	if api == nil || api.analytics == nil {
+		return
+	}
+	api.analytics.Track(ctx, productUsageMemoryCreatedEvent, map[string]string{
+		"status": productUsageMemoryCreatedStatus,
+		"source": productUsageMemoryCreatedSource,
+	})
 }
 
 func (api *memoryAPI) patchMemory(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
@@ -399,7 +410,7 @@ func (api *memoryAPI) attachMemoryProjectCounts(ctx context.Context, actor memor
 		ids[i] = record.ID
 		index[record.ID] = i
 	}
-	rows, err := api.pool.Query(ctx, `select memory_id, count(*) from project_memories where organization_id=$1 and memory_id = any($2::uuid[]) group by memory_id`, actor.organizationID, ids)
+	rows, err := api.pool.Query(ctx, `select a.memory_id, count(*) from project_memories a join projects p on p.id=a.project_id where a.memory_id=any($1::uuid[]) and a.organization_id=$2 and p.organization_id=$2 and ($3 or exists(select 1 from team_memberships m join teams t on t.id=m.team_id where m.user_id=$4 and t.organization_id=$2 and (t.id=p.team_id or (p.team_id is null and t.slug='default')))) group by a.memory_id`, ids, actor.organizationID, actor.orgWideAccess(), actor.userID)
 	if err != nil {
 		return err
 	}
