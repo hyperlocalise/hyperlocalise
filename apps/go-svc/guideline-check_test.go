@@ -163,6 +163,17 @@ func TestGuidelineCheckWriteDeadlineExceedsWork(t *testing.T) {
 	require.GreaterOrEqual(t, guidelineCheckWriteSlack, 5*time.Second)
 }
 
+func TestGuidelineCheckWriteDeadlineReachesConnection(t *testing.T) {
+	inner := &writeDeadlineRecorder{}
+	wrapped := &statusRecorder{ResponseWriter: &statusRecorder{ResponseWriter: inner}}
+	started := time.Now()
+
+	setGuidelineCheckWriteDeadline(wrapped)
+
+	require.False(t, inner.deadline.IsZero())
+	require.GreaterOrEqual(t, inner.deadline.Sub(started), guidelineCheckTimeout+guidelineCheckWriteSlack-time.Second)
+}
+
 func TestGuidelineCheckInternalRoute(t *testing.T) {
 	t.Setenv("WORKOS_COOKIE_PASSWORD", "test-cookie-password-at-least-32-characters")
 	env := newGuidelineTestEnv(t, "admin")
