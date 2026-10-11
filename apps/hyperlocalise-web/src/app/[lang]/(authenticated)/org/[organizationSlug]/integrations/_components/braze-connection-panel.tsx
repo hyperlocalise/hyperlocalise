@@ -143,7 +143,14 @@ export function BrazeConnectionPanel({
         json: payload,
       });
       if (!response.ok) {
-        throw new Error(intl.formatMessage(brazeConnectionPanelMessages.saveFailed));
+        const body = (await response.json().catch(() => null)) as {
+          message?: unknown;
+        } | null;
+        throw new Error(
+          typeof body?.message === "string" && body.message.trim()
+            ? body.message
+            : intl.formatMessage(brazeConnectionPanelMessages.saveFailed),
+        );
       }
     },
     onSuccess: async () => {

@@ -25,11 +25,17 @@ cluster key on `braze_connection_settings`, keyed by
   `PipesConnectionStatus`.
 - `PUT /api/orgs/:slug/braze` accepts `restEndpoint` and an optional `apiKey`.
   The key is required when Pipes is not connected. Do not persist `apiKey`.
+- Before writing Pipes or `braze_connection_settings`, ping Braze on that
+  cluster. Call the list endpoints for `templates.email.list`,
+  `content_blocks.list`, `campaigns.list`, and `canvas.list`. A 401 on every
+  call is `braze_credentials_invalid`. A 403 (or 401) on only some calls is
+  `braze_permission_missing`. An unreachable host is
+  `braze_cluster_unreachable`. None of those store the key or cluster.
 - Disconnect (`DELETE /pipes/braze`) deletes that user's settings row.
 - Later automations load `loadPipesApiKey("braze")` and the stored host.
 
-Do not store the API key in Postgres. Do not call Braze to validate the key in
-this change. Do not embed the Pipes widget or start the authorize redirect.
+Do not store the API key in Postgres. Do not embed the Pipes widget or start
+the authorize redirect.
 
 ## Consequences
 

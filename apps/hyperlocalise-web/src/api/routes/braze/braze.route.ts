@@ -22,7 +22,12 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import { listBrazeLibraryForPicker } from "@/lib/braze/list-library";
-import { getBrazePipesConnectionStatus, saveBrazePipesApiKey } from "@/lib/braze/pipes";
+import { pingBrazeRestCredentials } from "@/lib/braze/ping";
+import {
+  getBrazePipesConnectionStatus,
+  loadBrazePipesApiKey,
+  saveBrazePipesApiKey,
+} from "@/lib/braze/pipes";
 import {
   deleteBrazeConnectionSettings,
   getBrazeConnectionSettings,
@@ -51,7 +56,13 @@ function mapBrazePipesError(
   if (error.code === "braze_api_key_required") {
     return badRequestResponse(c, error.code, error.message);
   }
-  if (error.code === "braze_endpoint_missing" || error.code === "braze_endpoint_invalid") {
+  if (
+    error.code === "braze_endpoint_missing" ||
+    error.code === "braze_endpoint_invalid" ||
+    error.code === "braze_credentials_invalid" ||
+    error.code === "braze_cluster_unreachable" ||
+    error.code === "braze_permission_missing"
+  ) {
     return badRequestResponse(c, error.code, error.message);
   }
   return notFoundResponse(c, error.code, error.message);
@@ -145,6 +156,26 @@ export function createBrazeRoutes() {
           "braze_api_key_required",
           "Paste a Braze REST API key to connect.",
         );
+      }
+
+      let apiKeyToPing = trimmedApiKey;
+      if (!apiKeyToPing) {
+        const storedKey = await loadBrazePipesApiKey({
+          localOrganizationId,
+          workosUserId,
+        });
+        if (isErr(storedKey)) {
+          return mapBrazePipesError(c, storedKey.error);
+        }
+        apiKeyToPing = storedKey.value;
+      }
+
+      const ping = await pingBrazeRestCredentials({
+        apiKey: apiKeyToPing,
+        restEndpoint,
+      });
+      if (isErr(ping)) {
+        return badRequestResponse(c, ping.error.code, ping.error.message);
       }
 
       if (trimmedApiKey) {

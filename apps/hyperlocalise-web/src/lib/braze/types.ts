@@ -29,4 +29,7 @@ export type BrazePipesError =
 export type BrazeSettingsError =
   | BrazePipesError
   | { code: "braze_endpoint_missing"; message: string }
-  | { code: "braze_endpoint_invalid"; message: string };
+  | { code: "braze_endpoint_invalid"; message: string }
+  | { code: "braze_credentials_invalid"; message: string }
+  | { code: "braze_cluster_unreachable"; message: string }
+  | { code: "braze_permission_missing"; message: string };

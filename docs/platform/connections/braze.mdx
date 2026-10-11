@@ -25,7 +25,7 @@ Connected Content, send-time fetch, and drag-and-drop email templates stay out o
 | Requirement | Description |
 | --- | --- |
 | Native project | A [native project](/platform/projects/create-project) whose source locale and target locales map onto Braze locale keys or copy suffixes. |
-| Braze REST API key | Created in Braze **Settings → APIs and Identifiers**. Grant **templates** and **Content Blocks** for Email Templates. When Campaigns & Canvas ships, the same key also needs **campaigns** and **Canvas**. |
+| Braze REST API key | Created in Braze **Settings → APIs and Identifiers**. Grant list access for **templates**, **Content Blocks**, **campaigns**, and **Canvas**. Save checks those four. Campaigns & Canvas write-back is still upcoming. |
 | Braze REST cluster | The REST endpoint for that instance (for example `https://rest.iad-03.braze.com` or cluster `iad-03`). Search or paste it on the connection form. |
 | Locale mapping | Exact tags match first. Language-only aliases such as `fr-FR` → `fr` apply when only one regional form is present. Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. |
 
@@ -33,7 +33,8 @@ Connected Content, send-time fetch, and drag-and-drop email templates stay out o
 
 1. Open workspace **Integrations** and find **Braze**.
 2. Paste the REST API key and choose the REST cluster for that instance.
-3. Save and confirm the connection shows as connected.
+3. Save. Hyperlocalise pings Braze on that cluster to confirm the key can list email templates, Content Blocks, campaigns, and Canvas. A rejected key, missing permission, or unreachable cluster is not stored.
+4. Confirm the connection shows as connected.
 
 Connect Braze before you add a Braze skill. Email Templates uses this connection today. Campaigns & Canvas will use the same connection when it ships.
 

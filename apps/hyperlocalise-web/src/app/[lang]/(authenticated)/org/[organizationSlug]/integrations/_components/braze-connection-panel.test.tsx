@@ -124,7 +124,9 @@ describe("BrazeConnectionPanel", () => {
     fireEvent.change(screen.getByLabelText("Search or paste a REST endpoint"), {
       target: { value: "https://rest.iad-03.braze.com/" },
     });
-    expect(screen.getByRole("option", { name: "US-03 · https://rest.iad-03.braze.com" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "US-03 · https://rest.iad-03.braze.com" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("option", { name: "US-01 · https://rest.iad-01.braze.com" }),
     ).not.toBeInTheDocument();
@@ -215,8 +217,14 @@ describe("BrazeConnectionPanel", () => {
     });
   });
 
-  it("surfaces a save error", async () => {
-    mocks.brazePut.mockResolvedValue({ ok: false });
+  it("surfaces a Braze validation error from save", async () => {
+    mocks.brazePut.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: "braze_credentials_invalid",
+        message: "Braze rejected this API key for that REST cluster. Check both and try again.",
+      }),
+    });
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     fireEvent.change(await screen.findByLabelText("API key"), {
@@ -227,7 +235,34 @@ describe("BrazeConnectionPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith("Failed to save the Braze connection.");
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Braze rejected this API key for that REST cluster. Check both and try again.",
+      );
+    });
+  });
+
+  it("surfaces a missing Braze permission from save", async () => {
+    mocks.brazePut.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: "braze_permission_missing",
+        message:
+          "This API key is missing Braze permissions: content_blocks.list. Add them in Settings → APIs and Identifiers, then save again.",
+      }),
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.change(await screen.findByLabelText("API key"), {
+      target: { value: "limited-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "REST cluster" }));
+    fireEvent.click(screen.getByRole("option", { name: "US-01 · https://rest.iad-01.braze.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "This API key is missing Braze permissions: content_blocks.list. Add them in Settings → APIs and Identifiers, then save again.",
+      );
     });
   });
 

@@ -23,7 +23,9 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   getBrazePipesConnectionStatus: vi.fn(),
+  loadBrazePipesApiKey: vi.fn(),
   saveBrazePipesApiKey: vi.fn(),
+  pingBrazeRestCredentials: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -40,15 +42,20 @@ vi.mock("@/lib/braze/pipes", async (importOriginal) => {
     ...actual,
     getBrazePipesConnectionStatus: (...args: unknown[]) =>
       mocks.getBrazePipesConnectionStatus(...args),
+    loadBrazePipesApiKey: (...args: unknown[]) => mocks.loadBrazePipesApiKey(...args),
     saveBrazePipesApiKey: (...args: unknown[]) => mocks.saveBrazePipesApiKey(...args),
   };
 });
+
+vi.mock("@/lib/braze/ping", () => ({
+  pingBrazeRestCredentials: (...args: unknown[]) => mocks.pingBrazeRestCredentials(...args),
+}));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db } from "@/lib/database/client";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -60,7 +67,11 @@ describe("brazeRoutes", () => {
 
   beforeEach(() => {
     mocks.getBrazePipesConnectionStatus.mockReset();
+    mocks.loadBrazePipesApiKey.mockReset();
     mocks.saveBrazePipesApiKey.mockReset();
+    mocks.pingBrazeRestCredentials.mockReset();
+    mocks.loadBrazePipesApiKey.mockResolvedValue(ok("stored-braze-key"));
+    mocks.pingBrazeRestCredentials.mockResolvedValue(ok(true));
     mocks.getBrazePipesConnectionStatus.mockResolvedValue(
       ok({
         connected: true,
@@ -109,6 +120,57 @@ describe("brazeRoutes", () => {
       braze: { restEndpoint: "iad-03" },
     });
     expect(mocks.saveBrazePipesApiKey).not.toHaveBeenCalled();
+    expect(mocks.pingBrazeRestCredentials).toHaveBeenCalledWith({
+      apiKey: "stored-braze-key",
+      restEndpoint: "iad-03",
+    });
+  });
+
+  it("rejects a save when Braze rejects the key or cluster", async () => {
+    mocks.pingBrazeRestCredentials.mockResolvedValue(
+      err({
+        code: "braze_credentials_invalid",
+        message: "Braze rejected this API key for that REST cluster. Check both and try again.",
+      }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].braze.$put(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "" },
+        json: { restEndpoint: "iad-03", apiKey: "bad-key" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "braze_credentials_invalid" });
+    expect(mocks.saveBrazePipesApiKey).not.toHaveBeenCalled();
+  });
+
+  it("rejects a save when the key is missing a required Braze permission", async () => {
+    mocks.pingBrazeRestCredentials.mockResolvedValue(
+      err({
+        code: "braze_permission_missing",
+        message:
+          "This API key is missing Braze permissions: content_blocks.list. Add them in Settings → APIs and Identifiers, then save again.",
+      }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].braze.$put(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "" },
+        json: { restEndpoint: "iad-03", apiKey: "limited-key" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "braze_permission_missing" });
+    expect(mocks.saveBrazePipesApiKey).not.toHaveBeenCalled();
   });
 
   it("saves a Pipes API key with the cluster when disconnected", async () => {
@@ -134,6 +196,10 @@ describe("brazeRoutes", () => {
     expect(putResponse.status).toBe(200);
     expect(await putResponse.json()).toEqual({
       braze: { restEndpoint: "iad-03" },
+    });
+    expect(mocks.pingBrazeRestCredentials).toHaveBeenCalledWith({
+      apiKey: "braze-rest-key",
+      restEndpoint: "iad-03",
     });
     expect(mocks.saveBrazePipesApiKey).toHaveBeenCalledWith({
       localOrganizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,

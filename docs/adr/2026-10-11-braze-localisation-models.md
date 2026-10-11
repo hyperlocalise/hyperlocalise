@@ -56,4 +56,6 @@ Content in either skill.
 - One **Integrations → Braze** row. Two automations later.
 - Product docs live on one page, `docs/platform/connections/braze.mdx`.
 - API keys created for Email Templates should already include campaigns
-  and Canvas so the same connection works when HL-862 ships.
+  and Canvas so the same connection works when HL-862 ships. Save pings
+  `templates.email.list`, `content_blocks.list`, `campaigns.list`, and
+  `canvas.list` before the key is stored.
