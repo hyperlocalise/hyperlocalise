@@ -95,11 +95,6 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "86k8CEUaJ5",
     description: "Column header for node status in execution detail",
   },
-  share: {
-    defaultMessage: "Share",
-    id: "LwRsugxcAC",
-    description: "Disabled share button in visual workflow chrome",
-  },
   save: {
     defaultMessage: "Save",
     id: "U87kn4cxmh",
@@ -109,6 +104,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Saving…",
     id: "4JSF3BIeDZ",
     description: "Save button label while a visual workflow is being saved",
+  },
+  exportMenu: {
+    defaultMessage: "Export",
+    id: "besNXCgM6P",
+    description: "Button that opens the menu for copying or downloading the workflow JSON",
   },
   exportJson: {
     defaultMessage: "Export JSON",

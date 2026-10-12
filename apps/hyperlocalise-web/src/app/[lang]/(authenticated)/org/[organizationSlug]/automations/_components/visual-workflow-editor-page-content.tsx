@@ -12,14 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
@@ -52,7 +50,9 @@ export function VisualWorkflowEditorPageContent({
   const revision = useRef(workflow.revision);
   const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const workflowTitle = workflow.name.trim();
+  // The breadcrumb shows the name as last saved, so a rename appears there once it is saved.
+  const [savedName, setSavedName] = useState(workflow.name);
+  const workflowTitle = savedName.trim();
   useAppShellBreadcrumbAppend({
     id: "visual-workflow-detail",
     label: workflowTitle || undefined,
@@ -78,6 +78,7 @@ export function VisualWorkflowEditorPageContent({
         })
         .then((record) => {
           revision.current = record.revision;
+          setSavedName(record.name);
           return record;
         }),
   });
@@ -140,21 +141,7 @@ export function VisualWorkflowEditorPageContent({
   };
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-        <Button
-          nativeButton={false}
-          render={<OrgNavLink href={`/org/${organizationSlug}/automations/visual-workflows`} />}
-          variant="ghost"
-          size="sm"
-        >
-          <FormattedMessage
-            defaultMessage="Back to workflows"
-            id="kv8FmMqNvG"
-            description="Link from the visual workflow editor back to the list page"
-          />
-        </Button>
-      </div>
+    <div className="-mx-4 -my-4 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <VisualWorkflowEditor
         initialName={editorState.name}
         initialNodes={editorState.nodes}
