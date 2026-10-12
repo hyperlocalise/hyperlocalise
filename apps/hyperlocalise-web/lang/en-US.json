@@ -39,6 +39,10 @@
     "defaultMessage": "Language",
     "description": "Row label for the Crowdin language on a provider job"
   },
+  "+1MdqtQjmp": {
+    "defaultMessage": "Choose a REST cluster",
+    "description": "Placeholder on the Braze REST cluster picker before a cluster is chosen"
+  },
   "+1W0ppiYtZ": {
     "defaultMessage": "Project: {value}",
     "description": "Active issue filter chip showing the selected project"
@@ -326,6 +330,10 @@
   "+aMfkDjWcF": {
     "defaultMessage": "Translation Memory Deleted",
     "description": "Activity log event type label for translation memory deletion"
+  },
+  "+ag6bbxEOO": {
+    "defaultMessage": "Search or paste a REST endpoint",
+    "description": "Search field placeholder for filtering Braze REST clusters by key or URL"
   },
   "+auDy+Mwce": {
     "defaultMessage": "—",
@@ -895,6 +903,10 @@
     "defaultMessage": "Extract text at playhead",
     "description": "Video refinement workspace: extract"
   },
+  "/YdY1bOwtr": {
+    "defaultMessage": "Ingest",
+    "description": "Button that queues a workspace automation import run from the Content editor"
+  },
   "/Z40OYzdZ/": {
     "defaultMessage": "Approved project",
     "description": "Origin for entries promoted from approved project translations"
@@ -1018,6 +1030,10 @@
   "/qEcrILvnF": {
     "defaultMessage": "Create more",
     "description": "Checkbox label to keep the create query dialog open after submit"
+  },
+  "/rZ4ZyulJi": {
+    "defaultMessage": "Linked Domain Created",
+    "description": "Activity log event type label for creating a linked domain"
   },
   "/rt02FtsLl": {
     "defaultMessage": "Start time",
@@ -2711,6 +2727,10 @@
     "defaultMessage": "Budget (USD)",
     "description": "Translation reporting label"
   },
+  "3+pjmT77Xm": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the Braze template picker"
+  },
   "3/ebdpqqmW": {
     "defaultMessage": "Uploading the file and starting the import...",
     "description": "Status while a translation memory import file uploads and queues processing"
@@ -3086,6 +3106,10 @@
   "3nJQ/U/1eb": {
     "defaultMessage": "Repository",
     "description": "Repository selector placeholder when no repository is selected yet"
+  },
+  "3pH+V4sVcw": {
+    "defaultMessage": "Keep Braze copies that teammates edited after the last push.",
+    "description": "Explains the selected automation keeps newer Braze copies"
   },
   "3poXpaPEFu": {
     "defaultMessage": "Enter URL",
@@ -3542,6 +3566,10 @@
   "4WxpcyFNqc": {
     "defaultMessage": "Reject selected",
     "description": "Bulk action to reject selected proposals"
+  },
+  "4XH7iM6vvN": {
+    "defaultMessage": "Push policy",
+    "description": "Label for the selected automation Braze overwrite rule"
   },
   "4XHdLftqfc": {
     "defaultMessage": "The assistant set up this automation",
@@ -4166,6 +4194,10 @@
   "5jk6z2ASrH": {
     "defaultMessage": "Cancel",
     "description": "Button to close the add translation memory entry dialog"
+  },
+  "5jzwdCgA6N": {
+    "defaultMessage": "Could not queue Braze push",
+    "description": "Toast when queuing a Braze push automation run fails"
   },
   "5lnOyXIzKl": {
     "defaultMessage": "Request a Demo",
@@ -4991,6 +5023,10 @@
     "defaultMessage": "View jobs",
     "description": "Permission row for reading jobs"
   },
+  "7K7+VuCgvb": {
+    "defaultMessage": "verified a linked domain",
+    "description": "Action for a linked domain verification activity"
+  },
   "7L1IE082cR": {
     "defaultMessage": "Approve with confidence",
     "description": "Proof point 3 title for the next-gen CAT tool product page"
@@ -5271,6 +5307,10 @@
     "defaultMessage": "Collaboration for copy and context issues, plus repeatable workflow tooling for production teams.",
     "description": "Pricing matrix section description for Queries and Automation Workflow"
   },
+  "7uzrd7Mdbz": {
+    "defaultMessage": "Could not load templates",
+    "description": "Error when mapped Braze templates fail to load"
+  },
   "7vHEse/Aa+": {
     "defaultMessage": "Notify a channel when runs reach a terminal state.",
     "description": "Description for Slack notifications when Slack is connected"
@@ -5435,6 +5475,10 @@
     "defaultMessage": "Glossary compliance",
     "description": "CAT format check label for glossary compliance summary"
   },
+  "8BjXjIaYA0": {
+    "defaultMessage": "Braze copies queued",
+    "description": "Toast after a Braze push automation run is queued"
+  },
   "8C/ND9Is/i": {
     "defaultMessage": "Import translations",
     "description": "Context menu action to import translations for a project file"
@@ -5534,6 +5578,10 @@
   "8KBorulqxU": {
     "defaultMessage": "Content, localisation, marketing, and development teams working together to create, publish, and improve multilingual content.",
     "description": "Homepage FAQ answer about platform topic 11"
+  },
+  "8KWdpo1+b6": {
+    "defaultMessage": "Last push failed",
+    "description": "Hint that the previous Braze push for this template failed"
   },
   "8Ktyj8rNhr": {
     "defaultMessage": "Built-in",
@@ -8127,6 +8175,10 @@
     "defaultMessage": "enabled a visual workflow",
     "description": "Action for enabling a visual workflow"
   },
+  "Cz3dpIMRmN": {
+    "defaultMessage": "imported dictionary words",
+    "description": "Action for a spellcheck dictionary word import activity"
+  },
   "CzEPtyNc5S": {
     "defaultMessage": "{count, plural, one {# pending action} other {# pending actions}}",
     "description": "Overview hero badge showing how many pending actions remain"
@@ -8174,6 +8226,10 @@
   "D2baOujkvw": {
     "defaultMessage": "No audit events yet.",
     "description": "Empty state when a translation memory entry has no audit events"
+  },
+  "D2gUlNzO0G": {
+    "defaultMessage": "No matching templates",
+    "description": "Empty state when template search matches nothing"
   },
   "D31YyOoRzS": {
     "defaultMessage": "Leave a reply…",
@@ -9655,6 +9711,10 @@
     "defaultMessage": "Unassigned",
     "description": "Label when a native job has no owner"
   },
+  "FlPWUrrx1/": {
+    "defaultMessage": "Push to Braze",
+    "description": "Title of the Content editor dialog for choosing Braze templates to push"
+  },
   "FlXBmFercA": {
     "defaultMessage": "Remove GitHub sync workflows",
     "description": "Accessible label to remove GitHub sync workflows"
@@ -9686,6 +9746,10 @@
   "Fn04QYq5Dy": {
     "defaultMessage": "Unable to save concept",
     "description": "Fallback error when a glossary concept save fails"
+  },
+  "FnAFjBOuRk": {
+    "defaultMessage": "Automation",
+    "description": "Label for choosing which Braze automation to push with"
   },
   "FnmoCyuAVI": {
     "defaultMessage": "Updated the setup · {count, plural, one {# change} other {# changes}}",
@@ -10763,6 +10827,10 @@
     "defaultMessage": "Europe",
     "description": "Region heading in the language picker grid"
   },
+  "HzMhwpgFt2": {
+    "defaultMessage": "changed linked domain markets",
+    "description": "Action for a linked domain market change activity"
+  },
   "HzU2+Sm7bp": {
     "defaultMessage": "Agentic workflow",
     "description": "Badge label on the translation flow illustration"
@@ -11287,6 +11355,10 @@
     "defaultMessage": "Enter your Space ID and Content Management API token to load content types from Contentful.",
     "description": "Hint before credentials are entered for content type discovery"
   },
+  "IyYEob9ejo": {
+    "defaultMessage": "REST cluster",
+    "description": "Label for the Braze REST cluster picker"
+  },
   "IypYQDIY3f": {
     "defaultMessage": "Contentful webhook registered",
     "description": "Toast title when a Contentful webhook is created"
@@ -11346,6 +11418,10 @@
   "J5QEeAEILc": {
     "defaultMessage": "Workflows",
     "description": "Section heading for automation workflow toggles"
+  },
+  "J5c/CjjG4+": {
+    "defaultMessage": "Save",
+    "description": "Button to save the Braze API key and REST cluster"
   },
   "J5q0R+rIqK": {
     "defaultMessage": "Style guides and project guidelines used in the editor and workflows. Open a project to edit.",
@@ -12038,6 +12114,10 @@
   "KbRaMGCw9d": {
     "defaultMessage": "Work date (UTC)",
     "description": "Translation reporting label"
+  },
+  "Kbq8fI6g+r": {
+    "defaultMessage": "Could not queue ingest",
+    "description": "Toast when queuing an automation ingest run fails"
   },
   "KcOHml/Q0u": {
     "defaultMessage": "MDX code, kept as written",
@@ -12743,6 +12823,10 @@
     "defaultMessage": "Approve saves the current target text.",
     "description": "Reviewer preference note when approve saves translations for a native project"
   },
+  "M++zkzakx8": {
+    "defaultMessage": "Hide API key",
+    "description": "Aria label for hiding the Braze REST API key field"
+  },
   "M+1IVHnYL6": {
     "defaultMessage": "Manage translations, jobs, and memories in Hyperlocalise without an external TMS.",
     "description": "Built-in translation workspace description on the integrations page"
@@ -12786,6 +12870,10 @@
   "M1dHMgqYPX": {
     "defaultMessage": "Action",
     "description": "Table header for per-repository actions"
+  },
+  "M20HVGjx7C": {
+    "defaultMessage": "Dictionary Project Attached",
+    "description": "Activity log event type label for attaching a dictionary to a project"
   },
   "M2MpuB71Nj": {
     "defaultMessage": "Filter by import batch",
@@ -13074,6 +13162,10 @@
   "MZotM1J5qc": {
     "defaultMessage": "{enabledCount} of {totalCount} repositories enabled.",
     "description": "Summary of enabled vs total GitHub repositories"
+  },
+  "MaPGsx9bEV": {
+    "defaultMessage": "Push to Braze",
+    "description": "Button that opens the dialog to write approved template translations as Braze copies"
   },
   "MasHu7akaE": {
     "defaultMessage": "Pages sampled",
@@ -13390,6 +13482,10 @@
   "N8b0F0tKAl": {
     "defaultMessage": "XLSX",
     "description": "Menu option to import Queries rows from an XLSX file"
+  },
+  "N8dLBFv91a": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Disconnect button label while Braze is being disconnected"
   },
   "N8ghyZ/Xzt": {
     "defaultMessage": "Checking technical, linguistic, contextual, and visual signals.",
@@ -14567,6 +14663,10 @@
     "defaultMessage": "Submit",
     "description": "Accessible label for submitting the prompt"
   },
+  "PJb5ZQPovA": {
+    "defaultMessage": "Create a REST API key in Braze Settings → APIs and Identifiers. The key needs campaigns, Canvas, Content Blocks, email, and templates.",
+    "description": "Hint describing where to create a Braze REST API key and required permissions"
+  },
   "PJoDNnwjRj": {
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect a provider"
@@ -14811,6 +14911,10 @@
     "defaultMessage": "Minor",
     "description": "Package version change badge for a minor update"
   },
+  "PozUnU6K5l": {
+    "defaultMessage": "Ingest with automation",
+    "description": "Title of the dialog for choosing which automation to ingest"
+  },
   "PpTSCPxwk9": {
     "defaultMessage": "50–74%",
     "description": "Translation reporting label"
@@ -14902,6 +15006,10 @@
   "PxhmMvItIU": {
     "defaultMessage": "Full workspace control including billing and organization settings.",
     "description": "Description of the organization admin role"
+  },
+  "PyDhCP5QIy": {
+    "defaultMessage": "cancelled a linked domain claim",
+    "description": "Action for a linked domain cancellation activity"
   },
   "PynZYcq/3Y": {
     "defaultMessage": "Claims, disclosures, and market-specific legal guardrails",
@@ -15439,6 +15547,10 @@
     "defaultMessage": "Display name",
     "description": "Label for Canva display name field"
   },
+  "R/hnP/HG+W": {
+    "defaultMessage": "Linked Domain Markets Changed",
+    "description": "Activity log event type label for changing linked domain markets"
+  },
   "R/pK1EOhod": {
     "defaultMessage": "Team name must be 120 characters or fewer.",
     "description": "Validation error when the team name exceeds 120 characters"
@@ -15534,6 +15646,10 @@
   "RI4oGEeV+s": {
     "defaultMessage": "This language already has an approved image. Regenerating replaces it.",
     "description": "Explanation that regenerating an approved gallery image overwrites it"
+  },
+  "RIwi4j2nfJ": {
+    "defaultMessage": "Select all",
+    "description": "Select every mapped Braze template in the push dialog"
   },
   "RJqS5CWiIH": {
     "defaultMessage": "new-headline",
@@ -16715,6 +16831,10 @@
     "defaultMessage": "+{count}",
     "description": "Hidden assignee count shown after the first name in the job detail picker"
   },
+  "TWTIbFfjVV": {
+    "defaultMessage": "Dictionaries",
+    "description": "Activity log event type group for spellcheck dictionaries"
+  },
   "TWTSM0Nfet": {
     "defaultMessage": "API key prefix",
     "description": "Audit detail label for the actor API key prefix"
@@ -17022,6 +17142,10 @@
   "U499tVTudb": {
     "defaultMessage": "Staging",
     "description": "Flow node label"
+  },
+  "U4ehpvU/9G": {
+    "defaultMessage": "Leave blank to keep the current key.",
+    "description": "Hint that a connected Braze key can be rotated by pasting a new value"
   },
   "U4l3MJE1g3": {
     "defaultMessage": "Yes. Japan can see a new checkout while France stays on the original. You choose which markets get the change.",
@@ -17386,6 +17510,10 @@
   "UgpzwX+27K": {
     "defaultMessage": "Error",
     "description": "QA review: error"
+  },
+  "UhABVcjd+v": {
+    "defaultMessage": "Braze disconnected.",
+    "description": "Toast after Braze is disconnected"
   },
   "UhcD2CtYRf": {
     "defaultMessage": "How a test usually goes",
@@ -17910,6 +18038,10 @@
   "Ve+0mAQW0d": {
     "defaultMessage": "Pulling search volume for core product terms",
     "description": "Automations mock UI keyword research step 1"
+  },
+  "VfFxpBKOOP": {
+    "defaultMessage": "Failed to save the Braze connection.",
+    "description": "Error when the Braze connection cannot be saved"
   },
   "VfTXpLSxVb": {
     "defaultMessage": "Modified",
@@ -18458,6 +18590,10 @@
   "Wo7BO2CWj+": {
     "defaultMessage": "Projects",
     "description": "QA review: projects"
+  },
+  "WoFnpvLrkf": {
+    "defaultMessage": "Copy the REST endpoint from Braze Settings → APIs and Identifiers, then search or paste it here.",
+    "description": "Hint describing where to find the Braze REST cluster and that the URL can be pasted"
   },
   "WoJQD0Fykh": {
     "defaultMessage": "From a button label to a whole flow",
@@ -19075,6 +19211,10 @@
     "defaultMessage": "No teams yet",
     "description": "Empty state title when the workspace has no teams"
   },
+  "XzOJmiyvap": {
+    "defaultMessage": "No mapped templates",
+    "description": "Empty state when a Braze automation has no mapped templates"
+  },
   "XzWD0aBfVa": {
     "defaultMessage": "Show activity by {name}",
     "description": "Accessible label for filtering activity logs to one user"
@@ -19303,6 +19443,10 @@
     "defaultMessage": "One brand name per line. We’ll look them up next to this domain.",
     "description": "Add competitors dialog description"
   },
+  "YLbt57UkC5": {
+    "defaultMessage": "Failed to disconnect Braze.",
+    "description": "Toast when Braze disconnect fails"
+  },
   "YM1jd5PwaY": {
     "defaultMessage": "My Jobs",
     "description": "App shell breadcrumb title for the my jobs page"
@@ -19422,6 +19566,10 @@
   "YaKRAqJTYd": {
     "defaultMessage": "Stop reviewing strings in the dark.",
     "description": "Bottom CTA headline for the next-gen CAT tool product page"
+  },
+  "Yb4Y1JetMA": {
+    "defaultMessage": "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
+    "description": "Braze integration description on the integrations page"
   },
   "YbMmg9p0CC": {
     "defaultMessage": "Enter a name.",
@@ -20935,6 +21083,10 @@
     "defaultMessage": "Glossary",
     "description": "Document editor: assistant section heading"
   },
+  "bQ5ORexI9e": {
+    "defaultMessage": "Braze connection saved.",
+    "description": "Toast after the Braze API key and REST cluster are saved"
+  },
   "bQPNqQ6BaC": {
     "defaultMessage": "Review",
     "description": "Skill menu group: skills that check your own code and translations"
@@ -21210,6 +21362,10 @@
   "bvVDo6L8kL": {
     "defaultMessage": "Save locales",
     "description": "Accessible name for the locales settings save button"
+  },
+  "bw1KuJJnSd": {
+    "defaultMessage": "Overwrite Braze copies when the remote copy is newer.",
+    "description": "Explains the selected automation overwrites newer Braze copies on push"
   },
   "bwRkCyVWjg": {
     "defaultMessage": "Leave the guidelines where they are. Let agents read them.",
@@ -21887,17 +22043,9 @@
     "defaultMessage": "Export filtered as XLSX",
     "description": "Glossary action to export the current language filter as XLSX"
   },
-  "M20HVGjx7C": {
-    "defaultMessage": "Dictionary Project Attached",
-    "description": "Activity log event type label for attaching a dictionary to a project"
-  },
   "dAN96XLBhS": {
     "defaultMessage": "No. Hyperlocalise works alongside your existing TMS. Keep using Phrase, Lokalise, Crowdin or Smartling while Hyperlocalise orchestrates AI agents, review workflows, context discovery and quality checks.",
     "description": "Homepage FAQ answer about platform topic 9"
-  },
-  "lV7c6rxgZX": {
-    "defaultMessage": "attached a dictionary to a project",
-    "description": "Action for attaching a spellcheck dictionary to a project"
   },
   "dAeEJyCLaY": {
     "defaultMessage": "Clear all",
@@ -21919,10 +22067,6 @@
     "defaultMessage": "Website · live pages",
     "description": "Website check row on the daily compliance audit mock card"
   },
-  "vlJmij48Pk": {
-    "defaultMessage": "Dictionary Created",
-    "description": "Activity log event type label for dictionary creation"
-  },
   "dC80UX3i75": {
     "defaultMessage": "{hours} hr",
     "description": "Time spent on a comment in whole hours"
@@ -21939,21 +22083,9 @@
     "defaultMessage": "{name} (disabled)",
     "description": "Contentful connection option label when the connection is disabled"
   },
-  "p+l9yp3+PH": {
-    "defaultMessage": "created a dictionary",
-    "description": "Action for a spellcheck dictionary creation activity"
-  },
-  "s6NLAIiQ6o": {
-    "defaultMessage": "Dictionary Deleted",
-    "description": "Activity log event type label for dictionary deletion"
-  },
   "dDYz0HQlRX": {
     "defaultMessage": "Start from a phrase this market actually searches for.",
     "description": "Empty keyword research description"
-  },
-  "ids+317avp": {
-    "defaultMessage": "deleted a dictionary",
-    "description": "Action for a spellcheck dictionary deletion activity"
   },
   "dDwlwYf96x": {
     "defaultMessage": "Hyperlab",
@@ -21975,10 +22107,6 @@
     "defaultMessage": "A localisation manager plans the quarter across four content streams",
     "description": "Scenario section title for the localisation-operations use case"
   },
-  "TWTIbFfjVV": {
-    "defaultMessage": "Dictionaries",
-    "description": "Activity log event type group for spellcheck dictionaries"
-  },
   "dGJ4DQ8pi3": {
     "defaultMessage": "Market notes\nstay in Notion.",
     "description": "Title for the Notion source panel"
@@ -21995,17 +22123,9 @@
     "defaultMessage": "Production website",
     "description": "Placeholder for a client key name field"
   },
-  "vdeP2Xo4gi": {
-    "defaultMessage": "Dictionary Imported",
-    "description": "Activity log event type label for dictionary word imports"
-  },
   "dIHTtzU056": {
     "defaultMessage": "The audit could not finish for this domain.",
     "description": "Fallback error when a failed localisation audit has no error message"
-  },
-  "Cz3dpIMRmN": {
-    "defaultMessage": "imported dictionary words",
-    "description": "Action for a spellcheck dictionary word import activity"
   },
   "dIgSyZztAu": {
     "defaultMessage": "Model Selector",
@@ -22615,10 +22735,6 @@
     "defaultMessage": "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step.",
     "description": "Differentiator section description for the localisation-quality-monitoring use case"
   },
-  "eENPAn2kRY": {
-    "defaultMessage": "Localize Braze email templates and Content Blocks. Campaigns and Canvas are upcoming.",
-    "description": "Braze integration description on the integrations page"
-  },
   "eETDpPUyD4": {
     "defaultMessage": "{count, plural, one {# file selected (max {max}).} other {# files selected (max {max}).}}",
     "description": "Count of files staged for upload with the maximum allowed"
@@ -22867,6 +22983,10 @@
     "defaultMessage": "Save and run",
     "description": "Button that saves the unsaved automation changes and then queues a run"
   },
+  "eg1vE4iGCz": {
+    "defaultMessage": "Search templates",
+    "description": "Placeholder for filtering mapped Braze templates"
+  },
   "ehALlAgOmB": {
     "defaultMessage": "Seed",
     "description": "Seed keyword field label"
@@ -22938,6 +23058,10 @@
   "eq+MOWqVs2": {
     "defaultMessage": "Create your first localization project",
     "description": "Title of the empty state when there are no Hyperlocalise projects"
+  },
+  "eqPSkXPnrW": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while the Braze connection is being saved"
   },
   "eqSC7QtAFi": {
     "defaultMessage": "For your developer",
@@ -23498,6 +23622,10 @@
   "fu8eVhN1Ej": {
     "defaultMessage": "Show two or more versions and keep the one that works.",
     "description": "Hint for the A/B experiment type"
+  },
+  "fut6xXSrSN": {
+    "defaultMessage": "Push {count, plural, one {# template} other {# templates}}",
+    "description": "Confirm pushing the selected Braze templates as locale copies"
   },
   "fvXYWA/jR+": {
     "defaultMessage": "Task description preview",
@@ -24347,6 +24475,10 @@
     "defaultMessage": "{count, plural, one {# language has findings} other {# languages have findings}}",
     "description": "Project QA overview metric detail for languages with findings"
   },
+  "hIBcZdGd0e": {
+    "defaultMessage": "Token ending in {suffix}",
+    "description": "Secondary Braze connection detail showing the stored token suffix"
+  },
   "hIOpWNAWDG": {
     "defaultMessage": "Draft and check in your TMS",
     "description": "AI feature capability title: TMS-aware drafting and QA"
@@ -24454,6 +24586,10 @@
   "hT8TORYOoH": {
     "defaultMessage": "Add word",
     "description": "Button to add a word to a dictionary"
+  },
+  "hTDYqJqQym": {
+    "defaultMessage": "Loading templates",
+    "description": "Shown while mapped Braze templates load"
   },
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}",
@@ -24718,6 +24854,10 @@
   "hzccK8c1vn": {
     "defaultMessage": "Notion",
     "description": "Notion source name on the guidelines board"
+  },
+  "hzrUUPWRn2": {
+    "defaultMessage": "Failed to load the Braze REST cluster.",
+    "description": "Error when the Braze REST cluster cannot be loaded"
   },
   "i+L328OqBg": {
     "defaultMessage": "Filter by priority",
@@ -25106,6 +25246,10 @@
   "idVdv+g+Al": {
     "defaultMessage": "Costs",
     "description": "Translation reporting label"
+  },
+  "ids+317avp": {
+    "defaultMessage": "deleted a dictionary",
+    "description": "Action for a spellcheck dictionary deletion activity"
   },
   "ieOgNf/WnJ": {
     "defaultMessage": "QA passed · draft written to CMS · #content notified",
@@ -25815,6 +25959,10 @@
     "defaultMessage": "Before",
     "description": "Guideline mock UI before label"
   },
+  "jzpUQUqMZp": {
+    "defaultMessage": "Show API key",
+    "description": "Aria label for revealing the Braze REST API key field"
+  },
   "jztUpXyotb": {
     "defaultMessage": "Message failed to render",
     "description": "Error boundary title when a chat message response crashes"
@@ -25846,6 +25994,10 @@
   "k0BSdK37u2": {
     "defaultMessage": "You are this visitor",
     "description": "Caption for the audience visitor toggle"
+  },
+  "k0hm/w7zMc": {
+    "defaultMessage": "Search templates",
+    "description": "Accessible label for the Braze template search field"
   },
   "k0oDzsZOu6": {
     "defaultMessage": "Settings unavailable",
@@ -26475,14 +26627,6 @@
     "defaultMessage": "Confidence",
     "description": "Filter option for confidence warnings"
   },
-  "/rZ4ZyulJi": {
-    "defaultMessage": "Linked Domain Created",
-    "description": "Activity log event type label for creating a linked domain"
-  },
-  "lEmnokrrS2": {
-    "defaultMessage": "created a linked domain",
-    "description": "Action for a linked domain creation activity"
-  },
   "lDEpmcca/9": {
     "defaultMessage": "Workspace archived",
     "description": "Access denied page title when the workspace is archived"
@@ -26499,6 +26643,10 @@
     "defaultMessage": "Product overview",
     "description": "TM match context label in the hero CAT mock"
   },
+  "lEmnokrrS2": {
+    "defaultMessage": "created a linked domain",
+    "description": "Action for a linked domain creation activity"
+  },
   "lEtyUUSw7r": {
     "defaultMessage": "Source path",
     "description": "Label for issue source path field"
@@ -26506,10 +26654,6 @@
   "lFIWfq6Qqr": {
     "defaultMessage": "Issue columns",
     "description": "Project settings nav item for issue sheet columns"
-  },
-  "scjKnowuFr": {
-    "defaultMessage": "Linked domains",
-    "description": "Activity log event type group for linked domains"
   },
   "lGHZQiNbmr": {
     "defaultMessage": "Keep the meaning.\nKeep the structure.",
@@ -26551,17 +26695,9 @@
     "defaultMessage": "No ranking pages in this market yet.",
     "description": "Empty overview pages"
   },
-  "R/hnP/HG+W": {
-    "defaultMessage": "Linked Domain Markets Changed",
-    "description": "Activity log event type label for changing linked domain markets"
-  },
   "lMGKaGDLx4": {
     "defaultMessage": "A product launch campaign goes live in six markets",
     "description": "Scenario section title for the marketing-localisation use case"
-  },
-  "HzMhwpgFt2": {
-    "defaultMessage": "changed linked domain markets",
-    "description": "Action for a linked domain market change activity"
   },
   "lMe/pmUjEJ": {
     "defaultMessage": "04 Take it everywhere",
@@ -26639,17 +26775,13 @@
     "defaultMessage": "No matching blocks",
     "description": "Empty state when slash command filter matches nothing"
   },
-  "x/ixOXudXh": {
-    "defaultMessage": "Linked Domain Verified",
-    "description": "Activity log event type label for verifying a linked domain"
-  },
   "lV6tIpjosi": {
     "defaultMessage": "Translate",
     "description": "Skill menu group: skills that produce translations"
   },
-  "7K7+VuCgvb": {
-    "defaultMessage": "verified a linked domain",
-    "description": "Action for a linked domain verification activity"
+  "lV7c6rxgZX": {
+    "defaultMessage": "attached a dictionary to a project",
+    "description": "Action for attaching a spellcheck dictionary to a project"
   },
   "lVdc+gO4U4": {
     "defaultMessage": "Human",
@@ -26663,17 +26795,9 @@
     "defaultMessage": "Inbound address ready. Send files or images with a target language to translate by email.",
     "description": "Email integration description when an inbound address exists"
   },
-  "qBpW7LbE1Z": {
-    "defaultMessage": "Linked Domain Cancelled",
-    "description": "Activity log event type label for cancelling a linked domain claim"
-  },
   "lXXmdSGuM3": {
     "defaultMessage": "Reconnect {providerName} to keep this integration working.",
     "description": "Hint when a WorkOS Pipes installation needs reauthorization"
-  },
-  "PyDhCP5QIy": {
-    "defaultMessage": "cancelled a linked domain claim",
-    "description": "Action for a linked domain cancellation activity"
   },
   "lXuIhCcGl8": {
     "defaultMessage": "Marked as a duplicate of {title}",
@@ -26879,6 +27003,10 @@
     "defaultMessage": "Guessing is expensive. A small market test is not.",
     "description": "Details section headline for the Hyperlab product page"
   },
+  "m0fNpDzYxG": {
+    "defaultMessage": "{ready} of {total} locales ready",
+    "description": "How many mapped locales are ready to push for one template"
+  },
   "m0gQ9lgLTM": {
     "defaultMessage": "Chat model",
     "description": "Disabled AI node slot label for a chat model"
@@ -26983,6 +27111,10 @@
     "defaultMessage": "Archived",
     "description": "Experiment status archived"
   },
+  "mAUk8+MP8l": {
+    "defaultMessage": "Clear",
+    "description": "Clear the Braze template selection"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear",
     "description": "Button to clear all selected target locales"
@@ -27062,6 +27194,10 @@
   "mGMHPd7U67": {
     "defaultMessage": "Source file",
     "description": "Accessible label for the CAT header source file picker trigger"
+  },
+  "mGMSi/xA03": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel the ingest automation picker"
   },
   "mGQ8u5Lds5": {
     "defaultMessage": "{percent}%",
@@ -28075,6 +28211,10 @@
     "defaultMessage": "Building in the open — localisation, AI agents, and lessons from the road.",
     "description": "Tagline under the blog index page title"
   },
+  "o0HXRhjJ+T": {
+    "defaultMessage": "Braze",
+    "description": "Name of the Braze integration in the hint on a skill that needs it connected"
+  },
   "o0UaTUXfqZ": {
     "defaultMessage": "Thai (Thailand)",
     "description": "Display name for BCP-47 locale th-TH"
@@ -28387,6 +28527,10 @@
     "defaultMessage": "Built-in rules",
     "description": "Label for built-in SRX template select"
   },
+  "oaXbMTwJdB": {
+    "defaultMessage": "Choose which mapped templates to write as locale-suffixed Braze copies. This does not change the source or publish.",
+    "description": "Description of the Braze template picker dialog"
+  },
   "oayHNZPeA1": {
     "defaultMessage": "Save check settings",
     "description": "Save QA policy"
@@ -28598,6 +28742,10 @@
   "ozZX+gMokY": {
     "defaultMessage": "Export",
     "description": "Button to open the glossary export dialog"
+  },
+  "p+l9yp3+PH": {
+    "defaultMessage": "created a dictionary",
+    "description": "Action for a spellcheck dictionary creation activity"
   },
   "p+mx30+l3M": {
     "defaultMessage": "Translation memory name is required.",
@@ -29123,6 +29271,10 @@
     "defaultMessage": "Acme · Queries",
     "description": "Header breadcrumb in marketing app shell mock"
   },
+  "pmbWIp5jA6": {
+    "defaultMessage": "Ingest queued",
+    "description": "Toast after an automation ingest run is queued"
+  },
   "pmeyEQny7X": {
     "defaultMessage": "Install command for {client}",
     "description": "Accessible label for the copyable MCP install snippet"
@@ -29371,6 +29523,10 @@
     "defaultMessage": "Changes committed",
     "description": "Status badge after the agent commits the fix"
   },
+  "qA+TFNS+X9": {
+    "defaultMessage": "Choose which automation should import its configured set now.",
+    "description": "Description of the ingest automation picker"
+  },
   "qABPUMMqNa": {
     "defaultMessage": "Bangla (Bangladesh)",
     "description": "Display name for BCP-47 locale bn-BD"
@@ -29410,6 +29566,10 @@
   "qBKA0q2hmg": {
     "defaultMessage": "Rules translators follow on this project.",
     "description": "Description for the project guideline tab in the editor guideline sheet"
+  },
+  "qBpW7LbE1Z": {
+    "defaultMessage": "Linked Domain Cancelled",
+    "description": "Activity log event type label for cancelling a linked domain claim"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Localize behavioral email and in-app messages in Customer.io.",
@@ -29522,6 +29682,10 @@
   "qPScSvuMGL": {
     "defaultMessage": "Deleting...",
     "description": "Delete button label while an automation is being deleted"
+  },
+  "qQRYeCWT2J": {
+    "defaultMessage": "Paste a Braze REST API key and choose the REST cluster for that instance.",
+    "description": "Intro text shown before a Braze API key is saved"
   },
   "qRVA5sizhD": {
     "defaultMessage": "Simple plans for evaluating Hyperlocalise today.",
@@ -29999,6 +30163,10 @@
     "defaultMessage": "Build your AI-native localisation workflow",
     "description": "CTA section headline for the help-center-localisation use case"
   },
+  "rJ/bOBdZ+R": {
+    "defaultMessage": "Unable to load the Braze connection right now.",
+    "description": "Braze integration row description when connection status fails to load"
+  },
   "rJ5ZNEEfrR": {
     "defaultMessage": "Last cited",
     "description": "Clause row label in the attached guidelines mock"
@@ -30210,6 +30378,10 @@
   "rjJJmHDMJh": {
     "defaultMessage": "Finding context…",
     "description": "Loading label while repository context is being looked up"
+  },
+  "rjsQdrxRfX": {
+    "defaultMessage": "No REST cluster matches.",
+    "description": "Empty state when the Braze REST cluster search has no matches"
   },
   "rk48TpeLE8": {
     "defaultMessage": "Link existing query",
@@ -30435,6 +30607,10 @@
     "defaultMessage": "Clear filters",
     "description": "Button that resets inbox read and type filters"
   },
+  "s6NLAIiQ6o": {
+    "defaultMessage": "Dictionary Deleted",
+    "description": "Activity log event type label for dictionary deletion"
+  },
   "s7935wKE28": {
     "defaultMessage": "Remove Semrush tool",
     "description": "Accessible label to remove the Semrush tool"
@@ -30658,6 +30834,10 @@
   "scWT+AzJ7J": {
     "defaultMessage": "{glossaryName} · {sourceTerm} → {targetTerm} · {status}",
     "description": "Tooltip title for a glossary match badge on an agent proposal"
+  },
+  "scjKnowuFr": {
+    "defaultMessage": "Linked domains",
+    "description": "Activity log event type group for linked domains"
   },
   "sd0MzVsa4K": {
     "defaultMessage": "New experiment",
@@ -31143,6 +31323,10 @@
     "defaultMessage": "Syntax",
     "description": "Label for the placeholder syntax select"
   },
+  "tYMhJaDhDu": {
+    "defaultMessage": "Use Email Templates or Campaigns & Canvas, not both",
+    "description": "Hint on a Braze skill that cannot be added because the other Braze skill is already attached"
+  },
   "tYvhpR2krg": {
     "defaultMessage": "Coming soon",
     "description": "Badge shown next to the Video Editor navigation item"
@@ -31310,6 +31494,10 @@
   "tx+ZfdCJg6": {
     "defaultMessage": "Could not read the saved SRX XML. Showing a starter ruleset — review before saving.",
     "description": "Banner when stored custom SRX XML fails to parse"
+  },
+  "typi8awoP0": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to disconnect Braze"
   },
   "tzNTVPZse0": {
     "defaultMessage": "Clear all",
@@ -31831,6 +32019,10 @@
     "defaultMessage": "Cadence",
     "description": "Label for scheduled automation cadence select"
   },
+  "usfuALDVe8": {
+    "defaultMessage": "API key",
+    "description": "Label for the Braze REST API key field"
+  },
   "usgRKcSksP": {
     "defaultMessage": "Dictionaries failed to load.",
     "description": "Error state title for the dictionaries list"
@@ -32307,6 +32499,10 @@
     "defaultMessage": "Preview and localize this URL as an image",
     "description": "Tooltip for the treat-as-image toggle in CAT"
   },
+  "vdeP2Xo4gi": {
+    "defaultMessage": "Dictionary Imported",
+    "description": "Activity log event type label for dictionary word imports"
+  },
   "ve3WtEiiGs": {
     "defaultMessage": "Last 3 months",
     "description": "Search Console last 3 months range"
@@ -32342,6 +32538,10 @@
   "vkuQguUble": {
     "defaultMessage": "Use 1–10 letters or numbers, starting with a letter (e.g. HL).",
     "description": "Validation error when the project issue identifier is invalid"
+  },
+  "vlJmij48Pk": {
+    "defaultMessage": "Dictionary Created",
+    "description": "Activity log event type label for dictionary creation"
   },
   "vlONVU+qS/": {
     "defaultMessage": "Starting…",
@@ -33110,6 +33310,10 @@
   "x/f6L/kjpD": {
     "defaultMessage": "You create the workflow once: where work starts, how it gets written, how it gets checked, where it goes live. Slack, Notion, Canva, Contentful, GitHub, Crowdin, and the rest plug into those steps. Then every campaign can follow the same path in every language.",
     "description": "Details section summary for the agents automation product page"
+  },
+  "x/ixOXudXh": {
+    "defaultMessage": "Linked Domain Verified",
+    "description": "Activity log event type label for verifying a linked domain"
   },
   "x0FiVbjynu": {
     "defaultMessage": "Loading domain research…",
