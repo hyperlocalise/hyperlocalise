@@ -154,6 +154,25 @@ describe("workspace automation templates", () => {
     });
   });
 
+  it("builds the Braze campaigns template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-braze-campaigns",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+    expect(template?.category).toBe("popular");
+    expect(template?.extraCategories).toEqual(["marketing"]);
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "braze", label: "Braze" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
   it("builds the source-upload template flow with create job and translate tools", () => {
     const template = getWorkspaceAutomationTemplate(
       "translate-on-source-upload",

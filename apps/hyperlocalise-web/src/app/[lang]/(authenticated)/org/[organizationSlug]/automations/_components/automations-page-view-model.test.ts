@@ -88,12 +88,20 @@ describe("resolveSortedAutomationTemplates", () => {
 
 describe("resolveTemplateCategoryTabs", () => {
   it("shows extra categories for dual-listed templates", () => {
-    const braze = automationTemplatesFixture.find(
+    const emailTemplates = automationTemplatesFixture.find(
       (template) => template.id === "translate-braze-email-templates",
     );
-    expect(braze).toBeDefined();
+    const campaigns = automationTemplatesFixture.find(
+      (template) => template.id === "translate-braze-campaigns",
+    );
+    expect(emailTemplates).toBeDefined();
+    expect(campaigns).toBeDefined();
 
-    expect(resolveTemplateCategoryTabs([braze!]).map((tab) => tab.id)).toEqual([
+    expect(resolveTemplateCategoryTabs([emailTemplates!]).map((tab) => tab.id)).toEqual([
+      "popular",
+      "marketing",
+    ]);
+    expect(resolveTemplateCategoryTabs([campaigns!]).map((tab) => tab.id)).toEqual([
       "popular",
       "marketing",
     ]);
