@@ -29,6 +29,11 @@ import {
 import { createAutomationSummary } from "./automations.fixture";
 
 const toastMocks = vi.hoisted(() => ({ message: vi.fn(), success: vi.fn(), error: vi.fn() }));
+const slackMocks = vi.hoisted(() => ({ isSlackChannelMissing: vi.fn() }));
+
+vi.mock("./slack-channel-select", () => ({
+  isSlackChannelMissing: (...args: unknown[]) => slackMocks.isSlackChannelMissing(...args),
+}));
 
 vi.mock("sonner", () => ({ toast: toastMocks }));
 
@@ -89,12 +94,14 @@ vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
 vi.mock("./workspace-automation-form", () => ({
   WorkspaceAutomationEditor: ({
     actions,
+    errors,
     form,
     onChange,
     onRefreshRunHistory,
     runHistoryRefreshing,
   }: {
     actions: ReactNode;
+    errors: Record<string, string | undefined>;
     form: WorkspaceAutomationFormState;
     onChange: (form: WorkspaceAutomationFormState) => void;
     onRefreshRunHistory?: () => void;
@@ -102,6 +109,11 @@ vi.mock("./workspace-automation-form", () => ({
   }) => (
     <div>
       <output aria-label="Form name">{form.name}</output>
+      <output aria-label="Errors">
+        {Object.keys(errors)
+          .filter((key) => errors[key])
+          .join(",")}
+      </output>
       <input
         aria-label="Name"
         value={form.name}
@@ -377,6 +389,81 @@ describe("AutomationDetailPageContent write locking", () => {
     expect(
       await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("AutomationDetailPageContent save errors", () => {
+  function mockSave() {
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation, recentRuns: [] }),
+    });
+    apiMocks.patchAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation }),
+    });
+  }
+
+  afterEach(() => {
+    apiMocks.getAutomation.mockReset();
+    apiMocks.patchAutomation.mockReset();
+    slackMocks.isSlackChannelMissing.mockReset();
+  });
+
+  it("does not save while Slack cannot find the channel", async () => {
+    const user = userEvent.setup();
+    mockSave();
+    slackMocks.isSlackChannelMissing.mockResolvedValue(true);
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Errors" })).toHaveTextContent("slackChannelId"),
+    );
+    expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
+  });
+
+  it("drops an earlier save's errors once a save passes the checks", async () => {
+    const user = userEvent.setup();
+    mockSave();
+    slackMocks.isSlackChannelMissing.mockResolvedValue(true);
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Errors" })).toHaveTextContent("slackChannelId"),
+    );
+
+    slackMocks.isSlackChannelMissing.mockResolvedValue(false);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
+    expect(screen.getByRole("status", { name: "Errors" })).toBeEmptyDOMElement();
+  });
+
+  it("drops errors the form no longer earns when the form changes", async () => {
+    const user = userEvent.setup();
+    mockSave();
+    slackMocks.isSlackChannelMissing.mockResolvedValue(true);
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Dirty form" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status", { name: "Errors" })).toHaveTextContent("slackChannelId"),
+    );
+
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "!");
+
+    expect(screen.getByRole("status", { name: "Errors" })).toBeEmptyDOMElement();
   });
 });
 

@@ -661,7 +661,10 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           slack: {
             enabled: true,
-            channelId: form.slackChannelId.trim() || undefined,
+            // A pasted channel link or mention is stored as the ID it names.
+            channelId:
+              parseSlackConversationId(form.slackChannelId) ??
+              (form.slackChannelId.trim() || undefined),
           },
         }
       : {}),
@@ -996,6 +999,27 @@ export function validateWorkspaceAutomationFormState(
   }
 
   return errors;
+}
+
+/**
+ * The errors still worth showing once the form has changed: those the form's own checks still
+ * find. One the server reported, or one for a field since put right, goes. Returns the same
+ * object when nothing goes, so the caller's state does not change.
+ */
+export function pruneWorkspaceAutomationFieldErrors(
+  errors: Record<string, string | undefined>,
+  form: WorkspaceAutomationFormState,
+): Record<string, string | undefined> {
+  const shown = Object.keys(errors).filter((key) => errors[key]);
+  if (shown.length === 0) {
+    return errors;
+  }
+  const current: Record<string, string | undefined> = validateWorkspaceAutomationFormState(form);
+  const kept = shown.filter((key) => current[key]);
+  if (kept.length === shown.length) {
+    return errors;
+  }
+  return Object.fromEntries(kept.map((key) => [key, errors[key]]));
 }
 
 export function mapWorkspaceAutomationApiErrorToFieldErrors(

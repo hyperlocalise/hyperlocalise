@@ -18,7 +18,8 @@ import { useEffect, useRef, type RefObject } from "react";
 /**
  * Brings the first field with an error into view when a save turns one up, switching to the
  * settings tab first because the fields live there. Error messages mark themselves with
- * `data-slot="field-error"`; the ref goes on the element that holds them.
+ * `data-slot="field-error"`; the ref goes on the element that holds them. Errors that only go
+ * away, as fields are put right, leave the page where it is.
  */
 export function useScrollToFirstFieldError(
   errors: Record<string, string | undefined>,
@@ -27,9 +28,15 @@ export function useScrollToFirstFieldError(
 ): RefObject<HTMLDivElement | null> {
   const containerRef = useRef<HTMLDivElement>(null);
   const pendingRef = useRef(false);
+  const previousKeysRef = useRef<string[]>([]);
 
   useEffect(() => {
-    if (Object.values(errors).some(Boolean)) {
+    const keys = Object.keys(errors).filter((key) => errors[key]);
+    const previousKeys = previousKeysRef.current;
+    previousKeysRef.current = keys;
+    const onlyFewer =
+      keys.length < previousKeys.length && keys.every((key) => previousKeys.includes(key));
+    if (keys.length > 0 && !onlyFewer) {
       pendingRef.current = true;
       showSettingsTab("settings");
     }
