@@ -622,6 +622,16 @@ export const TryCatchNode: Story = {
     await expect(
       canvas.getByLabelText("Data output: attempt, object, optional"),
     ).toBeInTheDocument();
+
+    // Execution handles keep to the step's top part, so none shares a spot with a data port.
+    const firstDataPort = canvas
+      .getByLabelText("Data output: errorCode, string, optional")
+      .getBoundingClientRect();
+    for (const label of ["Try", "Success", "Catch", "Finally"]) {
+      await expect(canvas.getByLabelText(label).getBoundingClientRect().bottom).toBeLessThan(
+        firstDataPort.top,
+      );
+    }
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
   },
 };
