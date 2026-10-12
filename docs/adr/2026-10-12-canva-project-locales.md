@@ -45,7 +45,11 @@ scope with write-back and treated the whole design as a single file.
 7. Generate starts one-locale jobs for every file in the latest collect
    batch.
 8. Add to design replaces text on a chosen Canva page, or replaces each
-   matching page. It does not insert a page above or below.
+   matching page. It does not insert a page above or below. The first
+   language row is the project source locale. After collect, apply writes
+   the collected source JSON back. Translated rows write that locale’s
+   job output. Apply flattens nested `canva.segment` keys from JSON job
+   output so dotted source keys match.
 9. Do not backfill older Canva files, jobs, or app settings. Generate
    and apply use only the latest collect batch. Old single-file designs
    stay unused.

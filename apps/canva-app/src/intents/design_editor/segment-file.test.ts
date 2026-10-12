@@ -53,4 +53,21 @@ describe("segment-file", () => {
 
     expect(parseTranslationFile(file)).toEqual(file);
   });
+
+  it("flattens nested job output and prefers translated values over leftover source keys", () => {
+    expect(
+      parseTranslationFile({
+        "canva.segment.0.0": "Hello",
+        canva: {
+          segment: {
+            "0": {
+              "0": "Bonjour",
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      "canva.segment.0.0": "Bonjour",
+    });
+  });
 });

@@ -7,7 +7,7 @@ Canva design editor app that collects one JSON file per page, generates each pro
 1. **Select pages** from the full design (all editable pages are selected by default).
 2. **Collect texts** to upload one JSON source file for one selected page, or for every selected page.
 3. **Generate translation** per project target locale (one file job per page file in the latest collect).
-4. **Add to design** to replace text on one Canva page, or on every matching collected page.
+4. **Add to design** on the source language row to restore collected copy, or on a target row to write that translation. Each row can apply one page or every matching page.
 
 The Canva app calls `hyperlocalise-web` at `/api/integrations/canva` (`/collect`, `/locales`, `/jobs`, `/translations`). There is no separate Canva backend to deploy.
 
@@ -55,7 +55,7 @@ In the Canva app UI:
 
 - **Connect Hyperlocalise** (OAuth) or paste a connection token
 - **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
-- **Generate translation** / **Add to design** — one row per project target, shown as `English (en-US)`
+- **Generate translation** / **Add to design** — source row first, then one row per project target, shown as `English (en-US)`
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 

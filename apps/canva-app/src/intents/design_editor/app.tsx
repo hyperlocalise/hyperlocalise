@@ -127,6 +127,7 @@ function LocaleApplyControls(input: {
   readyApplyPages: CanvaLocaleStatus["pages"];
   designPages: DesignPageInfo[];
   busy: BusyAction;
+  isSource?: boolean;
   onSourcePageChange: (value: string) => void;
   onApplyOne: () => void;
   onApplyAll: () => void;
@@ -135,10 +136,12 @@ function LocaleApplyControls(input: {
   return (
     <Rows spacing="1u">
       <Text size="small" tone="secondary">
-        Choose which translated page to write back.
+        {input.isSource
+          ? "Choose which collected page to write back."
+          : "Choose which translated page to write back."}
       </Text>
       <FormField
-        label="Translated page"
+        label={input.isSource ? "Page" : "Translated page"}
         value={input.applySourcePage}
         control={(props) => (
           <Select
@@ -147,8 +150,8 @@ function LocaleApplyControls(input: {
             options={input.readyApplyPages.map((page) => ({
               value: String(page.pageIndex),
               label:
-                input.designPages.find((designPage) => designPage.index === page.pageIndex)?.label ??
-                `Page ${page.pageIndex + 1}`,
+                input.designPages.find((designPage) => designPage.index === page.pageIndex)
+                  ?.label ?? `Page ${page.pageIndex + 1}`,
             }))}
             onChange={input.onSourcePageChange}
           />
@@ -178,8 +181,26 @@ function LocaleApplyControls(input: {
   );
 }
 
-function jobStatusLabel(status: CanvaLocaleStatus["status"]) {
-  switch (status) {
+function idleLocaleRow(locale: string, isSource = false): CanvaLocaleStatus {
+  return {
+    locale,
+    isSource,
+    status: "idle",
+    translated: 0,
+    total: 0,
+    translatedWords: 0,
+    wordCount: 0,
+    percent: 0,
+    canAdd: false,
+    pages: [],
+  };
+}
+
+function jobStatusLabel(entry: CanvaLocaleStatus) {
+  if (entry.isSource) {
+    return entry.canAdd ? "Source" : "Not collected";
+  }
+  switch (entry.status) {
     case "queued":
       return "Queued";
     case "running":
@@ -236,21 +257,16 @@ export const App = () => {
   );
 
   const localeRows = useMemo(() => {
-    if (localeStatuses.length > 0) {
-      return localeStatuses;
+    const sourceLocale = settings.sourceLocale.trim();
+    const rows =
+      localeStatuses.length > 0
+        ? localeStatuses
+        : projectTargetOptions.map((locale) => idleLocaleRow(locale));
+    if (!sourceLocale || rows.some((entry) => entry.isSource || entry.locale === sourceLocale)) {
+      return rows;
     }
-    return projectTargetOptions.map((locale) => ({
-      locale,
-      status: "idle" as const,
-      translated: 0,
-      total: 0,
-      translatedWords: 0,
-      wordCount: 0,
-      percent: 0,
-      canAdd: false,
-      pages: [],
-    }));
-  }, [localeStatuses, projectTargetOptions]);
+    return [idleLocaleRow(sourceLocale, true), ...rows];
+  }, [localeStatuses, projectTargetOptions, settings.sourceLocale]);
   const editablePages = useMemo(() => designPages.filter((page) => page.editable), [designPages]);
   const selectedPageIndices = useMemo(() => {
     if (settings.selectedPageIndices.length > 0) {
@@ -273,8 +289,10 @@ export const App = () => {
   };
   const canCollect = connected && selectedPageIndices.length > 0 && busy == null;
   const applyLocaleStatus = localeStatuses.find((entry) => entry.locale === applyLocale);
-  const readyApplyPages = (applyLocaleStatus?.pages ?? []).filter(
-    (page) => page.status === "succeeded" || page.status === "waiting_for_review",
+  const readyApplyPages = (applyLocaleStatus?.pages ?? []).filter((page) =>
+    applyLocaleStatus?.isSource
+      ? page.status === "succeeded"
+      : page.status === "succeeded" || page.status === "waiting_for_review",
   );
 
   const persistSettings = (next: AppSettings) => {
@@ -560,6 +578,9 @@ export const App = () => {
 
   const handleGenerateLocale = (locale: string) =>
     runAction("generate", async () => {
+      if (locale === settings.sourceLocale.trim()) {
+        throw new Error("The source language is already collected. Add it to the design instead.");
+      }
       const { token } = await getDesignToken();
       await generateCanvaLocaleJob({
         auth: await resolveAuth(),
@@ -599,14 +620,17 @@ export const App = () => {
       if (!page) {
         throw new Error("No translations for that page.");
       }
-      await applyTranslationsToDesign(
+      const replaced = await applyTranslationsToDesign(
         page.translations,
         [sourcePageIndex],
         settings.preserveFormatting,
       );
+      if (replaced === 0) {
+        throw new Error("No matching text on that page. Collect the page again, then apply.");
+      }
       setApplyLocale(null);
       setStatusMessage(
-        `Applied ${Object.keys(page.translations).length} segments (${localeLabel(applyLocale)}) to page ${sourcePageIndex + 1}.`,
+        `Applied ${replaced} segments (${localeLabel(applyLocale)}) to page ${sourcePageIndex + 1}.`,
       );
     });
 
@@ -624,12 +648,16 @@ export const App = () => {
       if (pulled.pages.length === 0) {
         throw new Error("No translations to apply.");
       }
+      let replaced = 0;
       for (const page of pulled.pages) {
-        await applyTranslationsToDesign(
+        replaced += await applyTranslationsToDesign(
           page.translations,
           [page.pageIndex],
           settings.preserveFormatting,
         );
+      }
+      if (replaced === 0) {
+        throw new Error("No matching text on those pages. Collect the pages again, then apply.");
       }
       setApplyLocale(null);
       setStatusMessage(`Applied ${localeLabel(applyLocale)} to ${pulled.pages.length} pages.`);
@@ -814,64 +842,68 @@ export const App = () => {
                   </Text>
                 </Rows>
                 {localesLoading && localeStatuses.length === 0 ? (
-                  (projectTargetOptions.length > 0 ? projectTargetOptions : ["", ""]).map(
-                    (locale, index) => (
-                      <LocaleRowSkeleton
-                        key={locale || `locale-skeleton-${index}`}
-                        locale={locale || undefined}
-                      />
-                    ),
-                  )
-                ) : projectTargetOptions.length === 0 ? (
+                  [
+                    settings.sourceLocale.trim() || "",
+                    ...(projectTargetOptions.length > 0 ? projectTargetOptions : [""]),
+                  ].map((locale, index) => (
+                    <LocaleRowSkeleton
+                      key={locale || `locale-skeleton-${index}`}
+                      locale={locale || undefined}
+                    />
+                  ))
+                ) : projectTargetOptions.length === 0 && !settings.sourceLocale.trim() ? (
                   <Text size="small" tone="secondary">
                     Connect to load project languages.
                   </Text>
                 ) : (
-                  localeRows.map((entry) => (
-                    <Rows key={entry.locale} spacing="0.5u">
-                      <Text>{localeLabel(entry.locale)}</Text>
-                      <ProgressBar
-                        value={localeProgressValue(entry)}
-                        ariaLabel={`${localeLabel(entry.locale)} progress`}
-                      />
-                      <Text size="small" tone="secondary">
-                        {entry.percent}% · {localeWordCountLabel(entry)} ·{" "}
-                        {jobStatusLabel(entry.status)}
-                      </Text>
-                      {entry.status === "queued" || entry.status === "running" ? null : applyLocale ===
-                        entry.locale ? (
-                        <LocaleApplyControls
-                          applySourcePage={applySourcePage}
-                          readyApplyPages={readyApplyPages}
-                          designPages={designPages}
-                          busy={busy}
-                          onSourcePageChange={setApplySourcePage}
-                          onApplyOne={handleApplyOne}
-                          onApplyAll={handleApplyAll}
-                          onCancel={() => setApplyLocale(null)}
+                  localeRows.map((entry) => {
+                    const progressValue = localeProgressValue(entry);
+                    return (
+                      <Rows key={entry.locale} spacing="0.5u">
+                        <Text>{localeLabel(entry.locale)}</Text>
+                        <ProgressBar
+                          value={progressValue === "indeterminate" ? 0 : progressValue}
+                          ariaLabel={`${localeLabel(entry.locale)} progress`}
                         />
-                      ) : entry.canAdd ? (
-                        <Button
-                          variant="secondary"
-                          stretch
-                          onClick={() => openApplyControls(entry.locale)}
-                          disabled={busy != null}
-                        >
-                          Add to design
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          stretch
-                          onClick={() => handleGenerateLocale(entry.locale)}
-                          disabled={busy != null || collectedPages.length === 0}
-                          loading={busy === "generate"}
-                        >
-                          Generate translation
-                        </Button>
-                      )}
-                    </Rows>
-                  ))
+                        <Text size="small" tone="secondary">
+                          {entry.percent}% · {localeWordCountLabel(entry)} · {jobStatusLabel(entry)}
+                        </Text>
+                        {entry.status === "queued" ||
+                        entry.status === "running" ? null : applyLocale === entry.locale ? (
+                          <LocaleApplyControls
+                            applySourcePage={applySourcePage}
+                            readyApplyPages={readyApplyPages}
+                            designPages={designPages}
+                            busy={busy}
+                            isSource={entry.isSource}
+                            onSourcePageChange={setApplySourcePage}
+                            onApplyOne={handleApplyOne}
+                            onApplyAll={handleApplyAll}
+                            onCancel={() => setApplyLocale(null)}
+                          />
+                        ) : entry.isSource || entry.canAdd ? (
+                          <Button
+                            variant="secondary"
+                            stretch
+                            onClick={() => openApplyControls(entry.locale)}
+                            disabled={busy != null || !entry.canAdd}
+                          >
+                            Add to design
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            stretch
+                            onClick={() => handleGenerateLocale(entry.locale)}
+                            disabled={busy != null || collectedPages.length === 0}
+                            loading={busy === "generate"}
+                          >
+                            Generate translation
+                          </Button>
+                        )}
+                      </Rows>
+                    );
+                  })
                 )}
               </Rows>
             </Box>

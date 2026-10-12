@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildCanvaSourceLocaleStatus,
   isCanvaIntegrationJob,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
@@ -176,5 +177,64 @@ describe("resolveCanvaJobLocales", () => {
         project: { sourceLocale: null, targetLocales: ["fr-FR"] },
       }),
     ).toThrow("job_source_locale_not_in_project");
+  });
+});
+
+describe("buildCanvaSourceLocaleStatus", () => {
+  it("marks collected source pages as ready to apply", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [
+          {
+            pageIndex: 0,
+            sourcePath: "canva/designs/mic/page-1.json",
+            sourceFileId: "file_1",
+            segmentCount: 3,
+            wordCount: 12,
+          },
+        ],
+        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+      }),
+    ).toEqual({
+      locale: "en-US",
+      isSource: true,
+      status: "succeeded",
+      translated: 3,
+      total: 3,
+      translatedWords: 12,
+      wordCount: 12,
+      percent: 100,
+      canAdd: true,
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/mic/page-1.json",
+          jobId: null,
+          status: "succeeded",
+          translated: 3,
+          total: 3,
+          translatedWords: 12,
+          wordCount: 12,
+        },
+      ],
+    });
+  });
+
+  it("stays idle when nothing has been collected", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [],
+        sourceByPage: new Map(),
+      }),
+    ).toMatchObject({
+      isSource: true,
+      status: "idle",
+      canAdd: false,
+      percent: 0,
+    });
   });
 });

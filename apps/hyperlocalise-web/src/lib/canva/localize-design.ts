@@ -446,6 +446,48 @@ function parseStoredTranslationFile(content: Buffer) {
   }
 }
 
+export function buildCanvaSourceLocaleStatus(input: {
+  locale: string;
+  pages: CollectedCanvaPageFile[];
+  sourceByPage: Map<number, Record<string, string>>;
+  sourceLocale: string;
+}): CanvaLocaleStatus {
+  const localePages: CanvaLocalePageStatus[] = input.pages.map((page) => {
+    const sourceFile = input.sourceByPage.get(page.pageIndex) ?? {};
+    const wordCount =
+      page.wordCount > 0
+        ? page.wordCount
+        : countTranslationFileWords(sourceFile, input.sourceLocale);
+    return {
+      pageIndex: page.pageIndex,
+      sourcePath: page.sourcePath,
+      jobId: null,
+      status: "succeeded" as const,
+      translated: page.segmentCount,
+      total: page.segmentCount,
+      translatedWords: wordCount,
+      wordCount,
+    };
+  });
+  const translated = localePages.reduce((sum, page) => sum + page.translated, 0);
+  const total = localePages.reduce((sum, page) => sum + page.total, 0);
+  const translatedWords = localePages.reduce((sum, page) => sum + page.translatedWords, 0);
+  const wordCount = localePages.reduce((sum, page) => sum + page.wordCount, 0);
+
+  return {
+    locale: input.locale,
+    isSource: true,
+    status: localePages.length > 0 ? "succeeded" : "idle",
+    translated,
+    total,
+    translatedWords,
+    wordCount,
+    percent: localePages.length > 0 ? 100 : 0,
+    canAdd: localePages.length > 0,
+    pages: localePages,
+  };
+}
+
 function rollupLocaleStatus(
   pages: CanvaLocaleStatus["pages"],
 ): Pick<CanvaLocaleStatus, "status" | "canAdd"> {
@@ -779,8 +821,18 @@ export async function listCanvaDesignLocaleStatuses(input: {
     }),
   );
 
-  const locales: CanvaLocaleStatus[] = [];
+  const locales: CanvaLocaleStatus[] = [
+    buildCanvaSourceLocaleStatus({
+      locale: sourceLocale,
+      pages,
+      sourceByPage,
+      sourceLocale,
+    }),
+  ];
   for (const locale of targetLocales) {
+    if (locale === sourceLocale) {
+      continue;
+    }
     const localePages: CanvaLocalePageStatus[] = [];
     for (const page of pages) {
       const sourceFile = sourceByPage.get(page.pageIndex) ?? {};
@@ -830,6 +882,7 @@ export async function listCanvaDesignLocaleStatuses(input: {
     const progressDone = wordCount > 0 ? translatedWords : translated;
     locales.push({
       locale,
+      isSource: false,
       ...rolled,
       translated,
       total,
@@ -928,6 +981,29 @@ export async function pullCanvaLocalePageTranslations(input: {
   const pages = [];
   for (const page of localeStatus.pages) {
     if (input.pageIndex != null && page.pageIndex !== input.pageIndex) {
+      continue;
+    }
+    if (localeStatus.isSource) {
+      const collected = statuses.pages.find((entry) => entry.pageIndex === page.pageIndex);
+      if (!collected) {
+        continue;
+      }
+      try {
+        const stored = await getStoredFileContent({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          fileId: collected.sourceFileId,
+        });
+        pages.push({
+          pageIndex: page.pageIndex,
+          sourcePath: page.sourcePath,
+          jobId: page.jobId ?? "",
+          status: "succeeded" as const,
+          translations: parseStoredTranslationFile(stored.content),
+        });
+      } catch {
+        continue;
+      }
       continue;
     }
     if (!page.jobId || (page.status !== "succeeded" && page.status !== "waiting_for_review")) {

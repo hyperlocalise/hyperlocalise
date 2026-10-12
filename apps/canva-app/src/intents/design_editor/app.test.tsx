@@ -164,9 +164,11 @@ describe("Hyperlocalise Canva app", () => {
       expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
     });
 
-    expect(result.getByText("English (en-US)", { exact: false })).toBeTruthy();
+    expect(result.getAllByText("English (en-US)", { exact: false }).length).toBeGreaterThan(0);
     expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
+    expect(result.getByText("0% · No collected words · Not collected")).toBeTruthy();
     expect(result.getAllByText("0% · 0 of 42 words · Not started").length).toBeGreaterThan(0);
+    expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
   });
@@ -203,6 +205,29 @@ describe("Hyperlocalise Canva app", () => {
     vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
       locales: [
         {
+          locale: "en-US",
+          isSource: true,
+          status: "succeeded",
+          translated: 8,
+          total: 8,
+          translatedWords: 42,
+          wordCount: 42,
+          percent: 100,
+          canAdd: true,
+          pages: [
+            {
+              pageIndex: 0,
+              sourcePath: "canva/designs/mic/page-1.json",
+              jobId: null,
+              status: "succeeded",
+              translated: 8,
+              total: 8,
+              translatedWords: 42,
+              wordCount: 42,
+            },
+          ],
+        },
+        {
           locale: "fr-FR",
           status: "succeeded",
           translated: 8,
@@ -231,15 +256,21 @@ describe("Hyperlocalise Canva app", () => {
     const result = renderInTestProvider(<App />);
 
     await waitFor(() => {
-      expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
+      expect(result.getAllByRole("button", { name: "Add to design" }).length).toBe(2);
     });
 
-    fireEvent.click(result.getByRole("button", { name: "Add to design" }));
+    const [sourceAddButton] = result.getAllByRole("button", { name: "Add to design" });
+    if (!sourceAddButton) {
+      throw new Error("Expected a source Add to design button.");
+    }
+    fireEvent.click(sourceAddButton);
 
-    expect(result.getByText("Translated page")).toBeTruthy();
+    expect(result.getByText("Page")).toBeTruthy();
+    expect(result.getByText("Choose which collected page to write back.")).toBeTruthy();
     expect(result.queryByText("Current page")).toBeNull();
     expect(result.getByRole("button", { name: "Apply to this page" })).toBeTruthy();
-    expect(result.queryByRole("button", { name: "Add to design" })).toBeNull();
+    expect(result.getByRole("button", { name: "Apply all" })).toBeTruthy();
+    expect(result.getAllByRole("button", { name: "Add to design" }).length).toBe(1);
   });
 
   it("shows locale row skeletons while statuses load", async () => {
@@ -271,7 +302,9 @@ describe("Hyperlocalise Canva app", () => {
         targetLocales: ["fr-FR"],
       },
     });
-    let resolveStatuses: (value: { locales: unknown[]; pages: unknown[] }) => void = () => {};
+    let resolveStatuses: (
+      value: Awaited<ReturnType<typeof fetchCanvaLocaleStatuses>>,
+    ) => void = () => {};
     vi.mocked(fetchCanvaLocaleStatuses).mockReturnValue(
       new Promise((resolve) => {
         resolveStatuses = resolve;

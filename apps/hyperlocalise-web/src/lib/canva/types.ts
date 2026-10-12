@@ -87,6 +87,7 @@ export type CanvaLocalePageStatus = {
 
 export type CanvaLocaleStatus = {
   locale: string;
+  isSource?: boolean;
   status: CanvaJobStatusName | "idle";
   translated: number;
   total: number;

@@ -50,16 +50,30 @@ export function segmentsToPageTranslationFile(
   return entries;
 }
 
-export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
-  const translations: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(content)) {
-    if (!key.startsWith(SEGMENT_KEY_PREFIX) || typeof value !== "string") {
-      continue;
+function flattenSegmentEntries(
+  output: Record<string, string>,
+  prefix: string,
+  value: unknown,
+): void {
+  if (typeof value === "string") {
+    if (prefix.startsWith(SEGMENT_KEY_PREFIX)) {
+      output[prefix] = value;
     }
-    translations[key] = value;
+    return;
   }
 
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return;
+  }
+
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    flattenSegmentEntries(output, prefix ? `${prefix}.${key}` : key, nested);
+  }
+}
+
+export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
+  const translations: Record<string, string> = {};
+  flattenSegmentEntries(translations, "", content);
   return translations;
 }
 

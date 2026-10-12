@@ -12,7 +12,7 @@
  */
 import { openDesign } from "@canva/design";
 
-import { pageSegmentKey, segmentKey } from "./segment-file";
+import { lookupTranslatedText, segmentKey } from "./segment-file";
 import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
 
 type RichtextRange = {
@@ -141,7 +141,9 @@ export function applyTranslationsToRange(
   translations: Record<string, string>,
   contentIndex: number,
   preserveFormatting: boolean,
-): void {
+): number {
+  let replaced = 0;
+
   if (preserveFormatting) {
     const regions = range.readTextRegions();
     const plaintext = range.readPlaintext();
@@ -149,7 +151,7 @@ export function applyTranslationsToRange(
 
     for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
       const region = regions[regionIndex];
-      const translatedText = translations[pageSegmentKey(contentIndex, regionIndex)];
+      const translatedText = lookupTranslatedText(translations, contentIndex, regionIndex);
       const offset = offsets[regionIndex];
 
       if (!region || translatedText == null || offset == null) {
@@ -163,17 +165,19 @@ export function applyTranslationsToRange(
         },
         translatedText,
       );
+      replaced += 1;
     }
-    return;
+    return replaced;
   }
 
   const plaintext = range.readPlaintext();
-  const translatedText = translations[pageSegmentKey(contentIndex, 0)];
+  const translatedText = lookupTranslatedText(translations, contentIndex, 0);
   if (translatedText == null || plaintext.length === 0) {
-    return;
+    return 0;
   }
 
   range.replaceText({ index: 0, length: plaintext.length }, translatedText);
+  return 1;
 }
 
 export function buildPageSummaries(pageRefs: PageRef[]): DesignPageInfo[] {
@@ -241,8 +245,9 @@ export async function applyTranslationsToDesign(
   translations: Record<string, string>,
   pageIndices: number[],
   preserveFormatting: boolean,
-): Promise<void> {
+): Promise<number> {
   const selectedPages = new Set(pageIndices);
+  let replaced = 0;
 
   await openAllPages(async (session) => {
     const pageRefs = session.pageRefs.toArray();
@@ -266,12 +271,21 @@ export async function applyTranslationsToDesign(
             return;
           }
 
-          applyTranslationsToRange(range, translations, contentIndex, preserveFormatting);
+          replaced += applyTranslationsToRange(
+            range,
+            translations,
+            contentIndex,
+            preserveFormatting,
+          );
           contentIndex += 1;
         });
       });
     }
 
-    await session.sync();
+    if (replaced > 0) {
+      await session.sync();
+    }
   });
+
+  return replaced;
 }

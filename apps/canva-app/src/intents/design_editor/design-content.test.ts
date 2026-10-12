@@ -136,4 +136,25 @@ describe("design-content", () => {
 
     expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
   });
+
+  it("applies full-page keys from older collected files", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    applyTranslationsToRange(
+      {
+        readPlaintext: () => "Hello",
+        readTextRegions: () => [{ text: "Hello" }],
+        replaceText: (range, text) => {
+          replacements.push({ index: range.index, length: range.length, text });
+        },
+      },
+      {
+        "canva.segment.2.0.0": "Hallo",
+      },
+      0,
+      false,
+    );
+
+    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
+  });
 });
