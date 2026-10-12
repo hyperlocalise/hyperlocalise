@@ -132,7 +132,6 @@ export const App = () => {
   const [segments, setSegments] = useState<DesignSegment[]>([]);
   const [localeStatuses, setLocaleStatuses] = useState<CanvaLocaleStatus[]>([]);
   const [collectedPages, setCollectedPages] = useState<CollectedCanvaPage[]>([]);
-  const [collectPage, setCollectPage] = useState("all");
   const [applyLocale, setApplyLocale] = useState<string | null>(null);
   const [applySourcePage, setApplySourcePage] = useState("");
   const [applyDestinationPage, setApplyDestinationPage] = useState("");
@@ -178,16 +177,7 @@ export const App = () => {
     }
     return { connectionToken: legacyConnectionToken };
   };
-  const collectPageIndices = useMemo(() => {
-    if (collectPage !== "all") {
-      const pageIndex = Number.parseInt(collectPage, 10);
-      if (selectedPageIndices.includes(pageIndex)) {
-        return [pageIndex];
-      }
-    }
-    return selectedPageIndices;
-  }, [collectPage, selectedPageIndices]);
-  const canCollect = connected && collectPageIndices.length > 0 && busy == null;
+  const canCollect = connected && selectedPageIndices.length > 0 && busy == null;
   const applyLocaleStatus = localeStatuses.find((entry) => entry.locale === applyLocale);
   const readyApplyPages = (applyLocaleStatus?.pages ?? []).filter(
     (page) => page.status === "succeeded" || page.status === "waiting_for_review",
@@ -466,8 +456,7 @@ export const App = () => {
       );
     });
 
-  const handleCollect = () => collectPages(collectPageIndices);
-  const handleCollectAll = () => collectPages(selectedPageIndices);
+  const handleCollect = () => collectPages(selectedPageIndices);
 
   const handleGenerateLocale = (locale: string) =>
     runAction("generate", async () => {
@@ -634,9 +623,13 @@ export const App = () => {
             <Box padding="2u" className={styles.panel}>
               <Rows spacing="1.5u">
                 <Rows spacing="0.5u">
-                  <Title size="xsmall">Pages to localize</Title>
+                  <Title size="xsmall">Collect texts</Title>
                   <Text size="small" tone="secondary">
-                    Choose which pages can be collected and applied in this design.
+                    Select pages to upload as JSON files. Source language is{" "}
+                    {settings.sourceLocale
+                      ? localeLabel(settings.sourceLocale)
+                      : "the project source"}
+                    .
                   </Text>
                 </Rows>
 
@@ -683,41 +676,7 @@ export const App = () => {
                     />
                   </Rows>
                 )}
-              </Rows>
-            </Box>
 
-            <Box padding="2u" className={styles.panel}>
-              <Rows spacing="1.5u">
-                <Rows spacing="0.5u">
-                  <Title size="xsmall">Collect</Title>
-                  <Text size="small" tone="secondary">
-                    Collect one page or every selected page. Source language is{" "}
-                    {settings.sourceLocale
-                      ? localeLabel(settings.sourceLocale)
-                      : "the project source"}
-                    .
-                  </Text>
-                </Rows>
-                <FormField
-                  label="Pages to collect"
-                  value={collectPage}
-                  control={(props) => (
-                    <Select
-                      {...props}
-                      stretch
-                      options={[
-                        { value: "all", label: "All selected pages" },
-                        ...selectedPageIndices.map((pageIndex) => ({
-                          value: String(pageIndex),
-                          label:
-                            designPages.find((page) => page.index === pageIndex)?.label ??
-                            `Page ${pageIndex + 1}`,
-                        })),
-                      ]}
-                      onChange={setCollectPage}
-                    />
-                  )}
-                />
                 <FormField
                   label="Preserve inline formatting"
                   value={settings.preserveFormatting}
@@ -738,24 +697,12 @@ export const App = () => {
                 >
                   Collect texts
                 </Button>
-                {selectedPageIndices.length > 1 ? (
-                  <Button
-                    variant="secondary"
-                    stretch
-                    onClick={handleCollectAll}
-                    disabled={!canCollect}
-                  >
-                    Collect all pages
-                  </Button>
-                ) : null}
                 <Text size="small" tone="secondary">
                   {collectedPages.length > 0
                     ? `${collectedPages.length} page file${collectedPages.length === 1 ? "" : "s"} in Hyperlocalise.`
                     : segments.length > 0
                       ? `${segments.length} extracted segment${segments.length === 1 ? "" : "s"}.`
-                      : collectPage === "all"
-                        ? "Collect every selected page into Hyperlocalise."
-                        : "Collect the chosen page into Hyperlocalise."}
+                      : "Collect the selected pages into Hyperlocalise."}
                 </Text>
               </Rows>
             </Box>

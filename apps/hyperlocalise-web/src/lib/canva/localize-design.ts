@@ -22,8 +22,8 @@ import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import {
+  createRepositorySourceFileVersion,
   createStoredFile,
-  ensureRepositorySourceFile,
   getStoredFileContent,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
@@ -488,11 +488,23 @@ export async function collectCanvaDesign(input: {
       adapter,
     });
 
-    await ensureRepositorySourceFile({
+    const version = await createRepositorySourceFileVersion({
+      storedFile,
+      sourcePath,
+      sourceHash,
+      uploadedByApiKeyId: input.apiKeyId,
+      uploadedByUserId: apiKey.createdByUserId,
+      uploadSurface: "canva_integration",
+    });
+
+    void enqueueSourceFileIngestAfterUpload({
       organizationId: input.organizationId,
       projectId: project.id,
+      storedFileId: storedFile.id,
+      sourceFileVersionId: version.id,
       sourcePath,
-    });
+      sourceHash,
+    }).catch(() => {});
 
     pages.push({
       pageIndex,

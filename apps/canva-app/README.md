@@ -54,8 +54,7 @@ Set these values in `.env`:
 In the Canva app UI:
 
 - **Connect Hyperlocalise** (OAuth) or paste a connection token
-- **Pages to localize** — pages in scope
-- **Collect texts** — one selected page or all selected pages, stored as `canva/designs/<design-slug>/page-<n>.json`
+- **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
 - **Generate translation** / **Add to design** — one row per project target, shown as `English (en-US)`
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`. The slug is the Canva design title. Untitled designs fall back to the design id.

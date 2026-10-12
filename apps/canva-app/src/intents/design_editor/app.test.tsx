@@ -96,7 +96,7 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByRole("button", { name: "Connect Hyperlocalise" })).toBeTruthy();
     expect(result.getByText("Connection token")).toBeTruthy();
     expect(result.getByRole("button", { name: "Connect with token" })).toBeTruthy();
-    expect(result.queryByText("Pages to localize")).toBeNull();
+    expect(result.queryByRole("button", { name: "Collect texts" })).toBeNull();
   });
 
   it("loads design pages after connecting with a stored token", async () => {
@@ -155,7 +155,7 @@ describe("Hyperlocalise Canva app", () => {
     const result = renderInTestProvider(<App />);
 
     await waitFor(() => {
-      expect(result.getByText("Pages to localize")).toBeTruthy();
+      expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
       expect(result.getByText("Page 1")).toBeTruthy();
     });
 
@@ -163,8 +163,6 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
     expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
-    expect(result.getByText("Pages to collect")).toBeTruthy();
-    expect(result.getByText("All selected pages")).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
   });
 });
