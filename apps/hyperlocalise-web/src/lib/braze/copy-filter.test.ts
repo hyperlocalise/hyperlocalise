@@ -41,5 +41,13 @@ describe("braze copy filter", () => {
         suffixes: ["fr-FR"],
       }),
     ).toBe(false);
+    expect(
+      shouldSkipBrazeLibraryItem({
+        id: "source-2",
+        name: "Welcome_de-DE",
+        knownCopyIds,
+        suffixes: ["fr-FR"],
+      }),
+    ).toBe(true);
   });
 });

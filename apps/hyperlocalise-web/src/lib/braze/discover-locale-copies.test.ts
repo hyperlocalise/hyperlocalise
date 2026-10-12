@@ -86,6 +86,15 @@ describe("discoverBrazeLocaleCopies", () => {
         skippedExistingSuffixes: ["de-DE"],
       }),
     ).toEqual(["ja-JP"]);
+    expect(
+      remainingBrazeJobLocales({
+        jobTargetLocales: ["fr-FR", "de-DE"],
+        brazeSuffixes: ["fr-FR", "de-DE"],
+        importedHashes: { "fr-FR": "abc" },
+        skippedExistingSuffixes: ["de-DE"],
+        sourceUnchanged: false,
+      }),
+    ).toEqual(["de-DE"]);
   });
 
   it("honors configured native-job locales and open jobs", () => {

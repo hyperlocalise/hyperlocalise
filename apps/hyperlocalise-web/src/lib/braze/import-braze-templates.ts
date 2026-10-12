@@ -64,6 +64,7 @@ import {
   isBrazeExistingTranslationPolicy,
 } from "./existing-translation-policy";
 import { brazeContentBlockCopyName, brazeEmailCopyName } from "./names";
+import { mergeBrazeLastPushedAtByLocale } from "./push-braze-templates";
 import {
   buildBrazeContentBlockSourcePath,
   buildBrazeEmailSourcePath,
@@ -479,12 +480,15 @@ async function importEmailTemplate(input: {
         : DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY,
       loadCopyHtml: async (copyId) => {
         const copy = await input.client.getEmailTemplate(copyId);
-        return serializeBrazeEmailEnvelope({
-          subject: copy.subject ?? "",
-          preheader: copy.preheader,
-          body: copy.body ?? "",
-          plaintext_body: copy.plaintext_body,
-        }).html;
+        return {
+          html: serializeBrazeEmailEnvelope({
+            subject: copy.subject ?? "",
+            preheader: copy.preheader,
+            body: copy.body ?? "",
+            plaintext_body: copy.plaintext_body,
+          }).html,
+          remoteUpdatedAt: copy.updated_at,
+        };
       },
     });
 
@@ -500,6 +504,7 @@ async function importEmailTemplate(input: {
         brazeSuffixes: input.localeMapping.brazeSuffixes,
         importedHashes: translationResult.importedHashes,
         skippedExistingSuffixes: translationResult.skippedExistingSuffixes,
+        sourceUnchanged: input.existing?.sourceContentHash === hash,
       }),
     });
 
@@ -522,9 +527,14 @@ async function importEmailTemplate(input: {
         ...translationResult.importedHashes,
       },
       extra: {
+        ...input.existing?.extra,
         shouldInlineCss: info.should_inline_css ?? null,
         description: info.description ?? null,
         tags: Array.isArray(info.tags) ? info.tags : [],
+        lastPushedAtByLocale: mergeBrazeLastPushedAtByLocale(
+          input.existing?.extra,
+          translationResult.lastSeenRemoteUpdatedAt,
+        ),
       },
       status: "active",
     });
@@ -639,7 +649,10 @@ async function importContentBlock(input: {
         : DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY,
       loadCopyHtml: async (copyId) => {
         const copy = await input.client.getContentBlock(copyId);
-        return serializeBrazeContentBlockEnvelope({ content: copy.content ?? "" }).html;
+        return {
+          html: serializeBrazeContentBlockEnvelope({ content: copy.content ?? "" }).html,
+          remoteUpdatedAt: copy.last_edited,
+        };
       },
     });
 
@@ -655,6 +668,7 @@ async function importContentBlock(input: {
         brazeSuffixes: input.localeMapping.brazeSuffixes,
         importedHashes: translationResult.importedHashes,
         skippedExistingSuffixes: translationResult.skippedExistingSuffixes,
+        sourceUnchanged: input.existing?.sourceContentHash === hash,
       }),
     });
 
@@ -677,9 +691,14 @@ async function importContentBlock(input: {
         ...translationResult.importedHashes,
       },
       extra: {
+        ...input.existing?.extra,
         contentType: info.content_type ?? "html",
         description: info.description ?? null,
         tags: info.tags ?? [],
+        lastPushedAtByLocale: mergeBrazeLastPushedAtByLocale(
+          input.existing?.extra,
+          translationResult.lastSeenRemoteUpdatedAt,
+        ),
       },
       status: "active",
     });
@@ -811,19 +830,21 @@ async function importLocaleCopies(input: {
   localeCopyIds: Record<string, string>;
   importedHashes: Record<string, string>;
   policy: "seed_empty" | "refresh_imported" | "overwrite_all";
-  loadCopyHtml: (copyId: string) => Promise<string>;
+  loadCopyHtml: (copyId: string) => Promise<{ html: string; remoteUpdatedAt?: string }>;
 }): Promise<{
   imported: number;
   skipped: number;
   failed: number;
   importedHashes: Record<string, string>;
   skippedExistingSuffixes: string[];
+  lastSeenRemoteUpdatedAt: Record<string, string>;
 }> {
   let imported = 0;
   let skipped = 0;
   let failed = 0;
   const importedHashes: Record<string, string> = {};
   const skippedExistingSuffixes: string[] = [];
+  const lastSeenRemoteUpdatedAt: Record<string, string> = {};
   const translationService = new ProjectTranslationService();
 
   for (let index = 0; index < input.localeMapping.jobTargetLocales.length; index += 1) {
@@ -833,7 +854,7 @@ async function importLocaleCopies(input: {
       continue;
     }
     const copyId = input.localeCopyIds[suffix];
-    const presence = await loadBrazeLocalePresence({
+    const loadedPresence = await loadBrazeLocalePresence({
       translationService,
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -843,33 +864,44 @@ async function importLocaleCopies(input: {
     });
     if (!copyId) {
       skipped += 1;
-      if (presence.hasExistingTranslation) {
+      if (loadedPresence.presence.hasExistingTranslation) {
         skippedExistingSuffixes.push(suffix);
       }
       continue;
     }
     try {
-      const html = await input.loadCopyHtml(copyId);
-      const incomingHash = hashBrazeContent(html);
+      const copy = await input.loadCopyHtml(copyId);
+      const incomingHash = hashBrazeContent(copy.html);
+      rememberBrazeRemoteUpdatedAt(lastSeenRemoteUpdatedAt, suffix, copy.remoteUpdatedAt);
       const action = decideBrazeExistingTranslationAction({
         policy: input.policy,
         incomingHash,
-        presence,
+        presence: loadedPresence.presence,
       });
       if (action === "skip") {
         skipped += 1;
         skippedExistingSuffixes.push(suffix);
         continue;
       }
-      await importApprovedProjectTranslationsFromEntries({
+      const seeded = await importApprovedProjectTranslationsFromEntries({
         organizationId: input.organizationId,
         projectId: input.projectId,
         sourcePath: input.sourcePath,
         targetLocale: projectLocale,
-        entries: extractHtmlIngestEntries(html),
+        entries: extractHtmlIngestEntries(copy.html),
       });
-      importedHashes[suffix] = incomingHash;
-      imported += 1;
+      if (
+        seeded.imported > 0 &&
+        loadedPresence.sourceKeyCount > 0 &&
+        seeded.matched >= loadedPresence.sourceKeyCount
+      ) {
+        importedHashes[suffix] = incomingHash;
+      }
+      if (seeded.imported > 0) {
+        imported += 1;
+      } else {
+        skipped += 1;
+      }
     } catch (error) {
       logger.warn(
         {
@@ -882,7 +914,29 @@ async function importLocaleCopies(input: {
     }
   }
 
-  return { imported, skipped, failed, importedHashes, skippedExistingSuffixes };
+  return {
+    imported,
+    skipped,
+    failed,
+    importedHashes,
+    skippedExistingSuffixes,
+    lastSeenRemoteUpdatedAt,
+  };
+}
+
+function rememberBrazeRemoteUpdatedAt(
+  lastSeenRemoteUpdatedAt: Record<string, string>,
+  suffix: string,
+  remoteUpdatedAt?: string,
+) {
+  const raw = remoteUpdatedAt?.trim();
+  if (!raw) {
+    return;
+  }
+  const date = new Date(raw);
+  if (!Number.isNaN(date.getTime())) {
+    lastSeenRemoteUpdatedAt[suffix] = date.toISOString();
+  }
 }
 
 async function maybeCreateBrazeJob(input: {
@@ -992,10 +1046,13 @@ async function loadBrazeLocalePresence(input: {
     sourcePath: input.sourcePath,
   });
   if (!sourceFile) {
-    return brazeTranslationPresence({
-      importedHash: input.importedHash,
-      translatedKeyCount: 0,
-    });
+    return {
+      presence: brazeTranslationPresence({
+        importedHash: input.importedHash,
+        translatedKeyCount: 0,
+      }),
+      sourceKeyCount: 0,
+    };
   }
   const keys = await input.translationService.listKeysForFile({
     organizationId: input.organizationId,
@@ -1009,11 +1066,14 @@ async function loadBrazeLocalePresence(input: {
     translationKeyIds: keys.map((key) => key.id),
     targetLocale: input.targetLocale,
   });
-  return brazeTranslationPresence({
-    importedHash: input.importedHash,
-    translatedKeyCount: translations.filter((row) => (row.text ?? "").trim().length > 0).length,
-    provenances: translations.map((row) => row.provenance),
-  });
+  return {
+    presence: brazeTranslationPresence({
+      importedHash: input.importedHash,
+      translatedKeyCount: translations.filter((row) => (row.text ?? "").trim().length > 0).length,
+      provenances: translations.map((row) => row.provenance),
+    }),
+    sourceKeyCount: keys.filter((key) => !key.isHidden).length,
+  };
 }
 
 async function upsertSyncState(input: {

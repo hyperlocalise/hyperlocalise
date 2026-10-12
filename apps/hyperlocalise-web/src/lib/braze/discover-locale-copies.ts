@@ -93,8 +93,12 @@ export function remainingBrazeJobLocales(input: {
   brazeSuffixes: readonly string[];
   importedHashes: Record<string, string>;
   skippedExistingSuffixes: readonly string[];
+  sourceUnchanged?: boolean;
 }): string[] {
-  const skip = new Set([...Object.keys(input.importedHashes), ...input.skippedExistingSuffixes]);
+  const skip = new Set([
+    ...Object.keys(input.importedHashes),
+    ...(input.sourceUnchanged !== false ? input.skippedExistingSuffixes : []),
+  ]);
   const remaining: string[] = [];
   for (let index = 0; index < input.jobTargetLocales.length; index += 1) {
     const projectLocale = input.jobTargetLocales[index];

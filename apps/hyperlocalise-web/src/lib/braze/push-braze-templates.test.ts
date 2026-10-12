@@ -17,6 +17,7 @@ import {
   countMappedBrazeTargetLocales,
   isRemoteNewer,
   lastPushedAtForBrazeLocale,
+  mergeBrazeLastPushedAtByLocale,
   shouldSkipBrazeLocalePush,
   shouldSkipUnchangedBrazePush,
 } from "./push-braze-templates";
@@ -99,5 +100,24 @@ describe("push braze helpers", () => {
       ),
     ).toBe(true);
     expect(isRemoteNewer("2026-10-11T11:59:00.000Z", lastPushedAt)).toBe(false);
+    expect(isRemoteNewer("2026-10-11T12:00:00.000Z", null)).toBe(true);
+    expect(
+      shouldSkipBrazeLocalePush({
+        lastHash: undefined,
+        contentHash: "new",
+        overwriteWhenRemoteNewer: false,
+        remoteUpdatedAt: "2026-10-11T12:00:00.000Z",
+        lastPushedAt: null,
+      }),
+    ).toBe(true);
+    expect(
+      mergeBrazeLastPushedAtByLocale(
+        { lastPushedAtByLocale: { "fr-FR": "2026-10-11T10:00:00.000Z" } },
+        { "fr-FR": "2026-10-11T09:00:00.000Z", "de-DE": "2026-10-11T11:00:00.000Z" },
+      ),
+    ).toEqual({
+      "fr-FR": "2026-10-11T10:00:00.000Z",
+      "de-DE": "2026-10-11T11:00:00.000Z",
+    });
   });
 });

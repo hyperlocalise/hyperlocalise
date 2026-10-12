@@ -45,5 +45,8 @@ describe("braze locale", () => {
   it("detects locale-suffixed copy names", () => {
     expect(isBrazeLocaleCopyName({ name: "Welcome_fr-FR", suffixes: ["fr-FR"] })).toBe(true);
     expect(isBrazeLocaleCopyName({ name: "Welcome", suffixes: ["fr-FR"] })).toBe(false);
+    expect(isBrazeLocaleCopyName({ name: "Welcome_de-DE", suffixes: ["fr-FR"] })).toBe(true);
+    expect(isBrazeLocaleCopyName({ name: "Welcome_Email", suffixes: ["fr-FR"] })).toBe(false);
+    expect(isBrazeLocaleCopyName({ name: "Hero_Promo", suffixes: ["fr-FR"] })).toBe(false);
   });
 });

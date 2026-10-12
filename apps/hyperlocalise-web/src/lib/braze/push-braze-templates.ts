@@ -144,14 +144,24 @@ export function isRemoteNewer(
   remoteUpdatedAt: string | undefined,
   lastPushedAt: Date | null,
 ): boolean {
-  if (!remoteUpdatedAt || !lastPushedAt) {
+  if (!remoteUpdatedAt) {
     return false;
   }
   const remote = new Date(remoteUpdatedAt);
-  return (
-    !Number.isNaN(remote.getTime()) &&
-    remote.getTime() > lastPushedAt.getTime() + BRAZE_REMOTE_NEWER_SLACK_MS
-  );
+  if (Number.isNaN(remote.getTime())) {
+    return false;
+  }
+  if (!lastPushedAt) {
+    return true;
+  }
+  return remote.getTime() > lastPushedAt.getTime() + BRAZE_REMOTE_NEWER_SLACK_MS;
+}
+
+export function mergeBrazeLastPushedAtByLocale(
+  extra: Record<string, unknown> | null | undefined,
+  discovered: Record<string, string>,
+): Record<string, string> {
+  return { ...discovered, ...readLastPushedAtByLocale(extra) };
 }
 
 type BrazePushCopyResult = { status: "pushed" | "skipped" };

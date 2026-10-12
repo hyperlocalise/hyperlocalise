@@ -155,6 +155,17 @@ export function mapProjectLocalesToBraze(input: {
   };
 }
 
+const BRAZE_LOCALE_SHAPED_SUFFIX =
+  /_([A-Za-z]{2,3})(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?$/;
+
+export function isBrazeLocaleShapedCopyName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return BRAZE_LOCALE_SHAPED_SUFFIX.test(trimmed);
+}
+
 export function isBrazeLocaleCopyName(input: {
   name: string;
   suffixes: readonly string[];
@@ -163,11 +174,16 @@ export function isBrazeLocaleCopyName(input: {
   if (!name) {
     return false;
   }
-  return input.suffixes.some((suffix) => {
-    const token = suffix.trim();
-    if (!token) {
-      return false;
-    }
-    return name.endsWith(`_${token}`) || name.toLowerCase().endsWith(`_${token.toLowerCase()}`);
-  });
+  if (
+    input.suffixes.some((suffix) => {
+      const token = suffix.trim();
+      if (!token) {
+        return false;
+      }
+      return name.endsWith(`_${token}`) || name.toLowerCase().endsWith(`_${token.toLowerCase()}`);
+    })
+  ) {
+    return true;
+  }
+  return isBrazeLocaleShapedCopyName(name);
 }
