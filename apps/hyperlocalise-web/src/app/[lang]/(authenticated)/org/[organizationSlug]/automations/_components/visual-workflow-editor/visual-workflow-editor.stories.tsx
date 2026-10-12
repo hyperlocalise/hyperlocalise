@@ -294,6 +294,10 @@ export const PortCompatibility: Story = {
       urlName.getBoundingClientRect().left,
     );
 
+    // An execution handle is an arrow, a data port a round dot.
+    await expect(getComputedStyle(executionInput[0]!, "::before").clipPath).toContain("polygon");
+    await expect(getComputedStyle(dataInput, "::before").clipPath).not.toContain("polygon");
+
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 
     const requestNode = canvas.getByTitle("url: string").closest(".react-flow__node");

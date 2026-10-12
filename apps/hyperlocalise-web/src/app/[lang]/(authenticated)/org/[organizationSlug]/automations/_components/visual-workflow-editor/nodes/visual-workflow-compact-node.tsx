@@ -62,9 +62,8 @@ const nodeStatusMessages = defineMessages({
 // React Flow's stylesheet is in no cascade layer, so it outranks Tailwind's utilities. A class on
 // a handle needs `!` wherever React Flow sets the same property: size, position, background and
 // border.
-const HANDLE_CLASS = cn(
-  "size-2.5! border-background! bg-primary!",
-  "transition-[scale,opacity,box-shadow,background-color] duration-150",
+const HANDLE_FEEDBACK_CLASS = cn(
+  "transition-[scale,opacity,box-shadow,background-color,color] duration-150",
   // A target larger than the dot, so it can be grabbed without aiming.
   "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
   // Under the pointer, and where a connection starts from by drag or by click.
@@ -74,11 +73,28 @@ const HANDLE_CLASS = cn(
   "[&.clickconnecting]:scale-150 [&.clickconnecting]:ring-4 [&.clickconnecting]:ring-primary/25",
   // Where a connection being dragged would land: dimmed until it is one the canvas allows.
   "[&.connectingto]:scale-125 [&.connectingto]:opacity-30",
-  "[&.connectingto.valid]:bg-emerald-500!",
   "[&.connectingto.valid]:opacity-100",
   "[&.connectingto.valid]:ring-4",
   "[&.connectingto.valid]:ring-emerald-500/30",
   "motion-reduce:transition-none",
+);
+
+// A data port is a round dot in its type's colour.
+const DATA_HANDLE_CLASS = cn(
+  HANDLE_FEEDBACK_CLASS,
+  "size-2.5! border-background!",
+  "[&.connectingto.valid]:bg-emerald-500!",
+);
+
+// An execution handle is an arrow pointing the way the workflow runs, so it cannot be taken for a
+// data port. The arrow is drawn by `::before` in the handle's text colour: clipping the handle
+// itself would also cut off its halo and its larger target.
+const EXECUTION_HANDLE_CLASS = cn(
+  HANDLE_FEEDBACK_CLASS,
+  "size-3! border-0! bg-transparent! text-primary",
+  "before:absolute before:inset-0 before:bg-current before:content-['']",
+  "before:[clip-path:polygon(0_0,40%_0,100%_50%,40%_100%,0_100%)]",
+  "[&.connectingto.valid]:text-emerald-500",
 );
 
 // A step's state is marked with a soft glow, not a hard outline: the canvas moves by fractions of
@@ -114,8 +130,8 @@ function executionTop(fraction: number): CSSProperties {
 const TRY_CATCH_HANDLES = [
   { id: "try", label: "Try", className: null },
   { id: "success", label: "Success", className: null },
-  { id: "catch", label: "Catch", className: "bg-destructive!" },
-  { id: "finally", label: "Finally", className: "bg-muted-foreground!" },
+  { id: "catch", label: "Catch", className: "text-destructive" },
+  { id: "finally", label: "Finally", className: "text-muted-foreground" },
 ];
 
 // A port's row starts inside the card's padding. This puts its dot on the card's edge, where the
@@ -145,7 +161,7 @@ function DataPortLabel({
           type="target"
           position={Position.Left}
           className={cn(
-            HANDLE_CLASS,
+            DATA_HANDLE_CLASS,
             DATA_PORT_EDGE_CLASS.input,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
@@ -163,7 +179,7 @@ function DataPortLabel({
           type="source"
           position={Position.Right}
           className={cn(
-            HANDLE_CLASS,
+            DATA_HANDLE_CLASS,
             DATA_PORT_EDGE_CLASS.output,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
@@ -298,7 +314,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           <Handle
             key={input.id}
             id={input.id}
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             position={Position.Left}
             type="target"
             aria-label={`Merge input: ${input.name}`}
@@ -308,7 +324,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : (
         <Handle
           id="input"
-          className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+          className={cn(EXECUTION_HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
           position={Position.Left}
           type="target"
           aria-label="Execution input"
@@ -318,7 +334,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         sequenceOutputs.map((output, index) => (
           <Handle
             aria-label={`Sequence output: ${output.label}`}
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             id={output.id}
             key={output.id}
             position={Position.Right}
@@ -329,14 +345,14 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : isIf ? (
         <>
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.35)}
             id="true"
             position={Position.Right}
             type="source"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-muted-foreground!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-muted-foreground")}
             style={executionTop(0.65)}
             id="false"
             position={Position.Right}
@@ -346,7 +362,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : data.catalogType === "logic.for_each" ? (
         <>
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.35)}
             id="each"
             position={Position.Right}
@@ -354,7 +370,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Each item"
           />
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.65)}
             id="done"
             position={Position.Right}
@@ -365,7 +381,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : data.catalogType === "logic.retry" ? (
         <>
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.28)}
             id="attempt"
             position={Position.Right}
@@ -373,7 +389,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Attempt"
           />
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.5)}
             id="succeeded"
             position={Position.Right}
@@ -381,7 +397,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Succeeded"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-muted-foreground!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-muted-foreground")}
             style={executionTop(0.72)}
             id="exhausted"
             position={Position.Right}
@@ -392,7 +408,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : data.catalogType === "flow.wait" ? (
         <>
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.28)}
             id="completed"
             position={Position.Right}
@@ -400,7 +416,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Completed"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-muted-foreground!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-muted-foreground")}
             style={executionTop(0.5)}
             id="timed_out"
             position={Position.Right}
@@ -408,7 +424,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Timed out"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-destructive!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-destructive")}
             style={executionTop(0.72)}
             id="error"
             position={Position.Right}
@@ -419,7 +435,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : data.catalogType === "logic.merge" ? (
         <>
           <Handle
-            className={HANDLE_CLASS}
+            className={EXECUTION_HANDLE_CLASS}
             style={executionTop(0.28)}
             id="completed"
             position={Position.Right}
@@ -427,7 +443,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Completed"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-muted-foreground!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-muted-foreground")}
             style={executionTop(0.5)}
             id="timed_out"
             position={Position.Right}
@@ -435,7 +451,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Timed out"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "bg-destructive!")}
+            className={cn(EXECUTION_HANDLE_CLASS, "text-destructive")}
             style={executionTop(0.72)}
             id="error"
             position={Position.Right}
@@ -448,7 +464,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           {TRY_CATCH_HANDLES.map((handle, index) => (
             <Handle
               aria-label={handle.label}
-              className={cn(HANDLE_CLASS, handle.className)}
+              className={cn(EXECUTION_HANDLE_CLASS, handle.className)}
               id={handle.id}
               key={handle.id}
               position={Position.Right}
@@ -461,7 +477,10 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         switchHandles.map((handle, index) => (
           <Handle
             key={handle.id}
-            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground!" : null)}
+            className={cn(
+              EXECUTION_HANDLE_CLASS,
+              handle.id === "default" ? "text-muted-foreground" : null,
+            )}
             id={handle.id}
             position={Position.Right}
             type="source"
@@ -472,14 +491,14 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         <>
           <Handle
             id="success"
-            className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+            className={cn(EXECUTION_HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
             position={Position.Right}
             type="source"
             aria-label="Execution success"
           />
           {showErrorHandle ? (
             <Handle
-              className={cn(HANDLE_CLASS, "bg-destructive!")}
+              className={cn(EXECUTION_HANDLE_CLASS, "text-destructive")}
               style={executionTop(hasDataPorts ? 0.88 : 0.75)}
               id="error"
               position={Position.Right}
