@@ -1,8 +1,9 @@
 name: Go Service Image CI
 
 on:
-    # Manual runs on main write shared GHA layer caches that PRs can restore.
-    # Do not add push-to-main; that would build the image on every merge.
+    # Pull requests skip the image build. workflow_dispatch still builds
+    # without pushing and can write the shared GHA layer cache.
+    # Do not add push-to-main; production images are built by go-svc-deploy.yml.
     workflow_dispatch:
     pull_request:
         types: [opened, synchronize, reopened, ready_for_review]
@@ -28,7 +29,9 @@ concurrency:
 jobs:
     build:
         name: Build go-svc ECS image
-        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        # Skip on pull requests. go-svc-deploy.yml builds and pushes the image
+        # when prod changes. workflow_dispatch remains available for a local build.
+        if: github.event_name == 'workflow_dispatch'
         runs-on: blacksmith-4vcpu-ubuntu-2404
         timeout-minutes: 20
 
