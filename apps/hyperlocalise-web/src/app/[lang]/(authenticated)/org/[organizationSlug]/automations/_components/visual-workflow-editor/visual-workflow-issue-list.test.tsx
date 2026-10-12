@@ -191,6 +191,24 @@ describe("VisualWorkflowIssueList", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("offers to show the step on the canvas", async () => {
+    const user = userEvent.setup();
+    const onSelectNode = vi.fn();
+    const onShowNode = vi.fn();
+    renderList({ issues: THREE_STOPS, nodes: NODES, onSelectNode, onShowNode });
+
+    await user.click(screen.getByRole("button", { name: "Show on canvas" }));
+
+    expect(onShowNode).toHaveBeenCalledExactlyOnceWith("request");
+    expect(onSelectNode).not.toHaveBeenCalled();
+
+    // An issue about no step has no step to show.
+    await user.click(screen.getByRole("button", { name: "Previous issue" }));
+
+    expect(screen.getByText("Add a trigger to start the workflow.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show on canvas" })).not.toBeInTheDocument();
+  });
+
   it("renders nothing when the workflow has no issues", () => {
     renderList({ issues: [], nodes: [], onSelectNode: vi.fn() });
 

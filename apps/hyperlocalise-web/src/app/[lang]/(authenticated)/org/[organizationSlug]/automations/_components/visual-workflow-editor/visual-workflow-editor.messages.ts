@@ -1018,6 +1018,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "We3SJU9IT4",
     description: "Button that shows the next validation issue of a visual workflow",
   },
+  showStepOnCanvas: {
+    defaultMessage: "Show on canvas",
+    id: "1oDvFz2774",
+    description:
+      "Button beside a validation issue that selects its step and moves the canvas to it",
+  },
   issueLiteralCredential: {
     defaultMessage:
       "Use a saved credential for secret values instead of typing them into the step.",

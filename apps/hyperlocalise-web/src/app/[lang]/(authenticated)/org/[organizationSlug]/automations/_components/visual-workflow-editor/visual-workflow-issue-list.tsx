@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon, CrosshairSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -74,19 +74,22 @@ function issueText(intl: IntlShape, issue: VisualWorkflowIssue) {
  * What stops the workflow from being published, one step at a time: the step's name with what is
  * wrong with it and, where the validator knows it, the setting at fault. With more than one stop,
  * arrows move between them and select the step they land on; when `onSelectNode` is given, the
- * stop itself is a button that selects its step.
+ * stop itself is a button that selects its step, and when `onShowNode` is given a button beside it
+ * brings the step into view on the canvas.
  */
 export function VisualWorkflowIssueList({
   issues,
   nodes,
   selectedNodeId,
   onSelectNode,
+  onShowNode,
 }: {
   issues: readonly VisualWorkflowIssue[];
   nodes: readonly VisualWorkflowRfNode[];
   /** The step whose settings are open, which the pager starts at and follows. */
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
+  onShowNode?: (nodeId: string) => void;
 }) {
   const intl = useIntl();
   const stops = listIssueStops(issues, nodes);
@@ -159,24 +162,41 @@ export function VisualWorkflowIssueList({
       ) : null}
       {!node ? (
         <p className="flex flex-col">{lines}</p>
-      ) : onSelectNode ? (
-        <button
-          type="button"
-          className="-mx-2 flex w-[calc(100%+1rem)] flex-col rounded-lg border border-transparent px-2 py-1 text-left hover:border-destructive/30 hover:bg-destructive/5"
-          onClick={() => onSelectNode(node.id)}
-        >
-          <span className="font-medium">
-            {intl.formatMessage(visualWorkflowNodeTitleMessage(node.data.catalogType))}
-          </span>
-          {lines}
-        </button>
       ) : (
-        <p className="flex flex-col py-1">
-          <span className="font-medium">
-            {intl.formatMessage(visualWorkflowNodeTitleMessage(node.data.catalogType))}
-          </span>
-          {lines}
-        </p>
+        <div className="flex items-start gap-1">
+          {onSelectNode ? (
+            <button
+              type="button"
+              className="-ms-2 flex min-w-0 flex-1 flex-col rounded-lg border border-transparent px-2 py-1 text-left hover:border-destructive/30 hover:bg-destructive/5"
+              onClick={() => onSelectNode(node.id)}
+            >
+              <span className="font-medium">
+                {intl.formatMessage(visualWorkflowNodeTitleMessage(node.data.catalogType))}
+              </span>
+              {lines}
+            </button>
+          ) : (
+            <p className="flex min-w-0 flex-1 flex-col py-1">
+              <span className="font-medium">
+                {intl.formatMessage(visualWorkflowNodeTitleMessage(node.data.catalogType))}
+              </span>
+              {lines}
+            </p>
+          )}
+          {onShowNode ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="mt-1"
+              aria-label={intl.formatMessage(messages.showStepOnCanvas)}
+              title={intl.formatMessage(messages.showStepOnCanvas)}
+              onClick={() => onShowNode(node.id)}
+            >
+              <CrosshairSimpleIcon />
+            </Button>
+          ) : null}
+        </div>
       )}
     </div>
   );

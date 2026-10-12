@@ -98,6 +98,7 @@ export function VisualWorkflowConfigPanel({
   organizationSlug,
   issues,
   onSelectNode,
+  onShowNode,
   onBack,
   onChangeConfig,
   onChangeNodeType,
@@ -111,6 +112,8 @@ export function VisualWorkflowConfigPanel({
   issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
   /** Called with the step an issue is about when its line is clicked. */
   onSelectNode?: (nodeId: string) => void;
+  /** Called with the step an issue is about when it is asked to be shown on the canvas. */
+  onShowNode?: (nodeId: string) => void;
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
@@ -1351,6 +1354,7 @@ export function VisualWorkflowConfigPanel({
         nodes={nodes}
         selectedNodeId={node.id}
         onSelectNode={onSelectNode}
+        onShowNode={onShowNode}
       />
     </div>
   );

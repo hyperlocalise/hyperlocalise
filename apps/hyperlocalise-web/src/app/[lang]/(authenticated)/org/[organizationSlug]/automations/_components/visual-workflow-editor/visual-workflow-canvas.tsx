@@ -18,8 +18,9 @@ import {
   type EdgeChange,
   type NodeChange,
   type OnSelectionChangeParams,
+  type ReactFlowInstance,
 } from "@xyflow/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -139,6 +140,7 @@ export function VisualWorkflowCanvas({
   onConnect,
   onReconnect,
   onSelectionChange,
+  focusNode,
   onAddFirstStep,
   onLoadSample,
   onTestWorkflow,
@@ -151,10 +153,15 @@ export function VisualWorkflowCanvas({
   onConnect: (connection: Connection) => void;
   onReconnect: (oldEdge: VisualWorkflowRfEdge, connection: Connection) => void;
   onSelectionChange: (params: OnSelectionChangeParams) => void;
+  /** The step to bring to the middle of the canvas. A new object asks again, for the same step too. */
+  focusNode?: { nodeId: string } | null;
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
 }) {
+  const reactFlowRef = useRef<ReactFlowInstance<VisualWorkflowRfNode, VisualWorkflowRfEdge> | null>(
+    null,
+  );
   const reconnectingEdgeIdRef = useRef<string | null>(null);
   const lastConnectionErrorRef = useRef<string | null>(null);
   const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
@@ -178,6 +185,22 @@ export function VisualWorkflowCanvas({
     },
     [edges, nodes],
   );
+
+  useEffect(() => {
+    const reactFlow = reactFlowRef.current;
+    const node = focusNode ? reactFlow?.getNode(focusNode.nodeId) : undefined;
+    if (!reactFlow || !node) {
+      return;
+    }
+    void reactFlow.setCenter(
+      node.position.x + (node.measured?.width ?? node.width ?? 0) / 2,
+      node.position.y + (node.measured?.height ?? node.height ?? 0) / 2,
+      {
+        zoom: reactFlow.getZoom(),
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300,
+      },
+    );
+  }, [focusNode]);
 
   return (
     <div className="relative min-h-0 min-w-0 flex-1">
@@ -229,6 +252,7 @@ export function VisualWorkflowCanvas({
           markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
         }}
         onInit={(reactFlow) => {
+          reactFlowRef.current = reactFlow;
           void reactFlow.fitView({ padding: 0.2 });
         }}
         proOptions={{ hideAttribution: true }}

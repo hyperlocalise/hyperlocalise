@@ -159,6 +159,7 @@ export function VisualWorkflowEditor({
   const [nodes, setNodes] = useState<VisualWorkflowRfNode[]>(initialNodes);
   const [edges, setEdges] = useState<VisualWorkflowRfEdge[]>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [focusNode, setFocusNode] = useState<{ nodeId: string } | null>(null);
   const [panelMode, setPanelMode] = useState<"picker" | "config">("picker");
   const [addFrom, setAddFrom] = useState<VisualWorkflowAddFrom | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -245,6 +246,15 @@ export function VisualWorkflowEditor({
     setAddFrom(null);
     setMobilePanelOpen(true);
   }, []);
+
+  /** Selects a step and brings it to the middle of the canvas. */
+  const showNode = useCallback(
+    (nodeId: string) => {
+      selectNode(nodeId);
+      setFocusNode({ nodeId });
+    },
+    [selectNode],
+  );
 
   const closeMobilePanel = useCallback(() => {
     setMobilePanelOpen(false);
@@ -632,6 +642,7 @@ export function VisualWorkflowEditor({
               onConnect={onConnect}
               onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
+              focusNode={focusNode}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
                 const draft = sampleDraft ?? visualWorkflowDemoDraft;
@@ -676,6 +687,7 @@ export function VisualWorkflowEditor({
                 }
                 issues={issues}
                 onSelectNode={selectNode}
+                onShowNode={showNode}
                 onBack={() => {
                   setPanelMode("picker");
                   setSelectedNodeId(null);
@@ -690,7 +702,12 @@ export function VisualWorkflowEditor({
                   disableTriggers={hasTrigger || addFrom !== null}
                   onPick={addNode}
                 />
-                <VisualWorkflowIssueList issues={issues} nodes={nodes} onSelectNode={selectNode} />
+                <VisualWorkflowIssueList
+                  issues={issues}
+                  nodes={nodes}
+                  onSelectNode={selectNode}
+                  onShowNode={showNode}
+                />
               </>
             )}
           </VisualWorkflowEditorPanel>
