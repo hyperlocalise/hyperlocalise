@@ -22,20 +22,31 @@ export function pageSegmentKey(contentIndex: number, regionIndex: number): strin
   return `${SEGMENT_KEY_PREFIX}${contentIndex}.${regionIndex}`;
 }
 
+function usableTranslation(value: string | undefined): string | undefined {
+  if (value == null || value.trim().length === 0) {
+    return undefined;
+  }
+  return value;
+}
+
 export function lookupTranslatedText(
   translations: Record<string, string>,
   contentIndex: number,
   regionIndex: number,
 ): string | undefined {
-  const pageLocal = translations[pageSegmentKey(contentIndex, regionIndex)];
+  const pageLocal = usableTranslation(translations[pageSegmentKey(contentIndex, regionIndex)]);
   if (pageLocal != null) {
     return pageLocal;
   }
 
   const suffix = `.${contentIndex}.${regionIndex}`;
   for (const [key, value] of Object.entries(translations)) {
-    if (key.startsWith(SEGMENT_KEY_PREFIX) && key.endsWith(suffix)) {
-      return value;
+    if (!key.startsWith(SEGMENT_KEY_PREFIX) || !key.endsWith(suffix)) {
+      continue;
+    }
+    const match = usableTranslation(value);
+    if (match != null) {
+      return match;
     }
   }
 

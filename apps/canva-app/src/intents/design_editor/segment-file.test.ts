@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildPageSourcePath,
   buildSourcePath,
+  lookupTranslatedText,
   parseTranslationFile,
   segmentKey,
   segmentsToTranslationFile,
@@ -52,6 +53,19 @@ describe("segment-file", () => {
     });
 
     expect(parseTranslationFile(file)).toEqual(file);
+  });
+
+  it("ignores blank translations when looking up apply text", () => {
+    expect(
+      lookupTranslatedText(
+        {
+          "canva.segment.0.0": "   ",
+          "canva.segment.1.0.0": "Hola",
+        },
+        0,
+        0,
+      ),
+    ).toBe("Hola");
   });
 
   it("flattens nested job output and prefers translated values over leftover source keys", () => {

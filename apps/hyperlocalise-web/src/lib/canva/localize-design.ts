@@ -12,7 +12,7 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
   resolveApiKeyTeamAccessContext,
@@ -434,6 +434,70 @@ function countTranslatedSourceWords(
   return words;
 }
 
+export function canvaApprovalPercent(approved: number, total: number) {
+  if (total <= 0) {
+    return 0;
+  }
+  return Math.round((Math.min(approved, total) / total) * 100);
+}
+
+function fallbackApprovedSegmentCount(
+  status: CanvaJobStatusName | "idle",
+  translated: number,
+  total: number,
+) {
+  if (status === "succeeded") {
+    return translated > 0 ? translated : total;
+  }
+  return 0;
+}
+
+async function loadCanvaApprovedSegmentCounts(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+}) {
+  const approvedByLocale = new Map<string, number>();
+  const approvedByLocaleAndPath = new Map<string, number>();
+  if (input.sourcePaths.length === 0) {
+    return { approvedByLocale, approvedByLocaleAndPath, hasIngestedKeys: false };
+  }
+
+  const rows = await db
+    .select({
+      locale: schema.projectTranslations.targetLocale,
+      status: schema.projectTranslations.status,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.projectTranslationKeys)
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .innerJoin(
+      schema.projectTranslations,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+        eq(schema.projectTranslationKeys.projectId, input.projectId),
+        inArray(schema.repositorySourceFiles.sourcePath, input.sourcePaths),
+      ),
+    );
+
+  for (const row of rows) {
+    if (row.status !== "approved") {
+      continue;
+    }
+    approvedByLocale.set(row.locale, (approvedByLocale.get(row.locale) ?? 0) + 1);
+    const pathKey = `${row.locale}\0${row.sourcePath}`;
+    approvedByLocaleAndPath.set(pathKey, (approvedByLocaleAndPath.get(pathKey) ?? 0) + 1);
+  }
+
+  return { approvedByLocale, approvedByLocaleAndPath, hasIngestedKeys: rows.length > 0 };
+}
+
 function parseStoredTranslationFile(content: Buffer) {
   try {
     const parsed: unknown = JSON.parse(content.toString("utf8"));
@@ -467,12 +531,14 @@ export function buildCanvaSourceLocaleStatus(input: {
       total: page.segmentCount,
       translatedWords: wordCount,
       wordCount,
+      approved: page.segmentCount,
     };
   });
   const translated = localePages.reduce((sum, page) => sum + page.translated, 0);
   const total = localePages.reduce((sum, page) => sum + page.total, 0);
   const translatedWords = localePages.reduce((sum, page) => sum + page.translatedWords, 0);
   const wordCount = localePages.reduce((sum, page) => sum + page.wordCount, 0);
+  const approved = localePages.reduce((sum, page) => sum + page.approved, 0);
 
   return {
     locale: input.locale,
@@ -483,6 +549,8 @@ export function buildCanvaSourceLocaleStatus(input: {
     translatedWords,
     wordCount,
     percent: localePages.length > 0 ? 100 : 0,
+    approved,
+    approvedPercent: canvaApprovalPercent(approved, total),
     canAdd: localePages.length > 0,
     pages: localePages,
   };
@@ -807,20 +875,27 @@ export async function listCanvaDesignLocaleStatuses(input: {
 
   const sourceLocale = project.sourceLocale?.trim() || "en";
   const sourceByPage = new Map<number, Record<string, string>>();
-  await Promise.all(
-    pages.map(async (page) => {
-      try {
-        const stored = await getStoredFileContent({
-          organizationId: input.organizationId,
-          projectId: project.id,
-          fileId: page.sourceFileId,
-        });
-        sourceByPage.set(page.pageIndex, parseStoredTranslationFile(stored.content));
-      } catch {
-        sourceByPage.set(page.pageIndex, {});
-      }
+  const [approvalCounts] = await Promise.all([
+    loadCanvaApprovedSegmentCounts({
+      organizationId: input.organizationId,
+      projectId: project.id,
+      sourcePaths: pages.map((page) => page.sourcePath),
     }),
-  );
+    Promise.all(
+      pages.map(async (page) => {
+        try {
+          const stored = await getStoredFileContent({
+            organizationId: input.organizationId,
+            projectId: project.id,
+            fileId: page.sourceFileId,
+          });
+          sourceByPage.set(page.pageIndex, parseStoredTranslationFile(stored.content));
+        } catch {
+          sourceByPage.set(page.pageIndex, {});
+        }
+      }),
+    ),
+  ]);
 
   const locales: CanvaLocaleStatus[] = [
     buildCanvaSourceLocaleStatus({
@@ -862,6 +937,9 @@ export async function listCanvaDesignLocaleStatuses(input: {
           translatedWords = countTranslatedSourceWords(sourceFile, translations, sourceLocale);
         }
       }
+      const approvedFromStore = approvalCounts.approvedByLocaleAndPath.get(
+        `${locale}\0${page.sourcePath}`,
+      );
       localePages.push({
         pageIndex: page.pageIndex,
         sourcePath: page.sourcePath,
@@ -871,6 +949,9 @@ export async function listCanvaDesignLocaleStatuses(input: {
         total: page.segmentCount,
         translatedWords,
         wordCount,
+        approved: approvalCounts.hasIngestedKeys
+          ? (approvedFromStore ?? 0)
+          : fallbackApprovedSegmentCount(status, translated, page.segmentCount),
       });
     }
 
@@ -878,6 +959,10 @@ export async function listCanvaDesignLocaleStatuses(input: {
     const total = localePages.reduce((sum, page) => sum + page.total, 0);
     const translatedWords = localePages.reduce((sum, page) => sum + page.translatedWords, 0);
     const wordCount = localePages.reduce((sum, page) => sum + page.wordCount, 0);
+    const approvedFromStore = approvalCounts.approvedByLocale.get(locale);
+    const approved = approvalCounts.hasIngestedKeys
+      ? (approvedFromStore ?? 0)
+      : localePages.reduce((sum, page) => sum + page.approved, 0);
     const rolled = rollupLocaleStatus(localePages);
     const progressTotal = wordCount > 0 ? wordCount : total;
     const progressDone = wordCount > 0 ? translatedWords : translated;
@@ -890,6 +975,8 @@ export async function listCanvaDesignLocaleStatuses(input: {
       translatedWords,
       wordCount,
       percent: progressTotal === 0 ? 0 : Math.round((progressDone / progressTotal) * 100),
+      approved,
+      approvedPercent: canvaApprovalPercent(approved, total),
       pages: localePages,
     });
   }

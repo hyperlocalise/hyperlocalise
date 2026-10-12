@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildCanvaSourceLocaleStatus,
+  canvaApprovalPercent,
   isCanvaIntegrationJob,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
@@ -180,6 +181,14 @@ describe("resolveCanvaJobLocales", () => {
   });
 });
 
+describe("canvaApprovalPercent", () => {
+  it("rounds approved segments against the collected total", () => {
+    expect(canvaApprovalPercent(0, 0)).toBe(0);
+    expect(canvaApprovalPercent(1, 4)).toBe(25);
+    expect(canvaApprovalPercent(4, 4)).toBe(100);
+  });
+});
+
 describe("buildCanvaSourceLocaleStatus", () => {
   it("marks collected source pages as ready to apply", () => {
     expect(
@@ -206,6 +215,8 @@ describe("buildCanvaSourceLocaleStatus", () => {
       translatedWords: 12,
       wordCount: 12,
       percent: 100,
+      approved: 3,
+      approvedPercent: 100,
       canAdd: true,
       pages: [
         {
@@ -217,6 +228,7 @@ describe("buildCanvaSourceLocaleStatus", () => {
           total: 3,
           translatedWords: 12,
           wordCount: 12,
+          approved: 3,
         },
       ],
     });

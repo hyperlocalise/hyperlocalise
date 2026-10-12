@@ -33,7 +33,12 @@ import { getDesignMetadata, getDesignToken } from "@canva/design";
 import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
-import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
+import {
+  applyTranslationsToCurrentPage,
+  applyTranslationsToDesign,
+  extractDesignContent,
+  listDesignPages,
+} from "./design-content";
 import {
   buildCanvaProjectUrl,
   CANVA_JOB_POLL_INTERVAL_MS,
@@ -150,8 +155,8 @@ function LocaleApplyControls(input: {
     <Rows spacing="1u">
       <Text size="small" tone="secondary">
         {input.isSource
-          ? "Choose which collected page to write back."
-          : "Choose which translated page to write back."}
+          ? "Choose which collected page to write onto this Canva page. Every collected string is written."
+          : "Choose which Ready or Needs review page to write onto this Canva page. Every non-empty translation is written."}
       </Text>
       <FormField
         label={input.isSource ? "Page" : "Translated page"}
@@ -204,6 +209,8 @@ function idleLocaleRow(locale: string, isSource = false): CanvaLocaleStatus {
     translatedWords: 0,
     wordCount: 0,
     percent: 0,
+    approved: 0,
+    approvedPercent: 0,
     canAdd: false,
     pages: [],
   };
@@ -233,6 +240,10 @@ function localeNeedsGeneration(entry: CanvaLocaleStatus) {
     return true;
   }
   return entry.percent < 100 || (entry.total > 0 && entry.translated < entry.total);
+}
+
+function localeTargetDetail(entry: CanvaLocaleStatus) {
+  return `${entry.percent}% · ${localeWordCountLabel(entry)} · ${entry.approvedPercent}% approved · ${jobStatusLabel(entry)}`;
 }
 
 function jobStatusLabel(entry: CanvaLocaleStatus) {
@@ -665,17 +676,16 @@ export const App = () => {
       if (!page) {
         throw new Error("No translations for that page.");
       }
-      const replaced = await applyTranslationsToDesign(
+      const replaced = await applyTranslationsToCurrentPage(
         page.translations,
-        [sourcePageIndex],
         settings.preserveFormatting,
       );
       if (replaced === 0) {
-        throw new Error("No matching text on that page. Collect the page again, then apply.");
+        throw new Error("No matching text on this page. Collect the page again, then apply.");
       }
       setApplyLocale(null);
       setStatusMessage(
-        `Applied ${replaced} segments (${localeLabel(applyLocale)}) to page ${sourcePageIndex + 1}.`,
+        `Applied ${replaced} segments (${localeLabel(applyLocale)}) from page ${sourcePageIndex + 1} to this page.`,
       );
     });
 
@@ -693,14 +703,7 @@ export const App = () => {
       if (pulled.pages.length === 0) {
         throw new Error("No translations to apply.");
       }
-      let replaced = 0;
-      for (const page of pulled.pages) {
-        replaced += await applyTranslationsToDesign(
-          page.translations,
-          [page.pageIndex],
-          settings.preserveFormatting,
-        );
-      }
+      const replaced = await applyTranslationsToDesign(pulled.pages, settings.preserveFormatting);
       if (replaced === 0) {
         throw new Error("No matching text on those pages. Collect the pages again, then apply.");
       }
@@ -937,9 +940,7 @@ export const App = () => {
                           />
                         )}
                         <Text size="small" tone="secondary">
-                          {entry.isSource
-                            ? sourceLocaleDetail(entry)
-                            : `${entry.percent}% · ${localeWordCountLabel(entry)} · ${jobStatusLabel(entry)}`}
+                          {entry.isSource ? sourceLocaleDetail(entry) : localeTargetDetail(entry)}
                         </Text>
                         {entry.status === "queued" || entry.status === "running" ? null : (
                           <>

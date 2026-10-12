@@ -48,6 +48,7 @@ export type CanvaLocalePageStatus = {
   total: number;
   translatedWords: number;
   wordCount: number;
+  approved: number;
 };
 
 export type CanvaLocaleStatus = {
@@ -59,6 +60,8 @@ export type CanvaLocaleStatus = {
   translatedWords: number;
   wordCount: number;
   percent: number;
+  approved: number;
+  approvedPercent: number;
   canAdd: boolean;
   pages: CanvaLocalePageStatus[];
 };

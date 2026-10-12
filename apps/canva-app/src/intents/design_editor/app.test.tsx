@@ -37,6 +37,7 @@ vi.mock("@canva/design", () => ({
 vi.mock("./design-content", () => ({
   listDesignPages: vi.fn(),
   extractDesignContent: vi.fn(),
+  applyTranslationsToCurrentPage: vi.fn(),
   applyTranslationsToDesign: vi.fn(),
 }));
 
@@ -145,6 +146,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 0,
           wordCount: 42,
           percent: 0,
+          approved: 0,
+          approvedPercent: 0,
           canAdd: false,
           pages: [],
         },
@@ -156,6 +159,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 0,
           wordCount: 42,
           percent: 0,
+          approved: 0,
+          approvedPercent: 0,
           canAdd: false,
           pages: [],
         },
@@ -176,7 +181,9 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByText("Source")).toBeTruthy();
     expect(result.getByText("No collected words · Not collected")).toBeTruthy();
     expect(result.queryByLabelText("English (en-US) progress")).toBeNull();
-    expect(result.getAllByText("0% · 0 of 42 words · Not started").length).toBeGreaterThan(0);
+    expect(
+      result.getAllByText("0% · 0 of 42 words · 0% approved · Not started").length,
+    ).toBeGreaterThan(0);
     expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
@@ -230,6 +237,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 42,
           wordCount: 42,
           percent: 100,
+          approved: 8,
+          approvedPercent: 100,
           canAdd: true,
           pages: [
             {
@@ -241,6 +250,7 @@ describe("Hyperlocalise Canva app", () => {
               total: 8,
               translatedWords: 42,
               wordCount: 42,
+              approved: 8,
             },
           ],
         },
@@ -252,6 +262,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 42,
           wordCount: 42,
           percent: 100,
+          approved: 8,
+          approvedPercent: 100,
           canAdd: true,
           pages: [
             {
@@ -263,6 +275,7 @@ describe("Hyperlocalise Canva app", () => {
               total: 8,
               translatedWords: 42,
               wordCount: 42,
+              approved: 8,
             },
           ],
         },
@@ -280,6 +293,7 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByText("42 of 42 words")).toBeTruthy();
     expect(result.queryByLabelText("English (en-US) progress")).toBeNull();
     expect(result.getByLabelText("French (fr-FR) progress")).toBeTruthy();
+    expect(result.getByText("100% · 42 of 42 words · 100% approved · Ready")).toBeTruthy();
 
     const [sourceAddButton] = result.getAllByRole("button", { name: "Add to design" });
     if (!sourceAddButton) {
@@ -288,7 +302,11 @@ describe("Hyperlocalise Canva app", () => {
     fireEvent.click(sourceAddButton);
 
     expect(result.getByText("Page")).toBeTruthy();
-    expect(result.getByText("Choose which collected page to write back.")).toBeTruthy();
+    expect(
+      result.getByText(
+        "Choose which collected page to write onto this Canva page. Every collected string is written.",
+      ),
+    ).toBeTruthy();
     expect(result.queryByText("Current page")).toBeNull();
     expect(result.getByRole("button", { name: "Apply to this page" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Apply all" })).toBeTruthy();
@@ -335,6 +353,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 20,
           wordCount: 42,
           percent: 50,
+          approved: 2,
+          approvedPercent: 25,
           canAdd: true,
           pages: [
             {
@@ -346,6 +366,7 @@ describe("Hyperlocalise Canva app", () => {
               total: 4,
               translatedWords: 20,
               wordCount: 20,
+              approved: 2,
             },
             {
               pageIndex: 1,
@@ -356,6 +377,7 @@ describe("Hyperlocalise Canva app", () => {
               total: 4,
               translatedWords: 0,
               wordCount: 22,
+              approved: 0,
             },
           ],
         },
@@ -443,6 +465,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 0,
           wordCount: 12,
           percent: 0,
+          approved: 0,
+          approvedPercent: 0,
           canAdd: false,
           pages: [],
         },
@@ -451,7 +475,7 @@ describe("Hyperlocalise Canva app", () => {
     });
 
     await waitFor(() => {
-      expect(result.getByText("0% · 0 of 12 words · Not started")).toBeTruthy();
+      expect(result.getByText("0% · 0 of 12 words · 0% approved · Not started")).toBeTruthy();
       expect(result.getByRole("button", { name: "Generate translation" })).toBeTruthy();
     });
   });
@@ -496,6 +520,8 @@ describe("Hyperlocalise Canva app", () => {
           translatedWords: 10,
           wordCount: 42,
           percent: 25,
+          approved: 0,
+          approvedPercent: 0,
           canAdd: false,
           pages: [],
         },
@@ -509,7 +535,7 @@ describe("Hyperlocalise Canva app", () => {
       const progress = result.getByLabelText("French (fr-FR) progress");
       expect(progress).toBeTruthy();
       expect(progress.getAttribute("aria-valuenow")).toBeNull();
-      expect(result.getByText("25% · 10 of 42 words · Translating")).toBeTruthy();
+      expect(result.getByText("25% · 10 of 42 words · 0% approved · Translating")).toBeTruthy();
       expect(result.queryByRole("button", { name: "Generate translation" })).toBeNull();
     });
   });
