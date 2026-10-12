@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted. Path filters were later removed: every push to `prod` now deploys every Lambda, and `ensure-deploy-main-tip` skips any run whose commit is no longer the `prod` tip. Job-level concurrency still applies.
 
 ## Context
 
