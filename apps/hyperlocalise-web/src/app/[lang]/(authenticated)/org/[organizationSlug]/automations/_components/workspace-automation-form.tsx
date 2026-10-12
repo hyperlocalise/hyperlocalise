@@ -3666,14 +3666,17 @@ export function WorkspaceAutomationEditor({
       >
         {/* A new automation has settings only, and one tab is no choice to offer. */}
         {hasHistory ? (
-          <TabsList>
-            <TabsTrigger value="settings">
-              <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
-            </TabsTrigger>
-          </TabsList>
+          // The rule runs the editor's width, and the active tab's underline sits on it.
+          <div className="border-b border-border">
+            <TabsList variant="line" className="-ms-[3px]">
+              <TabsTrigger value="settings">
+                <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
+              </TabsTrigger>
+            </TabsList>
+          </div>
         ) : null}
 
         <TabsContent
