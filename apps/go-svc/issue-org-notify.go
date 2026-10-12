@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const notificationDedupeBucketMillis = int64(5 * time.Minute / time.Millisecond)
@@ -259,4 +263,172 @@ func (api *issueSheetAPI) safeNotify(r *http.Request, label string, fn func() er
 	if err := fn(); err != nil {
 		logRequestFailure(r, "issue_org_bulk_notify_failed", label, err)
 	}
+}
+
+const commentExcerptMaxLength = 160
+
+var (
+	commentExcerptFencedCode = regexp.MustCompile("(?s)```[\\w-]*\\n?(.*?)```")
+	commentExcerptImage      = regexp.MustCompile(`!\[([^\]]*)\]\(((?:[^()]|\([^()]*\))*)\)`)
+	commentExcerptLink       = regexp.MustCompile(`\[([^\]]*)\]\(((?:[^()]|\([^()]*\))*)\)`)
+	commentExcerptInlineCode = regexp.MustCompile("`([^`]+)`")
+	commentExcerptBoldStar   = regexp.MustCompile(`\*\*(.*?)\*\*`)
+	commentExcerptBoldUnder  = regexp.MustCompile(`__(.*?)__`)
+	commentExcerptItalic     = regexp.MustCompile(`\*([^*]+)\*`)
+	commentExcerptHeading    = regexp.MustCompile(`(?m)^#{1,6}\s+`)
+	commentExcerptBlockquote = regexp.MustCompile(`(?m)^>\s?`)
+	commentExcerptUL         = regexp.MustCompile(`(?m)^[\s]*[-*+]\s+`)
+	commentExcerptOL         = regexp.MustCompile(`(?m)^[\s]*\d+\.\s+`)
+	commentExcerptHR         = regexp.MustCompile(`(?m)^(-{3,}|\*{3,}|_{3,})$`)
+	commentExcerptWhitespace = regexp.MustCompile(`\s+`)
+)
+
+func stripMarkdownForCommentExcerpt(markdown string) string {
+	text := commentExcerptFencedCode.ReplaceAllString(markdown, "$1")
+	text = commentExcerptImage.ReplaceAllString(text, "$1")
+	text = commentExcerptLink.ReplaceAllStringFunc(text, func(match string) string {
+		parts := commentExcerptLink.FindStringSubmatch(match)
+		if len(parts) < 3 {
+			return match
+		}
+		if parts[1] != "" {
+			return parts[1]
+		}
+		return parts[2]
+	})
+	text = commentExcerptInlineCode.ReplaceAllString(text, "$1")
+	text = commentExcerptBoldStar.ReplaceAllString(text, "$1")
+	text = commentExcerptBoldUnder.ReplaceAllString(text, "$1")
+	text = commentExcerptItalic.ReplaceAllString(text, "$1")
+	text = commentExcerptHeading.ReplaceAllString(text, "")
+	text = commentExcerptBlockquote.ReplaceAllString(text, "")
+	text = commentExcerptUL.ReplaceAllString(text, "")
+	text = commentExcerptOL.ReplaceAllString(text, "")
+	text = commentExcerptHR.ReplaceAllString(text, "")
+	text = commentExcerptWhitespace.ReplaceAllString(text, " ")
+	return strings.TrimSpace(text)
+}
+
+func commentExcerpt(body string) string {
+	trimmed := stripMarkdownForCommentExcerpt(body)
+	runes := []rune(trimmed)
+	if len(runes) <= commentExcerptMaxLength {
+		return trimmed
+	}
+	if commentExcerptMaxLength <= 1 {
+		return string(runes[:commentExcerptMaxLength])
+	}
+	return string(runes[:commentExcerptMaxLength-1]) + "…"
+}
+
+func (api *issueSheetAPI) loadIssueNotificationTitle(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID string) (string, error) {
+	var title string
+	err := db.QueryRow(ctx, `
+        select title from issue_sheet_issues
+        where organization_id = $1 and project_id = $2 and id = $3`,
+		organizationID, projectID, issueID).Scan(&title)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	return title, err
+}
+
+func (api *issueSheetAPI) notifyMentions(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, commentID, commentBody string, mentionedUserIDs []string) error {
+	if len(mentionedUserIDs) == 0 {
+		return nil
+	}
+	issueTitle, err := api.loadIssueNotificationTitle(ctx, db, organizationID, projectID, issueID)
+	if err != nil {
+		return err
+	}
+	if issueTitle == "" {
+		return nil
+	}
+
+	recipients, err := resolveAccessibleRecipients(ctx, db, organizationID, projectID, actorUserID, mentionedUserIDs)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+
+	excerpt := commentExcerpt(commentBody)
+	rows := make([]notificationRow, 0, len(recipients))
+	for _, recipient := range recipients {
+		rows = append(rows, notificationRow{
+			organizationID:  organizationID,
+			projectID:       projectID,
+			issueID:         issueID,
+			recipientUserID: recipient,
+			notifType:       "mentioned",
+			actorUserID:     actorUserID,
+			payload: map[string]any{
+				"issueTitle":     issueTitle,
+				"projectId":      projectID,
+				"commentId":      commentID,
+				"commentExcerpt": excerpt,
+			},
+			dedupeKey: fmt.Sprintf("mentioned:%s:%s", commentID, recipient),
+		})
+	}
+	return upsertNotifications(ctx, db, rows)
+}
+
+func (api *issueSheetAPI) notifyCommentCreated(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID, actorUserID, commentID, commentBody string, mentionedUserIDs []string) error {
+	issueTitle, err := api.loadIssueNotificationTitle(ctx, db, organizationID, projectID, issueID)
+	if err != nil {
+		return err
+	}
+	if issueTitle == "" {
+		return nil
+	}
+
+	if err := api.notifyMentions(ctx, db, organizationID, projectID, issueID, actorUserID, commentID, commentBody, mentionedUserIDs); err != nil {
+		return err
+	}
+
+	subscribers, err := subscriberUserIDs(ctx, db, organizationID, projectID, issueID)
+	if err != nil {
+		return err
+	}
+	mentionedSet := make(map[string]bool, len(mentionedUserIDs))
+	for _, userID := range mentionedUserIDs {
+		mentionedSet[userID] = true
+	}
+	commentCandidates := make([]string, 0, len(subscribers))
+	for _, userID := range subscribers {
+		if !mentionedSet[userID] {
+			commentCandidates = append(commentCandidates, userID)
+		}
+	}
+
+	recipients, err := resolveAccessibleRecipients(ctx, db, organizationID, projectID, actorUserID, commentCandidates)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+
+	excerpt := commentExcerpt(commentBody)
+	rows := make([]notificationRow, 0, len(recipients))
+	for _, recipient := range recipients {
+		rows = append(rows, notificationRow{
+			organizationID:  organizationID,
+			projectID:       projectID,
+			issueID:         issueID,
+			recipientUserID: recipient,
+			notifType:       "comment",
+			actorUserID:     actorUserID,
+			payload: map[string]any{
+				"issueTitle":     issueTitle,
+				"projectId":      projectID,
+				"commentId":      commentID,
+				"commentExcerpt": excerpt,
+			},
+			dedupeKey: fmt.Sprintf("comment:%s:%s", commentID, recipient),
+		})
+	}
+	return upsertNotifications(ctx, db, rows)
 }
