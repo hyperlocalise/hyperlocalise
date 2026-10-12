@@ -741,6 +741,35 @@ describe("GoSvcClient", () => {
     ]);
   });
 
+  it("lists conversations, messages, and linked jobs from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ conversations: [] }))
+      .mockResolvedValueOnce(Response.json({ conversation: { id: "conv-1" }, messages: [] }))
+      .mockResolvedValueOnce(Response.json({ messages: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.conversation.list("acme / eu", {
+      limit: 50,
+      projectId: "project/1",
+      status: "active",
+    });
+    await client.conversation.get("acme / eu", "conv/1");
+    await client.conversation.listMessages("acme / eu", "conv/1");
+    await client.conversation.listJobs("acme / eu", "conv/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations?limit=50&projectId=project%2F1&status=active`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/messages`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/jobs`, "GET"],
+    ]);
+  });
+
   it("encodes organization and issue-sheet path segments", () => {
     expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
       "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",

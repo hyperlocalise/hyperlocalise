@@ -10,12 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 
-import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
+import { canAccessInteraction } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { badRequestResponse } from "@/api/response.schema";
@@ -44,15 +44,7 @@ import { resolveGitLabProjectContext } from "@/lib/gitlab/repository-context";
 import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
-import {
-  sanitizeInteractionMessagesForRole,
-  sanitizeLastMessagePreviewForRole,
-} from "./conversation-message-parts";
-import {
-  conversationIdParamsSchema,
-  createConversationRequestSchema,
-  listConversationsQuerySchema,
-} from "./conversation.schema";
+import { conversationIdParamsSchema, createConversationRequestSchema } from "./conversation.schema";
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
@@ -303,14 +295,6 @@ const validateConversationParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-const validateListQuery = validator("query", (value, c) => {
-  const parsed = listConversationsQuerySchema.safeParse(value);
-  if (!parsed.success) {
-    return c.json({ error: "invalid_query" }, 400);
-  }
-  return parsed.data;
-});
-
 function asString(value: unknown) {
   return typeof value === "string" ? value : undefined;
 }
@@ -327,114 +311,6 @@ type CreateConversationRoutesOptions = {
 export function createConversationRoutes(options: CreateConversationRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", validateListQuery, async (c) => {
-      const query = c.req.valid("query");
-
-      const conditions = [await buildAccessibleInteractionsWhere(c.var.auth)];
-      if (query.status) {
-        conditions.push(eq(schema.inboxItems.status, query.status));
-      }
-      const projectId = query.projectId ? normalizeProjectId(query.projectId) : undefined;
-      if (projectId) {
-        conditions.push(eq(schema.interactions.projectId, projectId));
-      }
-      if (query.cursor) {
-        const cursorDate = new Date(query.cursor);
-        if (!Number.isNaN(cursorDate.getTime())) {
-          conditions.push(lt(schema.interactions.lastMessageAt, cursorDate));
-        }
-      }
-
-      const conversations = await db
-        .select({
-          id: schema.interactions.id,
-          title: schema.interactions.title,
-          source: schema.interactions.source,
-          status: schema.inboxItems.status,
-          projectId: schema.interactions.projectId,
-          lastMessageAt: schema.interactions.lastMessageAt,
-          createdAt: schema.interactions.createdAt,
-        })
-        .from(schema.inboxItems)
-        .innerJoin(schema.interactions, eq(schema.inboxItems.interactionId, schema.interactions.id))
-        .where(and(...conditions))
-        .orderBy(desc(schema.interactions.lastMessageAt))
-        .limit(query.limit);
-
-      // Fetch last message preview for each conversation
-      const conversationIds = conversations.map((c) => c.id);
-      const lastMessages =
-        conversationIds.length > 0
-          ? await db
-              .selectDistinctOn([schema.interactionMessages.interactionId], {
-                interactionId: schema.interactionMessages.interactionId,
-                text: schema.interactionMessages.text,
-                parts: schema.interactionMessages.parts,
-                senderType: schema.interactionMessages.senderType,
-                createdAt: schema.interactionMessages.createdAt,
-              })
-              .from(schema.interactionMessages)
-              .where(inArray(schema.interactionMessages.interactionId, conversationIds))
-              .orderBy(
-                schema.interactionMessages.interactionId,
-                desc(schema.interactionMessages.createdAt),
-              )
-          : [];
-
-      const lastMessageMap = new Map<
-        string,
-        { text: string; senderType: "user" | "agent"; createdAt: Date; parts: unknown }
-      >();
-      for (const msg of lastMessages) {
-        if (!lastMessageMap.has(msg.interactionId)) {
-          lastMessageMap.set(msg.interactionId, {
-            text: msg.text,
-            parts: msg.parts,
-            senderType: msg.senderType,
-            createdAt: msg.createdAt,
-          });
-        }
-      }
-
-      const firstUserMessages =
-        conversationIds.length > 0
-          ? await db
-              .selectDistinctOn([schema.interactionMessages.interactionId], {
-                interactionId: schema.interactionMessages.interactionId,
-                senderEmail: schema.interactionMessages.senderEmail,
-              })
-              .from(schema.interactionMessages)
-              .where(
-                and(
-                  inArray(schema.interactionMessages.interactionId, conversationIds),
-                  eq(schema.interactionMessages.senderType, "user"),
-                ),
-              )
-              .orderBy(
-                schema.interactionMessages.interactionId,
-                asc(schema.interactionMessages.createdAt),
-              )
-          : [];
-
-      const participantEmailMap = new Map<string, string | null>();
-      for (const msg of firstUserMessages) {
-        participantEmailMap.set(msg.interactionId, msg.senderEmail);
-      }
-
-      return c.json(
-        {
-          conversations: conversations.map((conv) => ({
-            ...conv,
-            participantEmail: participantEmailMap.get(conv.id) ?? null,
-            lastMessage: sanitizeLastMessagePreviewForRole(
-              lastMessageMap.get(conv.id),
-              c.var.auth.membership.role,
-            ),
-          })),
-        },
-        200,
-      );
-    })
     .post("/", messageUploadBodyLimit, async (c) => {
       const body = await c.req.parseBody({ all: true });
       const parsed = createConversationRequestSchema.safeParse({
@@ -599,47 +475,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
       return c.json({ conversation, message, files: responseFiles }, 201);
     })
-    .get("/:conversationId", validateConversationParams, async (c) => {
-      const { conversationId } = c.req.valid("param");
-
-      const conversation = await canAccessInteraction(c.var.auth, conversationId);
-      if (!conversation) {
-        return notFoundResponse(c);
-      }
-
-      const messages = sanitizeInteractionMessagesForRole(
-        await db
-          .select()
-          .from(schema.interactionMessages)
-          .where(eq(schema.interactionMessages.interactionId, conversationId))
-          .orderBy(schema.interactionMessages.createdAt),
-        c.var.auth.membership.role,
-      );
-
-      return c.json({ conversation, messages }, 200);
-    })
-    .get("/:conversationId/messages", validateConversationParams, async (c) => {
-      const { conversationId } = c.req.valid("param");
-
-      const conversation = await canAccessInteraction(c.var.auth, conversationId);
-      if (!conversation) {
-        return notFoundResponse(c);
-      }
-
-      const messages = sanitizeInteractionMessagesForRole(
-        (
-          await db
-            .select()
-            .from(schema.interactionMessages)
-            .where(eq(schema.interactionMessages.interactionId, conversationId))
-            .orderBy(desc(schema.interactionMessages.createdAt))
-            .limit(50)
-        ).reverse(),
-        c.var.auth.membership.role,
-      );
-
-      return c.json({ messages }, 200);
-    })
     .post(
       "/:conversationId/messages",
       validateConversationParams,
@@ -802,37 +637,5 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         return c.json({ message }, 201);
       },
     )
-    .get("/:conversationId/jobs", validateConversationParams, async (c) => {
-      const { conversationId } = c.req.valid("param");
-      const orgId = c.var.auth.activeOrganization.localOrganizationId;
-
-      const conversation = await canAccessInteraction(c.var.auth, conversationId);
-      if (!conversation) {
-        return notFoundResponse(c);
-      }
-
-      const jobs = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          outcomeKind: schema.translationJobDetails.outcomeKind,
-          createdAt: schema.jobs.createdAt,
-          completedAt: schema.jobs.completedAt,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(
-          and(eq(schema.jobs.organizationId, orgId), eq(schema.jobs.interactionId, conversationId)),
-        )
-        .orderBy(desc(schema.jobs.createdAt));
-
-      return c.json({ jobs }, 200);
-    })
     .route("/:conversationId/chat", createChatStreamRoutes());
 }

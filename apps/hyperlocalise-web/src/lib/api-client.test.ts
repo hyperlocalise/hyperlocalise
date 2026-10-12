@@ -25,7 +25,7 @@ describe("createApiClient", () => {
     expect(typeof org.notifications.$get).toBe("function");
     expect(typeof org["notification-preferences"].$get).toBe("function");
     expect(typeof org.mentions.$get).toBe("function");
-    expect(typeof org.conversations.$get).toBe("function");
+    expect(typeof org.conversations.$post).toBe("function");
     expect(typeof org.glossaries.$get).toBe("function");
     expect(typeof org["knowledge-memory"].$get).toBe("function");
     expect(typeof org["translation-memories"].$get).toBe("function");

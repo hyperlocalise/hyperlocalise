@@ -26,10 +26,3 @@ export const createConversationRequestSchema = z.object({
   repositoryFullName: z.string().trim().min(1).max(255).optional(),
   repositoryProvider: repositoryProviderSchema.optional(),
 });
-
-export const listConversationsQuerySchema = z.object({
-  status: z.enum(["active", "archived"]).optional(),
-  projectId: optionalProjectIdSchema,
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
-  cursor: z.string().optional(),
-});

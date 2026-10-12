@@ -155,19 +155,6 @@ describe("automation assistant sessions", () => {
       .from(schema.interactions)
       .where(eq(schema.interactions.id, session.id));
     expect(conversations).toEqual([]);
-
-    const listed = await client.api.orgs[":organizationSlug"].conversations.$get(
-      { param: { organizationSlug: slug }, query: { limit: "50" } },
-      { headers },
-    );
-    expect(listed.status).toBe(200);
-    const body = await json<{ conversations: Array<{ id: string }> }>(listed);
-    expect(body.conversations.map((conversation) => conversation.id)).not.toContain(session.id);
-
-    const asConversation = await client.api.orgs[":organizationSlug"].conversations[
-      ":conversationId"
-    ].$get({ param: { organizationSlug: slug, conversationId: session.id } }, { headers });
-    expect(asConversation.status).toBe(404);
   });
 
   it("resumes the author's own session for an automation once it is bound", async () => {
