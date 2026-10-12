@@ -54,8 +54,6 @@ function createOrgSlugClient(origin: string) {
 
   return {
     ...pickClientPaths(inbox, [
-      "issues",
-      "issue-sheet",
       "notifications",
       "notification-preferences",
       "mentions",

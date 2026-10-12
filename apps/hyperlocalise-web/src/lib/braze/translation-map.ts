@@ -18,6 +18,8 @@ import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import { hashBrazeContent } from "./html-envelope";
 import { slugifyBrazePathSegment } from "./names";
 
+export { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "./source-paths";
+
 export type BrazeTranslationMap = Record<string, string>;
 
 export function isBrazeTranslationMap(value: unknown): value is BrazeTranslationMap {
@@ -96,15 +98,5 @@ export function buildBrazeCanvasSourcePath(input: {
   );
   return normalizeSourcePath(
     `braze/canvas/${canvasSlug}-${brazeSourcePathToken(input.workflowId)}/${stepSlug}-${brazeSourcePathToken(input.stepId)}/${variationSlug}-${brazeSourcePathToken(input.messageVariationId)}.json`,
-  );
-}
-
-export function isBrazeCampaignSourcePath(sourcePath: string): boolean {
-  return sourcePath.startsWith("braze/campaigns/") || sourcePath.startsWith("braze/canvas/");
-}
-
-export function isBrazeTemplateSourcePath(sourcePath: string): boolean {
-  return (
-    sourcePath.startsWith("braze/templates/") || sourcePath.startsWith("braze/content-blocks/")
   );
 }

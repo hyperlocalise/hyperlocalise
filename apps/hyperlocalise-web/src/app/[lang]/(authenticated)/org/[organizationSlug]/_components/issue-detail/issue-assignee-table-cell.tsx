@@ -16,8 +16,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { IssueAssigneePicker } from "./issue-assignee-picker";
 import { issueDetailPanelMessages } from "./issue-detail-panel.messages";
@@ -46,6 +46,7 @@ export function IssueAssigneeTableCell({
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { client: goSvcClient } = useGoSvcClient();
   const membersQuery = useAssignableIssueMembersQuery({
     organizationSlug,
     projectId,
@@ -54,23 +55,18 @@ export function IssueAssigneeTableCell({
 
   const updateAssignee = useMutation({
     mutationFn: async (nextAssigneeUserId: string | null) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].$patch({
-        param: { organizationSlug, projectId, issueId },
-        json: { assigneeUserId: nextAssigneeUserId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(
-          response,
-          intl.formatMessage(issueDetailPanelMessages.updateFailed),
-        );
+      const failed = intl.formatMessage(issueDetailPanelMessages.updateFailed);
+      try {
+        const body = await goSvcClient.issueSheet.update(organizationSlug, projectId, issueId, {
+          assigneeUserId: nextAssigneeUserId,
+        });
+        if (!isIssueDetailIssue(body.issue)) {
+          throw new Error(failed);
+        }
+        return { issue: body.issue };
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, failed), { cause: error });
       }
-      const body = await response.json();
-      if (!isIssueDetailIssue(body.issue)) {
-        throw new Error(intl.formatMessage(issueDetailPanelMessages.updateFailed));
-      }
-      return { issue: body.issue };
     },
     onSuccess: async (result) => {
       if (actorUserId) {

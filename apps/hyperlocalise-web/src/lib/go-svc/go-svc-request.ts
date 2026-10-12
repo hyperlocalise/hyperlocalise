@@ -186,6 +186,10 @@ export function issueSheetPath(
   return orgPath(organizationSlug, "projects", projectId, "issue-sheet", ...segments);
 }
 
+export function orgIssueSheetPath(organizationSlug: string, ...segments: string[]): string {
+  return orgPath(organizationSlug, "issue-sheet", ...segments);
+}
+
 export function catPath(
   organizationSlug: string,
   projectId: string,

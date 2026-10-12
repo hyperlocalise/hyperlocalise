@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export function issueSheetColumnsQueryKey(organizationSlug: string, projectId: string) {
   return ["issue-sheet-columns", organizationSlug, projectId] as const;
@@ -30,20 +30,20 @@ export function useIssueSheetColumnsQuery({
   projectId: string;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: issueSheetColumnsQueryKey(organizationSlug, projectId),
     enabled,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ].columns.$get({
-        param: { organizationSlug, projectId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issue sheet columns");
+      try {
+        const body = await goSvcClient.issueSheet.columns.list(organizationSlug, projectId);
+        return body.columns;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issue sheet columns"), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.columns;
     },
   });
 }

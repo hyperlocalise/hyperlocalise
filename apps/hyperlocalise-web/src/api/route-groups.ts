@@ -41,8 +41,6 @@ import { createIntercomConnectionRoutes } from "./routes/intercom-connection/int
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
-import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
-import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
 import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
 import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
 import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
@@ -110,8 +108,6 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
   return new Hono()
-    .route("/issues", createOrganizationIssuesRoutes())
-    .route("/issue-sheet", createOrganizationIssueSheetRoutes())
     .route("/notifications", createIssueNotificationsRoutes())
     .route("/notification-preferences", createNotificationPreferencesRoutes())
     .route("/mentions", createMentionSuggestionsRoutes())

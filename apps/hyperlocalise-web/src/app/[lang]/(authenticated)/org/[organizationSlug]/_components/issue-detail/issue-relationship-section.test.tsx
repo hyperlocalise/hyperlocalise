@@ -18,7 +18,16 @@ import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { GoSvcClient } from "@/lib/go-svc/go-svc-client";
+
 import { IssueRelationshipSection } from "./issue-relationship-section";
+
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: new GoSvcClient({ getAccessToken: () => "access-token" }),
+    loading: false,
+  }),
+}));
 import type { IssueRelationship } from "./use-issue-relationships-query";
 
 const organizationSlug = "acme";
