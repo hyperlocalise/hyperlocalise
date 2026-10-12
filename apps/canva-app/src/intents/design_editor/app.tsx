@@ -17,6 +17,7 @@ import {
   CheckboxGroup,
   FormField,
   LinkButton,
+  ProgressBar,
   Rows,
   Select,
   Switch,
@@ -88,6 +89,22 @@ function pageDescription(page: DesignPageInfo): string {
   return "Editable page";
 }
 
+function localeWordCountLabel(entry: Pick<CanvaLocaleStatus, "translatedWords" | "wordCount">) {
+  const wordCount = entry.wordCount ?? 0;
+  const translatedWords = entry.translatedWords ?? 0;
+  if (wordCount <= 0) {
+    return "No collected words";
+  }
+  return `${translatedWords} of ${wordCount} words`;
+}
+
+function localeProgressValue(entry: CanvaLocaleStatus): number | "indeterminate" {
+  if (entry.status === "queued" || entry.status === "running") {
+    return "indeterminate";
+  }
+  return entry.percent;
+}
+
 function jobStatusLabel(status: CanvaLocaleStatus["status"]) {
   switch (status) {
     case "queued":
@@ -152,6 +169,8 @@ export const App = () => {
       status: "idle" as const,
       translated: 0,
       total: 0,
+      translatedWords: 0,
+      wordCount: 0,
       percent: 0,
       canAdd: false,
       pages: [],
@@ -722,14 +741,16 @@ export const App = () => {
                 ) : (
                   localeRows.map((entry) => (
                     <Rows key={entry.locale} spacing="0.5u">
-                      <Text>
-                        {localeLabel(entry.locale)} {entry.percent}%
+                      <Text>{localeLabel(entry.locale)}</Text>
+                      <ProgressBar
+                        value={localeProgressValue(entry)}
+                        ariaLabel={`${localeLabel(entry.locale)} progress`}
+                      />
+                      <Text size="small" tone="secondary">
+                        {entry.percent}% · {localeWordCountLabel(entry)} ·{" "}
+                        {jobStatusLabel(entry.status)}
                       </Text>
-                      {entry.status === "queued" || entry.status === "running" ? (
-                        <Text size="small" tone="secondary">
-                          {jobStatusLabel(entry.status)}
-                        </Text>
-                      ) : entry.canAdd ? (
+                      {entry.status === "queued" || entry.status === "running" ? null : entry.canAdd ? (
                         <Button
                           variant="secondary"
                           stretch

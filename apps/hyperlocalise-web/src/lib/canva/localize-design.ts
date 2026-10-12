@@ -28,6 +28,7 @@ import {
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
+import { countNativeSourceWords } from "@/lib/projects/locale-progress/native-project-locale-progress";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import {
   createFileTranslationJob,
@@ -409,6 +410,41 @@ function countTranslatedKeys(translations: Record<string, string>, total: number
   return Math.min(translated, total);
 }
 
+function countTranslationFileWords(file: Record<string, string>, sourceLocale: string) {
+  let words = 0;
+  for (const text of Object.values(file)) {
+    words += countNativeSourceWords(text, sourceLocale);
+  }
+  return words;
+}
+
+function countTranslatedSourceWords(
+  sourceFile: Record<string, string>,
+  translations: Record<string, string>,
+  sourceLocale: string,
+) {
+  let words = 0;
+  for (const [key, sourceText] of Object.entries(sourceFile)) {
+    if ((translations[key] ?? "").trim().length === 0) {
+      continue;
+    }
+    words += countNativeSourceWords(sourceText, sourceLocale);
+  }
+  return words;
+}
+
+function parseStoredTranslationFile(content: Buffer) {
+  try {
+    const parsed: unknown = JSON.parse(content.toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parseTranslationFile(parsed as Record<string, unknown>);
+  } catch {
+    return {};
+  }
+}
+
 function rollupLocaleStatus(
   pages: CanvaLocaleStatus["pages"],
 ): Pick<CanvaLocaleStatus, "status" | "canAdd"> {
@@ -464,6 +500,10 @@ export async function collectCanvaDesign(input: {
     const sourcePath = buildPageSourcePath(designSlug, pageIndex);
     const fileBody = JSON.stringify(translationFile, null, 2);
     const sourceHash = createHash("sha256").update(fileBody).digest("hex");
+    const wordCount = countTranslationFileWords(
+      translationFile,
+      project.sourceLocale?.trim() || "en",
+    );
     const storedFile = await createStoredFile({
       organizationId: input.organizationId,
       projectId: project.id,
@@ -484,6 +524,7 @@ export async function collectCanvaDesign(input: {
         canvaCollectBatchId: collectBatchId,
         canvaConnectionId: input.canvaConnectionId,
         segmentCount: Object.keys(translationFile).length,
+        wordCount,
       },
       adapter,
     });
@@ -511,6 +552,7 @@ export async function collectCanvaDesign(input: {
       sourcePath,
       sourceFileId: storedFile.id,
       segmentCount: Object.keys(translationFile).length,
+      wordCount,
     });
   }
 
@@ -570,11 +612,13 @@ async function listCollectedCanvaPageFiles(input: {
     }
     const segmentCount =
       typeof row.metadata.segmentCount === "number" ? row.metadata.segmentCount : 0;
+    const wordCount = typeof row.metadata.wordCount === "number" ? row.metadata.wordCount : 0;
     latestByPage.set(pageIndex, {
       pageIndex,
       sourcePath,
       sourceFileId: row.id,
       segmentCount,
+      wordCount,
     });
   }
 
@@ -717,10 +761,30 @@ export async function listCanvaDesignLocaleStatuses(input: {
     designId: input.designId,
   });
 
+  const sourceLocale = project.sourceLocale?.trim() || "en";
+  const sourceByPage = new Map<number, Record<string, string>>();
+  await Promise.all(
+    pages.map(async (page) => {
+      try {
+        const stored = await getStoredFileContent({
+          organizationId: input.organizationId,
+          projectId: project.id,
+          fileId: page.sourceFileId,
+        });
+        sourceByPage.set(page.pageIndex, parseStoredTranslationFile(stored.content));
+      } catch {
+        sourceByPage.set(page.pageIndex, {});
+      }
+    }),
+  );
+
   const locales: CanvaLocaleStatus[] = [];
   for (const locale of targetLocales) {
     const localePages: CanvaLocalePageStatus[] = [];
     for (const page of pages) {
+      const sourceFile = sourceByPage.get(page.pageIndex) ?? {};
+      const wordCount =
+        page.wordCount > 0 ? page.wordCount : countTranslationFileWords(sourceFile, sourceLocale);
       const job = jobs.find(
         (candidate) =>
           readMetadataNumber(candidate.inputPayload, "canvaPageIndex") === page.pageIndex &&
@@ -728,6 +792,7 @@ export async function listCanvaDesignLocaleStatuses(input: {
       );
       const status = job ? publicCanvaJobStatus(job.status) : "idle";
       let translated = 0;
+      let translatedWords = 0;
       if (job && status !== "idle" && canvaJobHasPullableTranslations(status)) {
         const outputFiles = (publicJobOutputFiles(job) ?? []).filter(
           (file) => file.locale === locale,
@@ -738,7 +803,9 @@ export async function listCanvaDesignLocaleStatuses(input: {
             projectId: job.projectId,
             outputFiles,
           });
-          translated = countTranslatedKeys(loaded[locale] ?? {}, page.segmentCount);
+          const translations = loaded[locale] ?? {};
+          translated = countTranslatedKeys(translations, page.segmentCount);
+          translatedWords = countTranslatedSourceWords(sourceFile, translations, sourceLocale);
         }
       }
       localePages.push({
@@ -748,18 +815,26 @@ export async function listCanvaDesignLocaleStatuses(input: {
         status,
         translated,
         total: page.segmentCount,
+        translatedWords,
+        wordCount,
       });
     }
 
     const translated = localePages.reduce((sum, page) => sum + page.translated, 0);
     const total = localePages.reduce((sum, page) => sum + page.total, 0);
+    const translatedWords = localePages.reduce((sum, page) => sum + page.translatedWords, 0);
+    const wordCount = localePages.reduce((sum, page) => sum + page.wordCount, 0);
     const rolled = rollupLocaleStatus(localePages);
+    const progressTotal = wordCount > 0 ? wordCount : total;
+    const progressDone = wordCount > 0 ? translatedWords : translated;
     locales.push({
       locale,
       ...rolled,
       translated,
       total,
-      percent: total === 0 ? 0 : Math.round((translated / total) * 100),
+      translatedWords,
+      wordCount,
+      percent: progressTotal === 0 ? 0 : Math.round((progressDone / progressTotal) * 100),
       pages: localePages,
     });
   }

@@ -135,6 +135,8 @@ describe("Hyperlocalise Canva app", () => {
           status: "idle",
           translated: 0,
           total: 0,
+          translatedWords: 0,
+          wordCount: 42,
           percent: 0,
           canAdd: false,
           pages: [],
@@ -144,6 +146,8 @@ describe("Hyperlocalise Canva app", () => {
           status: "idle",
           translated: 0,
           total: 0,
+          translatedWords: 0,
+          wordCount: 42,
           percent: 0,
           canAdd: false,
           pages: [],
@@ -162,6 +166,7 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByText("English (en-US)", { exact: false })).toBeTruthy();
     expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
     expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
+    expect(result.getAllByText("0% · 0 of 42 words · Not started").length).toBeGreaterThan(0);
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
   });

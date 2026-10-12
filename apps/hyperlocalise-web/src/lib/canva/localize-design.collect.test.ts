@@ -112,7 +112,16 @@ describe("collectCanvaDesign", () => {
       pageIndex: 0,
       sourcePath: "canva/designs/mic/page-0.json",
       sourceFileId: "file_1",
+      wordCount: 1,
     });
+    expect(createStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          wordCount: 1,
+          segmentCount: 1,
+        }),
+      }),
+    );
     expect(createRepositorySourceFileVersionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sourcePath: "canva/designs/mic/page-0.json",

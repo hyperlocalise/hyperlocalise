@@ -46,6 +46,8 @@ export type CanvaLocalePageStatus = {
   status: CanvaJobStatusName | "idle";
   translated: number;
   total: number;
+  translatedWords: number;
+  wordCount: number;
 };
 
 export type CanvaLocaleStatus = {
@@ -53,6 +55,8 @@ export type CanvaLocaleStatus = {
   status: CanvaJobStatusName | "idle";
   translated: number;
   total: number;
+  translatedWords: number;
+  wordCount: number;
   percent: number;
   canAdd: boolean;
   pages: CanvaLocalePageStatus[];
@@ -63,6 +67,7 @@ export type CollectedCanvaPage = {
   sourcePath: string;
   sourceFileId: string;
   segmentCount: number;
+  wordCount: number;
 };
 
 export type CanvaDesignJob = {
