@@ -1138,11 +1138,28 @@ export function workspaceAutomationFormSupportsOnDemandRun(
   return triggerMode === "manual" || triggerMode === "scheduled";
 }
 
+/** The form as a save would store it, where that differs from what was typed. */
+function storedWorkspaceAutomationForm(
+  form: WorkspaceAutomationFormState,
+): WorkspaceAutomationFormState {
+  const slackChannelId = parseSlackConversationId(form.slackChannelId);
+  return slackChannelId && slackChannelId !== form.slackChannelId
+    ? { ...form, slackChannelId }
+    : form;
+}
+
+/**
+ * A pasted Slack channel link and the ID it is saved as count as the same value, so a form left
+ * holding the link is not unsaved once the ID has been stored.
+ */
 export function workspaceAutomationFormHasChanges(
   current: WorkspaceAutomationFormState,
   saved: WorkspaceAutomationFormState,
 ) {
-  return JSON.stringify(current) !== JSON.stringify(saved);
+  return (
+    JSON.stringify(storedWorkspaceAutomationForm(current)) !==
+    JSON.stringify(storedWorkspaceAutomationForm(saved))
+  );
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {

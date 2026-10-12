@@ -122,6 +122,14 @@ vi.mock("./workspace-automation-form", () => ({
       <button type="button" onClick={() => onChange({ ...form, name: "Renamed automation" })}>
         Dirty form
       </button>
+      <button
+        type="button"
+        onClick={() =>
+          onChange({ ...form, slackChannelId: "https://acme.slack.com/archives/C07654321" })
+        }
+      >
+        Paste Slack link
+      </button>
       {onRefreshRunHistory ? (
         <button type="button" disabled={runHistoryRefreshing} onClick={onRefreshRunHistory}>
           Refresh
@@ -446,6 +454,45 @@ describe("AutomationDetailPageContent save errors", () => {
 
     await vi.waitFor(() => expect(apiMocks.patchAutomation).toHaveBeenCalledOnce());
     expect(screen.getByRole("status", { name: "Errors" })).toBeEmptyDOMElement();
+  });
+
+  it("is saved, not left unsaved, after a pasted Slack link is stored as its channel ID", async () => {
+    const user = userEvent.setup();
+    const stored = {
+      ...automation,
+      toolConfig: {
+        ...automation.toolConfig,
+        slack: { enabled: true, channelId: "C07654321" },
+      },
+    };
+    apiMocks.getAutomation
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ automation, recentRuns: [] }),
+      })
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ automation: stored, recentRuns: [] }),
+      });
+    apiMocks.patchAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: stored }),
+    });
+
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Paste Slack link" }));
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await vi.waitFor(() => expect(apiMocks.getAutomation).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled(),
+    );
+    expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
   });
 
   it("drops errors the form no longer earns when the form changes", async () => {

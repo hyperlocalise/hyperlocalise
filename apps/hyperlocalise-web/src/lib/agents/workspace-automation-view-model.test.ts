@@ -913,6 +913,32 @@ describe("Slack channel in the saved configuration", () => {
   });
 });
 
+describe("workspaceAutomationFormHasChanges with a Slack channel link", () => {
+  const saved: WorkspaceAutomationFormState = {
+    ...createDefaultWorkspaceAutomationFormState(),
+    slackEnabled: true,
+    slackChannelId: "C01234567",
+  };
+
+  it("takes a link for the channel ID it is saved as", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C01234567" },
+        saved,
+      ),
+    ).toBe(false);
+  });
+
+  it("still sees a link to another channel as a change", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C07654321" },
+        saved,
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("pruneWorkspaceAutomationFieldErrors", () => {
   const invalidForm: WorkspaceAutomationFormState = {
     ...createDefaultWorkspaceAutomationFormState(),
