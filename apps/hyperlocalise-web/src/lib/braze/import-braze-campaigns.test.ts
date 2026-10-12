@@ -111,5 +111,19 @@ describe("braze campaign import helpers", () => {
         importedCount: 2,
       }),
     ).toBe(false);
+    expect(
+      isBrazeLocaleImportComplete({
+        sourceMap: { a: "A" },
+        remoteMap: { a: "A" },
+        importedCount: 0,
+      }),
+    ).toBe(false);
+    expect(
+      isBrazeLocaleImportComplete({
+        sourceMap: {},
+        remoteMap: {},
+        importedCount: 1,
+      }),
+    ).toBe(false);
   });
 });

@@ -92,6 +92,52 @@ describe("braze campaign push helpers", () => {
     ).toBe(false);
   });
 
+  it("pushes a changed map unless overwrite is off and remote is newer", () => {
+    expect(
+      shouldSkipBrazeCampaignLocalePush({
+        lastHash: "prev",
+        contentHash: "next",
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: new Date("2026-10-11T12:00:00.000Z"),
+        lastPushHash: "prev",
+        remoteHash: "prev",
+      }),
+    ).toBe(false);
+  });
+
+  it("skips an unchanged map unless overwrite is on and remote drifted", () => {
+    expect(
+      shouldSkipBrazeCampaignLocalePush({
+        lastHash: "same",
+        contentHash: "same",
+        overwriteWhenRemoteNewer: false,
+        lastPushedAt: new Date("2026-10-11T12:00:00.000Z"),
+        lastPushHash: "same",
+        remoteHash: "same",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipBrazeCampaignLocalePush({
+        lastHash: "same",
+        contentHash: "same",
+        overwriteWhenRemoteNewer: true,
+        lastPushedAt: new Date("2026-10-11T12:00:00.000Z"),
+        lastPushHash: "same",
+        remoteHash: "same",
+      }),
+    ).toBe(true);
+    expect(
+      shouldSkipBrazeCampaignLocalePush({
+        lastHash: "same",
+        contentHash: "same",
+        overwriteWhenRemoteNewer: true,
+        lastPushedAt: new Date("2026-10-11T12:00:00.000Z"),
+        lastPushHash: "same",
+        remoteHash: "drifted",
+      }),
+    ).toBe(false);
+  });
+
   it("treats only missing locales as empty remote maps", () => {
     expect(
       shouldTreatBrazeRemoteTranslationAsEmpty(

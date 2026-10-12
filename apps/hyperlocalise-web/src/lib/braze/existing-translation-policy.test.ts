@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   brazeTranslationPresence,
   decideBrazeExistingTranslationAction,
+  isBrazeExistingTranslationPolicy,
 } from "./existing-translation-policy";
 
 describe("braze existing translation policy", () => {
@@ -104,11 +105,49 @@ describe("braze existing translation policy", () => {
         policy: "refresh_imported",
         presence: {
           hasExistingTranslation: true,
+          importProvenanceOnly: true,
+          contentHash: "same",
+        },
+        incomingHash: "same",
+      }),
+    ).toBe("skip");
+    expect(
+      decideBrazeExistingTranslationAction({
+        policy: "refresh_imported",
+        presence: {
+          hasExistingTranslation: true,
           importProvenanceOnly: false,
           contentHash: "old",
         },
         incomingHash: "new",
       }),
     ).toBe("skip");
+  });
+
+  it("overwrites every existing locale when the policy is overwrite_all", () => {
+    expect(isBrazeExistingTranslationPolicy("overwrite_all")).toBe(true);
+    expect(isBrazeExistingTranslationPolicy("seed_if_empty")).toBe(false);
+    expect(
+      decideBrazeExistingTranslationAction({
+        policy: "overwrite_all",
+        presence: {
+          hasExistingTranslation: true,
+          importProvenanceOnly: false,
+          contentHash: "old",
+        },
+        incomingHash: "old",
+      }),
+    ).toBe("import");
+    expect(
+      decideBrazeExistingTranslationAction({
+        policy: "overwrite_all",
+        presence: {
+          hasExistingTranslation: false,
+          importProvenanceOnly: false,
+          contentHash: null,
+        },
+        incomingHash: "new",
+      }),
+    ).toBe("import");
   });
 });
