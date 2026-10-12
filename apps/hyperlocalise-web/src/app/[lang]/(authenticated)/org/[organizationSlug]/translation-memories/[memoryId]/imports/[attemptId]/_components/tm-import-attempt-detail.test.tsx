@@ -29,43 +29,20 @@ import {
 const { getAttemptMock, queueImportMock, memoryGetMock } = vi.hoisted(() => ({
   getAttemptMock: vi.fn(),
   queueImportMock: vi.fn(async () => ({ attemptId: "attempt-1", status: "queued" })),
-  memoryGetMock: vi.fn(
-    async (): Promise<{
-      ok: boolean;
-      json?: () => Promise<{ memory: { name: string; status: string } }>;
-    }> => ({
-      ok: true as const,
-      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
-    }),
-  ),
+  memoryGetMock: vi.fn(async () => ({ memory: { name: "Product TM", status: "active" } })),
 }));
 
 vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
   useGoSvcClient: () => ({
     client: {
       memory: {
+        get: memoryGetMock,
         importAttempts: { get: getAttemptMock },
         entries: { queueImport: queueImportMock },
       },
     },
     loading: false,
   }),
-}));
-
-vi.mock("@/lib/api-client-instance", () => ({
-  apiClient: {
-    api: {
-      orgs: {
-        ":organizationSlug": {
-          "translation-memories": {
-            ":memoryId": {
-              $get: () => memoryGetMock(),
-            },
-          },
-        },
-      },
-    },
-  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -233,10 +210,7 @@ describe("memoryInterchangeReportSamples", () => {
 
 describe("TmImportAttemptDetail import actions", () => {
   beforeEach(() => {
-    memoryGetMock.mockImplementation(async () => ({
-      ok: true as const,
-      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
-    }));
+    memoryGetMock.mockResolvedValue({ memory: { name: "Product TM", status: "active" } });
   });
 
   it("does not offer Import entries while preview is running", async () => {
@@ -265,10 +239,7 @@ describe("TmImportAttemptDetail import actions", () => {
   });
 
   it("hides Import entries while memory status is loading", async () => {
-    let resolveMemory: (value: {
-      ok: boolean;
-      json?: () => Promise<{ memory: { name: string; status: string } }>;
-    }) => void = () => {};
+    let resolveMemory: (value: { memory: { name: string; status: string } }) => void = () => {};
     memoryGetMock.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -281,18 +252,12 @@ describe("TmImportAttemptDetail import actions", () => {
     await screen.findByText("memory.tmx");
     expect(screen.queryByRole("button", { name: "Import entries" })).not.toBeInTheDocument();
 
-    resolveMemory({
-      ok: true,
-      json: async () => ({ memory: { name: "Product TM", status: "active" } }),
-    });
+    resolveMemory({ memory: { name: "Product TM", status: "active" } });
     expect(await screen.findByRole("button", { name: "Import entries" })).toBeInTheDocument();
   });
 
   it("hides Import entries when the memory is archived", async () => {
-    memoryGetMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ memory: { name: "Product TM", status: "archived" } }),
-    });
+    memoryGetMock.mockResolvedValue({ memory: { name: "Product TM", status: "archived" } });
     getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
     renderDetail();
 
@@ -301,7 +266,7 @@ describe("TmImportAttemptDetail import actions", () => {
   });
 
   it("hides Import entries when memory metadata cannot be loaded", async () => {
-    memoryGetMock.mockResolvedValue({ ok: false });
+    memoryGetMock.mockRejectedValue(new Error("memory_not_found"));
     getAttemptMock.mockResolvedValue(importAttemptResponse("preview_completed"));
     renderDetail();
 

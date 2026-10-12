@@ -95,7 +95,11 @@ func main() {
 	h.spellChecker = spellChecker
 	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
-	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
+	h.memories = &memoryAPI{
+		activityLog: activityLogPublisher,
+		interchange: memoryInterchangePublisher,
+		analytics:   newGAProductUsageTrackerFromEnv(),
+	}
 	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{

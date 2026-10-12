@@ -31,7 +31,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
@@ -273,12 +272,12 @@ export function TmImportAttemptDetail({
   const memoryQuery = useQuery({
     queryKey: ["translation-memory", organizationSlug, memoryId],
     queryFn: async ({ signal }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-        ":memoryId"
-      ].$get({ param: { organizationSlug, memoryId } }, { init: { signal } });
-      if (!response.ok) return null;
-      const body = await response.json();
-      return body.memory as MemoryRecord;
+      try {
+        const body = await goSvcClient.memory.get(organizationSlug, memoryId, { signal });
+        return body.memory as MemoryRecord;
+      } catch {
+        return null;
+      }
     },
   });
   if (attemptQuery.isPending) {

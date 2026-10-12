@@ -406,3 +406,34 @@ func (api *projectAPI) publishActivity(ctx context.Context, input activityLogEve
 		)
 	}
 }
+
+func (api *memoryAPI) publishActivity(ctx context.Context, input activityLogEventInput) {
+	if api.activityLog == nil {
+		slog.WarnContext(ctx, "memory_activity_log_publish_skipped",
+			"reason", "publisher_disabled",
+			"environment_variable", activityLogQueueURLEnv,
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+		)
+		return
+	}
+	slog.InfoContext(ctx, "memory_activity_log_publish_requested",
+		"event_type", input.EventType,
+		"organization_id", input.OrganizationID,
+		"target_id", input.TargetID,
+		"target_kind", input.TargetKind,
+	)
+	publishCtx, cancel := context.WithTimeout(ctx, activityLogPublishTimeout)
+	defer cancel()
+	if err := api.activityLog.Publish(publishCtx, input); err != nil {
+		slog.ErrorContext(ctx, "memory_activity_log_publish_failed",
+			"event_type", input.EventType,
+			"organization_id", input.OrganizationID,
+			"target_id", input.TargetID,
+			"target_kind", input.TargetKind,
+			"error", err,
+		)
+	}
+}
