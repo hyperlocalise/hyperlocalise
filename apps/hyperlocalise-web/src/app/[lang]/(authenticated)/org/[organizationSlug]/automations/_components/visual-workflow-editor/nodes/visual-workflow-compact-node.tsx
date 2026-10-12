@@ -63,24 +63,30 @@ const nodeStatusMessages = defineMessages({
 // outranks Tailwind's utilities. The `!` classes switch that dot off and leave the handle as the
 // thing to grab; its shape is a Phosphor icon inside it, in the handle's text colour.
 const HANDLE_CLASS = cn(
-  "size-2.5! border-0! bg-transparent!",
-  // As quick as the app's menus and popovers; its 150ms default reads as slow on a change of size.
-  "transition-[scale,opacity,color] duration-100",
-  // React Flow centres a handle on the card's edge by moving it half its own size, and a scale
-  // multiplies that move. Scaling from the corner that lies on the edge keeps the centre in place.
-  "data-[handlepos=left]:origin-top-left data-[handlepos=right]:origin-top-right",
+  "group/handle size-2.5! border-0! bg-transparent!",
+  "transition-colors duration-100 motion-reduce:transition-none",
   // A target larger than the icon, so it can be grabbed without aiming.
   "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
-  // Under the pointer, and where a connection starts from by drag or by click.
-  "not-[.connectingto]:hover:scale-150 [&.connectingfrom]:scale-150 [&.clickconnecting]:scale-150",
-  // Where a connection being dragged would land: dimmed until it is one the canvas allows.
-  "[&.connectingto]:scale-125 [&.connectingto]:opacity-30",
-  "[&.connectingto.valid]:text-emerald-500 [&.connectingto.valid]:opacity-100",
-  "motion-reduce:transition-none",
+  // Where a connection being dragged would land: green once it is one the canvas allows.
+  "[&.connectingto.valid]:text-emerald-500",
 );
 
-// The pointer has to reach the handle itself, which is what React Flow looks for under it.
-const HANDLE_ICON_CLASS = "pointer-events-none absolute top-1/2 left-1/2 -translate-1/2";
+// The icon grows by its width and height, not by a scale. While a scale animates, the browser
+// draws the icon and everything painted over it in layers of their own, snapped to whole pixels,
+// and on a canvas that sits at a fraction of a pixel the rest of the step visibly jumps.
+const HANDLE_ICON_CLASS = cn(
+  // The pointer has to reach the handle itself, which is what React Flow looks for under it.
+  "pointer-events-none absolute top-1/2 left-1/2 size-(--handle-icon) -translate-1/2",
+  // As quick as the app's menus and popovers; its 150ms default reads as slow on a change of size.
+  "transition-[width,height] duration-100 motion-reduce:transition-none",
+  // Under the pointer, and where a connection starts from by drag or by click.
+  "group-[:not(.connectingto):hover]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  "group-[.connectingfrom]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  "group-[.clickconnecting]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  // Where a connection being dragged would land: dimmed until it is one the canvas allows.
+  "group-[.connectingto]/handle:size-[calc(var(--handle-icon)*1.25)]",
+  "group-[.connectingto]/handle:opacity-30 group-[.connectingto.valid]/handle:opacity-100",
+);
 
 // The app's primary, destructive and muted colours are far heavier than the data ports' type
 // colours. Mixed with the background they sit at the same strength, and stay opaque, so neither
@@ -97,7 +103,7 @@ function ExecutionHandle({ className, ...props }: ComponentProps<typeof Handle>)
     <Handle {...props} className={cn(HANDLE_CLASS, "text-primary", className)}>
       <PlayIcon
         weight="fill"
-        className={cn(HANDLE_ICON_CLASS, EXECUTION_ICON_TONE_CLASS, "size-3.5")}
+        className={cn(HANDLE_ICON_CLASS, EXECUTION_ICON_TONE_CLASS, "[--handle-icon:14px]")}
         aria-hidden
       />
     </Handle>
@@ -108,7 +114,11 @@ function ExecutionHandle({ className, ...props }: ComponentProps<typeof Handle>)
 function DataHandle({ className, ...props }: ComponentProps<typeof Handle>) {
   return (
     <Handle {...props} className={cn(HANDLE_CLASS, className)}>
-      <CircleIcon weight="fill" className={cn(HANDLE_ICON_CLASS, "size-3")} aria-hidden />
+      <CircleIcon
+        weight="fill"
+        className={cn(HANDLE_ICON_CLASS, "[--handle-icon:12px]")}
+        aria-hidden
+      />
     </Handle>
   );
 }

@@ -283,7 +283,9 @@ export const PortCompatibility: Story = {
     await expect(dataOutput.className).toContain("ring-2");
 
     await expect(dataInput.className).toContain("[&.connectingto.valid]:text-emerald-500");
-    await expect(dataInput.className).toContain("[&.connectingto]:opacity-30");
+    await expect(dataInput.querySelector("svg")?.getAttribute("class")).toContain(
+      "group-[.connectingto]/handle:opacity-30",
+    );
 
     // A port's dot takes its type's colour and sits on the card's edge, clear of the port's name.
     await expect(getComputedStyle(dataInput).color).not.toBe(getComputedStyle(optionalInput).color);
