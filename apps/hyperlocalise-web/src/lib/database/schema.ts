@@ -26,6 +26,7 @@ export * from "./schema/mcp-server-connections";
 export * from "./schema/semrush";
 export * from "./schema/zernio";
 export * from "./schema/ahrefs";
+export * from "./schema/braze";
 export * from "./schema/intercom";
 export * from "./schema/canva";
 export * from "./schema/crowdin-app";

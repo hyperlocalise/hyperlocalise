@@ -44,6 +44,7 @@ import {
   sortJobContentEditorProviderFiles,
 } from "./select-job-content-editor-repository";
 import { jobCatPageContentMessages } from "./job-content-editor-page-content.messages";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
@@ -224,13 +225,22 @@ export function JobContentEditorPageContent({
   const pageNavigationGuardRef = useRef<ContentEditorPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const intercomPushHeaderTrailing = canManageAutomations ? (
-    <ContentEditorIntercomPushButton
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      canManageAutomations={canManageAutomations}
-      sourcePath={sourcePath}
-      pageNavigationGuardRef={pageNavigationGuardRef}
-    />
+    <>
+      <ContentEditorIntercomPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorBrazePushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+    </>
   ) : null;
   const canUseAllFiles = contentEditorAllFilesEnabled;
   const requestedAllFiles = isContentEditorAllFilesSourcePath(sourcePath) && Boolean(sourcePath);

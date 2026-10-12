@@ -105,6 +105,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
+import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
@@ -179,6 +180,7 @@ import {
   TriggerSettings,
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
+import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
@@ -273,6 +275,12 @@ const BUILT_IN_MENU_ICON_CLASS = cn("size-4", AUTOMATION_ICON_GLYPH_TONES.builtI
 
 function ZernioToolIcon() {
   return <IntegrationLogo src="/images/zernio-logo.svg" className={BRAND_ICON_CLASS} />;
+}
+
+function BrazeToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/braze-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
 }
 
 function SlackToolIcon({ className }: { className?: string }) {
@@ -933,6 +941,7 @@ function AddToolMenu({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  brazeConnected,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -952,6 +961,7 @@ function AddToolMenu({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  brazeConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -1223,6 +1233,22 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuHint>
               ) : !intercomConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.brazeEnabled || !brazeConnected}
+              onClick={() => onChange({ ...form, brazeEnabled: true })}
+            >
+              <BrazeToolIcon />
+              Braze Email Templates
+              {form.brazeEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
@@ -1522,6 +1548,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
+  braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1577,6 +1604,9 @@ function skillIconTone(skill: WorkspaceAutomationSkill): AutomationIconTone {
 /** The integration or surface the skill touches, the same icon its tool row uses. */
 function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
   const tool = skill.tools[0];
+  if (tool === "import_braze_templates" || tool === "push_braze_templates") {
+    return <BrazeToolIcon className={className} />;
+  }
   if (tool === "notify_slack") {
     return <SlackToolIcon className={className} />;
   }
@@ -1870,6 +1900,7 @@ function ToolsSettings({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  brazeConnected,
   semrushConnections,
   zernioConnections,
   slackConnected,
@@ -1895,6 +1926,7 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  brazeConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -2596,6 +2628,42 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.brazeEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Email Templates</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import templates on a schedule, translate in Jobs, then push approved locales as library copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_templates")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
@@ -3125,6 +3193,7 @@ function ToolsSettings({
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
           intercomConnected={intercomConnected}
+          brazeConnected={brazeConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3396,6 +3465,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const brazePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: BRAZE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Braze connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const intercomPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
     queryFn: async () => {
@@ -3487,6 +3573,7 @@ export function WorkspaceAutomationEditor({
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
+  const brazeConnected = Boolean(brazePipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -3512,6 +3599,7 @@ export function WorkspaceAutomationEditor({
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
+    braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -3577,7 +3665,8 @@ export function WorkspaceAutomationEditor({
     !slackQuery.isPending &&
     !resendPipesQuery.isPending &&
     !sendgridPipesQuery.isPending &&
-    !intercomPipesQuery.isPending;
+    !intercomPipesQuery.isPending &&
+    !brazePipesQuery.isPending;
 
   const editor = (
     <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -3758,6 +3847,7 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
             intercomConnected={intercomConnected}
+            brazeConnected={brazeConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}

@@ -20,6 +20,8 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
+import { deleteBrazeConnectionSettings } from "@/lib/braze/settings";
 import { createPipesAuthorizeUrl, deletePipesConnectedAccount } from "@/lib/pipes/accounts";
 import { getPipesConnectionStatus } from "@/lib/pipes/status";
 import type { PipesStatus } from "@/lib/pipes/types";
@@ -87,6 +89,13 @@ export function createPipesRoutes() {
         }
 
         return serviceUnavailableResponse(c, result.error.code, result.error.message);
+      }
+
+      if (provider === BRAZE_PIPES_SLUG) {
+        await deleteBrazeConnectionSettings({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+        });
       }
 
       return c.body(null, 204);

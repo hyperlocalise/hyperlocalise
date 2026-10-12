@@ -23,6 +23,7 @@ export type WorkspaceAutomationTemplateCategory =
 export type WorkspaceAutomationTemplate = {
   id: string;
   category: WorkspaceAutomationTemplateCategory;
+  extraCategories?: readonly WorkspaceAutomationTemplateCategory[];
   name: string;
   description: string;
   instructions: string;
@@ -125,6 +126,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       scheduledCadence: "daily",
       intercomEnabled: true,
       intercomRestEndpoint: "us",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
+    id: "translate-braze-email-templates",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Braze Email Templates",
+    description:
+      "Import Braze email templates and Content Blocks as HTML, localise in Jobs, then push locale-suffixed library copies.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Braze email template localisation connector",
+      capabilities: [
+        "Import email templates and Content Blocks as HTML source files in the attached project",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push copies automatically on import — operators enqueue Push to Braze separately",
+      ],
+      goal: "Keep Braze templates in sync for localisation and write approved locales as suffixed library copies without changing the source.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-braze-email-templates"],
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
       createNativeTmsJobEnabled: true,
       createNativeTmsJobUseProjectTargetLocales: true,
       assignTranslateWithAgentEnabled: true,
@@ -999,6 +1029,10 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "intercom", label: "Intercom" });
   }
 
+  if (form.brazeEnabled) {
+    tools.push({ id: "braze", label: "Braze" });
+  }
+
   if (form.createNativeTmsJobEnabled) {
     tools.push({ id: "create-job", label: "Create job" });
   }
@@ -1049,6 +1083,19 @@ export function getWorkspaceAutomationTemplateCategoryLabel(
   );
 }
 
+export function listWorkspaceAutomationTemplateCategories(
+  template: WorkspaceAutomationTemplate,
+): WorkspaceAutomationTemplateCategory[] {
+  return [template.category, ...(template.extraCategories ?? [])];
+}
+
+export function workspaceAutomationTemplateMatchesCategory(
+  template: WorkspaceAutomationTemplate,
+  category: WorkspaceAutomationTemplateCategory,
+) {
+  return listWorkspaceAutomationTemplateCategories(template).includes(category);
+}
+
 export function listWorkspaceAutomationTemplates(
   category?: WorkspaceAutomationTemplateCategory,
   templates: WorkspaceAutomationTemplate[] = WORKSPACE_AUTOMATION_TEMPLATES,
@@ -1057,5 +1104,7 @@ export function listWorkspaceAutomationTemplates(
     return templates;
   }
 
-  return templates.filter((template) => template.category === category);
+  return templates.filter((template) =>
+    workspaceAutomationTemplateMatchesCategory(template, category),
+  );
 }

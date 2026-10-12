@@ -18,6 +18,9 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { getAhrefsPipesConnectionStatus, resolveAhrefsPipesWorkosUserId } from "@/lib/ahrefs/pipes";
+import { getBrazePipesConnectionStatus, resolveBrazePipesWorkosUserId } from "@/lib/braze/pipes";
+import { loadBrazeRestEndpoint } from "@/lib/braze/settings";
+import { areBrazeSourceLocalesCompatible } from "@/lib/braze/locale";
 import {
   getIntercomPipesConnectionStatus,
   resolveIntercomPipesWorkosUserId,
@@ -60,6 +63,7 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
@@ -107,6 +111,9 @@ export function workspaceAutomationNeedsProject(input: {
     return true;
   }
   if (hasWorkspaceAutomationIntercomTool(input.toolConfig)) {
+    return true;
+  }
+  if (hasWorkspaceAutomationBrazeTool(input.toolConfig)) {
     return true;
   }
   if (
@@ -256,7 +263,7 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -797,6 +804,84 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.braze?.enabled) {
+    const braze = input.toolConfig.braze;
+    const workosUserId = braze.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "braze_not_connected",
+        message: "Connect Braze in Integrations before using it.",
+      });
+    }
+
+    const status = await getBrazePipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "braze_pipes_unavailable",
+        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "braze_pipes_needs_reauthorization",
+        message: "Reconnect Braze in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "braze_not_connected",
+        message: "Connect Braze in Integrations before using it.",
+      });
+    }
+
+    const endpoint = await loadBrazeRestEndpoint({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(endpoint)) {
+      return err({
+        code: "braze_endpoint_missing",
+        message: "Save a Braze REST cluster in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = braze.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          !areBrazeSourceLocalesCompatible(configuredSourceLocale, projectSourceLocale)
+        ) {
+          return err({
+            code: "braze_source_locale_mismatch",
+            message:
+              "The Braze source locale must be the same language as the project source locale.",
+          });
+        }
+      }
+    }
+  }
+
   if (input.toolConfig.crowdin?.enabled) {
     const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
     if (!projectId) {
@@ -1008,6 +1093,22 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       intercom: {
         ...toolConfig.intercom,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.braze?.enabled) {
+    const workosUserId = await resolveBrazePipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+
+    toolConfig = {
+      ...toolConfig,
+      braze: {
+        ...toolConfig.braze,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

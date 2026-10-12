@@ -30,6 +30,7 @@ const connectionsSchema = z.object({
   crowdin: z.boolean().optional(),
   contentful: z.boolean().optional(),
   intercom: z.boolean().optional(),
+  braze: z.boolean().optional(),
   slack: z.boolean().optional(),
   email: z.boolean().optional(),
 }) satisfies z.ZodType<WorkspaceAutomationSkillConnections>;

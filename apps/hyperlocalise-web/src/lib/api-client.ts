@@ -77,6 +77,7 @@ function createOrgSlugClient(origin: string) {
       "zernio-connections",
       "ahrefs-connections",
       "pipes",
+      "braze",
       "intercom-connections",
       "canva-connections",
     ]),

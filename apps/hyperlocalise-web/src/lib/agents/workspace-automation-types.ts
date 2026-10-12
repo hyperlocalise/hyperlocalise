@@ -309,6 +309,27 @@ const gitlabToolConfigSchema = z
 
 const intercomRestEndpointSchema = z.enum(["us", "eu", "au"]);
 
+const brazeToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    templateIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    contentBlockIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    templateIds: [],
+    contentBlockIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const intercomToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -415,6 +436,7 @@ const toolConfigObjectSchema = z
     ahrefs: ahrefsToolConfigSchema.optional(),
     gitlab: gitlabToolConfigSchema.optional(),
     intercom: intercomToolConfigSchema.optional(),
+    braze: brazeToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -476,6 +498,7 @@ export type WorkspaceAutomationZernioToolConfig = z.infer<typeof zernioToolConfi
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
+export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -541,6 +564,26 @@ export type WorkspaceAutomationConfigValidationError =
       message: "The Intercom source locale must be the same language as the project source locale.";
     }
   | {
+      code: "braze_not_connected";
+      message: "Connect Braze in Integrations before using it.";
+    }
+  | {
+      code: "braze_pipes_needs_reauthorization";
+      message: "Reconnect Braze in Integrations, then try again.";
+    }
+  | {
+      code: "braze_pipes_unavailable";
+      message: "WorkOS is not configured, so Braze cannot connect through Pipes.";
+    }
+  | {
+      code: "braze_endpoint_missing";
+      message: "Save a Braze REST cluster in Integrations before using it.";
+    }
+  | {
+      code: "braze_source_locale_mismatch";
+      message: "The Braze source locale must be the same language as the project source locale.";
+    }
+  | {
       code: "skill_not_found";
       message: "A selected skill is no longer available. Remove it and try again.";
     }
@@ -578,7 +621,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.";
+      message: "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "invalid_automation_timezone";
@@ -786,6 +829,10 @@ export function hasWorkspaceAutomationGitlabTool(toolConfig: WorkspaceAutomation
 
 export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.intercom?.enabled);
+}
+
+export function hasWorkspaceAutomationBrazeTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.braze?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

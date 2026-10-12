@@ -16,6 +16,7 @@ import {
   formatWorkspaceAutomationTemplateInstructions,
   getWorkspaceAutomationTemplate,
   getWorkspaceAutomationTemplateFlow,
+  listWorkspaceAutomationTemplates,
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
 } from "./workspace-automation-templates";
 
@@ -64,6 +65,7 @@ describe("workspace automation templates", () => {
     ).toEqual([
       "translate-on-source-upload",
       "translate-intercom-articles",
+      "translate-braze-email-templates",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",
@@ -102,6 +104,36 @@ describe("workspace automation templates", () => {
       trigger: { id: "scheduled", label: "Daily" },
       tools: [
         { id: "intercom", label: "Intercom" },
+        { id: "create-job", label: "Create job" },
+        { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("lists the Braze template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-email-templates");
+  });
+
+  it("builds the Braze template flow with brand, create job, and translate tools", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "translate-braze-email-templates",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+    expect(template).not.toBeNull();
+
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "braze", label: "Braze" },
         { id: "create-job", label: "Create job" },
         { id: "translate-with-agent", label: "Translate with agent" },
       ],

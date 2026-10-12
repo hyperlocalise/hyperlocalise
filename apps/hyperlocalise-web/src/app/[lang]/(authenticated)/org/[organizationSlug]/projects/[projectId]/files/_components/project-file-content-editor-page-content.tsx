@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ContentEditorWorkspaceSkeleton } from "@/components/content-editor/workspace/content-editor-workspace-skeleton";
+import { ContentEditorBrazePushButton } from "@/components/content-editor/page/content-editor-braze-push-button";
 import { ContentEditorIntercomPushButton } from "@/components/content-editor/page/content-editor-intercom-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
@@ -707,13 +708,22 @@ function ProjectFileContentEditorPageContentInner({
       actions={pageActions}
       headerTrailing={
         canManageAutomations ? (
-          <ContentEditorIntercomPushButton
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            canManageAutomations={canManageAutomations}
-            sourcePath={sourcePath}
-            pageNavigationGuardRef={pageNavigationGuardRef}
-          />
+          <>
+            <ContentEditorIntercomPushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+            <ContentEditorBrazePushButton
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              canManageAutomations={canManageAutomations}
+              sourcePath={sourcePath}
+              pageNavigationGuardRef={pageNavigationGuardRef}
+            />
+          </>
         ) : null
       }
       banners={

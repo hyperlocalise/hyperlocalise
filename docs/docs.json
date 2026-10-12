@@ -207,6 +207,7 @@
                       "platform/tms",
                       "platform/connections/github",
                       "platform/connections/intercom",
+                      "platform/connections/braze",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false

@@ -272,6 +272,26 @@ describe("workspace automation view model", () => {
     ).toBe(true);
   });
 
+  it("prefills the Braze email templates template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-email-templates",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-email-templates"]);
+    expect(form?.brazeExistingTranslationPolicy).toBe("seed_empty");
+    expect(form?.brazeOverwriteWhenRemoteNewer).toBe(true);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+  });
+
   it("persists the Intercom existing-translation policy on the automation payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
@@ -691,7 +711,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),

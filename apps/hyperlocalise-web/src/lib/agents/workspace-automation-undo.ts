@@ -56,6 +56,7 @@ export const WORKSPACE_AUTOMATION_TEXT_FIELDS: ReadonlySet<WorkspaceAutomationFo
     "emailRecipients",
     "contentfulEntryId",
     "intercomSourceLocale",
+    "brazeSourceLocale",
     "intercomCollectionIds",
     "slackChannelId",
     "gitlabPathWithNamespace",
@@ -105,6 +106,7 @@ const FIELD_GROUPS: Partial<Record<WorkspaceAutomationFormField, WorkspaceAutoma
     zernioEnabled: "tools",
     ahrefsEnabled: "tools",
     intercomEnabled: "tools",
+    brazeEnabled: "tools",
     crowdinEnabled: "tools",
     webSearchEnabled: "tools",
   };

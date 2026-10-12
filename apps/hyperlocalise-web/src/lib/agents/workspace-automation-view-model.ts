@@ -116,6 +116,12 @@ export type WorkspaceAutomationFormState = {
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
   intercomEnabled: boolean;
+  brazeEnabled: boolean;
+  brazeSourceLocale: string;
+  brazeTemplateIds: string[];
+  brazeContentBlockIds: string[];
+  brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  brazeOverwriteWhenRemoteNewer: boolean;
   intercomRestEndpoint: "us" | "eu" | "au";
   intercomHelpCenterId: string;
   intercomHelpCenterLocales: string[];
@@ -138,7 +144,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.contentfulEnabled) {
     return true;
   }
-  if (form.intercomEnabled) {
+  if (form.intercomEnabled || form.brazeEnabled) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -175,6 +181,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "intercom"
     | "intercomHelpCenterId"
     | "intercomSourceLocale"
+    | "braze"
+    | "brazeSourceLocale"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -209,7 +217,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -220,6 +228,12 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The source locale does not match an Intercom Help Center locale.",
   intercom_source_locale_mismatch:
     "The Intercom source locale must be the same language as the project source locale.",
+  braze_not_connected: "Connect Braze in Integrations before using it.",
+  braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
+  braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
+  braze_endpoint_missing: "Save a Braze REST cluster in Integrations before using it.",
+  braze_source_locale_mismatch:
+    "The Braze source locale must be the same language as the project source locale.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -343,6 +357,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioConnectionId: "",
     ahrefsEnabled: false,
     intercomEnabled: false,
+    brazeEnabled: false,
+    brazeSourceLocale: "en",
+    brazeTemplateIds: [],
+    brazeContentBlockIds: [],
+    brazeExistingTranslationPolicy: "seed_empty",
+    brazeOverwriteWhenRemoteNewer: true,
     intercomRestEndpoint: "us",
     intercomHelpCenterId: "",
     intercomHelpCenterLocales: [],
@@ -378,6 +398,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
   const intercom = automation.toolConfig.intercom;
+  const braze = automation.toolConfig.braze;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -464,6 +485,16 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     intercomEnabled: Boolean(intercom?.enabled),
+    brazeEnabled: Boolean(braze?.enabled),
+    brazeSourceLocale: braze?.sourceLocale ?? "en",
+    brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
+    brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
+    brazeExistingTranslationPolicy:
+      braze?.existingTranslationPolicy === "refresh_imported" ||
+      braze?.existingTranslationPolicy === "overwrite_all"
+        ? braze.existingTranslationPolicy
+        : "seed_empty",
+    brazeOverwriteWhenRemoteNewer: braze?.overwriteWhenRemoteNewer !== false,
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -698,6 +729,18 @@ export function formStateToWorkspaceAutomationPayload(
             overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
             runQa: form.contentfulRunQa,
             writeDrafts: form.contentfulWriteDrafts,
+          },
+        }
+      : {}),
+    ...(form.brazeEnabled
+      ? {
+          braze: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            templateIds: form.brazeTemplateIds,
+            contentBlockIds: form.brazeContentBlockIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
           },
         }
       : {}),
@@ -1113,6 +1156,13 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "intercom_source_locale_unmapped":
     case "intercom_source_locale_mismatch":
       return { intercomSourceLocale: message };
+    case "braze_not_connected":
+    case "braze_pipes_needs_reauthorization":
+    case "braze_pipes_unavailable":
+    case "braze_endpoint_missing":
+      return { braze: message };
+    case "braze_source_locale_mismatch":
+      return { brazeSourceLocale: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1181,6 +1231,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.intercomEnabled ||
+    form.brazeEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

@@ -593,6 +593,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "8GHkIAG5lJ",
     description: "Name of the Intercom integration in the hint on a skill that needs it connected",
   },
+  skillIntegrationBraze: {
+    defaultMessage: "Braze",
+    id: "o0HXRhjJ+T",
+    description: "Name of the Braze integration in the hint on a skill that needs it connected",
+  },
   skillIntegrationSlack: {
     defaultMessage: "Slack",
     id: "SXLP18M0vY",
