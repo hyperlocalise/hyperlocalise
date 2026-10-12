@@ -22,7 +22,12 @@ import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { BrazeApiError, brazePermissionNameFromError, type BrazeTemplatesClient } from "./client";
+import {
+  BrazeApiError,
+  brazePermissionNameFromError,
+  type BrazeLocaleTranslation,
+  type BrazeTemplatesClient,
+} from "./client";
 import { loadBrazeAutomationClient } from "./credentials";
 import { selectInScopeBrazeCampaignMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
@@ -47,6 +52,39 @@ function isNoMultiLanguage(error: unknown): boolean {
 
 export function shouldTreatBrazeRemoteTranslationAsEmpty(error: unknown): boolean {
   return isNoMultiLanguage(error) || (error instanceof BrazeApiError && error.status === 404);
+}
+
+export async function loadBrazeCampaignRemoteTranslation(input: {
+  localeId: string;
+  load: (postLaunchDraftVersion: boolean) => Promise<BrazeLocaleTranslation[]>;
+}): Promise<{ translationMap: BrazeTranslationMap; updatedAt?: string }> {
+  const pick = (translations: BrazeLocaleTranslation[]) => {
+    const match = translations.find((entry) => entry.locale.uuid === input.localeId);
+    return {
+      translationMap: readBrazeTranslationMap(match?.translation_map),
+      updatedAt: match?.updatedAt,
+    };
+  };
+
+  try {
+    const draft = pick(await input.load(true));
+    if (Object.keys(draft.translationMap).length > 0) {
+      return draft;
+    }
+  } catch (error) {
+    if (!shouldTreatBrazeRemoteTranslationAsEmpty(error)) {
+      throw error;
+    }
+  }
+
+  try {
+    return pick(await input.load(false));
+  } catch (error) {
+    if (shouldTreatBrazeRemoteTranslationAsEmpty(error)) {
+      return { translationMap: {} };
+    }
+    throw error;
+  }
 }
 
 export type PushBrazeCampaignsResult = {
@@ -310,33 +348,27 @@ async function loadRemoteTranslation(input: {
   localeId: string;
   client: BrazeTemplatesClient;
 }): Promise<{ translationMap: BrazeTranslationMap; updatedAt?: string }> {
-  try {
-    const translations =
-      input.mapping.resourceKind === "campaign" && input.mapping.campaignId
-        ? await input.client.getCampaignTranslations({
-            campaignId: input.mapping.campaignId,
-            messageVariationId: input.mapping.messageVariationId,
-            localeId: input.localeId,
-            postLaunchDraftVersion: true,
-          })
-        : input.mapping.workflowId && input.mapping.stepId
-          ? await input.client.getCanvasTranslations({
-              workflowId: input.mapping.workflowId,
-              stepId: input.mapping.stepId,
-              messageVariationId: input.mapping.messageVariationId,
-              localeId: input.localeId,
-              postLaunchDraftVersion: true,
-            })
-          : [];
-    const match = translations.find((entry) => entry.locale.uuid === input.localeId);
-    return {
-      translationMap: readBrazeTranslationMap(match?.translation_map),
-      updatedAt: match?.updatedAt,
-    };
-  } catch (error) {
-    if (shouldTreatBrazeRemoteTranslationAsEmpty(error)) {
-      return { translationMap: {} };
-    }
-    throw error;
-  }
+  return loadBrazeCampaignRemoteTranslation({
+    localeId: input.localeId,
+    load: (postLaunchDraftVersion) => {
+      if (input.mapping.resourceKind === "campaign" && input.mapping.campaignId) {
+        return input.client.getCampaignTranslations({
+          campaignId: input.mapping.campaignId,
+          messageVariationId: input.mapping.messageVariationId,
+          localeId: input.localeId,
+          postLaunchDraftVersion,
+        });
+      }
+      if (input.mapping.workflowId && input.mapping.stepId) {
+        return input.client.getCanvasTranslations({
+          workflowId: input.mapping.workflowId,
+          stepId: input.mapping.stepId,
+          messageVariationId: input.mapping.messageVariationId,
+          localeId: input.localeId,
+          postLaunchDraftVersion,
+        });
+      }
+      return Promise.resolve([]);
+    },
+  });
 }
