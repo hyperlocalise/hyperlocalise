@@ -33,7 +33,11 @@ export type WorkspaceAutomationSkillDefaults = {
   contentfulConnectionId?: string;
 };
 
-export type WorkspaceAutomationSkillAvailability = "available" | "attached" | "trigger_mismatch";
+export type WorkspaceAutomationSkillAvailability =
+  | "available"
+  | "attached"
+  | "trigger_mismatch"
+  | "skill_exclusive";
 
 export type WorkspaceAutomationSetupField = keyof WorkspaceAutomationFieldErrors;
 
@@ -65,6 +69,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   push_intercom_translations: ["intercomHelpCenterId", "projectId"],
   import_braze_templates: ["projectId"],
   push_braze_templates: ["projectId"],
+  import_braze_campaigns: ["projectId"],
+  push_braze_campaigns: ["projectId"],
 };
 
 /** Ids of the given skills whose tools own the field, in the order given. */
@@ -139,6 +145,14 @@ function enableSkillTool(
       return {
         ...form,
         brazeEnabled: true,
+        brazeCampaignsEnabled: false,
+      };
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return {
+        ...form,
+        brazeCampaignsEnabled: true,
+        brazeEnabled: false,
       };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: true };
@@ -195,6 +209,9 @@ function disableSkillTool(
     case "import_braze_templates":
     case "push_braze_templates":
       return { ...form, brazeEnabled: false };
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return { ...form, brazeCampaignsEnabled: false };
     case "create_native_tms_job":
       return { ...form, createNativeTmsJobEnabled: false };
     case "assign_translate_with_agent":
@@ -252,6 +269,14 @@ export function resolveWorkspaceAutomationSkillAvailability(
   if (form.skillIds.includes(skill.id)) {
     return "attached";
   }
+  if (
+    (skill.id === "translate-braze-email-templates" &&
+      form.skillIds.includes("translate-braze-campaigns")) ||
+    (skill.id === "translate-braze-campaigns" &&
+      form.skillIds.includes("translate-braze-email-templates"))
+  ) {
+    return "skill_exclusive";
+  }
   return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";
 }
 
@@ -273,6 +298,9 @@ export function addSkillToWorkspaceAutomationForm(
 ): WorkspaceAutomationFormState {
   const skill = getWorkspaceAutomationSkill(skillId);
   if (!skill || form.skillIds.includes(skill.id)) {
+    return form;
+  }
+  if (resolveWorkspaceAutomationSkillAvailability(form, skill) !== "available") {
     return form;
   }
   const triggerMode = resolveTriggerWithSkill(form, skill);

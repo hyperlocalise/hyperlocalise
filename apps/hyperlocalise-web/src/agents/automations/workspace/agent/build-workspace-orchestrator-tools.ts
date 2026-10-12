@@ -22,8 +22,10 @@ import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifyGithubCommentTool } from "./tools/notify_github_comment";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
+import { createImportBrazeCampaignsTool } from "./tools/import_braze_campaigns";
 import { createImportBrazeTemplatesTool } from "./tools/import_braze_templates";
 import { createImportIntercomArticlesTool } from "./tools/import_intercom_articles";
+import { createPushBrazeCampaignsTool } from "./tools/push_braze_campaigns";
 import { createPushBrazeTemplatesTool } from "./tools/push_braze_templates";
 import { createPushIntercomTranslationsTool } from "./tools/push_intercom_translations";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
@@ -49,6 +51,8 @@ const TOOL_BUILDERS: Record<
   push_intercom_translations: createPushIntercomTranslationsTool,
   import_braze_templates: createImportBrazeTemplatesTool,
   push_braze_templates: createPushBrazeTemplatesTool,
+  import_braze_campaigns: createImportBrazeCampaignsTool,
+  push_braze_campaigns: createPushBrazeCampaignsTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
   list_issues: createListIssuesTool,

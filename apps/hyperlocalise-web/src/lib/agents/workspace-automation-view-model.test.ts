@@ -292,6 +292,30 @@ describe("workspace automation view model", () => {
     expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
   });
 
+  it("prefills the Braze campaigns template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-campaigns",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze campaigns and Canvas",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeCampaignsEnabled: true,
+      brazeEnabled: false,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-campaigns"]);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+    expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.brazeCampaigns).toMatchObject({
+      enabled: true,
+      campaignIds: [],
+      canvasIds: [],
+    });
+  });
+
   it("persists the Intercom existing-translation policy on the automation payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),

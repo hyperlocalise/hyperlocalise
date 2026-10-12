@@ -107,6 +107,7 @@ const FIELD_GROUPS: Partial<Record<WorkspaceAutomationFormField, WorkspaceAutoma
     ahrefsEnabled: "tools",
     intercomEnabled: "tools",
     brazeEnabled: "tools",
+    brazeCampaignsEnabled: "tools",
     crowdinEnabled: "tools",
     webSearchEnabled: "tools",
   };

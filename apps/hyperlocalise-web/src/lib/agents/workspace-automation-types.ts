@@ -330,6 +330,27 @@ const brazeToolConfigSchema = z
     overwriteWhenRemoteNewer: true,
   });
 
+const brazeCampaignsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    workosUserId: z.string().trim().min(1).max(128).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    campaignIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    canvasIds: z.array(z.string().trim().min(1).max(128)).max(200).default([]),
+    existingTranslationPolicy: z
+      .enum(["seed_empty", "refresh_imported", "overwrite_all"])
+      .default("seed_empty"),
+    overwriteWhenRemoteNewer: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    campaignIds: [],
+    canvasIds: [],
+    existingTranslationPolicy: "seed_empty",
+    overwriteWhenRemoteNewer: true,
+  });
+
 const intercomToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -437,6 +458,7 @@ const toolConfigObjectSchema = z
     gitlab: gitlabToolConfigSchema.optional(),
     intercom: intercomToolConfigSchema.optional(),
     braze: brazeToolConfigSchema.optional(),
+    brazeCampaigns: brazeCampaignsToolConfigSchema.optional(),
     crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
@@ -499,6 +521,9 @@ export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfi
 export type WorkspaceAutomationGitlabToolConfig = z.infer<typeof gitlabToolConfigSchema>;
 export type WorkspaceAutomationIntercomToolConfig = z.infer<typeof intercomToolConfigSchema>;
 export type WorkspaceAutomationBrazeToolConfig = z.infer<typeof brazeToolConfigSchema>;
+export type WorkspaceAutomationBrazeCampaignsToolConfig = z.infer<
+  typeof brazeCampaignsToolConfigSchema
+>;
 export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
@@ -582,6 +607,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "braze_source_locale_mismatch";
       message: "The Braze source locale must be the same language as the project source locale.";
+    }
+  | {
+      code: "braze_skills_exclusive";
+      message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.";
     }
   | {
       code: "skill_not_found";
@@ -833,6 +862,12 @@ export function hasWorkspaceAutomationIntercomTool(toolConfig: WorkspaceAutomati
 
 export function hasWorkspaceAutomationBrazeTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.braze?.enabled);
+}
+
+export function hasWorkspaceAutomationBrazeCampaignsTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.brazeCampaigns?.enabled);
 }
 
 export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {

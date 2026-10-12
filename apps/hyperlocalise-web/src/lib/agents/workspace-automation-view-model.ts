@@ -117,9 +117,12 @@ export type WorkspaceAutomationFormState = {
   ahrefsEnabled: boolean;
   intercomEnabled: boolean;
   brazeEnabled: boolean;
+  brazeCampaignsEnabled: boolean;
   brazeSourceLocale: string;
   brazeTemplateIds: string[];
   brazeContentBlockIds: string[];
+  brazeCampaignIds: string[];
+  brazeCanvasIds: string[];
   brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
   brazeOverwriteWhenRemoteNewer: boolean;
   intercomRestEndpoint: "us" | "eu" | "au";
@@ -144,7 +147,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.contentfulEnabled) {
     return true;
   }
-  if (form.intercomEnabled || form.brazeEnabled) {
+  if (form.intercomEnabled || form.brazeEnabled || form.brazeCampaignsEnabled) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -234,6 +237,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   braze_endpoint_missing: "Save a Braze REST cluster in Integrations before using it.",
   braze_source_locale_mismatch:
     "The Braze source locale must be the same language as the project source locale.",
+  braze_skills_exclusive:
+    "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -358,9 +363,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     ahrefsEnabled: false,
     intercomEnabled: false,
     brazeEnabled: false,
+    brazeCampaignsEnabled: false,
     brazeSourceLocale: "en",
     brazeTemplateIds: [],
     brazeContentBlockIds: [],
+    brazeCampaignIds: [],
+    brazeCanvasIds: [],
     brazeExistingTranslationPolicy: "seed_empty",
     brazeOverwriteWhenRemoteNewer: true,
     intercomRestEndpoint: "us",
@@ -399,6 +407,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const ahrefs = automation.toolConfig.ahrefs;
   const intercom = automation.toolConfig.intercom;
   const braze = automation.toolConfig.braze;
+  const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -486,15 +495,23 @@ export function createWorkspaceAutomationFormStateFromRecord(
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     intercomEnabled: Boolean(intercom?.enabled),
     brazeEnabled: Boolean(braze?.enabled),
-    brazeSourceLocale: braze?.sourceLocale ?? "en",
+    brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
+    brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
     brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
     brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
+    brazeCampaignIds: brazeCampaigns?.campaignIds ? [...brazeCampaigns.campaignIds] : [],
+    brazeCanvasIds: brazeCampaigns?.canvasIds ? [...brazeCampaigns.canvasIds] : [],
     brazeExistingTranslationPolicy:
-      braze?.existingTranslationPolicy === "refresh_imported" ||
-      braze?.existingTranslationPolicy === "overwrite_all"
-        ? braze.existingTranslationPolicy
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "refresh_imported" ||
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "overwrite_all"
+        ? ((brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) as
+            | "refresh_imported"
+            | "overwrite_all")
         : "seed_empty",
-    brazeOverwriteWhenRemoteNewer: braze?.overwriteWhenRemoteNewer !== false,
+    brazeOverwriteWhenRemoteNewer:
+      (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -739,6 +756,18 @@ export function formStateToWorkspaceAutomationPayload(
             sourceLocale: form.brazeSourceLocale.trim() || "en",
             templateIds: form.brazeTemplateIds,
             contentBlockIds: form.brazeContentBlockIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.brazeCampaignsEnabled
+      ? {
+          brazeCampaigns: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            campaignIds: form.brazeCampaignIds,
+            canvasIds: form.brazeCanvasIds,
             existingTranslationPolicy: form.brazeExistingTranslationPolicy,
             overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
           },
@@ -1160,6 +1189,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "braze_pipes_needs_reauthorization":
     case "braze_pipes_unavailable":
     case "braze_endpoint_missing":
+    case "braze_skills_exclusive":
       return { braze: message };
     case "braze_source_locale_mismatch":
       return { brazeSourceLocale: message };
@@ -1232,6 +1262,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.contentfulEnabled ||
     form.intercomEnabled ||
     form.brazeEnabled ||
+    form.brazeCampaignsEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

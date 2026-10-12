@@ -180,6 +180,7 @@ import {
   TriggerSettings,
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
+import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
 import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
@@ -1239,8 +1240,10 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.brazeEnabled || !brazeConnected}
-              onClick={() => onChange({ ...form, brazeEnabled: true })}
+              disabled={form.brazeEnabled || form.brazeCampaignsEnabled || !brazeConnected}
+              onClick={() =>
+                onChange({ ...form, brazeEnabled: true, brazeCampaignsEnabled: false })
+              }
             >
               <BrazeToolIcon />
               Braze Email Templates
@@ -1252,6 +1255,28 @@ function AddToolMenu({
                 <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuHint>
+              ) : form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.brazeCampaignsEnabled || form.brazeEnabled || !brazeConnected}
+              onClick={() =>
+                onChange({ ...form, brazeCampaignsEnabled: true, brazeEnabled: false })
+              }
+            >
+              <BrazeToolIcon />
+              Braze Campaigns & Canvas
+              {form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1604,7 +1629,12 @@ function skillIconTone(skill: WorkspaceAutomationSkill): AutomationIconTone {
 /** The integration or surface the skill touches, the same icon its tool row uses. */
 function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
   const tool = skill.tools[0];
-  if (tool === "import_braze_templates" || tool === "push_braze_templates") {
+  if (
+    tool === "import_braze_templates" ||
+    tool === "push_braze_templates" ||
+    tool === "import_braze_campaigns" ||
+    tool === "push_braze_campaigns"
+  ) {
     return <BrazeToolIcon className={className} />;
   }
   if (tool === "notify_slack") {
@@ -1721,6 +1751,12 @@ function SkillsSettings({
                                         {...workspaceAutomationFormMessages.skillNotApplicableHint}
                                       />
                                     </span>
+                                  ) : availability === "skill_exclusive" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillExclusiveHint}
+                                      />
+                                    </span>
                                   ) : missingIntegrations.length > 0 ? (
                                     <span className="text-xs font-medium">
                                       {formatSkillConnectFirstHint(intl, missingIntegrations)}
@@ -1792,11 +1828,13 @@ function SuggestionChip({
   const unavailableHint =
     suggestion.availability === "trigger_mismatch"
       ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
-      : suggestion.availability !== "connect_first"
-        ? null
-        : suggestion.kind === "skill"
-          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
-          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+      : suggestion.availability === "skill_exclusive"
+        ? intl.formatMessage(workspaceAutomationFormMessages.skillExclusiveHint)
+        : suggestion.availability !== "connect_first"
+          ? null
+          : suggestion.kind === "skill"
+            ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+            : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
 
   return (
     <span
@@ -2652,6 +2690,42 @@ function ToolsSettings({
             }
           >
             <WorkspaceAutomationBrazeSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
+        {form.brazeCampaignsEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Campaigns & Canvas</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import tagged draft campaigns and Canvas as JSON, translate in Jobs, then push approved locales through the Translation API."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_campaigns")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeCampaignsEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeCampaignsSettings
               organizationSlug={organizationSlug}
               form={form}
               errors={errors}

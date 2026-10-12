@@ -56,7 +56,7 @@ Import does not write translations to Intercom.
 ## Review and push drafts
 
 1. Translate and [approve](/platform/cat) every visible string for a mapped locale, including the article title.
-2. In the Content editor header, choose **Push to Intercom** when at least one mapped locale is fully approved and no push is already running. Choose which mapped articles to write as Intercom drafts; the open file is selected by default. The dialog also shows the automation’s push policy for newer Intercom drafts. Hyperlocalise then opens the automation **Run History** tab so you can follow the push.
+2. In the Content editor header, choose **Ingest** to import the automation’s configured Help Center set, or **Push to Intercom** when at least one mapped locale is fully approved and no push is already running. Choose which mapped articles to write as Intercom drafts; the open file is selected by default. The dialog also shows the automation’s push policy for newer Intercom drafts. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
 3. Confirm Intercom shows the new locale content as **draft**. Publish in Intercom after you review those drafts.
 
 A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer Intercom drafts.
@@ -72,6 +72,7 @@ If a Help Center is missing, confirm the Intercom workspace, region, and that yo
 - Confirm Intercom is connected and the automation is **Active**.
 - Confirm the Help Center and region match the Intercom workspace.
 - Confirm project locales map onto the Help Center locale codes (exact tags or the supported language-only aliases). Do not pair locked writing-system or regional variants.
+- If **Ingest** is missing, confirm an active Intercom automation is attached to the project and you can manage automations. Ingest stays available before any locale is push-ready.
 - If **Push to Intercom** is missing, approve every visible string for at least one mapped locale (including the title), confirm you have permission to manage automations, and wait until any in-progress push finishes.
 - Open **Run History** for the failed article or locale.
 

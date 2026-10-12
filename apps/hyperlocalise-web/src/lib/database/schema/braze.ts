@@ -136,3 +136,72 @@ export const brazeSyncCursors = pgTable(
   },
   (table) => [index("idx_braze_sync_cursors_org").on(table.organizationId)],
 );
+
+export const brazeCampaignSyncStates = pgTable(
+  "braze_campaign_sync_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    automationId: uuid("automation_id")
+      .notNull()
+      .references(() => workspaceAutomations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    resourceKind: text("resource_kind").$type<"campaign" | "canvas_step">().notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceName: text("source_name").notNull(),
+    sourcePath: text("source_path").notNull(),
+    campaignId: text("campaign_id"),
+    workflowId: text("workflow_id"),
+    stepId: text("step_id"),
+    messageVariationId: text("message_variation_id").notNull(),
+    sourceLocale: text("source_locale").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    sourceContentHash: text("source_content_hash").notNull(),
+    translationKeys: jsonb("translation_keys")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    localeIds: jsonb("locale_ids")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    lastImportedAt: timestamp("last_imported_at", { withTimezone: true }),
+    lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
+    lastPushContentHash: jsonb("last_push_content_hash")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    importedTranslationHashes: jsonb("imported_translation_hashes")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    extra: jsonb("extra")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    status: text("status")
+      .$type<"active" | "archived" | "import_failed" | "push_failed">()
+      .notNull()
+      .default("active"),
+    lastError: jsonb("last_error").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("braze_campaign_sync_org_automation_resource").on(
+      table.organizationId,
+      table.automationId,
+      table.resourceKind,
+      table.sourceId,
+    ),
+    index("idx_braze_campaign_sync_automation").on(table.automationId),
+    index("idx_braze_campaign_sync_project").on(table.projectId),
+  ],
+);

@@ -21,6 +21,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
+import { listBrazeCampaignsForPicker } from "@/lib/braze/list-campaigns";
 import { listBrazeLibraryForPicker } from "@/lib/braze/list-library";
 import { pingBrazeRestCredentials } from "@/lib/braze/ping";
 import {
@@ -127,6 +128,21 @@ export function createBrazeRoutes() {
         localOrganizationId: c.var.auth.organization.localOrganizationId,
         workosUserId: c.var.auth.user.workosUserId,
         projectId: c.req.valid("query").projectId,
+      });
+      if (isErr(library)) {
+        return mapBrazePipesError(c, library.error);
+      }
+
+      return c.json(library.value, 200);
+    })
+    .get("/campaigns", async (c) => {
+      if (!canReadBraze(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const library = await listBrazeCampaignsForPicker({
+        localOrganizationId: c.var.auth.organization.localOrganizationId,
+        workosUserId: c.var.auth.user.workosUserId,
       });
       if (isErr(library)) {
         return mapBrazePipesError(c, library.error);

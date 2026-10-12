@@ -135,6 +135,62 @@ export function readImportBrazeTemplates(
   return null;
 }
 
+export function readImportBrazeCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.import_braze_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.imported === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.importBrazeCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.imported === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "import_braze_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.imported === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
+export function readPushBrazeCampaigns(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.push_braze_campaigns;
+  if (fromCurrentStep && typeof fromCurrentStep.pushedLocales === "number") {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.pushBrazeCampaigns;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (typeof record.pushedLocales === "number") {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "push_braze_campaigns",
+  );
+  if (fromPriorStep && typeof fromPriorStep.pushedLocales === "number") {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function readPushBrazeTemplates(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
@@ -267,6 +323,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
   const pushIntercomTranslations = readPushIntercomTranslations(base, stepResults);
   const importBrazeTemplates = readImportBrazeTemplates(base, stepResults);
   const pushBrazeTemplates = readPushBrazeTemplates(base, stepResults);
+  const importBrazeCampaigns = readImportBrazeCampaigns(base, stepResults);
+  const pushBrazeCampaigns = readPushBrazeCampaigns(base, stepResults);
 
   return {
     ...base,
@@ -278,6 +336,8 @@ export function buildWorkspaceOrchestratorOutputSummary(
     ...(pushIntercomTranslations ? { pushIntercomTranslations } : {}),
     ...(importBrazeTemplates ? { importBrazeTemplates } : {}),
     ...(pushBrazeTemplates ? { pushBrazeTemplates } : {}),
+    ...(importBrazeCampaigns ? { importBrazeCampaigns } : {}),
+    ...(pushBrazeCampaigns ? { pushBrazeCampaigns } : {}),
     orchestratorStepResults: stepResults,
     ...(options?.notificationWarnings && options.notificationWarnings.length > 0
       ? { notificationWarnings: options.notificationWarnings }

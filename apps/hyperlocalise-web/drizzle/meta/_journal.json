@@ -1009,6 +1009,13 @@
       "when": 1791734745277,
       "tag": "0143_fixed_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1791781317432,
+      "tag": "0144_gigantic_earthquake",
+      "breakpoints": true
     }
   ]
 }
