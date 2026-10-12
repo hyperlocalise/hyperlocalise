@@ -64,7 +64,7 @@ Collect writes source JSON into the bound project. It does not start translation
 3. Choose **Collect texts**.
 4. Confirm the app reports how many page files it created.
 
-Each page is stored at `canva/designs/<design-slug>/page-<n>.json`. The slug comes from the Canva title. Untitled designs fall back to the design id. Review those files like other [JSON sources](/platform/projects/files).
+Each page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug comes from the Canva title. Untitled designs fall back to the design id. Review those files like other [JSON sources](/platform/projects/files).
 
 A later collect replaces the current collect batch for that design. Generate and add-to-design use that batch only. Earlier page files from the same design are not reused.
 
@@ -92,12 +92,11 @@ Approve in Hyperlocalise when your process requires it. The app writes the lates
 
 Add to design replaces text on existing pages. It does not insert a page above or below.
 
-1. Choose **Add to design** on the language row.
+1. Choose **Add to design** on the language row. The apply controls open on that row.
 2. Select the **Translated page** (the collected page file).
-3. Select the **Current page** (the Canva page that should receive that file).
-4. Choose **Apply to this page** to replace text on that Canva page.
-5. Or choose **Apply all** to replace each collected page onto the matching page index.
-6. Inspect layout after applying another language, especially for longer text.
+3. Choose **Apply to this page** to replace text on that Canva page.
+4. Or choose **Apply all** to replace each collected page onto the matching page index.
+5. Inspect layout after applying another language, especially for longer text.
 
 Apply uses page-local keys from the latest collect. It does not rewrite older single-file designs.
 

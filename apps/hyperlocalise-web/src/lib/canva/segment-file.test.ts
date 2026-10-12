@@ -27,8 +27,11 @@ describe("canva segment-file", () => {
     expect(segmentKey(1, 2, 3)).toBe("canva.segment.1.2.3");
     expect(buildSourcePath("design-123")).toBe("canva/designs/design-123.json");
     expect(pageSegmentKey(2, 3)).toBe("canva.segment.2.3");
-    expect(buildPageSourcePath("mindful-adventure", 1)).toBe(
+    expect(buildPageSourcePath("mindful-adventure", 0)).toBe(
       "canva/designs/mindful-adventure/page-1.json",
+    );
+    expect(buildPageSourcePath("mindful-adventure", 1)).toBe(
+      "canva/designs/mindful-adventure/page-2.json",
     );
   });
 

@@ -52,6 +52,10 @@ export function buildSourcePath(designId: string): string {
   return `canva/designs/${designId}.json`;
 }
 
+export function pageFileNumber(pageIndex: number): number {
+  return pageIndex + 1;
+}
+
 export function buildPageSourcePath(designSlug: string, pageIndex: number): string {
-  return `canva/designs/${designSlug}/page-${pageIndex}.json`;
+  return `canva/designs/${designSlug}/page-${pageFileNumber(pageIndex)}.json`;
 }

@@ -38,8 +38,9 @@ scope with write-back and treated the whole design as a single file.
    languages as `English (en-US)`. Collect and generate use the BCP-47
    tag, not the display name.
 6. Collect writes one source file per chosen page at
-   `canva/designs/<design-slug>/page-<n>.json`. The slug comes from the
-   Canva title. Untitled designs fall back to the design id. The operator
+   `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`.
+   The slug comes from the Canva title. Untitled designs fall back to
+   the design id. The operator
    can collect one selected page or every selected page.
 7. Generate starts one-locale jobs for every file in the latest collect
    batch.

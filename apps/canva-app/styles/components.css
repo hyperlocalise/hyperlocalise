@@ -65,3 +65,11 @@
   display: flex;
   gap: var(--ui-kit-space-150);
 }
+
+.localeProgressSkeleton {
+  height: 8px;
+}
+
+.localeActionSkeleton {
+  height: 40px;
+}

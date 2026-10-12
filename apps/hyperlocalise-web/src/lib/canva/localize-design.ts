@@ -40,6 +40,7 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { slugifyCanvaDesignTitle } from "./names";
 import {
   buildPageSourcePath,
+  pageFileNumber,
   buildSourcePath,
   parseTranslationFile,
   segmentsToPageTranslationFile,
@@ -510,7 +511,7 @@ export async function collectCanvaDesign(input: {
       createdByUserId: apiKey.createdByUserId,
       role: "source",
       sourceKind: "repository_file",
-      filename: `page-${pageIndex}.json`,
+      filename: `page-${pageFileNumber(pageIndex)}.json`,
       contentType: "application/json",
       content: Buffer.from(fileBody, "utf8"),
       metadata: {

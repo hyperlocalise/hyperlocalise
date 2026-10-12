@@ -57,7 +57,7 @@ In the Canva app UI:
 - **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
 - **Generate translation** / **Add to design** — one row per project target, shown as `English (en-US)`
 
-Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
+Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 
 ## Preview in Canva
 

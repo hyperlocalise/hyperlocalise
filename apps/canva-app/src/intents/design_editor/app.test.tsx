@@ -13,7 +13,7 @@
 import { TestAppI18nProvider } from "@canva/app-i18n-kit";
 import { TestAppUiProvider } from "@canva/app-ui-kit";
 import { getDesignToken } from "@canva/design";
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -161,13 +161,151 @@ describe("Hyperlocalise Canva app", () => {
     await waitFor(() => {
       expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
       expect(result.getByText("Page 1")).toBeTruthy();
+      expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
     });
 
     expect(result.getByText("English (en-US)", { exact: false })).toBeTruthy();
-    expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
     expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
     expect(result.getAllByText("0% · 0 of 42 words · Not started").length).toBeGreaterThan(0);
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
+  });
+
+  it("opens apply controls on the language row", async () => {
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectName: "Marketing",
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
+    });
+
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "succeeded",
+          translated: 8,
+          total: 8,
+          translatedWords: 42,
+          wordCount: 42,
+          percent: 100,
+          canAdd: true,
+          pages: [
+            {
+              pageIndex: 0,
+              sourcePath: "canva/designs/mic/page-1.json",
+              jobId: "job_1",
+              status: "succeeded",
+              translated: 8,
+              total: 8,
+              translatedWords: 42,
+              wordCount: 42,
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
+    });
+
+    fireEvent.click(result.getByRole("button", { name: "Add to design" }));
+
+    expect(result.getByText("Translated page")).toBeTruthy();
+    expect(result.queryByText("Current page")).toBeNull();
+    expect(result.getByRole("button", { name: "Apply to this page" })).toBeTruthy();
+    expect(result.queryByRole("button", { name: "Add to design" })).toBeNull();
+  });
+
+  it("shows locale row skeletons while statuses load", async () => {
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectName: "Marketing",
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
+    });
+
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    let resolveStatuses: (value: { locales: unknown[]; pages: unknown[] }) => void = () => {};
+    vi.mocked(fetchCanvaLocaleStatuses).mockReturnValue(
+      new Promise((resolve) => {
+        resolveStatuses = resolve;
+      }),
+    );
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByText("Add translations to design")).toBeTruthy();
+    });
+    expect(result.queryByText("Not started")).toBeNull();
+    expect(result.queryByRole("button", { name: "Generate translation" })).toBeNull();
+
+    resolveStatuses({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "idle",
+          translated: 0,
+          total: 0,
+          translatedWords: 0,
+          wordCount: 12,
+          percent: 0,
+          canAdd: false,
+          pages: [],
+        },
+      ],
+      pages: [],
+    });
+
+    await waitFor(() => {
+      expect(result.getByText("0% · 0 of 12 words · Not started")).toBeTruthy();
+      expect(result.getByRole("button", { name: "Generate translation" })).toBeTruthy();
+    });
   });
 });

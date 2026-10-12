@@ -110,7 +110,7 @@ describe("collectCanvaDesign", () => {
 
     expect(collected.pages[0]).toMatchObject({
       pageIndex: 0,
-      sourcePath: "canva/designs/mic/page-0.json",
+      sourcePath: "canva/designs/mic/page-1.json",
       sourceFileId: "file_1",
       wordCount: 1,
     });
@@ -124,7 +124,7 @@ describe("collectCanvaDesign", () => {
     );
     expect(createRepositorySourceFileVersionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        sourcePath: "canva/designs/mic/page-0.json",
+        sourcePath: "canva/designs/mic/page-1.json",
         uploadSurface: "canva_integration",
         uploadedByApiKeyId: "key_1",
       }),
@@ -133,7 +133,7 @@ describe("collectCanvaDesign", () => {
       expect.objectContaining({
         storedFileId: "file_1",
         sourceFileVersionId: "version_1",
-        sourcePath: "canva/designs/mic/page-0.json",
+        sourcePath: "canva/designs/mic/page-1.json",
       }),
     );
   });

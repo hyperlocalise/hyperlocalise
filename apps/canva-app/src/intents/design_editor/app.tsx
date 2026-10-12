@@ -17,12 +17,14 @@ import {
   CheckboxGroup,
   FormField,
   LinkButton,
+  Placeholder,
   ProgressBar,
   Rows,
   Select,
   Switch,
   Text,
   TextInput,
+  TextPlaceholder,
   Title,
 } from "@canva/app-ui-kit";
 import { getDesignMetadata, getDesignToken } from "@canva/design";
@@ -105,6 +107,77 @@ function localeProgressValue(entry: CanvaLocaleStatus): number | "indeterminate"
   return entry.percent;
 }
 
+function LocaleRowSkeleton({ locale }: { locale?: string }) {
+  return (
+    <Rows spacing="0.5u">
+      {locale ? <Text>{localeLabel(locale)}</Text> : <TextPlaceholder />}
+      <div className={styles.localeProgressSkeleton}>
+        <Placeholder shape="rectangle" />
+      </div>
+      <TextPlaceholder size="small" />
+      <div className={styles.localeActionSkeleton}>
+        <Placeholder shape="rectangle" />
+      </div>
+    </Rows>
+  );
+}
+
+function LocaleApplyControls(input: {
+  applySourcePage: string;
+  readyApplyPages: CanvaLocaleStatus["pages"];
+  designPages: DesignPageInfo[];
+  busy: BusyAction;
+  onSourcePageChange: (value: string) => void;
+  onApplyOne: () => void;
+  onApplyAll: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Rows spacing="1u">
+      <Text size="small" tone="secondary">
+        Choose which translated page to write back.
+      </Text>
+      <FormField
+        label="Translated page"
+        value={input.applySourcePage}
+        control={(props) => (
+          <Select
+            {...props}
+            stretch
+            options={input.readyApplyPages.map((page) => ({
+              value: String(page.pageIndex),
+              label:
+                input.designPages.find((designPage) => designPage.index === page.pageIndex)?.label ??
+                `Page ${page.pageIndex + 1}`,
+            }))}
+            onChange={input.onSourcePageChange}
+          />
+        )}
+      />
+      <Button
+        variant="primary"
+        stretch
+        onClick={input.onApplyOne}
+        disabled={input.busy != null || input.readyApplyPages.length === 0}
+        loading={input.busy === "apply"}
+      >
+        Apply to this page
+      </Button>
+      <Button
+        variant="secondary"
+        stretch
+        onClick={input.onApplyAll}
+        disabled={input.busy != null || input.readyApplyPages.length === 0}
+      >
+        Apply all
+      </Button>
+      <Button variant="secondary" stretch onClick={input.onCancel}>
+        Cancel
+      </Button>
+    </Rows>
+  );
+}
+
 function jobStatusLabel(status: CanvaLocaleStatus["status"]) {
   switch (status) {
     case "queued":
@@ -148,10 +221,12 @@ export const App = () => {
   const [pagesError, setPagesError] = useState<string | null>(null);
   const [segments, setSegments] = useState<DesignSegment[]>([]);
   const [localeStatuses, setLocaleStatuses] = useState<CanvaLocaleStatus[]>([]);
+  const [localesLoading, setLocalesLoading] = useState(
+    () => loadSettings().connectionToken.trim().length > 0,
+  );
   const [collectedPages, setCollectedPages] = useState<CollectedCanvaPage[]>([]);
   const [applyLocale, setApplyLocale] = useState<string | null>(null);
   const [applySourcePage, setApplySourcePage] = useState("");
-  const [applyDestinationPage, setApplyDestinationPage] = useState("");
   const [busy, setBusy] = useState<BusyAction>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -235,6 +310,7 @@ export const App = () => {
       lastJobId: "",
     });
     setLocaleStatuses([]);
+    setLocalesLoading(false);
     setCollectedPages([]);
     setApplyLocale(null);
     setTokenDraft("");
@@ -309,6 +385,7 @@ export const App = () => {
     let cancelled = false;
 
     async function hydrateSession() {
+      setLocalesLoading(true);
       try {
         const session = await fetchCanvaSession(await resolveAuth());
         if (cancelled) {
@@ -333,6 +410,10 @@ export const App = () => {
         if (isReconnectError(error)) {
           disconnect();
           setErrorMessage("Reconnect Hyperlocalise to continue.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLocalesLoading(false);
         }
       }
     }
@@ -489,14 +570,13 @@ export const App = () => {
       setStatusMessage(`Generating ${localeLabel(locale)}…`);
     });
 
-  const openApplySheet = (locale: string) => {
+  const openApplyControls = (locale: string) => {
     const status = localeStatuses.find((entry) => entry.locale === locale);
     const readyPages = (status?.pages ?? []).filter(
       (page) => page.status === "succeeded" || page.status === "waiting_for_review",
     );
     setApplyLocale(locale);
     setApplySourcePage(String(readyPages[0]?.pageIndex ?? ""));
-    setApplyDestinationPage(String(selectedPageIndices[0] ?? editablePages[0]?.index ?? ""));
   };
 
   const handleApplyOne = () =>
@@ -505,9 +585,8 @@ export const App = () => {
         throw new Error("Choose a language to add.");
       }
       const sourcePageIndex = Number.parseInt(applySourcePage, 10);
-      const destinationPageIndex = Number.parseInt(applyDestinationPage, 10);
-      if (!Number.isInteger(sourcePageIndex) || !Number.isInteger(destinationPageIndex)) {
-        throw new Error("Choose a translated page and a Canva page.");
+      if (!Number.isInteger(sourcePageIndex)) {
+        throw new Error("Choose a translated page.");
       }
       const { token } = await getDesignToken();
       const pulled = await pullCanvaLocalePages({
@@ -522,12 +601,12 @@ export const App = () => {
       }
       await applyTranslationsToDesign(
         page.translations,
-        [destinationPageIndex],
+        [sourcePageIndex],
         settings.preserveFormatting,
       );
       setApplyLocale(null);
       setStatusMessage(
-        `Applied ${Object.keys(page.translations).length} segments (${localeLabel(applyLocale)}) to page ${destinationPageIndex + 1}.`,
+        `Applied ${Object.keys(page.translations).length} segments (${localeLabel(applyLocale)}) to page ${sourcePageIndex + 1}.`,
       );
     });
 
@@ -734,7 +813,16 @@ export const App = () => {
                     Languages come from the Hyperlocalise project.
                   </Text>
                 </Rows>
-                {projectTargetOptions.length === 0 ? (
+                {localesLoading && localeStatuses.length === 0 ? (
+                  (projectTargetOptions.length > 0 ? projectTargetOptions : ["", ""]).map(
+                    (locale, index) => (
+                      <LocaleRowSkeleton
+                        key={locale || `locale-skeleton-${index}`}
+                        locale={locale || undefined}
+                      />
+                    ),
+                  )
+                ) : projectTargetOptions.length === 0 ? (
                   <Text size="small" tone="secondary">
                     Connect to load project languages.
                   </Text>
@@ -750,11 +838,23 @@ export const App = () => {
                         {entry.percent}% · {localeWordCountLabel(entry)} ·{" "}
                         {jobStatusLabel(entry.status)}
                       </Text>
-                      {entry.status === "queued" || entry.status === "running" ? null : entry.canAdd ? (
+                      {entry.status === "queued" || entry.status === "running" ? null : applyLocale ===
+                        entry.locale ? (
+                        <LocaleApplyControls
+                          applySourcePage={applySourcePage}
+                          readyApplyPages={readyApplyPages}
+                          designPages={designPages}
+                          busy={busy}
+                          onSourcePageChange={setApplySourcePage}
+                          onApplyOne={handleApplyOne}
+                          onApplyAll={handleApplyAll}
+                          onCancel={() => setApplyLocale(null)}
+                        />
+                      ) : entry.canAdd ? (
                         <Button
                           variant="secondary"
                           stretch
-                          onClick={() => openApplySheet(entry.locale)}
+                          onClick={() => openApplyControls(entry.locale)}
                           disabled={busy != null}
                         >
                           Add to design
@@ -775,69 +875,6 @@ export const App = () => {
                 )}
               </Rows>
             </Box>
-
-            {applyLocale ? (
-              <Box padding="2u" className={styles.panel}>
-                <Rows spacing="1.5u">
-                  <Title size="xsmall">{localeLabel(applyLocale)}</Title>
-                  <Text size="small" tone="secondary">
-                    Select the translated page to apply, and the Canva page that should receive it.
-                  </Text>
-                  <FormField
-                    label="Translated page"
-                    value={applySourcePage}
-                    control={(props) => (
-                      <Select
-                        {...props}
-                        stretch
-                        options={readyApplyPages.map((page) => ({
-                          value: String(page.pageIndex),
-                          label:
-                            designPages.find((designPage) => designPage.index === page.pageIndex)
-                              ?.label ?? `Page ${page.pageIndex + 1}`,
-                        }))}
-                        onChange={setApplySourcePage}
-                      />
-                    )}
-                  />
-                  <FormField
-                    label="Current page"
-                    value={applyDestinationPage}
-                    control={(props) => (
-                      <Select
-                        {...props}
-                        stretch
-                        options={editablePages.map((page) => ({
-                          value: String(page.index),
-                          label: page.label,
-                        }))}
-                        onChange={setApplyDestinationPage}
-                      />
-                    )}
-                  />
-                  <Button
-                    variant="primary"
-                    stretch
-                    onClick={handleApplyOne}
-                    disabled={busy != null || readyApplyPages.length === 0}
-                    loading={busy === "apply"}
-                  >
-                    Apply to this page
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    stretch
-                    onClick={handleApplyAll}
-                    disabled={busy != null || readyApplyPages.length === 0}
-                  >
-                    Apply all
-                  </Button>
-                  <Button variant="secondary" stretch onClick={() => setApplyLocale(null)}>
-                    Cancel
-                  </Button>
-                </Rows>
-              </Box>
-            ) : null}
           </>
         ) : null}
       </Rows>
