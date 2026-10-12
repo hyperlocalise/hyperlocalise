@@ -12,6 +12,40 @@ Schema v2 stores stable node IDs, execution edges, typed `inputs`, optional decl
 
 Saving changes a draft and increments its revision. Save and publish API requests require `expectedRevision`; stale writes return 409. Publishing validates and atomically selects an immutable version. Automatic and ordinary manual runs use that version. Draft tests carry their own snapshot and never save or publish. Legacy records remain in the database but are not executable through the v2 editor; recreate them or explicitly convert them before use.
 
+## Adding a node
+
+Editor files are in `src/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/visual-workflow-editor/`. Other paths are relative to this folder.
+
+Every node:
+
+- **Type and config:** `schema/types.ts`, `schema/definition-schema.ts`, `schema/serializers.ts`.
+- **Catalog:** the entry, default config, card size, and subtitle in `catalog/node-catalog.ts`.
+- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the Inputs panel are drawn from this.
+- **Runtime:** `runtime/execute-node.ts` for an action; `runtime/execute-logic-node.ts` and `runtime/interpreter.ts` for control flow. An action with outside effects also belongs in `validation/retry-idempotency.ts`.
+- **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`.
+
+A node with one execution output needs nothing else on the card. A node with several:
+
+- **List its outputs** in `getAllowedExecutionSourceHandles` and its main one in `getPrimaryExecutionSourceHandle` (`validation/execution-handles.ts`). Validation rejects a connection from an unlisted handle. The card does not read this list, so keep the two in step by hand.
+- **Draw each output** with `ExecutionHandle`, not React Flow's `Handle`. Place it with `style={executionTop(fraction)}` and set its tone with a text color such as `text-destructive`.
+- **Label the outputs** in a block positioned with `absolute top-0 h-(--execution-zone)`.
+- **Count a variable number of outputs** in `spreadExecutionDotCount`, so the top of the card grows to fit them.
+- **Exclude the type** from `hasSingleExecutionOutput` and give it a `primaryHandleLabel`.
+
+`executionTop` fractions are of the card's top part, which stays above the data ports. Execution handles and data ports must not share a spot on the card's edge.
+
+On the card:
+
+- Do not transition `transform`, `scale`, `opacity`, or `filter`. In Chromium the rest of the canvas jumps for a frame. Animate `width` and `height` instead.
+- A class on a React Flow handle needs `!` wherever React Flow's stylesheet sets the same property.
+
+Validation issues:
+
+- A setting that fails the config schema is reported once per step and setting, with `field` and `reason`. A new node gets this without extra code.
+- A custom check in `validation/compile-workflow.ts` passes `{ field, reason }` as the fourth argument to `add`.
+- A settings control shows the invalid state when it uses `connectedInputProps(portId)` or passes `invalid`.
+- Wording for a new issue code goes in `issueMessage` in `visual-workflow-issue-list.tsx`. A code without wording shows the general step-configuration message.
+
 ## Execution and recovery
 
 A run and dispatch outbox row are inserted transactionally. The scheduler reconciles undispatched and abandoned work. Expiring run claims use a token to fence stale workers. Each durable step reconstructs execution from encrypted completed results and executes at most one new external action. Node history is keyed by run, node, iteration, and attempt. Loop items run sequentially in isolated contexts.
