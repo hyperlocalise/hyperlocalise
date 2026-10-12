@@ -49,7 +49,7 @@ scope with write-back and treated the whole design as a single file.
    and apply use only the latest collect batch. Old single-file designs
    stay unused.
 
-Customer help lives in [Connect design tools](../platform/connections/design-tools.mdx)
+Customer help lives in [Localize Canva](../platform/connections/canva.mdx)
 and [Connect your tools](../platform/integrations.mdx).
 
 ## Alternatives considered

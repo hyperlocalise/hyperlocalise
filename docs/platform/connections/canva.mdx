@@ -1,0 +1,121 @@
+---
+title: "Localize Canva"
+description: "Connect a native project, collect one JSON file per page, generate each language, and replace text on the chosen Canva pages."
+---
+
+Canva does not translate. Hyperlocalise jobs do. Create one workspace Canva connection, bind a [native project](/platform/projects/create-project), then use the Hyperlocalise Canva app to collect page text, generate each project language, and write translations back onto the design.
+
+There is no separate Canva locale list. Jobs use the project's source locale and target locales. `en` is not `en-US`.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will generate. |
+| Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The token inherits your workspace role and project access. |
+| Hyperlocalise Canva app | The app installed or previewed in the Canva editor. Development URL is `http://localhost:8080` when you run the app locally. |
+| Design with editable text | Locked pages and unsupported page types are skipped. |
+
+## Connect Canva
+
+1. Open workspace **Integrations** and find **Canva**.
+2. Enter a display name.
+3. Select the personal access token and the native project. The dropdowns show the token name and project name.
+4. Save. Hyperlocalise copies the project's source locale and target locales onto the connection. You do not set locales on this form.
+5. Copy the connection token shown once after creation if you will paste it into the app. Prefer **Connect Hyperlocalise** (OAuth) in the Canva app when that is available.
+
+If you lose the one-time token, create a replacement connection or reconnect with OAuth. The token is not shown again. See [Connection troubleshooting](/platform/help/connections).
+
+Connect Canva before you collect texts. Changing the bound project changes the next collect and generate.
+
+## Step 1: Match project locales
+
+Create or choose the [native project](/platform/projects/create-project) you selected on the connection.
+
+1. Set the project **source locale** to the language of the design copy you will collect (`en-US` if the design is written in US English).
+2. Add a project target locale for each language you will generate (`fr-FR`, `de-DE`).
+3. Use the exact BCP-47 tags you want on jobs. There is no language fallback: `en` does not map to `en-US`, and `es` does not map to `es-MX`.
+4. Keep locked pairs separate: `en-US` is not `en-GB`.
+
+Change languages in [project settings](/platform/projects/languages), then reconnect in the Canva app so it reloads the list.
+
+## Step 2: Open the design in Canva
+
+1. Open the design in the Canva editor.
+2. Open the Hyperlocalise Canva app from the editor.
+3. Confirm the design has editable text on the pages you will collect.
+
+The app lists every page. Locked pages and unsupported page types stay disabled.
+
+## Step 3: Connect from the app
+
+1. Choose **Connect Hyperlocalise** and complete OAuth, or paste the connection token and choose **Connect with token**.
+2. Confirm the workspace and project names in the app.
+3. Confirm languages appear as **English (en-US)**, **French (fr-FR)**, and so on. The label is for display. Jobs still send the project tag.
+
+If the app shows a reconnect error, disconnect and connect again. A pasted token is only for local development.
+
+## Step 4: Collect texts
+
+Collect writes source JSON into the bound project. It does not start translation.
+
+1. Under **Pages to localize**, select the pages in scope. Use **Select all** or **Clear**.
+2. Under **Collect**, choose **Pages to collect**: one selected page, or **All selected pages**.
+3. Leave **Preserve inline formatting** on when the design uses mixed styles in one text box.
+4. Choose **Collect texts**.
+5. Confirm the app reports how many page files it created.
+
+Each page is stored at `canva/designs/<design-slug>/page-<n>.json`. The slug comes from the Canva title. Untitled designs fall back to the design id. Review those files like other [JSON sources](/platform/projects/files).
+
+A later collect replaces the current collect batch for that design. Generate and add-to-design use that batch only. Earlier page files from the same design are not reused.
+
+Collect does not create a translation job.
+
+## Step 5: Generate translation
+
+1. Under **Add translations to design**, find the language row.
+2. Choose **Generate translation**.
+3. Wait until the row shows a percent complete and **Add to design**. Queued and running jobs poll automatically.
+
+Generate starts one file job per page file in the latest collect, for that one locale. Source is always the project source locale. The target must already belong to the project.
+
+Open the job in Hyperlocalise if you need to [review](/platform/cat) or wait for approval. A locale that still needs review can still be added to the design when the job is waiting for review or succeeded.
+
+## Step 6: Review in Hyperlocalise
+
+1. Open the collected page files in the [Content Editor](/platform/cat).
+2. Translate and [approve](/platform/cat) the locales you will write back. You do not need every locale approved.
+3. Return to the Canva app and wait for the language row to show **Add to design**.
+
+Approve in Hyperlocalise when your process requires it. The app writes the latest pullable translations for that locale.
+
+## Step 7: Add to design
+
+Add to design replaces text on existing pages. It does not insert a page above or below.
+
+1. Choose **Add to design** on the language row.
+2. Select the **Translated page** (the collected page file).
+3. Select the **Current page** (the Canva page that should receive that file).
+4. Choose **Apply to this page** to replace text on that Canva page.
+5. Or choose **Apply all** to replace each collected page onto the matching page index.
+6. Inspect layout after applying another language, especially for longer text.
+
+Apply uses page-local keys from the latest collect. It does not rewrite older single-file designs.
+
+## Change or remove access
+
+Disconnect from the Canva app when this editor session should stop using the workspace. Disconnect the connection from **Integrations** when the workspace should stop using that token and project.
+
+If you lost the one-time connection token, replace the connection rather than expecting to reveal it again. Revoke the old credential after the replacement works.
+
+## If collect or generate does not run
+
+- Confirm Canva is connected and the bound project has a source locale and at least one target locale.
+- Confirm the personal access token still has `files:read`, `files:write`, `jobs:read`, and `jobs:write`, and that you can access the project.
+- Confirm you selected at least one editable page and that those pages contain text.
+- Confirm you collected texts before you generate. Generate fails when the design has no current collect batch.
+- Confirm the language you generate is on the project. `en` is not `en-US`.
+- If add-to-design is missing, wait for the job to succeed or wait for review, then refresh the locale row.
+- Open the job in Hyperlocalise for a failed locale.
+
+See [Connection troubleshooting](/platform/help/connections).

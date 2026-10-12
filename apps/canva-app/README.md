@@ -38,6 +38,8 @@ vp run bundle
 
 ## Configure Hyperlocalise
 
+Product steps live in [Localize Canva](../../docs/platform/connections/canva.mdx).
+
 In the Hyperlocalise web app, create a **Canva connection** for your workspace:
 
 1. Choose an API key with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
