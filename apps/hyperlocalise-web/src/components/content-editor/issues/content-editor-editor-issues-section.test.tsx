@@ -40,12 +40,15 @@ type IssueListCall = {
 
 const goSvcMocks = vi.hoisted(() => {
   const listCalls: IssueListCall[] = [];
-  let listHandler: (query: IssueSheetListQuery) => Promise<{ issues: unknown[]; total: number }> =
-    async () => ({ issues: [], total: 0 });
+  let listHandler: (
+    query: IssueSheetListQuery,
+  ) => Promise<{ issues: unknown[]; total: number }> = async () => ({ issues: [], total: 0 });
 
   return {
     listCalls,
-    setListHandler(handler: (query: IssueSheetListQuery) => Promise<{ issues: unknown[]; total: number }>) {
+    setListHandler(
+      handler: (query: IssueSheetListQuery) => Promise<{ issues: unknown[]; total: number }>,
+    ) {
       listHandler = handler;
     },
     issueSheetList: async (
