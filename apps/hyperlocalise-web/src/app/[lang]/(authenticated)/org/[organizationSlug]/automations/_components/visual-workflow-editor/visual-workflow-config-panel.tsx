@@ -1346,7 +1346,12 @@ export function VisualWorkflowConfigPanel({
           <FormattedMessage {...messages.deleteStep} />
         </Button>
       </div>
-      <VisualWorkflowIssueList issues={issues} nodes={nodes} onSelectNode={onSelectNode} />
+      <VisualWorkflowIssueList
+        issues={issues}
+        nodes={nodes}
+        selectedNodeId={node.id}
+        onSelectNode={onSelectNode}
+      />
     </div>
   );
 }

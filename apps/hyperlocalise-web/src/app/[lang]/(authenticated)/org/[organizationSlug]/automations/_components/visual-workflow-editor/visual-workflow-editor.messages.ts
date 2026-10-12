@@ -1002,6 +1002,22 @@ export const visualWorkflowEditorMessages = defineMessages({
     description:
       "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
   },
+  issuePosition: {
+    defaultMessage: "Issue {current} of {total}",
+    id: "2fPK5TW6va",
+    description:
+      "Which of the workflow's validation issues is shown, above the issue. {current} and {total} are numbers",
+  },
+  previousIssue: {
+    defaultMessage: "Previous issue",
+    id: "GSFsE42qE6",
+    description: "Button that shows the previous validation issue of a visual workflow",
+  },
+  nextIssue: {
+    defaultMessage: "Next issue",
+    id: "We3SJU9IT4",
+    description: "Button that shows the next validation issue of a visual workflow",
+  },
   issueLiteralCredential: {
     defaultMessage:
       "Use a saved credential for secret values instead of typing them into the step.",
