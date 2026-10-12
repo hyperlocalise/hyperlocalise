@@ -113,7 +113,6 @@ func TestEditorCatSkipsVercelRoutes(t *testing.T) {
 		{http.MethodPost, "/files/detail/cat/images/regenerate", "image_regenerate_deferred"},
 		{http.MethodPost, "/files/detail/cat/images/upload", "image_upload_deferred"},
 		{http.MethodPost, "/files/detail/cat/recommendation", "ai_recommendation_deferred"},
-		{http.MethodPost, "/files/detail/cat/visual-context", "visual_context_deferred"},
 	}
 	for _, route := range routes {
 		t.Run(route.code, func(t *testing.T) {

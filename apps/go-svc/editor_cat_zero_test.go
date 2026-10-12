@@ -27,7 +27,6 @@ func TestEditorCatSkippedRoutes(t *testing.T) {
 		fn   func(*http.Request, editorCatActor, editorCatProject) (any, int, error)
 		code string
 	}{
-		{"visual", api.skipVisualContext, "visual_context_deferred"},
 		{"recommendation", api.skipRecommendation, "ai_recommendation_deferred"},
 		{"regenerate", api.skipImageRegenerate, "image_regenerate_deferred"},
 		{"upload", api.skipImageUpload, "image_upload_deferred"},

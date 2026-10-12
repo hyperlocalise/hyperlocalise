@@ -110,7 +110,11 @@ func main() {
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
-	h.contentEditor = &editorCatAPI{}
+	visualContextMatchPublisher, visualContextMatchErr := newVisualContextMatchPublisher(context.Background())
+	if visualContextMatchErr != nil {
+		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
+	}
+	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
 	h.conversations = &conversationAPI{}
 	h.overview = &overviewAPI{}
@@ -191,6 +195,7 @@ func main() {
 	}
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
+	h.contentEditor.objects = h.objects
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)

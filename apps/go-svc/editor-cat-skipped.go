@@ -15,13 +15,6 @@ func projectFileStringSourceTextHash(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (api *editorCatAPI) skipVisualContext(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
-	return nil, 0, editorCatVercelDeferred(
-		"visual_context_deferred",
-		"Visual Context stays on the Hono route; it calls connected TMS screenshot APIs that are not in go-svc yet",
-	)
-}
-
 func (api *editorCatAPI) skipRecommendation(r *http.Request, actor editorCatActor, project editorCatProject) (any, int, error) {
 	return nil, 0, editorCatVercelDeferred(
 		"ai_recommendation_deferred",

@@ -469,6 +469,14 @@ All paths below are relative to `/v1/orgs/{organizationSlug}/projects/{projectId
 | POST | `/files/detail/cat/comments` | Add a comment |
 | PATCH | `/files/detail/cat/comments/{id}/resolve` | Resolve a legacy native issue comment |
 | POST | `/files/detail/cat/concordance` | Native glossary + TM lookup |
+| POST | `/files/detail/cat/visual-context` | Native screenshots bound to a string |
+| POST | `/files/detail/cat/visual-context/screenshots` | Presign a screenshot upload, optionally bind a string |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/finalize` | Persist an uploaded screenshot as stored visual context; optional `match` queues OCR binding |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/match` | Queue an async OCR match that binds strings to the screenshot (`202`) |
+| GET | `/files/detail/cat/visual-context/processes/{id}` | Poll a match process and its auto bindings |
+| POST | `/files/detail/cat/visual-context/screenshots/{id}/bindings` | Bind a screenshot to a native string |
+| DELETE | `/files/detail/cat/visual-context/screenshots/{id}/bindings/{bindingId}` | Remove a string binding |
+| DELETE | `/files/detail/cat/visual-context/screenshots/{id}` | Delete a screenshot and its bindings |
 | POST | `/files/detail/cat/strings/hidden` | Hide or unhide keys |
 | POST | `/files/detail/cat/strings/locked` | Lock or unlock segments |
 | POST | `/files/detail/cat/segments/{id}/max-length` | Set key max length |
@@ -486,7 +494,7 @@ These return `501` with a stable error code. Browser clients keep calling Hono.
 | POST | `/files/detail/cat/images/regenerate` | `image_regenerate_deferred` | Vercel Workflow + Blob-backed stored files |
 | POST | `/files/detail/cat/images/upload` | `image_upload_deferred` | Vercel Blob file adapter |
 | POST | `/files/detail/cat/recommendation` | `ai_recommendation_deferred` | Vercel AI Gateway / AI SDK |
-| POST | `/files/detail/cat/visual-context` | `visual_context_deferred` | Live TMS screenshot adapters |
+| POST | `/files/detail/cat/visual-context` on TMS projects | `visual_context_deferred` | Live TMS screenshot adapters |
 | POST | `/files/string-context` without `cachedOnly` | `string_context_deferred` | Vercel Workflow repository agent |
 | * | Provider/TMS CAT (`projects.source != native`) | `provider_cat_deferred` | TypeScript TMS provider adapters |
 

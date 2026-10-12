@@ -372,6 +372,9 @@ export function ContentEditorIntelligencePanel({
   canTriggerFindContext = false,
   onFindContext,
   scrollToTm = false,
+  canUploadVisualContext = false,
+  isUploadingVisualContext = false,
+  onUploadVisualContext,
 }: {
   intelligence: ContentEditorSegmentIntelligence;
   segmentId?: string;
@@ -412,6 +415,9 @@ export function ContentEditorIntelligencePanel({
    * Enabled in Translator persona so TM matches are immediately visible.
    */
   scrollToTm?: boolean;
+  canUploadVisualContext?: boolean;
+  isUploadingVisualContext?: boolean;
+  onUploadVisualContext?: (file: File) => void | Promise<void>;
 }) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -764,6 +770,9 @@ export function ContentEditorIntelligencePanel({
             visualContext={intelligence.visualContext}
             isLoading={isVisualContextLoading}
             showPanel={showVisualContext}
+            canUpload={canUploadVisualContext && !isTranslationLocked}
+            isUploading={isUploadingVisualContext}
+            onUpload={onUploadVisualContext}
           />
 
           <ContentEditorLottieContextPanel activeSegmentKey={segmentKey} />
