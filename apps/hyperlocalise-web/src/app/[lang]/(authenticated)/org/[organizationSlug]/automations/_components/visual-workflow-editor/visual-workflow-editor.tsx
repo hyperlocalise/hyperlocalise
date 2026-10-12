@@ -174,6 +174,10 @@ export function VisualWorkflowEditor({
     () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
     [edges, name, nodes],
   );
+  const issueNodeIds = useMemo(
+    () => new Set(issues.flatMap((issue) => (issue.nodeId ? [issue.nodeId] : []))),
+    [issues],
+  );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
   const saveDisabled = issues.length > 0;
@@ -632,7 +636,10 @@ export function VisualWorkflowEditor({
         />
       ) : (
         <div className="relative flex min-h-0 min-w-0 flex-1">
-          <VisualWorkflowCanvasActionsProvider onAddFromNode={openPicker}>
+          <VisualWorkflowCanvasActionsProvider
+            onAddFromNode={openPicker}
+            issueNodeIds={issueNodeIds}
+          >
             <VisualWorkflowCanvas
               nodes={nodes}
               edges={edges}

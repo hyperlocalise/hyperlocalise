@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -134,7 +135,8 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds } = useVisualWorkflowCanvasActions();
+  const hasIssue = issueNodeIds.has(id);
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
@@ -209,12 +211,21 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       style={{ minHeight: getVisualNodeDimensions(data.catalogType, data.config).height }}
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
+        hasIssue ? "ring-2 ring-destructive/70" : null,
         selected ? "ring-2 ring-ring" : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
+      {hasIssue ? (
+        <span
+          className="absolute top-2 right-2 text-destructive"
+          title={intl.formatMessage(messages.stepHasIssue)}
+        >
+          <WarningCircleIcon className="size-3.5" />
+        </span>
+      ) : null}
       {isTrigger ? (
         <span
           className="absolute top-2 left-2 text-primary"

@@ -19,19 +19,25 @@ export type VisualWorkflowAddFrom = {
   handleId?: string;
 };
 
+const NO_NODE_IDS: ReadonlySet<string> = new Set();
+
 const VisualWorkflowCanvasActionsContext = createContext<{
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
+  issueNodeIds: ReadonlySet<string>;
 } | null>(null);
 
 export function VisualWorkflowCanvasActionsProvider({
   onAddFromNode,
+  issueNodeIds = NO_NODE_IDS,
   children,
 }: {
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
+  /** The steps a validation issue is about, which the canvas marks. */
+  issueNodeIds?: ReadonlySet<string>;
   children: ReactNode;
 }) {
   return (
-    <VisualWorkflowCanvasActionsContext.Provider value={{ onAddFromNode }}>
+    <VisualWorkflowCanvasActionsContext.Provider value={{ onAddFromNode, issueNodeIds }}>
       {children}
     </VisualWorkflowCanvasActionsContext.Provider>
   );

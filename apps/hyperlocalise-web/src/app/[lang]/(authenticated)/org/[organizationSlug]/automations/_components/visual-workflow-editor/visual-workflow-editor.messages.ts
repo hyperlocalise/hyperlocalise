@@ -1018,6 +1018,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "We3SJU9IT4",
     description: "Button that shows the next validation issue of a visual workflow",
   },
+  stepHasIssue: {
+    defaultMessage: "This step has a problem",
+    id: "22szuz+pVL",
+    description: "Label of the warning mark on a canvas step that a validation issue is about",
+  },
   showStepOnCanvas: {
     defaultMessage: "Show on canvas",
     id: "1oDvFz2774",

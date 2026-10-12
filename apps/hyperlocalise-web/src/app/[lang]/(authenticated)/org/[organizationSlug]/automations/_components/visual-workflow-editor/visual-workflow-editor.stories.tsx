@@ -81,6 +81,38 @@ const edgeKindsDraft = {
   ],
 };
 
+const invalidStepDraft = {
+  name: "A step with an empty setting",
+  nodes: [
+    edgeKindsDraft.nodes[0]!,
+    {
+      id: "notify",
+      type: "action.notify_slack" as const,
+      position: { x: 420, y: 180 },
+      data: {
+        catalogType: "action.notify_slack" as const,
+        config: {
+          kind: "action.notify_slack" as const,
+          channelId: "",
+          message: "Deployed",
+          onError: "stop" as const,
+        },
+        runStatus: "idle" as const,
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "execution-edge",
+      source: "trigger",
+      target: "notify",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" as const },
+    },
+  ],
+};
+
 const meta = {
   title: "App/Automations/Visual Workflow",
   component: VisualWorkflowEditor,
@@ -265,6 +297,38 @@ export const PortCompatibility: Story = {
         "This value is supplied by a connected data port. Remove the data wire to edit it here.",
       ).length,
     ).toBeGreaterThan(0);
+  },
+};
+
+export const InvalidStep: Story = {
+  name: "Invalid step",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step with an empty required setting is marked on the canvas. The issue names the step and the setting, and its buttons select the step and bring it into view.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByTitle("This step has a problem")).toBeInTheDocument();
+    await expect(canvas.getByText("channelId is required.")).toBeInTheDocument();
+    // One broken step needs no arrows.
+    await expect(canvas.queryByRole("button", { name: "Next issue" })).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show on canvas" }));
+
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   },
 };
 
