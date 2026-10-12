@@ -73,6 +73,7 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
 
@@ -96,6 +97,7 @@ export function VisualWorkflowConfigPanel({
   onChangeContract,
   organizationSlug,
   issues,
+  onSelectNode,
   onBack,
   onChangeConfig,
   onChangeNodeType,
@@ -107,6 +109,8 @@ export function VisualWorkflowConfigPanel({
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
   issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
+  /** Called with the step an issue is about when its line is clicked. */
+  onSelectNode?: (nodeId: string) => void;
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
@@ -1336,18 +1340,7 @@ export function VisualWorkflowConfigPanel({
           <FormattedMessage {...messages.deleteStep} />
         </Button>
       </div>
-      {issues.length > 0 ? (
-        <div
-          data-testid="visual-workflow-validation-issues"
-          className="border-t border-border px-4 py-3 text-sm text-destructive"
-        >
-          {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
-              {intl.formatMessage(issueMessage(issue.code))}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      <VisualWorkflowIssueList issues={issues} nodes={nodes} onSelectNode={onSelectNode} />
     </div>
   );
 }
@@ -1780,42 +1773,5 @@ function titleForTrigger(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     default:
       return messages.triggerType;
-  }
-}
-
-function issueMessage(
-  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
-) {
-  switch (code) {
-    case "missing_trigger":
-      return messages.missingTrigger;
-    case "multiple_triggers":
-      return messages.multipleTriggers;
-    case "orphan_node":
-      return messages.orphanNode;
-    case "invalid_edge":
-      return messages.invalidEdge;
-    case "invalid_trigger_config":
-      return messages.invalidTriggerConfig;
-    case "invalid_node_config":
-      return messages.invalidNodeConfig;
-    case "nested_for_each":
-      return messages.nestedForEach;
-    case "nested_retry":
-      return messages.nestedRetry;
-    case "invalid_retry":
-      return messages.invalidRetry;
-    case "retry_foreach_nesting":
-      return messages.retryForEachNesting;
-    case "non_idempotent_retry":
-      return messages.nonIdempotentRetry;
-    case "invalid_retry_policy":
-      return messages.invalidRetryPolicy;
-    case "invalid_try_catch_region":
-      return messages.invalidTryCatchRegion;
-    case "overlapping_try_catch_region":
-      return messages.overlappingTryCatchRegion;
-    default:
-      return messages.invalidNodeConfig;
   }
 }

@@ -245,3 +245,6 @@ function categoryMessage(category: VisualCatalogCategory) {
       return messages.categoryFlow;
   }
 }
+
+/** The catalogue title of a node type, for places that name nodes outside the picker. */
+export { titleFor as visualWorkflowNodeTitleMessage };
