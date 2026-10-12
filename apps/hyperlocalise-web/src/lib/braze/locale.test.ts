@@ -16,6 +16,8 @@ import {
   areBrazeSourceLocalesCompatible,
   isBrazeLocaleCopyName,
   mapProjectLocalesToBraze,
+  mapProjectLocalesToBrazeLocaleIds,
+  resolveBrazeLocaleId,
   resolveBrazeLocaleSuffix,
 } from "./locale";
 
@@ -48,5 +50,23 @@ describe("braze locale", () => {
     expect(isBrazeLocaleCopyName({ name: "Welcome_de-DE", suffixes: ["fr-FR"] })).toBe(true);
     expect(isBrazeLocaleCopyName({ name: "Welcome_Email", suffixes: ["fr-FR"] })).toBe(false);
     expect(isBrazeLocaleCopyName({ name: "Hero_Promo", suffixes: ["fr-FR"] })).toBe(false);
+  });
+
+  it("maps project locales onto Braze UUIDs without language fallback", () => {
+    const locales = [
+      { uuid: "uuid-es-mx", name: "es-MX", locale_key: "es-mx" },
+      { uuid: "uuid-fr-fr", name: "fr-FR", locale_key: "fr-fr" },
+    ];
+    expect(resolveBrazeLocaleId("fr-FR", locales)).toBe("uuid-fr-fr");
+    expect(resolveBrazeLocaleId("es", locales)).toBeNull();
+    expect(
+      mapProjectLocalesToBrazeLocaleIds({
+        projectLocales: ["fr-FR", "es"],
+        brazeLocales: locales,
+      }),
+    ).toEqual({
+      localeIds: { "fr-FR": "uuid-fr-fr" },
+      unmappedProjectLocales: ["es"],
+    });
   });
 });

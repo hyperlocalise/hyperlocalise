@@ -66,6 +66,7 @@ describe("workspace automation templates", () => {
       "translate-on-source-upload",
       "translate-intercom-articles",
       "translate-braze-email-templates",
+      "translate-braze-campaigns",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",
@@ -121,6 +122,19 @@ describe("workspace automation templates", () => {
         (template) => template.id,
       ),
     ).toContain("translate-braze-email-templates");
+  });
+
+  it("lists the Braze campaigns template under Popular and Marketing", () => {
+    expect(
+      listWorkspaceAutomationTemplates("popular", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-campaigns");
+    expect(
+      listWorkspaceAutomationTemplates("marketing", WORKSPACE_AUTOMATION_TEMPLATES_BASE).map(
+        (template) => template.id,
+      ),
+    ).toContain("translate-braze-campaigns");
   });
 
   it("builds the Braze template flow with brand, create job, and translate tools", () => {

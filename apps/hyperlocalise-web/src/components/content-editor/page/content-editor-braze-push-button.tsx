@@ -62,6 +62,7 @@ export function ContentEditorBrazePushButton({
       fetchContentEditorBrazePushCandidates({
         organizationSlug,
         projectId,
+        sourcePath: openSourcePath,
       }),
     enabled: canManageAutomations,
   });

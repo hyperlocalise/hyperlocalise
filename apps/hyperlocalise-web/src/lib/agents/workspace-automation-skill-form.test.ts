@@ -132,6 +132,26 @@ describe("workspace automation skill form", () => {
     expect(addSkillToWorkspaceAutomationForm(attached, "research-web")).toBe(attached);
   });
 
+  it("does not attach both Braze skills on one automation", () => {
+    const templates = addSkillToWorkspaceAutomationForm(
+      createDefaultWorkspaceAutomationFormState(),
+      "translate-braze-email-templates",
+    );
+    const campaignsSkill = getWorkspaceAutomationSkill("translate-braze-campaigns");
+    if (!campaignsSkill) {
+      throw new Error("missing skill");
+    }
+
+    expect(resolveWorkspaceAutomationSkillAvailability(templates, campaignsSkill)).toBe(
+      "trigger_mismatch",
+    );
+    expect(addSkillToWorkspaceAutomationForm(templates, campaignsSkill.id)).toBe(templates);
+    expect(templates).toMatchObject({
+      brazeEnabled: true,
+      brazeCampaignsEnabled: false,
+    });
+  });
+
   it("removes only the tools no remaining skill needs", () => {
     const withBoth = addSkillToWorkspaceAutomationForm(
       addSkillToWorkspaceAutomationForm(

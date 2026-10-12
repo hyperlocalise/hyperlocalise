@@ -86,6 +86,7 @@ describe("workspace template manifest", () => {
     expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
     expect(getTemplateCategoryFromSkill("translate-intercom-articles")).toBe("popular");
     expect(getTemplateCategoryFromSkill("translate-braze-email-templates")).toBe("popular");
+    expect(getTemplateCategoryFromSkill("translate-braze-campaigns")).toBe("popular");
   });
 
   it("merges summarize changes daily skill onto the gallery template", () => {
@@ -167,6 +168,7 @@ describe("workspace template manifest", () => {
       "translate-on-source-upload",
       "translate-intercom-articles",
       "translate-braze-email-templates",
+      "translate-braze-campaigns",
       "translate-contentful-article",
       "summarize-changes-daily",
       "review-code-daily",

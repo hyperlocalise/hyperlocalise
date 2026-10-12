@@ -64,6 +64,7 @@ import {
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
@@ -113,7 +114,10 @@ export function workspaceAutomationNeedsProject(input: {
   if (hasWorkspaceAutomationIntercomTool(input.toolConfig)) {
     return true;
   }
-  if (hasWorkspaceAutomationBrazeTool(input.toolConfig)) {
+  if (
+    hasWorkspaceAutomationBrazeTool(input.toolConfig) ||
+    hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig)
+  ) {
     return true;
   }
   if (
@@ -184,8 +188,19 @@ function validateWorkspaceAutomationConfig(input: {
     return ok(undefined);
   }
 
+  const skillIds = input.skillIds ?? [];
+  if (
+    skillIds.includes("translate-braze-email-templates") &&
+    skillIds.includes("translate-braze-campaigns")
+  ) {
+    return err({
+      code: "braze_skills_exclusive",
+      message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
+    });
+  }
+
   const skillProblem = validateWorkspaceAutomationSkills({
-    skillIds: input.skillIds ?? [],
+    skillIds,
     triggerMode: input.triggerConfig.mode,
     toolConfig: input.toolConfig,
   });
@@ -804,8 +819,93 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.braze?.enabled && input.toolConfig.brazeCampaigns?.enabled) {
+    return err({
+      code: "braze_skills_exclusive",
+      message: "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
+    });
+  }
+
   if (input.toolConfig.braze?.enabled) {
     const braze = input.toolConfig.braze;
+    const workosUserId = braze.workosUserId;
+    if (!workosUserId) {
+      return err({
+        code: "braze_not_connected",
+        message: "Connect Braze in Integrations before using it.",
+      });
+    }
+
+    const status = await getBrazePipesConnectionStatus({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(status)) {
+      return err({
+        code: "braze_pipes_unavailable",
+        message: "WorkOS is not configured, so Braze cannot connect through Pipes.",
+      });
+    }
+
+    if (status.value.needsReauthorization) {
+      return err({
+        code: "braze_pipes_needs_reauthorization",
+        message: "Reconnect Braze in Integrations, then try again.",
+      });
+    }
+
+    if (!status.value.connected) {
+      return err({
+        code: "braze_not_connected",
+        message: "Connect Braze in Integrations before using it.",
+      });
+    }
+
+    const endpoint = await loadBrazeRestEndpoint({
+      localOrganizationId: input.organizationId,
+      workosUserId,
+    });
+    if (isErr(endpoint)) {
+      return err({
+        code: "braze_endpoint_missing",
+        message: "Save a Braze REST cluster in Integrations before using it.",
+      });
+    }
+
+    const projectId = readOptionalProjectId(input.projectId);
+    if (projectId) {
+      const [project] = await database
+        .select({
+          sourceLocale: schema.projects.sourceLocale,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (project) {
+        const projectSourceLocale = project.sourceLocale ?? "en";
+        const configuredSourceLocale = braze.sourceLocale?.trim();
+        if (
+          configuredSourceLocale &&
+          !areBrazeSourceLocalesCompatible(configuredSourceLocale, projectSourceLocale)
+        ) {
+          return err({
+            code: "braze_source_locale_mismatch",
+            message:
+              "The Braze source locale must be the same language as the project source locale.",
+          });
+        }
+      }
+    }
+  }
+
+  if (input.toolConfig.brazeCampaigns?.enabled) {
+    const braze = input.toolConfig.brazeCampaigns;
     const workosUserId = braze.workosUserId;
     if (!workosUserId) {
       return err({
@@ -1093,6 +1193,21 @@ async function stampPipesUsersOnToolConfig(input: {
       ...toolConfig,
       intercom: {
         ...toolConfig.intercom,
+        enabled: true,
+        ...(workosUserId ? { workosUserId } : {}),
+      },
+    };
+  }
+
+  if (toolConfig.brazeCampaigns?.enabled) {
+    const workosUserId = await resolveBrazePipesWorkosUserId({
+      workosUserId: input.actorWorkosUserId,
+      localUserId: input.authorUserId,
+    });
+    toolConfig = {
+      ...toolConfig,
+      brazeCampaigns: {
+        ...toolConfig.brazeCampaigns,
         enabled: true,
         ...(workosUserId ? { workosUserId } : {}),
       },

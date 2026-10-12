@@ -3,7 +3,7 @@
 ## Status
 
 Accepted. Product docs follow Crowdin’s two Braze apps. Email Templates
-(HL-863) is implemented. Campaigns & Canvas (HL-862) is upcoming.
+(HL-863) and Campaigns & Canvas (HL-862) are implemented.
 
 ## Date
 
@@ -33,12 +33,13 @@ Braze connection.
    Push creates or updates library copies. Never update the source.
    Never publish. See [Braze Email Templates](./2026-10-11-braze-email-templates.md).
 2. **Translate Braze Campaigns & Canvas** (`translate-braze-campaigns`,
-   HL-862). Upcoming. Import draft campaigns and Canvas steps that use
-   `{% translation id %}` tags. Push writes Braze multi-language
-   variants. Import and push never publish a live send.
+   HL-862). Import tagged draft campaign and Canvas message variations
+   as JSON `translation_map` files. Push writes Braze multi-language
+   variants through the Translation API. Import and push never publish
+   a live send. See [Braze Campaigns and Canvas](./2026-10-12-braze-campaigns-and-canvas.md).
 
 Customer help uses Crowdin’s comparison table (Campaigns, Canvas steps,
-email templates, Content Blocks) and marks Campaigns & Canvas upcoming.
+email templates, Content Blocks).
 
 Do not add a Store checkbox UI, marketplace listing, or Connected
 Content in either skill.
@@ -56,6 +57,7 @@ Content in either skill.
 - One **Integrations → Braze** row. Two automations later.
 - Product docs live on one page, `docs/platform/connections/braze.mdx`.
 - API keys created for Email Templates should already include campaigns
-  and Canvas so the same connection works when HL-862 ships. Save pings
+  and Canvas so the same connection works for both skills. Save pings
   `templates.email.list`, `content_blocks.list`, `campaigns.list`, and
-  `canvas.list` before the key is stored.
+  `canvas.list` before the key is stored. Campaigns import and push also
+  need details and translations get/update permissions.

@@ -88,6 +88,15 @@ export const BrazeTranslation: Story = {
   },
 };
 
+export const BrazeCampaigns: Story = {
+  ...templateStory("translate-braze-campaigns"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("Daily → Braze → Create job → Translate with agent"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const SourceUploadTranslation: Story = {
   ...templateStory("translate-on-source-upload"),
   play: async ({ canvas }) => {

@@ -93,6 +93,58 @@ export function resolveBrazeLocaleSuffix(projectLocale: string): string {
   return normalizeBrazeLocaleTag(projectLocale);
 }
 
+export type BrazeLocaleIdentity = {
+  uuid: string;
+  name?: string;
+  locale_key?: string;
+};
+
+export function resolveBrazeLocaleId(
+  projectLocale: string,
+  brazeLocales: readonly BrazeLocaleIdentity[],
+): string | null {
+  const normalized = normalizeBrazeLocaleTag(projectLocale).toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  for (const locale of brazeLocales) {
+    const uuid = locale.uuid.trim();
+    if (!uuid) {
+      continue;
+    }
+    const name = locale.name?.trim() ? normalizeBrazeLocaleTag(locale.name).toLowerCase() : "";
+    const key = locale.locale_key?.trim()
+      ? normalizeBrazeLocaleTag(locale.locale_key).toLowerCase()
+      : "";
+    if (name === normalized || key === normalized) {
+      return uuid;
+    }
+  }
+  return null;
+}
+
+export function mapProjectLocalesToBrazeLocaleIds(input: {
+  projectLocales: readonly string[];
+  brazeLocales: readonly BrazeLocaleIdentity[];
+}): {
+  localeIds: Record<string, string>;
+  unmappedProjectLocales: string[];
+} {
+  const localeIds: Record<string, string> = {};
+  const unmappedProjectLocales: string[] = [];
+  const seenUuid = new Set<string>();
+  for (const projectLocale of uniqueNonEmptyLocales(input.projectLocales)) {
+    const uuid = resolveBrazeLocaleId(projectLocale, input.brazeLocales);
+    if (!uuid || seenUuid.has(uuid)) {
+      unmappedProjectLocales.push(projectLocale);
+      continue;
+    }
+    seenUuid.add(uuid);
+    localeIds[projectLocale] = uuid;
+  }
+  return { localeIds, unmappedProjectLocales };
+}
+
 export function mapProjectLocalesToBraze(input: {
   projectSourceLocale: string;
   projectTargetLocales: readonly string[];

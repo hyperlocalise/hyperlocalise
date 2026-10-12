@@ -116,6 +116,67 @@ export async function fetchContentEditorIntercomPushCandidates(input: {
   return details.filter((entry): entry is ContentEditorIntercomPushCandidate => entry != null);
 }
 
+export type ContentEditorIntercomIngestCandidate = {
+  automationId: string;
+  name: string;
+  runInProgress: boolean;
+};
+
+export function contentEditorIntercomIngestQueryKey(organizationSlug: string, projectId: string) {
+  return ["content-editor-intercom-ingest", organizationSlug, projectId] as const;
+}
+
+export async function fetchContentEditorIntercomIngestCandidates(input: {
+  organizationSlug: string;
+  projectId: string;
+}): Promise<ContentEditorIntercomIngestCandidate[]> {
+  let automations;
+  try {
+    automations = await automationsApi.listAutomations(input.organizationSlug, {
+      projectId: input.projectId,
+    });
+  } catch {
+    return [];
+  }
+
+  const intercomAutomations = automations.filter(
+    (automation) =>
+      automation.status === "active" && hasWorkspaceAutomationIntercomTool(automation.toolConfig),
+  );
+  if (intercomAutomations.length === 0) {
+    return [];
+  }
+
+  const details = await mapWithConcurrency(
+    intercomAutomations,
+    INTERCOM_PUSH_DETAIL_CONCURRENCY,
+    async (automation) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$get({
+        param: {
+          organizationSlug: input.organizationSlug,
+          automationId: automation.id,
+        },
+        query: {},
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const body = await response.json();
+      return {
+        automationId: automation.id,
+        name: automation.name,
+        runInProgress: (body.recentRuns ?? []).some(
+          (run: { status?: string }) => run.status === "queued" || run.status === "running",
+        ),
+      } satisfies ContentEditorIntercomIngestCandidate;
+    },
+  );
+
+  return details.filter((entry): entry is ContentEditorIntercomIngestCandidate => entry != null);
+}
+
 export function intercomArticleTitleFromSourcePath(sourcePath: string): string {
   const filename = sourcePath.split("/").pop() ?? sourcePath;
   return filename.replace(/\.md$/i, "") || sourcePath;

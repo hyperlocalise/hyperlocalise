@@ -1009,6 +1009,13 @@
       "when": 1791734745277,
       "tag": "0143_fixed_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1791779065561,
+      "tag": "0144_shallow_james_howlett",
+      "breakpoints": true
     }
   ]
 }

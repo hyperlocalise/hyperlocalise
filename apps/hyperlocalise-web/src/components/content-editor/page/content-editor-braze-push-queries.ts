@@ -14,7 +14,11 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { createAutomationsApi } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automations-api";
 import { apiClient } from "@/lib/api-client-instance";
-import { hasWorkspaceAutomationBrazeTool } from "@/lib/agents/workspace-automation-types";
+import {
+  hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationBrazeTool,
+} from "@/lib/agents/workspace-automation-types";
+import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/translation-map";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorBrazePushCandidate = {
@@ -28,7 +32,7 @@ export type ContentEditorBrazePushCandidate = {
 export type ContentEditorBrazePushItem = {
   sourceId: string;
   sourcePath: string;
-  resourceKind: "email_template" | "content_block";
+  resourceKind: "email_template" | "content_block" | "campaign" | "canvas_step";
   status: "active" | "push_failed";
   eligibleLocaleCount: number;
   targetLocaleCount: number;
@@ -61,9 +65,36 @@ export function invalidateContentEditorBrazePushQueries(
 const automationsApi = createAutomationsApi(apiClient);
 const BRAZE_PUSH_DETAIL_CONCURRENCY = 3;
 
+export type ContentEditorBrazeIngestCandidate = {
+  automationId: string;
+  name: string;
+  runInProgress: boolean;
+  kind: "templates" | "campaigns";
+};
+
+function brazeAutomationMatchesSourcePath(
+  toolConfig: Parameters<typeof hasWorkspaceAutomationBrazeTool>[0],
+  sourcePath?: string | null,
+) {
+  const isTemplates = hasWorkspaceAutomationBrazeTool(toolConfig);
+  const isCampaigns = hasWorkspaceAutomationBrazeCampaignsTool(toolConfig);
+  if (sourcePath && isBrazeCampaignSourcePath(sourcePath)) {
+    return isCampaigns;
+  }
+  if (sourcePath && isBrazeTemplateSourcePath(sourcePath)) {
+    return isTemplates;
+  }
+  return isTemplates || isCampaigns;
+}
+
+function readRecentRunsInProgress(body: { recentRuns?: Array<{ status?: string }> }) {
+  return (body.recentRuns ?? []).some((run) => run.status === "queued" || run.status === "running");
+}
+
 export async function fetchContentEditorBrazePushCandidates(input: {
   organizationSlug: string;
   projectId: string;
+  sourcePath?: string | null;
 }): Promise<ContentEditorBrazePushCandidate[]> {
   let automations;
   try {
@@ -76,7 +107,8 @@ export async function fetchContentEditorBrazePushCandidates(input: {
 
   const brazeAutomations = automations.filter(
     (automation) =>
-      automation.status === "active" && hasWorkspaceAutomationBrazeTool(automation.toolConfig),
+      automation.status === "active" &&
+      brazeAutomationMatchesSourcePath(automation.toolConfig, input.sourcePath),
   );
 
   if (brazeAutomations.length === 0) {
@@ -109,7 +141,9 @@ export async function fetchContentEditorBrazePushCandidates(input: {
         name: automation.name,
         eligibleLocaleCount: brazePush.eligibleLocaleCount,
         pushRunInProgress: brazePush.pushRunInProgress,
-        overwriteWhenRemoteNewer: automation.toolConfig.braze?.overwriteWhenRemoteNewer !== false,
+        overwriteWhenRemoteNewer:
+          (automation.toolConfig.brazeCampaigns?.overwriteWhenRemoteNewer ??
+            automation.toolConfig.braze?.overwriteWhenRemoteNewer) !== false,
       } satisfies ContentEditorBrazePushCandidate;
     },
   );
@@ -119,7 +153,65 @@ export async function fetchContentEditorBrazePushCandidates(input: {
 
 export function brazeItemTitleFromSourcePath(sourcePath: string): string {
   const filename = sourcePath.split("/").pop() ?? sourcePath;
-  return filename.replace(/\.html$/i, "") || sourcePath;
+  return filename.replace(/\.(html|json)$/i, "") || sourcePath;
+}
+
+export function contentEditorBrazeIngestQueryKey(organizationSlug: string, projectId: string) {
+  return ["content-editor-braze-ingest", organizationSlug, projectId] as const;
+}
+
+export async function fetchContentEditorBrazeIngestCandidates(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath?: string | null;
+}): Promise<ContentEditorBrazeIngestCandidate[]> {
+  let automations;
+  try {
+    automations = await automationsApi.listAutomations(input.organizationSlug, {
+      projectId: input.projectId,
+    });
+  } catch {
+    return [];
+  }
+
+  const brazeAutomations = automations.filter(
+    (automation) =>
+      automation.status === "active" &&
+      brazeAutomationMatchesSourcePath(automation.toolConfig, input.sourcePath),
+  );
+  if (brazeAutomations.length === 0) {
+    return [];
+  }
+
+  const details = await mapWithConcurrency(
+    brazeAutomations,
+    BRAZE_PUSH_DETAIL_CONCURRENCY,
+    async (automation) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$get({
+        param: {
+          organizationSlug: input.organizationSlug,
+          automationId: automation.id,
+        },
+        query: {},
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const body = await response.json();
+      return {
+        automationId: automation.id,
+        name: automation.name,
+        runInProgress: readRecentRunsInProgress(body),
+        kind: hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+          ? "campaigns"
+          : "templates",
+      } satisfies ContentEditorBrazeIngestCandidate;
+    },
+  );
+
+  return details.filter((entry): entry is ContentEditorBrazeIngestCandidate => entry != null);
 }
 
 export function defaultSelectedBrazePushSourcePaths(

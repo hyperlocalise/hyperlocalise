@@ -22,7 +22,7 @@ import { mapProjectLocalesToBraze } from "./locale";
 export type BrazePushItem = {
   sourceId: string;
   sourcePath: string;
-  resourceKind: "email_template" | "content_block";
+  resourceKind: "email_template" | "content_block" | "campaign" | "canvas_step";
   status: "active" | "push_failed";
   eligibleLocaleCount: number;
   targetLocaleCount: number;
@@ -136,6 +136,115 @@ export async function getBrazePushEligibility(input: {
   return { eligibleLocaleCount, mappedItemCount, items };
 }
 
+export async function getBrazeCampaignPushEligibility(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+}): Promise<BrazePushEligibility | null> {
+  const braze = input.automation.toolConfig.brazeCampaigns;
+  if (!braze?.enabled) {
+    return null;
+  }
+  const projectId = input.automation.projectId?.trim();
+  if (!projectId) {
+    return null;
+  }
+
+  const [project] = await db
+    .select({
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+  if (!project) {
+    return { eligibleLocaleCount: 0, mappedItemCount: 0, items: [] };
+  }
+
+  const projectTargetLocales = Array.isArray(project.targetLocales)
+    ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
+    : [];
+  const localeMapping = mapProjectLocalesToBraze({
+    projectSourceLocale: project.sourceLocale ?? "en",
+    projectTargetLocales,
+    configuredSourceLocale: braze.sourceLocale,
+  });
+
+  const mappings = (
+    await db
+      .select()
+      .from(schema.brazeCampaignSyncStates)
+      .where(
+        and(
+          eq(schema.brazeCampaignSyncStates.organizationId, input.organizationId),
+          eq(schema.brazeCampaignSyncStates.automationId, input.automation.id),
+          inArray(schema.brazeCampaignSyncStates.status, ["active", "push_failed"]),
+        ),
+      )
+  ).filter((mapping) => {
+    if (mapping.resourceKind === "campaign") {
+      return (
+        braze.campaignIds.length === 0 ||
+        (mapping.campaignId != null && braze.campaignIds.includes(mapping.campaignId))
+      );
+    }
+    return (
+      braze.canvasIds.length === 0 ||
+      (mapping.workflowId != null && braze.canvasIds.includes(mapping.workflowId))
+    );
+  });
+
+  const translationService = new ProjectTranslationService();
+  let eligibleLocaleCount = 0;
+  let mappedItemCount = 0;
+  const items: BrazePushItem[] = [];
+
+  for (const mapping of mappings) {
+    const eligibleLocales: string[] = [];
+    for (const projectLocale of localeMapping.jobTargetLocales) {
+      if (!mapping.localeIds[projectLocale]) {
+        continue;
+      }
+      const approved = await translationService.loadAsPrefilledEntries({
+        organizationId: input.organizationId,
+        projectId,
+        sourcePath: mapping.sourcePath,
+        targetLocale: projectLocale,
+        approvedTranslationsOnly: true,
+        readyTranslationsOnly: true,
+      });
+      if (approved.translatedKeyCount > 0) {
+        eligibleLocales.push(projectLocale);
+      }
+    }
+    eligibleLocaleCount += eligibleLocales.length;
+    if (eligibleLocales.length > 0) {
+      mappedItemCount += 1;
+    }
+    items.push({
+      sourceId: mapping.sourceId,
+      sourcePath: mapping.sourcePath,
+      resourceKind: mapping.resourceKind,
+      status: mapping.status === "push_failed" ? "push_failed" : "active",
+      eligibleLocaleCount: eligibleLocales.length,
+      targetLocaleCount: localeMapping.jobTargetLocales.length,
+      eligibleLocales,
+      lastPushedAt: mapping.lastPushedAt?.toISOString() ?? null,
+      lastError:
+        mapping.lastError && typeof mapping.lastError.message === "string"
+          ? mapping.lastError.message
+          : null,
+    });
+  }
+
+  return { eligibleLocaleCount, mappedItemCount, items };
+}
+
 export function isBrazePushRunActive(
   runs: ReadonlyArray<{ status: string; inputSnapshot?: Record<string, unknown> | null }>,
 ): boolean {
@@ -145,4 +254,8 @@ export function isBrazePushRunActive(
     }
     return run.inputSnapshot?.operation === "push_approved";
   });
+}
+
+export function isBrazeAutomationRunActive(runs: ReadonlyArray<{ status: string }>): boolean {
+  return runs.some((run) => run.status === "queued" || run.status === "running");
 }

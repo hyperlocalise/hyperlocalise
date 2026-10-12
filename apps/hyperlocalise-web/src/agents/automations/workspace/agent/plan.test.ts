@@ -179,6 +179,29 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["push_braze_templates"]);
   });
 
+  it("plans Braze campaign import by default and push when operation is push_approved", () => {
+    const automationConfig = automation({
+      projectId: "project-1",
+      toolConfig: {
+        brazeCampaigns: {
+          enabled: true,
+          sourceLocale: "en",
+          campaignIds: [],
+          canvasIds: [],
+          existingTranslationPolicy: "seed_empty",
+          overwriteWhenRemoteNewer: true,
+        },
+      },
+    });
+
+    expect(buildWorkspaceOrchestratorPlan(automationConfig).tools).toEqual([
+      "import_braze_campaigns",
+    ]);
+    expect(
+      buildWorkspaceOrchestratorPlan(automationConfig, { operation: "push_approved" }).tools,
+    ).toEqual(["push_braze_campaigns"]);
+  });
+
   it("puts contentful before github when template skill targets contentful", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

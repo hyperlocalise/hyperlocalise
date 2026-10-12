@@ -161,6 +161,35 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "translate-braze-campaigns",
+    category: "popular",
+    extraCategories: ["marketing"],
+    name: "Translate Braze Campaigns & Canvas",
+    description:
+      "Import tagged draft campaign and Canvas message variations as JSON, localise in Jobs, then push approved locales through the Braze Translation API.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Braze campaign and Canvas localisation connector",
+      capabilities: [
+        "Import tagged draft campaign and Canvas message variations as JSON translation maps",
+        "Open native translation jobs for mapped target locales after ingest",
+        "Never push translations automatically on import — operators enqueue Push to Braze separately",
+      ],
+      goal: "Keep Braze campaign and Canvas drafts in sync for localisation and write approved locales back through the Translation API without publishing.",
+    }),
+    activatable: true,
+    defaultForm: {
+      instructions: "",
+      skillIds: ["translate-braze-campaigns"],
+      name: "Translate Braze campaigns and Canvas",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeCampaignsEnabled: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -1029,7 +1058,7 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "intercom", label: "Intercom" });
   }
 
-  if (form.brazeEnabled) {
+  if (form.brazeEnabled || form.brazeCampaignsEnabled) {
     tools.push({ id: "braze", label: "Braze" });
   }
 
