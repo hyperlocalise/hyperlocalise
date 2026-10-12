@@ -74,6 +74,10 @@ const HANDLE_CLASS = cn(
 // a pixel, and a thin bright line flickers between two and three pixels wide as it does.
 const STEP_GLOW_CLASS = {
   issue: "shadow-[0_0_10px_2px_color-mix(in_oklab,var(--destructive)_60%,transparent)]",
+  selected: "shadow-[0_0_10px_2px_color-mix(in_oklab,var(--ring)_60%,transparent)]",
+  // Red next to the card with blue reaching beyond it; at one size the two would blend.
+  selectedIssue:
+    "shadow-[0_0_10px_2px_color-mix(in_oklab,var(--destructive)_60%,transparent),0_0_16px_8px_color-mix(in_oklab,var(--ring)_60%,transparent)]",
 };
 
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
@@ -218,7 +222,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         hasIssue ? STEP_GLOW_CLASS.issue : null,
-        selected ? "ring-2 ring-ring" : null,
+        selected ? (hasIssue ? STEP_GLOW_CLASS.selectedIssue : STEP_GLOW_CLASS.selected) : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
