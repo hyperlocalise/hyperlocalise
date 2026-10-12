@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import {
   visualWorkflowDemoDraft,
@@ -282,8 +282,17 @@ export const PortCompatibility: Story = {
     await expect(dataInput.className).toContain("ring-2");
     await expect(dataOutput.className).toContain("ring-2");
 
-    await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
-    await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
+    await expect(dataInput.className).toContain("[&.connectingto.valid]:bg-emerald-500!");
+    await expect(dataInput.className).toContain("[&.connectingto]:opacity-30");
+
+    // A port's dot takes its type's colour and sits on the card's edge, clear of the port's name.
+    await expect(getComputedStyle(dataInput).backgroundColor).not.toBe(
+      getComputedStyle(optionalInput).backgroundColor,
+    );
+    const urlName = within(canvas.getByTitle("url: string")).getByText("url");
+    await expect(dataInput.getBoundingClientRect().right).toBeLessThanOrEqual(
+      urlName.getBoundingClientRect().left,
+    );
 
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 

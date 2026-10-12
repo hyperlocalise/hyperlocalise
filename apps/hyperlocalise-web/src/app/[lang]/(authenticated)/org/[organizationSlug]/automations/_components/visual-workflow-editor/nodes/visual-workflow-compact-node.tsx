@@ -59,14 +59,25 @@ const nodeStatusMessages = defineMessages({
     description: "Workflow node status",
   },
 });
+// React Flow's stylesheet is in no cascade layer, so it outranks Tailwind's utilities. A class on
+// a handle needs `!` wherever React Flow sets the same property: size, position, background and
+// border.
 const HANDLE_CLASS = cn(
-  "size-2.5! border-2 border-background bg-primary",
-  "transition-[transform,opacity,box-shadow] duration-150",
-  "[&.connecting]:scale-125 [&.connecting]:opacity-30",
-  "[&.connecting.valid]:bg-emerald-500",
-  "[&.connecting.valid]:opacity-100",
-  "[&.connecting.valid]:ring-4",
-  "[&.connecting.valid]:ring-emerald-500/30",
+  "size-2.5! border-background! bg-primary!",
+  "transition-[scale,opacity,box-shadow,background-color] duration-150",
+  // A target larger than the dot, so it can be grabbed without aiming.
+  "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
+  // Under the pointer, and where a connection starts from by drag or by click.
+  "not-[.connectingto]:hover:scale-150 not-[.connectingto]:hover:ring-4",
+  "not-[.connectingto]:hover:ring-primary/25",
+  "[&.connectingfrom]:scale-150 [&.connectingfrom]:ring-4 [&.connectingfrom]:ring-primary/25",
+  "[&.clickconnecting]:scale-150 [&.clickconnecting]:ring-4 [&.clickconnecting]:ring-primary/25",
+  // Where a connection being dragged would land: dimmed until it is one the canvas allows.
+  "[&.connectingto]:scale-125 [&.connectingto]:opacity-30",
+  "[&.connectingto.valid]:bg-emerald-500!",
+  "[&.connectingto.valid]:opacity-100",
+  "[&.connectingto.valid]:ring-4",
+  "[&.connectingto.valid]:ring-emerald-500/30",
   "motion-reduce:transition-none",
 );
 
@@ -79,13 +90,17 @@ const STEP_GLOW_CLASS = {
 };
 
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
-  string: "bg-blue-500",
-  number: "bg-amber-500",
-  boolean: "bg-violet-500",
-  object: "bg-emerald-500",
-  array: "bg-pink-500",
-  unknown: "bg-slate-500",
+  string: "bg-blue-500!",
+  number: "bg-amber-500!",
+  boolean: "bg-violet-500!",
+  object: "bg-emerald-500!",
+  array: "bg-pink-500!",
+  unknown: "bg-slate-500!",
 };
+
+// A port's row starts inside the card's padding. This puts its dot on the card's edge, where the
+// execution dots are, and clear of the port's name and type.
+const DATA_PORT_EDGE_CLASS = { input: "-left-3!", output: "-right-3!" };
 
 function DataPortLabel({
   port,
@@ -111,6 +126,7 @@ function DataPortLabel({
           position={Position.Left}
           className={cn(
             HANDLE_CLASS,
+            DATA_PORT_EDGE_CLASS.input,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
           )}
@@ -128,6 +144,7 @@ function DataPortLabel({
           position={Position.Right}
           className={cn(
             HANDLE_CLASS,
+            DATA_PORT_EDGE_CLASS.output,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
           )}
@@ -287,7 +304,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             type="source"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[65%]! bg-muted-foreground")}
+            className={cn(HANDLE_CLASS, "top-[65%]! bg-muted-foreground!")}
             id="false"
             position={Position.Right}
             type="source"
@@ -327,7 +344,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Succeeded"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-muted-foreground")}
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-muted-foreground!")}
             id="exhausted"
             position={Position.Right}
             type="source"
@@ -344,14 +361,14 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Completed"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground!")}
             id="timed_out"
             position={Position.Right}
             type="source"
             aria-label="Timed out"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive!")}
             id="error"
             position={Position.Right}
             type="source"
@@ -368,14 +385,14 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             aria-label="Completed"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground!")}
             id="timed_out"
             position={Position.Right}
             type="source"
             aria-label="Timed out"
           />
           <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive!")}
             id="error"
             position={Position.Right}
             type="source"
@@ -387,8 +404,8 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           {[
             { id: "try", label: "Try", className: null },
             { id: "success", label: "Success", className: null },
-            { id: "catch", label: "Catch", className: "bg-destructive" },
-            { id: "finally", label: "Finally", className: "bg-muted-foreground" },
+            { id: "catch", label: "Catch", className: "bg-destructive!" },
+            { id: "finally", label: "Finally", className: "bg-muted-foreground!" },
           ].map((handle, index) => (
             <Handle
               aria-label={handle.label}
@@ -405,7 +422,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         switchHandles.map((handle, index) => (
           <Handle
             key={handle.id}
-            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground" : null)}
+            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground!" : null)}
             id={handle.id}
             position={Position.Right}
             type="source"
@@ -425,7 +442,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           />
           {showErrorHandle ? (
             <Handle
-              className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}
+              className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive!")}
               id="error"
               position={Position.Right}
               type="source"
