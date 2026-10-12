@@ -4,20 +4,6 @@ on:
   push:
     branches:
       - prod
-    paths:
-      - .dockerignore
-      - Dockerfile.vercel
-      - go.mod
-      - go.sum
-      - orchestrion.tool.go
-      - third_party/**
-      - internal/**
-      - apps/go-svc/**
-      - .github/actions/aws-auth/**
-      - .github/actions/ssm-deployment-params/**
-      - .github/actions/ecr-build-push/**
-      - .github/actions/ecs-deploy/**
-      - .github/workflows/go-svc-deploy.yml
   workflow_dispatch:
 
 permissions:
