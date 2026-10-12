@@ -14,7 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildWorkspaceOrchestratorOutputSummary,
+  readImportBrazeCampaigns,
+  readImportBrazeTemplates,
   readImportIntercomArticles,
+  readPushBrazeCampaigns,
+  readPushBrazeTemplates,
   readPushIntercomTranslations,
 } from "./workspace-orchestrator-output-summary";
 
@@ -218,6 +222,74 @@ describe("readImportIntercomArticles", () => {
         { import_intercom_articles: { status: "succeeded" } },
       ),
     ).toBeNull();
+  });
+});
+
+describe("readImportBrazeCampaigns", () => {
+  it("prefers the current step, then the persisted summary, then prior step results", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { imported: 4, status: "stale" } },
+        { import_braze_campaigns: { imported: 0, failed: 2 } },
+      ),
+    ).toEqual({ imported: 0, failed: 2 });
+    expect(
+      readImportBrazeCampaigns({ importBrazeCampaigns: { imported: 3, skipped: 1 } }, {}),
+    ).toEqual({ imported: 3, skipped: 1 });
+    expect(
+      readImportBrazeCampaigns(
+        {
+          orchestratorStepResults: {
+            import_braze_campaigns: { imported: 2, status: "succeeded" },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ imported: 2, status: "succeeded" });
+  });
+
+  it("rejects a partial object missing imported so the tool can run again", () => {
+    expect(
+      readImportBrazeCampaigns(
+        { importBrazeCampaigns: { status: "succeeded", failed: 0 } },
+        { import_braze_campaigns: { status: "succeeded" } },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("readImportBrazeTemplates", () => {
+  it("treats imported 0 as a completed idempotent result", () => {
+    expect(
+      readImportBrazeTemplates({}, { import_braze_templates: { imported: 0, failed: 0 } }),
+    ).toEqual({ imported: 0, failed: 0 });
+  });
+});
+
+describe("readPushBrazeCampaigns", () => {
+  it("treats pushedLocales 0 as a completed idempotent result", () => {
+    expect(
+      readPushBrazeCampaigns({}, { push_braze_campaigns: { pushedLocales: 0, failedLocales: 1 } }),
+    ).toEqual({ pushedLocales: 0, failedLocales: 1 });
+  });
+
+  it("rejects a persisted object missing pushedLocales", () => {
+    expect(readPushBrazeCampaigns({ pushBrazeCampaigns: { status: "succeeded" } }, {})).toBeNull();
+  });
+});
+
+describe("readPushBrazeTemplates", () => {
+  it("reads prior orchestrator step results when the current step is empty", () => {
+    expect(
+      readPushBrazeTemplates(
+        {
+          orchestratorStepResults: {
+            push_braze_templates: { pushedLocales: 2, failedLocales: 0 },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ pushedLocales: 2, failedLocales: 0 });
   });
 });
 

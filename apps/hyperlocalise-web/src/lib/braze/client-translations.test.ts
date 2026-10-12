@@ -12,7 +12,14 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { classifyBrazeError, readErrorMessage, readTranslationEntries } from "./client";
+import {
+  BrazeApiError,
+  brazePermissionNameFromError,
+  classifyBrazeError,
+  isBrazeDragAndDropTemplateError,
+  readErrorMessage,
+  readTranslationEntries,
+} from "./client";
 
 describe("readTranslationEntries", () => {
   it("keeps string maps, locale UUID, and optional timestamps", () => {
@@ -109,5 +116,83 @@ describe("Braze error bodies", () => {
         "fallback",
       ),
     ).toBe("Invalid API key");
+  });
+
+  it("classifies campaign and canvas permission codes from the request path", () => {
+    expect(classifyBrazeError(403, "forbidden", "/campaigns/details")).toBe(
+      "braze_permission_missing_campaigns.details",
+    );
+    expect(classifyBrazeError(401, "unauthorized", "/campaigns/translations", "GET")).toBe(
+      "braze_permission_missing_campaigns.translations.get",
+    );
+    expect(classifyBrazeError(403, "forbidden", "/campaigns/translations", "PUT")).toBe(
+      "braze_permission_missing_campaigns.translations.update",
+    );
+    expect(classifyBrazeError(403, "forbidden", "/canvas/details")).toBe(
+      "braze_permission_missing_canvas.details",
+    );
+    expect(classifyBrazeError(401, "unauthorized", "/canvas/translations", "GET")).toBe(
+      "braze_permission_missing_canvas.translations.get",
+    );
+    expect(classifyBrazeError(403, "forbidden", "/canvas/translations", "PUT")).toBe(
+      "braze_permission_missing_canvas.translations.update",
+    );
+    expect(classifyBrazeError(403, "forbidden", "/templates/email/info")).toBe(
+      "braze_unauthorized",
+    );
+  });
+
+  it("recognizes drag-and-drop templates from the code or message", () => {
+    expect(classifyBrazeError(400, "This is a drag-and-drop template")).toBe(
+      "braze_drag_and_drop_template",
+    );
+    expect(
+      isBrazeDragAndDropTemplateError(
+        new BrazeApiError({
+          message: "Unsupported drag and drop template",
+          status: 400,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isBrazeDragAndDropTemplateError(
+        new BrazeApiError({
+          message: "unsupported",
+          status: 400,
+          code: "braze_drag_and_drop_template",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isBrazeDragAndDropTemplateError(
+        new BrazeApiError({
+          message: "rate limited",
+          status: 429,
+        }),
+      ),
+    ).toBe(false);
+    expect(isBrazeDragAndDropTemplateError(new Error("drag-and-drop"))).toBe(false);
+  });
+
+  it("extracts the missing Braze permission name from classified errors", () => {
+    expect(
+      brazePermissionNameFromError(
+        new BrazeApiError({
+          message: "forbidden",
+          status: 403,
+          code: "braze_permission_missing_campaigns.translations.update",
+        }),
+      ),
+    ).toBe("campaigns.translations.update");
+    expect(
+      brazePermissionNameFromError(
+        new BrazeApiError({
+          message: "unauthorized",
+          status: 401,
+          code: "braze_unauthorized",
+        }),
+      ),
+    ).toBeNull();
+    expect(brazePermissionNameFromError(new Error("forbidden"))).toBeNull();
   });
 });

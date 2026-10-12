@@ -18,11 +18,36 @@ import {
   isRemoteNewer,
   lastPushedAtForBrazeLocale,
   mergeBrazeLastPushedAtByLocale,
+  readBrazePushSourcePaths,
+  selectBrazePushMappings,
   shouldSkipBrazeLocalePush,
   shouldSkipUnchangedBrazePush,
 } from "./push-braze-templates";
 
 describe("push braze helpers", () => {
+  it("reads selected source paths and ignores empty values", () => {
+    expect(readBrazePushSourcePaths(undefined)).toBeUndefined();
+    expect(readBrazePushSourcePaths({ sourcePaths: "all" })).toBeUndefined();
+    expect(readBrazePushSourcePaths({ sourcePaths: [] })).toEqual([]);
+    expect(
+      readBrazePushSourcePaths({
+        sourcePaths: [" templates/welcome.html ", "", 12, "campaigns/promo.json"],
+      }),
+    ).toEqual([" templates/welcome.html ", "campaigns/promo.json"]);
+  });
+
+  it("pushes every mapping when sourcePaths is omitted, otherwise only the listed paths", () => {
+    const mappings = [
+      { sourcePath: "templates/welcome.html" },
+      { sourcePath: "campaigns/promo.json" },
+    ];
+    expect(selectBrazePushMappings(mappings)).toEqual(mappings);
+    expect(selectBrazePushMappings(mappings, ["campaigns/promo.json", "  "])).toEqual([
+      { sourcePath: "campaigns/promo.json" },
+    ]);
+    expect(selectBrazePushMappings(mappings, [])).toEqual([]);
+  });
+
   it("skips unchanged hashes regardless of overwriteWhenRemoteNewer", () => {
     expect(shouldSkipUnchangedBrazePush("abc", "abc")).toBe(true);
     expect(shouldSkipUnchangedBrazePush("abc", "def")).toBe(false);

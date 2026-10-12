@@ -102,6 +102,24 @@ func TestMemoryActivityEvents(t *testing.T) {
 		require.Equal(t, id, events[0].TargetID)
 	})
 
+	t.Run("sync GET export emits translation_memory_exported", func(t *testing.T) {
+		api, scope := memoryTestAPI(t, "admin")
+		publisher := &recordingActivityLogPublisher{}
+		api.activityLog = publisher
+		id := scope.MustMemory(t, "", "Product TM")
+		mustMemoryEntry(t, scope, id, "en-US", "fr-FR", "Hello", "Bonjour")
+
+		rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+id+"/entries/export?format=csv"), "")
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+		events := publisher.recorded()
+		require.Len(t, events, 1)
+		require.Equal(t, "translation_memory_exported", events[0].EventType)
+		require.Equal(t, id, events[0].TargetID)
+		require.Equal(t, id, events[0].Payload["resourceId"])
+		require.Equal(t, scope.UserID, events[0].ActorUserID)
+	})
+
 	t.Run("denied mutations emit translation_memory_action_rejected", func(t *testing.T) {
 		api, scope := memoryTestAPI(t, "admin")
 		publisher := &recordingActivityLogPublisher{}
