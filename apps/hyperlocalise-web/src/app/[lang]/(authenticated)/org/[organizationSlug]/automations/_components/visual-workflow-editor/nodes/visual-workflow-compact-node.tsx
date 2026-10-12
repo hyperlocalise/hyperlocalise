@@ -63,19 +63,18 @@ const nodeStatusMessages = defineMessages({
 // a handle needs `!` wherever React Flow sets the same property: size, position, background and
 // border.
 const HANDLE_FEEDBACK_CLASS = cn(
-  "transition-[scale,opacity,box-shadow,background-color,color] duration-150",
+  // As quick as the app's menus and popovers; its 150ms default reads as slow on a change of size.
+  "transition-[scale,opacity,background-color,color] duration-100",
+  // React Flow centres a handle on the card's edge by moving it half its own size, and a scale
+  // multiplies that move. Scaling from the corner that lies on the edge keeps the centre in place.
+  "data-[handlepos=left]:origin-top-left data-[handlepos=right]:origin-top-right",
   // A target larger than the dot, so it can be grabbed without aiming.
   "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
   // Under the pointer, and where a connection starts from by drag or by click.
-  "not-[.connectingto]:hover:scale-150 not-[.connectingto]:hover:ring-4",
-  "not-[.connectingto]:hover:ring-primary/25",
-  "[&.connectingfrom]:scale-150 [&.connectingfrom]:ring-4 [&.connectingfrom]:ring-primary/25",
-  "[&.clickconnecting]:scale-150 [&.clickconnecting]:ring-4 [&.clickconnecting]:ring-primary/25",
+  "not-[.connectingto]:hover:scale-150 [&.connectingfrom]:scale-150 [&.clickconnecting]:scale-150",
   // Where a connection being dragged would land: dimmed until it is one the canvas allows.
   "[&.connectingto]:scale-125 [&.connectingto]:opacity-30",
   "[&.connectingto.valid]:opacity-100",
-  "[&.connectingto.valid]:ring-4",
-  "[&.connectingto.valid]:ring-emerald-500/30",
   "motion-reduce:transition-none",
 );
 
@@ -88,7 +87,7 @@ const DATA_HANDLE_CLASS = cn(
 
 // An execution handle is an arrow pointing the way the workflow runs, so it cannot be taken for a
 // data port. The arrow is drawn by `::before` in the handle's text colour: clipping the handle
-// itself would also cut off its halo and its larger target.
+// itself would also cut off its larger target.
 const EXECUTION_HANDLE_CLASS = cn(
   HANDLE_FEEDBACK_CLASS,
   "size-3! border-0! bg-transparent! text-primary",
