@@ -22,7 +22,7 @@ import { createLogger } from "@/lib/log";
 import { isErr } from "@/lib/primitives/result/results";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { brazePermissionNameFromError, type BrazeTemplatesClient } from "./client";
+import { BrazeApiError, brazePermissionNameFromError, type BrazeTemplatesClient } from "./client";
 import { loadBrazeAutomationClient } from "./credentials";
 import { selectInScopeBrazeCampaignMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
@@ -40,6 +40,14 @@ import {
 } from "./translation-map";
 
 const logger = createLogger("push-braze-campaigns");
+
+function isNoMultiLanguage(error: unknown): boolean {
+  return error instanceof BrazeApiError && error.code === "braze_no_multi_language";
+}
+
+export function shouldTreatBrazeRemoteTranslationAsEmpty(error: unknown): boolean {
+  return isNoMultiLanguage(error) || (error instanceof BrazeApiError && error.status === 404);
+}
 
 export type PushBrazeCampaignsResult = {
   pushedLocales: number;
@@ -325,7 +333,10 @@ async function loadRemoteTranslation(input: {
       translationMap: readBrazeTranslationMap(match?.translation_map),
       updatedAt: match?.updatedAt,
     };
-  } catch {
-    return { translationMap: {} };
+  } catch (error) {
+    if (shouldTreatBrazeRemoteTranslationAsEmpty(error)) {
+      return { translationMap: {} };
+    }
+    throw error;
   }
 }

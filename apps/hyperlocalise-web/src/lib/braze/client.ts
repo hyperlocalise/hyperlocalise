@@ -200,7 +200,10 @@ export type BrazeTemplatesClient = {
   listCampaigns: (query?: { page?: number }) => Promise<{
     campaigns: BrazeCampaignListItem[];
   }>;
-  getCampaignDetails: (campaignId: string) => Promise<{
+  getCampaignDetails: (
+    campaignId: string,
+    query?: { postLaunchDraftVersion?: boolean },
+  ) => Promise<{
     id: string;
     name: string;
     isDraft: boolean;
@@ -228,7 +231,10 @@ export type BrazeTemplatesClient = {
   listCanvases: (query?: { page?: number }) => Promise<{
     canvases: BrazeCanvasListItem[];
   }>;
-  getCanvasDetails: (workflowId: string) => Promise<{
+  getCanvasDetails: (
+    workflowId: string,
+    query?: { postLaunchDraftVersion?: boolean },
+  ) => Promise<{
     id: string;
     name: string;
     isDraft: boolean;
@@ -608,9 +614,12 @@ export function createBrazeTemplatesClient(input: {
       );
       return { campaigns: body.campaigns ?? [] };
     },
-    async getCampaignDetails(campaignId) {
+    async getCampaignDetails(campaignId, query) {
       const url = new URL("/campaigns/details", baseUrl);
       url.searchParams.set("campaign_id", campaignId);
+      if (query?.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
       const body = await request<{
         id?: string;
         name?: string;
@@ -676,9 +685,12 @@ export function createBrazeTemplatesClient(input: {
       );
       return { canvases: body.canvases ?? [] };
     },
-    async getCanvasDetails(workflowId) {
+    async getCanvasDetails(workflowId, query) {
       const url = new URL("/canvas/details", baseUrl);
       url.searchParams.set("canvas_id", workflowId);
+      if (query?.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
       const body = await request<{
         id?: string;
         name?: string;

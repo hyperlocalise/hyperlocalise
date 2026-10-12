@@ -14,10 +14,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { hashBrazeTranslationMap } from "./translation-map";
 
+import { BrazeApiError } from "./client";
 import {
   isBrazeCampaignRemoteNewer,
   mergeBrazeCampaignTranslationMap,
   shouldSkipBrazeCampaignLocalePush,
+  shouldTreatBrazeRemoteTranslationAsEmpty,
 } from "./push-braze-campaigns";
 
 describe("braze campaign push helpers", () => {
@@ -87,6 +89,34 @@ describe("braze campaign push helpers", () => {
         lastPushHash: "prev",
         remoteHash: remote,
       }),
+    ).toBe(false);
+  });
+
+  it("treats only missing locales as empty remote maps", () => {
+    expect(
+      shouldTreatBrazeRemoteTranslationAsEmpty(
+        new BrazeApiError({
+          message: "not found",
+          status: 404,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldTreatBrazeRemoteTranslationAsEmpty(
+        new BrazeApiError({
+          message: "does not have multi-language",
+          status: 400,
+          code: "braze_no_multi_language",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      shouldTreatBrazeRemoteTranslationAsEmpty(
+        new BrazeApiError({
+          message: "rate limited",
+          status: 429,
+        }),
+      ),
     ).toBe(false);
   });
 });

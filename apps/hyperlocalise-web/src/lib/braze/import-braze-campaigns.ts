@@ -98,6 +98,21 @@ export function shouldImportBrazeDraftVariation(input: {
   return input.isDraft || input.postLaunchDraft;
 }
 
+export function isBrazeLocaleImportComplete(input: {
+  sourceMap: BrazeTranslationMap;
+  remoteMap: BrazeTranslationMap;
+  importedCount: number;
+}): boolean {
+  if (input.importedCount <= 0) {
+    return false;
+  }
+  const sourceKeys = Object.keys(input.sourceMap);
+  if (sourceKeys.length === 0) {
+    return false;
+  }
+  return sourceKeys.every((key) => (input.remoteMap[key] ?? "").trim().length > 0);
+}
+
 export type ImportBrazeCampaignsResult = {
   imported: number;
   skipped: number;
@@ -118,6 +133,19 @@ function permissionErrorMessage(error: unknown): string {
 
 function isNoMultiLanguage(error: unknown): boolean {
   return error instanceof BrazeApiError && error.code === "braze_no_multi_language";
+}
+
+async function loadDetailsPreferringDraft<T>(
+  load: (query?: { postLaunchDraftVersion?: boolean }) => Promise<T>,
+): Promise<{ details: T; postLaunchDraft: boolean }> {
+  try {
+    return { details: await load({ postLaunchDraftVersion: true }), postLaunchDraft: true };
+  } catch (error) {
+    if (error instanceof BrazeApiError && (error.status === 400 || error.status === 404)) {
+      return { details: await load(), postLaunchDraft: false };
+    }
+    throw error;
+  }
 }
 
 async function loadSourceTranslations(
@@ -357,8 +385,11 @@ async function loadCampaignImportTarget(
   listedLastEdited?: string;
 } | null> {
   try {
+    const loaded = await loadDetailsPreferringDraft((query) =>
+      client.getCampaignDetails(id, query),
+    );
     return {
-      details: await client.getCampaignDetails(id),
+      details: loaded.details,
       listedAsDraft: listed?.draft === true || listed?.is_draft === true,
       listedLastEdited: listed?.last_edited,
     };
@@ -378,8 +409,9 @@ async function loadCanvasImportTarget(
   listedLastEdited?: string;
 } | null> {
   try {
+    const loaded = await loadDetailsPreferringDraft((query) => client.getCanvasDetails(id, query));
     return {
-      details: await client.getCanvasDetails(id),
+      details: loaded.details,
       listedAsDraft: listed?.draft === true || listed?.is_draft === true,
       listedLastEdited: listed?.last_edited,
     };
@@ -486,12 +518,14 @@ async function importCampaignVariation(input: {
     ...input,
     sourceId,
     resourceKind: "campaign",
-    sourcePath: buildBrazeCampaignSourcePath({
-      campaignId: input.campaignId,
-      campaignName: input.campaignName,
-      messageVariationId: input.messageVariationId,
-      variationName: input.variationName,
-    }),
+    sourcePath:
+      input.existing.get(sourceId)?.sourcePath ??
+      buildBrazeCampaignSourcePath({
+        campaignId: input.campaignId,
+        campaignName: input.campaignName,
+        messageVariationId: input.messageVariationId,
+        variationName: input.variationName,
+      }),
     sourceName: input.variationName
       ? `${input.campaignName} / ${input.variationName}`
       : input.campaignName,
@@ -564,14 +598,16 @@ async function importCanvasVariation(input: {
     ...input,
     sourceId,
     resourceKind: "canvas_step",
-    sourcePath: buildBrazeCanvasSourcePath({
-      workflowId: input.workflowId,
-      canvasName: input.canvasName,
-      stepId: input.stepId,
-      stepName: input.stepName,
-      messageVariationId: input.messageVariationId,
-      variationName: input.variationName,
-    }),
+    sourcePath:
+      input.existing.get(sourceId)?.sourcePath ??
+      buildBrazeCanvasSourcePath({
+        workflowId: input.workflowId,
+        canvasName: input.canvasName,
+        stepId: input.stepId,
+        stepName: input.stepName,
+        messageVariationId: input.messageVariationId,
+        variationName: input.variationName,
+      }),
     sourceName: [input.canvasName, input.stepName, input.variationName].filter(Boolean).join(" / "),
     sourceMap,
     localeTranslations,
@@ -671,10 +707,17 @@ async function upsertImportedVariation(input: {
       targetLocale: projectLocale,
       entries: remoteMap,
     });
-    if (result.imported > 0) {
+    if (
+      isBrazeLocaleImportComplete({
+        sourceMap: input.sourceMap,
+        remoteMap,
+        importedCount: result.imported,
+      })
+    ) {
       importedHashes[projectLocale] = incomingHash;
     } else {
       leftover.push(projectLocale);
+      delete importedHashes[projectLocale];
     }
   }
 

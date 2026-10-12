@@ -48,8 +48,14 @@ export function contentEditorBrazePushItemsQueryKey(
   return ["content-editor-braze-push-items", organizationSlug, automationId] as const;
 }
 
-export function contentEditorBrazePushQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-braze-push", organizationSlug, projectId] as const;
+export function contentEditorBrazePushQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath === undefined
+    ? (["content-editor-braze-push", organizationSlug, projectId] as const)
+    : (["content-editor-braze-push", organizationSlug, projectId, sourcePath] as const);
 }
 
 export function invalidateContentEditorBrazePushQueries(
@@ -156,8 +162,14 @@ export function brazeItemTitleFromSourcePath(sourcePath: string): string {
   return filename.replace(/\.(html|json)$/i, "") || sourcePath;
 }
 
-export function contentEditorBrazeIngestQueryKey(organizationSlug: string, projectId: string) {
-  return ["content-editor-braze-ingest", organizationSlug, projectId] as const;
+export function contentEditorBrazeIngestQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath?: string | null,
+) {
+  return sourcePath === undefined
+    ? (["content-editor-braze-ingest", organizationSlug, projectId] as const)
+    : (["content-editor-braze-ingest", organizationSlug, projectId, sourcePath] as const);
 }
 
 export async function fetchContentEditorBrazeIngestCandidates(input: {

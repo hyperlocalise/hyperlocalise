@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   isBrazeListItemArchived,
+  isBrazeLocaleImportComplete,
   selectedBrazeResourceIds,
   shouldImportBrazeDraftVariation,
   shouldListAllBrazeResources,
@@ -62,5 +63,29 @@ describe("braze campaign import helpers", () => {
         sourceMap: { hello: "Hi" },
       }),
     ).toBe(true);
+  });
+
+  it("marks a locale complete only when every source key imported", () => {
+    expect(
+      isBrazeLocaleImportComplete({
+        sourceMap: { a: "A", b: "B" },
+        remoteMap: { a: "A", b: "B" },
+        importedCount: 2,
+      }),
+    ).toBe(true);
+    expect(
+      isBrazeLocaleImportComplete({
+        sourceMap: { a: "A", b: "B" },
+        remoteMap: { a: "A" },
+        importedCount: 1,
+      }),
+    ).toBe(false);
+    expect(
+      isBrazeLocaleImportComplete({
+        sourceMap: { a: "A", b: "B" },
+        remoteMap: { a: "A", b: "  " },
+        importedCount: 2,
+      }),
+    ).toBe(false);
   });
 });

@@ -57,7 +57,7 @@ export function ContentEditorBrazePushButton({
   const openSourcePath = isContentEditorAllFilesSourcePath(sourcePath) ? null : sourcePath;
 
   const candidatesQuery = useQuery({
-    queryKey: contentEditorBrazePushQueryKey(organizationSlug, projectId),
+    queryKey: contentEditorBrazePushQueryKey(organizationSlug, projectId, openSourcePath),
     queryFn: () =>
       fetchContentEditorBrazePushCandidates({
         organizationSlug,

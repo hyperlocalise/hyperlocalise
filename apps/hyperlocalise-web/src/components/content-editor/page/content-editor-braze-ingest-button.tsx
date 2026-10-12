@@ -42,7 +42,7 @@ export function ContentEditorBrazeIngestButton({
       organizationSlug={organizationSlug}
       projectId={projectId}
       canManageAutomations={canManageAutomations}
-      queryKey={contentEditorBrazeIngestQueryKey(organizationSlug, projectId)}
+      queryKey={contentEditorBrazeIngestQueryKey(organizationSlug, projectId, openSourcePath)}
       fetchCandidates={() =>
         fetchContentEditorBrazeIngestCandidates({
           organizationSlug,
