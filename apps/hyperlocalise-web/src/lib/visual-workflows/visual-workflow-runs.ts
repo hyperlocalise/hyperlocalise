@@ -521,9 +521,13 @@ function serializeNodeRun(row: VisualWorkflowNodeRunRow): VisualWorkflowNodeRunR
 function serializeRun(
   row: VisualWorkflowRunRow,
   nodeRuns?: VisualWorkflowNodeRunRecord[],
+  childRuns?: VisualWorkflowRunRecord[],
 ): VisualWorkflowRunRecord {
   return {
     id: row.id,
+    traceId: row.traceId,
+    parentRunId: row.parentRunId,
+    parentNodeId: row.parentNodeId,
     visualWorkflowId: row.visualWorkflowId,
     organizationId: row.organizationId,
     triggerSource: row.triggerSource,
@@ -539,6 +543,7 @@ function serializeRun(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ...(nodeRuns ? { nodeRuns } : {}),
+    ...(childRuns ? { childRuns } : {}),
   };
 }
 
@@ -575,8 +580,39 @@ export async function getVisualWorkflowRunById(input: {
     runId: input.runId,
     dbClient,
   });
+  const traceRows = await dbClient
+    .select()
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.traceId, row.traceId),
+      ),
+    )
+    .orderBy(schema.visualWorkflowRuns.createdAt);
+  const childRowsByParent = new Map<string, VisualWorkflowRunRow[]>();
+  for (const traceRow of traceRows) {
+    if (!traceRow.parentRunId) continue;
+    const children = childRowsByParent.get(traceRow.parentRunId) ?? [];
+    children.push(traceRow);
+    childRowsByParent.set(traceRow.parentRunId, children);
+  }
+  const serializeChildren = async (parentRunId: string): Promise<VisualWorkflowRunRecord[]> =>
+    Promise.all(
+      (childRowsByParent.get(parentRunId) ?? []).map(async (childRow) =>
+        serializeRun(
+          childRow,
+          await listVisualWorkflowNodeRuns({
+            organizationId: input.organizationId,
+            runId: childRow.id,
+            dbClient,
+          }),
+          await serializeChildren(childRow.id),
+        ),
+      ),
+    );
 
-  return serializeRun(row, nodeRuns);
+  return serializeRun(row, nodeRuns, await serializeChildren(row.id));
 }
 
 export async function listVisualWorkflowRuns(input: {
@@ -658,6 +694,11 @@ export async function createVisualWorkflowRun(input: {
   inputSnapshot?: Record<string, unknown>;
   status?: VisualWorkflowRunStatus;
   matchedDefinitionVersion?: number;
+  immutableDefinitionVersion?: number;
+  parentRunId?: string;
+  parentNodeId?: string;
+  traceId?: string;
+  enqueue?: boolean;
   testDefinition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   mode?: "mock" | "live";
   mockOutputs?: Record<string, Record<string, unknown>>;
@@ -696,23 +737,46 @@ export async function createVisualWorkflowRun(input: {
     }
   }
 
-  const definitionInput = input.testDefinition ?? workflow.publishedDefinition;
+  const [immutableVersion] =
+    input.immutableDefinitionVersion === undefined
+      ? []
+      : await dbClient
+          .select({ definition: schema.visualWorkflowVersions.definition })
+          .from(schema.visualWorkflowVersions)
+          .where(
+            and(
+              eq(schema.visualWorkflowVersions.workflowId, input.visualWorkflowId),
+              eq(schema.visualWorkflowVersions.organizationId, input.organizationId),
+              eq(schema.visualWorkflowVersions.version, input.immutableDefinitionVersion),
+            ),
+          )
+          .limit(1);
+  if (input.immutableDefinitionVersion !== undefined && !immutableVersion) {
+    throw new Error("visual_workflow_version_not_found");
+  }
+  const definitionInput =
+    input.testDefinition ?? immutableVersion?.definition ?? workflow.publishedDefinition;
   if (!definitionInput) {
     throw new Error("workflow_not_published");
   }
   const definition = parseVisualWorkflowV3Definition(definitionInput);
   const payload = buildRunInputSnapshot({ triggerInput: input.inputSnapshot, definition });
+  const runId = randomUUID();
   const [row] = await dbClient
     .insert(schema.visualWorkflowRuns)
     .values({
+      id: runId,
+      traceId: input.traceId ?? runId,
+      parentRunId: input.parentRunId ?? null,
+      parentNodeId: input.parentNodeId ?? null,
       organizationId: input.organizationId,
       visualWorkflowId: input.visualWorkflowId,
       triggerSource: input.triggerSource,
       status: input.status ?? "queued",
       idempotencyKey: input.idempotencyKey ?? null,
-      definitionVersion: input.testDefinition
-        ? workflow.definitionVersion
-        : workflow.publishedVersion!,
+      definitionVersion:
+        input.immutableDefinitionVersion ??
+        (input.testDefinition ? workflow.definitionVersion : workflow.publishedVersion!),
       mode: input.mode ?? "live",
       encryptedPayload: encryptWorkflowPayload({
         ...payload,
@@ -749,12 +813,18 @@ export async function createVisualWorkflowRun(input: {
     throw new Error("failed_to_create_visual_workflow_run");
   }
 
-  await dbClient
-    .insert(schema.visualWorkflowOutbox)
-    .values({ runId: row.id, organizationId: row.organizationId, workflowId: row.visualWorkflowId })
-    .onConflictDoNothing();
+  if (input.enqueue !== false) {
+    await dbClient
+      .insert(schema.visualWorkflowOutbox)
+      .values({
+        runId: row.id,
+        organizationId: row.organizationId,
+        workflowId: row.visualWorkflowId,
+      })
+      .onConflictDoNothing();
+  }
 
-  if (!input.testDefinition && (input.mode ?? "live") !== "mock") {
+  if (input.enqueue !== false && !input.testDefinition && (input.mode ?? "live") !== "mock") {
     await enqueueVisualWorkflowRunStartedActivity({
       actorCredentialId: input.activityActor?.actorCredentialId ?? null,
       actorKind: input.activityActor?.actorKind ?? "system",
@@ -1332,9 +1402,13 @@ export async function executeVisualWorkflowRun(input: {
         resume,
       });
     } else {
+      const wakeAt =
+        typeof result.error.wakeAt === "string" && Number.isFinite(Date.parse(result.error.wakeAt))
+          ? new Date(result.error.wakeAt)
+          : null;
       await db
         .update(schema.visualWorkflowRuns)
-        .set({ leaseExpiresAt: null })
+        .set({ leaseExpiresAt: wakeAt })
         .where(
           and(
             eq(schema.visualWorkflowRuns.id, run.id),

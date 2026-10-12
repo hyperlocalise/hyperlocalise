@@ -38,7 +38,8 @@ export type VisualCatalogType =
   | "flow.fail"
   | "logic.merge"
   | "logic.sequence"
-  | "logic.try_catch";
+  | "logic.try_catch"
+  | "flow.call_workflow";
 
 export type VisualCatalogCategory = "trigger" | "action" | "logic" | "ai" | "flow";
 
@@ -200,7 +201,15 @@ export type VisualNodeConfig =
       kind: "logic.sequence";
       outputs: VisualSequenceOutput[];
     }
-  | { kind: "logic.try_catch" };
+  | { kind: "logic.try_catch" }
+  | {
+      kind: "flow.call_workflow";
+      workflowId: string;
+      version: number;
+      inputFields: VisualSubworkflowField[];
+      outputFields: VisualSubworkflowField[];
+      onError?: VisualNodeErrorBehavior;
+    };
 
 export type VisualWorkflowNodeData = WorkflowNodeContract & {
   catalogType: VisualCatalogType;
@@ -287,7 +296,12 @@ export type VisualWorkflowValidationIssue = {
     | "invalid_binding"
     | "invalid_loop"
     | "invalid_try_catch_region"
-    | "overlapping_try_catch_region";
+    | "overlapping_try_catch_region"
+    | "subworkflow_not_found"
+    | "subworkflow_version_not_found"
+    | "subworkflow_contract_mismatch"
+    | "recursive_subworkflow"
+    | "subworkflow_depth_exceeded";
   nodeId?: string;
   edgeId?: string;
   /** The setting or input of the step that is at fault, by its key, when the issue is about one. */
@@ -323,4 +337,11 @@ export type VisualReturnOutput = {
   id: string;
   name: string;
   type: WorkflowValueType;
+};
+
+export type VisualSubworkflowField = {
+  id: string;
+  name: string;
+  type: WorkflowValueType;
+  required?: boolean;
 };

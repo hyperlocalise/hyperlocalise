@@ -24,4 +24,5 @@ export const WORKFLOW_LIMITS = {
   leaseMs: 180000,
   leaseRenewIntervalMs: 60000,
   attempts: 3,
+  subworkflowDepth: 8,
 } as const;

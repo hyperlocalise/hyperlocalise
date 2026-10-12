@@ -24,6 +24,7 @@ import {
   visualWorkflowSequenceDraft,
   visualWorkflowTerminalNodesDraft,
   visualWorkflowTryCatchDraft,
+  visualWorkflowCallWorkflowDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -664,4 +665,67 @@ export const TryCatchEditorNarrow: Story = {
     await expect(canvas.getByRole("button", { name: "Add node from Catch" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Add node from Finally" })).toBeEnabled();
   },
+};
+
+const callWorkflowNodesWithStatus = (status: "idle" | "running" | "succeeded" | "failed") =>
+  visualWorkflowCallWorkflowDraft.nodes.map((node) =>
+    node.id === "call" ? { ...node, data: { ...node.data, runStatus: status } } : node,
+  );
+
+export const CallWorkflowConfigured: Story = {
+  name: "Call Workflow — configured",
+  args: {
+    initialName: visualWorkflowCallWorkflowDraft.name,
+    initialNodes: callWorkflowNodesWithStatus("idle"),
+    initialEdges: visualWorkflowCallWorkflowDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findAllByText("Call workflow", {}, { timeout: 10_000 }),
+    ).not.toHaveLength(0);
+    await expect(canvas.getByLabelText("Data input: value.customerId, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value.result, object")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: value.warnings, array, optional"),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CallWorkflowInvalid: Story = {
+  name: "Call Workflow — invalid",
+  args: {
+    ...CallWorkflowConfigured.args,
+    initialNodes: visualWorkflowCallWorkflowDraft.nodes.map((node) =>
+      node.id === "call" && node.data.config.kind === "flow.call_workflow"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, workflowId: "", inputFields: [], outputFields: [] },
+            },
+          }
+        : node,
+    ),
+    initialEdges: visualWorkflowCallWorkflowDraft.edges.filter(
+      (edge) => edge.data?.kind !== "data",
+    ),
+  },
+};
+
+export const CallWorkflowRunning: Story = {
+  name: "Call Workflow — running",
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("running") },
+};
+
+export const CallWorkflowSucceeded: Story = {
+  name: "Call Workflow — succeeded",
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("succeeded") },
+};
+
+export const CallWorkflowFailedNarrow: Story = {
+  name: "Call Workflow — failed, narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("failed") },
 };

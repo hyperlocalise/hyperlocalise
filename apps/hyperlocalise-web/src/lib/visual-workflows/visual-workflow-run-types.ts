@@ -63,6 +63,9 @@ export type VisualWorkflowNodeRunRecord = {
 
 export type VisualWorkflowRunRecord = {
   id: string;
+  traceId: string;
+  parentRunId: string | null;
+  parentNodeId: string | null;
   visualWorkflowId: string;
   organizationId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
@@ -78,4 +81,5 @@ export type VisualWorkflowRunRecord = {
   createdAt: string;
   updatedAt: string;
   nodeRuns?: VisualWorkflowNodeRunRecord[];
+  childRuns?: VisualWorkflowRunRecord[];
 };

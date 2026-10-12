@@ -17,8 +17,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createApiClient } from "@/lib/api-client";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { ContentSyncProvider } from "@/lib/agents/content-sync/content-sync-types";
+import { createVisualWorkflowsApi } from "../visual-workflows-api";
 
 const api = createApiClient();
+const visualWorkflowsApi = createVisualWorkflowsApi();
 
 export type VisualWorkflowProjectOption = {
   id: string;
@@ -103,6 +105,12 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  const workflowsQuery = useQuery({
+    queryKey: ["visual-workflows", organizationSlug, "call-options"],
+    enabled,
+    queryFn: () => visualWorkflowsApi.listVisualWorkflows(organizationSlug!),
+  });
+
   const githubConnected = Boolean(githubQuery.data);
   const repositories = (repositoriesQuery.data ?? []).filter(
     (repository) => repository.enabled && !repository.archived,
@@ -114,6 +122,9 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     projects,
     repositories,
     contentfulConnections,
+    workflows: (workflowsQuery.data ?? []).filter(
+      (workflow) => workflow.publishedVersion !== null && workflow.publishedDefinition !== null,
+    ),
     githubConnected,
     availableProviders: [
       ...(githubConnected ? (["github"] as const) : []),

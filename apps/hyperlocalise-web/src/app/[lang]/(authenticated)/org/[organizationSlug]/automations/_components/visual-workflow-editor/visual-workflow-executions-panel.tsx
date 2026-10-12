@@ -212,6 +212,38 @@ export function VisualWorkflowExecutionsPanel({
                 <FormattedMessage {...messages.executionsNoNodeRuns} />
               </p>
             )}
+            {(selectedRunQuery.data.childRuns ?? []).length > 0 ? (
+              <div className="space-y-2 rounded-lg border border-border p-3">
+                <h3 className="text-sm font-medium">
+                  <FormattedMessage {...messages.executionChildRuns} />
+                </h3>
+                {(selectedRunQuery.data.childRuns ?? []).map((childRun) => (
+                  <details key={childRun.id} className="rounded-md border border-border p-3">
+                    <summary className="flex cursor-pointer items-center gap-2 text-sm">
+                      <Badge variant={runStatusVariant(childRun.status)}>{childRun.status}</Badge>
+                      <span className="font-mono text-xs">{childRun.parentNodeId}</span>
+                      <span className="text-muted-foreground">
+                        v{childRun.definitionVersion} · {childRun.id}
+                      </span>
+                    </summary>
+                    <pre className="mt-2 max-h-80 overflow-auto text-xs">
+                      {JSON.stringify(
+                        {
+                          traceId: childRun.traceId,
+                          workflowId: childRun.visualWorkflowId,
+                          nodeRuns: childRun.nodeRuns,
+                          outputSummary: childRun.outputSummary,
+                          error: childRun.error,
+                          childRuns: childRun.childRuns,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </details>
+                ))}
+              </div>
+            ) : null}
             {selectedRunQuery.data.error ? (
               <pre className="overflow-x-auto rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
                 {JSON.stringify(selectedRunQuery.data.error, null, 2)}

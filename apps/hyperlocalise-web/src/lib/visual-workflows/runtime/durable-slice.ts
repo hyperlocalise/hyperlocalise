@@ -51,6 +51,7 @@ import {
   computeTryCatchCatchNodeIdsFromV3Edges,
   computeTryCatchSuccessNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
+import { executeSubworkflowNode } from "./execute-subworkflow-node";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -206,7 +207,10 @@ export async function executeDurableWorkflowSlice(input: {
       mergeResume,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
-        const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";
+        const isExternal =
+          args.node.type.startsWith("action.") ||
+          args.node.type === "ai.agent" ||
+          args.node.type === "flow.call_workflow";
         // Condition probes must all refresh in the same slice before the wait
         // re-evaluates; they must not consume the single post-wait external slot.
         const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
@@ -239,8 +243,9 @@ export async function executeDurableWorkflowSlice(input: {
           .filter((record) => key(record.nodeId, record.iteration) === id)
           .at(-1);
         const safe =
-          args.node.config.kind === "action.http" &&
-          (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader));
+          args.node.config.kind === "flow.call_workflow" ||
+          (args.node.config.kind === "action.http" &&
+            (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader)));
         if (isExternal && previous?.status === "running" && input.run.mode !== "mock" && !safe)
           return {
             ok: false,
@@ -323,7 +328,15 @@ export async function executeDurableWorkflowSlice(input: {
             execution =
               input.run.mode === "mock"
                 ? await mock(resolved)
-                : await executeVisualWorkflowNode(resolved);
+                : resolved.node.config.kind === "flow.call_workflow"
+                  ? await executeSubworkflowNode({
+                      node: resolved.node,
+                      organizationId: input.organizationId,
+                      parentRunId: input.run.id,
+                      traceId: input.run.traceId,
+                      iteration: args.iteration,
+                    })
+                  : await executeVisualWorkflowNode(resolved);
           } catch {
             execution = {
               ok: false,
