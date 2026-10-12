@@ -12,6 +12,8 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/translation-map";
+
 import {
   brazeItemTitleFromSourcePath,
   defaultSelectedBrazePushSourcePaths,
@@ -62,5 +64,12 @@ describe("brazeItemTitleFromSourcePath", () => {
       "welcome-email",
     );
     expect(brazeItemTitleFromSourcePath("braze/content-blocks/hero-promo.html")).toBe("hero-promo");
+    expect(brazeItemTitleFromSourcePath("braze/campaigns/welcome/email-a.json")).toBe("email-a");
+  });
+
+  it("classifies Braze source paths for Push and Ingest matching", () => {
+    expect(isBrazeTemplateSourcePath("braze/templates/welcome-email.html")).toBe(true);
+    expect(isBrazeCampaignSourcePath("braze/campaigns/welcome/email-a.json")).toBe(true);
+    expect(isBrazeCampaignSourcePath("braze/templates/welcome-email.html")).toBe(false);
   });
 });

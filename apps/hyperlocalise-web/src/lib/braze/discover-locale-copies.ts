@@ -162,3 +162,31 @@ export function selectInScopeBrazeMappings<
     return contentBlockIds.size === 0 || contentBlockIds.has(mapping.sourceId);
   });
 }
+
+export function selectInScopeBrazeCampaignMappings<
+  T extends {
+    resourceKind: "campaign" | "canvas_step";
+    campaignId?: string | null;
+    workflowId?: string | null;
+  },
+>(
+  mappings: readonly T[],
+  input: {
+    campaignIds?: readonly string[] | null;
+    canvasIds?: readonly string[] | null;
+  },
+): T[] {
+  const campaignIds = new Set((input.campaignIds ?? []).filter((id) => id.trim()));
+  const canvasIds = new Set((input.canvasIds ?? []).filter((id) => id.trim()));
+  return mappings.filter((mapping) => {
+    if (mapping.resourceKind === "campaign") {
+      return (
+        campaignIds.size === 0 ||
+        (mapping.campaignId != null && campaignIds.has(mapping.campaignId))
+      );
+    }
+    return (
+      canvasIds.size === 0 || (mapping.workflowId != null && canvasIds.has(mapping.workflowId))
+    );
+  });
+}

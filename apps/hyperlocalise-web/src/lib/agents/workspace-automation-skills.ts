@@ -26,6 +26,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOLS = [
   "push_intercom_translations",
   "import_braze_templates",
   "push_braze_templates",
+  "import_braze_campaigns",
+  "push_braze_campaigns",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -238,6 +240,22 @@ export const WORKSPACE_AUTOMATION_SKILLS: readonly WorkspaceAutomationSkill[] = 
     },
   },
   {
+    id: "translate-braze-campaigns",
+    name: "Translate Braze Campaigns & Canvas",
+    category: "translate",
+    description:
+      "Import tagged draft campaign and Canvas message variations as JSON, then push approved locales through the Braze Translation API.",
+    grants:
+      "Reads Braze campaigns and Canvas through Pipes, writes JSON translation maps and native jobs. Push writes approved locales only and never publishes.",
+    tools: ["import_braze_campaigns", "push_braze_campaigns"],
+    triggers: ["manual", "scheduled"],
+    sharedSkills: [],
+    keywords: {
+      strong: ["braze campaign", "braze canvas", "translation tag", "canvas step"],
+      weak: ["campaign", "canvas", "import", "translate"],
+    },
+  },
+  {
     id: "translate-contentful-entries",
     name: "Translate Contentful entries",
     category: "translate",
@@ -361,6 +379,8 @@ const SKILL_TOOL_INTEGRATIONS: Record<
   push_intercom_translations: "intercom",
   import_braze_templates: "braze",
   push_braze_templates: "braze",
+  import_braze_campaigns: "braze",
+  push_braze_campaigns: "braze",
   create_native_tms_job: null,
   assign_translate_with_agent: null,
   list_issues: null,
@@ -465,6 +485,9 @@ export function workspaceAutomationSkillToolEnabled(
     case "import_braze_templates":
     case "push_braze_templates":
       return Boolean(toolConfig.braze?.enabled);
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return Boolean(toolConfig.brazeCampaigns?.enabled);
     case "create_native_tms_job":
       return Boolean(toolConfig.createNativeTmsJob?.enabled);
     case "assign_translate_with_agent":

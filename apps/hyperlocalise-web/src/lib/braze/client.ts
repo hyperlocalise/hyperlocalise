@@ -134,6 +134,50 @@ export type BrazeUpdateContentBlockInput = {
   tags?: string[];
 };
 
+export type BrazeCampaignListItem = {
+  id: string;
+  name: string;
+  last_edited?: string;
+  is_draft?: boolean;
+  draft?: boolean;
+  is_archived?: boolean;
+  archived?: boolean;
+};
+
+export type BrazeCanvasListItem = {
+  id: string;
+  name: string;
+  last_edited?: string;
+  is_draft?: boolean;
+  draft?: boolean;
+  is_archived?: boolean;
+  archived?: boolean;
+};
+
+export type BrazeMessageVariationRef = {
+  messageVariationId: string;
+  name?: string;
+  channel?: string;
+};
+
+export type BrazeCanvasStepRef = {
+  stepId: string;
+  name?: string;
+  variations: BrazeMessageVariationRef[];
+};
+
+export type BrazeLocaleTranslation = {
+  translation_map: Record<string, string>;
+  locale: {
+    uuid: string;
+    name?: string;
+    locale_key?: string;
+    language?: string;
+    country?: string;
+  };
+  updatedAt?: string;
+};
+
 export type BrazeTemplatesClient = {
   listEmailTemplates: (query?: BrazeListQuery) => Promise<{
     count: number;
@@ -153,6 +197,71 @@ export type BrazeTemplatesClient = {
     input: BrazeCreateContentBlockInput,
   ) => Promise<{ content_block_id: string; liquid_tag?: string }>;
   updateContentBlock: (input: BrazeUpdateContentBlockInput) => Promise<void>;
+  listCampaigns: (query?: { page?: number }) => Promise<{
+    campaigns: BrazeCampaignListItem[];
+  }>;
+  getCampaignDetails: (
+    campaignId: string,
+    query?: { postLaunchDraftVersion?: boolean },
+  ) => Promise<{
+    id: string;
+    name: string;
+    isDraft: boolean;
+    isArchived: boolean;
+    lastEdited?: string;
+    variations: BrazeMessageVariationRef[];
+  }>;
+  getCampaignSourceTranslations: (input: {
+    campaignId: string;
+    messageVariationId: string;
+    postLaunchDraftVersion?: boolean;
+  }) => Promise<BrazeLocaleTranslation[]>;
+  getCampaignTranslations: (input: {
+    campaignId: string;
+    messageVariationId: string;
+    localeId?: string;
+    postLaunchDraftVersion?: boolean;
+  }) => Promise<BrazeLocaleTranslation[]>;
+  updateCampaignTranslation: (input: {
+    campaignId: string;
+    messageVariationId: string;
+    localeId: string;
+    translationMap: Record<string, string>;
+  }) => Promise<void>;
+  listCanvases: (query?: { page?: number }) => Promise<{
+    canvases: BrazeCanvasListItem[];
+  }>;
+  getCanvasDetails: (
+    workflowId: string,
+    query?: { postLaunchDraftVersion?: boolean },
+  ) => Promise<{
+    id: string;
+    name: string;
+    isDraft: boolean;
+    isArchived: boolean;
+    lastEdited?: string;
+    steps: BrazeCanvasStepRef[];
+  }>;
+  getCanvasSourceTranslations: (input: {
+    workflowId: string;
+    stepId: string;
+    messageVariationId: string;
+    postLaunchDraftVersion?: boolean;
+  }) => Promise<BrazeLocaleTranslation[]>;
+  getCanvasTranslations: (input: {
+    workflowId: string;
+    stepId: string;
+    messageVariationId: string;
+    localeId?: string;
+    postLaunchDraftVersion?: boolean;
+  }) => Promise<BrazeLocaleTranslation[]>;
+  updateCanvasTranslation: (input: {
+    workflowId: string;
+    stepId: string;
+    messageVariationId: string;
+    localeId: string;
+    translationMap: Record<string, string>;
+  }) => Promise<void>;
 };
 
 function utf8ByteLength(value: string): number {
@@ -181,17 +290,41 @@ function appendListQuery(url: URL, query?: BrazeListQuery) {
   }
 }
 
-function readErrorMessage(body: unknown, fallback: string): string {
-  if (body && typeof body === "object" && "message" in body) {
-    const message = (body as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message.trim();
+function firstNonEmptyErrorMessage(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  return undefined;
+}
+
+export function readErrorMessage(body: unknown, fallback: string): string {
+  if (body && typeof body === "object") {
+    const record = body as { message?: unknown; errors?: unknown };
+    const topLevel = firstNonEmptyErrorMessage(record.message);
+    if (topLevel) {
+      return topLevel;
+    }
+    if (Array.isArray(record.errors)) {
+      for (const entry of record.errors) {
+        if (!entry || typeof entry !== "object" || !("message" in entry)) {
+          continue;
+        }
+        const nested = firstNonEmptyErrorMessage((entry as { message?: unknown }).message);
+        if (nested) {
+          return nested;
+        }
+      }
     }
   }
   return fallback;
 }
 
-function classifyBrazeError(status: number, message: string): string {
+export function classifyBrazeError(
+  status: number,
+  message: string,
+  path?: string,
+  method = "GET",
+): string {
   const lower = message.toLowerCase();
   if (lower.includes("drag-and-drop") || lower.includes("drag and drop")) {
     return "braze_drag_and_drop_template";
@@ -199,10 +332,168 @@ function classifyBrazeError(status: number, message: string): string {
   if (lower.includes("already exists")) {
     return "braze_name_exists";
   }
+  if (
+    lower.includes("does not have multi-language") ||
+    lower.includes("does not support multi-language") ||
+    lower.includes("multi-language setup")
+  ) {
+    return "braze_no_multi_language";
+  }
   if (status === 401 || status === 403) {
+    if (path?.includes("/campaigns/details")) {
+      return "braze_permission_missing_campaigns.details";
+    }
+    if (path?.includes("/campaigns/translations")) {
+      return method === "PUT"
+        ? "braze_permission_missing_campaigns.translations.update"
+        : "braze_permission_missing_campaigns.translations.get";
+    }
+    if (path?.includes("/canvas/details")) {
+      return "braze_permission_missing_canvas.details";
+    }
+    if (path?.includes("/canvas/translations")) {
+      return method === "PUT"
+        ? "braze_permission_missing_canvas.translations.update"
+        : "braze_permission_missing_canvas.translations.get";
+    }
     return "braze_unauthorized";
   }
   return "braze_api_error";
+}
+
+export function brazePermissionNameFromError(error: unknown): string | null {
+  if (!(error instanceof BrazeApiError)) {
+    return null;
+  }
+  if (error.code.startsWith("braze_permission_missing_")) {
+    return error.code.replace("braze_permission_missing_", "");
+  }
+  return null;
+}
+
+function readBooleanFlag(...values: unknown[]): boolean {
+  return values.some((value) => value === true);
+}
+
+function readMessageVariations(messages: unknown): BrazeMessageVariationRef[] {
+  if (!messages || typeof messages !== "object" || Array.isArray(messages)) {
+    return [];
+  }
+  return Object.entries(messages as Record<string, unknown>).flatMap(([id, value]) => {
+    if (!id.trim()) {
+      return [];
+    }
+    const record = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const named = record as { name?: unknown; channel?: unknown; message_variation_id?: unknown };
+    return [
+      {
+        messageVariationId:
+          typeof named.message_variation_id === "string" && named.message_variation_id.trim()
+            ? named.message_variation_id
+            : id,
+        name: typeof named.name === "string" ? named.name : undefined,
+        channel: typeof named.channel === "string" ? named.channel : undefined,
+      },
+    ];
+  });
+}
+
+function readCanvasSteps(steps: unknown): BrazeCanvasStepRef[] {
+  if (!Array.isArray(steps)) {
+    return [];
+  }
+  return steps.flatMap((step) => {
+    if (!step || typeof step !== "object" || Array.isArray(step)) {
+      return [];
+    }
+    const record = step as { id?: unknown; name?: unknown; messages?: unknown };
+    const stepId = typeof record.id === "string" ? record.id.trim() : "";
+    if (!stepId) {
+      return [];
+    }
+    return [
+      {
+        stepId,
+        name: typeof record.name === "string" ? record.name : undefined,
+        variations: readMessageVariations(record.messages),
+      },
+    ];
+  });
+}
+
+function readOptionalTimestamp(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function translationRecordsFromBody(body: unknown): unknown[] {
+  if (!body || typeof body !== "object") {
+    return [];
+  }
+  if ("translations" in body) {
+    const translations = body.translations;
+    if (Array.isArray(translations)) {
+      return translations;
+    }
+    if (translations && typeof translations === "object") {
+      return [translations];
+    }
+  }
+  if ("translation_map" in body) {
+    return [body];
+  }
+  return [];
+}
+
+export function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
+  const records = translationRecordsFromBody(body);
+  return records.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return [];
+    }
+    const record = entry as {
+      translation_map?: unknown;
+      updated_at?: unknown;
+      last_edited?: unknown;
+      locale?: {
+        uuid?: unknown;
+        name?: unknown;
+        locale_key?: unknown;
+        language?: unknown;
+        country?: unknown;
+      };
+    };
+    const translationMap =
+      record.translation_map &&
+      typeof record.translation_map === "object" &&
+      !Array.isArray(record.translation_map)
+        ? Object.fromEntries(
+            Object.entries(record.translation_map).flatMap(([key, value]) =>
+              typeof value === "string" ? [[key, value]] : [],
+            ),
+          )
+        : {};
+    const uuid = typeof record.locale?.uuid === "string" ? record.locale.uuid.trim() : "";
+    return [
+      {
+        translation_map: translationMap,
+        locale: {
+          uuid,
+          name: typeof record.locale?.name === "string" ? record.locale.name : undefined,
+          locale_key:
+            typeof record.locale?.locale_key === "string" ? record.locale.locale_key : undefined,
+          language:
+            typeof record.locale?.language === "string" ? record.locale.language : undefined,
+          country: typeof record.locale?.country === "string" ? record.locale.country : undefined,
+        },
+        updatedAt: readOptionalTimestamp(record.updated_at, record.last_edited),
+      },
+    ];
+  });
 }
 
 export function createBrazeTemplatesClient(input: {
@@ -239,7 +530,12 @@ export function createBrazeTemplatesClient(input: {
       throw new BrazeApiError({
         message,
         status: response.status,
-        code: classifyBrazeError(response.status, message),
+        code: classifyBrazeError(
+          response.status,
+          message,
+          path,
+          typeof init?.method === "string" ? init.method : "GET",
+        ),
       });
     }
     return (body ?? {}) as T;
@@ -347,7 +643,190 @@ export function createBrazeTemplatesClient(input: {
         body: JSON.stringify(updateInput),
       });
     },
+    async listCampaigns(query) {
+      const url = new URL("/campaigns/list", baseUrl);
+      url.searchParams.set("page", String(Math.max(0, query?.page ?? 0)));
+      const body = await request<{ campaigns?: BrazeCampaignListItem[] }>(
+        `${url.pathname}${url.search}`,
+      );
+      return { campaigns: body.campaigns ?? [] };
+    },
+    async getCampaignDetails(campaignId, query) {
+      const url = new URL("/campaigns/details", baseUrl);
+      url.searchParams.set("campaign_id", campaignId);
+      if (query?.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      const body = await request<{
+        id?: string;
+        name?: string;
+        draft?: boolean;
+        is_draft?: boolean;
+        archived?: boolean;
+        is_archived?: boolean;
+        updated_at?: string;
+        last_edited?: string;
+        messages?: unknown;
+      }>(`${url.pathname}${url.search}`);
+      return {
+        id: typeof body.id === "string" && body.id.trim() ? body.id : campaignId,
+        name: typeof body.name === "string" ? body.name : campaignId,
+        isDraft: readBooleanFlag(body.draft, body.is_draft),
+        isArchived: readBooleanFlag(body.archived, body.is_archived),
+        lastEdited:
+          typeof body.last_edited === "string"
+            ? body.last_edited
+            : typeof body.updated_at === "string"
+              ? body.updated_at
+              : undefined,
+        variations: readMessageVariations(body.messages),
+      };
+    },
+    async getCampaignSourceTranslations(input) {
+      const url = new URL("/campaigns/translations/source", baseUrl);
+      url.searchParams.set("campaign_id", input.campaignId);
+      url.searchParams.set("message_variation_id", input.messageVariationId);
+      if (input.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      return readTranslationEntries(await request(`${url.pathname}${url.search}`));
+    },
+    async getCampaignTranslations(input) {
+      const url = new URL("/campaigns/translations", baseUrl);
+      url.searchParams.set("campaign_id", input.campaignId);
+      url.searchParams.set("message_variation_id", input.messageVariationId);
+      if (input.localeId) {
+        url.searchParams.set("locale_id", input.localeId);
+      }
+      if (input.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      return readTranslationEntries(await request(`${url.pathname}${url.search}`));
+    },
+    async updateCampaignTranslation(input) {
+      await request("/campaigns/translations", {
+        method: "PUT",
+        body: JSON.stringify({
+          campaign_id: input.campaignId,
+          message_variation_id: input.messageVariationId,
+          locale_id: input.localeId,
+          translation_map: input.translationMap,
+        }),
+      });
+    },
+    async listCanvases(query) {
+      const url = new URL("/canvas/list", baseUrl);
+      url.searchParams.set("page", String(Math.max(0, query?.page ?? 0)));
+      const body = await request<{ canvases?: BrazeCanvasListItem[] }>(
+        `${url.pathname}${url.search}`,
+      );
+      return { canvases: body.canvases ?? [] };
+    },
+    async getCanvasDetails(workflowId, query) {
+      const url = new URL("/canvas/details", baseUrl);
+      url.searchParams.set("canvas_id", workflowId);
+      if (query?.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      const body = await request<{
+        id?: string;
+        name?: string;
+        draft?: boolean;
+        is_draft?: boolean;
+        archived?: boolean;
+        is_archived?: boolean;
+        updated_at?: string;
+        last_edited?: string;
+        steps?: unknown;
+      }>(`${url.pathname}${url.search}`);
+      return {
+        id: typeof body.id === "string" && body.id.trim() ? body.id : workflowId,
+        name: typeof body.name === "string" ? body.name : workflowId,
+        isDraft: readBooleanFlag(body.draft, body.is_draft),
+        isArchived: readBooleanFlag(body.archived, body.is_archived),
+        lastEdited:
+          typeof body.last_edited === "string"
+            ? body.last_edited
+            : typeof body.updated_at === "string"
+              ? body.updated_at
+              : undefined,
+        steps: readCanvasSteps(body.steps),
+      };
+    },
+    async getCanvasSourceTranslations(input) {
+      const url = new URL("/canvas/translations/source", baseUrl);
+      url.searchParams.set("workflow_id", input.workflowId);
+      url.searchParams.set("step_id", input.stepId);
+      url.searchParams.set("message_variation_id", input.messageVariationId);
+      if (input.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      return readTranslationEntries(await request(`${url.pathname}${url.search}`));
+    },
+    async getCanvasTranslations(input) {
+      const url = new URL("/canvas/translations", baseUrl);
+      url.searchParams.set("workflow_id", input.workflowId);
+      url.searchParams.set("step_id", input.stepId);
+      url.searchParams.set("message_variation_id", input.messageVariationId);
+      if (input.localeId) {
+        url.searchParams.set("locale_id", input.localeId);
+      }
+      if (input.postLaunchDraftVersion) {
+        url.searchParams.set("post_launch_draft_version", "true");
+      }
+      return readTranslationEntries(await request(`${url.pathname}${url.search}`));
+    },
+    async updateCanvasTranslation(input) {
+      await request("/canvas/translations", {
+        method: "PUT",
+        body: JSON.stringify({
+          workflow_id: input.workflowId,
+          step_id: input.stepId,
+          message_variation_id: input.messageVariationId,
+          locale_id: input.localeId,
+          translation_map: input.translationMap,
+        }),
+      });
+    },
   };
+}
+
+export async function listAllBrazeCampaigns(
+  client: BrazeTemplatesClient,
+): Promise<BrazeCampaignListItem[]> {
+  const campaigns: BrazeCampaignListItem[] = [];
+  let page = 0;
+  while (true) {
+    const result = await client.listCampaigns({ page });
+    campaigns.push(...result.campaigns);
+    if (result.campaigns.length === 0) {
+      break;
+    }
+    page += 1;
+    if (page > 100) {
+      break;
+    }
+  }
+  return campaigns;
+}
+
+export async function listAllBrazeCanvases(
+  client: BrazeTemplatesClient,
+): Promise<BrazeCanvasListItem[]> {
+  const canvases: BrazeCanvasListItem[] = [];
+  let page = 0;
+  while (true) {
+    const result = await client.listCanvases({ page });
+    canvases.push(...result.canvases);
+    if (result.canvases.length === 0) {
+      break;
+    }
+    page += 1;
+    if (page > 100) {
+      break;
+    }
+  }
+  return canvases;
 }
 
 export async function listAllBrazeEmailTemplates(

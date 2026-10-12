@@ -46,6 +46,7 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
+  hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationIntercomTool,
   type WorkspaceAutomationConfigValidationError,
@@ -54,6 +55,7 @@ import {
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
 import {
+  getBrazeCampaignPushEligibility,
   getBrazePushEligibility,
   isBrazePushRunActive,
   type BrazePushItem,
@@ -623,11 +625,19 @@ export function createWorkspaceAutomationRoutes(
         pushRunInProgress: boolean;
         items?: BrazePushItem[];
       } | null = null;
-      if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {
-        const eligibility = await getBrazePushEligibility({
-          organizationId,
-          automation,
-        });
+      if (
+        hasWorkspaceAutomationBrazeTool(automation.toolConfig) ||
+        hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+      ) {
+        const eligibility = hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+          ? await getBrazeCampaignPushEligibility({
+              organizationId,
+              automation,
+            })
+          : await getBrazePushEligibility({
+              organizationId,
+              automation,
+            });
         brazePush = {
           eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
           mappedItemCount: eligibility?.mappedItemCount ?? 0,
