@@ -23,6 +23,9 @@ import {
   UseCaseScenarioSection,
   UseCaseWorkflowSection,
 } from "./use-case-sections";
+import { ProductLocalisationWorkflowSection } from "./product-localisation-workflow";
+import { ProductLocalisationCapabilities } from "./product-localisation-capabilities";
+import { ProductLocalisationScenario } from "./product-localisation-scenario";
 
 type UseCasePageProps = {
   content: UseCasePageContent;
@@ -41,11 +44,19 @@ export function UseCasePage({ content }: UseCasePageProps) {
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseWorkflowSection content={content.workflow} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationWorkflowSection content={content} />
+          ) : (
+            <UseCaseWorkflowSection content={content.workflow} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseCapabilitiesSection content={content.capabilities} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationCapabilities content={content} />
+          ) : (
+            <UseCaseCapabilitiesSection content={content.capabilities} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
@@ -53,7 +64,11 @@ export function UseCasePage({ content }: UseCasePageProps) {
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseScenarioSection content={content.scenario} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationScenario content={content} />
+          ) : (
+            <UseCaseScenarioSection content={content.scenario} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-24 sm:px-8 lg:px-10">

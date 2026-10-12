@@ -20,6 +20,8 @@ import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/compone
 
 import type { UseCasePageContent } from "./use-case-page-content";
 import { useCasePageMessages, type UseCaseMessageKey } from "./use-case-page-content.messages";
+import { ProductLocalisationHeroVisual } from "./product-localisation-hero-visual";
+import { ProductLocalisationShift } from "./product-localisation-shift";
 
 function UseCaseMessage({ messageKey }: { messageKey: UseCaseMessageKey }) {
   return <FormattedMessage {...useCasePageMessages[messageKey]} />;
@@ -34,50 +36,72 @@ type UseCaseHeroProps = {
 };
 
 export function UseCaseHero({ content }: UseCaseHeroProps) {
+  const isProductLocalisation = content.slug === "product-localisation";
+
   return (
     <section className="pt-16 lg:pt-20">
-      <div className="max-w-3xl space-y-8">
-        <p className="text-sm font-medium tracking-[0.14em] text-muted-foreground uppercase">
-          <UseCaseMessage messageKey={content.hero.eyebrowKey} />
-        </p>
-        <TypographyH1 className="text-left" wrapStyle="balance">
-          <UseCaseMessage messageKey={content.hero.headlineKey} />
-        </TypographyH1>
-        <TypographyP className="max-w-2xl" tone="subtle">
-          <UseCaseMessage messageKey={content.hero.subheadlineKey} />
-        </TypographyP>
-        <Button
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
-          <UseCaseMessage messageKey={content.hero.ctaLabelKey} />
-        </Button>
+      <div
+        className={
+          isProductLocalisation
+            ? "grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-12"
+            : ""
+        }
+      >
+        <div className="max-w-3xl space-y-8">
+          <p className="text-sm font-medium tracking-[0.14em] text-muted-foreground uppercase">
+            <UseCaseMessage messageKey={content.hero.eyebrowKey} />
+          </p>
+
+          <TypographyH1 className="text-left" wrapStyle="balance">
+            <UseCaseMessage messageKey={content.hero.headlineKey} />
+          </TypographyH1>
+
+          <TypographyP className="max-w-2xl" tone="subtle">
+            <UseCaseMessage messageKey={content.hero.subheadlineKey} />
+          </TypographyP>
+
+          <Button
+            nativeButton={false}
+            render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+          >
+            <UseCaseMessage messageKey={content.hero.ctaLabelKey} />
+          </Button>
+        </div>
+
+        {isProductLocalisation ? <ProductLocalisationHeroVisual /> : null}
       </div>
 
-      <div className="mt-12 overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:rounded-[2rem]">
-        <div className="grid divide-y divide-border lg:grid-cols-[1.05fr_1.7fr] lg:divide-x lg:divide-y-0">
-          <div className="px-6 py-7 sm:px-8 sm:py-9">
-            <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
-              <UseCaseMessage messageKey="problemPanelEyebrow" />
-            </TypographyP>
-            <TypographyH2 className="mt-8 max-w-xl text-3xl leading-[1.04] tracking-[-0.045em] sm:text-4xl">
-              <UseCaseMessage messageKey={content.problem.titleKey} />
-            </TypographyH2>
-          </div>
-          <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {content.problem.painKeys.slice(0, 3).map((painKey, index) => (
-              <article key={painKey} className="flex flex-col gap-8 px-6 py-7 sm:px-7 sm:py-8">
-                <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
-                  {formatStepLabel(index)}
-                </TypographyP>
-                <TypographyP className="leading-relaxed" size="small" tone="subtle">
-                  <UseCaseMessage messageKey={painKey} />
-                </TypographyP>
-              </article>
-            ))}
+      {content.slug === "product-localisation" ? (
+        <ProductLocalisationShift content={content} />
+      ) : (
+        <div className="mt-12 overflow-hidden rounded-[1.5rem] border border-border bg-background shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:rounded-[2rem]">
+          <div className="grid divide-y divide-border lg:grid-cols-[1.05fr_1.7fr] lg:divide-x lg:divide-y-0">
+            <div className="px-6 py-7 sm:px-8 sm:py-9">
+              <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
+                <UseCaseMessage messageKey="problemPanelEyebrow" />
+              </TypographyP>
+
+              <TypographyH2 className="mt-8 max-w-xl text-3xl leading-[1.04] tracking-[-0.045em] sm:text-4xl">
+                <UseCaseMessage messageKey={content.problem.titleKey} />
+              </TypographyH2>
+            </div>
+
+            <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {content.problem.painKeys.slice(0, 3).map((painKey, index) => (
+                <article key={painKey} className="flex flex-col gap-8 px-6 py-7 sm:px-7 sm:py-8">
+                  <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
+                    {formatStepLabel(index)}
+                  </TypographyP>
+
+                  <TypographyP className="leading-relaxed" size="small" tone="subtle">
+                    <UseCaseMessage messageKey={painKey} />
+                  </TypographyP>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -87,28 +111,80 @@ type UseCaseOverviewSectionProps = {
 };
 
 export function UseCaseOverviewSection({ content }: UseCaseOverviewSectionProps) {
+  const isProductLocalisation = content.slug === "product-localisation";
+
+  if (!isProductLocalisation) {
+    return (
+      <section>
+        <div className="grid gap-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-start">
+          <div className="max-w-2xl space-y-5">
+            <div className="text-sm text-muted-foreground">
+              <UseCaseMessage messageKey="overviewSectionLabel" />
+            </div>
+
+            <TypographyH2
+              className="mt-4 text-4xl leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-[3.25rem]"
+              wrapStyle="balance"
+            >
+              <UseCaseMessage messageKey={content.problem.descriptionKey} />
+            </TypographyH2>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {content.capabilities.items.slice(0, 4).map((item, index) => (
+              <article key={item.titleKey} className="border-t border-border pt-5">
+                <div className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                  {formatStepLabel(index)}
+                </div>
+
+                <TypographyH3 className="mt-3 tracking-[-0.03em]" size="xlarge" weight="medium">
+                  <UseCaseMessage messageKey={item.titleKey} />
+                </TypographyH3>
+
+                <TypographyP className="mt-3 leading-relaxed" size="small" tone="subtle">
+                  <UseCaseMessage messageKey={item.descriptionKey} />
+                </TypographyP>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section>
-      <div className="grid gap-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-start">
-        <div className="max-w-2xl space-y-5">
-          <div className="text-sm text-muted-foreground">
+      <div className="grid gap-12 lg:grid-cols-[0.9fr_1.4fr] lg:gap-16">
+        {/* Editorial introduction */}
+        <div className="space-y-6 lg:pt-2">
+          <p className="text-sm text-muted-foreground">
             <UseCaseMessage messageKey="overviewSectionLabel" />
-          </div>
-          <TypographyH2 className="text-4xl sm:text-5xl">
+          </p>
+
+          <TypographyH2
+            className="max-w-lg text-3xl leading-[1.12] tracking-[-0.04em] sm:text-4xl lg:text-[2.5rem]"
+            wrapStyle="balance"
+          >
             <UseCaseMessage messageKey={content.problem.descriptionKey} />
           </TypographyH2>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        {/* Capability grid */}
+        <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2">
           {content.capabilities.items.slice(0, 4).map((item, index) => (
-            <article key={item.titleKey} className="border-t border-border pt-5">
-              <div className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+            <article key={item.titleKey} className="flex flex-col border-t border-border pt-5">
+              <span className="text-xs font-medium tracking-[0.12em] text-muted-foreground">
                 {formatStepLabel(index)}
-              </div>
-              <TypographyH3 className="mt-3 tracking-[-0.03em]" size="xlarge" weight="medium">
+              </span>
+
+              <TypographyH3
+                className="mt-6 max-w-xs text-xl leading-[1.2] tracking-[-0.025em] sm:text-2xl"
+                weight="medium"
+              >
                 <UseCaseMessage messageKey={item.titleKey} />
               </TypographyH3>
-              <TypographyP className="mt-3 leading-relaxed" size="small" tone="subtle">
+
+              <TypographyP className="mt-4 max-w-sm leading-relaxed" size="small" tone="subtle">
                 <UseCaseMessage messageKey={item.descriptionKey} />
               </TypographyP>
             </article>

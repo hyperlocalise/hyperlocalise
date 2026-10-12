@@ -83,9 +83,8 @@ export const useCasePageMessages = defineMessages({
     description: "Problem section title for the product-localisation use case",
   },
   productLocalisationProblemDescription: {
-    defaultMessage:
-      "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
-    id: "v/bExbFK7z",
+    defaultMessage: "Product moves fast. Localisation struggles to keep up.",
+    id: "we7+IpjqsI",
     description: "Problem section description for the product-localisation use case",
   },
   productLocalisationPain0: {
@@ -1677,6 +1676,177 @@ export const useCasePageMessages = defineMessages({
       "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools.",
     id: "vRHN9vcIJA",
     description: "CTA section description for the localisation-operations use case",
+  },
+  productLocalisationScenarioFlowHeaderTitle: {
+    defaultMessage: "Onboarding flow",
+    id: "4ea774OdFR",
+    description: "Scenario flow header title",
+  },
+  productLocalisationScenarioFlowHeaderSubtitle: {
+    defaultMessage: "Runs when a redesigned onboarding release is prepared",
+    id: "VfYXnpWoTd",
+    description: "Scenario flow header subtitle",
+  },
+  productLocalisationScenarioFlowFooterHint: {
+    defaultMessage: "Hover a step for details. Run restarts the simulation.",
+    id: "uYXpJn1fBd",
+    description: "Scenario flow footer hint",
+  },
+
+  productLocalisationScenarioFlowStepTypeTrigger: {
+    defaultMessage: "Trigger",
+    id: "D4wBXbjacl",
+    description: "Scenario flow step type trigger",
+  },
+  productLocalisationScenarioFlowStepTypeAction: {
+    defaultMessage: "Action",
+    id: "bR3nhw0K9N",
+    description: "Scenario flow step type action",
+  },
+  productLocalisationScenarioFlowStepTypeReview: {
+    defaultMessage: "Review",
+    id: "TprHW79Zsi",
+    description: "Scenario flow step type review",
+  },
+
+  productLocalisationScenarioFlowStepTriggerTitle: {
+    defaultMessage: "Merge onboarding PR",
+    id: "HgCOj7kwNK",
+    description: "Scenario trigger title",
+  },
+  productLocalisationScenarioFlowStepTriggerSubtitle: {
+    defaultMessage: "Product manager starts the Friday release",
+    id: "+yA0E1Z+4o",
+    description: "Scenario trigger subtitle",
+  },
+  productLocalisationScenarioFlowStepTriggerDetail: {
+    defaultMessage:
+      "A product manager merges the redesigned onboarding flow and marks it for the Friday release.",
+    id: "GEL25NgeHE",
+    description: "Scenario trigger detail",
+  },
+
+  productLocalisationScenarioFlowStepContextTitle: {
+    defaultMessage: "Gather product context",
+    id: "G09q8GUMLV",
+    description: "Scenario context title",
+  },
+  productLocalisationScenarioFlowStepContextSubtitle: {
+    defaultMessage: "Hyperlocalise pulls the PR, brief, and notes",
+    id: "0Ofnknmi4K",
+    description: "Scenario context subtitle",
+  },
+  productLocalisationScenarioFlowStepContextDetail: {
+    defaultMessage:
+      "Hyperlocalise detects changed strings and gathers the pull request, launch brief, and supporting notes so translators understand why copy changed.",
+    id: "8ce/tKWCur",
+    description: "Scenario context detail",
+  },
+
+  productLocalisationScenarioFlowStepDraftTitle: {
+    defaultMessage: "Generate locale drafts",
+    id: "rOEehSqWYd",
+    description: "Scenario draft title",
+  },
+  productLocalisationScenarioFlowStepDraftSubtitle: {
+    defaultMessage: "Drafts are created with glossary and tone checks",
+    id: "CkaXf0nK39",
+    description: "Scenario draft subtitle",
+  },
+  productLocalisationScenarioFlowStepDraftDetail: {
+    defaultMessage:
+      "Locale drafts are generated for each target market, then checked against glossary, tone, and UI constraints before review begins.",
+    id: "3ejEI0P596",
+    description: "Scenario draft detail",
+  },
+
+  productLocalisationScenarioFlowStepReviewTitle: {
+    defaultMessage: "Review translations",
+    id: "nK5YcCnAJ0",
+    description: "Scenario review title",
+  },
+  productLocalisationScenarioFlowStepReviewSubtitle: {
+    defaultMessage: "Reviewers approve what is ready in the TMS",
+    id: "kAZX2gZOHQ",
+    description: "Scenario review subtitle",
+  },
+  productLocalisationScenarioFlowStepReviewDetail: {
+    defaultMessage:
+      "Reviewers validate the draft translations inside the team's TMS, approving ready locales and leaving feedback where changes are still needed.",
+    id: "/dTXVxCVNH",
+    description: "Scenario review detail",
+  },
+
+  productLocalisationScenarioFlowStepReleaseTitle: {
+    defaultMessage: "Release readiness",
+    id: "nc8fgxujKp",
+    description: "Scenario release title",
+  },
+  productLocalisationScenarioFlowStepReleaseSubtitle: {
+    defaultMessage: "Approved locales sync back and open issues are flagged",
+    id: "p/OiCFsIkF",
+    description: "Scenario release subtitle",
+  },
+  productLocalisationScenarioFlowStepReleaseDetail: {
+    defaultMessage:
+      "Approved translations sync back to the product, while unresolved locales are flagged before the release train leaves the station.",
+    id: "PFBNRjsfyE",
+    description: "Scenario release detail",
+  },
+  productLocalisationScenarioFlowStatusReady: {
+    defaultMessage: "Ready",
+    id: "07wNMyRQKr",
+    description: "Scenario simulation ready status",
+  },
+  productLocalisationScenarioFlowStatusPending: {
+    defaultMessage: "Pending",
+    id: "ilqsKCwtx1",
+    description: "Scenario simulation pending step status",
+  },
+  productLocalisationScenarioFlowStatusRunning: {
+    defaultMessage: "Running",
+    id: "pVIdJby57F",
+    description: "Scenario simulation running step status",
+  },
+  productLocalisationScenarioFlowStatusDone: {
+    defaultMessage: "Done",
+    id: "3/bCQVN8/N",
+    description: "Scenario simulation completed step status",
+  },
+  productLocalisationScenarioFlowRun: {
+    defaultMessage: "Run",
+    id: "/QLoPZbRRV",
+    description: "Button to start the onboarding workflow simulation",
+  },
+  productLocalisationReviewFrench: {
+    defaultMessage: "French",
+    id: "fn5V9SpDfO",
+    description: "French language label in workflow review preview",
+  },
+  productLocalisationReviewAssigned: {
+    defaultMessage: "Reviewer assigned",
+    id: "GlY09u/6QB",
+    description: "Review assignment status",
+  },
+  productLocalisationReviewGerman: {
+    defaultMessage: "German",
+    id: "/3/CZQKasd",
+    description: "German language label in workflow review preview",
+  },
+  productLocalisationReviewInReview: {
+    defaultMessage: "In review",
+    id: "pLnps6CqZv",
+    description: "Translation currently under review",
+  },
+  productLocalisationReviewJapanese: {
+    defaultMessage: "Japanese",
+    id: "Cembta8i1O",
+    description: "Japanese language label in workflow review preview",
+  },
+  productLocalisationReviewWaiting: {
+    defaultMessage: "Waiting for review",
+    id: "PWmi9y/09y",
+    description: "Translation awaiting human review",
   },
 });
 
