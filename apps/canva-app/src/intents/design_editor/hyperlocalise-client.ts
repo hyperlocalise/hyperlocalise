@@ -501,20 +501,39 @@ export async function pullCanvaTranslations(input: {
   return payload.translations;
 }
 
-export function buildCanvaJobUrl(input: {
-  organizationSlug: string;
-  projectId: string;
-  jobId: string;
-}): string | null {
+function buildHyperlocaliseOrigin(): string | null {
   try {
     const parsed = new URL(BACKEND_HOST);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return null;
     }
-    return `${parsed.origin}/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}`;
+    return parsed.origin;
   } catch {
     return null;
   }
+}
+
+export function buildCanvaProjectUrl(input: {
+  organizationSlug: string;
+  projectId: string;
+}): string | null {
+  const origin = buildHyperlocaliseOrigin();
+  if (!origin || !input.organizationSlug.trim() || !input.projectId.trim()) {
+    return null;
+  }
+  return `${origin}/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}`;
+}
+
+export function buildCanvaJobUrl(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+}): string | null {
+  const origin = buildHyperlocaliseOrigin();
+  if (!origin) {
+    return null;
+  }
+  return `${origin}/org/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}`;
 }
 
 export async function openExternalUrl(url: string) {

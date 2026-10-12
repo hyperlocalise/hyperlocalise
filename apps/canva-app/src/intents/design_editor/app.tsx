@@ -27,12 +27,14 @@ import {
   TextPlaceholder,
   Title,
 } from "@canva/app-ui-kit";
+import { OpenInNewIcon } from "@canva/app-ui-kit/icons";
 import { getDesignMetadata, getDesignToken } from "@canva/design";
 import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
 import {
+  buildCanvaProjectUrl,
   CANVA_JOB_POLL_INTERVAL_MS,
   type CanvaResourceAuth,
   collectCanvaDesign,
@@ -42,6 +44,7 @@ import {
   generateCanvaLocaleJob,
   getHyperlocaliseAccessToken,
   HyperlocaliseClientError,
+  openExternalUrl,
   pullCanvaLocalePages,
   requestHyperlocaliseAuthorization,
 } from "./hyperlocalise-client";
@@ -288,6 +291,10 @@ export const App = () => {
     return { connectionToken: legacyConnectionToken };
   };
   const canCollect = connected && selectedPageIndices.length > 0 && busy == null;
+  const projectUrl = buildCanvaProjectUrl({
+    organizationSlug: settings.organizationSlug,
+    projectId: settings.projectId,
+  });
   const applyLocaleStatus = localeStatuses.find((entry) => entry.locale === applyLocale);
   const readyApplyPages = (applyLocaleStatus?.pages ?? []).filter((page) =>
     applyLocaleStatus?.isSource
@@ -307,6 +314,7 @@ export const App = () => {
       ...next,
       organizationSlug: session.organization.slug ?? "",
       organizationName: session.organization.name,
+      projectId: session.project.id,
       projectName: session.project.name,
       ...locales,
     };
@@ -324,6 +332,7 @@ export const App = () => {
       connectionToken: "",
       organizationSlug: "",
       organizationName: "",
+      projectId: "",
       projectName: "",
       lastJobId: "",
     });
@@ -704,10 +713,24 @@ export const App = () => {
 
             {connected ? (
               <Rows spacing="1u">
-                <Text size="small">
-                  {settings.organizationName || "Connected"}
-                  {settings.projectName ? ` · ${settings.projectName}` : ""}
-                </Text>
+                <div className={styles.workspaceIdentity}>
+                  <Text size="small">
+                    {settings.organizationName || "Connected"}
+                    {settings.projectName ? ` · ${settings.projectName}` : ""}
+                  </Text>
+                  {projectUrl ? (
+                    <Button
+                      variant="tertiary"
+                      size="small"
+                      icon={OpenInNewIcon}
+                      ariaLabel="Open project in Hyperlocalise"
+                      tooltipLabel="Open project in Hyperlocalise"
+                      onClick={() => {
+                        void openExternalUrl(projectUrl);
+                      }}
+                    />
+                  ) : null}
+                </div>
                 <Button variant="secondary" onClick={disconnect} disabled={busy != null}>
                   Disconnect
                 </Button>

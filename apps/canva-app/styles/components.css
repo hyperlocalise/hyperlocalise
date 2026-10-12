@@ -66,6 +66,12 @@
   gap: var(--ui-kit-space-150);
 }
 
+.workspaceIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-kit-space-050);
+}
+
 .localeProgressSkeleton {
   height: 8px;
 }

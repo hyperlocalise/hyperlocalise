@@ -113,6 +113,7 @@ export type AppSettings = {
   connectionToken: string;
   organizationSlug: string;
   organizationName: string;
+  projectId: string;
   projectName: string;
   sourceLocale: string;
   targetLocales: string;

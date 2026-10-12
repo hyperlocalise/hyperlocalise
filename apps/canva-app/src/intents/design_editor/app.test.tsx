@@ -60,6 +60,11 @@ vi.mock("./hyperlocalise-client", () => ({
   requestHyperlocaliseAuthorization: vi.fn(),
   deauthorizeHyperlocalise: vi.fn(),
   buildCanvaJobUrl: vi.fn(() => null),
+  buildCanvaProjectUrl: vi.fn((input: { organizationSlug: string; projectId: string }) =>
+    input.organizationSlug && input.projectId
+      ? `https://app.example.test/org/${input.organizationSlug}/projects/${input.projectId}`
+      : null,
+  ),
   openExternalUrl: vi.fn(),
   CANVA_JOB_POLL_INTERVAL_MS: 1_500,
   HyperlocaliseClientError: class HyperlocaliseClientError extends Error {},
@@ -76,6 +81,7 @@ describe("Hyperlocalise Canva app", () => {
       connectionToken: "",
       organizationSlug: "",
       organizationName: "",
+      projectId: "",
       projectName: "",
       sourceLocale: "en",
       targetLocales: "es,fr,de",
@@ -104,6 +110,7 @@ describe("Hyperlocalise Canva app", () => {
       connectionToken: "hl_canva_test",
       organizationSlug: "acme",
       organizationName: "Acme",
+      projectId: "project_1",
       projectName: "Marketing",
       sourceLocale: "en",
       targetLocales: "es",
@@ -171,6 +178,13 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
     expect(result.getByText("Add translations to design")).toBeTruthy();
+    const openProject = result.getByRole("button", { name: "Open project in Hyperlocalise" });
+    expect(openProject).toBeTruthy();
+    fireEvent.click(openProject);
+    const { openExternalUrl } = await import("./hyperlocalise-client");
+    expect(openExternalUrl).toHaveBeenCalledWith(
+      "https://app.example.test/org/acme/projects/project_1",
+    );
   });
 
   it("opens apply controls on the language row", async () => {
@@ -178,6 +192,7 @@ describe("Hyperlocalise Canva app", () => {
       connectionToken: "hl_canva_test",
       organizationSlug: "acme",
       organizationName: "Acme",
+      projectId: "project_1",
       projectName: "Marketing",
       sourceLocale: "en-US",
       targetLocales: "fr-FR",
@@ -278,6 +293,7 @@ describe("Hyperlocalise Canva app", () => {
       connectionToken: "hl_canva_test",
       organizationSlug: "acme",
       organizationName: "Acme",
+      projectId: "project_1",
       projectName: "Marketing",
       sourceLocale: "en-US",
       targetLocales: "fr-FR",
