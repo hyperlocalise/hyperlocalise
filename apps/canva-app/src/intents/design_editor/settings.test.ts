@@ -16,6 +16,7 @@ import {
   loadSettings,
   parseSelectedPageValues,
   parseTargetLocales,
+  projectLocalesToSettings,
   saveSettings,
   selectedPageValues,
 } from "./settings";
@@ -23,6 +24,18 @@ import {
 describe("settings", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("copies project locales into settings", () => {
+    expect(
+      projectLocalesToSettings({
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR, de-DE",
+    });
   });
 
   it("parses target locales from comma-separated values", () => {
@@ -70,17 +83,14 @@ describe("settings", () => {
     });
   });
 
-  it("migrates v3 settings and drops the project override", () => {
+  it("does not load older settings keys", () => {
     const storage = new Map<string, string>([
       [
         "hyperlocalise:canva-app:settings:v3",
         JSON.stringify({
           connectionToken: "hl_canva_legacy",
-          projectId: "project_ignored",
           sourceLocale: "en",
           targetLocales: "fr",
-          preserveFormatting: true,
-          selectedPageIndices: [2],
         }),
       ],
     ]);
@@ -94,14 +104,14 @@ describe("settings", () => {
     });
 
     expect(loadSettings()).toEqual({
-      connectionToken: "hl_canva_legacy",
+      connectionToken: "",
       organizationSlug: "",
       organizationName: "",
       projectName: "",
-      sourceLocale: "en",
-      targetLocales: "fr",
+      sourceLocale: "",
+      targetLocales: "",
       preserveFormatting: true,
-      selectedPageIndices: [2],
+      selectedPageIndices: [],
       lastJobId: "",
     });
   });

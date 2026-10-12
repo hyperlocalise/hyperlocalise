@@ -16,6 +16,7 @@ import {
   isCanvaIntegrationJob,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
+  resolveCanvaJobLocales,
 } from "./localize-design";
 
 describe("publicJobOutputFiles", () => {
@@ -142,5 +143,38 @@ describe("readCanvaConnectionIdFromJobInput", () => {
         metadata: { canvaConnectionId: "conn_top" },
       }),
     ).toBe("conn_top");
+  });
+});
+
+describe("resolveCanvaJobLocales", () => {
+  it("uses the project source and all project targets when none are requested", () => {
+    expect(
+      resolveCanvaJobLocales({
+        project: { sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] },
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+  });
+
+  it("keeps a requested subset of project targets", () => {
+    expect(
+      resolveCanvaJobLocales({
+        project: { sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] },
+        requestedTargetLocales: ["de-DE"],
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
+  });
+
+  it("ignores a missing project source until validation", () => {
+    expect(() =>
+      resolveCanvaJobLocales({
+        project: { sourceLocale: null, targetLocales: ["fr-FR"] },
+      }),
+    ).toThrow("job_source_locale_not_in_project");
   });
 });

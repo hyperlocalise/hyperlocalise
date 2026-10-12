@@ -39,6 +39,32 @@ export type CanvaJobStatusName =
   | "failed"
   | "cancelled";
 
+export type CanvaLocalePageStatus = {
+  pageIndex: number;
+  sourcePath: string;
+  jobId: string | null;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+};
+
+export type CanvaLocaleStatus = {
+  locale: string;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+  percent: number;
+  canAdd: boolean;
+  pages: CanvaLocalePageStatus[];
+};
+
+export type CollectedCanvaPage = {
+  pageIndex: number;
+  sourcePath: string;
+  sourceFileId: string;
+  segmentCount: number;
+};
+
 export type CanvaDesignJob = {
   jobId: string;
   status: CanvaJobStatusName;

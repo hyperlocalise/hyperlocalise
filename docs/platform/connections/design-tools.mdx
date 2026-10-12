@@ -9,11 +9,11 @@ Design tools use a personal access token to work with Platform files and transla
 
 1. Create a [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
 2. Open **Integrations** → **Canva** and create a connection.
-3. Select the token, default project, and locales.
-4. Copy the connection token shown once after creation.
-5. In the Hyperlocalise Canva app, enter the connection token and any project or locale overrides.
+3. Select the token and a native project. The connection uses that project's source language and target languages. Do not set a separate Canva locale list.
+4. Copy the connection token shown once after creation, or skip this step and connect with OAuth from the Canva app.
+5. In the Hyperlocalise Canva app, connect with OAuth or paste the connection token. Select pages, then collect one page or every selected page. Each page becomes `canva/designs/<design-slug>/page-<n>.json`. Generate each project language, then Add to design.
 
-The app uploads design text, runs a file translation job, and brings completed translations into selected pages. Inspect layout after applying another language, especially for longer text.
+Languages appear as **English (en-US)**. Jobs still use the project tags. Add to design replaces text on the Canva page you pick, or replaces every matching collected page. It does not insert a page. Change languages in [project settings](/platform/projects/languages), not in Canva. Inspect layout after applying another language, especially for longer text.
 
 ## Figma
 

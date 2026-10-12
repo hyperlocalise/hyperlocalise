@@ -10,7 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CanvaDesignJob, CanvaSession, DesignSegment } from "./types";
+import type {
+  CanvaDesignJob,
+  CanvaLocaleStatus,
+  CanvaSession,
+  CollectedCanvaPage,
+  DesignSegment,
+} from "./types";
 
 declare const BACKEND_HOST: string;
 
@@ -211,6 +217,145 @@ export async function fetchCanvaSession(auth: string | CanvaResourceAuth): Promi
     );
   }
   return payload.session;
+}
+
+export async function collectCanvaDesign(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+  designTitle?: string;
+  segments: DesignSegment[];
+}): Promise<{ designSlug: string; projectId: string; pages: CollectedCanvaPage[] }> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/collect`, {
+    method: "POST",
+    headers: buildRequestHeaders(input.auth, authorization),
+    body: JSON.stringify({
+      designToken: input.designToken,
+      designTitle: input.designTitle,
+      segments: input.segments,
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        designSlug?: string;
+        projectId?: string;
+        pages?: CollectedCanvaPage[];
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.designSlug || !payload.projectId || !payload.pages) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_collect_failed",
+      payload?.message ?? "Unable to collect design text.",
+    );
+  }
+  return {
+    designSlug: payload.designSlug,
+    projectId: payload.projectId,
+    pages: payload.pages,
+  };
+}
+
+export async function generateCanvaLocaleJob(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+  locale: string;
+}): Promise<{ locale: string; projectId: string; jobIds: string[] }> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/jobs`, {
+    method: "POST",
+    headers: buildRequestHeaders(input.auth, authorization),
+    body: JSON.stringify({
+      designToken: input.designToken,
+      targetLocales: [input.locale],
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        jobs?: { locale?: string; projectId?: string; jobIds?: string[] };
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.jobs?.jobIds || !payload.jobs.projectId) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_job_create_failed",
+      payload?.message ?? "Unable to generate translations.",
+    );
+  }
+  return {
+    locale: payload.jobs.locale ?? input.locale,
+    projectId: payload.jobs.projectId,
+    jobIds: payload.jobs.jobIds,
+  };
+}
+
+export async function fetchCanvaLocaleStatuses(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+}): Promise<{ locales: CanvaLocaleStatus[]; pages: CollectedCanvaPage[] }> {
+  const authorization = await getAuthorizationHeader();
+  const params = new URLSearchParams({ designToken: input.designToken });
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/locales?${params.toString()}`,
+    { headers: buildRequestHeaders(input.auth, authorization) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        locales?: CanvaLocaleStatus[];
+        pages?: CollectedCanvaPage[];
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.locales) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_locales_failed",
+      payload?.message ?? "Unable to load locale status.",
+    );
+  }
+  return {
+    locales: payload.locales,
+    pages: payload.pages ?? [],
+  };
+}
+
+export async function pullCanvaLocalePages(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+  locale: string;
+  pageIndex?: number;
+}): Promise<{
+  locale: string;
+  projectId: string;
+  pages: Array<{
+    pageIndex: number;
+    translations: Record<string, string>;
+  }>;
+}> {
+  const authorization = await getAuthorizationHeader();
+  const params = new URLSearchParams({
+    designToken: input.designToken,
+    locale: input.locale,
+  });
+  if (input.pageIndex != null) {
+    params.set("pageIndex", String(input.pageIndex));
+  }
+  const response = await fetch(
+    `${BACKEND_HOST}/api/integrations/canva/translations?${params.toString()}`,
+    { headers: buildRequestHeaders(input.auth, authorization) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        translations?: {
+          locale: string;
+          projectId: string;
+          pages: Array<{ pageIndex: number; translations: Record<string, string> }>;
+        };
+      } & ErrorPayload)
+    | null;
+  if (!response.ok || !payload?.translations?.pages) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_translations_failed",
+      payload?.message ?? "Unable to pull translations.",
+    );
+  }
+  return payload.translations;
 }
 
 export async function createCanvaJob(input: {

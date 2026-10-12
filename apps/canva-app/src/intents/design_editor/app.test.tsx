@@ -31,6 +31,7 @@ function renderInTestProvider(node: ReactNode) {
 
 vi.mock("@canva/design", () => ({
   getDesignToken: vi.fn(),
+  getDesignMetadata: vi.fn(async () => ({ title: "Marketing flyer" })),
 }));
 
 vi.mock("./design-content", () => ({
@@ -51,11 +52,10 @@ vi.mock("./hyperlocalise-client", () => ({
   createCanvaClaim: vi.fn(),
   pollCanvaClaim: vi.fn(),
   fetchCanvaSession: vi.fn(),
-  createCanvaJob: vi.fn(),
-  generateCanvaJob: vi.fn(),
-  getCanvaJob: vi.fn(),
-  fetchCurrentCanvaJob: vi.fn(),
-  pullCanvaTranslations: vi.fn(),
+  collectCanvaDesign: vi.fn(),
+  generateCanvaLocaleJob: vi.fn(),
+  fetchCanvaLocaleStatuses: vi.fn(async () => ({ locales: [], pages: [] })),
+  pullCanvaLocalePages: vi.fn(),
   getHyperlocaliseAccessToken: vi.fn(async () => null),
   requestHyperlocaliseAuthorization: vi.fn(),
   deauthorizeHyperlocalise: vi.fn(),
@@ -112,10 +112,15 @@ describe("Hyperlocalise Canva app", () => {
       lastJobId: "",
     });
 
-    const { fetchCanvaSession, fetchCurrentCanvaJob } = await import("./hyperlocalise-client");
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue({
       organization: { id: "org_1", name: "Acme", slug: "acme" },
-      project: { id: "project_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+      },
       connection: {
         id: "conn_1",
         displayName: "Canva",
@@ -123,7 +128,29 @@ describe("Hyperlocalise Canva app", () => {
         targetLocales: ["es"],
       },
     });
-    vi.mocked(fetchCurrentCanvaJob).mockResolvedValue(null);
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "idle",
+          translated: 0,
+          total: 0,
+          percent: 0,
+          canAdd: false,
+          pages: [],
+        },
+        {
+          locale: "de-DE",
+          status: "idle",
+          translated: 0,
+          total: 0,
+          percent: 0,
+          canAdd: false,
+          pages: [],
+        },
+      ],
+      pages: [],
+    });
 
     const result = renderInTestProvider(<App />);
 
@@ -132,8 +159,12 @@ describe("Hyperlocalise Canva app", () => {
       expect(result.getByText("Page 1")).toBeTruthy();
     });
 
-    expect(result.getByRole("button", { name: "Extract text" })).toBeTruthy();
-    expect(result.getByRole("button", { name: "Create job and generate" })).toBeTruthy();
-    expect(result.getByRole("button", { name: "Pull translations" })).toBeTruthy();
+    expect(result.getByText("English (en-US)", { exact: false })).toBeTruthy();
+    expect(result.getByText("French (fr-FR)", { exact: false })).toBeTruthy();
+    expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
+    expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
+    expect(result.getByText("Pages to collect")).toBeTruthy();
+    expect(result.getByText("All selected pages")).toBeTruthy();
+    expect(result.getByText("Add translations to design")).toBeTruthy();
   });
 });

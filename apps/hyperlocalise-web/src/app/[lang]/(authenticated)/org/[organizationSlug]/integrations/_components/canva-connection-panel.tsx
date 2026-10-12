@@ -53,24 +53,13 @@ type CanvaConnectionForm = {
   displayName: string;
   apiKeyId: string;
   projectId: string;
-  sourceLocale: string;
-  targetLocales: string;
 };
 
 const emptyForm = (): CanvaConnectionForm => ({
   displayName: "Canva",
   apiKeyId: "",
   projectId: "",
-  sourceLocale: "en",
-  targetLocales: "es, fr, de",
 });
-
-function parseTargetLocales(value: string) {
-  return value
-    .split(/[,\s]+/)
-    .map((locale) => locale.trim())
-    .filter((locale) => locale.length > 0);
-}
 
 export function useCanvaConnections(organizationSlug: string) {
   const intl = useIntl();
@@ -171,8 +160,6 @@ export function CanvaConnectionPanel({
           displayName,
           apiKeyId: payload.apiKeyId,
           projectId: payload.projectId,
-          sourceLocale: payload.sourceLocale.trim() || "en",
-          targetLocales: parseTargetLocales(payload.targetLocales),
           enabled: true,
         },
       });
@@ -458,11 +445,15 @@ export function CanvaConnectionPanel({
                   }}
                 >
                   <SelectTrigger className="h-9 w-full">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={intl.formatMessage(
+                        canvaConnectionPanelMessages.apiKeyPlaceholder,
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {apiKeys.map((apiKey) => (
-                      <SelectItem key={apiKey.id} value={apiKey.id}>
+                      <SelectItem key={apiKey.id} value={apiKey.id} label={apiKey.name}>
                         {apiKey.name}
                       </SelectItem>
                     ))}
@@ -490,11 +481,15 @@ export function CanvaConnectionPanel({
                   }}
                 >
                   <SelectTrigger className="h-9 w-full">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={intl.formatMessage(
+                        canvaConnectionPanelMessages.projectPlaceholder,
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
+                      <SelectItem key={project.id} value={project.id} label={project.name}>
                         {project.name}
                       </SelectItem>
                     ))}
@@ -506,33 +501,6 @@ export function CanvaConnectionPanel({
                   ) : (
                     <FormattedMessage {...canvaConnectionPanelMessages.projectHelp} />
                   )}
-                </p>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...canvaConnectionPanelMessages.sourceLocaleLabel} />
-                </FieldLabel>
-                <Input
-                  value={form.sourceLocale}
-                  disabled={disabled || saveMutation.isPending}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, sourceLocale: event.target.value }))
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...canvaConnectionPanelMessages.targetLocalesLabel} />
-                </FieldLabel>
-                <Input
-                  value={form.targetLocales}
-                  disabled={disabled || saveMutation.isPending}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, targetLocales: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  <FormattedMessage {...canvaConnectionPanelMessages.targetLocalesHelp} />
                 </p>
               </Field>
               <div className="flex justify-end gap-2">

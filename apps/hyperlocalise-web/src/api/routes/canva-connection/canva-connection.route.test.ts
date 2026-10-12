@@ -83,8 +83,6 @@ describe("canvaConnectionRoutes", () => {
           displayName: "Marketing Canva",
           apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
-          sourceLocale: "en",
-          targetLocales: ["es", "fr"],
         },
       },
       { headers },
@@ -92,10 +90,17 @@ describe("canvaConnectionRoutes", () => {
 
     expect(response.status).toBe(201);
     const body = (await response.json()) as {
-      canvaConnection: { displayName: string; connectionTokenPrefix: string };
+      canvaConnection: {
+        displayName: string;
+        connectionTokenPrefix: string;
+        sourceLocale: string;
+        targetLocales: string[];
+      };
       connectionToken: string;
     };
     expect(body.canvaConnection.displayName).toBe("Marketing Canva");
+    expect(body.canvaConnection.sourceLocale).toBe("en-US");
+    expect(body.canvaConnection.targetLocales).toEqual(["fr-FR", "de-DE"]);
     expect(body.connectionToken).toMatch(/^hl_canva_/);
     expect(body.canvaConnection.connectionTokenPrefix).toBe(body.connectionToken.slice(0, 12));
   });
@@ -118,8 +123,6 @@ describe("canvaConnectionRoutes", () => {
           displayName: "Rotating Canva",
           apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
-          sourceLocale: "en",
-          targetLocales: ["es"],
         },
       },
       { headers },
@@ -157,8 +160,6 @@ describe("canvaConnectionRoutes", () => {
           displayName: "Blocked",
           apiKeyId: "00000000-0000-4000-8000-000000000001",
           projectId: "project_test",
-          sourceLocale: "en",
-          targetLocales: ["es"],
         },
       },
       { headers },
@@ -185,8 +186,6 @@ describe("canvaConnectionRoutes", () => {
           displayName: "Claim Canva",
           apiKeyId: apiKey.id,
           projectId: projectBody.project.id,
-          sourceLocale: "en",
-          targetLocales: ["es"],
         },
       },
       { headers },

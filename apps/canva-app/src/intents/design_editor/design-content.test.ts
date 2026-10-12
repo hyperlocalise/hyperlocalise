@@ -103,10 +103,9 @@ describe("design-content", () => {
         },
       },
       {
-        "canva.segment.0.1.0": "Hola",
-        "canva.segment.0.1.1": " mundo",
+        "canva.segment.1.0": "Hola",
+        "canva.segment.1.1": " mundo",
       },
-      0,
       1,
       true,
     );
@@ -115,5 +114,26 @@ describe("design-content", () => {
       { index: 5, length: 6, text: " mundo" },
       { index: 0, length: 5, text: "Hola" },
     ]);
+  });
+
+  it("applies page-local keys when writing onto another page", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    applyTranslationsToRange(
+      {
+        readPlaintext: () => "Hello",
+        readTextRegions: () => [{ text: "Hello" }],
+        replaceText: (range, text) => {
+          replacements.push({ index: range.index, length: range.length, text });
+        },
+      },
+      {
+        "canva.segment.0.0": "Hallo",
+      },
+      0,
+      false,
+    );
+
+    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
   });
 });

@@ -18,6 +18,10 @@ export function segmentKey(pageIndex: number, contentIndex: number, regionIndex:
   return `${SEGMENT_KEY_PREFIX}${pageIndex}.${contentIndex}.${regionIndex}`;
 }
 
+export function pageSegmentKey(contentIndex: number, regionIndex: number): string {
+  return `${SEGMENT_KEY_PREFIX}${contentIndex}.${regionIndex}`;
+}
+
 export function segmentsToTranslationFile(segments: DesignSegment[]): Record<string, string> {
   const entries: Record<string, string> = {};
 
@@ -46,4 +50,8 @@ export function parseTranslationFile(content: Record<string, unknown>): Record<s
 
 export function buildSourcePath(designId: string): string {
   return `canva/designs/${designId}.json`;
+}
+
+export function buildPageSourcePath(designSlug: string, pageIndex: number): string {
+  return `canva/designs/${designSlug}/page-${pageIndex}.json`;
 }

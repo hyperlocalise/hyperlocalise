@@ -12,7 +12,7 @@
  */
 import { openDesign } from "@canva/design";
 
-import { segmentKey } from "./segment-file";
+import { pageSegmentKey, segmentKey } from "./segment-file";
 import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
 
 type RichtextRange = {
@@ -139,7 +139,6 @@ export function extractSegmentsFromRange(
 export function applyTranslationsToRange(
   range: RichtextRange,
   translations: Record<string, string>,
-  pageIndex: number,
   contentIndex: number,
   preserveFormatting: boolean,
 ): void {
@@ -150,7 +149,7 @@ export function applyTranslationsToRange(
 
     for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
       const region = regions[regionIndex];
-      const translatedText = translations[segmentKey(pageIndex, contentIndex, regionIndex)];
+      const translatedText = translations[pageSegmentKey(contentIndex, regionIndex)];
       const offset = offsets[regionIndex];
 
       if (!region || translatedText == null || offset == null) {
@@ -169,7 +168,7 @@ export function applyTranslationsToRange(
   }
 
   const plaintext = range.readPlaintext();
-  const translatedText = translations[segmentKey(pageIndex, contentIndex, 0)];
+  const translatedText = translations[pageSegmentKey(contentIndex, 0)];
   if (translatedText == null || plaintext.length === 0) {
     return;
   }
@@ -267,13 +266,7 @@ export async function applyTranslationsToDesign(
             return;
           }
 
-          applyTranslationsToRange(
-            range,
-            translations,
-            pageIndex,
-            contentIndex,
-            preserveFormatting,
-          );
+          applyTranslationsToRange(range, translations, contentIndex, preserveFormatting);
           contentIndex += 1;
         });
       });
