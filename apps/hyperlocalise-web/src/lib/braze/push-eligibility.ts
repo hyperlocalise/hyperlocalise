@@ -16,7 +16,10 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 import { db, schema } from "@/lib/database/client";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-import { selectInScopeBrazeMappings } from "./discover-locale-copies";
+import {
+  selectInScopeBrazeCampaignMappings,
+  selectInScopeBrazeMappings,
+} from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
 
 export type BrazePushItem = {
@@ -175,7 +178,7 @@ export async function getBrazeCampaignPushEligibility(input: {
     configuredSourceLocale: braze.sourceLocale,
   });
 
-  const mappings = (
+  const mappings = selectInScopeBrazeCampaignMappings(
     await db
       .select()
       .from(schema.brazeCampaignSyncStates)
@@ -185,19 +188,12 @@ export async function getBrazeCampaignPushEligibility(input: {
           eq(schema.brazeCampaignSyncStates.automationId, input.automation.id),
           inArray(schema.brazeCampaignSyncStates.status, ["active", "push_failed"]),
         ),
-      )
-  ).filter((mapping) => {
-    if (mapping.resourceKind === "campaign") {
-      return (
-        braze.campaignIds.length === 0 ||
-        (mapping.campaignId != null && braze.campaignIds.includes(mapping.campaignId))
-      );
-    }
-    return (
-      braze.canvasIds.length === 0 ||
-      (mapping.workflowId != null && braze.canvasIds.includes(mapping.workflowId))
-    );
-  });
+      ),
+    {
+      campaignIds: braze.campaignIds,
+      canvasIds: braze.canvasIds,
+    },
+  );
 
   const translationService = new ProjectTranslationService();
   let eligibleLocaleCount = 0;

@@ -27,8 +27,6 @@ CREATE TABLE "braze_campaign_sync_states" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "braze_sync_cursors" ADD COLUMN "campaign_watermark_updated_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "braze_sync_cursors" ADD COLUMN "canvas_watermark_updated_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "braze_campaign_sync_states" ADD CONSTRAINT "braze_campaign_sync_states_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "braze_campaign_sync_states" ADD CONSTRAINT "braze_campaign_sync_states_automation_id_workspace_automations_id_fk" FOREIGN KEY ("automation_id") REFERENCES "public"."workspace_automations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "braze_campaign_sync_states" ADD CONSTRAINT "braze_campaign_sync_states_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

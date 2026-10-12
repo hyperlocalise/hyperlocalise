@@ -22,6 +22,7 @@ import {
 } from "@/lib/intercom/import-intercom-jobs";
 import { waitForSourceFileVersionIngest } from "@/lib/intercom/wait-for-source-file-ingest";
 import { createLogger } from "@/lib/log";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isErr } from "@/lib/primitives/result/results";
 import { uploadSourceFile } from "@/lib/projects/files/source-file-upload-service";
 import {
@@ -69,6 +70,33 @@ import {
 
 const logger = createLogger("import-braze-campaigns");
 const jobQueue = createTranslationJobEventQueue();
+export const BRAZE_CAMPAIGN_IMPORT_CONCURRENCY = 3;
+
+export function selectedBrazeResourceIds(ids: readonly string[]): string[] {
+  return [...new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))];
+}
+
+export function shouldListAllBrazeResources(ids: readonly string[]): boolean {
+  return selectedBrazeResourceIds(ids).length === 0;
+}
+
+export function isBrazeListItemArchived(item: {
+  archived?: boolean;
+  is_archived?: boolean;
+}): boolean {
+  return item.archived === true || item.is_archived === true;
+}
+
+export function shouldImportBrazeDraftVariation(input: {
+  isDraft: boolean;
+  postLaunchDraft: boolean;
+  sourceMap: BrazeTranslationMap;
+}): boolean {
+  if (Object.keys(input.sourceMap).length === 0) {
+    return false;
+  }
+  return input.isDraft || input.postLaunchDraft;
+}
 
 export type ImportBrazeCampaignsResult = {
   imported: number;
@@ -177,15 +205,16 @@ export async function runImportBrazeCampaigns(input: {
     projectTargetLocales,
     configuredSourceLocale: config.sourceLocale,
   });
-  if (!localeMapping.sourceSuffix) {
+  const sourceLocale = localeMapping.sourceSuffix;
+  if (!sourceLocale) {
     return { imported: 0, skipped: 0, failed: 0, jobsCreated: 0 };
   }
 
   const policy = isBrazeExistingTranslationPolicy(config.existingTranslationPolicy)
     ? config.existingTranslationPolicy
     : DEFAULT_BRAZE_EXISTING_TRANSLATION_POLICY;
-  const campaignIds = new Set(config.campaignIds.filter((id) => id.trim()));
-  const canvasIds = new Set(config.canvasIds.filter((id) => id.trim()));
+  const campaignIds = selectedBrazeResourceIds(config.campaignIds);
+  const canvasIds = selectedBrazeResourceIds(config.canvasIds);
   const existing = await db
     .select()
     .from(schema.brazeCampaignSyncStates)
@@ -206,69 +235,25 @@ export async function runImportBrazeCampaigns(input: {
   let failed = 0;
   let jobsCreated = 0;
 
-  const campaigns = await listAllBrazeCampaigns(loaded.value.client);
-  for (const campaign of campaigns) {
-    if (campaignIds.size > 0 && !campaignIds.has(campaign.id)) {
-      continue;
-    }
-    if (campaign.archived || campaign.is_archived) {
-      skipped += 1;
-      continue;
-    }
-    try {
-      const details = await loaded.value.client.getCampaignDetails(campaign.id);
-      if (details.isArchived) {
-        skipped += 1;
-        continue;
+  const campaignResults = await mapWithConcurrency(
+    await resolveBrazeCampaignImportTargets(loaded.value.client, campaignIds),
+    BRAZE_CAMPAIGN_IMPORT_CONCURRENCY,
+    async (target) => {
+      if (!target) {
+        return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
       }
-      for (const variation of details.variations) {
-        const result = await importCampaignVariation({
-          organizationId: input.organizationId,
-          automation: input.automation,
-          projectId,
-          workflowRunId: input.workflowRunId,
-          client: loaded.value.client,
-          localeMapping,
-          policy,
-          openJobs,
-          existing: existingBySourceId,
-          campaignId: details.id,
-          campaignName: details.name,
-          isDraft: details.isDraft || campaign.draft === true || campaign.is_draft === true,
-          lastEdited: details.lastEdited ?? campaign.last_edited,
-          messageVariationId: variation.messageVariationId,
-          variationName: variation.name,
-          sourceLocale: localeMapping.sourceSuffix,
-        });
-        imported += result.imported;
-        skipped += result.skipped;
-        failed += result.failed;
-        jobsCreated += result.jobsCreated;
-      }
-    } catch (error) {
-      logger.warn({ error: permissionErrorMessage(error) }, "braze campaign import failed");
-      failed += 1;
-    }
-  }
-
-  const canvases = await listAllBrazeCanvases(loaded.value.client);
-  for (const canvas of canvases) {
-    if (canvasIds.size > 0 && !canvasIds.has(canvas.id)) {
-      continue;
-    }
-    if (canvas.archived || canvas.is_archived) {
-      skipped += 1;
-      continue;
-    }
-    try {
-      const details = await loaded.value.client.getCanvasDetails(canvas.id);
-      if (details.isArchived) {
-        skipped += 1;
-        continue;
-      }
-      for (const step of details.steps) {
-        for (const variation of step.variations) {
-          const result = await importCanvasVariation({
+      try {
+        if (target.details.isArchived) {
+          return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
+        }
+        const totals: ImportBrazeCampaignsResult = {
+          imported: 0,
+          skipped: 0,
+          failed: 0,
+          jobsCreated: 0,
+        };
+        for (const variation of target.details.variations) {
+          const result = await importCampaignVariation({
             organizationId: input.organizationId,
             automation: input.automation,
             projectId,
@@ -278,29 +263,170 @@ export async function runImportBrazeCampaigns(input: {
             policy,
             openJobs,
             existing: existingBySourceId,
-            workflowId: details.id,
-            canvasName: details.name,
-            stepId: step.stepId,
-            stepName: step.name,
-            isDraft: details.isDraft || canvas.draft === true || canvas.is_draft === true,
-            lastEdited: details.lastEdited ?? canvas.last_edited,
+            campaignId: target.details.id,
+            campaignName: target.details.name,
+            isDraft: target.details.isDraft || target.listedAsDraft,
+            lastEdited: target.details.lastEdited ?? target.listedLastEdited,
             messageVariationId: variation.messageVariationId,
             variationName: variation.name,
-            sourceLocale: localeMapping.sourceSuffix,
+            sourceLocale,
           });
-          imported += result.imported;
-          skipped += result.skipped;
-          failed += result.failed;
-          jobsCreated += result.jobsCreated;
+          totals.imported += result.imported;
+          totals.skipped += result.skipped;
+          totals.failed += result.failed;
+          totals.jobsCreated += result.jobsCreated;
         }
+        return totals;
+      } catch (error) {
+        logger.warn({ error: permissionErrorMessage(error) }, "braze campaign import failed");
+        return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
       }
-    } catch (error) {
-      logger.warn({ error: permissionErrorMessage(error) }, "braze canvas import failed");
-      failed += 1;
-    }
+    },
+  );
+
+  const canvasResults = await mapWithConcurrency(
+    await resolveBrazeCanvasImportTargets(loaded.value.client, canvasIds),
+    BRAZE_CAMPAIGN_IMPORT_CONCURRENCY,
+    async (target) => {
+      if (!target) {
+        return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
+      }
+      try {
+        if (target.details.isArchived) {
+          return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
+        }
+        const totals: ImportBrazeCampaignsResult = {
+          imported: 0,
+          skipped: 0,
+          failed: 0,
+          jobsCreated: 0,
+        };
+        for (const step of target.details.steps) {
+          for (const variation of step.variations) {
+            const result = await importCanvasVariation({
+              organizationId: input.organizationId,
+              automation: input.automation,
+              projectId,
+              workflowRunId: input.workflowRunId,
+              client: loaded.value.client,
+              localeMapping,
+              policy,
+              openJobs,
+              existing: existingBySourceId,
+              workflowId: target.details.id,
+              canvasName: target.details.name,
+              stepId: step.stepId,
+              stepName: step.name,
+              isDraft: target.details.isDraft || target.listedAsDraft,
+              lastEdited: target.details.lastEdited ?? target.listedLastEdited,
+              messageVariationId: variation.messageVariationId,
+              variationName: variation.name,
+              sourceLocale,
+            });
+            totals.imported += result.imported;
+            totals.skipped += result.skipped;
+            totals.failed += result.failed;
+            totals.jobsCreated += result.jobsCreated;
+          }
+        }
+        return totals;
+      } catch (error) {
+        logger.warn({ error: permissionErrorMessage(error) }, "braze canvas import failed");
+        return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
+      }
+    },
+  );
+
+  for (const result of [...campaignResults, ...canvasResults]) {
+    imported += result.imported;
+    skipped += result.skipped;
+    failed += result.failed;
+    jobsCreated += result.jobsCreated;
   }
 
   return { imported, skipped, failed, jobsCreated };
+}
+
+async function loadCampaignImportTarget(
+  client: BrazeTemplatesClient,
+  id: string,
+  listed?: { draft?: boolean; is_draft?: boolean; last_edited?: string },
+): Promise<{
+  details: Awaited<ReturnType<BrazeTemplatesClient["getCampaignDetails"]>>;
+  listedAsDraft: boolean;
+  listedLastEdited?: string;
+} | null> {
+  try {
+    return {
+      details: await client.getCampaignDetails(id),
+      listedAsDraft: listed?.draft === true || listed?.is_draft === true,
+      listedLastEdited: listed?.last_edited,
+    };
+  } catch (error) {
+    logger.warn({ error: permissionErrorMessage(error) }, "braze campaign import failed");
+    return null;
+  }
+}
+
+async function loadCanvasImportTarget(
+  client: BrazeTemplatesClient,
+  id: string,
+  listed?: { draft?: boolean; is_draft?: boolean; last_edited?: string },
+): Promise<{
+  details: Awaited<ReturnType<BrazeTemplatesClient["getCanvasDetails"]>>;
+  listedAsDraft: boolean;
+  listedLastEdited?: string;
+} | null> {
+  try {
+    return {
+      details: await client.getCanvasDetails(id),
+      listedAsDraft: listed?.draft === true || listed?.is_draft === true,
+      listedLastEdited: listed?.last_edited,
+    };
+  } catch (error) {
+    logger.warn({ error: permissionErrorMessage(error) }, "braze canvas import failed");
+    return null;
+  }
+}
+
+async function resolveBrazeCampaignImportTargets(
+  client: BrazeTemplatesClient,
+  campaignIds: readonly string[],
+) {
+  if (!shouldListAllBrazeResources(campaignIds)) {
+    return mapWithConcurrency(
+      selectedBrazeResourceIds(campaignIds),
+      BRAZE_CAMPAIGN_IMPORT_CONCURRENCY,
+      (id) => loadCampaignImportTarget(client, id),
+    );
+  }
+
+  const listed = (await listAllBrazeCampaigns(client)).filter(
+    (campaign) => !isBrazeListItemArchived(campaign),
+  );
+  return mapWithConcurrency(listed, BRAZE_CAMPAIGN_IMPORT_CONCURRENCY, (campaign) =>
+    loadCampaignImportTarget(client, campaign.id, campaign),
+  );
+}
+
+async function resolveBrazeCanvasImportTargets(
+  client: BrazeTemplatesClient,
+  canvasIds: readonly string[],
+) {
+  if (!shouldListAllBrazeResources(canvasIds)) {
+    return mapWithConcurrency(
+      selectedBrazeResourceIds(canvasIds),
+      BRAZE_CAMPAIGN_IMPORT_CONCURRENCY,
+      (id) => loadCanvasImportTarget(client, id),
+    );
+  }
+
+  const listed = (await listAllBrazeCanvases(client)).filter(
+    (canvas) => !isBrazeListItemArchived(canvas),
+  );
+  return mapWithConcurrency(listed, BRAZE_CAMPAIGN_IMPORT_CONCURRENCY, (canvas) =>
+    loadCanvasImportTarget(client, canvas.id, canvas),
+  );
 }
 
 async function importCampaignVariation(input: {
@@ -332,11 +458,14 @@ async function importCampaignVariation(input: {
   if (!loaded) {
     return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
   }
-  if (!input.isDraft && !loaded.postLaunchDraft) {
-    return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
-  }
   const sourceMap = sourceMapFromTranslations(loaded.translations);
-  if (Object.keys(sourceMap).length === 0) {
+  if (
+    !shouldImportBrazeDraftVariation({
+      isDraft: input.isDraft,
+      postLaunchDraft: loaded.postLaunchDraft,
+      sourceMap,
+    })
+  ) {
     return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
   }
 
@@ -406,11 +535,14 @@ async function importCanvasVariation(input: {
   if (!loaded) {
     return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
   }
-  if (!input.isDraft && !loaded.postLaunchDraft) {
-    return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
-  }
   const sourceMap = sourceMapFromTranslations(loaded.translations);
-  if (Object.keys(sourceMap).length === 0) {
+  if (
+    !shouldImportBrazeDraftVariation({
+      isDraft: input.isDraft,
+      postLaunchDraft: loaded.postLaunchDraft,
+      sourceMap,
+    })
+  ) {
     return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
   }
 
@@ -506,7 +638,6 @@ async function upsertImportedVariation(input: {
   );
   const importedHashes = { ...previous?.importedTranslationHashes };
   const translationService = new ProjectTranslationService();
-  let seeded = 0;
   const leftover: string[] = [];
 
   for (const projectLocale of input.localeMapping.jobTargetLocales) {
@@ -542,7 +673,6 @@ async function upsertImportedVariation(input: {
     });
     if (result.imported > 0) {
       importedHashes[projectLocale] = incomingHash;
-      seeded += 1;
     } else {
       leftover.push(projectLocale);
     }
@@ -669,6 +799,7 @@ async function persistSyncState(input: {
   messageVariationId: string;
   lastEdited?: string;
   hash: string;
+  sourceMap: BrazeTranslationMap;
   localeIds: Record<string, string>;
   importedHashes: Record<string, string>;
   status: "active" | "import_failed";
@@ -693,7 +824,9 @@ async function persistSyncState(input: {
       sourceUpdatedAt:
         sourceUpdatedAt && !Number.isNaN(sourceUpdatedAt.getTime()) ? sourceUpdatedAt : null,
       sourceContentHash: input.hash,
-      translationKeys: [],
+      translationKeys: Object.keys(input.sourceMap).toSorted((left, right) =>
+        left.localeCompare(right),
+      ),
       localeIds: input.localeIds,
       importedTranslationHashes: input.importedHashes,
       lastImportedAt: new Date(),
@@ -718,6 +851,9 @@ async function persistSyncState(input: {
         sourceUpdatedAt:
           sourceUpdatedAt && !Number.isNaN(sourceUpdatedAt.getTime()) ? sourceUpdatedAt : null,
         sourceContentHash: input.hash,
+        translationKeys: Object.keys(input.sourceMap).toSorted((left, right) =>
+          left.localeCompare(right),
+        ),
         localeIds: input.localeIds,
         importedTranslationHashes: input.importedHashes,
         lastImportedAt: new Date(),

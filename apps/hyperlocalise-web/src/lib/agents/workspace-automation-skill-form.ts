@@ -33,7 +33,11 @@ export type WorkspaceAutomationSkillDefaults = {
   contentfulConnectionId?: string;
 };
 
-export type WorkspaceAutomationSkillAvailability = "available" | "attached" | "trigger_mismatch";
+export type WorkspaceAutomationSkillAvailability =
+  | "available"
+  | "attached"
+  | "trigger_mismatch"
+  | "skill_exclusive";
 
 export type WorkspaceAutomationSetupField = keyof WorkspaceAutomationFieldErrors;
 
@@ -271,7 +275,7 @@ export function resolveWorkspaceAutomationSkillAvailability(
     (skill.id === "translate-braze-campaigns" &&
       form.skillIds.includes("translate-braze-email-templates"))
   ) {
-    return "trigger_mismatch";
+    return "skill_exclusive";
   }
   return resolveTriggerWithSkill(form, skill) === null ? "trigger_mismatch" : "available";
 }

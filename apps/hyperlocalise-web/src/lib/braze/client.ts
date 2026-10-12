@@ -175,6 +175,7 @@ export type BrazeLocaleTranslation = {
     language?: string;
     country?: string;
   };
+  updatedAt?: string;
 };
 
 export type BrazeTemplatesClient = {
@@ -391,7 +392,16 @@ function readCanvasSteps(steps: unknown): BrazeCanvasStepRef[] {
   });
 }
 
-function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
+function readOptionalTimestamp(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+export function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
   const records =
     body && typeof body === "object" && "translations" in body && Array.isArray(body.translations)
       ? body.translations
@@ -404,6 +414,8 @@ function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
     }
     const record = entry as {
       translation_map?: unknown;
+      updated_at?: unknown;
+      last_edited?: unknown;
       locale?: {
         uuid?: unknown;
         name?: unknown;
@@ -435,6 +447,7 @@ function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
             typeof record.locale?.language === "string" ? record.locale.language : undefined,
           country: typeof record.locale?.country === "string" ? record.locale.country : undefined,
         },
+        updatedAt: readOptionalTimestamp(record.updated_at, record.last_edited),
       },
     ];
   });

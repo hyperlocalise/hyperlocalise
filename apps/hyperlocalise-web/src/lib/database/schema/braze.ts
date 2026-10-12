@@ -129,8 +129,6 @@ export const brazeSyncCursors = pgTable(
     contentBlockWatermarkUpdatedAt: timestamp("content_block_watermark_updated_at", {
       withTimezone: true,
     }),
-    campaignWatermarkUpdatedAt: timestamp("campaign_watermark_updated_at", { withTimezone: true }),
-    canvasWatermarkUpdatedAt: timestamp("canvas_watermark_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

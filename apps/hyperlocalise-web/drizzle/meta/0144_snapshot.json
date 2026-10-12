@@ -1,5 +1,5 @@
 {
-  "id": "6aa8958f-867b-4f7a-8bb0-edce467ae3b4",
+  "id": "d5d31734-01ff-4aaf-958d-2dcc093da4f4",
   "prevId": "c1f617e3-e482-4507-ad92-605203dbf38e",
   "version": "7",
   "dialect": "postgresql",
@@ -13166,18 +13166,6 @@
         },
         "content_block_watermark_updated_at": {
           "name": "content_block_watermark_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "campaign_watermark_updated_at": {
-          "name": "campaign_watermark_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "canvas_watermark_updated_at": {
-          "name": "canvas_watermark_updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false

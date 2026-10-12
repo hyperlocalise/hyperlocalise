@@ -143,7 +143,7 @@ describe("workspace automation skill form", () => {
     }
 
     expect(resolveWorkspaceAutomationSkillAvailability(templates, campaignsSkill)).toBe(
-      "trigger_mismatch",
+      "skill_exclusive",
     );
     expect(addSkillToWorkspaceAutomationForm(templates, campaignsSkill.id)).toBe(templates);
     expect(templates).toMatchObject({

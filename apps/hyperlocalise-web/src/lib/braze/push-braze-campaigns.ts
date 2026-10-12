@@ -24,16 +24,19 @@ import { ProjectTranslationService } from "@/lib/projects/translations/project-t
 
 import { brazePermissionNameFromError, type BrazeTemplatesClient } from "./client";
 import { loadBrazeAutomationClient } from "./credentials";
+import { selectInScopeBrazeCampaignMappings } from "./discover-locale-copies";
 import { mapProjectLocalesToBraze } from "./locale";
 import {
+  isRemoteNewer,
   readBrazePushSourcePaths,
   selectBrazePushMappings,
-  shouldSkipBrazeLocalePush,
+  shouldSkipUnchangedBrazePush,
 } from "./push-braze-templates";
 import {
   hashBrazeTranslationMap,
   parseBrazeTranslationMapJson,
   readBrazeTranslationMap,
+  type BrazeTranslationMap,
 } from "./translation-map";
 
 const logger = createLogger("push-braze-campaigns");
@@ -45,7 +48,53 @@ export type PushBrazeCampaignsResult = {
   itemsProcessed: number;
 };
 
-export { readBrazePushSourcePaths, selectBrazePushMappings };
+export { readBrazePushSourcePaths, selectBrazePushMappings, selectInScopeBrazeCampaignMappings };
+
+export function mergeBrazeCampaignTranslationMap(input: {
+  source: BrazeTranslationMap;
+  remote: BrazeTranslationMap;
+  approved: Record<string, string>;
+}): BrazeTranslationMap {
+  return readBrazeTranslationMap({
+    ...input.source,
+    ...input.remote,
+    ...input.approved,
+  });
+}
+
+export function isBrazeCampaignRemoteNewer(input: {
+  remoteUpdatedAt?: string;
+  lastPushedAt: Date | null;
+  lastPushHash?: string;
+  remoteHash?: string;
+}): boolean {
+  if (isRemoteNewer(input.remoteUpdatedAt, input.lastPushedAt)) {
+    return true;
+  }
+  return Boolean(input.lastPushHash && input.remoteHash && input.lastPushHash !== input.remoteHash);
+}
+
+export function shouldSkipBrazeCampaignLocalePush(input: {
+  lastHash: string | undefined;
+  contentHash: string;
+  overwriteWhenRemoteNewer: boolean;
+  remoteUpdatedAt?: string;
+  lastPushedAt: Date | null;
+  lastPushHash?: string;
+  remoteHash?: string;
+}): boolean {
+  const unchanged = shouldSkipUnchangedBrazePush(input.lastHash, input.contentHash);
+  const remoteNewer = isBrazeCampaignRemoteNewer({
+    remoteUpdatedAt: input.remoteUpdatedAt,
+    lastPushedAt: input.lastPushedAt,
+    lastPushHash: input.lastPushHash,
+    remoteHash: input.remoteHash,
+  });
+  if (unchanged) {
+    return !input.overwriteWhenRemoteNewer || !remoteNewer;
+  }
+  return !input.overwriteWhenRemoteNewer && remoteNewer;
+}
 
 function permissionErrorMessage(error: unknown): string {
   const permission = brazePermissionNameFromError(error);
@@ -107,16 +156,22 @@ export async function runPushBrazeCampaigns(input: {
   });
 
   const mappings = selectBrazePushMappings(
-    await db
-      .select()
-      .from(schema.brazeCampaignSyncStates)
-      .where(
-        and(
-          eq(schema.brazeCampaignSyncStates.organizationId, input.organizationId),
-          eq(schema.brazeCampaignSyncStates.automationId, input.automation.id),
-          inArray(schema.brazeCampaignSyncStates.status, ["active", "push_failed"]),
+    selectInScopeBrazeCampaignMappings(
+      await db
+        .select()
+        .from(schema.brazeCampaignSyncStates)
+        .where(
+          and(
+            eq(schema.brazeCampaignSyncStates.organizationId, input.organizationId),
+            eq(schema.brazeCampaignSyncStates.automationId, input.automation.id),
+            inArray(schema.brazeCampaignSyncStates.status, ["active", "push_failed"]),
+          ),
         ),
-      ),
+      {
+        campaignIds: config.campaignIds,
+        canvasIds: config.canvasIds,
+      },
+    ),
     input.sourcePaths,
   );
 
@@ -129,6 +184,7 @@ export async function runPushBrazeCampaigns(input: {
   for (const mapping of mappings) {
     itemsProcessed += 1;
     const lastPushHashes = { ...mapping.lastPushContentHash };
+    let mappingPushedLocales = 0;
     let lastError: Record<string, unknown> | null = null;
     let status: "active" | "push_failed" = "active";
 
@@ -166,23 +222,30 @@ export async function runPushBrazeCampaigns(input: {
                 fileId: latest.storedFileId,
               });
         const sourceMap = parseBrazeTranslationMapJson(stored?.content.toString("utf8") ?? "");
-        const translationMap = {
-          ...sourceMap,
-          ...approved.prefilled,
-        };
-        const contentHash = hashBrazeTranslationMap(readBrazeTranslationMap(translationMap));
         const remote = await loadRemoteTranslation({
           mapping,
           localeId,
           client: loaded.value.client,
         });
+        const translationMap = mergeBrazeCampaignTranslationMap({
+          source: sourceMap,
+          remote: remote.translationMap,
+          approved: approved.prefilled,
+        });
+        const contentHash = hashBrazeTranslationMap(translationMap);
+        const remoteHash =
+          Object.keys(remote.translationMap).length > 0
+            ? hashBrazeTranslationMap(remote.translationMap)
+            : undefined;
         if (
-          shouldSkipBrazeLocalePush({
+          shouldSkipBrazeCampaignLocalePush({
             lastHash: lastPushHashes[projectLocale],
             contentHash,
             overwriteWhenRemoteNewer: config.overwriteWhenRemoteNewer !== false,
             remoteUpdatedAt: remote.updatedAt,
             lastPushedAt: mapping.lastPushedAt,
+            lastPushHash: lastPushHashes[projectLocale],
+            remoteHash,
           })
         ) {
           skippedLocales += 1;
@@ -209,6 +272,7 @@ export async function runPushBrazeCampaigns(input: {
           continue;
         }
         lastPushHashes[projectLocale] = contentHash;
+        mappingPushedLocales += 1;
         pushedLocales += 1;
       } catch (error) {
         logger.warn({ error: permissionErrorMessage(error) }, "braze campaign push failed");
@@ -222,7 +286,7 @@ export async function runPushBrazeCampaigns(input: {
       .update(schema.brazeCampaignSyncStates)
       .set({
         lastPushContentHash: lastPushHashes,
-        lastPushedAt: pushedLocales > 0 ? new Date() : mapping.lastPushedAt,
+        lastPushedAt: mappingPushedLocales > 0 ? new Date() : mapping.lastPushedAt,
         status,
         lastError,
         updatedAt: new Date(),
@@ -237,7 +301,7 @@ async function loadRemoteTranslation(input: {
   mapping: typeof schema.brazeCampaignSyncStates.$inferSelect;
   localeId: string;
   client: BrazeTemplatesClient;
-}): Promise<{ updatedAt?: string }> {
+}): Promise<{ translationMap: BrazeTranslationMap; updatedAt?: string }> {
   try {
     const translations =
       input.mapping.resourceKind === "campaign" && input.mapping.campaignId
@@ -257,8 +321,11 @@ async function loadRemoteTranslation(input: {
             })
           : [];
     const match = translations.find((entry) => entry.locale.uuid === input.localeId);
-    return { updatedAt: match ? undefined : undefined };
+    return {
+      translationMap: readBrazeTranslationMap(match?.translation_map),
+      updatedAt: match?.updatedAt,
+    };
   } catch {
-    return {};
+    return { translationMap: {} };
   }
 }

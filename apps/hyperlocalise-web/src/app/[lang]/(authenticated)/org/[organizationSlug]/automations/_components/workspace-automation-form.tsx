@@ -1751,6 +1751,12 @@ function SkillsSettings({
                                         {...workspaceAutomationFormMessages.skillNotApplicableHint}
                                       />
                                     </span>
+                                  ) : availability === "skill_exclusive" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillExclusiveHint}
+                                      />
+                                    </span>
                                   ) : missingIntegrations.length > 0 ? (
                                     <span className="text-xs font-medium">
                                       {formatSkillConnectFirstHint(intl, missingIntegrations)}
@@ -1822,11 +1828,13 @@ function SuggestionChip({
   const unavailableHint =
     suggestion.availability === "trigger_mismatch"
       ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
-      : suggestion.availability !== "connect_first"
-        ? null
-        : suggestion.kind === "skill"
-          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
-          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+      : suggestion.availability === "skill_exclusive"
+        ? intl.formatMessage(workspaceAutomationFormMessages.skillExclusiveHint)
+        : suggestion.availability !== "connect_first"
+          ? null
+          : suggestion.kind === "skill"
+            ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+            : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
 
   return (
     <span

@@ -19,6 +19,7 @@ import {
   leftoverBrazeJobLocalesNotCoveredByOpenJobs,
   remainingBrazeJobLocales,
   intersectBrazeJobLocales,
+  selectInScopeBrazeCampaignMappings,
   selectInScopeBrazeMappings,
 } from "./discover-locale-copies";
 import { brazeEmailCopyName } from "./names";
@@ -125,5 +126,31 @@ describe("discoverBrazeLocaleCopies", () => {
         (item) => item.sourceId,
       ),
     ).toEqual(["keep", "block"]);
+  });
+
+  it("keeps only campaign and Canvas mappings still in the picker", () => {
+    const mappings = [
+      { resourceKind: "campaign" as const, campaignId: "keep", workflowId: null },
+      { resourceKind: "campaign" as const, campaignId: "drop", workflowId: null },
+      { resourceKind: "canvas_step" as const, campaignId: null, workflowId: "flow" },
+    ];
+    expect(
+      selectInScopeBrazeCampaignMappings(mappings, {
+        campaignIds: ["keep"],
+        canvasIds: [],
+      }).map((item) => item.campaignId ?? item.workflowId),
+    ).toEqual(["keep", "flow"]);
+    expect(
+      selectInScopeBrazeCampaignMappings(mappings, {
+        campaignIds: [],
+        canvasIds: ["flow"],
+      }).map((item) => item.campaignId ?? item.workflowId),
+    ).toEqual(["keep", "drop", "flow"]);
+    expect(
+      selectInScopeBrazeCampaignMappings(mappings, {
+        campaignIds: ["keep"],
+        canvasIds: ["other"],
+      }).map((item) => item.campaignId ?? item.workflowId),
+    ).toEqual(["keep"]);
   });
 });
