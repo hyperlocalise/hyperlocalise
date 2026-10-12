@@ -12,6 +12,7 @@
  */
 import {
   Alert,
+  Badge,
   Box,
   Button,
   CheckboxGroup,
@@ -110,13 +111,22 @@ function localeProgressValue(entry: CanvaLocaleStatus): number | "indeterminate"
   return entry.percent;
 }
 
-function LocaleRowSkeleton({ locale }: { locale?: string }) {
+function LocaleRowSkeleton({ locale, isSource = false }: { locale?: string; isSource?: boolean }) {
   return (
     <Rows spacing="0.5u">
-      {locale ? <Text>{localeLabel(locale)}</Text> : <TextPlaceholder />}
-      <div className={styles.localeProgressSkeleton}>
-        <Placeholder shape="rectangle" />
-      </div>
+      {locale ? (
+        <div className={styles.localeHeading}>
+          <Text>{localeLabel(locale)}</Text>
+          {isSource ? <Badge tone="info" text="Source" /> : null}
+        </div>
+      ) : (
+        <TextPlaceholder />
+      )}
+      {isSource ? null : (
+        <div className={styles.localeProgressSkeleton}>
+          <Placeholder shape="rectangle" />
+        </div>
+      )}
       <TextPlaceholder size="small" />
       <div className={styles.localeActionSkeleton}>
         <Placeholder shape="rectangle" />
@@ -197,6 +207,32 @@ function idleLocaleRow(locale: string, isSource = false): CanvaLocaleStatus {
     canAdd: false,
     pages: [],
   };
+}
+
+function sourceLocaleDetail(entry: CanvaLocaleStatus) {
+  if (!entry.canAdd) {
+    return `${localeWordCountLabel(entry)} · Not collected`;
+  }
+  return localeWordCountLabel(entry);
+}
+
+function localeNeedsGeneration(entry: CanvaLocaleStatus) {
+  if (entry.isSource) {
+    return false;
+  }
+  if (entry.status === "queued" || entry.status === "running") {
+    return false;
+  }
+  if (entry.pages.length === 0) {
+    return true;
+  }
+  const allPagesComplete = entry.pages.every(
+    (page) => page.status === "succeeded" || page.status === "waiting_for_review",
+  );
+  if (!allPagesComplete) {
+    return true;
+  }
+  return entry.percent < 100 || (entry.total > 0 && entry.translated < entry.total);
 }
 
 function jobStatusLabel(entry: CanvaLocaleStatus) {
@@ -872,6 +908,7 @@ export const App = () => {
                     <LocaleRowSkeleton
                       key={locale || `locale-skeleton-${index}`}
                       locale={locale || undefined}
+                      isSource={index === 0 && Boolean(settings.sourceLocale.trim())}
                     />
                   ))
                 ) : projectTargetOptions.length === 0 && !settings.sourceLocale.trim() ? (
@@ -883,46 +920,63 @@ export const App = () => {
                     const progressValue = localeProgressValue(entry);
                     return (
                       <Rows key={entry.locale} spacing="0.5u">
-                        <Text>{localeLabel(entry.locale)}</Text>
-                        <ProgressBar
-                          value={progressValue === "indeterminate" ? 0 : progressValue}
-                          ariaLabel={`${localeLabel(entry.locale)} progress`}
-                        />
-                        <Text size="small" tone="secondary">
-                          {entry.percent}% · {localeWordCountLabel(entry)} · {jobStatusLabel(entry)}
-                        </Text>
-                        {entry.status === "queued" ||
-                        entry.status === "running" ? null : applyLocale === entry.locale ? (
-                          <LocaleApplyControls
-                            applySourcePage={applySourcePage}
-                            readyApplyPages={readyApplyPages}
-                            designPages={designPages}
-                            busy={busy}
-                            isSource={entry.isSource}
-                            onSourcePageChange={setApplySourcePage}
-                            onApplyOne={handleApplyOne}
-                            onApplyAll={handleApplyAll}
-                            onCancel={() => setApplyLocale(null)}
+                        <div className={styles.localeHeading}>
+                          <Text>{localeLabel(entry.locale)}</Text>
+                          {entry.isSource ? (
+                            <Badge
+                              tone="info"
+                              text="Source"
+                              ariaLabel={`${localeLabel(entry.locale)} source language`}
+                            />
+                          ) : null}
+                        </div>
+                        {entry.isSource ? null : (
+                          <ProgressBar
+                            value={progressValue as number}
+                            ariaLabel={`${localeLabel(entry.locale)} progress`}
                           />
-                        ) : entry.isSource || entry.canAdd ? (
-                          <Button
-                            variant="secondary"
-                            stretch
-                            onClick={() => openApplyControls(entry.locale)}
-                            disabled={busy != null || !entry.canAdd}
-                          >
-                            Add to design
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            stretch
-                            onClick={() => handleGenerateLocale(entry.locale)}
-                            disabled={busy != null || collectedPages.length === 0}
-                            loading={busy === "generate"}
-                          >
-                            Generate translation
-                          </Button>
+                        )}
+                        <Text size="small" tone="secondary">
+                          {entry.isSource
+                            ? sourceLocaleDetail(entry)
+                            : `${entry.percent}% · ${localeWordCountLabel(entry)} · ${jobStatusLabel(entry)}`}
+                        </Text>
+                        {entry.status === "queued" || entry.status === "running" ? null : (
+                          <>
+                            {applyLocale === entry.locale ? (
+                              <LocaleApplyControls
+                                applySourcePage={applySourcePage}
+                                readyApplyPages={readyApplyPages}
+                                designPages={designPages}
+                                busy={busy}
+                                isSource={entry.isSource}
+                                onSourcePageChange={setApplySourcePage}
+                                onApplyOne={handleApplyOne}
+                                onApplyAll={handleApplyAll}
+                                onCancel={() => setApplyLocale(null)}
+                              />
+                            ) : entry.isSource || entry.canAdd ? (
+                              <Button
+                                variant="secondary"
+                                stretch
+                                onClick={() => openApplyControls(entry.locale)}
+                                disabled={busy != null || !entry.canAdd}
+                              >
+                                Add to design
+                              </Button>
+                            ) : null}
+                            {localeNeedsGeneration(entry) ? (
+                              <Button
+                                variant="secondary"
+                                stretch
+                                onClick={() => handleGenerateLocale(entry.locale)}
+                                disabled={busy != null || collectedPages.length === 0}
+                                loading={busy === "generate"}
+                              >
+                                Generate translation
+                              </Button>
+                            ) : null}
+                          </>
                         )}
                       </Rows>
                     );

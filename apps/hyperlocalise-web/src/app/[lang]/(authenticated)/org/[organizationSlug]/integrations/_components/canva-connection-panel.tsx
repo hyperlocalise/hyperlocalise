@@ -305,6 +305,14 @@ export function CanvaConnectionPanel({
   const showForm = adding || connections.length === 0;
   const apiKeys = apiKeysQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
+  const apiKeyItems = apiKeys.map((apiKey) => ({ value: apiKey.id, label: apiKey.name }));
+  const projectItems = projects.map((project) => ({ value: project.id, label: project.name }));
+  const selectedApiKeyLabel = form.apiKeyId
+    ? (apiKeyItems.find((item) => item.value === form.apiKeyId)?.label ?? form.apiKeyId)
+    : undefined;
+  const selectedProjectLabel = form.projectId
+    ? (projectItems.find((item) => item.value === form.projectId)?.label ?? form.projectId)
+    : undefined;
 
   function handleExpandedChange(nextExpanded: boolean) {
     setExpanded(nextExpanded);
@@ -436,7 +444,8 @@ export function CanvaConnectionPanel({
                   <FormattedMessage {...canvaConnectionPanelMessages.apiKeyLabel} />
                 </FieldLabel>
                 <Select
-                  value={form.apiKeyId}
+                  value={form.apiKeyId || null}
+                  items={apiKeyItems}
                   disabled={disabled || saveMutation.isPending || apiKeys.length === 0}
                   onValueChange={(value) => {
                     if (typeof value === "string") {
@@ -449,7 +458,9 @@ export function CanvaConnectionPanel({
                       placeholder={intl.formatMessage(
                         canvaConnectionPanelMessages.apiKeyPlaceholder,
                       )}
-                    />
+                    >
+                      {selectedApiKeyLabel}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {apiKeys.map((apiKey) => (
@@ -472,7 +483,8 @@ export function CanvaConnectionPanel({
                   <FormattedMessage {...canvaConnectionPanelMessages.projectLabel} />
                 </FieldLabel>
                 <Select
-                  value={form.projectId}
+                  value={form.projectId || null}
+                  items={projectItems}
                   disabled={disabled || saveMutation.isPending || projects.length === 0}
                   onValueChange={(value) => {
                     if (typeof value === "string") {
@@ -485,7 +497,9 @@ export function CanvaConnectionPanel({
                       placeholder={intl.formatMessage(
                         canvaConnectionPanelMessages.projectPlaceholder,
                       )}
-                    />
+                    >
+                      {selectedProjectLabel}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((project) => (

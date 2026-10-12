@@ -116,6 +116,7 @@ describe("collectCanvaDesign", () => {
     });
     expect(createStoredFileMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        filename: "page-1.json",
         metadata: expect.objectContaining({
           wordCount: 1,
           segmentCount: 1,

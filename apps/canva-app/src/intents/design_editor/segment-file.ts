@@ -90,6 +90,10 @@ export function pageFileNumber(pageIndex: number): number {
   return pageIndex + 1;
 }
 
+export function buildPageFileName(pageIndex: number): string {
+  return `page-${pageFileNumber(pageIndex)}.json`;
+}
+
 export function buildPageSourcePath(designSlug: string, pageIndex: number): string {
-  return `canva/designs/${designSlug}/page-${pageFileNumber(pageIndex)}.json`;
+  return `canva/designs/${designSlug}/${buildPageFileName(pageIndex)}`;
 }

@@ -72,6 +72,12 @@
   gap: var(--ui-kit-space-050);
 }
 
+.localeHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-kit-space-100);
+}
+
 .localeProgressSkeleton {
   height: 8px;
 }

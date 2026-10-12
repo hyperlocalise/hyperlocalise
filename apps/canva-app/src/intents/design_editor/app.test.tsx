@@ -173,7 +173,9 @@ describe("Hyperlocalise Canva app", () => {
 
     expect(result.getAllByText("English (en-US)", { exact: false }).length).toBeGreaterThan(0);
     expect(result.getByText("German (de-DE)", { exact: false })).toBeTruthy();
-    expect(result.getByText("0% · No collected words · Not collected")).toBeTruthy();
+    expect(result.getByText("Source")).toBeTruthy();
+    expect(result.getByText("No collected words · Not collected")).toBeTruthy();
+    expect(result.queryByLabelText("English (en-US) progress")).toBeNull();
     expect(result.getAllByText("0% · 0 of 42 words · Not started").length).toBeGreaterThan(0);
     expect(result.getByRole("button", { name: "Add to design" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Collect texts" })).toBeTruthy();
@@ -274,6 +276,11 @@ describe("Hyperlocalise Canva app", () => {
       expect(result.getAllByRole("button", { name: "Add to design" }).length).toBe(2);
     });
 
+    expect(result.getByText("Source")).toBeTruthy();
+    expect(result.getByText("42 of 42 words")).toBeTruthy();
+    expect(result.queryByLabelText("English (en-US) progress")).toBeNull();
+    expect(result.getByLabelText("French (fr-FR) progress")).toBeTruthy();
+
     const [sourceAddButton] = result.getAllByRole("button", { name: "Add to design" });
     if (!sourceAddButton) {
       throw new Error("Expected a source Add to design button.");
@@ -286,6 +293,97 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getByRole("button", { name: "Apply to this page" })).toBeTruthy();
     expect(result.getByRole("button", { name: "Apply all" })).toBeTruthy();
     expect(result.getAllByRole("button", { name: "Add to design" }).length).toBe(1);
+  });
+
+  it("keeps generate translation when a locale is only partially translated", async () => {
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectId: "project_1",
+      projectName: "Marketing",
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
+    });
+
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "succeeded",
+          translated: 4,
+          total: 8,
+          translatedWords: 20,
+          wordCount: 42,
+          percent: 50,
+          canAdd: true,
+          pages: [
+            {
+              pageIndex: 0,
+              sourcePath: "canva/designs/mic/page-1.json",
+              jobId: "job_1",
+              status: "succeeded",
+              translated: 4,
+              total: 4,
+              translatedWords: 20,
+              wordCount: 20,
+            },
+            {
+              pageIndex: 1,
+              sourcePath: "canva/designs/mic/page-2.json",
+              jobId: null,
+              status: "idle",
+              translated: 0,
+              total: 4,
+              translatedWords: 0,
+              wordCount: 22,
+            },
+          ],
+        },
+      ],
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/mic/page-1.json",
+          sourceFileId: "file_1",
+          segmentCount: 4,
+          wordCount: 20,
+        },
+        {
+          pageIndex: 1,
+          sourcePath: "canva/designs/mic/page-2.json",
+          sourceFileId: "file_2",
+          segmentCount: 4,
+          wordCount: 22,
+        },
+      ],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getAllByRole("button", { name: "Add to design" }).length).toBeGreaterThan(0);
+      expect(result.getByRole("button", { name: "Generate translation" })).toBeTruthy();
+    });
   });
 
   it("shows locale row skeletons while statuses load", async () => {
@@ -355,6 +453,64 @@ describe("Hyperlocalise Canva app", () => {
     await waitFor(() => {
       expect(result.getByText("0% · 0 of 12 words · Not started")).toBeTruthy();
       expect(result.getByRole("button", { name: "Generate translation" })).toBeTruthy();
+    });
+  });
+
+  it("uses an indeterminate progress bar while a locale is translating", async () => {
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectId: "project_1",
+      projectName: "Marketing",
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
+    });
+
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "running",
+          translated: 2,
+          total: 8,
+          translatedWords: 10,
+          wordCount: 42,
+          percent: 25,
+          canAdd: false,
+          pages: [],
+        },
+      ],
+      pages: [],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      const progress = result.getByLabelText("French (fr-FR) progress");
+      expect(progress).toBeTruthy();
+      expect(progress.getAttribute("aria-valuenow")).toBeNull();
+      expect(result.getByText("25% · 10 of 42 words · Translating")).toBeTruthy();
+      expect(result.queryByRole("button", { name: "Generate translation" })).toBeNull();
     });
   });
 });
