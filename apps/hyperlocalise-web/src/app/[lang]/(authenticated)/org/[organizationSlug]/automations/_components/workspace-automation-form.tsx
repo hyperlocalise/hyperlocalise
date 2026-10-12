@@ -25,7 +25,6 @@ import {
   GlobeIcon,
   EnvelopeIcon,
   MagnifyingGlassIcon,
-  SlackLogoIcon,
   SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
@@ -169,6 +168,11 @@ import {
 import type { AutomationAssistantApi } from "./automation-assistant-api";
 import { AutomationAssistantProvider } from "./automation-assistant-provider";
 import { AutomationAssistantSummary } from "./automation-assistant-summary";
+import {
+  AUTOMATION_ICON_GLYPH_TONES,
+  AutomationIconTile,
+  type AutomationIconTone,
+} from "./automation-icon-tile";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -264,17 +268,37 @@ const AUTOMATION_MODEL_MESSAGES = {
   "google/gemini-3.1-pro-preview": workspaceAutomationFormMessages.modelGemini31ProPreview,
 } as const;
 
+/** Brand marks keep their colour, except in a disabled menu item, where they go grey. */
+const BRAND_ICON_CLASS = "size-4 in-data-disabled:grayscale";
+
+const BUILT_IN_MENU_ICON_CLASS = cn("size-4", AUTOMATION_ICON_GLYPH_TONES.builtIn);
+
 function ZernioToolIcon() {
-  return <IntegrationLogo src="/images/zernio-logo.svg" className="size-4" />;
+  return <IntegrationLogo src="/images/zernio-logo.svg" className={BRAND_ICON_CLASS} />;
 }
 
 function BrazeToolIcon({ className }: { className?: string }) {
-  return <IntegrationLogo src="/images/braze-logo.svg" className={className ?? "size-4"} />;
+  return (
+    <IntegrationLogo src="/images/braze-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
 }
 
-function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
+function SlackToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/slack-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function AutomationToolMenuIcon({
+  colored = true,
+  icon,
+}: {
+  /** Off for a tool that cannot be used yet. */
+  colored?: boolean;
+  icon?: SimpleIcon;
+}) {
   if (icon) {
-    return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
+    return <SimpleBrandIcon icon={icon} colored={colored} className={BRAND_ICON_CLASS} />;
   }
 
   return <MagnifyingGlassIcon className="size-4" />;
@@ -363,8 +387,11 @@ function EditorRow({
   children,
   action,
   className,
+  tone,
 }: {
   icon: ReactNode;
+  /** What the icon's colour says about the row; left out, the icon stays grey. */
+  tone?: AutomationIconTone;
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
@@ -379,9 +406,7 @@ function EditorRow({
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3 md:items-center">
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted-foreground md:mt-0">
-          {icon}
-        </span>
+        <AutomationIconTile tone={tone}>{icon}</AutomationIconTile>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
             {title}
@@ -441,7 +466,7 @@ function DeleteToolButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+      className="size-8 rounded-lg text-muted-foreground hover:text-destructive"
     >
       <TrashIcon className="size-4" />
     </Button>
@@ -972,7 +997,7 @@ function AddToolMenu({
               disabled={form.knowledgeEnabled || !knowledgeAvailable}
               onClick={() => onChange({ ...form, knowledgeEnabled: true })}
             >
-              <BrainIcon className="size-4" />
+              <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.memories} />
               {form.knowledgeEnabled ? (
                 <DropdownMenuHint>
@@ -990,7 +1015,7 @@ function AddToolMenu({
               disabled={form.knowledgeFilesEnabled}
               onClick={() => onChange({ ...form, knowledgeFilesEnabled: true })}
             >
-              <FoldersIcon className="size-4" />
+              <FoldersIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
               {form.knowledgeFilesEnabled ? (
                 <DropdownMenuHint>
@@ -1145,7 +1170,7 @@ function AddToolMenu({
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
             >
-              <SlackLogoIcon className="size-4" />
+              <SlackToolIcon />
               <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
                 <DropdownMenuHint>
@@ -1161,7 +1186,7 @@ function AddToolMenu({
               disabled={form.emailEnabled || !emailConnected}
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
-              <EnvelopeIcon className="size-4" />
+              <EnvelopeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
                 <DropdownMenuHint>
@@ -1185,7 +1210,7 @@ function AddToolMenu({
                 })
               }
             >
-              <MagnifyingGlassIcon className="size-4" />
+              <AutomationToolMenuIcon icon={siContentful} />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
                 <DropdownMenuHint>
@@ -1253,7 +1278,7 @@ function AddToolMenu({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <UploadSimpleIcon className="size-4" />
+                <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.jobsToolsMenu} />
                 </span>
@@ -1271,7 +1296,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <UploadSimpleIcon className="size-4" />
+                  <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
                   {form.createNativeTmsJobEnabled ? (
                     <DropdownMenuHint>
@@ -1294,7 +1319,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <BrainIcon className="size-4" />
+                  <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
                   {form.assignTranslateWithAgentEnabled ? (
                     <DropdownMenuHint>
@@ -1306,7 +1331,7 @@ function AddToolMenu({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <CheckSquareIcon className="size-4" />
+                <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.issuesToolsMenu} />
                 </span>
@@ -1316,7 +1341,7 @@ function AddToolMenu({
                   disabled={form.listIssuesEnabled}
                   onClick={() => onChange({ ...form, listIssuesEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
                   {form.listIssuesEnabled ? (
                     <DropdownMenuHint>
@@ -1328,7 +1353,7 @@ function AddToolMenu({
                   disabled={form.createIssueEnabled}
                   onClick={() => onChange({ ...form, createIssueEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
                   {form.createIssueEnabled ? (
                     <DropdownMenuHint>
@@ -1406,7 +1431,7 @@ function AddToolMenu({
               disabled={form.webSearchEnabled}
               onClick={() => onChange({ ...form, webSearchEnabled: true })}
             >
-              <GlobeIcon className="size-4" />
+              <GlobeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
                 <DropdownMenuHint>
@@ -1429,7 +1454,7 @@ function AddToolMenu({
             ))}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <AutomationToolMenuIcon icon={siGoogle} />
+                <AutomationToolMenuIcon icon={siGoogle} colored={false} />
                 <span className="min-w-0 flex-1">{COMING_SOON_GOOGLE_MENU_LABEL}</span>
                 <ComingSoonBadge className="ms-0" />
               </DropdownMenuSubTrigger>
@@ -1567,23 +1592,31 @@ const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
   use_web_search: GlobeIcon,
   create_native_tms_job: UploadSimpleIcon,
   list_issues: CheckSquareIcon,
-  notify_slack: SlackLogoIcon,
   notify_email: EnvelopeIcon,
 };
+
+/** Whether the skill works through an outside service or is part of Hyperlocalise. */
+function skillIconTone(skill: WorkspaceAutomationSkill): AutomationIconTone {
+  const tool = skill.tools[0];
+  return tool && (tool === "notify_slack" || SKILL_BRAND_ICONS[tool]) ? "external" : "builtIn";
+}
 
 /** The integration or surface the skill touches, the same icon its tool row uses. */
 function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
   const tool = skill.tools[0];
   if (tool === "import_braze_templates" || tool === "push_braze_templates") {
-    return <BrazeToolIcon className={cn("size-4", className)} />;
+    return <BrazeToolIcon className={className} />;
+  }
+  if (tool === "notify_slack") {
+    return <SlackToolIcon className={className} />;
   }
   const brand = tool ? SKILL_BRAND_ICONS[tool] : undefined;
   if (brand) {
-    return <SimpleBrandIcon icon={brand} colored={false} className={cn("size-4", className)} />;
+    return <SimpleBrandIcon icon={brand} colored className={cn(BRAND_ICON_CLASS, className)} />;
   }
 
   const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
-  return <ToolIcon className={cn("size-4", className)} />;
+  return <ToolIcon className={cn(BUILT_IN_MENU_ICON_CLASS, className)} />;
 }
 
 function SkillsSettings({
@@ -1616,6 +1649,7 @@ function SkillsSettings({
           <EditorRow
             key={skill.id}
             icon={<SkillIcon skill={skill} />}
+            tone={skillIconTone(skill)}
             title={skill.name}
             description={`${skill.description} ${skill.grants}`}
             action={
@@ -1927,6 +1961,7 @@ function ToolsSettings({
         {form.knowledgeEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.memories} />}
             description={
               knowledgeAvailable
@@ -1977,6 +2012,7 @@ function ToolsSettings({
         {form.knowledgeFilesEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFilesDescription} />
@@ -2000,6 +2036,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepoDescription} />
@@ -2035,6 +2072,7 @@ function ToolsSettings({
         {form.gitlabEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siGitlab} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepoDescription} />
@@ -2068,6 +2106,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "sync" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />}
             description={
               <FormattedMessage
@@ -2151,6 +2190,7 @@ function ToolsSettings({
         {form.githubCommentEnabled ? (
           <EditorRow
             icon={<ChatTextIcon className="size-4" />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2204,7 +2244,8 @@ function ToolsSettings({
 
         {form.slackEnabled ? (
           <EditorRow
-            icon={<SlackLogoIcon className="size-4" />}
+            icon={<SlackToolIcon />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2251,6 +2292,7 @@ function ToolsSettings({
         {form.emailEnabled ? (
           <EditorRow
             icon={<EnvelopeIcon className="size-4" />}
+            tone="builtIn"
             title={
               <>
                 <span>
@@ -2368,7 +2410,8 @@ function ToolsSettings({
 
         {form.contentfulEnabled ? (
           <EditorRow
-            icon={<MagnifyingGlassIcon className="size-4" />}
+            icon={<AutomationToolMenuIcon icon={siContentful} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2551,6 +2594,7 @@ function ToolsSettings({
         {form.intercomEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siIntercom} />}
+            tone="external"
             title={
               <>
                 <span>Intercom Help Center</span>
@@ -2623,6 +2667,7 @@ function ToolsSettings({
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2702,6 +2747,7 @@ function ToolsSettings({
         {form.createNativeTmsJobEnabled ? (
           <EditorRow
             icon={<UploadSimpleIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createJob} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createJobDescription} />
@@ -2776,6 +2822,7 @@ function ToolsSettings({
         {form.assignTranslateWithAgentEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />}
             description={
               <FormattedMessage
@@ -2801,6 +2848,7 @@ function ToolsSettings({
         {form.listIssuesEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.listIssues} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.listIssuesDescription} />
@@ -2819,6 +2867,7 @@ function ToolsSettings({
         {form.createIssueEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createIssue} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createIssueDescription} />
@@ -2837,6 +2886,7 @@ function ToolsSettings({
         {form.mcpEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />}
             description={
               mcpConnected
@@ -2905,6 +2955,7 @@ function ToolsSettings({
         {form.semrushEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siSemrush} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.semrush} />}
             description={
               semrushConnected
@@ -2971,6 +3022,7 @@ function ToolsSettings({
         {form.zernioEnabled ? (
           <EditorRow
             icon={<ZernioToolIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.zernio} />}
             description={
               zernioConnected
@@ -3037,6 +3089,7 @@ function ToolsSettings({
         {form.ahrefsEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />}
             description={
               ahrefsConnected
@@ -3063,6 +3116,7 @@ function ToolsSettings({
         {form.webSearchEnabled ? (
           <EditorRow
             icon={<GlobeIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
             description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
             action={
@@ -3701,14 +3755,17 @@ export function WorkspaceAutomationEditor({
       >
         {/* A new automation has settings only, and one tab is no choice to offer. */}
         {hasHistory ? (
-          <TabsList>
-            <TabsTrigger value="settings">
-              <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
-            </TabsTrigger>
-          </TabsList>
+          // The rule runs the editor's width, and the active tab's underline sits on it.
+          <div className="border-b border-border">
+            <TabsList variant="line" className="-ms-[3px]">
+              <TabsTrigger value="settings">
+                <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
+              </TabsTrigger>
+            </TabsList>
+          </div>
         ) : null}
 
         <TabsContent

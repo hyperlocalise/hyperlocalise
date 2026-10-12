@@ -60,6 +60,7 @@ import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automa
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import { cn } from "@/lib/primitives/cn";
 
+import { AUTOMATION_ICON_GLYPH_TONES, AutomationIconTile } from "./automation-icon-tile";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import {
   resolveContentfulTriggerContentTypes,
@@ -780,6 +781,8 @@ function TriggerDetailRow({ children }: { children: ReactNode }) {
   );
 }
 
+const TRIGGER_MENU_ICON_CLASS = cn("size-4", AUTOMATION_ICON_GLYPH_TONES.trigger);
+
 function TriggerMenuItem({
   context,
   option,
@@ -795,7 +798,7 @@ function TriggerMenuItem({
 
   return (
     <DropdownMenuItem disabled={unavailable && !selected} onClick={onSelect}>
-      <option.icon className="size-4" />
+      <option.icon className={TRIGGER_MENU_ICON_CLASS} />
       <FormattedMessage {...option.label} />
       {selected ? (
         <CheckIcon className="ms-auto size-4" />
@@ -864,7 +867,7 @@ function TriggerMenu({
       <DropdownMenuSub key={option.group}>
         {/* Same gap as a plain item, so the labels line up. */}
         <DropdownMenuSubTrigger className="gap-2.5">
-          <group.icon className="size-4" />
+          <group.icon className={TRIGGER_MENU_ICON_CLASS} />
           <span className="flex-1">
             <FormattedMessage {...group.label} />
           </span>
@@ -887,7 +890,6 @@ function TriggerMenu({
           />
         }
       >
-        <selected.icon className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate">
           <FormattedMessage {...selected.label} />
         </span>
@@ -947,6 +949,9 @@ export function TriggerSettings({
       </h2>
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted px-3 py-3">
         <div className="flex flex-wrap items-center gap-2">
+          <AutomationIconTile tone="trigger">
+            <selected.icon className="size-4" />
+          </AutomationIconTile>
           <TriggerMenu
             context={context}
             disabled={disabled}

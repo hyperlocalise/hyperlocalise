@@ -14,7 +14,7 @@
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -43,6 +43,9 @@ import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
 import { automationsNewPageContentMessages } from "./automations-new-page-content.messages";
+import { isSlackChannelMissing } from "./slack-channel-select";
+import { useAutomationFieldErrors } from "./use-automation-field-errors";
+import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
@@ -64,6 +67,7 @@ export function AutomationsNewPageContent({
   startsFromTemplate?: boolean;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
   const [startForm] = useState(initialForm);
   const [assistantSessionId, setAssistantSessionId] = useState<string | null>(null);
   const [assistantWorking, setAssistantWorking] = useState(false);
@@ -78,7 +82,7 @@ export function AutomationsNewPageContent({
     WorkspaceAutomationFormChange | null
   >(startForm, workspaceAutomationUndoStackOptions);
   const form = history.form ?? startForm;
-  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [errors, setErrors] = useAutomationFieldErrors(form);
   const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
   const hasUnsavedChanges = workspaceAutomationFormHasChanges(form, startForm);
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(
@@ -119,6 +123,23 @@ export function AutomationsNewPageContent({
         setErrors(fieldErrors);
         throw new Error("validation_failed");
       }
+
+      // Slack is asked once more here, so a missing channel stops the save from any tab.
+      if (
+        form.slackEnabled &&
+        (await isSlackChannelMissing({
+          channelId: form.slackChannelId,
+          organizationSlug,
+          queryClient,
+        }))
+      ) {
+        setErrors({
+          slackChannelId: intl.formatMessage(workspaceAutomationFormMessages.channelNotFound),
+        });
+        throw new Error("validation_failed");
+      }
+      // What an earlier save found no longer stands.
+      setErrors({});
 
       const payload = formStateToWorkspaceAutomationPayload(form);
       if (payload.kind === "content_sync") {

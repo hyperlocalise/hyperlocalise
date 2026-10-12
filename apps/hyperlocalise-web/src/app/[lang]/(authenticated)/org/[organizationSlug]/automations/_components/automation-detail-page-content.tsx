@@ -78,6 +78,9 @@ import { automationDetailPageContentMessages } from "./automation-detail-page-co
 import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
+import { isSlackChannelMissing } from "./slack-channel-select";
+import { useAutomationFieldErrors } from "./use-automation-field-errors";
+import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
@@ -153,7 +156,7 @@ export function AutomationDetailPageContent({
     WorkspaceAutomationFormChange | null
   >(null, workspaceAutomationUndoStackOptions);
   const form = history.form;
-  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [errors, setErrors] = useAutomationFieldErrors(form);
   const { notifyUndo, notifyRedo } = useAutomationUndoNotice();
   // The notice's action runs after later renders, so it reads the history as it is then.
   const historyRef = useRef(history);
@@ -304,6 +307,23 @@ export function AutomationDetailPageContent({
           setErrors(fieldErrors);
           throw new Error("validation_failed");
         }
+
+        // Slack is asked once more here, so a missing channel stops the save from any tab.
+        if (
+          form.slackEnabled &&
+          (await isSlackChannelMissing({
+            channelId: form.slackChannelId,
+            organizationSlug,
+            queryClient,
+          }))
+        ) {
+          setErrors({
+            slackChannelId: intl.formatMessage(workspaceAutomationFormMessages.channelNotFound),
+          });
+          throw new Error("validation_failed");
+        }
+        // What an earlier save found no longer stands.
+        setErrors({});
 
         const payload = formStateToWorkspaceAutomationPayload(form);
         const response = await apiClient.api.orgs[":organizationSlug"].automations[
@@ -501,7 +521,7 @@ export function AutomationDetailPageContent({
   const editorActions = (
     <>
       <Button
-        variant="outline"
+        variant="destructive"
         onClick={() => {
           if (writeInFlight) {
             return;
