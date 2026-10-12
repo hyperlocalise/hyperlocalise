@@ -14,9 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { hashBrazeTranslationMap } from "./translation-map";
 
-import { BrazeApiError } from "./client";
+import { BrazeApiError, type BrazeLocaleTranslation } from "./client";
 import {
   isBrazeCampaignRemoteNewer,
+  loadBrazeCampaignRemoteTranslation,
   mergeBrazeCampaignTranslationMap,
   shouldSkipBrazeCampaignLocalePush,
   shouldTreatBrazeRemoteTranslationAsEmpty,
@@ -164,5 +165,95 @@ describe("braze campaign push helpers", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+function localeTranslation(
+  localeId: string,
+  translationMap: Record<string, string>,
+  updatedAt?: string,
+): BrazeLocaleTranslation {
+  return {
+    translation_map: translationMap,
+    locale: { uuid: localeId },
+    updatedAt,
+  };
+}
+
+describe("loadBrazeCampaignRemoteTranslation", () => {
+  const localeId = "locale-fr";
+
+  it("uses the post-launch draft map when it has keys", async () => {
+    const loaded: boolean[] = [];
+    await expect(
+      loadBrazeCampaignRemoteTranslation({
+        localeId,
+        load: async (postLaunchDraftVersion) => {
+          loaded.push(postLaunchDraftVersion);
+          return [
+            localeTranslation(localeId, { headline: "draft-fr" }, "2026-10-12T12:00:00.000Z"),
+          ];
+        },
+      }),
+    ).resolves.toEqual({
+      translationMap: { headline: "draft-fr" },
+      updatedAt: "2026-10-12T12:00:00.000Z",
+    });
+    expect(loaded).toEqual([true]);
+  });
+
+  it("falls back to the live map when the draft GET 404s", async () => {
+    const loaded: boolean[] = [];
+    await expect(
+      loadBrazeCampaignRemoteTranslation({
+        localeId,
+        load: async (postLaunchDraftVersion) => {
+          loaded.push(postLaunchDraftVersion);
+          if (postLaunchDraftVersion) {
+            throw new BrazeApiError({ message: "not found", status: 404 });
+          }
+          return [localeTranslation(localeId, { headline: "live-fr", extra: "keep-me" })];
+        },
+      }),
+    ).resolves.toEqual({
+      translationMap: { headline: "live-fr", extra: "keep-me" },
+    });
+    expect(loaded).toEqual([true, false]);
+  });
+
+  it("falls back to the live map when the draft locale map is empty", async () => {
+    await expect(
+      loadBrazeCampaignRemoteTranslation({
+        localeId,
+        load: async (postLaunchDraftVersion) =>
+          postLaunchDraftVersion
+            ? [localeTranslation(localeId, {})]
+            : [localeTranslation(localeId, { headline: "live-fr" })],
+      }),
+    ).resolves.toEqual({
+      translationMap: { headline: "live-fr" },
+    });
+  });
+
+  it("returns an empty map when draft and live GETs are missing", async () => {
+    await expect(
+      loadBrazeCampaignRemoteTranslation({
+        localeId,
+        load: async () => {
+          throw new BrazeApiError({ message: "not found", status: 404 });
+        },
+      }),
+    ).resolves.toEqual({ translationMap: {} });
+  });
+
+  it("does not swallow non-empty remote failures", async () => {
+    await expect(
+      loadBrazeCampaignRemoteTranslation({
+        localeId,
+        load: async () => {
+          throw new BrazeApiError({ message: "rate limited", status: 429 });
+        },
+      }),
+    ).rejects.toMatchObject({ status: 429 });
   });
 });
