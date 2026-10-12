@@ -80,6 +80,30 @@ export function shouldListAllBrazeResources(ids: readonly string[]): boolean {
   return selectedBrazeResourceIds(ids).length === 0;
 }
 
+export function selectBrazeCampaignMappingsToArchive(input: {
+  existing: ReadonlyArray<{
+    id: string;
+    status: string;
+    campaignId: string | null;
+    workflowId: string | null;
+  }>;
+  campaignId?: string | null;
+  workflowId?: string | null;
+}): string[] {
+  return input.existing.flatMap((row) => {
+    if (row.status === "archived") {
+      return [];
+    }
+    if (input.campaignId && row.campaignId === input.campaignId) {
+      return [row.id];
+    }
+    if (input.workflowId && row.workflowId === input.workflowId) {
+      return [row.id];
+    }
+    return [];
+  });
+}
+
 export function isBrazeListItemArchived(item: {
   archived?: boolean;
   is_archived?: boolean;
@@ -271,7 +295,11 @@ export async function runImportBrazeCampaigns(input: {
         return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
       }
       try {
-        if (target.details.isArchived) {
+        if (target.details.isArchived || target.listedAsArchived) {
+          await archiveBrazeCampaignMappings({
+            existing: existingBySourceId,
+            campaignId: target.details.id,
+          });
           return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
         }
         const totals: ImportBrazeCampaignsResult = {
@@ -320,7 +348,11 @@ export async function runImportBrazeCampaigns(input: {
         return { imported: 0, skipped: 0, failed: 1, jobsCreated: 0 };
       }
       try {
-        if (target.details.isArchived) {
+        if (target.details.isArchived || target.listedAsArchived) {
+          await archiveBrazeCampaignMappings({
+            existing: existingBySourceId,
+            workflowId: target.details.id,
+          });
           return { imported: 0, skipped: 1, failed: 0, jobsCreated: 0 };
         }
         const totals: ImportBrazeCampaignsResult = {
@@ -378,10 +410,17 @@ export async function runImportBrazeCampaigns(input: {
 async function loadCampaignImportTarget(
   client: BrazeTemplatesClient,
   id: string,
-  listed?: { draft?: boolean; is_draft?: boolean; last_edited?: string },
+  listed?: {
+    draft?: boolean;
+    is_draft?: boolean;
+    last_edited?: string;
+    archived?: boolean;
+    is_archived?: boolean;
+  },
 ): Promise<{
   details: Awaited<ReturnType<BrazeTemplatesClient["getCampaignDetails"]>>;
   listedAsDraft: boolean;
+  listedAsArchived: boolean;
   listedLastEdited?: string;
 } | null> {
   try {
@@ -391,6 +430,7 @@ async function loadCampaignImportTarget(
     return {
       details: loaded.details,
       listedAsDraft: listed?.draft === true || listed?.is_draft === true,
+      listedAsArchived: isBrazeListItemArchived(listed ?? {}),
       listedLastEdited: listed?.last_edited,
     };
   } catch (error) {
@@ -402,10 +442,17 @@ async function loadCampaignImportTarget(
 async function loadCanvasImportTarget(
   client: BrazeTemplatesClient,
   id: string,
-  listed?: { draft?: boolean; is_draft?: boolean; last_edited?: string },
+  listed?: {
+    draft?: boolean;
+    is_draft?: boolean;
+    last_edited?: string;
+    archived?: boolean;
+    is_archived?: boolean;
+  },
 ): Promise<{
   details: Awaited<ReturnType<BrazeTemplatesClient["getCanvasDetails"]>>;
   listedAsDraft: boolean;
+  listedAsArchived: boolean;
   listedLastEdited?: string;
 } | null> {
   try {
@@ -413,6 +460,7 @@ async function loadCanvasImportTarget(
     return {
       details: loaded.details,
       listedAsDraft: listed?.draft === true || listed?.is_draft === true,
+      listedAsArchived: isBrazeListItemArchived(listed ?? {}),
       listedLastEdited: listed?.last_edited,
     };
   } catch (error) {
@@ -433,9 +481,7 @@ async function resolveBrazeCampaignImportTargets(
     );
   }
 
-  const listed = (await listAllBrazeCampaigns(client)).filter(
-    (campaign) => !isBrazeListItemArchived(campaign),
-  );
+  const listed = await listAllBrazeCampaigns(client);
   return mapWithConcurrency(listed, BRAZE_CAMPAIGN_IMPORT_CONCURRENCY, (campaign) =>
     loadCampaignImportTarget(client, campaign.id, campaign),
   );
@@ -453,9 +499,7 @@ async function resolveBrazeCanvasImportTargets(
     );
   }
 
-  const listed = (await listAllBrazeCanvases(client)).filter(
-    (canvas) => !isBrazeListItemArchived(canvas),
-  );
+  const listed = await listAllBrazeCanvases(client);
   return mapWithConcurrency(listed, BRAZE_CAMPAIGN_IMPORT_CONCURRENCY, (canvas) =>
     loadCanvasImportTarget(client, canvas.id, canvas),
   );
@@ -825,6 +869,25 @@ async function writeBrazeJsonSource(input: {
     return null;
   }
   return uploaded.value.file.id;
+}
+
+async function archiveBrazeCampaignMappings(input: {
+  existing: Map<string, typeof schema.brazeCampaignSyncStates.$inferSelect>;
+  campaignId?: string | null;
+  workflowId?: string | null;
+}) {
+  const ids = selectBrazeCampaignMappingsToArchive({
+    existing: [...input.existing.values()],
+    campaignId: input.campaignId,
+    workflowId: input.workflowId,
+  });
+  if (ids.length === 0) {
+    return;
+  }
+  await db
+    .update(schema.brazeCampaignSyncStates)
+    .set({ status: "archived", updatedAt: new Date() })
+    .where(inArray(schema.brazeCampaignSyncStates.id, ids));
 }
 
 async function persistSyncState(input: {

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   isBrazeListItemArchived,
   isBrazeLocaleImportComplete,
+  selectBrazeCampaignMappingsToArchive,
   selectedBrazeResourceIds,
   shouldImportBrazeDraftVariation,
   shouldListAllBrazeResources,
@@ -26,6 +27,29 @@ describe("braze campaign import helpers", () => {
     expect(shouldListAllBrazeResources(["  "])).toBe(true);
     expect(shouldListAllBrazeResources(["camp-1"])).toBe(false);
     expect(selectedBrazeResourceIds([" camp-1 ", "", "camp-1"])).toEqual(["camp-1"]);
+  });
+
+  it("selects existing mappings for an archived campaign or Canvas", () => {
+    expect(
+      selectBrazeCampaignMappingsToArchive({
+        existing: [
+          { id: "keep", status: "active", campaignId: "other", workflowId: null },
+          { id: "already", status: "archived", campaignId: "camp-1", workflowId: null },
+          { id: "camp", status: "active", campaignId: "camp-1", workflowId: null },
+          { id: "flow", status: "push_failed", campaignId: null, workflowId: "flow-1" },
+        ],
+        campaignId: "camp-1",
+      }),
+    ).toEqual(["camp"]);
+    expect(
+      selectBrazeCampaignMappingsToArchive({
+        existing: [
+          { id: "keep", status: "active", campaignId: "camp-1", workflowId: null },
+          { id: "flow", status: "push_failed", campaignId: null, workflowId: "flow-1" },
+        ],
+        workflowId: "flow-1",
+      }),
+    ).toEqual(["flow"]);
   });
 
   it("skips archived list items", () => {

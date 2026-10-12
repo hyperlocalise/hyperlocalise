@@ -41,6 +41,29 @@ describe("readTranslationEntries", () => {
     ]);
   });
 
+  it("reads an object-shaped translations envelope", () => {
+    expect(
+      readTranslationEntries({
+        translations: {
+          translation_map: { id_0: "Here's a Million Dollars", id_1: "Hello World!" },
+        },
+        message: "success",
+      }),
+    ).toEqual([
+      {
+        translation_map: { id_0: "Here's a Million Dollars", id_1: "Hello World!" },
+        locale: {
+          uuid: "",
+          name: undefined,
+          locale_key: undefined,
+          language: undefined,
+          country: undefined,
+        },
+        updatedAt: undefined,
+      },
+    ]);
+  });
+
   it("reads a single translation_map body and last_edited", () => {
     expect(
       readTranslationEntries({

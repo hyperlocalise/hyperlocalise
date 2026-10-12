@@ -407,13 +407,27 @@ function readOptionalTimestamp(...values: unknown[]): string | undefined {
   return undefined;
 }
 
+function translationRecordsFromBody(body: unknown): unknown[] {
+  if (!body || typeof body !== "object") {
+    return [];
+  }
+  if ("translations" in body) {
+    const translations = body.translations;
+    if (Array.isArray(translations)) {
+      return translations;
+    }
+    if (translations && typeof translations === "object") {
+      return [translations];
+    }
+  }
+  if ("translation_map" in body) {
+    return [body];
+  }
+  return [];
+}
+
 export function readTranslationEntries(body: unknown): BrazeLocaleTranslation[] {
-  const records =
-    body && typeof body === "object" && "translations" in body && Array.isArray(body.translations)
-      ? body.translations
-      : body && typeof body === "object" && "translation_map" in body
-        ? [body]
-        : [];
+  const records = translationRecordsFromBody(body);
   return records.flatMap((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       return [];
