@@ -282,21 +282,20 @@ export const PortCompatibility: Story = {
     await expect(dataInput.className).toContain("ring-2");
     await expect(dataOutput.className).toContain("ring-2");
 
-    await expect(dataInput.className).toContain("[&.connectingto.valid]:bg-emerald-500!");
+    await expect(dataInput.className).toContain("[&.connectingto.valid]:text-emerald-500");
     await expect(dataInput.className).toContain("[&.connectingto]:opacity-30");
 
     // A port's dot takes its type's colour and sits on the card's edge, clear of the port's name.
-    await expect(getComputedStyle(dataInput).backgroundColor).not.toBe(
-      getComputedStyle(optionalInput).backgroundColor,
-    );
+    await expect(getComputedStyle(dataInput).color).not.toBe(getComputedStyle(optionalInput).color);
     const urlName = within(canvas.getByTitle("url: string")).getByText("url");
     await expect(dataInput.getBoundingClientRect().right).toBeLessThanOrEqual(
       urlName.getBoundingClientRect().left,
     );
 
     // An execution handle is an arrow, a data port a round dot.
-    await expect(getComputedStyle(executionInput[0]!, "::before").clipPath).toContain("polygon");
-    await expect(getComputedStyle(dataInput, "::before").clipPath).not.toContain("polygon");
+    const executionIcon = executionInput[0]!.querySelector("svg");
+    await expect(executionIcon).not.toBeNull();
+    await expect(executionIcon!.innerHTML).not.toBe(dataInput.querySelector("svg")?.innerHTML);
 
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 
