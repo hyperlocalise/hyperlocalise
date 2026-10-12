@@ -290,7 +290,13 @@ export type VisualWorkflowValidationIssue = {
     | "overlapping_try_catch_region";
   nodeId?: string;
   edgeId?: string;
+  /** The setting or input of the step that is at fault, by its key, when the issue is about one. */
+  field?: string;
+  reason?: VisualWorkflowIssueReason;
 };
+
+/** What is wrong with a step, where the issue's code alone does not say. */
+export type VisualWorkflowIssueReason = "required" | "invalid" | "literal_credential";
 
 /** @deprecated Use VisualWorkflowValidationIssue */
 export type MockValidationIssue = VisualWorkflowValidationIssue;

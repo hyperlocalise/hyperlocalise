@@ -73,6 +73,7 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
 
@@ -96,6 +97,8 @@ export function VisualWorkflowConfigPanel({
   onChangeContract,
   organizationSlug,
   issues,
+  onSelectNode,
+  onShowNode,
   onBack,
   onChangeConfig,
   onChangeNodeType,
@@ -107,6 +110,10 @@ export function VisualWorkflowConfigPanel({
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
   issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
+  /** Called with the step an issue is about when its line is clicked. */
+  onSelectNode?: (nodeId: string) => void;
+  /** Called with the step an issue is about when it is asked to be shown on the canvas. */
+  onShowNode?: (nodeId: string) => void;
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
@@ -129,11 +136,16 @@ export function VisualWorkflowConfigPanel({
       "This value is supplied by a connected data port. Remove the data wire to edit it here.",
     description: "Description for an inline workflow value overridden by a data connection",
   });
+  // The settings and inputs of this step that an issue names.
+  const invalidFields = new Set(
+    issues.flatMap((issue) => (issue.nodeId === node.id && issue.field ? [issue.field] : [])),
+  );
   const connectedInputProps = (portId: string) => {
     const disabled = isInputConnected(portId);
     return {
       disabled,
       description: disabled ? connectedInputDescription : undefined,
+      invalid: invalidFields.has(portId),
     };
   };
 
@@ -152,6 +164,7 @@ export function VisualWorkflowConfigPanel({
             nodes={nodes}
             edges={edges}
             organizationSlug={organizationSlug}
+            invalidFields={invalidFields}
             onChange={onChangeContract}
           />
         ) : null}
@@ -1336,18 +1349,13 @@ export function VisualWorkflowConfigPanel({
           <FormattedMessage {...messages.deleteStep} />
         </Button>
       </div>
-      {issues.length > 0 ? (
-        <div
-          data-testid="visual-workflow-validation-issues"
-          className="border-t border-border px-4 py-3 text-sm text-destructive"
-        >
-          {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
-              {intl.formatMessage(issueMessage(issue.code))}
-            </p>
-          ))}
-        </div>
-      ) : null}
+      <VisualWorkflowIssueList
+        issues={issues}
+        nodes={nodes}
+        selectedNodeId={node.id}
+        onSelectNode={onSelectNode}
+        onShowNode={onShowNode}
+      />
     </div>
   );
 }
@@ -1649,6 +1657,7 @@ function TextField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
 }: {
   id: string;
   label: string;
@@ -1657,6 +1666,7 @@ function TextField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -1665,6 +1675,7 @@ function TextField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1681,6 +1692,7 @@ function TextAreaField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
 }: {
   id: string;
   label: string;
@@ -1689,6 +1701,7 @@ function TextAreaField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -1697,6 +1710,7 @@ function TextAreaField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1780,42 +1794,5 @@ function titleForTrigger(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     default:
       return messages.triggerType;
-  }
-}
-
-function issueMessage(
-  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
-) {
-  switch (code) {
-    case "missing_trigger":
-      return messages.missingTrigger;
-    case "multiple_triggers":
-      return messages.multipleTriggers;
-    case "orphan_node":
-      return messages.orphanNode;
-    case "invalid_edge":
-      return messages.invalidEdge;
-    case "invalid_trigger_config":
-      return messages.invalidTriggerConfig;
-    case "invalid_node_config":
-      return messages.invalidNodeConfig;
-    case "nested_for_each":
-      return messages.nestedForEach;
-    case "nested_retry":
-      return messages.nestedRetry;
-    case "invalid_retry":
-      return messages.invalidRetry;
-    case "retry_foreach_nesting":
-      return messages.retryForEachNesting;
-    case "non_idempotent_retry":
-      return messages.nonIdempotentRetry;
-    case "invalid_retry_policy":
-      return messages.invalidRetryPolicy;
-    case "invalid_try_catch_region":
-      return messages.invalidTryCatchRegion;
-    case "overlapping_try_catch_region":
-      return messages.overlappingTryCatchRegion;
-    default:
-      return messages.invalidNodeConfig;
   }
 }

@@ -577,6 +577,44 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
+  it("marks the settings and inputs an issue names", () => {
+    const slack: VisualWorkflowRfNode = {
+      id: "slack",
+      type: "action.notify_slack",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("action.notify_slack"),
+      data: {
+        catalogType: "action.notify_slack",
+        config: createDefaultConfig("action.notify_slack"),
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={slack}
+        nodes={[slack]}
+        issues={[
+          { code: "invalid_node_config", nodeId: "slack", field: "channelId", reason: "required" },
+          { code: "invalid_node_config", nodeId: "other", field: "message", reason: "required" },
+        ]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeContract={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(document.getElementById("vw-slack-channel")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("combobox", { name: "channelId" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    // An issue about another step's setting of the same name marks nothing here.
+    expect(document.getElementById("vw-slack-message")).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByRole("combobox", { name: "message" })).not.toHaveAttribute("aria-invalid");
+  });
+
   it("configures a controlled Fail code and message", () => {
     const onChangeConfig = vi.fn();
     renderPanel(

@@ -868,6 +868,8 @@ it("rejects missing and incompatible Return inputs", () => {
   expect(compileVisualWorkflowV3Definition(missing).issues).toContainEqual({
     code: "missing_required_input",
     nodeId: "return",
+    field: "value.count",
+    reason: "required",
   });
 
   const incompatible = definition([

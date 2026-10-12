@@ -334,6 +334,22 @@ describe("validateVisualWorkflowDefinition config", () => {
     ).toBe(true);
   });
 
+  it("names the empty setting of a step", () => {
+    const definition = toVisualWorkflowDefinition({
+      name: "Slack",
+      nodes: [node("t", "trigger.manual"), node("slack", "action.notify_slack")],
+      edges: [{ id: "e1", source: "t", target: "slack" }],
+    });
+
+    const issues = validateVisualWorkflowDefinition(definition);
+    expect(issues).toContainEqual({
+      code: "invalid_node_config",
+      nodeId: "slack",
+      field: "channelId",
+      reason: "required",
+    });
+  });
+
   it("reports invalid node config for default email action", () => {
     const definition = toVisualWorkflowDefinition({
       name: "Email",

@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { CircleIcon, PlayIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -38,7 +39,7 @@ import { cn } from "@/lib/primitives/cn";
 import { useVisualWorkflowCanvasActions } from "../visual-workflow-canvas-actions";
 import { visualWorkflowEditorMessages as messages } from "../visual-workflow-editor.messages";
 import { VisualWorkflowQuickAddButton } from "./visual-workflow-quick-add-button";
-import { createElement } from "react";
+import { createElement, type ComponentProps, type CSSProperties } from "react";
 
 const nodeStatusMessages = defineMessages({
   running: { defaultMessage: "Running", id: "ZWQ+8S8rpv", description: "Workflow node status" },
@@ -58,25 +59,110 @@ const nodeStatusMessages = defineMessages({
     description: "Workflow node status",
   },
 });
+// React Flow draws a handle as a dot of its own, and its stylesheet, being in no cascade layer,
+// outranks Tailwind's utilities. The `!` classes switch that dot off and leave the handle as the
+// thing to grab; its shape is a Phosphor icon inside it, in the handle's text colour.
 const HANDLE_CLASS = cn(
-  "size-2.5! border-2 border-background bg-primary",
-  "transition-[transform,opacity,box-shadow] duration-150",
-  "[&.connecting]:scale-125 [&.connecting]:opacity-30",
-  "[&.connecting.valid]:bg-emerald-500",
-  "[&.connecting.valid]:opacity-100",
-  "[&.connecting.valid]:ring-4",
-  "[&.connecting.valid]:ring-emerald-500/30",
-  "motion-reduce:transition-none",
+  "group/handle size-2.5! border-0! bg-transparent!",
+  "transition-colors duration-100 motion-reduce:transition-none",
+  // A target larger than the icon, so it can be grabbed without aiming.
+  "after:absolute after:-inset-[7px] after:rounded-full after:content-['']",
+  // Where a connection being dragged would land: green once it is one the canvas allows.
+  "[&.connectingto.valid]:text-emerald-500",
 );
 
-const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
-  string: "bg-blue-500",
-  number: "bg-amber-500",
-  boolean: "bg-violet-500",
-  object: "bg-emerald-500",
-  array: "bg-pink-500",
-  unknown: "bg-slate-500",
+// The icon grows by its width and height, not by a scale. While a scale animates, the browser
+// draws the icon and everything painted over it in layers of their own, snapped to whole pixels,
+// and on a canvas that sits at a fraction of a pixel the rest of the step visibly jumps.
+const HANDLE_ICON_CLASS = cn(
+  // The pointer has to reach the handle itself, which is what React Flow looks for under it.
+  "pointer-events-none absolute top-1/2 left-1/2 size-(--handle-icon) -translate-1/2",
+  // As quick as the app's menus and popovers; its 150ms default reads as slow on a change of size.
+  "transition-[width,height] duration-100 motion-reduce:transition-none",
+  // Under the pointer, and where a connection starts from by drag or by click.
+  "group-[:not(.connectingto):hover]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  "group-[.connectingfrom]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  "group-[.clickconnecting]/handle:size-[calc(var(--handle-icon)*1.5)]",
+  // Where a connection being dragged would land: dimmed until it is one the canvas allows.
+  "group-[.connectingto]/handle:size-[calc(var(--handle-icon)*1.25)]",
+  "group-[.connectingto]/handle:opacity-30 group-[.connectingto.valid]/handle:opacity-100",
+);
+
+// The app's primary, destructive and muted colours are far heavier than the data ports' type
+// colours. Mixed with the background they sit at the same strength, and stay opaque, so neither
+// the card's border nor a step's glow shows through.
+const EXECUTION_ICON_TONE_CLASS =
+  "text-[color:color-mix(in_oklab,currentColor_60%,var(--background))]";
+
+/**
+ * Where the workflow runs into or out of a step: an arrow pointing the way it runs, so it cannot
+ * be taken for a data port. `className` sets its place and, with a text colour, its tone.
+ */
+function ExecutionHandle({ className, ...props }: ComponentProps<typeof Handle>) {
+  return (
+    <Handle {...props} className={cn(HANDLE_CLASS, "text-primary", className)}>
+      <PlayIcon
+        weight="fill"
+        className={cn(HANDLE_ICON_CLASS, EXECUTION_ICON_TONE_CLASS, "[--handle-icon:14px]")}
+        aria-hidden
+      />
+    </Handle>
+  );
+}
+
+/** Where a value enters or leaves a step: a round dot, in its type's colour through `className`. */
+function DataHandle({ className, ...props }: ComponentProps<typeof Handle>) {
+  return (
+    <Handle {...props} className={cn(HANDLE_CLASS, className)}>
+      <CircleIcon
+        weight="fill"
+        className={cn(HANDLE_ICON_CLASS, "[--handle-icon:12px]")}
+        aria-hidden
+      />
+    </Handle>
+  );
+}
+
+// A step's state is marked with a soft glow, not a hard outline: the canvas moves by fractions of
+// a pixel, and a thin bright line flickers between two and three pixels wide as it does.
+const STEP_GLOW_CLASS = {
+  // Inside the card, so it never mixes with the selection's glow around it.
+  issue: "inset-shadow-[0_0_6px_1px_color-mix(in_oklab,var(--destructive)_50%,transparent)]",
+  selected: "shadow-[0_0_6px_1px_color-mix(in_oklab,var(--ring)_50%,transparent)]",
 };
+
+const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+  string: "text-blue-500",
+  number: "text-amber-500",
+  boolean: "text-violet-500",
+  object: "text-emerald-500",
+  array: "text-pink-500",
+  unknown: "text-slate-500",
+};
+
+// A step's execution dots and their labels are placed down its top part, above its data ports, so
+// the two kinds of dot never land on one spot of the card's edge. Without data ports that part is
+// the whole card.
+const EXECUTION_ZONE_VARIABLE = "--execution-zone";
+// The card's padding, the icon, title and subtitle, and the gap above the data ports.
+const EXECUTION_ZONE_MIN_HEIGHT = 104;
+const EXECUTION_ZONE_INSET = 24;
+const EXECUTION_DOT_PITCH = 24;
+
+function executionTop(fraction: number): CSSProperties {
+  return { top: `calc(var(${EXECUTION_ZONE_VARIABLE}) * ${fraction})` };
+}
+
+const TRY_CATCH_HANDLES = [
+  { id: "try", label: "Try" },
+  { id: "success", label: "Success" },
+  { id: "catch", label: "Catch", className: "text-destructive" },
+  { id: "finally", label: "Finally", className: "text-muted-foreground" },
+];
+
+// A port's row starts inside the card's padding. This puts its dot on the card's edge, where the
+// execution dots are, and clear of the port's name and type.
+const DATA_PORT_EDGE_CLASS = { input: "-left-3!", output: "-right-3!" };
 
 function DataPortLabel({
   port,
@@ -96,12 +182,12 @@ function DataPortLabel({
       title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}`}
     >
       {direction === "input" ? (
-        <Handle
+        <DataHandle
           id={port.id}
           type="target"
           position={Position.Left}
           className={cn(
-            HANDLE_CLASS,
+            DATA_PORT_EDGE_CLASS.input,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
           )}
@@ -113,12 +199,12 @@ function DataPortLabel({
       <span className="shrink-0 text-muted-foreground">{port.type}</span>
 
       {direction === "output" ? (
-        <Handle
+        <DataHandle
           id={port.id}
           type="source"
           position={Position.Right}
           className={cn(
-            HANDLE_CLASS,
+            DATA_PORT_EDGE_CLASS.output,
             DATA_TYPE_CLASS[port.type],
             connected ? "ring-2 ring-primary/30" : null,
           )}
@@ -134,7 +220,8 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds } = useVisualWorkflowCanvasActions();
+  const hasIssue = issueNodeIds.has(id);
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
@@ -202,19 +289,43 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
   const mergeInputs = data.config.kind === "logic.merge" ? data.config.inputs : [];
   const sequenceOutputs = data.config.kind === "logic.sequence" ? data.config.outputs : [];
+  // The most dots that are spread evenly down one side of the step.
+  const spreadExecutionDotCount = Math.max(
+    mergeInputs.length,
+    sequenceOutputs.length,
+    switchHandles.length,
+    data.catalogType === "logic.try_catch" ? TRY_CATCH_HANDLES.length : 0,
+  );
+  const executionZoneHeight = hasDataPorts
+    ? Math.max(EXECUTION_ZONE_MIN_HEIGHT, (spreadExecutionDotCount + 1) * EXECUTION_DOT_PITCH)
+    : null;
 
   return (
     <Card
       aria-busy={data.runStatus === "running"}
-      style={{ minHeight: getVisualNodeDimensions(data.catalogType, data.config).height }}
+      style={
+        {
+          minHeight: getVisualNodeDimensions(data.catalogType, data.config).height,
+          [EXECUTION_ZONE_VARIABLE]: executionZoneHeight ? `${executionZoneHeight}px` : "100%",
+        } as CSSProperties
+      }
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
-        selected ? "ring-2 ring-ring" : null,
+        hasIssue ? STEP_GLOW_CLASS.issue : null,
+        selected ? STEP_GLOW_CLASS.selected : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
+      {hasIssue ? (
+        <span
+          className="absolute top-2 right-2 text-destructive"
+          title={intl.formatMessage(messages.stepHasIssue)}
+        >
+          <WarningCircleIcon className="size-3.5" />
+        </span>
+      ) : null}
       {isTrigger ? (
         <span
           className="absolute top-2 left-2 text-primary"
@@ -224,22 +335,19 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </span>
       ) : data.config.kind === "logic.merge" ? (
         mergeInputs.map((input, index) => (
-          <Handle
+          <ExecutionHandle
             key={input.id}
             id={input.id}
-            className={HANDLE_CLASS}
             position={Position.Left}
             type="target"
             aria-label={`Merge input: ${input.name}`}
-            style={{
-              top: `${((index + 1) / (mergeInputs.length + 1)) * 100}%`,
-            }}
+            style={executionTop((index + 1) / (mergeInputs.length + 1))}
           />
         ))
       ) : (
-        <Handle
+        <ExecutionHandle
           id="input"
-          className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+          className={hasDataPorts ? "top-16!" : undefined}
           position={Position.Left}
           type="target"
           aria-label="Execution input"
@@ -247,28 +355,26 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       )}
       {data.config.kind === "logic.sequence" ? (
         sequenceOutputs.map((output, index) => (
-          <Handle
+          <ExecutionHandle
             aria-label={`Sequence output: ${output.label}`}
-            className={HANDLE_CLASS}
             id={output.id}
             key={output.id}
             position={Position.Right}
-            style={{
-              top: `${((index + 1) / (sequenceOutputs.length + 1)) * 100}%`,
-            }}
+            style={executionTop((index + 1) / (sequenceOutputs.length + 1))}
             type="source"
           />
         ))
       ) : isIf ? (
         <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[35%]!")}
+          <ExecutionHandle
+            style={executionTop(0.35)}
             id="true"
             position={Position.Right}
             type="source"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[65%]! bg-muted-foreground")}
+          <ExecutionHandle
+            className="text-muted-foreground"
+            style={executionTop(0.65)}
             id="false"
             position={Position.Right}
             type="source"
@@ -276,15 +382,15 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       ) : data.catalogType === "logic.for_each" ? (
         <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[35%]!")}
+          <ExecutionHandle
+            style={executionTop(0.35)}
             id="each"
             position={Position.Right}
             type="source"
             aria-label="Each item"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[65%]!")}
+          <ExecutionHandle
+            style={executionTop(0.65)}
             id="done"
             position={Position.Right}
             type="source"
@@ -293,22 +399,23 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       ) : data.catalogType === "logic.retry" ? (
         <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[28%]!")}
+          <ExecutionHandle
+            style={executionTop(0.28)}
             id="attempt"
             position={Position.Right}
             type="source"
             aria-label="Attempt"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[50%]!")}
+          <ExecutionHandle
+            style={executionTop(0.5)}
             id="succeeded"
             position={Position.Right}
             type="source"
             aria-label="Succeeded"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-muted-foreground")}
+          <ExecutionHandle
+            className="text-muted-foreground"
+            style={executionTop(0.72)}
             id="exhausted"
             position={Position.Right}
             type="source"
@@ -317,22 +424,24 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       ) : data.catalogType === "flow.wait" ? (
         <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[28%]!")}
+          <ExecutionHandle
+            style={executionTop(0.28)}
             id="completed"
             position={Position.Right}
             type="source"
             aria-label="Completed"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+          <ExecutionHandle
+            className="text-muted-foreground"
+            style={executionTop(0.5)}
             id="timed_out"
             position={Position.Right}
             type="source"
             aria-label="Timed out"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+          <ExecutionHandle
+            className="text-destructive"
+            style={executionTop(0.72)}
             id="error"
             position={Position.Right}
             type="source"
@@ -341,22 +450,24 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       ) : data.catalogType === "logic.merge" ? (
         <>
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[28%]!")}
+          <ExecutionHandle
+            style={executionTop(0.28)}
             id="completed"
             position={Position.Right}
             type="source"
             aria-label="Completed"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[50%]! bg-muted-foreground")}
+          <ExecutionHandle
+            className="text-muted-foreground"
+            style={executionTop(0.5)}
             id="timed_out"
             position={Position.Right}
             type="source"
             aria-label="Timed out"
           />
-          <Handle
-            className={cn(HANDLE_CLASS, "top-[72%]! bg-destructive")}
+          <ExecutionHandle
+            className="text-destructive"
+            style={executionTop(0.72)}
             id="error"
             position={Position.Right}
             type="source"
@@ -365,48 +476,42 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       ) : data.catalogType === "logic.try_catch" ? (
         <>
-          {[
-            { id: "try", label: "Try", className: null },
-            { id: "success", label: "Success", className: null },
-            { id: "catch", label: "Catch", className: "bg-destructive" },
-            { id: "finally", label: "Finally", className: "bg-muted-foreground" },
-          ].map((handle, index) => (
-            <Handle
+          {TRY_CATCH_HANDLES.map((handle, index) => (
+            <ExecutionHandle
               aria-label={handle.label}
-              className={cn(HANDLE_CLASS, handle.className)}
+              className={handle.className}
               id={handle.id}
               key={handle.id}
               position={Position.Right}
-              style={{ top: `${((index + 1) / 5) * 100}%` }}
+              style={executionTop((index + 1) / (TRY_CATCH_HANDLES.length + 1))}
               type="source"
             />
           ))}
         </>
       ) : isSwitch ? (
         switchHandles.map((handle, index) => (
-          <Handle
+          <ExecutionHandle
             key={handle.id}
-            className={cn(HANDLE_CLASS, handle.id === "default" ? "bg-muted-foreground" : null)}
+            className={handle.id === "default" ? "text-muted-foreground" : undefined}
             id={handle.id}
             position={Position.Right}
             type="source"
-            style={{
-              top: `${((index + 1) / (switchHandles.length + 1)) * 100}%`,
-            }}
+            style={executionTop((index + 1) / (switchHandles.length + 1))}
           />
         ))
       ) : isTerminal ? null : (
         <>
-          <Handle
+          <ExecutionHandle
             id="success"
-            className={cn(HANDLE_CLASS, hasDataPorts ? "top-16!" : null)}
+            className={hasDataPorts ? "top-16!" : undefined}
             position={Position.Right}
             type="source"
             aria-label="Execution success"
           />
           {showErrorHandle ? (
-            <Handle
-              className={cn(HANDLE_CLASS, "top-[75%]! bg-destructive")}
+            <ExecutionHandle
+              className="text-destructive"
+              style={executionTop(hasDataPorts ? 0.88 : 0.75)}
               id="error"
               position={Position.Right}
               type="source"
@@ -415,7 +520,14 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </>
       )}
 
-      <div className="flex flex-col items-center gap-1.5 pt-1 text-center">
+      <div
+        className="flex flex-col items-center justify-center gap-1.5 pt-1 text-center"
+        style={
+          executionZoneHeight
+            ? { minHeight: executionZoneHeight - EXECUTION_ZONE_INSET }
+            : undefined
+        }
+      >
         {createElement(catalog.icon, { className: "size-7 text-foreground" })}
         <p className="text-sm font-medium text-foreground">{title}</p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
@@ -458,7 +570,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {isIf ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-4.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-4.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.trueHandle} />
           </span>
@@ -479,7 +591,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.catalogType === "logic.for_each" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-5.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-5.25rem] flex flex-col justify-around py-4 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.eachHandle} />
           </span>
@@ -499,7 +611,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
       {data.catalogType === "logic.retry" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.attemptHandle} />
           </span>
@@ -532,7 +644,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
       {data.catalogType === "flow.wait" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           <span>
             <FormattedMessage {...messages.completedHandle} />
           </span>
@@ -566,7 +678,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </div>
       ) : null}
       {data.catalogType === "logic.try_catch" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-5.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {[
             { id: "try", message: messages.tryHandle, destructive: false },
             { id: "success", message: messages.successHandle, destructive: false },
@@ -598,7 +710,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         </p>
       ) : null}
       {isSwitch ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-4.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-4.5rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {switchHandles.map((handle) => (
             <span key={handle.id} className="flex items-center gap-1">
               {handle.label}
@@ -616,7 +728,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       ) : null}
 
       {data.config.kind === "logic.sequence" ? (
-        <div className="pointer-events-none absolute inset-y-0 right-[-7rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute top-0 h-(--execution-zone) right-[-7rem] flex flex-col justify-evenly py-2 text-[10px] font-medium text-muted-foreground">
           {sequenceOutputs.map((output) => (
             <span key={output.id} className="flex items-center gap-1">
               {output.label}
@@ -640,7 +752,10 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       !isSwitch &&
       data.catalogType !== "logic.retry" &&
       data.catalogType !== "flow.wait" ? (
-        <div className="pointer-events-none absolute top-[72%] right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive">
+        <div
+          className="pointer-events-none absolute right-[-4.5rem] flex items-center gap-1 text-[10px] font-medium text-destructive"
+          style={executionTop(hasDataPorts ? 0.78 : 0.72)}
+        >
           <FormattedMessage {...messages.errorHandle} />
           {data.hideAddAction ? null : (
             <VisualWorkflowQuickAddButton

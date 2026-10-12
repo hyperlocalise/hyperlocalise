@@ -49,11 +49,9 @@ import type {
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
-  VisualWorkflowValidationIssue,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
-import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
 import {
@@ -71,6 +69,7 @@ import { FieldLabel } from "@/components/ui/field";
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
+import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
@@ -160,6 +159,7 @@ export function VisualWorkflowEditor({
   const [nodes, setNodes] = useState<VisualWorkflowRfNode[]>(initialNodes);
   const [edges, setEdges] = useState<VisualWorkflowRfEdge[]>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [focusNode, setFocusNode] = useState<{ nodeId: string } | null>(null);
   const [panelMode, setPanelMode] = useState<"picker" | "config">("picker");
   const [addFrom, setAddFrom] = useState<VisualWorkflowAddFrom | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -173,6 +173,10 @@ export function VisualWorkflowEditor({
   const issues = useMemo(
     () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
     [edges, name, nodes],
+  );
+  const issueNodeIds = useMemo(
+    () => new Set(issues.flatMap((issue) => (issue.nodeId ? [issue.nodeId] : []))),
+    [issues],
   );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
@@ -228,6 +232,33 @@ export function VisualWorkflowEditor({
     }
     setMobilePanelOpen(false);
   }, []);
+
+  /** Selects a step from outside the canvas, as a click on it would. */
+  const selectNode = useCallback((nodeId: string) => {
+    setNodes((current) =>
+      current.map((node) =>
+        (node.selected ?? false) === (node.id === nodeId)
+          ? node
+          : { ...node, selected: node.id === nodeId },
+      ),
+    );
+    setEdges((current) =>
+      current.map((edge) => (edge.selected ? { ...edge, selected: false } : edge)),
+    );
+    setSelectedNodeId(nodeId);
+    setPanelMode("config");
+    setAddFrom(null);
+    setMobilePanelOpen(true);
+  }, []);
+
+  /** Selects a step and brings it to the middle of the canvas. */
+  const showNode = useCallback(
+    (nodeId: string) => {
+      selectNode(nodeId);
+      setFocusNode({ nodeId });
+    },
+    [selectNode],
+  );
 
   const closeMobilePanel = useCallback(() => {
     setMobilePanelOpen(false);
@@ -605,7 +636,10 @@ export function VisualWorkflowEditor({
         />
       ) : (
         <div className="relative flex min-h-0 min-w-0 flex-1">
-          <VisualWorkflowCanvasActionsProvider onAddFromNode={openPicker}>
+          <VisualWorkflowCanvasActionsProvider
+            onAddFromNode={openPicker}
+            issueNodeIds={issueNodeIds}
+          >
             <VisualWorkflowCanvas
               nodes={nodes}
               edges={edges}
@@ -615,6 +649,7 @@ export function VisualWorkflowEditor({
               onConnect={onConnect}
               onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
+              focusNode={focusNode}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
                 const draft = sampleDraft ?? visualWorkflowDemoDraft;
@@ -658,6 +693,8 @@ export function VisualWorkflowEditor({
                   )
                 }
                 issues={issues}
+                onSelectNode={selectNode}
+                onShowNode={showNode}
                 onBack={() => {
                   setPanelMode("picker");
                   setSelectedNodeId(null);
@@ -672,18 +709,12 @@ export function VisualWorkflowEditor({
                   disableTriggers={hasTrigger || addFrom !== null}
                   onPick={addNode}
                 />
-                {issues.length > 0 ? (
-                  <div
-                    data-testid="visual-workflow-validation-issues"
-                    className="border-t border-border px-4 py-3 text-sm text-destructive"
-                  >
-                    {issues.map((issue) => (
-                      <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
-                        {intl.formatMessage(issueMessage(issue.code))}
-                      </p>
-                    ))}
-                  </div>
-                ) : null}
+                <VisualWorkflowIssueList
+                  issues={issues}
+                  nodes={nodes}
+                  onSelectNode={selectNode}
+                  onShowNode={showNode}
+                />
               </>
             )}
           </VisualWorkflowEditorPanel>
@@ -691,43 +722,6 @@ export function VisualWorkflowEditor({
       )}
     </div>
   );
-}
-
-function issueMessage(
-  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
-) {
-  switch (code) {
-    case "missing_trigger":
-      return messages.missingTrigger;
-    case "multiple_triggers":
-      return messages.multipleTriggers;
-    case "orphan_node":
-      return messages.orphanNode;
-    case "invalid_edge":
-      return messages.invalidEdge;
-    case "invalid_trigger_config":
-      return messages.invalidTriggerConfig;
-    case "invalid_node_config":
-      return messages.invalidNodeConfig;
-    case "nested_for_each":
-      return messages.nestedForEach;
-    case "nested_retry":
-      return messages.nestedRetry;
-    case "invalid_retry":
-      return messages.invalidRetry;
-    case "retry_foreach_nesting":
-      return messages.retryForEachNesting;
-    case "non_idempotent_retry":
-      return messages.nonIdempotentRetry;
-    case "invalid_retry_policy":
-      return messages.invalidRetryPolicy;
-    case "invalid_try_catch_region":
-      return messages.invalidTryCatchRegion;
-    case "overlapping_try_catch_region":
-      return messages.overlappingTryCatchRegion;
-    default:
-      return messages.invalidNodeConfig;
-  }
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {

@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import {
   visualWorkflowDemoDraft,
@@ -77,6 +77,38 @@ const edgeKindsDraft = {
       sourceHandle: "triggeredAt",
       targetHandle: "url",
       data: { kind: "data" as const },
+    },
+  ],
+};
+
+const invalidStepDraft = {
+  name: "A step with an empty setting",
+  nodes: [
+    edgeKindsDraft.nodes[0]!,
+    {
+      id: "notify",
+      type: "action.notify_slack" as const,
+      position: { x: 420, y: 180 },
+      data: {
+        catalogType: "action.notify_slack" as const,
+        config: {
+          kind: "action.notify_slack" as const,
+          channelId: "",
+          message: "Deployed",
+          onError: "stop" as const,
+        },
+        runStatus: "idle" as const,
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "execution-edge",
+      source: "trigger",
+      target: "notify",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" as const },
     },
   ],
 };
@@ -250,8 +282,22 @@ export const PortCompatibility: Story = {
     await expect(dataInput.className).toContain("ring-2");
     await expect(dataOutput.className).toContain("ring-2");
 
-    await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
-    await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
+    await expect(dataInput.className).toContain("[&.connectingto.valid]:text-emerald-500");
+    await expect(dataInput.querySelector("svg")?.getAttribute("class")).toContain(
+      "group-[.connectingto]/handle:opacity-30",
+    );
+
+    // A port's dot takes its type's colour and sits on the card's edge, clear of the port's name.
+    await expect(getComputedStyle(dataInput).color).not.toBe(getComputedStyle(optionalInput).color);
+    const urlName = within(canvas.getByTitle("url: string")).getByText("url");
+    await expect(dataInput.getBoundingClientRect().right).toBeLessThanOrEqual(
+      urlName.getBoundingClientRect().left,
+    );
+
+    // An execution handle is an arrow, a data port a round dot.
+    const executionIcon = executionInput[0]!.querySelector("svg");
+    await expect(executionIcon).not.toBeNull();
+    await expect(executionIcon!.innerHTML).not.toBe(dataInput.querySelector("svg")?.innerHTML);
 
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 
@@ -265,6 +311,38 @@ export const PortCompatibility: Story = {
         "This value is supplied by a connected data port. Remove the data wire to edit it here.",
       ).length,
     ).toBeGreaterThan(0);
+  },
+};
+
+export const InvalidStep: Story = {
+  name: "Invalid step",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step with an empty required setting is marked on the canvas. The issue names the step and the setting, and its buttons select the step and bring it into view.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByTitle("This step has a problem")).toBeInTheDocument();
+    await expect(canvas.getByText("channelId is required.")).toBeInTheDocument();
+    // One broken step needs no arrows.
+    await expect(canvas.queryByRole("button", { name: "Next issue" })).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show on canvas" }));
+
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   },
 };
 
@@ -549,6 +627,16 @@ export const TryCatchNode: Story = {
     await expect(
       canvas.getByLabelText("Data output: attempt, object, optional"),
     ).toBeInTheDocument();
+
+    // Execution handles keep to the step's top part, so none shares a spot with a data port.
+    const firstDataPort = canvas
+      .getByLabelText("Data output: errorCode, string, optional")
+      .getBoundingClientRect();
+    for (const label of ["Try", "Success", "Catch", "Finally"]) {
+      await expect(canvas.getByLabelText(label).getBoundingClientRect().bottom).toBeLessThan(
+        firstDataPort.top,
+      );
+    }
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
   },
 };

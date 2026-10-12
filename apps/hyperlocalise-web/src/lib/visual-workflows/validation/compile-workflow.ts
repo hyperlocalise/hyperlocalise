@@ -47,8 +47,12 @@ export function compileWorkflowIssues(
 ): VisualWorkflowValidationIssue[] {
   const issues: VisualWorkflowValidationIssue[] = [];
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
-  const add = (code: VisualWorkflowValidationIssue["code"], nodeId?: string, edgeId?: string) =>
-    issues.push({ code, nodeId, edgeId });
+  const add = (
+    code: VisualWorkflowValidationIssue["code"],
+    nodeId?: string,
+    edgeId?: string,
+    detail?: Pick<VisualWorkflowValidationIssue, "field" | "reason">,
+  ) => issues.push({ code, nodeId, edgeId, ...detail });
   if (
     nodes.size !== definition.nodes.length ||
     new Set(definition.edges.map((edge) => edge.id)).size !== definition.edges.length
@@ -279,7 +283,7 @@ export function compileWorkflowIssues(
           config[field.name] === null ||
           config[field.name] === "")
       )
-        add("invalid_node_config", node.id);
+        add("invalid_node_config", node.id, undefined, { field: field.name, reason: "required" });
     for (const field of node.outputFields ?? [])
       if (
         field.path.split(".").some((key) => ["__proto__", "constructor", "prototype"].includes(key))
@@ -331,7 +335,7 @@ export function compileWorkflowIssues(
             })
           )
             invalid = true;
-      if (invalid) add("invalid_binding", node.id);
+      if (invalid) add("invalid_binding", node.id, undefined, { field: name, reason: "invalid" });
     }
     for (const binding of Object.values(node.collect ?? {}))
       if (
@@ -346,7 +350,8 @@ export function compileWorkflowIssues(
       (node.bodyNodeIds || node.collect)
     )
       add("invalid_loop", node.id);
-    if (hasLiteralHttpCredentials(node)) add("invalid_node_config", node.id);
+    if (hasLiteralHttpCredentials(node))
+      add("invalid_node_config", node.id, undefined, { reason: "literal_credential" });
   }
   return issues;
 }

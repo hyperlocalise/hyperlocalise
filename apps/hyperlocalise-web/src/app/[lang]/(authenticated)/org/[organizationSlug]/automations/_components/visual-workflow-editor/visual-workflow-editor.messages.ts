@@ -95,11 +95,6 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "86k8CEUaJ5",
     description: "Column header for node status in execution detail",
   },
-  share: {
-    defaultMessage: "Share",
-    id: "LwRsugxcAC",
-    description: "Disabled share button in visual workflow chrome",
-  },
   save: {
     defaultMessage: "Save",
     id: "U87kn4cxmh",
@@ -109,6 +104,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Saving…",
     id: "4JSF3BIeDZ",
     description: "Save button label while a visual workflow is being saved",
+  },
+  exportMenu: {
+    defaultMessage: "Export",
+    id: "besNXCgM6P",
+    description: "Button that opens the menu for copying or downloading the workflow JSON",
   },
   exportJson: {
     defaultMessage: "Export JSON",
@@ -989,6 +989,52 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Fix the step configuration before saving this workflow.",
     id: "2963Vncu1b",
     description: "Validation message when a non-trigger node config is invalid",
+  },
+  issueFieldRequired: {
+    defaultMessage: "{field} is required.",
+    id: "5PqiPGaWW/",
+    description:
+      "Validation message when a setting or input of a step is empty. {field} is the setting's key, such as channelId",
+  },
+  issueFieldInvalid: {
+    defaultMessage: "{field} is not valid.",
+    id: "q6TvmN/FEl",
+    description:
+      "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
+  },
+  issuePosition: {
+    defaultMessage: "Issue {current} of {total}",
+    id: "2fPK5TW6va",
+    description:
+      "Which of the workflow's validation issues is shown, above the issue. {current} and {total} are numbers",
+  },
+  previousIssue: {
+    defaultMessage: "Previous issue",
+    id: "GSFsE42qE6",
+    description: "Button that shows the previous validation issue of a visual workflow",
+  },
+  nextIssue: {
+    defaultMessage: "Next issue",
+    id: "We3SJU9IT4",
+    description: "Button that shows the next validation issue of a visual workflow",
+  },
+  stepHasIssue: {
+    defaultMessage: "This step has a problem",
+    id: "22szuz+pVL",
+    description: "Label of the warning mark on a canvas step that a validation issue is about",
+  },
+  showStepOnCanvas: {
+    defaultMessage: "Show on canvas",
+    id: "1oDvFz2774",
+    description:
+      "Button beside a validation issue that selects its step and moves the canvas to it",
+  },
+  issueLiteralCredential: {
+    defaultMessage:
+      "Use a saved credential for secret values instead of typing them into the step.",
+    id: "mCqI44HE9m",
+    description:
+      "Validation message when an HTTP step holds a token or secret header as plain text",
   },
   trueHandle: {
     defaultMessage: "true",
