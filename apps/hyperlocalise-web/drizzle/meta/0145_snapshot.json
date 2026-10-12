@@ -1,5 +1,5 @@
 {
-  "id": "8197464a-3a58-4427-b8d9-15106518fa1d",
+  "id": "474dd322-2d2d-48fd-85ab-e1c9ad37bfaf",
   "prevId": "d5d31734-01ff-4aaf-958d-2dcc093da4f4",
   "version": "7",
   "dialect": "postgresql",
@@ -25069,6 +25069,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
+        },
+        "match_process_id": {
+          "name": "match_process_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
@@ -25153,6 +25166,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_project_visual_context_bindings_match_process": {
+          "name": "idx_project_visual_context_bindings_match_process",
+          "columns": [
+            {
+              "expression": "match_process_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -25208,6 +25236,19 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "project_visual_context_bindings_match_process_id_project_visual_context_match_processes_id_fk": {
+          "name": "project_visual_context_bindings_match_process_id_project_visual_context_match_processes_id_fk",
+          "tableFrom": "project_visual_context_bindings",
+          "tableTo": "project_visual_context_match_processes",
+          "columnsFrom": [
+            "match_process_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "project_visual_context_bindings_created_by_user_id_users_id_fk": {
           "name": "project_visual_context_bindings_created_by_user_id_users_id_fk",
           "tableFrom": "project_visual_context_bindings",
@@ -25226,9 +25267,250 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "project_visual_context_bindings_source_check": {
+          "name": "project_visual_context_bindings_source_check",
+          "value": "\"project_visual_context_bindings\".\"source\" in ('manual', 'auto')"
+        },
         "project_visual_context_bindings_marker_check": {
           "name": "project_visual_context_bindings_marker_check",
-          "value": "(\n        \"project_visual_context_bindings\".\"marker_left\" is null\n        and \"project_visual_context_bindings\".\"marker_top\" is null\n        and \"project_visual_context_bindings\".\"marker_width\" is null\n        and \"project_visual_context_bindings\".\"marker_height\" is null\n      ) or (\n        \"project_visual_context_bindings\".\"marker_left\" is not null\n        and \"project_visual_context_bindings\".\"marker_top\" is not null\n        and \"project_visual_context_bindings\".\"marker_width\" is not null\n        and \"project_visual_context_bindings\".\"marker_height\" is not null\n        and \"project_visual_context_bindings\".\"marker_left\" >= 0 and \"project_visual_context_bindings\".\"marker_left\" <= 100\n        and \"project_visual_context_bindings\".\"marker_top\" >= 0 and \"project_visual_context_bindings\".\"marker_top\" <= 100\n        and \"project_visual_context_bindings\".\"marker_width\" > 0 and \"project_visual_context_bindings\".\"marker_width\" <= 100\n        and \"project_visual_context_bindings\".\"marker_height\" > 0 and \"project_visual_context_bindings\".\"marker_height\" <= 100\n      )"
+          "value": "(\n        \"project_visual_context_bindings\".\"marker_left\" is null\n        and \"project_visual_context_bindings\".\"marker_top\" is null\n        and \"project_visual_context_bindings\".\"marker_width\" is null\n        and \"project_visual_context_bindings\".\"marker_height\" is null\n      ) or (\n        \"project_visual_context_bindings\".\"marker_left\" is not null\n        and \"project_visual_context_bindings\".\"marker_top\" is not null\n        and \"project_visual_context_bindings\".\"marker_width\" is not null\n        and \"project_visual_context_bindings\".\"marker_height\" is not null\n        and \"project_visual_context_bindings\".\"marker_left\" >= 0 and \"project_visual_context_bindings\".\"marker_left\" <= 100\n        and \"project_visual_context_bindings\".\"marker_top\" >= 0 and \"project_visual_context_bindings\".\"marker_top\" <= 100\n        and \"project_visual_context_bindings\".\"marker_width\" > 0 and \"project_visual_context_bindings\".\"marker_width\" <= 100\n        and \"project_visual_context_bindings\".\"marker_height\" > 0 and \"project_visual_context_bindings\".\"marker_height\" <= 100\n        and \"project_visual_context_bindings\".\"marker_left\" + \"project_visual_context_bindings\".\"marker_width\" <= 100.000001\n        and \"project_visual_context_bindings\".\"marker_top\" + \"project_visual_context_bindings\".\"marker_height\" <= 100.000001\n      )"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.project_visual_context_match_processes": {
+      "name": "project_visual_context_match_processes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "screenshot_id": {
+          "name": "screenshot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
+        },
+        "repository_source_file_id": {
+          "name": "repository_source_file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "translation_key_ids": {
+          "name": "translation_key_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "override_context_older_than_days": {
+          "name": "override_context_older_than_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "checked_strings_count": {
+          "name": "checked_strings_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bound_strings_count": {
+          "name": "bound_strings_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_project_visual_context_match_processes_org_project": {
+          "name": "idx_project_visual_context_match_processes_org_project",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "project_visual_context_match_processes_active_screenshot": {
+          "name": "project_visual_context_match_processes_active_screenshot",
+          "columns": [
+            {
+              "expression": "screenshot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"project_visual_context_match_processes\".\"status\" in ('queued', 'in_progress')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "project_visual_context_match_processes_organization_id_organizations_id_fk": {
+          "name": "project_visual_context_match_processes_organization_id_organizations_id_fk",
+          "tableFrom": "project_visual_context_match_processes",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_visual_context_match_processes_project_id_projects_id_fk": {
+          "name": "project_visual_context_match_processes_project_id_projects_id_fk",
+          "tableFrom": "project_visual_context_match_processes",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_visual_context_match_processes_screenshot_id_project_visual_context_screenshots_id_fk": {
+          "name": "project_visual_context_match_processes_screenshot_id_project_visual_context_screenshots_id_fk",
+          "tableFrom": "project_visual_context_match_processes",
+          "tableTo": "project_visual_context_screenshots",
+          "columnsFrom": [
+            "screenshot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_visual_context_match_processes_repository_source_file_id_repository_source_files_id_fk": {
+          "name": "project_visual_context_match_processes_repository_source_file_id_repository_source_files_id_fk",
+          "tableFrom": "project_visual_context_match_processes",
+          "tableTo": "repository_source_files",
+          "columnsFrom": [
+            "repository_source_file_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "project_visual_context_match_processes_created_by_user_id_users_id_fk": {
+          "name": "project_visual_context_match_processes_created_by_user_id_users_id_fk",
+          "tableFrom": "project_visual_context_match_processes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "project_visual_context_match_processes_status_check": {
+          "name": "project_visual_context_match_processes_status_check",
+          "value": "\"project_visual_context_match_processes\".\"status\" in ('queued', 'in_progress', 'completed', 'failed')"
+        },
+        "project_visual_context_match_processes_scope_check": {
+          "name": "project_visual_context_match_processes_scope_check",
+          "value": "\"project_visual_context_match_processes\".\"repository_source_file_id\" is null or \"project_visual_context_match_processes\".\"translation_key_ids\" is null"
+        },
+        "project_visual_context_match_processes_override_check": {
+          "name": "project_visual_context_match_processes_override_check",
+          "value": "\"project_visual_context_match_processes\".\"override_context_older_than_days\" is null or \"project_visual_context_match_processes\".\"override_context_older_than_days\" >= 1"
         }
       },
       "isRLSEnabled": false
@@ -25428,7 +25710,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "project_visual_context_screenshots_created_by_user_id_users_id_fk": {
