@@ -133,11 +133,16 @@ export function VisualWorkflowConfigPanel({
       "This value is supplied by a connected data port. Remove the data wire to edit it here.",
     description: "Description for an inline workflow value overridden by a data connection",
   });
+  // The settings and inputs of this step that an issue names.
+  const invalidFields = new Set(
+    issues.flatMap((issue) => (issue.nodeId === node.id && issue.field ? [issue.field] : [])),
+  );
   const connectedInputProps = (portId: string) => {
     const disabled = isInputConnected(portId);
     return {
       disabled,
       description: disabled ? connectedInputDescription : undefined,
+      invalid: invalidFields.has(portId),
     };
   };
 
@@ -156,6 +161,7 @@ export function VisualWorkflowConfigPanel({
             nodes={nodes}
             edges={edges}
             organizationSlug={organizationSlug}
+            invalidFields={invalidFields}
             onChange={onChangeContract}
           />
         ) : null}
@@ -1642,6 +1648,7 @@ function TextField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
 }: {
   id: string;
   label: string;
@@ -1650,6 +1657,7 @@ function TextField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -1658,6 +1666,7 @@ function TextField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1674,6 +1683,7 @@ function TextAreaField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
 }: {
   id: string;
   label: string;
@@ -1682,6 +1692,7 @@ function TextAreaField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -1690,6 +1701,7 @@ function TextAreaField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />

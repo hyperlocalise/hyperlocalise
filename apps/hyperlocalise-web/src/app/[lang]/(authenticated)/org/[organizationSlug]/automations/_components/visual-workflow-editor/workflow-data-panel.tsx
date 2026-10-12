@@ -75,9 +75,12 @@ export function WorkflowDataPanel({
   edges,
   onChange,
   organizationSlug,
+  invalidFields,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
+  /** The inputs of this step that a validation issue names. */
+  invalidFields?: ReadonlySet<string>;
   nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
   onChange: (patch: WorkflowNodeContract) => void;
@@ -197,8 +200,9 @@ export function WorkflowDataPanel({
         });
         const binding = wiredBinding ?? node.data.inputs?.[field.name];
         const isWired = wiredBinding !== undefined;
+        const invalid = invalidFields?.has(field.name) || undefined;
         return (
-          <Field key={field.name}>
+          <Field key={field.name} data-invalid={invalid}>
             <FieldLabel>
               {field.name} · {field.type} {field.required ? "*" : ""}
             </FieldLabel>
@@ -218,7 +222,7 @@ export function WorkflowDataPanel({
                 else change(field.name, undefined);
               }}
             >
-              <SelectTrigger aria-label={field.name}>
+              <SelectTrigger aria-label={field.name} aria-invalid={invalid}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

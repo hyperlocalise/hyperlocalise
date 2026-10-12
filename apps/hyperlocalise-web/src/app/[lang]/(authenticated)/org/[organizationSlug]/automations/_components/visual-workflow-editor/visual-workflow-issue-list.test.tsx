@@ -70,6 +70,43 @@ describe("VisualWorkflowIssueList", () => {
     expect(onSelectNode).toHaveBeenCalledExactlyOnceWith("request");
   });
 
+  it("says which setting is at fault and why, where the validator knows", () => {
+    renderList({
+      issues: [
+        { code: "invalid_node_config", nodeId: "notify", field: "channelId", reason: "required" },
+        { code: "invalid_node_config", nodeId: "notify", field: "message", reason: "required" },
+        {
+          code: "invalid_trigger_config",
+          nodeId: "schedule",
+          field: "schedule",
+          reason: "invalid",
+        },
+        { code: "invalid_node_config", nodeId: "request", reason: "literal_credential" },
+      ],
+      nodes: [
+        node("notify", "action.notify_slack"),
+        node("schedule", "trigger.scheduled"),
+        node("request", "action.http"),
+      ],
+      onSelectNode: vi.fn(),
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Notify Slack channelId is required." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Notify Slack message is required." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Schedule schedule is not valid." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "HTTP Request Use a saved credential for secret values instead of typing them into the step.",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("leaves an issue about no step as plain text", () => {
     renderList({
       issues: [{ code: "missing_trigger" }],

@@ -990,6 +990,25 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "2963Vncu1b",
     description: "Validation message when a non-trigger node config is invalid",
   },
+  issueFieldRequired: {
+    defaultMessage: "{field} is required.",
+    id: "5PqiPGaWW/",
+    description:
+      "Validation message when a setting or input of a step is empty. {field} is the setting's key, such as channelId",
+  },
+  issueFieldInvalid: {
+    defaultMessage: "{field} is not valid.",
+    id: "q6TvmN/FEl",
+    description:
+      "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
+  },
+  issueLiteralCredential: {
+    defaultMessage:
+      "Use a saved credential for secret values instead of typing them into the step.",
+    id: "mCqI44HE9m",
+    description:
+      "Validation message when an HTTP step holds a token or secret header as plain text",
+  },
   trueHandle: {
     defaultMessage: "true",
     id: "76uDSBNqg0",

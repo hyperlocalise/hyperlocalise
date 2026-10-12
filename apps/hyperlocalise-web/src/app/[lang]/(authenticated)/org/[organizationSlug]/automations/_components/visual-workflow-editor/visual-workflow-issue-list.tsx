@@ -24,12 +24,13 @@ import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 type VisualWorkflowIssue = VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue;
 
 function issueKey(issue: VisualWorkflowIssue) {
-  return `${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`;
+  return `${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}-${issue.field ?? ""}-${issue.reason ?? ""}`;
 }
 
 /**
- * What stops the workflow from being published. An issue about a step names the step and, when
- * `onSelectNode` is given, is a button that selects it.
+ * What stops the workflow from being published. An issue about a step names the step and, where
+ * the validator knows it, the setting at fault; when `onSelectNode` is given it is a button that
+ * selects the step.
  */
 export function VisualWorkflowIssueList({
   issues,
@@ -54,7 +55,14 @@ export function VisualWorkflowIssueList({
       className="border-t border-border px-4 py-3 text-sm text-destructive"
     >
       {lines.map((issue) => {
-        const message = intl.formatMessage(issueMessage(issue.code));
+        const message =
+          issue.reason === "literal_credential"
+            ? intl.formatMessage(messages.issueLiteralCredential)
+            : issue.field && issue.reason === "required"
+              ? intl.formatMessage(messages.issueFieldRequired, { field: issue.field })
+              : issue.field && issue.reason === "invalid"
+                ? intl.formatMessage(messages.issueFieldInvalid, { field: issue.field })
+                : intl.formatMessage(issueMessage(issue.code));
         const node = issue.nodeId ? nodes.find((entry) => entry.id === issue.nodeId) : undefined;
         if (!node) {
           return <p key={issueKey(issue)}>{message}</p>;
