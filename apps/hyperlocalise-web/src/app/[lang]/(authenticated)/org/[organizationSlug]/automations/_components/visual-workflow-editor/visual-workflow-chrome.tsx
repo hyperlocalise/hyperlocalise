@@ -12,10 +12,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -146,30 +153,29 @@ export function VisualWorkflowChrome({
             )}
           </span>
         )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button type="button" variant="outline" size="sm" disabled>
-                <FormattedMessage {...messages.share} />
-              </Button>
-            }
-          />
-          <TooltipContent>{previewOnly}</TooltipContent>
-        </Tooltip>
-        <Button type="button" variant="outline" size="sm" onClick={onCopy}>
-          {copied ? (
-            <FormattedMessage {...messages.copiedJson} />
-          ) : (
-            <FormattedMessage {...messages.copyJson} />
-          )}
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onExport}>
-          <FormattedMessage {...messages.exportJson} />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
+            {/* The menu closes on a choice, so the button itself confirms a copy. */}
+            {copied ? (
+              <FormattedMessage {...messages.copiedJson} />
+            ) : (
+              <FormattedMessage {...messages.exportMenu} />
+            )}
+            <CaretDownIcon data-icon="inline-end" className="size-3.5 opacity-60" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onCopy}>
+              <FormattedMessage {...messages.copyJson} />
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <FormattedMessage {...messages.exportJson} />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {onDelete ? (
           <Button
             type="button"
-            variant="outline"
+            variant="destructive"
             size="sm"
             disabled={isDeleting || isSaving}
             onClick={onDelete}
