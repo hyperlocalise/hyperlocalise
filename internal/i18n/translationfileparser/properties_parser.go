@@ -120,7 +120,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 			continue
 		}
 
-		logical, nextPos, lineCount, err := readPropertiesLogicalLine(text, pos, currentLine)
+		logical, nextPos, lineCount, err := readPropertiesLogicalLine(text, pos, contentStart, contentEnd, next, currentLine)
 		if err != nil {
 			return propertiesDocument{}, err
 		}
@@ -300,6 +300,11 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	}
 	b.WriteString(d.template[cursor:])
 
+	// BOLT OPTIMIZATION: If all keys in values were present in the template, bypass missing slice allocations.
+	if len(seen) == len(values) {
+		return []byte(b.String())
+	}
+
 	missing := make([]string, 0, len(values)-len(seen))
 	for key := range values {
 		if _, ok := seen[key]; ok {
@@ -327,8 +332,7 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	return []byte(out.String())
 }
 
-func readPropertiesLogicalLine(text string, start int, lineNumber int) (propertiesLogicalLine, int, int, error) {
-	contentStart, contentEnd, next := readPropertiesPhysicalLine(text, start)
+func readPropertiesLogicalLine(text string, start, contentStart, contentEnd, next int, lineNumber int) (propertiesLogicalLine, int, int, error) {
 	continued := propertiesLineContinues(text[contentStart:contentEnd])
 
 	// Fast-path: Single-line properties without continuations (the common case)
