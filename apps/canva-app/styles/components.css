@@ -78,6 +78,19 @@
   gap: var(--ui-kit-space-100);
 }
 
+.localeDetail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+}
+
+.localeApproved {
+  color: var(--ui-kit-color-typography-positive, #128a4b);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .localeProgressSkeleton {
   height: 8px;
 }

@@ -73,7 +73,19 @@ function flattenSegmentEntries(
 
 export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
   const translations: Record<string, string> = {};
-  flattenSegmentEntries(translations, "", content);
+  const leaves: Record<string, unknown> = {};
+  const nested: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(content)) {
+    if (typeof value === "string") {
+      leaves[key] = value;
+    } else {
+      nested[key] = value;
+    }
+  }
+
+  flattenSegmentEntries(translations, "", leaves);
+  flattenSegmentEntries(translations, "", nested);
   return translations;
 }
 

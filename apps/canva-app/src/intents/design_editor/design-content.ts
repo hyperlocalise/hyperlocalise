@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { openDesign } from "@canva/design";
+import { editContent, openDesign } from "@canva/design";
 
 import { lookupTranslatedText, parseTranslationFile, segmentKey } from "./segment-file";
 import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
@@ -62,6 +62,15 @@ type CurrentPageSession = {
   sync: () => Promise<void>;
 };
 
+type EditableRichtextRange = RichtextRange & {
+  deleted?: boolean;
+};
+
+type RichtextContentSession = {
+  contents: readonly EditableRichtextRange[];
+  sync: () => Promise<void>;
+};
+
 function findRegionOffsets(plaintext: string, regions: Array<{ text: string }>): number[] {
   const offsets: number[] = [];
   let searchFrom = 0;
@@ -93,6 +102,17 @@ async function openCurrentPage(
   await openDesign(
     { type: "current_page" } as unknown as Parameters<typeof openDesign>[0],
     callback as unknown as Parameters<typeof openDesign>[1],
+  );
+}
+
+async function editCurrentPageRichtext(
+  callback: (session: RichtextContentSession) => Promise<void>,
+): Promise<void> {
+  await editContent(
+    { contentType: "richtext", target: "current_page" } as unknown as Parameters<
+      typeof editContent
+    >[0],
+    callback as unknown as Parameters<typeof editContent>[1],
   );
 }
 
@@ -151,19 +171,62 @@ function applyTranslationsToPageElements(
   let replaced = 0;
 
   walkTextElements(elements, (range) => {
-    const plaintext = range.readPlaintext();
-    const regions = range.readTextRegions();
-    const hasContent = preserveFormatting
-      ? regions.some((region) => region.text.length > 0)
-      : plaintext.length > 0;
-
-    if (!hasContent) {
-      return;
+    replaced += applyTranslationsToIndexedRange(
+      range,
+      normalized,
+      contentIndex,
+      preserveFormatting,
+    );
+    if (rangeHasApplyableContent(range, preserveFormatting)) {
+      contentIndex += 1;
     }
-
-    replaced += applyTranslationsToRange(range, normalized, contentIndex, preserveFormatting);
-    contentIndex += 1;
   });
+
+  return replaced;
+}
+
+function rangeHasApplyableContent(range: RichtextRange, preserveFormatting: boolean): boolean {
+  if (preserveFormatting) {
+    return range.readTextRegions().some((region) => region.text.length > 0);
+  }
+  return range.readPlaintext().length > 0;
+}
+
+function applyTranslationsToIndexedRange(
+  range: RichtextRange,
+  translations: Record<string, string>,
+  contentIndex: number,
+  preserveFormatting: boolean,
+): number {
+  if (!rangeHasApplyableContent(range, preserveFormatting)) {
+    return 0;
+  }
+  return applyTranslationsToRange(range, translations, contentIndex, preserveFormatting);
+}
+
+function applyTranslationsToRichtextContents(
+  contents: readonly EditableRichtextRange[],
+  translations: Record<string, string>,
+  preserveFormatting: boolean,
+): number {
+  const normalized = normalizeTranslations(translations);
+  let contentIndex = 0;
+  let replaced = 0;
+
+  for (const range of contents) {
+    if (range.deleted) {
+      continue;
+    }
+    replaced += applyTranslationsToIndexedRange(
+      range,
+      normalized,
+      contentIndex,
+      preserveFormatting,
+    );
+    if (rangeHasApplyableContent(range, preserveFormatting)) {
+      contentIndex += 1;
+    }
+  }
 
   return replaced;
 }
@@ -226,7 +289,7 @@ export function applyTranslationsToRange(
       const translatedText = lookupTranslatedText(translations, contentIndex, regionIndex);
       const offset = offsets[regionIndex];
 
-      if (!region || translatedText == null || offset == null) {
+      if (!region || translatedText == null || offset == null || translatedText === region.text) {
         continue;
       }
 
@@ -244,7 +307,7 @@ export function applyTranslationsToRange(
 
   const plaintext = range.readPlaintext();
   const translatedText = lookupTranslatedText(translations, contentIndex, 0);
-  if (translatedText == null || plaintext.length === 0) {
+  if (translatedText == null || plaintext.length === 0 || translatedText === plaintext) {
     return 0;
   }
 
@@ -318,6 +381,22 @@ export async function applyTranslationsToCurrentPage(
   preserveFormatting: boolean,
 ): Promise<number> {
   let replaced = 0;
+
+  try {
+    await editCurrentPageRichtext(async (session) => {
+      replaced = applyTranslationsToRichtextContents(
+        session.contents,
+        translations,
+        preserveFormatting,
+      );
+      if (replaced > 0) {
+        await session.sync();
+      }
+    });
+    return replaced;
+  } catch {
+    // Fall back when editContent is unavailable on this surface.
+  }
 
   await openCurrentPage(async (session) => {
     if (session.page.type === "unsupported" || session.page.locked) {

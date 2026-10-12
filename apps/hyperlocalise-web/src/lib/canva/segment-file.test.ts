@@ -91,5 +91,19 @@ describe("canva segment-file", () => {
     ).toEqual({
       "canva.segment.0.0": "Bonjour",
     });
+    expect(
+      parseTranslationFile({
+        canva: {
+          segment: {
+            "0": {
+              "0": "Xin chào",
+            },
+          },
+        },
+        "canva.segment.0.0": "Hello",
+      }),
+    ).toEqual({
+      "canva.segment.0.0": "Xin chào",
+    });
   });
 });

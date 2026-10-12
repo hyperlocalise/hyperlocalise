@@ -10,14 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("@canva/design", () => ({
   openDesign: vi.fn(),
   editContent: vi.fn(),
 }));
 
-import { openDesign } from "@canva/design";
+import { editContent, openDesign } from "@canva/design";
 
 import {
   applyTranslationsToCurrentPage,
@@ -28,6 +28,11 @@ import {
 } from "./design-content";
 
 describe("design-content", () => {
+  beforeEach(() => {
+    vi.mocked(openDesign).mockReset();
+    vi.mocked(editContent).mockReset();
+  });
+
   it("builds page summaries from page references", () => {
     expect(
       buildPageSummaries([
@@ -184,10 +189,85 @@ describe("design-content", () => {
     expect(replacements).toEqual([]);
   });
 
-  it("applies the selected file onto the current Canva page and syncs once", async () => {
+  it("skips translations that already match the design text", () => {
+    const replacements: string[] = [];
+
+    expect(
+      applyTranslationsToRange(
+        {
+          readPlaintext: () => "Hello",
+          readTextRegions: () => [{ text: "Hello" }],
+          replaceText: (_range, text) => {
+            replacements.push(text);
+          },
+        },
+        {
+          "canva.segment.0.0": "Hello",
+        },
+        0,
+        false,
+      ),
+    ).toBe(0);
+    expect(replacements).toEqual([]);
+  });
+
+  it("applies the selected file onto the current Canva page through editContent", async () => {
     const replacements: string[] = [];
     const sync = vi.fn(async () => undefined);
 
+    vi.mocked(editContent).mockImplementation(async (options, callback) => {
+      expect(options).toEqual({ contentType: "richtext", target: "current_page" });
+      await callback({
+        contents: [
+          {
+            deleted: false,
+            readPlaintext: () => "Hello",
+            readTextRegions: () => [{ text: "Hello" }],
+            replaceText: (_range: { index: number; length: number }, text: string) => {
+              replacements.push(text);
+            },
+          },
+        ],
+        sync,
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hola" }, false),
+    ).resolves.toBe(1);
+    expect(replacements).toEqual(["Hola"]);
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(openDesign).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to openDesign when editContent finds no replacements", async () => {
+    vi.mocked(editContent).mockImplementation(async (_options, callback) => {
+      await callback({
+        contents: [
+          {
+            deleted: false,
+            readPlaintext: () => "Hello",
+            readTextRegions: () => [{ text: "Hello" }],
+            replaceText: () => {
+              throw new Error("should not replace");
+            },
+          },
+        ],
+        sync: vi.fn(async () => undefined),
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hello" }, false),
+    ).resolves.toBe(0);
+    expect(openDesign).not.toHaveBeenCalled();
+  });
+
+  it("falls back to openDesign when editContent is unavailable", async () => {
+    const replacements: string[] = [];
+    const sync = vi.fn(async () => undefined);
+
+    vi.mocked(editContent).mockRejectedValue(new Error("unsupported"));
     vi.mocked(openDesign).mockImplementation(async (options, callback) => {
       expect(options).toEqual({ type: "current_page" });
       await callback({
