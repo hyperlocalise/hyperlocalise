@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/translation-map";
+import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/source-paths";
 
 import {
   brazeItemTitleFromSourcePath,

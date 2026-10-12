@@ -18,7 +18,7 @@ import {
   hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationBrazeTool,
 } from "@/lib/agents/workspace-automation-types";
-import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/translation-map";
+import { isBrazeCampaignSourcePath, isBrazeTemplateSourcePath } from "@/lib/braze/source-paths";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type ContentEditorBrazePushCandidate = {
