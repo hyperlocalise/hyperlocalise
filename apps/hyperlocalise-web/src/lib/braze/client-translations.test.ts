@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { readTranslationEntries } from "./client";
+import { classifyBrazeError, readErrorMessage, readTranslationEntries } from "./client";
 
 describe("readTranslationEntries", () => {
   it("keeps string maps, locale UUID, and optional timestamps", () => {
@@ -89,5 +89,25 @@ describe("readTranslationEntries", () => {
   it("drops non-object entries", () => {
     expect(readTranslationEntries({ translations: [null, "nope", 3] })).toEqual([]);
     expect(readTranslationEntries(null)).toEqual([]);
+  });
+});
+
+describe("Braze error bodies", () => {
+  it("reads the documented errors array and classifies multi-language support", () => {
+    const message = readErrorMessage(
+      { errors: [{ message: "This message does not support multi-language." }] },
+      "Braze request failed (400).",
+    );
+    expect(message).toBe("This message does not support multi-language.");
+    expect(classifyBrazeError(400, message)).toBe("braze_no_multi_language");
+  });
+
+  it("still prefers a top-level message when present", () => {
+    expect(
+      readErrorMessage(
+        { message: "Invalid API key", errors: [{ message: "ignored" }] },
+        "fallback",
+      ),
+    ).toBe("Invalid API key");
   });
 });

@@ -290,17 +290,36 @@ function appendListQuery(url: URL, query?: BrazeListQuery) {
   }
 }
 
-function readErrorMessage(body: unknown, fallback: string): string {
-  if (body && typeof body === "object" && "message" in body) {
-    const message = (body as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message.trim();
+function firstNonEmptyErrorMessage(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  return undefined;
+}
+
+export function readErrorMessage(body: unknown, fallback: string): string {
+  if (body && typeof body === "object") {
+    const record = body as { message?: unknown; errors?: unknown };
+    const topLevel = firstNonEmptyErrorMessage(record.message);
+    if (topLevel) {
+      return topLevel;
+    }
+    if (Array.isArray(record.errors)) {
+      for (const entry of record.errors) {
+        if (!entry || typeof entry !== "object" || !("message" in entry)) {
+          continue;
+        }
+        const nested = firstNonEmptyErrorMessage((entry as { message?: unknown }).message);
+        if (nested) {
+          return nested;
+        }
+      }
     }
   }
   return fallback;
 }
 
-function classifyBrazeError(
+export function classifyBrazeError(
   status: number,
   message: string,
   path?: string,
@@ -313,7 +332,11 @@ function classifyBrazeError(
   if (lower.includes("already exists")) {
     return "braze_name_exists";
   }
-  if (lower.includes("does not have multi-language") || lower.includes("multi-language setup")) {
+  if (
+    lower.includes("does not have multi-language") ||
+    lower.includes("does not support multi-language") ||
+    lower.includes("multi-language setup")
+  ) {
     return "braze_no_multi_language";
   }
   if (status === 401 || status === 403) {
