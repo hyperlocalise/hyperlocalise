@@ -70,6 +70,12 @@ const HANDLE_CLASS = cn(
   "motion-reduce:transition-none",
 );
 
+// A step's state is marked with a soft glow, not a hard outline: the canvas moves by fractions of
+// a pixel, and a thin bright line flickers between two and three pixels wide as it does.
+const STEP_GLOW_CLASS = {
+  issue: "shadow-[0_0_10px_2px_color-mix(in_oklab,var(--destructive)_60%,transparent)]",
+};
+
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
   string: "bg-blue-500",
   number: "bg-amber-500",
@@ -211,7 +217,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       style={{ minHeight: getVisualNodeDimensions(data.catalogType, data.config).height }}
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
-        hasIssue ? "ring-2 ring-destructive/70" : null,
+        hasIssue ? STEP_GLOW_CLASS.issue : null,
         selected ? "ring-2 ring-ring" : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
