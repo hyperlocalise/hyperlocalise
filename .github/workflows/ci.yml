@@ -10,6 +10,8 @@ on:
       - apps/hyperlocalise-web/**
       - "!apps/hyperlocalise-web/drizzle/**"
       - .github/workflows/web.yml
+      - apps/canva-app/**
+      - .github/workflows/canva-app.yml
 
 permissions:
   contents: read
