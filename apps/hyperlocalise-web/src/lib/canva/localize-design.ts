@@ -42,9 +42,10 @@ import {
   buildPageFileName,
   buildPageSourcePath,
   buildSourcePath,
+  buildSourceTextPageFile,
+  isSourceTextKey,
+  pageNeedsReupload,
   parseTranslationFile,
-  normalizePageScopedTranslationKeys,
-  segmentsToPageTranslationFile,
 } from "./segment-file";
 import type {
   CanvaCurrentJobResult,
@@ -52,8 +53,10 @@ import type {
   CanvaDesignSegment,
   CanvaJobStatusName,
   CanvaLocalePageStatus,
+  CanvaLocalePullResult,
   CanvaLocaleStatus,
   CanvaLocalizationStatus,
+  CanvaPullEntry,
   CollectCanvaDesignResult,
   CollectedCanvaPageFile,
   GenerateCanvaLocaleResult,
@@ -467,6 +470,55 @@ async function loadCanvaEditorTranslationsBySourcePath(input: {
   return byPath;
 }
 
+async function loadCanvaKnownTextsBySourcePath(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+}): Promise<Map<string, Map<string, string[]>>> {
+  const byPath = new Map<string, Map<string, string[]>>();
+  if (input.sourcePaths.length === 0) {
+    return byPath;
+  }
+
+  const rows = await db
+    .select({
+      key: schema.projectTranslationKeys.key,
+      text: schema.projectTranslations.text,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.projectTranslations)
+    .innerJoin(
+      schema.projectTranslationKeys,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslations.organizationId, input.organizationId),
+        eq(schema.projectTranslations.projectId, input.projectId),
+        inArray(schema.repositorySourceFiles.sourcePath, input.sourcePaths),
+      ),
+    );
+
+  for (const row of rows) {
+    if (row.text.trim().length === 0 || !row.sourcePath) {
+      continue;
+    }
+    const keys = byPath.get(row.sourcePath) ?? new Map<string, string[]>();
+    const texts = keys.get(row.key) ?? [];
+    if (!texts.includes(row.text)) {
+      texts.push(row.text);
+    }
+    keys.set(row.key, texts);
+    byPath.set(row.sourcePath, keys);
+  }
+
+  return byPath;
+}
+
 function countTranslatedSourceWords(
   sourceFile: Record<string, string>,
   translations: Record<string, string>,
@@ -566,6 +618,7 @@ export function buildCanvaSourceLocaleStatus(input: {
 }): CanvaLocaleStatus {
   const localePages: CanvaLocalePageStatus[] = input.pages.map((page) => {
     const sourceFile = input.sourceByPage.get(page.pageIndex) ?? {};
+    const needsReupload = pageNeedsReupload(sourceFile);
     const wordCount =
       page.wordCount > 0
         ? page.wordCount
@@ -574,12 +627,13 @@ export function buildCanvaSourceLocaleStatus(input: {
       pageIndex: page.pageIndex,
       sourcePath: page.sourcePath,
       jobId: null,
-      status: "succeeded" as const,
-      translated: page.segmentCount,
+      status: needsReupload ? ("idle" as const) : ("succeeded" as const),
+      translated: needsReupload ? 0 : page.segmentCount,
       total: page.segmentCount,
-      translatedWords: wordCount,
+      translatedWords: needsReupload ? 0 : wordCount,
       wordCount,
-      approved: page.segmentCount,
+      approved: needsReupload ? 0 : page.segmentCount,
+      needsReupload,
     };
   });
   const translated = localePages.reduce((sum, page) => sum + page.translated, 0);
@@ -587,19 +641,20 @@ export function buildCanvaSourceLocaleStatus(input: {
   const translatedWords = localePages.reduce((sum, page) => sum + page.translatedWords, 0);
   const wordCount = localePages.reduce((sum, page) => sum + page.wordCount, 0);
   const approved = localePages.reduce((sum, page) => sum + page.approved, 0);
+  const readyPages = localePages.filter((page) => !page.needsReupload);
 
   return {
     locale: input.locale,
     isSource: true,
-    status: localePages.length > 0 ? "succeeded" : "idle",
+    status: readyPages.length > 0 ? "succeeded" : "idle",
     translated,
     total,
     translatedWords,
     wordCount,
-    percent: localePages.length > 0 ? 100 : 0,
+    percent: readyPages.length > 0 ? 100 : 0,
     approved,
     approvedPercent: canvaApprovalPercent(approved, total),
-    canAdd: localePages.length > 0,
+    canAdd: readyPages.length > 0,
     pages: localePages,
   };
 }
@@ -651,7 +706,7 @@ export async function collectCanvaDesign(input: {
   const pages: CollectedCanvaPageFile[] = [];
 
   for (const [pageIndex, pageSegments] of grouped) {
-    const translationFile = segmentsToPageTranslationFile(pageSegments);
+    const translationFile = buildSourceTextPageFile(pageSegments.map((segment) => segment.text));
     if (Object.keys(translationFile).length === 0) {
       continue;
     }
@@ -992,6 +1047,7 @@ export async function listCanvaDesignLocaleStatuses(input: {
     const localePages: CanvaLocalePageStatus[] = [];
     for (const page of pages) {
       const sourceFile = sourceByPage.get(page.pageIndex) ?? {};
+      const needsReupload = pageNeedsReupload(sourceFile);
       const wordCount =
         page.wordCount > 0 ? page.wordCount : countTranslationFileWords(sourceFile, sourceLocale);
       const job = jobs.find(
@@ -1002,7 +1058,7 @@ export async function listCanvaDesignLocaleStatuses(input: {
       let status: CanvaJobStatusName | "idle" = job ? publicCanvaJobStatus(job.status) : "idle";
       let translated = 0;
       let translatedWords = 0;
-      if (job && status !== "idle" && canvaJobHasPullableTranslations(status)) {
+      if (!needsReupload && job && status !== "idle" && canvaJobHasPullableTranslations(status)) {
         const outputFiles = (publicJobOutputFiles(job) ?? []).filter(
           (file) => file.locale === locale,
         );
@@ -1018,16 +1074,22 @@ export async function listCanvaDesignLocaleStatuses(input: {
         }
       }
       const editorSegments = editorByPath.get(page.sourcePath) ?? {};
-      const editorTranslated = countTranslatedKeys(editorSegments, page.segmentCount);
-      if (editorTranslated > 0) {
-        translated = Math.max(translated, editorTranslated);
-        translatedWords = Math.max(
-          translatedWords,
-          countTranslatedSourceWords(sourceFile, editorSegments, sourceLocale),
-        );
-        if (status === "idle" || !canvaJobHasPullableTranslations(status)) {
-          status = "waiting_for_review";
+      if (!needsReupload) {
+        const editorTranslated = countTranslatedKeys(editorSegments, page.segmentCount);
+        if (editorTranslated > 0) {
+          translated = Math.max(translated, editorTranslated);
+          translatedWords = Math.max(
+            translatedWords,
+            countTranslatedSourceWords(sourceFile, editorSegments, sourceLocale),
+          );
+          if (status === "idle" || !canvaJobHasPullableTranslations(status)) {
+            status = "waiting_for_review";
+          }
         }
+      } else {
+        status = "idle";
+        translated = 0;
+        translatedWords = 0;
       }
       const approvedFromStore = approvalCounts.approvedByLocaleAndPath.get(
         `${locale}\0${page.sourcePath}`,
@@ -1041,9 +1103,12 @@ export async function listCanvaDesignLocaleStatuses(input: {
         total: page.segmentCount,
         translatedWords,
         wordCount,
-        approved: approvalCounts.hasIngestedKeys
-          ? (approvedFromStore ?? 0)
-          : fallbackApprovedSegmentCount(status, translated, page.segmentCount),
+        approved: needsReupload
+          ? 0
+          : approvalCounts.hasIngestedKeys
+            ? (approvedFromStore ?? 0)
+            : fallbackApprovedSegmentCount(status, translated, page.segmentCount),
+        needsReupload,
       });
     }
 
@@ -1133,6 +1198,29 @@ async function listCanvaDesignJobs(input: {
   });
 }
 
+export function buildCanvaPullEntries(input: {
+  sourceFile: Record<string, string>;
+  localeIsSource: boolean;
+  editorTranslations: Record<string, string>;
+  knownTextsByKey: Map<string, string[]>;
+}): CanvaPullEntry[] {
+  const entries: CanvaPullEntry[] = [];
+  for (const [key, source] of Object.entries(input.sourceFile)) {
+    if (!isSourceTextKey(key)) {
+      continue;
+    }
+    const editorText = (input.editorTranslations[key] ?? "").trim();
+    const target = input.localeIsSource ? source : editorText.length > 0 ? editorText : null;
+    entries.push({
+      key,
+      source,
+      target,
+      knownTexts: input.knownTextsByKey.get(key) ?? [],
+    });
+  }
+  return entries;
+}
+
 export async function pullCanvaLocalePageTranslations(input: {
   organizationId: string;
   canvaConnectionId: string;
@@ -1141,17 +1229,7 @@ export async function pullCanvaLocalePageTranslations(input: {
   designId: string;
   locale: string;
   pageIndex?: number;
-}): Promise<{
-  locale: string;
-  projectId: string;
-  pages: Array<{
-    pageIndex: number;
-    sourcePath: string;
-    jobId: string;
-    status: CanvaJobStatusName;
-    translations: Record<string, string>;
-  }>;
-}> {
+}): Promise<CanvaLocalePullResult> {
   const statuses = await listCanvaDesignLocaleStatuses(input);
   const localeStatus = statuses.locales.find((entry) => entry.locale === input.locale);
   if (!localeStatus) {
@@ -1161,24 +1239,14 @@ export async function pullCanvaLocalePageTranslations(input: {
   const pagesToPull = localeStatus.pages.filter(
     (page) => input.pageIndex == null || page.pageIndex === input.pageIndex,
   );
-  const editorTranslationsByPath = localeStatus.isSource
-    ? new Map<string, Record<string, string>>()
-    : await loadCanvaEditorTranslationsBySourcePath({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        locale: input.locale,
-        sourcePaths: pagesToPull.map((page) => page.sourcePath),
-      });
-
-  const pages = [];
-  for (const page of localeStatus.pages) {
-    if (input.pageIndex != null && page.pageIndex !== input.pageIndex) {
-      continue;
-    }
-    if (localeStatus.isSource) {
-      const collected = statuses.pages.find((entry) => entry.pageIndex === page.pageIndex);
+  const collectedByIndex = new Map(statuses.pages.map((page) => [page.pageIndex, page]));
+  const sourceByPage = new Map<number, Record<string, string>>();
+  await Promise.all(
+    pagesToPull.map(async (page) => {
+      const collected = collectedByIndex.get(page.pageIndex);
       if (!collected) {
-        continue;
+        sourceByPage.set(page.pageIndex, {});
+        return;
       }
       try {
         const stored = await getStoredFileContent({
@@ -1186,42 +1254,50 @@ export async function pullCanvaLocalePageTranslations(input: {
           projectId: input.projectId,
           fileId: collected.sourceFileId,
         });
-        pages.push({
-          pageIndex: page.pageIndex,
-          sourcePath: page.sourcePath,
-          jobId: page.jobId ?? "",
-          status: "succeeded" as const,
-          translations: normalizePageScopedTranslationKeys(
-            parseStoredTranslationFile(stored.content),
-            page.pageIndex,
-          ),
-        });
+        sourceByPage.set(page.pageIndex, parseStoredTranslationFile(stored.content));
       } catch {
-        continue;
+        sourceByPage.set(page.pageIndex, {});
       }
-      continue;
-    }
-    const editorSegments = editorTranslationsByPath.get(page.sourcePath) ?? {};
-    const editorTranslations: Record<string, string> = {};
-    for (const [key, value] of Object.entries(editorSegments)) {
-      if (value.trim().length === 0) {
-        continue;
-      }
-      editorTranslations[key] = value;
-    }
-    if (Object.keys(editorTranslations).length === 0) {
-      continue;
-    }
-    const pullStatus: CanvaJobStatusName =
-      page.status === "idle" ? "waiting_for_review" : page.status;
-    pages.push({
+    }),
+  );
+
+  const pullablePaths = pagesToPull
+    .filter((page) => !pageNeedsReupload(sourceByPage.get(page.pageIndex) ?? {}))
+    .map((page) => page.sourcePath);
+
+  const [editorTranslationsByPath, knownTextsByPath] = await Promise.all([
+    localeStatus.isSource
+      ? Promise.resolve(new Map<string, Record<string, string>>())
+      : loadCanvaEditorTranslationsBySourcePath({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          locale: input.locale,
+          sourcePaths: pullablePaths,
+        }),
+    loadCanvaKnownTextsBySourcePath({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePaths: pullablePaths,
+    }),
+  ]);
+
+  const pages = pagesToPull.map((page) => {
+    const sourceFile = sourceByPage.get(page.pageIndex) ?? {};
+    const needsReupload = pageNeedsReupload(sourceFile);
+    return {
       pageIndex: page.pageIndex,
       sourcePath: page.sourcePath,
-      jobId: page.jobId ?? "",
-      status: pullStatus,
-      translations: normalizePageScopedTranslationKeys(editorTranslations, page.pageIndex),
-    });
-  }
+      needsReupload,
+      entries: needsReupload
+        ? []
+        : buildCanvaPullEntries({
+            sourceFile,
+            localeIsSource: Boolean(localeStatus.isSource),
+            editorTranslations: editorTranslationsByPath.get(page.sourcePath) ?? {},
+            knownTextsByKey: knownTextsByPath.get(page.sourcePath) ?? new Map(),
+          }),
+    };
+  });
 
   return {
     locale: input.locale,

@@ -67,8 +67,9 @@ For local dev without a tunnel, paste a **connection token** from workspace Inte
 In the Canva app UI:
 
 - **Connect Hyperlocalise** (OAuth). A connection-token paste field appears only in local development.
-- **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
-- **Apply** — pull target-locale strings from the Content Editor and write them onto the selected pages
+- **Collect texts** — select pages, then upload one JSON file per page. Each text box is one string keyed by its source text (`canva.t.<hash>`). If the design already shows a translation, Upload still sends the Hyperlocalise source string.
+- **Translate** — starts a job for the chosen language from the last Upload, then applies it. It does not collect. Upload first.
+- **Apply** — pull locale strings from Hyperlocalise and write them onto boxes that still match uploaded source text or a known translation. Pages uploaded with older positional keys need a fresh Upload.
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 

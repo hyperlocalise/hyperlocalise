@@ -20,7 +20,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { App } from "./app";
 import * as designContent from "./design-content";
 import { loadSettings } from "./settings";
-import type { AppSettings, CanvaLocaleStatus, CanvaSession } from "./types";
+import type {
+  AppSettings,
+  ApplyResult,
+  CanvaLocaleStatus,
+  CanvaPullPage,
+  CanvaSession,
+} from "./types";
 
 function renderInTestProvider(node: ReactNode) {
   return render(
@@ -42,6 +48,7 @@ function emptySettings(overrides: Partial<AppSettings> = {}): AppSettings {
     preserveFormatting: true,
     selectedPageIndices: [],
     selectedLocale: "",
+    appliedLocale: "",
     lastJobId: "",
     ...overrides,
   };
@@ -95,6 +102,36 @@ function session(overrides: Partial<CanvaSession> = {}): CanvaSession {
   };
 }
 
+function readySourceStatus(): CanvaLocaleStatus {
+  return {
+    locale: "en-US",
+    isSource: true,
+    status: "succeeded",
+    translated: 1,
+    total: 1,
+    translatedWords: 1,
+    wordCount: 1,
+    percent: 100,
+    approved: 1,
+    approvedPercent: 100,
+    canAdd: true,
+    pages: [
+      {
+        pageIndex: 0,
+        sourcePath: "canva/designs/mic/page-1.json",
+        jobId: null,
+        status: "succeeded",
+        translated: 1,
+        total: 1,
+        translatedWords: 1,
+        wordCount: 1,
+        approved: 1,
+        needsReupload: false,
+      },
+    ],
+  };
+}
+
 function readyFrenchStatus(): CanvaLocaleStatus {
   return {
     locale: "fr-FR",
@@ -118,8 +155,36 @@ function readyFrenchStatus(): CanvaLocaleStatus {
         translatedWords: 1,
         wordCount: 1,
         approved: 1,
+        needsReupload: false,
       },
     ],
+  };
+}
+
+function pullPage(overrides: Partial<CanvaPullPage> = {}): CanvaPullPage {
+  return {
+    pageIndex: 0,
+    needsReupload: false,
+    entries: [
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Bonjour",
+        knownTexts: ["Hello", "Bonjour"],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function applied(overrides: Partial<ApplyResult> = {}): ApplyResult {
+  return {
+    replaced: 1,
+    alreadyApplied: 0,
+    skipped: 0,
+    untranslated: 0,
+    pagesNeedingUpload: [],
+    ...overrides,
   };
 }
 
@@ -138,7 +203,6 @@ vi.mock("@canva/design", () => ({
 vi.mock("./design-content", () => ({
   listDesignPages: vi.fn(),
   extractDesignContent: vi.fn(),
-  applyTranslationsToCurrentPage: vi.fn(),
   applyTranslationsToDesign: vi.fn(),
 }));
 
@@ -330,22 +394,22 @@ describe("Hyperlocalise Canva app", () => {
 
   it("uploads selected pages after preview confirm", async () => {
     vi.mocked(loadSettings).mockReturnValue(connectedSettings({ selectedLocale: "" }));
-    const { fetchCanvaSession, fetchCanvaLocaleStatuses, collectCanvaDesign } =
-      await import("./hyperlocalise-client");
+    const {
+      fetchCanvaSession,
+      fetchCanvaLocaleStatuses,
+      collectCanvaDesign,
+      pullCanvaLocalePages,
+    } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue(session());
     vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({ locales: [], pages: [] });
+    vi.mocked(pullCanvaLocalePages).mockResolvedValue({
+      locale: "en-US",
+      projectId: "project_1",
+      pages: [],
+    });
     vi.mocked(designContent.extractDesignContent).mockResolvedValue({
-      segments: [
-        {
-          key: "canva.segment.0.0.0",
-          pageIndex: 0,
-          contentIndex: 0,
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
+      segments: [{ pageIndex: 0, text: "Hello" }],
       pageIndices: [0],
-      preserveFormatting: true,
     });
     vi.mocked(collectCanvaDesign).mockResolvedValue({
       designSlug: "marketing-flyer",
@@ -369,6 +433,7 @@ describe("Hyperlocalise Canva app", () => {
     fireEvent.click(result.getByRole("button", { name: "Upload" }));
 
     await waitFor(() => {
+      expect(designContent.extractDesignContent).toHaveBeenCalledWith([0], []);
       expect(result.getByText("Upload to Hyperlocalise")).toBeTruthy();
       expect(result.getByText("1 page · 1 text to Marketing.")).toBeTruthy();
       expect(collectCanvaDesign).not.toHaveBeenCalled();
@@ -412,6 +477,7 @@ describe("Hyperlocalise Canva app", () => {
               translatedWords: 1,
               wordCount: 1,
               approved: 1,
+              needsReupload: false,
             },
           ],
         },
@@ -455,6 +521,7 @@ describe("Hyperlocalise Canva app", () => {
               translatedWords: 0,
               wordCount: 1,
               approved: 0,
+              needsReupload: false,
             },
             {
               pageIndex: 2,
@@ -466,6 +533,7 @@ describe("Hyperlocalise Canva app", () => {
               translatedWords: 3,
               wordCount: 3,
               approved: 3,
+              needsReupload: false,
             },
           ],
         },
@@ -494,12 +562,9 @@ describe("Hyperlocalise Canva app", () => {
     vi.mocked(pullCanvaLocalePages).mockResolvedValue({
       locale: "fr-FR",
       projectId: "project_1",
-      pages: [
-        { pageIndex: 0, translations: { "canva.segment.0.0": "Bonjour" } },
-        { pageIndex: 1, translations: { "canva.segment.1.0": "Ignore" } },
-      ],
+      pages: [pullPage(), pullPage({ pageIndex: 1 })],
     });
-    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(1);
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
 
     const result = renderInTestProvider(<App />);
 
@@ -511,18 +576,117 @@ describe("Hyperlocalise Canva app", () => {
     fireEvent.click(result.getByRole("button", { name: "Apply" }));
 
     await waitFor(() => {
-      expect(designContent.applyTranslationsToDesign).toHaveBeenCalledWith(
-        [{ pageIndex: 0, translations: { "canva.segment.0.0": "Bonjour" } }],
-        true,
-      );
+      expect(designContent.applyTranslationsToDesign).toHaveBeenCalledWith([pullPage()]);
+      expect(result.getByText("Applied French (fr-FR) to 1 page.")).toBeTruthy();
+    });
+  });
+
+  it("disables Apply and hints when selected pages need a re-upload", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ selectedPageIndices: [1, 2] }));
+    vi.mocked(designContent.listDesignPages).mockResolvedValue([
+      { index: 0, label: "Page 1", locked: false, editable: true },
+      { index: 1, label: "Page 2", locked: false, editable: true },
+      { index: 2, label: "Page 3", locked: false, editable: true },
+    ]);
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          ...readyFrenchStatus(),
+          pages: [
+            {
+              pageIndex: 1,
+              sourcePath: "canva/designs/mic/page-2.json",
+              jobId: "job_2",
+              status: "idle",
+              translated: 0,
+              total: 1,
+              translatedWords: 0,
+              wordCount: 1,
+              approved: 0,
+              needsReupload: true,
+            },
+            {
+              pageIndex: 2,
+              sourcePath: "canva/designs/mic/page-3.json",
+              jobId: "job_3",
+              status: "idle",
+              translated: 0,
+              total: 1,
+              translatedWords: 0,
+              wordCount: 1,
+              approved: 0,
+              needsReupload: true,
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
       expect(
-        result.getByText("Applied French (fr-FR) translations to 1 selected page."),
+        result.getAllByText("Upload Page 2, Page 3 again to use Apply.").length,
+      ).toBeGreaterThan(0);
+      expect(result.getByRole("button", { name: "Apply" }).getAttribute("aria-disabled")).toBe(
+        "true",
+      );
+    });
+    expect(
+      result.getByRole("button", { name: "Translate" }).getAttribute("aria-disabled"),
+    ).not.toBe("true");
+  });
+
+  it("disables Upload when the design is not on the source locale", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "fr-FR" }));
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus(), readyFrenchStatus()],
+      pages: [],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).toBe(
+        "true",
+      );
+    });
+    fireEvent.mouseEnter(result.getByRole("button", { name: "Upload" }));
+    await waitFor(() => {
+      expect(
+        result.getByText("Apply English (en-US) to the design before uploading."),
       ).toBeTruthy();
     });
   });
 
-  it("shows progress while translating", async () => {
-    vi.mocked(loadSettings).mockReturnValue(connectedSettings());
+  it("disables Translate for unuploaded pages while a target locale is applied", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "fr-FR" }));
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({ locales: [], pages: [] });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Translate" }).getAttribute("aria-disabled")).toBe(
+        "true",
+      );
+    });
+    fireEvent.mouseEnter(result.getByRole("button", { name: "Translate" }));
+    await waitFor(() => {
+      expect(
+        result.getByText("Apply English (en-US) to the design before translating."),
+      ).toBeTruthy();
+    });
+  });
+
+  it("uploads unuploaded pages before translating when the source is applied", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "en-US" }));
     const {
       fetchCanvaSession,
       fetchCanvaLocaleStatuses,
@@ -533,22 +697,170 @@ describe("Hyperlocalise Canva app", () => {
     } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue(session());
     vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({ locales: [], pages: [] });
+    vi.mocked(pullCanvaLocalePages).mockImplementation(async (input) => ({
+      locale: input.locale,
+      projectId: "project_1",
+      pages: input.locale === "fr-FR" ? [pullPage()] : [],
+    }));
     vi.mocked(designContent.extractDesignContent).mockResolvedValue({
-      segments: [
-        {
-          key: "canva.segment.0.0.0",
-          pageIndex: 0,
-          contentIndex: 0,
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
+      segments: [{ pageIndex: 0, text: "Hello" }],
       pageIndices: [0],
-      preserveFormatting: true,
     });
+    vi.mocked(collectCanvaDesign).mockClear();
     vi.mocked(collectCanvaDesign).mockResolvedValue({
       designSlug: "marketing-flyer",
       projectId: "project_1",
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/marketing-flyer/page-1.json",
+          sourceFileId: "file_1",
+          segmentCount: 1,
+          wordCount: 1,
+        },
+      ],
+    });
+    vi.mocked(generateCanvaLocaleJob).mockResolvedValue({
+      locale: "fr-FR",
+      projectId: "project_1",
+      jobIds: ["job_1"],
+    });
+    vi.mocked(waitForCanvaJobs).mockResolvedValue();
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(
+        result.getByRole("button", { name: "Translate" }).getAttribute("aria-disabled"),
+      ).not.toBe("true");
+    });
+    fireEvent.click(result.getByRole("button", { name: "Translate" }));
+
+    await waitFor(() => {
+      expect(collectCanvaDesign).toHaveBeenCalledTimes(1);
+      expect(collectCanvaDesign).toHaveBeenCalledWith(
+        expect.objectContaining({ segments: [{ pageIndex: 0, text: "Hello" }] }),
+      );
+      expect(generateCanvaLocaleJob).toHaveBeenCalledWith(
+        expect.objectContaining({ locale: "fr-FR" }),
+      );
+      expect(designContent.applyTranslationsToDesign).toHaveBeenCalled();
+      expect(result.getByText("Translated French (fr-FR) and applied to 1 page.")).toBeTruthy();
+    });
+  });
+
+  it("reports Apply outcomes from text matching", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings());
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses, pullCanvaLocalePages } =
+      await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readyFrenchStatus()],
+      pages: [],
+    });
+    vi.mocked(pullCanvaLocalePages).mockResolvedValue({
+      locale: "fr-FR",
+      projectId: "project_1",
+      pages: [pullPage()],
+    });
+
+    const cases: Array<{ result: ApplyResult; message: string }> = [
+      {
+        result: applied({
+          replaced: 0,
+          pagesNeedingUpload: [0],
+        }),
+        message: "Upload Page 1 again to apply translations.",
+      },
+      {
+        result: applied({ replaced: 0, skipped: 2 }),
+        message: "Text on the selected pages changed since upload. Upload again, then apply.",
+      },
+      {
+        result: applied({ replaced: 0, untranslated: 1 }),
+        message: "No French (fr-FR) translations for the selected pages yet.",
+      },
+      {
+        result: applied({ replaced: 0, alreadyApplied: 1 }),
+        message: "French (fr-FR) is already applied to the selected pages.",
+      },
+      {
+        result: applied({ replaced: 2, skipped: 1 }),
+        message:
+          "Applied French (fr-FR) to 1 page. 1 text box changed since upload — Upload again to include them.",
+      },
+    ];
+
+    for (const testCase of cases) {
+      vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(testCase.result);
+      const result = renderInTestProvider(<App />);
+      await waitFor(() => {
+        expect(
+          result.getByRole("button", { name: "Apply" }).getAttribute("aria-disabled"),
+        ).not.toBe("true");
+      });
+      fireEvent.click(result.getByRole("button", { name: "Apply" }));
+      await waitFor(() => {
+        expect(result.getByText(testCase.message)).toBeTruthy();
+      });
+      result.unmount();
+    }
+  });
+
+  it("saves the applied locale and blocks Upload until the source is applied", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings());
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses, pullCanvaLocalePages } =
+      await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus(), readyFrenchStatus()],
+      pages: [],
+    });
+    vi.mocked(pullCanvaLocalePages).mockResolvedValue({
+      locale: "fr-FR",
+      projectId: "project_1",
+      pages: [pullPage()],
+    });
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+      expect(result.getByRole("button", { name: "Apply" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+    });
+    fireEvent.click(result.getByRole("button", { name: "Apply" }));
+    await waitFor(() => {
+      expect(result.getByText("Applied French (fr-FR) to 1 page.")).toBeTruthy();
+      expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).toBe(
+        "true",
+      );
+    });
+    fireEvent.mouseEnter(result.getByRole("button", { name: "Upload" }));
+    await waitFor(() => {
+      expect(
+        result.getByText("Apply English (en-US) to the design before uploading."),
+      ).toBeTruthy();
+    });
+  });
+
+  it("shows progress while translating", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings());
+    const {
+      fetchCanvaSession,
+      fetchCanvaLocaleStatuses,
+      generateCanvaLocaleJob,
+      waitForCanvaJobs,
+      pullCanvaLocalePages,
+    } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus()],
       pages: [],
     });
     vi.mocked(generateCanvaLocaleJob).mockResolvedValue({
@@ -567,9 +879,9 @@ describe("Hyperlocalise Canva app", () => {
     vi.mocked(pullCanvaLocalePages).mockResolvedValue({
       locale: "fr-FR",
       projectId: "project_1",
-      pages: [{ pageIndex: 0, translations: { "canva.segment.0.0": "Bonjour" } }],
+      pages: [pullPage()],
     });
-    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(1);
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
 
     const result = renderInTestProvider(<App />);
 
@@ -591,7 +903,7 @@ describe("Hyperlocalise Canva app", () => {
     });
   });
 
-  it("translates by uploading, generating, and applying", async () => {
+  it("translates uploaded pages without collecting again", async () => {
     vi.mocked(loadSettings).mockReturnValue(connectedSettings());
     const {
       fetchCanvaSession,
@@ -602,32 +914,9 @@ describe("Hyperlocalise Canva app", () => {
       pullCanvaLocalePages,
     } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue(session());
-    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({ locales: [], pages: [] });
-    vi.mocked(designContent.extractDesignContent).mockResolvedValue({
-      segments: [
-        {
-          key: "canva.segment.0.0.0",
-          pageIndex: 0,
-          contentIndex: 0,
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
-      pageIndices: [0],
-      preserveFormatting: true,
-    });
-    vi.mocked(collectCanvaDesign).mockResolvedValue({
-      designSlug: "marketing-flyer",
-      projectId: "project_1",
-      pages: [
-        {
-          pageIndex: 0,
-          sourcePath: "canva/designs/marketing-flyer/page-1.json",
-          sourceFileId: "file_1",
-          segmentCount: 1,
-          wordCount: 1,
-        },
-      ],
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus()],
+      pages: [],
     });
     vi.mocked(generateCanvaLocaleJob).mockResolvedValue({
       locale: "fr-FR",
@@ -638,9 +927,10 @@ describe("Hyperlocalise Canva app", () => {
     vi.mocked(pullCanvaLocalePages).mockResolvedValue({
       locale: "fr-FR",
       projectId: "project_1",
-      pages: [{ pageIndex: 0, translations: { "canva.segment.0.0": "Bonjour" } }],
+      pages: [pullPage()],
     });
-    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(1);
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
+    vi.mocked(collectCanvaDesign).mockClear();
 
     const result = renderInTestProvider(<App />);
 
@@ -652,7 +942,7 @@ describe("Hyperlocalise Canva app", () => {
     fireEvent.click(result.getByRole("button", { name: "Translate" }));
 
     await waitFor(() => {
-      expect(collectCanvaDesign).toHaveBeenCalled();
+      expect(collectCanvaDesign).not.toHaveBeenCalled();
       expect(generateCanvaLocaleJob).toHaveBeenCalledWith(
         expect.objectContaining({
           locale: "fr-FR",

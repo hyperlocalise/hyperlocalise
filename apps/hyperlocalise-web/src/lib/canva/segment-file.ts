@@ -10,78 +10,70 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CanvaDesignSegment } from "./types";
+import { createHash } from "node:crypto";
 
-const SEGMENT_KEY_PREFIX = "canva.segment.";
+export const SEGMENT_KEY_PREFIX = "canva.segment.";
+export const SOURCE_TEXT_KEY_PREFIX = "canva.t.";
 
-export function segmentKey(pageIndex: number, contentIndex: number, regionIndex: number): string {
-  return `${SEGMENT_KEY_PREFIX}${pageIndex}.${contentIndex}.${regionIndex}`;
+const SHORT_DIGEST_LENGTH = 16;
+
+export function normalizeSegmentText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
-export function pageSegmentKey(contentIndex: number, regionIndex: number): string {
-  return `${SEGMENT_KEY_PREFIX}${contentIndex}.${regionIndex}`;
+export function sourceTextDigest(normalizedText: string): string {
+  return createHash("sha256").update(normalizedText, "utf8").digest("hex");
 }
 
-function usableTranslation(value: string | undefined): string | undefined {
-  if (value == null || value.trim().length === 0) {
-    return undefined;
-  }
-  return value;
+export function sourceTextKeyFromDigest(digest: string, useFull = false): string {
+  return `${SOURCE_TEXT_KEY_PREFIX}${useFull ? digest : digest.slice(0, SHORT_DIGEST_LENGTH)}`;
 }
 
-export function normalizePageScopedTranslationKeys(
-  translations: Record<string, string>,
-  pageIndex: number,
+export function sourceTextKey(text: string): string {
+  return sourceTextKeyFromDigest(sourceTextDigest(normalizeSegmentText(text)));
+}
+
+export function isSourceTextKey(key: string): boolean {
+  return key.startsWith(SOURCE_TEXT_KEY_PREFIX);
+}
+
+export function pageNeedsReupload(sourceFile: Record<string, string>): boolean {
+  return !Object.keys(sourceFile).some(isSourceTextKey);
+}
+
+export function buildSourceTextPageFile(
+  texts: string[],
+  digestFn: (normalizedText: string) => string = sourceTextDigest,
 ): Record<string, string> {
-  const normalized: Record<string, string> = { ...translations };
-
-  for (const [key, value] of Object.entries(translations)) {
-    const translated = usableTranslation(value);
-    if (translated == null) {
+  const unique = new Map<string, string>();
+  for (const text of texts) {
+    const normalized = normalizeSegmentText(text);
+    if (!normalized || unique.has(normalized)) {
       continue;
     }
-
-    const match = /^canva\.segment\.(\d+)\.(\d+)\.(\d+)$/.exec(key);
-    if (!match || Number(match[1]) !== pageIndex) {
-      continue;
-    }
-
-    const pageLocalKey = pageSegmentKey(Number(match[2]), Number(match[3]));
-    if (usableTranslation(normalized[pageLocalKey]) != null) {
-      continue;
-    }
-    normalized[pageLocalKey] = translated;
+    unique.set(normalized, text);
   }
 
-  return normalized;
-}
+  const digestByNormalized = new Map<string, string>();
+  const prefixCounts = new Map<string, number>();
+  for (const normalized of unique.keys()) {
+    const digest = digestFn(normalized);
+    digestByNormalized.set(normalized, digest);
+    const prefix = digest.slice(0, SHORT_DIGEST_LENGTH);
+    prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+  }
 
-export function segmentsToTranslationFile(segments: CanvaDesignSegment[]): Record<string, string> {
   const entries: Record<string, string> = {};
-
-  for (const segment of segments) {
-    if (segment.text.trim().length === 0) {
-      continue;
-    }
-    entries[segment.key] = segment.text;
+  for (const [normalized, raw] of unique) {
+    const digest = digestByNormalized.get(normalized) ?? digestFn(normalized);
+    const useFull = (prefixCounts.get(digest.slice(0, SHORT_DIGEST_LENGTH)) ?? 0) > 1;
+    entries[sourceTextKeyFromDigest(digest, useFull)] = raw;
   }
-
   return entries;
 }
 
-export function segmentsToPageTranslationFile(
-  segments: CanvaDesignSegment[],
-): Record<string, string> {
-  const entries: Record<string, string> = {};
-
-  for (const segment of segments) {
-    if (segment.text.trim().length === 0) {
-      continue;
-    }
-    entries[pageSegmentKey(segment.contentIndex, segment.regionIndex)] = segment.text;
-  }
-
-  return entries;
+function isKnownSegmentKey(key: string): boolean {
+  return key.startsWith(SOURCE_TEXT_KEY_PREFIX) || key.startsWith(SEGMENT_KEY_PREFIX);
 }
 
 function flattenSegmentEntries(
@@ -90,7 +82,7 @@ function flattenSegmentEntries(
   value: unknown,
 ): void {
   if (typeof value === "string") {
-    if (prefix.startsWith(SEGMENT_KEY_PREFIX)) {
+    if (isKnownSegmentKey(prefix)) {
       output[prefix] = value;
     }
     return;

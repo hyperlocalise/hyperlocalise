@@ -11,11 +11,31 @@
  * Version 2.0 or later.
  */
 export type CanvaDesignSegment = {
-  key: string;
   pageIndex: number;
-  contentIndex: number;
-  regionIndex: number;
   text: string;
+  key?: string;
+  contentIndex?: number;
+  regionIndex?: number;
+};
+
+export type CanvaPullEntry = {
+  key: string;
+  source: string;
+  target: string | null;
+  knownTexts: string[];
+};
+
+export type CanvaPullPage = {
+  pageIndex: number;
+  sourcePath: string;
+  needsReupload: boolean;
+  entries: CanvaPullEntry[];
+};
+
+export type CanvaLocalePullResult = {
+  locale: string;
+  projectId: string;
+  pages: CanvaPullPage[];
 };
 
 export type CanvaSessionProject = {
@@ -107,6 +127,7 @@ export type CanvaLocalePageStatus = {
   translatedWords: number;
   wordCount: number;
   approved: number;
+  needsReupload: boolean;
 };
 
 export type CanvaLocaleStatus = {

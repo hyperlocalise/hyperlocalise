@@ -18,17 +18,41 @@ export type DesignPageInfo = {
 };
 
 export type DesignSegment = {
-  key: string;
   pageIndex: number;
-  contentIndex: number;
-  regionIndex: number;
   text: string;
 };
 
 export type ExtractedDesignContent = {
   segments: DesignSegment[];
   pageIndices: number[];
-  preserveFormatting: boolean;
+};
+
+export type CanvaPullEntry = {
+  key: string;
+  source: string;
+  target: string | null;
+  knownTexts: string[];
+};
+
+export type CanvaPullPage = {
+  pageIndex: number;
+  sourcePath?: string;
+  needsReupload: boolean;
+  entries: CanvaPullEntry[];
+};
+
+export type CanvaLocalePullResult = {
+  locale: string;
+  projectId: string;
+  pages: CanvaPullPage[];
+};
+
+export type ApplyResult = {
+  replaced: number;
+  alreadyApplied: number;
+  skipped: number;
+  untranslated: number;
+  pagesNeedingUpload: number[];
 };
 
 export type CanvaJobStatusName =
@@ -49,6 +73,7 @@ export type CanvaLocalePageStatus = {
   translatedWords: number;
   wordCount: number;
   approved: number;
+  needsReupload: boolean;
 };
 
 export type CanvaLocaleStatus = {
@@ -126,5 +151,6 @@ export type AppSettings = {
   preserveFormatting: boolean;
   selectedPageIndices: number[];
   selectedLocale: string;
+  appliedLocale: string;
   lastJobId: string;
 };

@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildCanvaPullEntries,
   buildCanvaSourceLocaleStatus,
   canvaApprovalPercent,
   isCanvaIntegrationJob,
@@ -237,7 +238,7 @@ describe("buildCanvaSourceLocaleStatus", () => {
             wordCount: 12,
           },
         ],
-        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+        sourceByPage: new Map([[0, { "canva.t.abcdef0123456789": "Hello" }]]),
       }),
     ).toEqual({
       locale: "en-US",
@@ -262,8 +263,32 @@ describe("buildCanvaSourceLocaleStatus", () => {
           translatedWords: 12,
           wordCount: 12,
           approved: 3,
+          needsReupload: false,
         },
       ],
+    });
+  });
+
+  it("marks positional source files as needing a re-upload", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [
+          {
+            pageIndex: 0,
+            sourcePath: "canva/designs/mic/page-1.json",
+            sourceFileId: "file_1",
+            segmentCount: 3,
+            wordCount: 12,
+          },
+        ],
+        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+      }),
+    ).toMatchObject({
+      status: "idle",
+      canAdd: false,
+      pages: [{ needsReupload: true, status: "idle", translated: 0 }],
     });
   });
 
@@ -281,5 +306,52 @@ describe("buildCanvaSourceLocaleStatus", () => {
       canAdd: false,
       percent: 0,
     });
+  });
+});
+
+describe("buildCanvaPullEntries", () => {
+  it("uses the source text as the target for the source locale", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.segment.0.0": "Legacy" },
+        localeIsSource: true,
+        editorTranslations: {},
+        knownTextsByKey: new Map([["canva.t.hello", ["Hola"]]]),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hello",
+        knownTexts: ["Hola"],
+      },
+    ]);
+  });
+
+  it("uses editor text for a target locale and null when missing", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.t.world": "World" },
+        localeIsSource: false,
+        editorTranslations: { "canva.t.hello": "Hola" },
+        knownTextsByKey: new Map([
+          ["canva.t.hello", ["Hola", "Bonjour"]],
+          ["canva.t.world", []],
+        ]),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola",
+        knownTexts: ["Hola", "Bonjour"],
+      },
+      {
+        key: "canva.t.world",
+        source: "World",
+        target: null,
+        knownTexts: [],
+      },
+    ]);
   });
 });

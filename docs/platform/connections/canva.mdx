@@ -68,13 +68,15 @@ Upload writes source JSON into the selected project. It does not start translati
 
 Each page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug comes from the Canva title. Untitled designs fall back to the design id. Review those files like other [JSON sources](/platform/projects/files).
 
+Each text box becomes one string. Hyperlocalise keys it from the box's source text (`canva.t.<hash>`), not from its position on the page. Mixed styling inside a box is translated and applied as one block. After this key model shipped, upload each existing design once before Apply. Editing a box in Canva means that box no longer matches until you upload again. Older `canva.segment.*` keys are not reused.
+
 A later collect replaces the current collect batch for that design. Apply uses that batch only. Earlier page files from the same design are not reused.
 
 Collect does not create a translation job.
 
 ## Step 5: Translate from the app
 
-**Translate** uploads the selected pages, starts an agent job for the chosen language, waits for that job, then applies the result to the design.
+**Translate** starts an agent job for the chosen language on the **last Upload**, waits for that job, then applies the result to the design. If the selected pages are not uploaded yet, Translate uploads them first, but only while the design shows the project source locale. If a target language is on the design, apply the source locale first. Translate does not upload again when the selected pages are already uploaded.
 
 Upload and Apply stay available as separate confirmed steps. Open the page files in the [Content Editor](/platform/cat) if you need to [review](/platform/cat) or wait for approval.
 
@@ -87,7 +89,7 @@ Upload and Apply stay available as separate confirmed steps. Open the page files
 3. Choose **Apply** when each selected page has pullable translations (job succeeded or waiting for review). The app pulls from Hyperlocalise and updates the design immediately.
 4. Inspect layout after applying another language, especially for longer text.
 
-Apply uses page-local keys from the latest collect and reads target-locale text from project translations (the editor). It does not rewrite older single-file designs.
+Apply matches each box by the text currently on the page (source or any locale already written back). It reads target-locale text from project translations (the editor). The app remembers the last language written to the design. **Upload** stays disabled until that language is the project source locale, so collect always sends source text. Apply the source locale first if the design currently shows a target. Pages uploaded before this key model show a re-upload hint and stay disabled until you upload them again.
 
 ## Change or remove access
 
@@ -101,6 +103,7 @@ Deleting the selected **native project** unbinds the connection. The workspace c
 - Confirm the personal access token still has `files:read`, `files:write`, `jobs:read`, and `jobs:write`, and that you can access the project.
 - Confirm you selected at least one editable page and that those pages contain text.
 - Confirm you uploaded texts before you apply a locale. Apply stays disabled until that locale has pullable translations.
+- Confirm the design is on the project source locale before Upload. Apply the source language first if a target is currently on the page.
 - Confirm the language you apply is on the project. `en` is not `en-US`.
 - Open the job in Hyperlocalise for a failed locale.
 

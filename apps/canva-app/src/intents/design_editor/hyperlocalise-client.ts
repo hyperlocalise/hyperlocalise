@@ -12,6 +12,7 @@
  */
 import type {
   CanvaDesignJob,
+  CanvaLocalePullResult,
   CanvaLocaleStatus,
   CanvaSession,
   CollectedCanvaPage,
@@ -406,14 +407,7 @@ export async function pullCanvaLocalePages(input: {
   designToken: string;
   locale: string;
   pageIndex?: number;
-}): Promise<{
-  locale: string;
-  projectId: string;
-  pages: Array<{
-    pageIndex: number;
-    translations: Record<string, string>;
-  }>;
-}> {
+}): Promise<CanvaLocalePullResult> {
   const authorization = await getAuthorizationHeader();
   const params = new URLSearchParams({
     designToken: input.designToken,
@@ -428,11 +422,7 @@ export async function pullCanvaLocalePages(input: {
   );
   const payload = (await response.json().catch(() => null)) as
     | ({
-        translations?: {
-          locale: string;
-          projectId: string;
-          pages: Array<{ pageIndex: number; translations: Record<string, string> }>;
-        };
+        translations?: CanvaLocalePullResult;
       } & ErrorPayload)
     | null;
   if (!response.ok || !payload?.translations?.pages) {

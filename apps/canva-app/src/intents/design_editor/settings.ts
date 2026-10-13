@@ -25,6 +25,7 @@ const defaultSettings: AppSettings = {
   preserveFormatting: true,
   selectedPageIndices: [],
   selectedLocale: "",
+  appliedLocale: "",
   lastJobId: "",
 };
 
@@ -60,6 +61,7 @@ function normalizeSettings(parsed: Partial<AppSettings>): AppSettings {
       ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
       : defaultSettings.selectedPageIndices,
     selectedLocale: parsed.selectedLocale ?? defaultSettings.selectedLocale,
+    appliedLocale: parsed.appliedLocale ?? defaultSettings.appliedLocale,
     lastJobId: parsed.lastJobId ?? defaultSettings.lastJobId,
   };
 }

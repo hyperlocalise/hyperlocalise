@@ -17,20 +17,103 @@ vi.mock("@canva/design", () => ({
   editContent: vi.fn(),
 }));
 
-import { editContent, openDesign } from "@canva/design";
+import { openDesign } from "@canva/design";
 
 import {
-  applyTranslationsToCurrentPage,
   applyTranslationsToDesign,
-  applyTranslationsToRange,
+  buildApplyTextIndex,
   buildPageSummaries,
-  extractSegmentsFromRange,
+  extractDesignContent,
 } from "./design-content";
+import type { CanvaPullEntry, CanvaPullPage } from "./types";
+
+function textBox(text: string, replaceText: (next: string) => void = () => undefined) {
+  return {
+    type: "text",
+    text: {
+      readPlaintext: () => text,
+      readTextRegions: () => [{ text }],
+      replaceText: (_range: unknown, next: string) => {
+        replaceText(next);
+      },
+    },
+  };
+}
+
+function pullPage(overrides: Partial<CanvaPullPage> = {}): CanvaPullPage {
+  return {
+    pageIndex: 0,
+    needsReupload: false,
+    entries: [
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola",
+        knownTexts: ["Hello", "Hola"],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function mockDesignPages(
+  pageTexts: string[][],
+  onReplace?: (pageIndex: number, text: string) => void,
+) {
+  const replacements: string[] = [];
+  const sync = vi.fn(async () => undefined);
+
+  vi.mocked(openDesign).mockImplementation(async (options, callback) => {
+    expect(options).toEqual({ type: "all_pages" });
+    const pageRefs = pageTexts.map(() => ({ type: "absolute", locked: false }));
+    await callback({
+      pageRefs: {
+        toArray: () => pageRefs,
+      },
+      helpers: {
+        openPage: async (
+          pageRef: { type: string; locked: boolean },
+          pageCallback: (result: {
+            page: {
+              type: string;
+              locked: boolean;
+              elements: { forEach: (visitor: (element: unknown) => void) => void };
+            };
+          }) => Promise<void>,
+        ) => {
+          const pageIndex = pageRefs.indexOf(pageRef);
+          const texts = pageTexts[pageIndex] ?? [];
+          await pageCallback({
+            page: {
+              type: "absolute",
+              locked: false,
+              elements: {
+                forEach: (visitor: (element: unknown) => void) => {
+                  for (const text of texts) {
+                    visitor(
+                      textBox(text, (next) => {
+                        replacements.push(next);
+                        onReplace?.(pageIndex, next);
+                      }),
+                    );
+                  }
+                },
+              },
+            },
+          });
+          return { status: "executed" };
+        },
+      },
+      sync,
+    } as never);
+  });
+
+  return { replacements, sync };
+}
 
 describe("design-content", () => {
   beforeEach(() => {
     vi.mocked(openDesign).mockReset();
-    vi.mocked(editContent).mockReset();
   });
 
   it("builds page summaries from page references", () => {
@@ -47,347 +130,38 @@ describe("design-content", () => {
     ]);
   });
 
-  it("extracts plain text segments when formatting is disabled", () => {
-    const segments = extractSegmentsFromRange(
-      {
-        readPlaintext: () => "Hello world",
-        readTextRegions: () => [{ text: "Hello" }, { text: " world" }],
-        replaceText: () => undefined,
-      },
-      2,
-      0,
-      false,
-    );
-
-    expect(segments).toEqual([
-      {
-        key: "canva.segment.2.0.0",
-        pageIndex: 2,
-        contentIndex: 0,
-        regionIndex: 0,
-        text: "Hello world",
-      },
-    ]);
-  });
-
-  it("extracts formatted regions when formatting is enabled", () => {
-    const segments = extractSegmentsFromRange(
-      {
-        readPlaintext: () => "Hello world",
-        readTextRegions: () => [{ text: "Hello" }, { text: " world" }],
-        replaceText: () => undefined,
-      },
-      1,
-      3,
-      true,
-    );
-
-    expect(segments).toEqual([
-      {
-        key: "canva.segment.1.3.0",
-        pageIndex: 1,
-        contentIndex: 3,
-        regionIndex: 0,
-        text: "Hello",
-      },
-      {
-        key: "canva.segment.1.3.1",
-        pageIndex: 1,
-        contentIndex: 3,
-        regionIndex: 1,
-        text: " world",
-      },
-    ]);
-  });
-
-  it("replaces the whole text box when Hyperlocalise only has one segment key", () => {
-    const replacements: Array<{ index: number; length: number; text: string }> = [];
-
-    expect(
-      applyTranslationsToRange(
-        {
-          readPlaintext: () => "Buy 1 Get 1 Free",
-          readTextRegions: () => [{ text: "Buy 1 Get 1 " }, { text: "Free" }],
-          replaceText: (range, text) => {
-            replacements.push({ index: range.index, length: range.length, text });
-          },
-        },
-        {
-          "canva.segment.0.0": "Mua 1 tặng 1",
-        },
-        0,
-        true,
-      ),
-    ).toBe(1);
-
-    expect(replacements).toEqual([{ index: 0, length: 16, text: "Mua 1 tặng 1" }]);
-  });
-
-  it("replaces the whole text box when the first segment was edited as a full phrase", () => {
-    const replacements: Array<{ index: number; length: number; text: string }> = [];
-
-    expect(
-      applyTranslationsToRange(
-        {
-          readPlaintext: () => "Buy 1 Get 1 Free",
-          readTextRegions: () => [{ text: "Buy 1 Get 1 " }, { text: "Free" }],
-          replaceText: (range, text) => {
-            replacements.push({ index: range.index, length: range.length, text });
-          },
-        },
-        {
-          "canva.segment.0.0": "Mua 1 tặng 1",
-          "canva.segment.0.1": "miễn phí",
-        },
-        0,
-        true,
-      ),
-    ).toBe(1);
-
-    expect(replacements).toEqual([{ index: 0, length: 16, text: "Mua 1 tặng 1" }]);
-  });
-
-  it("applies translated text back to ranges", () => {
-    const replacements: Array<{ index: number; length: number; text: string }> = [];
-
-    applyTranslationsToRange(
-      {
-        readPlaintext: () => "Hello world",
-        readTextRegions: () => [{ text: "Hello" }, { text: " world" }],
-        replaceText: (range, text) => {
-          replacements.push({ index: range.index, length: range.length, text });
-        },
-      },
-      {
-        "canva.segment.1.0": "Hola",
-        "canva.segment.1.1": " mundo",
-      },
-      1,
-      true,
-    );
-
-    expect(replacements).toEqual([
-      { index: 5, length: 6, text: " mundo" },
-      { index: 0, length: 5, text: "Hola" },
-    ]);
-  });
-
-  it("applies page-local keys when writing onto another page", () => {
-    const replacements: Array<{ index: number; length: number; text: string }> = [];
-
-    applyTranslationsToRange(
-      {
-        readPlaintext: () => "Hello",
-        readTextRegions: () => [{ text: "Hello" }],
-        replaceText: (range, text) => {
-          replacements.push({ index: range.index, length: range.length, text });
-        },
-      },
-      {
-        "canva.segment.0.0": "Hallo",
-      },
-      0,
-      false,
-    );
-
-    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
-  });
-
-  it("applies full-page keys from older collected files", () => {
-    const replacements: Array<{ index: number; length: number; text: string }> = [];
-
-    applyTranslationsToRange(
-      {
-        readPlaintext: () => "Hello",
-        readTextRegions: () => [{ text: "Hello" }],
-        replaceText: (range, text) => {
-          replacements.push({ index: range.index, length: range.length, text });
-        },
-      },
-      {
-        "canva.segment.2.0.0": "Hallo",
-      },
-      0,
-      false,
-    );
-
-    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
-  });
-
-  it("skips blank translations when applying", () => {
-    const replacements: string[] = [];
-
-    expect(
-      applyTranslationsToRange(
-        {
-          readPlaintext: () => "Hello",
-          readTextRegions: () => [{ text: "Hello" }],
-          replaceText: (_range, text) => {
-            replacements.push(text);
-          },
-        },
-        {
-          "canva.segment.0.0": "   ",
-        },
-        0,
-        false,
-      ),
-    ).toBe(0);
-    expect(replacements).toEqual([]);
-  });
-
-  it("skips translations that already match the design text", () => {
-    const replacements: string[] = [];
-
-    expect(
-      applyTranslationsToRange(
-        {
-          readPlaintext: () => "Hello",
-          readTextRegions: () => [{ text: "Hello" }],
-          replaceText: (_range, text) => {
-            replacements.push(text);
-          },
-        },
-        {
-          "canva.segment.0.0": "Hello",
-        },
-        0,
-        false,
-      ),
-    ).toBe(0);
-    expect(replacements).toEqual([]);
-  });
-
-  it("applies the selected file onto the current Canva page through editContent", async () => {
-    const replacements: string[] = [];
-    const sync = vi.fn(async () => undefined);
-
-    vi.mocked(editContent).mockImplementation(async (options, callback) => {
-      expect(options).toEqual({ contentType: "richtext", target: "current_page" });
-      await callback({
-        contents: [
-          {
-            deleted: false,
-            readPlaintext: () => "Hello",
-            readTextRegions: () => [{ text: "Hello" }],
-            replaceText: (_range: { index: number; length: number }, text: string) => {
-              replacements.push(text);
-            },
-          },
-        ],
-        sync,
-      } as never);
-    });
-
-    await expect(
-      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hola" }, false),
-    ).resolves.toBe(1);
-    expect(replacements).toEqual(["Hola"]);
-    expect(sync).toHaveBeenCalledTimes(1);
-    expect(openDesign).not.toHaveBeenCalled();
-  });
-
-  it("does not fall back to openDesign when editContent finds no replacements", async () => {
-    vi.mocked(editContent).mockImplementation(async (_options, callback) => {
-      await callback({
-        contents: [
-          {
-            deleted: false,
-            readPlaintext: () => "Hello",
-            readTextRegions: () => [{ text: "Hello" }],
-            replaceText: () => {
-              throw new Error("should not replace");
-            },
-          },
-        ],
-        sync: vi.fn(async () => undefined),
-      } as never);
-    });
-
-    await expect(
-      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hello" }, false),
-    ).resolves.toBe(0);
-    expect(openDesign).not.toHaveBeenCalled();
-  });
-
-  it("falls back to openDesign when editContent is unavailable", async () => {
-    const replacements: string[] = [];
-    const sync = vi.fn(async () => undefined);
-
-    vi.mocked(editContent).mockRejectedValue(new Error("unsupported"));
-    vi.mocked(openDesign).mockImplementation(async (options, callback) => {
-      expect(options).toEqual({ type: "current_page" });
-      await callback({
-        page: {
-          type: "absolute",
-          locked: false,
-          elements: {
-            forEach: (visitor: (element: { type: string; text: unknown }) => void) => {
-              visitor({
-                type: "text",
-                text: {
-                  readPlaintext: () => "Hello",
-                  readTextRegions: () => [{ text: "Hello" }],
-                  replaceText: (_range: { index: number; length: number }, text: string) => {
-                    replacements.push(text);
-                  },
-                },
-              });
-            },
-          },
-        },
-        sync,
-      } as never);
-    });
-
-    await expect(
-      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hola" }, false),
-    ).resolves.toBe(1);
-    expect(replacements).toEqual(["Hola"]);
-    expect(sync).toHaveBeenCalledTimes(1);
-  });
-
-  it("applies every page in one all_pages session", async () => {
-    const replacements: string[] = [];
-    const sync = vi.fn(async () => undefined);
-
-    vi.mocked(openDesign).mockImplementation(async (options, callback) => {
-      expect(options).toEqual({ type: "all_pages" });
+  it("extracts one segment per text box and skips empty or locked pages", async () => {
+    vi.mocked(openDesign).mockImplementation(async (_options, callback) => {
       await callback({
         pageRefs: {
           toArray: () => [
             { type: "absolute", locked: false },
-            { type: "absolute", locked: false },
+            { type: "absolute", locked: true },
           ],
         },
         helpers: {
           openPage: async (
             _pageRef: unknown,
             pageCallback: (result: {
-              page: {
-                type: string;
-                locked: boolean;
-                elements: { forEach: (visitor: (element: unknown) => void) => void };
-              };
+              page: { elements: { forEach: (visitor: (element: unknown) => void) => void } };
             }) => Promise<void>,
           ) => {
-            const pageIndex = replacements.length;
             await pageCallback({
               page: {
-                type: "absolute",
-                locked: false,
                 elements: {
                   forEach: (visitor: (element: unknown) => void) => {
+                    visitor(textBox("Hello"));
+                    visitor(textBox("   "));
                     visitor({
                       type: "text",
+                      locked: true,
                       text: {
-                        readPlaintext: () => (pageIndex === 0 ? "Hello" : "World"),
-                        readTextRegions: () => [{ text: pageIndex === 0 ? "Hello" : "World" }],
-                        replaceText: (_range: unknown, text: string) => {
-                          replacements.push(text);
-                        },
+                        readPlaintext: () => "Locked",
+                        readTextRegions: () => [{ text: "Locked" }],
+                        replaceText: () => undefined,
                       },
                     });
+                    visitor(textBox("World"));
                   },
                 },
               },
@@ -395,26 +169,99 @@ describe("design-content", () => {
             return { status: "executed" };
           },
         },
-        sync,
+        sync: vi.fn(async () => undefined),
       } as never);
     });
 
-    await expect(
-      applyTranslationsToDesign(
-        [
-          { pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } },
-          { pageIndex: 1, translations: { "canva.segment.0.0": "Mundo" } },
-        ],
-        false,
-      ),
-    ).resolves.toBe(2);
-    expect(replacements).toEqual(["Hola", "Mundo"]);
-    expect(sync).toHaveBeenCalledTimes(1);
+    await expect(extractDesignContent([0, 1])).resolves.toEqual({
+      pageIndices: [0, 1],
+      segments: [
+        { pageIndex: 0, text: "Hello" },
+        { pageIndex: 0, text: "World" },
+      ],
+    });
   });
 
-  it("does not fail when Canva omits executed status but text was replaced", async () => {
-    const replacements: string[] = [];
-    const sync = vi.fn(async () => undefined);
+  it("remaps matched boxes to the Hyperlocalise source text", async () => {
+    mockDesignPages([["Hola", "Edited"]]);
+    await expect(
+      extractDesignContent(
+        [0],
+        [
+          pullPage({
+            entries: [
+              {
+                key: "canva.t.hello",
+                source: "Hello",
+                target: "Hello",
+                knownTexts: ["Hello", "Hola"],
+              },
+            ],
+          }),
+        ],
+      ),
+    ).resolves.toEqual({
+      pageIndices: [0],
+      segments: [
+        { pageIndex: 0, text: "Hello" },
+        { pageIndex: 0, text: "Edited" },
+      ],
+    });
+  });
+
+  it("keeps current text when the page needs a re-upload", async () => {
+    mockDesignPages([["Hola"]]);
+    await expect(
+      extractDesignContent([0], [pullPage({ needsReupload: true, entries: [] })]),
+    ).resolves.toEqual({
+      pageIndices: [0],
+      segments: [{ pageIndex: 0, text: "Hola" }],
+    });
+  });
+
+  it("applies source, then another locale, then back to source on the same box", async () => {
+    let current = "Hello";
+    const { replacements, sync } = mockDesignPages([[current]], (_page, next) => {
+      current = next;
+    });
+    const source: CanvaPullEntry = {
+      key: "canva.t.hello",
+      source: "Hello",
+      target: "Hello",
+      knownTexts: ["Hello", "สวัสดี", "Bonjour"],
+    };
+    const thai = { ...source, target: "สวัสดี" };
+    const french = { ...source, target: "Bonjour" };
+
+    await expect(applyTranslationsToDesign([pullPage({ entries: [thai] })])).resolves.toMatchObject(
+      {
+        replaced: 1,
+      },
+    );
+    expect(replacements).toEqual(["สวัสดี"]);
+
+    vi.mocked(openDesign).mockReset();
+    const second = mockDesignPages([[current]], (_page, next) => {
+      current = next;
+    });
+    await expect(
+      applyTranslationsToDesign([pullPage({ entries: [french] })]),
+    ).resolves.toMatchObject({ replaced: 1 });
+    expect(second.replacements).toEqual(["Bonjour"]);
+
+    vi.mocked(openDesign).mockReset();
+    const third = mockDesignPages([[current]]);
+    await expect(
+      applyTranslationsToDesign([pullPage({ entries: [source] })]),
+    ).resolves.toMatchObject({ replaced: 1 });
+    expect(third.replacements).toEqual(["Hello"]);
+    expect(sync).toHaveBeenCalled();
+  });
+
+  it("replaces the full text box when Canva exposes multiple styled regions", async () => {
+    const regions = [{ text: "Buy " }, { text: "Now" }];
+    const plaintext = "Buy Now";
+    let replaced: { index: number; length: number; text: string } | null = null;
 
     vi.mocked(openDesign).mockImplementation(async (_options, callback) => {
       await callback({
@@ -441,10 +288,10 @@ describe("design-content", () => {
                     visitor({
                       type: "text",
                       text: {
-                        readPlaintext: () => "Hello",
-                        readTextRegions: () => [{ text: "Hello" }],
-                        replaceText: (_range: unknown, text: string) => {
-                          replacements.push(text);
+                        readPlaintext: () => plaintext,
+                        readTextRegions: () => regions,
+                        replaceText: (range: { index: number; length: number }, next: string) => {
+                          replaced = { index: range.index, length: range.length, text: next };
                         },
                       },
                     });
@@ -452,19 +299,168 @@ describe("design-content", () => {
                 },
               },
             });
-            return { status: "skipped" };
+            return { status: "executed" };
           },
         },
-        sync,
+        sync: vi.fn(async () => undefined),
       } as never);
     });
 
     await expect(
-      applyTranslationsToDesign(
-        [{ pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } }],
-        false,
-      ),
-    ).resolves.toBe(1);
+      applyTranslationsToDesign([
+        pullPage({
+          entries: [
+            {
+              key: "canva.t.buy-now",
+              source: "Buy Now",
+              target: "Achetez maintenant",
+              knownTexts: ["Buy Now"],
+            },
+          ],
+        }),
+      ]),
+    ).resolves.toMatchObject({ replaced: 1 });
+
+    expect(replaced).toEqual({
+      index: 0,
+      length: plaintext.length,
+      text: "Achetez maintenant",
+    });
+  });
+
+  it("applies after boxes are reordered and to duplicate source text", async () => {
+    const { replacements } = mockDesignPages([["World", "Hello", "Hello"]]);
+
+    await expect(
+      applyTranslationsToDesign([
+        pullPage({
+          entries: [
+            {
+              key: "canva.t.hello",
+              source: "Hello",
+              target: "Hola",
+              knownTexts: ["Hello"],
+            },
+            {
+              key: "canva.t.world",
+              source: "World",
+              target: "Mundo",
+              knownTexts: ["World"],
+            },
+          ],
+        }),
+      ]),
+    ).resolves.toMatchObject({ replaced: 3 });
+    expect(replacements).toEqual(["Mundo", "Hola", "Hola"]);
+  });
+
+  it("counts skipped, untranslated, and already applied boxes", async () => {
+    const { replacements } = mockDesignPages([["Edited", "Hello", "Hola"]]);
+
+    await expect(
+      applyTranslationsToDesign([
+        pullPage({
+          entries: [
+            {
+              key: "canva.t.hello",
+              source: "Hello",
+              target: "Hola",
+              knownTexts: ["Hello", "Hola"],
+            },
+            {
+              key: "canva.t.world",
+              source: "World",
+              target: null,
+              knownTexts: ["World"],
+            },
+          ],
+        }),
+      ]),
+    ).resolves.toEqual({
+      replaced: 1,
+      alreadyApplied: 1,
+      skipped: 1,
+      untranslated: 0,
+      pagesNeedingUpload: [],
+    });
     expect(replacements).toEqual(["Hola"]);
+  });
+
+  it("counts a missing target as untranslated", async () => {
+    mockDesignPages([["Hello"]]);
+    await expect(
+      applyTranslationsToDesign([
+        pullPage({
+          entries: [
+            {
+              key: "canva.t.hello",
+              source: "Hello",
+              target: null,
+              knownTexts: ["Hello"],
+            },
+          ],
+        }),
+      ]),
+    ).resolves.toMatchObject({ untranslated: 1, replaced: 0 });
+  });
+
+  it("skips an ambiguous known translation", async () => {
+    mockDesignPages([["OK"]]);
+    await expect(
+      applyTranslationsToDesign([
+        pullPage({
+          entries: [
+            {
+              key: "canva.t.a",
+              source: "Accept",
+              target: "OK",
+              knownTexts: ["OK"],
+            },
+            {
+              key: "canva.t.b",
+              source: "Confirm",
+              target: "OK",
+              knownTexts: ["OK"],
+            },
+          ],
+        }),
+      ]),
+    ).resolves.toMatchObject({ skipped: 1, replaced: 0 });
+  });
+
+  it("does not open pages that need a re-upload", async () => {
+    const { replacements, sync } = mockDesignPages([["Hello"]]);
+    await expect(
+      applyTranslationsToDesign([pullPage({ needsReupload: true, entries: [] })]),
+    ).resolves.toEqual({
+      replaced: 0,
+      alreadyApplied: 0,
+      skipped: 0,
+      untranslated: 0,
+      pagesNeedingUpload: [0],
+    });
+    expect(replacements).toEqual([]);
+    expect(sync).not.toHaveBeenCalled();
+    expect(openDesign).not.toHaveBeenCalled();
+  });
+
+  it("keeps source text when two keys share a later translation", () => {
+    const index = buildApplyTextIndex([
+      {
+        key: "canva.t.a",
+        source: "Accept",
+        target: "OK",
+        knownTexts: ["OK"],
+      },
+      {
+        key: "canva.t.b",
+        source: "Confirm",
+        target: "OK",
+        knownTexts: ["OK"],
+      },
+    ]);
+    expect(index.get("Accept")?.key).toBe("canva.t.a");
+    expect(index.get("Confirm")?.key).toBe("canva.t.b");
+    expect(index.has("OK")).toBe(false);
   });
 });
