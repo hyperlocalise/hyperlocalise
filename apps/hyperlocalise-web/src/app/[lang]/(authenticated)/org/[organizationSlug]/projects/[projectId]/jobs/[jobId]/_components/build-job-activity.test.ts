@@ -16,6 +16,7 @@ import {
   buildJobActivity,
   hasTerminalJobEvent,
   JOB_TERMINAL_EVENT_POLL_GRACE_MS,
+  latestWorkflowRunId,
   shouldPollJobEvents,
   type JobActivityRun,
 } from "./build-job-activity";
@@ -175,6 +176,33 @@ describe("shouldPollJobEvents", () => {
     expect(shouldPollJobEvents("failed", [failedTerminalEvent!])).toBe(false);
   });
 
+  it("keeps polling after retry until the latest run has a terminal event", () => {
+    expect(shouldPollJobEvents("succeeded", failedThenRetriedJobEvents)).toBe(true);
+    expect(shouldPollJobEvents("failed", failedThenRetriedJobEvents)).toBe(true);
+    expect(
+      shouldPollJobEvents("succeeded", failedThenRetriedJobEvents, { workflowRunId: "run-2" }),
+    ).toBe(true);
+
+    const latestSucceeded = jobEventsFixture([
+      { type: "job_started", payload: { targetLocales: ["fr-FR"] } },
+      {
+        type: "job_failed",
+        payload: { code: "file_translation_failed", failedLocales: ["fr-FR"], followUpJobId: null },
+      },
+      { type: "job_retried", workflowRunId: null, actorUserId: "user-1", payload: {} },
+      { type: "job_started", workflowRunId: "run-2", payload: { targetLocales: ["fr-FR"] } },
+      {
+        type: "job_succeeded",
+        workflowRunId: "run-2",
+        payload: { completedLocales: ["fr-FR"], failedLocales: [], followUpJobId: "job_follow_up" },
+      },
+    ]);
+    expect(shouldPollJobEvents("succeeded", latestSucceeded)).toBe(false);
+    expect(shouldPollJobEvents("succeeded", latestSucceeded, { workflowRunId: "run-2" })).toBe(
+      false,
+    );
+  });
+
   it("stops polling for cancelled jobs and after the grace window", () => {
     expect(shouldPollJobEvents("cancelled", [])).toBe(false);
     expect(
@@ -184,9 +212,14 @@ describe("shouldPollJobEvents", () => {
     ).toBe(false);
   });
 
-  it("detects terminal job events", () => {
+  it("detects a terminal event only for the latest workflow run", () => {
     expect(hasTerminalJobEvent([])).toBe(false);
     expect(hasTerminalJobEvent(succeededTerminalEvent ? [succeededTerminalEvent] : [])).toBe(true);
     expect(hasTerminalJobEvent(failedTerminalEvent ? [failedTerminalEvent] : [])).toBe(true);
+    expect(latestWorkflowRunId(failedThenRetriedJobEvents)).toBe("run-2");
+    expect(hasTerminalJobEvent(failedThenRetriedJobEvents)).toBe(false);
+    expect(hasTerminalJobEvent(failedThenRetriedJobEvents, "run-1")).toBe(true);
+    expect(hasTerminalJobEvent(failedThenRetriedJobEvents, "run-2")).toBe(false);
+    expect(hasTerminalJobEvent(failedThenRetriedJobEvents.slice(0, 4))).toBe(false);
   });
 });

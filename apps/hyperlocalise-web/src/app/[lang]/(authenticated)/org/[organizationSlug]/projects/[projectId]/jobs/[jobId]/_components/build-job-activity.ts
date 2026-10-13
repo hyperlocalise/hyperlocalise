@@ -160,16 +160,40 @@ export function isJobStatusActive(status: string) {
 /** Keep polling briefly after status settles so late terminal events are not missed. */
 export const JOB_TERMINAL_EVENT_POLL_GRACE_MS = 30_000;
 
-export function hasTerminalJobEvent(events: JobEventRecord[] | undefined) {
+function isTerminalJobEvent(event: JobEventRecord) {
+  return event.type === "job_succeeded" || event.type === "job_failed";
+}
+
+/**
+ * Newest workflow run that still owns the job. `job_retried` starts a new
+ * attempt; if it is the latest event with no following run id, the new run
+ * has not written anything yet.
+ */
+export function latestWorkflowRunId(events: JobEventRecord[] | undefined) {
+  if (!events) return null;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event.type === "job_retried") return null;
+    if (event.workflowRunId) return event.workflowRunId;
+  }
+  return null;
+}
+
+export function hasTerminalJobEvent(
+  events: JobEventRecord[] | undefined,
+  workflowRunId?: string | null,
+) {
+  const runId = workflowRunId || latestWorkflowRunId(events);
+  if (!runId) return false;
   return (
-    events?.some((event) => event.type === "job_succeeded" || event.type === "job_failed") ?? false
+    events?.some((event) => event.workflowRunId === runId && isTerminalJobEvent(event)) ?? false
   );
 }
 
 export function shouldPollJobEvents(
   status: string,
   events: JobEventRecord[] | undefined,
-  options?: { waitingForTerminalEventMs?: number },
+  options?: { waitingForTerminalEventMs?: number; workflowRunId?: string | null },
 ) {
   if (isJobStatusActive(status)) {
     return true;
@@ -177,7 +201,7 @@ export function shouldPollJobEvents(
   if (status !== "succeeded" && status !== "failed") {
     return false;
   }
-  if (hasTerminalJobEvent(events)) {
+  if (hasTerminalJobEvent(events, options?.workflowRunId)) {
     return false;
   }
   const waited = options?.waitingForTerminalEventMs ?? 0;

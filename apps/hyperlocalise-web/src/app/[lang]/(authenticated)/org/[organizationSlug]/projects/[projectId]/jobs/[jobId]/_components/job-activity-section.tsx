@@ -37,13 +37,13 @@ export function JobActivitySection({
 }: {
   organizationSlug: string;
   projectId: string;
-  job: Pick<JobDetailRecord, "id" | "status" | "createdAt" | "createdByUserId">;
+  job: Pick<JobDetailRecord, "id" | "status" | "workflowRunId" | "createdAt" | "createdByUserId">;
 }) {
   const { client: goSvcClient } = useGoSvcClient();
   const terminalEventWaitStartedAt = useRef<number | null>(null);
 
   const eventsQuery = useQuery({
-    queryKey: ["job-events", organizationSlug, job.id, job.status],
+    queryKey: ["job-events", organizationSlug, job.id, job.status, job.workflowRunId],
     queryFn: () => goSvcClient.job.listEvents(organizationSlug, job.id),
     placeholderData: keepPreviousData,
     refetchInterval: (query) => {
@@ -51,14 +51,20 @@ export function JobActivitySection({
       const waitingForTerminalEventMs = terminalEventWaitStartedAt.current
         ? Date.now() - terminalEventWaitStartedAt.current
         : 0;
-      return shouldPollJobEvents(job.status, events, { waitingForTerminalEventMs })
+      return shouldPollJobEvents(job.status, events, {
+        waitingForTerminalEventMs,
+        workflowRunId: job.workflowRunId,
+      })
         ? JOB_ACTIVITY_POLL_INTERVAL_MS
         : false;
     },
   });
 
   const events = eventsQuery.data?.events;
-  if ((job.status === "succeeded" || job.status === "failed") && !hasTerminalJobEvent(events)) {
+  if (
+    (job.status === "succeeded" || job.status === "failed") &&
+    !hasTerminalJobEvent(events, job.workflowRunId)
+  ) {
     terminalEventWaitStartedAt.current ??= Date.now();
   } else {
     terminalEventWaitStartedAt.current = null;
