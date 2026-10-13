@@ -35,10 +35,16 @@ export const organizationSwitcherMessages = defineMessages({
     id: "jaLdytkFWV",
     description: "Link to the workspace settings page from the sidebar workspace switcher",
   },
-  members: {
+  inviteMembers: {
     defaultMessage: "Invite and manage members",
-    id: "g+jQ/HY9BW",
-    description: "Link to the workspace members page from the sidebar workspace switcher",
+    id: "nuXi9Hvr5G",
+    description:
+      "Link to the workspace members page from the sidebar workspace switcher, shown to users who can invite members",
+  },
+  members: {
+    defaultMessage: "Members",
+    id: "rfsreH4z0t",
+    description: "Read-only link to the workspace members list from the sidebar workspace switcher",
   },
   viewAllWorkspaces: {
     defaultMessage: "View all workspaces",

@@ -67,6 +67,7 @@ type AppShellClientProps = {
   showApiKeysLink?: boolean;
   showBillingLink?: boolean;
   showMembersLink?: boolean;
+  canInviteMembers?: boolean;
   canWriteProjects?: boolean;
   canDeleteQueries?: boolean;
   user: {
@@ -88,6 +89,7 @@ export function AppShellClient({
   showApiKeysLink = false,
   showBillingLink = false,
   showMembersLink = false,
+  canInviteMembers = false,
   canWriteProjects = false,
   canDeleteQueries = false,
   user,
@@ -155,6 +157,7 @@ export function AppShellClient({
                 activeOrganization={activeOrganization}
                 organizations={organizations}
                 showMembersLink={showMembersLink}
+                canInviteMembers={canInviteMembers}
               />
             </SidebarHeader>
 

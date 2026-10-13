@@ -20,6 +20,7 @@ import {
   CheckIcon,
   GearIcon,
   UserPlusIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -49,10 +50,12 @@ export function OrganizationSwitcher({
   activeOrganization,
   organizations,
   showMembersLink = false,
+  canInviteMembers = false,
 }: {
   activeOrganization: OrganizationOption;
   organizations: OrganizationOption[];
   showMembersLink?: boolean;
+  canInviteMembers?: boolean;
 }) {
   const intl = useIntl();
   const pathname = usePathname();
@@ -146,13 +149,22 @@ export function OrganizationSwitcher({
                     <GearIcon className="size-4" />
                     <FormattedMessage {...organizationSwitcherMessages.workspaceSettings} />
                   </DropdownMenuItem>
-                  {showMembersLink ? (
+                  {showMembersLink || canInviteMembers ? (
                     <DropdownMenuItem
                       onClick={closeMobileSidebar}
                       render={<Link href={buildOrganizationPath(activeSlug, "members")} />}
                     >
-                      <UserPlusIcon className="size-4" />
-                      <FormattedMessage {...organizationSwitcherMessages.members} />
+                      {canInviteMembers ? (
+                        <>
+                          <UserPlusIcon className="size-4" />
+                          <FormattedMessage {...organizationSwitcherMessages.inviteMembers} />
+                        </>
+                      ) : (
+                        <>
+                          <UsersThreeIcon className="size-4" />
+                          <FormattedMessage {...organizationSwitcherMessages.members} />
+                        </>
+                      )}
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuGroup>

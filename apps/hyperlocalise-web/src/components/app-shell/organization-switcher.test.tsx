@@ -62,7 +62,7 @@ describe("OrganizationSwitcher", () => {
   });
 
   it("lists workspaces and keeps the current section when switching", async () => {
-    renderSwitcher({ showMembersLink: true });
+    renderSwitcher({ showMembersLink: true, canInviteMembers: true });
 
     await userEvent.click(
       screen.getByRole("button", { name: /Current workspace: Acme Localization/ }),
@@ -81,6 +81,18 @@ describe("OrganizationSwitcher", () => {
     expect(screen.getByRole("menuitem", { name: "Invite and manage members" })).toBeTruthy();
   });
 
+  it("shows a read-only members link to roles that cannot invite", async () => {
+    renderSwitcher({ showMembersLink: true, canInviteMembers: false });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Current workspace: Acme Localization/ }),
+    );
+
+    const membersLink = await screen.findByRole("menuitem", { name: "Members" });
+    expect(membersLink.getAttribute("href")).toBe("/org/acme/members");
+    expect(screen.queryByRole("menuitem", { name: "Invite and manage members" })).toBeNull();
+  });
+
   it("hides the members link without permission", async () => {
     renderSwitcher();
 
@@ -89,6 +101,7 @@ describe("OrganizationSwitcher", () => {
     );
 
     await screen.findByRole("menuitem", { name: "Workspace settings" });
+    expect(screen.queryByRole("menuitem", { name: "Members" })).toBeNull();
     expect(screen.queryByRole("menuitem", { name: "Invite and manage members" })).toBeNull();
   });
 });

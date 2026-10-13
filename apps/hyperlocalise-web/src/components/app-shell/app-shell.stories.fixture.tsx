@@ -299,6 +299,7 @@ export function AppShellSidebarStoryFrame({
               activeOrganization={appShellStoryOrganizations[0]}
               organizations={[...appShellStoryOrganizations]}
               showMembersLink
+              canInviteMembers
             />
           </SidebarHeader>
           <SidebarContent className="gap-0 px-2 pt-2">
