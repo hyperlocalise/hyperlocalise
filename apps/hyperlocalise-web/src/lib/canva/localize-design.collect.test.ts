@@ -18,12 +18,14 @@ const {
   enqueueSourceFileIngestAfterUploadMock,
   getAccessibleProjectForApiKeyMock,
   resolveApiKeyTeamAccessContextMock,
+  updateStoredFilesMock,
 } = vi.hoisted(() => ({
   createRepositorySourceFileVersionMock: vi.fn(),
   createStoredFileMock: vi.fn(),
   enqueueSourceFileIngestAfterUploadMock: vi.fn(),
   getAccessibleProjectForApiKeyMock: vi.fn(),
   resolveApiKeyTeamAccessContextMock: vi.fn(),
+  updateStoredFilesMock: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/database/client", () => ({
@@ -41,12 +43,22 @@ vi.mock("@/lib/database/client", () => ({
         }),
       }),
     }),
+    update: () => ({
+      set: () => ({
+        where: updateStoredFilesMock,
+      }),
+    }),
   },
   schema: {
     organizationApiKeys: {
       id: "id",
       organizationId: "organizationId",
       createdByUserId: "createdByUserId",
+    },
+    storedFiles: {
+      id: "id",
+      organizationId: "organizationId",
+      metadata: "metadata",
     },
   },
 }));
@@ -110,7 +122,7 @@ describe("collectCanvaDesign", () => {
 
     expect(collected.pages[0]).toMatchObject({
       pageIndex: 0,
-      sourcePath: "canva/designs/mic/page-1.json",
+      sourcePath: "canva/designs/mic-DAFtest/page-1.json",
       sourceFileId: "file_1",
       wordCount: 1,
     });
@@ -123,9 +135,12 @@ describe("collectCanvaDesign", () => {
         }),
       }),
     );
+    expect(
+      createStoredFileMock.mock.calls[0]?.[0]?.metadata.canvaCollectBatchComplete,
+    ).toBeUndefined();
     expect(createRepositorySourceFileVersionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        sourcePath: "canva/designs/mic/page-1.json",
+        sourcePath: "canva/designs/mic-DAFtest/page-1.json",
         uploadSurface: "canva_integration",
         uploadedByApiKeyId: "key_1",
       }),
@@ -134,8 +149,50 @@ describe("collectCanvaDesign", () => {
       expect.objectContaining({
         storedFileId: "file_1",
         sourceFileVersionId: "version_1",
-        sourcePath: "canva/designs/mic/page-1.json",
+        sourcePath: "canva/designs/mic-DAFtest/page-1.json",
       }),
     );
+    expect(updateStoredFilesMock).toHaveBeenCalled();
+  });
+
+  it("does not publish a collect batch when a later page write fails", async () => {
+    createStoredFileMock
+      .mockResolvedValueOnce({
+        id: "file_1",
+        organizationId: "org_1",
+        projectId: "project_1",
+        createdByUserId: "user_1",
+        sha256: "abc",
+      })
+      .mockRejectedValueOnce(new Error("storage_write_failed"));
+
+    await expect(
+      collectCanvaDesign({
+        organizationId: "org_1",
+        apiKeyId: "key_1",
+        canvaConnectionId: "conn_1",
+        projectId: "project_1",
+        designId: "DAFtest",
+        designTitle: "Mic",
+        segments: [
+          {
+            key: "canva.segment.0.0",
+            pageIndex: 0,
+            contentIndex: 0,
+            regionIndex: 0,
+            text: "Hello",
+          },
+          {
+            key: "canva.segment.1.0",
+            pageIndex: 1,
+            contentIndex: 0,
+            regionIndex: 0,
+            text: "World",
+          },
+        ],
+      }),
+    ).rejects.toThrow("storage_write_failed");
+
+    expect(updateStoredFilesMock).not.toHaveBeenCalled();
   });
 });

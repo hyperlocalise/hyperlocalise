@@ -609,7 +609,7 @@ export async function collectCanvaDesign(input: {
     }
 
     const filename = buildPageFileName(pageIndex);
-    const sourcePath = buildPageSourcePath(designSlug, pageIndex);
+    const sourcePath = buildPageSourcePath(designSlug, input.designId, pageIndex);
     const fileBody = JSON.stringify(translationFile, null, 2);
     const sourceHash = createHash("sha256").update(fileBody).digest("hex");
     const wordCount = countTranslationFileWords(
@@ -672,11 +672,38 @@ export async function collectCanvaDesign(input: {
     throw new Error("canva_no_text_segments");
   }
 
+  await db
+    .update(schema.storedFiles)
+    .set({
+      metadata: sql`jsonb_set(coalesce(${schema.storedFiles.metadata}, '{}'::jsonb), '{canvaCollectBatchComplete}', 'true'::jsonb)`,
+    })
+    .where(
+      and(
+        eq(schema.storedFiles.organizationId, input.organizationId),
+        inArray(
+          schema.storedFiles.id,
+          pages.map((page) => page.sourceFileId),
+        ),
+      ),
+    );
+
   return {
     designSlug,
     projectId: project.id,
     pages,
   };
+}
+
+export function latestPublishedCanvaCollectBatchId(
+  rows: Array<{ metadata: Record<string, unknown> }>,
+): string | null {
+  for (const row of rows) {
+    const batchId = row.metadata.canvaCollectBatchId;
+    if (typeof batchId === "string" && row.metadata.canvaCollectBatchComplete === true) {
+      return batchId;
+    }
+  }
+  return null;
 }
 
 async function listCollectedCanvaPageFiles(input: {
@@ -702,9 +729,8 @@ async function listCollectedCanvaPageFiles(input: {
     )
     .orderBy(desc(schema.storedFiles.createdAt));
 
-  const latestBatchId = rows.find((row) => typeof row.metadata.canvaCollectBatchId === "string")
-    ?.metadata.canvaCollectBatchId;
-  if (typeof latestBatchId !== "string") {
+  const latestBatchId = latestPublishedCanvaCollectBatchId(rows);
+  if (latestBatchId == null) {
     return [];
   }
 

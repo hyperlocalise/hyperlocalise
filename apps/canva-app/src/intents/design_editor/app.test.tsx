@@ -325,6 +325,96 @@ describe("Hyperlocalise Canva app", () => {
     expect(result.getAllByRole("button", { name: "Add to design" }).length).toBe(1);
   });
 
+  it("routes Apply all through indexed page apply even for one collected page", async () => {
+    vi.mocked(loadSettings).mockReturnValue({
+      connectionToken: "hl_canva_test",
+      organizationSlug: "acme",
+      organizationName: "Acme",
+      projectId: "project_1",
+      projectName: "Marketing",
+      sourceLocale: "en-US",
+      targetLocales: "fr-FR",
+      preserveFormatting: true,
+      selectedPageIndices: [0],
+      lastJobId: "",
+    });
+
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses, pullCanvaLocalePages } =
+      await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue({
+      organization: { id: "org_1", name: "Acme", slug: "acme" },
+      project: {
+        id: "project_1",
+        name: "Marketing",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      connection: {
+        id: "conn_1",
+        displayName: "Canva",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "fr-FR",
+          status: "succeeded",
+          translated: 1,
+          total: 1,
+          translatedWords: 1,
+          wordCount: 1,
+          percent: 100,
+          approved: 1,
+          approvedPercent: 100,
+          canAdd: true,
+          pages: [
+            {
+              pageIndex: 0,
+              sourcePath: "canva/designs/mic-DAFtest/page-1.json",
+              jobId: "job_1",
+              status: "succeeded",
+              translated: 1,
+              total: 1,
+              translatedWords: 1,
+              wordCount: 1,
+              approved: 1,
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+    vi.mocked(pullCanvaLocalePages).mockResolvedValue({
+      locale: "fr-FR",
+      projectId: "project_1",
+      pages: [{ pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } }],
+    });
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(1);
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getAllByRole("button", { name: "Add to design" }).length).toBeGreaterThan(0);
+    });
+    const addButtons = result.getAllByRole("button", { name: "Add to design" });
+    const addButton = addButtons[addButtons.length - 1];
+    if (!addButton) {
+      throw new Error("Expected an Add to design button.");
+    }
+    fireEvent.click(addButton);
+    fireEvent.click(result.getByRole("button", { name: "Apply all" }));
+
+    await waitFor(() => {
+      expect(designContent.applyTranslationsToDesign).toHaveBeenCalledWith(
+        [{ pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } }],
+        true,
+      );
+    });
+    expect(designContent.applyTranslationsToCurrentPage).not.toHaveBeenCalled();
+  });
+
   it("keeps generate translation when a locale is only partially translated", async () => {
     vi.mocked(loadSettings).mockReturnValue({
       connectionToken: "hl_canva_test",

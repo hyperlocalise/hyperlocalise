@@ -25,8 +25,8 @@ describe("segment-file", () => {
   it("builds stable segment keys and source paths", () => {
     expect(segmentKey(1, 2, 3)).toBe("canva.segment.1.2.3");
     expect(buildSourcePath("design-123")).toBe("canva/designs/design-123.json");
-    expect(buildPageSourcePath("mic", 0)).toBe("canva/designs/mic/page-1.json");
-    expect(buildPageSourcePath("mic", 1)).toBe("canva/designs/mic/page-2.json");
+    expect(buildPageSourcePath("mic", "DAF1", 0)).toBe("canva/designs/mic-DAF1/page-1.json");
+    expect(buildPageSourcePath("mic", "DAF2", 1)).toBe("canva/designs/mic-DAF2/page-2.json");
   });
 
   it("serializes and parses translation files", () => {

@@ -101,6 +101,19 @@ export function buildPageFileName(pageIndex: number): string {
   return `page-${pageFileNumber(pageIndex)}.json`;
 }
 
-export function buildPageSourcePath(designSlug: string, pageIndex: number): string {
-  return `canva/designs/${designSlug}/${buildPageFileName(pageIndex)}`;
+function canvaPathSegment(value: string): string {
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "untitled"
+  );
+}
+
+export function buildPageSourcePath(
+  designSlug: string,
+  designId: string,
+  pageIndex: number,
+): string {
+  return `canva/designs/${designSlug}-${canvaPathSegment(designId)}/${buildPageFileName(pageIndex)}`;
 }

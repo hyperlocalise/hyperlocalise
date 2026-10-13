@@ -16,6 +16,7 @@ import {
   buildCanvaSourceLocaleStatus,
   canvaApprovalPercent,
   isCanvaIntegrationJob,
+  latestPublishedCanvaCollectBatchId,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
   resolveCanvaJobLocales,
@@ -178,6 +179,38 @@ describe("resolveCanvaJobLocales", () => {
         project: { sourceLocale: null, targetLocales: ["fr-FR"] },
       }),
     ).toThrow("job_source_locale_not_in_project");
+  });
+});
+
+describe("latestPublishedCanvaCollectBatchId", () => {
+  it("skips newer incomplete batches so a failed collect cannot hide the last complete one", () => {
+    expect(
+      latestPublishedCanvaCollectBatchId([
+        {
+          metadata: {
+            canvaCollectBatchId: "partial",
+          },
+        },
+        {
+          metadata: {
+            canvaCollectBatchId: "complete",
+            canvaCollectBatchComplete: true,
+          },
+        },
+      ]),
+    ).toBe("complete");
+  });
+
+  it("returns null when no collect batch has been published", () => {
+    expect(
+      latestPublishedCanvaCollectBatchId([
+        {
+          metadata: {
+            canvaCollectBatchId: "partial",
+          },
+        },
+      ]),
+    ).toBeNull();
   });
 });
 

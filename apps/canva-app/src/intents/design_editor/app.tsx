@@ -715,13 +715,7 @@ export const App = () => {
       if (pulled.pages.length === 0) {
         throw new Error("No translations to apply.");
       }
-      const replaced =
-        pulled.pages.length === 1 && pulled.pages[0]
-          ? await applyTranslationsToCurrentPage(
-              pulled.pages[0].translations,
-              settings.preserveFormatting,
-            )
-          : await applyTranslationsToDesign(pulled.pages, settings.preserveFormatting);
+      const replaced = await applyTranslationsToDesign(pulled.pages, settings.preserveFormatting);
       if (replaced === 0) {
         throw new Error("No matching text on those pages. Collect the pages again, then apply.");
       }
