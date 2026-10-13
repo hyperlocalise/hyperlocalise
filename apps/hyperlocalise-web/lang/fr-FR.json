@@ -4652,9 +4652,6 @@
   "7rANseAJ23": {
     "defaultMessage": "Enregistrer auprès du fournisseur"
   },
-  "7rtL+2WjPy": {
-    "defaultMessage": "Nouvelle demande"
-  },
   "7rwI1YGn2f": {
     "defaultMessage": "Aucun contexte enregistré"
   },
@@ -26915,9 +26912,6 @@
   "shqQx7NEn2": {
     "defaultMessage": "Les rôles de localisation sont attribués manuellement dans Hyperlocalise. Ils ne sont pas synchronisés à partir des groupes de l’annuaire SCIM."
   },
-  "si5HssHaNU": {
-    "defaultMessage": "Chargement de Hyperlocalise…"
-  },
   "siHRtHWO8x": {
     "defaultMessage": "Action GitHub"
   },
@@ -28652,9 +28646,6 @@
   "wGWzsLB7PP": {
     "defaultMessage": "Par ex. Conservez le logo inchangé et traduisez uniquement le texte à l’écran."
   },
-  "wGu07dv5qW": {
-    "defaultMessage": "Projet : {projectName}"
-  },
   "wHFmp4/+wj": {
     "defaultMessage": "Fichier source"
   },
@@ -28942,9 +28933,6 @@
   },
   "wuTr/wBWSH": {
     "defaultMessage": "Ce domaine ne figure pas dans le catalogue de l’espace de travail."
-  },
-  "wueVNaKGWk": {
-    "defaultMessage": "Hyperlocalise"
   },
   "wufZJk5FA/": {
     "defaultMessage": "Directive"

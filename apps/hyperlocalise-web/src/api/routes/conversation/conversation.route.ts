@@ -338,10 +338,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       if (projectId) {
         conditions.push(eq(schema.interactions.projectId, projectId));
       }
-      const embedSession = c.var.crowdinEmbedSession;
-      if (embedSession) {
-        conditions.push(eq(schema.interactions.projectId, embedSession.hlProjectId));
-      }
       if (query.cursor) {
         const cursorDate = new Date(query.cursor);
         if (!Number.isNaN(cursorDate.getTime())) {
@@ -469,25 +465,16 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
       }
 
-      const embedSession = c.var.crowdinEmbedSession;
       const requestedProjectId = parsed.data.projectId
         ? normalizeProjectId(parsed.data.projectId)
         : undefined;
-      const projectId = embedSession?.hlProjectId ?? requestedProjectId;
-
-      if (embedSession && requestedProjectId && requestedProjectId !== embedSession.hlProjectId) {
-        return badRequestResponse(c, "project_scope_mismatch");
-      }
+      const projectId = requestedProjectId;
 
       if (projectId) {
         const project = await getOwnedProject(c.var.auth, projectId);
         if (!project) {
           return c.json({ error: "project_not_found" }, 400);
         }
-      }
-
-      if (embedSession && !projectId) {
-        return badRequestResponse(c, "project_required");
       }
 
       const orgId = c.var.auth.activeOrganization.localOrganizationId;

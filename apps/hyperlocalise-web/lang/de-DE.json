@@ -4652,9 +4652,6 @@
   "7rANseAJ23": {
     "defaultMessage": "Beim Anbieter speichern"
   },
-  "7rtL+2WjPy": {
-    "defaultMessage": "Neue Anfrage"
-  },
   "7rwI1YGn2f": {
     "defaultMessage": "Kein Kontext erfasst"
   },
@@ -26915,9 +26912,6 @@
   "shqQx7NEn2": {
     "defaultMessage": "Lokalisierungsrollen werden in Hyperlocalise manuell zugewiesen. Sie werden nicht mit SCIM-Verzeichnisgruppen synchronisiert."
   },
-  "si5HssHaNU": {
-    "defaultMessage": "Hyperlocalise wird geladen …"
-  },
   "siHRtHWO8x": {
     "defaultMessage": "GitHub Action"
   },
@@ -28652,9 +28646,6 @@
   "wGWzsLB7PP": {
     "defaultMessage": "z. B. Logo unverändert lassen und nur den auf dem Bildschirm angezeigten Text übersetzen."
   },
-  "wGu07dv5qW": {
-    "defaultMessage": "Projekt: {projectName}"
-  },
   "wHFmp4/+wj": {
     "defaultMessage": "Quelldatei"
   },
@@ -28942,9 +28933,6 @@
   },
   "wuTr/wBWSH": {
     "defaultMessage": "Diese Domain ist nicht im Workspace-Katalog enthalten."
-  },
-  "wueVNaKGWk": {
-    "defaultMessage": "Hyperlocalise"
   },
   "wufZJk5FA/": {
     "defaultMessage": "Richtlinie"

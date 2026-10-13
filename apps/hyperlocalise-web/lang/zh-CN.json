@@ -4652,9 +4652,6 @@
   "7rANseAJ23": {
     "defaultMessage": "保存到提供商"
   },
-  "7rtL+2WjPy": {
-    "defaultMessage": "新请求"
-  },
   "7rwI1YGn2f": {
     "defaultMessage": "未记录上下文"
   },
@@ -26915,9 +26912,6 @@
   "shqQx7NEn2": {
     "defaultMessage": "本地化角色在 Hyperlocalise 中手动分配，不会从 SCIM 目录组同步。"
   },
-  "si5HssHaNU": {
-    "defaultMessage": "正在加载 Hyperlocalise…"
-  },
   "siHRtHWO8x": {
     "defaultMessage": "GitHub Action"
   },
@@ -28652,9 +28646,6 @@
   "wGWzsLB7PP": {
     "defaultMessage": "例如：保持徽标不变，仅翻译屏幕上的文字。"
   },
-  "wGu07dv5qW": {
-    "defaultMessage": "项目：{projectName}"
-  },
   "wHFmp4/+wj": {
     "defaultMessage": "源文件"
   },
@@ -28942,9 +28933,6 @@
   },
   "wuTr/wBWSH": {
     "defaultMessage": "此域名不在工作区目录中。"
-  },
-  "wueVNaKGWk": {
-    "defaultMessage": "Hyperlocalise"
   },
   "wufZJk5FA/": {
     "defaultMessage": "指南"

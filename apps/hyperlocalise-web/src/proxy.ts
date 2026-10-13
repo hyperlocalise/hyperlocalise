@@ -19,22 +19,10 @@ import {
   getAppLocaleFromRequest,
   normalizeAppLocale,
 } from "@/lib/app-i18n/locales";
-import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 
 const workosProxy = authkitProxy();
 type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
-
-function isCrowdinAppPath(pathname: string) {
-  return pathname === "/crowdin-app" || pathname.startsWith("/crowdin-app/");
-}
-
-function applyCrowdinAppFrameAncestors(response: NextResponse): NextResponse {
-  // Single CSP source for iframe HTML — see frame-ancestors.ts.
-  response.headers.delete("X-Frame-Options");
-  response.headers.set("Content-Security-Policy", buildCrowdinAppFrameAncestorsCsp());
-  return response;
-}
 
 function nextWithRequestUrl(request: NextRequest): NextResponse {
   const requestHeaders = new Headers(request.headers);
@@ -93,22 +81,7 @@ async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
     return response;
   }
 
-  const isCrowdinAppRequest = isCrowdinAppPath(request.nextUrl.pathname);
-  if (isCrowdinAppRequest && response.headers.has("location")) {
-    return applyCrowdinAppFrameAncestors(
-      new NextResponse("Crowdin app unavailable", {
-        status: 503,
-        headers: { "Cache-Control": "no-store" },
-      }),
-    );
-  }
-
-  const nextResponse = ensureRequestUrlHeader(request, response);
-  if (isCrowdinAppRequest) {
-    return applyCrowdinAppFrameAncestors(nextResponse);
-  }
-
-  return nextResponse;
+  return ensureRequestUrlHeader(request, response);
 }
 
 const PUBLIC_LOCALIZED_PREFIXES = [
@@ -130,7 +103,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/localisation-audit",
 ]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org", "/claim-domain"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app", "/mcp"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/mcp"];
 // BotID (and similar) use opaque UUID first segments; locales never do.
 const UUID_PATH_SEGMENT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
