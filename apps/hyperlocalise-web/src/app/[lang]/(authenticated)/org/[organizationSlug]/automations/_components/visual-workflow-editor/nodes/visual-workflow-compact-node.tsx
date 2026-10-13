@@ -89,7 +89,7 @@ const HANDLE_GLYPH_CLASS = cn(
 
 // The app's primary, destructive and muted colours are far heavier than the data ports' type
 // colours. Mixed with the background they sit at the same strength, and stay opaque, so neither
-// the card's border nor a step's glow shows through.
+// the card's border nor a step's band shows through.
 const EXECUTION_GLYPH_TONE_CLASS =
   "text-[color:color-mix(in_oklab,currentColor_60%,var(--background))]";
 
@@ -163,12 +163,17 @@ function DataHandle({ className, connected, ...props }: WorkflowHandleProps) {
   );
 }
 
-// A step's state is marked with a soft glow, not a hard outline: the canvas moves by fractions of
-// a pixel, and a thin bright line flickers between two and three pixels wide as it does.
-const STEP_GLOW_CLASS = {
-  // Inside the card, so it never mixes with the selection's glow around it.
-  issue: "inset-shadow-[0_0_6px_1px_color-mix(in_oklab,var(--destructive)_50%,transparent)]",
-  selected: "shadow-[0_0_6px_1px_color-mix(in_oklab,var(--ring)_50%,transparent)]",
+// A step's state is marked with a band along its edge at half the colour's strength: the canvas
+// moves by fractions of a pixel, and a thin solid line flickers between two and three pixels wide
+// as it does, where a wide soft one keeps its look.
+//
+// The band is the shadow of an element set in from the card's edge by half the band's width, so
+// the edge, and with it every handle, runs down the band's middle.
+const STEP_BAND_CLASS =
+  "pointer-events-none absolute inset-[1.5px] rounded-[calc(var(--radius-xl)-1.5px)]";
+const STEP_BAND_TONE_CLASS = {
+  issue: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--destructive)_50%,transparent)]",
+  selected: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--ring)_50%,transparent)]",
 };
 
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
@@ -477,13 +482,23 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
       }
       className={cn(
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
-        hasIssue ? STEP_GLOW_CLASS.issue : null,
-        selected ? STEP_GLOW_CLASS.selected : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
+      {/* A selected step shows the selection alone; its issue mark still says it has a problem.
+          The band comes before the handles, which are drawn over it. */}
+      {selected || hasIssue ? (
+        <span
+          aria-hidden
+          data-slot="step-band"
+          className={cn(
+            STEP_BAND_CLASS,
+            selected ? STEP_BAND_TONE_CLASS.selected : STEP_BAND_TONE_CLASS.issue,
+          )}
+        />
+      ) : null}
       {hasIssue ? (
         <span
           className="absolute top-2 right-2 text-destructive"

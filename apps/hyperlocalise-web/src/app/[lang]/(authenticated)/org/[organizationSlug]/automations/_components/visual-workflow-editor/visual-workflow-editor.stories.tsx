@@ -414,13 +414,29 @@ export const UnsavedChanges: Story = {
   },
 };
 
+// The shadow that draws a step's band, as the browser writes it in a computed style.
+function stepBandShadow(step: Element) {
+  const band = step.querySelector('[data-slot="step-band"]');
+  return band ? getComputedStyle(band).boxShadow : "";
+}
+
+// The colour of a step's band, as the browser writes it in a computed style.
+function stepBandColour(step: Element, token: "--destructive" | "--ring") {
+  const probe = document.createElement("span");
+  probe.style.color = `color-mix(in srgb, var(${token}) 50%, transparent)`;
+  step.appendChild(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour;
+}
+
 export const InvalidStep: Story = {
   name: "Invalid step",
   parameters: {
     docs: {
       description: {
         story:
-          "A step with an empty required setting is marked on the canvas. The issue names the step and the setting, and its buttons select the step and bring it into view.",
+          "A step with an empty required setting is marked on the canvas and gets a band in the destructive colour. The issue names the step and the setting, and its buttons select the step and bring it into view. Selected, the step shows the selection's band alone and keeps its mark. The band runs along the step's edge, under the handles.",
       },
     },
   },
@@ -432,12 +448,25 @@ export const InvalidStep: Story = {
     playgroundMode: true,
   },
   play: async ({ canvas }) => {
-    await expect(await canvas.findByTitle("This step has a problem")).toBeInTheDocument();
+    const step = (await canvas.findByTitle("This step has a problem")).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    await expect(stepBandShadow(step)).toContain(stepBandColour(step, "--destructive"));
     await expect(canvas.getByText("channelId is required.")).toBeInTheDocument();
     // One broken step needs no arrows.
     await expect(canvas.queryByRole("button", { name: "Next issue" })).not.toBeInTheDocument();
 
+    // Half of the band is inside the step's edge and half outside, so the handles sit on its
+    // middle.
+    const band = step.querySelector('[data-slot="step-band"]') as HTMLElement;
+    await expect(getComputedStyle(band).top).toBe("1.5px");
+    await expect(stepBandShadow(step)).toMatch(/ 0px 0px 0px 3px$/);
+
     await userEvent.click(canvas.getByRole("button", { name: "Show on canvas" }));
+
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "--ring")));
+    await expect(stepBandShadow(step)).not.toContain(stepBandColour(step, "--destructive"));
+    await expect(canvas.getByTitle("This step has a problem")).toBeInTheDocument();
 
     await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
       "aria-invalid",
