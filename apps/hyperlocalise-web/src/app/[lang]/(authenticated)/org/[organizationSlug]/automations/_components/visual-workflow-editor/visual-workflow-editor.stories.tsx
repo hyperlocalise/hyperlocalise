@@ -352,7 +352,11 @@ export const LeaveStepSettings: Story = {
     };
 
     await openSettings();
+    // The step is deleted from the same row that leads back to the picker.
     const back = canvas.getByRole("button", { name: "Back" });
+    await expect(
+      within(back.parentElement as HTMLElement).getByRole("button", { name: "Delete step" }),
+    ).toHaveClass("text-destructive");
 
     await userEvent.click(back);
     await expectPicker();
