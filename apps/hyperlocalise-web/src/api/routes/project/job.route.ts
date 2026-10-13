@@ -53,6 +53,7 @@ import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
 } from "@/lib/activity-log/job-automation-events";
+import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
@@ -1248,6 +1249,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
+      await recordJobEvents({
+        jobId: retriedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_retried", payload: {} }],
+      });
+
       try {
         await options.jobQueue.enqueue({
           kind: "translation",
@@ -1364,6 +1371,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_marked_failed", payload: {} }],
+      });
 
       await enqueueJobFailedActivity({
         actorCredentialId: null,
@@ -1497,6 +1510,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_cancelled", payload: {} }],
+      });
 
       await enqueueJobCancelledActivity({
         actorCredentialId: null,

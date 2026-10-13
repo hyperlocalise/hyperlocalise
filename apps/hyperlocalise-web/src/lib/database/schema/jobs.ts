@@ -23,6 +23,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { JobEventType } from "@/lib/job-events/job-events-contract";
+
 import {
   externalTmsProviderKindEnum,
   jobAssigneeTypeEnum,
@@ -133,6 +135,35 @@ export const translationJobDetails = pgTable(
     index("idx_translation_job_details_source_file_version").on(table.sourceFileVersionId),
     index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
   ],
+);
+
+/**
+ * Append-only progress log for a job: workflow stages, per-locale progress, and user actions. Drives the job detail activity feed.
+ */
+export const jobEvents = pgTable(
+  "job_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Groups events into run attempts; null for user actions outside a run.
+    workflowRunId: text("workflow_run_id"),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    type: text("type").$type<JobEventType>().notNull(),
+    locale: text("locale"),
+    payload: jsonb("payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
+  },
+  (table) => [index("idx_job_events_job_created_at").on(table.jobId, table.createdAt)],
 );
 
 /**
