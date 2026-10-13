@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { observer } from "mobx-react-lite";
 import { KanbanIcon, ListIcon, CrosshairIcon, TranslateIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -32,6 +33,7 @@ import { getTmsProviderBranding } from "@/lib/providers/shared/tms-provider-bran
 import { JobsGroupedList } from "./jobs-grouped-list";
 import { JobsKanbanBoard } from "./jobs-kanban-board";
 import { JobsListToolbar } from "./jobs-list-toolbar";
+import type { JobsPageStore } from "./jobs-page-store";
 import {
   buildJobDetailHref,
   readJobsViewMode,
@@ -580,7 +582,7 @@ function JobsResourceSection({
   );
 }
 
-export function JobsPageView({
+export const JobsPageView = observer(function JobsPageView({
   assignedNativeJobs = [],
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   createdNativeJobs = [],
@@ -597,6 +599,7 @@ export function JobsPageView({
   onClearFilters,
   onSearchDraftChange,
   onStatusFilterChange,
+  pageStore,
   organizationSlug,
   projectId,
   renderError = ({ error }) => <JobsPageErrorMessage error={error} />,
@@ -623,6 +626,7 @@ export function JobsPageView({
   onClearFilters?: () => void;
   onSearchDraftChange?: (value: string) => void;
   onStatusFilterChange?: (statusFilter: JobsStatusFilter) => void;
+  pageStore?: JobsPageStore;
   organizationSlug: string;
   projectId?: string;
   renderError?: JobsErrorRenderer;
@@ -636,37 +640,75 @@ export function JobsPageView({
   const intl = useIntl();
   const isSearchControlled = onSearchDraftChange != null;
   const [uncontrolledSearch, setUncontrolledSearch] = useState(initialSearch);
-  const search = isSearchControlled ? (controlledSearchDraft ?? "") : uncontrolledSearch;
-  const setSearch = isSearchControlled ? onSearchDraftChange : setUncontrolledSearch;
-  const [viewMode, setViewMode] = useState<JobsViewMode>(projectId ? "kanban" : "row");
+  const search =
+    pageStore?.searchDraft ??
+    (isSearchControlled ? (controlledSearchDraft ?? "") : uncontrolledSearch);
+  const setSearch = (value: string) => {
+    if (pageStore) {
+      pageStore.setSearchDraft(value);
+    } else if (isSearchControlled) {
+      onSearchDraftChange?.(value);
+    } else {
+      setUncontrolledSearch(value);
+    }
+  };
+  const [localViewMode, setViewMode] = useState<JobsViewMode>(projectId ? "kanban" : "row");
+  const viewMode = pageStore?.viewMode ?? localViewMode;
+  const [isViewModeRestored, setIsViewModeRestored] = useState(false);
   const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
     useState<JobsStatusFilter>(initialStatusFilter);
-  const selectedStatusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
+  const selectedStatusFilter =
+    pageStore?.statusFilter ?? controlledStatusFilter ?? uncontrolledStatusFilter;
   const listViewMode = projectId ? viewMode : "row";
   const isBoardView = listViewMode === "kanban";
   const statusFilter: JobsStatusFilter = isBoardView ? "all" : selectedStatusFilter;
   const activeStatus = statusFilter === "all" ? undefined : statusFilter;
 
+  const handleStatusFilterChange = useCallback(
+    (nextStatusFilter: JobsStatusFilter) => {
+      if (pageStore) {
+        pageStore.setStatusFilter(nextStatusFilter);
+        return;
+      }
+      if (controlledStatusFilter === undefined) {
+        setUncontrolledStatusFilter(nextStatusFilter);
+      }
+      onStatusFilterChange?.(nextStatusFilter);
+    },
+    [controlledStatusFilter, onStatusFilterChange, pageStore],
+  );
+
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || pageStore) {
       return;
     }
     setViewMode(readJobsViewMode());
-  }, [projectId]);
+    setIsViewModeRestored(true);
+  }, [pageStore, projectId]);
+
+  useEffect(() => {
+    if (!pageStore && isViewModeRestored && isBoardView && selectedStatusFilter !== "all") {
+      handleStatusFilterChange("all");
+    }
+  }, [handleStatusFilterChange, isBoardView, isViewModeRestored, pageStore, selectedStatusFilter]);
 
   const handleViewModeChange = (nextViewMode: JobsViewMode) => {
+    if (pageStore) {
+      pageStore.selectViewMode(nextViewMode);
+      return;
+    }
+    if (nextViewMode === "kanban" && selectedStatusFilter !== "all") {
+      handleStatusFilterChange("all");
+    }
     setViewMode(nextViewMode);
     writeJobsViewMode(nextViewMode);
   };
 
-  const handleStatusFilterChange = (nextStatusFilter: JobsStatusFilter) => {
-    if (controlledStatusFilter === undefined) {
-      setUncontrolledStatusFilter(nextStatusFilter);
-    }
-    onStatusFilterChange?.(nextStatusFilter);
-  };
-
   const handleClearFilters = () => {
+    if (pageStore) {
+      pageStore.clearFilters();
+      return;
+    }
     if (onClearFilters) {
       onClearFilters();
       return;
@@ -719,7 +761,9 @@ export function JobsPageView({
         statusFilter={selectedStatusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         onClearFilters={handleClearFilters}
-        showStatusFilter={!isBoardView}
+        showStatusFilter={
+          pageStore?.showStatusFilter ?? (!isBoardView || selectedStatusFilter !== "all")
+        }
         trailing={
           projectId ? (
             <JobsViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
@@ -861,4 +905,4 @@ export function JobsPageView({
       {jobsSection}
     </WorkspacePageShell>
   );
-}
+});

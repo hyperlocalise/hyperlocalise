@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PlusIcon, TranslateIcon } from "@phosphor-icons/react";
@@ -207,7 +208,7 @@ async function fetchTmsProjectJobs(
   return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
-export function JobsPageContent({
+export const JobsPageContent = observer(function JobsPageContent({
   organizationSlug,
   scope = "all",
   projectId,
@@ -217,8 +218,8 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useJobsListUrlState();
-  const statusFilter = state.status;
+  const pageStore = useJobsListUrlState(projectId);
+  const statusFilter = pageStore.statusFilter;
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
@@ -332,16 +333,12 @@ export function JobsPageContent({
         isTmsLoading={tmsJobsQuery.isLoading && !tmsJobsQuery.data}
         nativeError={nativeError}
         nativeJobs={nativeJobs}
-        onClearFilters={clearFilters}
-        onSearchDraftChange={setSearchDraft}
-        onStatusFilterChange={(nextStatus) => updateState({ status: nextStatus })}
+        pageStore={pageStore}
         organizationSlug={organizationSlug}
         projectId={projectId}
         renderError={renderProductionJobsError}
         renderJobLink={renderProductionJobLink}
         scope={scope}
-        searchDraft={searchDraft}
-        statusFilter={statusFilter}
         tmsError={tmsJobsQuery.error}
         tmsJobs={tmsJobs}
       />
@@ -360,4 +357,4 @@ export function JobsPageContent({
       ) : null}
     </>
   );
-}
+});
