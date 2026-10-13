@@ -317,7 +317,17 @@ function JobBoardCard({
   const name = getJobName(job, intl);
   const providerName = getTmsProviderBranding(job.externalProviderKind).name;
   const openEditorLabel = intl.formatMessage(jobsKanbanBoardMessages.openEditor);
-  const failureReason = job.status === "failed" ? readJobFailureDetails(job).reason : null;
+  const failureDetails = readJobFailureDetails(job);
+  const failureSummary = [
+    failureDetails.reason ? formatJobFailureReason(failureDetails.reason) : null,
+    failureDetails.failedLocales.length > 0
+      ? intl.formatMessage(jobsPageViewMessages.unfinishedLocales, {
+          locales: failureDetails.failedLocales.join(", "),
+        })
+      : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
   const localeIds = getJobTargetLocaleIds(job);
   const hasAssignees = (job.externalAssignedUsers?.length ?? 0) > 0 || job.assigneeType === "agent";
   const hasMeta =
@@ -379,10 +389,10 @@ function JobBoardCard({
         {name}
       </p>
 
-      {failureReason ? (
-        <p className="mt-1.5 flex items-start gap-1 text-xs text-red-900" title={failureReason}>
+      {failureSummary ? (
+        <p className="mt-1.5 flex items-start gap-1 text-xs text-red-900" title={failureSummary}>
           <WarningIcon className="mt-px size-3.5 shrink-0" weight="fill" />
-          <span className="line-clamp-2">{formatJobFailureReason(failureReason)}</span>
+          <span className="line-clamp-2">{failureSummary}</span>
         </p>
       ) : null}
 
