@@ -15,7 +15,6 @@ import { Hono } from "hono";
 import {
   badRequestResponse,
   conflictResponse,
-  forbiddenResponse,
   notFoundResponse,
   tooManyRequestsResponse,
 } from "@/api/response.schema";
@@ -25,6 +24,7 @@ import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protection";
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
 import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
 import {
   attachLocalisationAuditWorkflowRun,
@@ -62,7 +62,8 @@ type LocalisationAuditRouteOptions = {
   localisationAuditReportEmailQueue?: LocalisationAuditReportEmailQueue;
 };
 
-function publicAuditView(audit: LocalisationAuditRow) {
+function publicAuditView(row: LocalisationAuditRow) {
+  const audit = asPublishedLocalisationAudit(row);
   const retryable = isLocalisationAuditRetryable(audit);
   const blocked = audit.status === "blocked";
   return {
@@ -210,11 +211,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return badRequestResponse(c, "invalid_domain_slug", "Domain slug is invalid");
       }
 
-      const audit = await findLocalisationAuditBySlug(domainSlug);
-      if (!audit) {
+      const found = await findLocalisationAuditBySlug(domainSlug);
+      if (!found) {
         return notFoundResponse(c, "localisation_audit_not_found");
       }
 
+      const audit = asPublishedLocalisationAudit(found);
       const publicReport = audit.status === "succeeded";
 
       return c.json({
@@ -241,11 +243,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return badRequestResponse(c, "invalid_email", "A valid email is required");
       }
 
-      const audit = await findLocalisationAuditBySlug(domainSlug);
-      if (!audit) {
+      const found = await findLocalisationAuditBySlug(domainSlug);
+      if (!found) {
         return notFoundResponse(c, "localisation_audit_not_found");
       }
 
+      const audit = asPublishedLocalisationAudit(found);
       if (audit.status === "failed") {
         return conflictResponse(
           c,
@@ -341,14 +344,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return badRequestResponse(c, "invalid_token", "A report token is required");
       }
 
+      const reportPath = `/${locale}/localisation-audit/${domainSlug}`;
       // Token stays valid until expiry so email link-previews do not consume the link.
+      // Reports are public, so an expired token still lands on the report; it only skips tracking.
       const verified = await verifyLocalisationAuditReportToken({ domainSlug, token });
       if (!verified) {
-        return forbiddenResponse(
-          c,
-          "localisation_audit_token_invalid",
-          "This report link is invalid or expired.",
-        );
+        return c.redirect(reportPath, 302);
       }
 
       serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.emailVerified, {
@@ -356,6 +357,6 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         score_band: scoreBand(verified.audit.score),
       });
 
-      return c.redirect(`/${locale}/localisation-audit/${domainSlug}`, 302);
+      return c.redirect(reportPath, 302);
     });
 }
