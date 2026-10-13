@@ -137,6 +137,7 @@ export function VisualWorkflowCanvas({
   isRunning,
   onNodesChange,
   onEdgesChange,
+  onBeforeDelete,
   onConnect,
   onReconnect,
   onSelectionChange,
@@ -150,6 +151,11 @@ export function VisualWorkflowCanvas({
   isRunning: boolean;
   onNodesChange: (changes: NodeChange<VisualWorkflowRfNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<VisualWorkflowRfEdge>[]) => void;
+  /** Runs before a keyboard deletion; returning false leaves the deletion to the editor. */
+  onBeforeDelete?: (elements: {
+    nodes: VisualWorkflowRfNode[];
+    edges: VisualWorkflowRfEdge[];
+  }) => Promise<boolean>;
   onConnect: (connection: Connection) => void;
   onReconnect: (oldEdge: VisualWorkflowRfEdge, connection: Connection) => void;
   onSelectionChange: (params: OnSelectionChangeParams) => void;
@@ -211,6 +217,7 @@ export function VisualWorkflowCanvas({
         nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onBeforeDelete={onBeforeDelete}
         onConnect={onConnect}
         onConnectStart={() => {
           lastConnectionErrorRef.current = null;

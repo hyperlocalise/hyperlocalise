@@ -199,6 +199,87 @@ export const QuickAddBranches: Story = {
   },
 };
 
+export const UndoRedo: Story = {
+  name: "Undo and redo an added node",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Every change to the graph is a step on one undo stack: adding a node from a handle is taken back by Undo, with its edge, and put back by Redo.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const click = async (name: string | RegExp) => {
+      const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
+      button.click();
+    };
+    const edge = /visual-workflow-edge-switch-.+-case-ready$/;
+
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await click("Add node from Case 2");
+    await click(/Assign values into the workflow context/);
+    await expect(await canvas.findByTestId(edge)).toBeInTheDocument();
+
+    await click("Undo");
+    await waitFor(async () => {
+      await expect(canvas.queryByTestId(edge)).not.toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    await click("Redo");
+    await expect(await canvas.findByTestId(edge)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeDisabled();
+  },
+};
+
+export const UndoMove: Story = {
+  name: "Undo a moved node",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Moving a node by hand is a step on the same stack as every other change, so Undo puts it back where it was.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    // The picker lists a "Switch" row too; the node is the one on the canvas.
+    const titles = await canvas.findAllByText("Switch", {}, { timeout: 10_000 });
+    const node = titles
+      .map((title) => title.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null);
+    await expect(node).not.toBeUndefined();
+    const before = node!.style.transform;
+
+    // A focused node moves with the arrow keys; each press is one step.
+    await userEvent.click(node!);
+    await userEvent.keyboard("{ArrowRight}");
+    await waitFor(async () => {
+      await expect(node!.style.transform).not.toBe(before);
+    });
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await waitFor(async () => {
+      await expect(node!.style.transform).toBe(before);
+    });
+  },
+};
+
 export const SwitchCaseDelete: Story = {
   name: "Deleting a Switch case keeps other branches",
   args: {
