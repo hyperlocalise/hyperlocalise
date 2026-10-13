@@ -20,6 +20,7 @@ import {
   segmentsToTranslationFile,
   segmentsToPageTranslationFile,
   parseTranslationFile,
+  normalizePageScopedTranslationKeys,
 } from "./segment-file";
 
 describe("canva segment-file", () => {
@@ -33,6 +34,20 @@ describe("canva segment-file", () => {
     expect(buildPageSourcePath("mindful-adventure", "DAF2", 1)).toBe(
       "canva/designs/mindful-adventure-DAF2/page-2.json",
     );
+  });
+
+  it("merges page-scoped full keys into page-local keys", () => {
+    expect(
+      normalizePageScopedTranslationKeys(
+        {
+          "canva.segment.1.0": "English source copy",
+          "canva.segment.0.1.0": "Bản dịch tiếng Việt",
+        },
+        0,
+      ),
+    ).toMatchObject({
+      "canva.segment.1.0": "Bản dịch tiếng Việt",
+    });
   });
 
   it("writes page-local keys for a collected page file", () => {

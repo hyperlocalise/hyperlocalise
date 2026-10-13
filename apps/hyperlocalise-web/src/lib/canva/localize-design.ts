@@ -43,6 +43,7 @@ import {
   buildPageSourcePath,
   buildSourcePath,
   parseTranslationFile,
+  normalizePageScopedTranslationKeys,
   segmentsToPageTranslationFile,
 } from "./segment-file";
 import type {
@@ -1113,7 +1114,10 @@ export async function pullCanvaLocalePageTranslations(input: {
           sourcePath: page.sourcePath,
           jobId: page.jobId ?? "",
           status: "succeeded" as const,
-          translations: parseStoredTranslationFile(stored.content),
+          translations: normalizePageScopedTranslationKeys(
+            parseStoredTranslationFile(stored.content),
+            page.pageIndex,
+          ),
         });
       } catch {
         continue;
@@ -1143,7 +1147,10 @@ export async function pullCanvaLocalePageTranslations(input: {
       sourcePath: page.sourcePath,
       jobId: page.jobId,
       status: page.status,
-      translations: loaded[input.locale] ?? {},
+      translations: normalizePageScopedTranslationKeys(
+        loaded[input.locale] ?? {},
+        page.pageIndex,
+      ),
     });
   }
 

@@ -12,7 +12,13 @@
  */
 import { editContent, openDesign } from "@canva/design";
 
-import { lookupTranslatedText, parseTranslationFile, segmentKey } from "./segment-file";
+import {
+  countTranslatedRegionsForContentIndex,
+  lookupTranslatedText,
+  normalizePageScopedTranslationKeys,
+  parseTranslationFile,
+  segmentKey,
+} from "./segment-file";
 import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
 
 type RichtextRange = {
@@ -271,6 +277,81 @@ export function extractSegmentsFromRange(
   ];
 }
 
+function wholeFormattedRangeReplacement(
+  regions: Array<{ text: string }>,
+  translations: Record<string, string>,
+  contentIndex: number,
+): string | undefined {
+  if (regions.length <= 1) {
+    return undefined;
+  }
+
+  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0);
+  if (firstTranslation == null || firstTranslation === regions[0]?.text) {
+    return undefined;
+  }
+
+  const trailingRegions = regions.slice(1);
+  const trailingSources = trailingRegions.map((region) => region.text.trim()).filter(Boolean);
+  if (trailingSources.length === 0) {
+    return undefined;
+  }
+
+  // Later runs that keep leading whitespace are usually intentional styled splits.
+  if (trailingRegions.some((region) => /^\s/.test(region.text))) {
+    return undefined;
+  }
+
+  const trailingLooksLikeSuffixWords = trailingSources.every(
+    (text) => text.length <= 24 && !/\s/.test(text),
+  );
+  if (!trailingLooksLikeSuffixWords) {
+    return undefined;
+  }
+
+  const assembled = regions
+    .map((region, regionIndex) =>
+      lookupTranslatedText(translations, contentIndex, regionIndex) ?? region.text,
+    )
+    .join("");
+  const normalizedFirst = firstTranslation.replace(/\s+/g, " ").trim();
+  const normalizedAssembled = assembled.replace(/\s+/g, " ").trim();
+  if (normalizedAssembled === normalizedFirst) {
+    return undefined;
+  }
+
+  if (normalizedAssembled.startsWith(normalizedFirst)) {
+    return firstTranslation;
+  }
+
+  return undefined;
+}
+
+function wholeTextReplacementForFormattedRange(
+  range: RichtextRange,
+  regions: Array<{ text: string }>,
+  translations: Record<string, string>,
+  contentIndex: number,
+): string | undefined {
+  if (regions.length <= 1) {
+    return undefined;
+  }
+
+  const plaintext = range.readPlaintext();
+  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0);
+  if (firstTranslation == null || firstTranslation === plaintext) {
+    return undefined;
+  }
+
+  // Hyperlocalise often has one string per text box (canva.segment.0.0) while Canva
+  // still exposes multiple styled runs — replace the full box instead of the first run only.
+  if (countTranslatedRegionsForContentIndex(translations, contentIndex) === 1) {
+    return firstTranslation;
+  }
+
+  return wholeFormattedRangeReplacement(regions, translations, contentIndex);
+}
+
 export function applyTranslationsToRange(
   range: RichtextRange,
   translations: Record<string, string>,
@@ -282,6 +363,17 @@ export function applyTranslationsToRange(
   if (preserveFormatting) {
     const regions = range.readTextRegions();
     const plaintext = range.readPlaintext();
+    const wholeReplacement = wholeTextReplacementForFormattedRange(
+      range,
+      regions,
+      translations,
+      contentIndex,
+    );
+    if (wholeReplacement != null && wholeReplacement !== plaintext) {
+      range.replaceText({ index: 0, length: plaintext.length }, wholeReplacement);
+      return 1;
+    }
+
     const offsets = findRegionOffsets(plaintext, regions);
 
     for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
@@ -429,10 +521,11 @@ export async function applyTranslationsToDesign(
     const pageRefs = session.pageRefs.toArray();
 
     for (const [pageIndex, pageRef] of pageRefs.entries()) {
-      const translations = translationsByPage.get(pageIndex);
-      if (!translations || pageRef.type !== "absolute" || pageRef.locked) {
+      const rawTranslations = translationsByPage.get(pageIndex);
+      if (!rawTranslations || pageRef.type !== "absolute" || pageRef.locked) {
         continue;
       }
+      const translations = normalizePageScopedTranslationKeys(rawTranslations, pageIndex);
 
       const opened = await session.helpers.openPage(pageRef, async (pageResult) => {
         if (pageResult.page.type === "unsupported" || pageResult.page.locked) {

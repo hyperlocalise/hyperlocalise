@@ -39,6 +39,7 @@ import {
   extractDesignContent,
   listDesignPages,
 } from "./design-content";
+import { normalizePageScopedTranslationKeys } from "./segment-file";
 import {
   buildCanvaProjectUrl,
   CANVA_JOB_POLL_INTERVAL_MS,
@@ -689,7 +690,7 @@ export const App = () => {
         throw new Error("No translations for that page.");
       }
       const replaced = await applyTranslationsToCurrentPage(
-        page.translations,
+        normalizePageScopedTranslationKeys(page.translations, sourcePageIndex),
         settings.preserveFormatting,
       );
       if (replaced === 0) {

@@ -15,7 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildPageSourcePath,
   buildSourcePath,
+  countTranslatedRegionsForContentIndex,
   lookupTranslatedText,
+  normalizePageScopedTranslationKeys,
   parseTranslationFile,
   segmentKey,
   segmentsToTranslationFile,
@@ -53,6 +55,46 @@ describe("segment-file", () => {
     });
 
     expect(parseTranslationFile(file)).toEqual(file);
+  });
+
+  it("merges page-scoped full keys into page-local keys", () => {
+    expect(
+      normalizePageScopedTranslationKeys(
+        {
+          "canva.segment.1.0":
+            "Enjoy twice the flavor with our special Buy 1 Get 1 Free offer on selected food and drinks.",
+          "canva.segment.0.1.0":
+            "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
+        },
+        0,
+      ),
+    ).toEqual({
+      "canva.segment.1.0":
+        "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
+      "canva.segment.0.1.0":
+        "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
+    });
+  });
+
+  it("counts translated regions for a text box content index", () => {
+    expect(
+      countTranslatedRegionsForContentIndex(
+        {
+          "canva.segment.0.0": "Mua 1 tặng 1",
+          "canva.segment.0.1": "miễn phí",
+          "canva.segment.1.0": "Khác",
+        },
+        0,
+      ),
+    ).toBe(2);
+    expect(
+      countTranslatedRegionsForContentIndex(
+        {
+          "canva.segment.0.0": "Mua 1 tặng 1",
+        },
+        0,
+      ),
+    ).toBe(1);
   });
 
   it("ignores blank translations when looking up apply text", () => {

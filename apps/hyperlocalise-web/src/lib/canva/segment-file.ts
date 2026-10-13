@@ -22,6 +22,36 @@ export function pageSegmentKey(contentIndex: number, regionIndex: number): strin
   return `${SEGMENT_KEY_PREFIX}${contentIndex}.${regionIndex}`;
 }
 
+function usableTranslation(value: string | undefined): string | undefined {
+  if (value == null || value.trim().length === 0) {
+    return undefined;
+  }
+  return value;
+}
+
+export function normalizePageScopedTranslationKeys(
+  translations: Record<string, string>,
+  pageIndex: number,
+): Record<string, string> {
+  const normalized: Record<string, string> = { ...translations };
+
+  for (const [key, value] of Object.entries(translations)) {
+    const translated = usableTranslation(value);
+    if (translated == null) {
+      continue;
+    }
+
+    const match = /^canva\.segment\.(\d+)\.(\d+)\.(\d+)$/.exec(key);
+    if (!match || Number(match[1]) !== pageIndex) {
+      continue;
+    }
+
+    normalized[pageSegmentKey(Number(match[2]), Number(match[3]))] = translated;
+  }
+
+  return normalized;
+}
+
 export function segmentsToTranslationFile(segments: CanvaDesignSegment[]): Record<string, string> {
   const entries: Record<string, string> = {};
 

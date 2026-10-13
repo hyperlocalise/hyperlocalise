@@ -33,15 +33,25 @@ export function lookupTranslatedText(
   translations: Record<string, string>,
   contentIndex: number,
   regionIndex: number,
+  pageIndex?: number,
 ): string | undefined {
   const pageLocal = usableTranslation(translations[pageSegmentKey(contentIndex, regionIndex)]);
   if (pageLocal != null) {
     return pageLocal;
   }
 
-  const suffix = `.${contentIndex}.${regionIndex}`;
+  if (pageIndex != null) {
+    const pageScoped = usableTranslation(
+      translations[segmentKey(pageIndex, contentIndex, regionIndex)],
+    );
+    if (pageScoped != null) {
+      return pageScoped;
+    }
+  }
+
+  const contentRegionSuffix = `.${contentIndex}.${regionIndex}`;
   for (const [key, value] of Object.entries(translations)) {
-    if (!key.startsWith(SEGMENT_KEY_PREFIX) || !key.endsWith(suffix)) {
+    if (!/^canva\.segment\.\d+\.\d+\.\d+$/.test(key) || !key.endsWith(contentRegionSuffix)) {
       continue;
     }
     const match = usableTranslation(value);
@@ -51,6 +61,63 @@ export function lookupTranslatedText(
   }
 
   return undefined;
+}
+
+export function normalizePageScopedTranslationKeys(
+  translations: Record<string, string>,
+  pageIndex: number,
+): Record<string, string> {
+  const normalized: Record<string, string> = { ...translations };
+
+  for (const [key, value] of Object.entries(translations)) {
+    const translated = usableTranslation(value);
+    if (translated == null) {
+      continue;
+    }
+
+    const match = /^canva\.segment\.(\d+)\.(\d+)\.(\d+)$/.exec(key);
+    if (!match || Number(match[1]) !== pageIndex) {
+      continue;
+    }
+
+    normalized[pageSegmentKey(Number(match[2]), Number(match[3]))] = translated;
+  }
+
+  return normalized;
+}
+
+export function countTranslatedRegionsForContentIndex(
+  translations: Record<string, string>,
+  contentIndex: number,
+): number {
+  const regionIndices = new Set<number>();
+
+  for (const [key, value] of Object.entries(translations)) {
+    if (!key.startsWith(SEGMENT_KEY_PREFIX) || usableTranslation(value) == null) {
+      continue;
+    }
+
+    const pageLocalMatch = /^canva\.segment\.(\d+)\.(\d+)$/.exec(key);
+    if (pageLocalMatch) {
+      const keyContentIndex = Number(pageLocalMatch[1]);
+      const regionIndex = Number(pageLocalMatch[2]);
+      if (keyContentIndex === contentIndex) {
+        regionIndices.add(regionIndex);
+      }
+      continue;
+    }
+
+    const fullMatch = /^canva\.segment\.(\d+)\.(\d+)\.(\d+)$/.exec(key);
+    if (fullMatch) {
+      const keyContentIndex = Number(fullMatch[2]);
+      const regionIndex = Number(fullMatch[3]);
+      if (keyContentIndex === contentIndex) {
+        regionIndices.add(regionIndex);
+      }
+    }
+  }
+
+  return regionIndices.size;
 }
 
 export function segmentsToTranslationFile(segments: DesignSegment[]): Record<string, string> {

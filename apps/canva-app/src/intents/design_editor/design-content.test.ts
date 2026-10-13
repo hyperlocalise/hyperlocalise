@@ -100,6 +100,53 @@ describe("design-content", () => {
     ]);
   });
 
+  it("replaces the whole text box when Hyperlocalise only has one segment key", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    expect(
+      applyTranslationsToRange(
+        {
+          readPlaintext: () => "Buy 1 Get 1 Free",
+          readTextRegions: () => [{ text: "Buy 1 Get 1 " }, { text: "Free" }],
+          replaceText: (range, text) => {
+            replacements.push({ index: range.index, length: range.length, text });
+          },
+        },
+        {
+          "canva.segment.0.0": "Mua 1 tặng 1",
+        },
+        0,
+        true,
+      ),
+    ).toBe(1);
+
+    expect(replacements).toEqual([{ index: 0, length: 16, text: "Mua 1 tặng 1" }]);
+  });
+
+  it("replaces the whole text box when the first segment was edited as a full phrase", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    expect(
+      applyTranslationsToRange(
+        {
+          readPlaintext: () => "Buy 1 Get 1 Free",
+          readTextRegions: () => [{ text: "Buy 1 Get 1 " }, { text: "Free" }],
+          replaceText: (range, text) => {
+            replacements.push({ index: range.index, length: range.length, text });
+          },
+        },
+        {
+          "canva.segment.0.0": "Mua 1 tặng 1",
+          "canva.segment.0.1": "miễn phí",
+        },
+        0,
+        true,
+      ),
+    ).toBe(1);
+
+    expect(replacements).toEqual([{ index: 0, length: 16, text: "Mua 1 tặng 1" }]);
+  });
+
   it("applies translated text back to ranges", () => {
     const replacements: Array<{ index: number; length: number; text: string }> = [];
 
