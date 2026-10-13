@@ -20,7 +20,7 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -38,6 +38,7 @@ import {
   replaceVisualWorkflowNodeType,
   reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
   isVisualWorkflowUndoStepOutOfSight,
@@ -87,6 +88,8 @@ import {
   type VisualWorkflowUndoStep,
 } from "./visual-workflow-undo-buttons";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
+
+const NO_FRESH_STEPS: ReadonlySet<string> = new Set();
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -172,9 +175,21 @@ export function VisualWorkflowEditor({
     graphRef.current = next;
     historyRef.current.replace(next);
   }, []);
+  // Steps that appeared and have not been selected since, which the canvas marks as new.
+  const [freshNodeIds, setFreshNodeIds] = useState<ReadonlySet<string>>(NO_FRESH_STEPS);
+  const seenNodesRef = useRef(nodes);
+  useEffect(() => {
+    const previous = seenNodesRef.current;
+    seenNodesRef.current = nodes;
+    setFreshNodeIds((marked) =>
+      markFreshVisualWorkflowSteps({ marked, previous, next: nodes, selectedNodeId }),
+    );
+  }, [nodes, selectedNodeId]);
   /** Sets the graph and forgets every step. */
   const load = useCallback((next: VisualWorkflowGraph) => {
     graphRef.current = next;
+    // A whole workflow put in place is not new step by step.
+    seenNodesRef.current = next.nodes;
     historyRef.current.reset(next);
   }, []);
   const setNodes = useCallback(
@@ -498,10 +513,12 @@ export function VisualWorkflowEditor({
       });
 
       const config = createDefaultConfig(type);
+      // The new step is selected, as a click on it would leave it.
       const nextNode: VisualWorkflowRfNode = {
         id,
         type,
         position,
+        selected: true,
         ...getVisualNodeDimensions(type, config),
         data: {
           catalogType: type,
@@ -509,11 +526,17 @@ export function VisualWorkflowEditor({
           runStatus: "idle",
         },
       };
+      const otherNodes = currentNodes.map((node) =>
+        node.selected ? { ...node, selected: false } : node,
+      );
+      const otherEdges = currentEdges.map((edge) =>
+        edge.selected ? { ...edge, selected: false } : edge,
+      );
 
       if (source && !isTriggerType(type)) {
         commit({
           ...current,
-          ...applyVisualWorkflowGraphConnection([...currentNodes, nextNode], currentEdges, {
+          ...applyVisualWorkflowGraphConnection([...otherNodes, nextNode], otherEdges, {
             source: source.id,
             target: id,
             sourceHandle: addFrom?.handleId ?? null,
@@ -521,7 +544,7 @@ export function VisualWorkflowEditor({
           }),
         });
       } else {
-        commit({ ...current, nodes: [...currentNodes, nextNode] });
+        commit({ ...current, nodes: [...otherNodes, nextNode], edges: otherEdges });
       }
       setAddFrom(null);
       setSelectedNodeId(id);
@@ -773,6 +796,7 @@ export function VisualWorkflowEditor({
       return;
     }
     void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
+    setFreshNodeIds(NO_FRESH_STEPS);
   }, [edges, name, nodes, onSave, saveDisabled]);
 
   const handleStatusChange = useCallback(
@@ -879,6 +903,7 @@ export function VisualWorkflowEditor({
           <VisualWorkflowCanvasActionsProvider
             onAddFromNode={openPicker}
             issueNodeIds={issueNodeIds}
+            freshNodeIds={freshNodeIds}
           >
             <VisualWorkflowCanvas
               nodes={nodes}
