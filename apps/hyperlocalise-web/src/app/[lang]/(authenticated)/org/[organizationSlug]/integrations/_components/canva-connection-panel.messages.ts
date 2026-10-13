@@ -109,7 +109,7 @@ export const canvaConnectionPanelMessages = defineMessages({
   tokenDialogDescription: {
     defaultMessage:
       "Local development only. This token is shown once. Paste it into a locally running Canva app. Production uses Connect Hyperlocalise (OAuth).",
-    id: "vcGdG7Kss8",
+    id: "FY4l4pFRcB",
     description: "Description for the one-time Canva token reveal dialog",
   },
   copyToken: {

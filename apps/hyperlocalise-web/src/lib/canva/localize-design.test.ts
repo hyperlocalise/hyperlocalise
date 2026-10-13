@@ -17,7 +17,6 @@ import {
   canvaApprovalPercent,
   isCanvaIntegrationJob,
   latestPublishedCanvaCollectBatchId,
-  mergeEditorTranslationsOverOutputFile,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
   resolveCanvaJobLocales,
@@ -281,36 +280,6 @@ describe("buildCanvaSourceLocaleStatus", () => {
       status: "idle",
       canAdd: false,
       percent: 0,
-    });
-  });
-});
-
-describe("mergeEditorTranslationsOverOutputFile", () => {
-  it("prefers content editor values over stale job output keys", () => {
-    expect(
-      mergeEditorTranslationsOverOutputFile(
-        {
-          "canva.segment.0.0": "Thực đơn",
-          "canva.segment.1.0.0": "Thực đơn",
-        },
-        {
-          "canva.segment.0.0": "menu",
-        },
-      ),
-    ).toEqual({
-      "canva.segment.0.0": "menu",
-      "canva.segment.1.0.0": "Thực đơn",
-    });
-  });
-
-  it("ignores blank editor values", () => {
-    expect(
-      mergeEditorTranslationsOverOutputFile(
-        { "canva.segment.0.0": "Thực đơn" },
-        { "canva.segment.0.0": "   " },
-      ),
-    ).toEqual({
-      "canva.segment.0.0": "Thực đơn",
     });
   });
 });

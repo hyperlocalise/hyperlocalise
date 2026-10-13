@@ -129,9 +129,9 @@ describe("canvaOauthRoutes", () => {
     });
 
     const connections = await listCanvaOauthConsentConnections(auth.user.localUserId);
-    expect(connections.some((connection) => connection.connectionId === created.connection.id)).toBe(
-      true,
-    );
+    expect(
+      connections.some((connection) => connection.connectionId === created.connection.id),
+    ).toBe(true);
     expect(
       connections.find((connection) => connection.connectionId === created.connection.id)
         ?.projectName,

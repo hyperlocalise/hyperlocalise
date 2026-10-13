@@ -133,7 +133,7 @@ function pageHasPullableTranslations(
 }
 
 function canApplySelectedPages(entry: CanvaLocaleStatus | undefined, selected: number[]) {
-  if (!entry?.canAdd || selected.length === 0) {
+  if (!entry || selected.length === 0) {
     return false;
   }
   return selected.every((index) => {
@@ -662,7 +662,7 @@ export const App = () => {
           throw new Error("Choose a target language to apply Hyperlocalise translations.");
         }
         setUploadPreview(null);
-        setStep("Loading Hyperlocalise translations...", 25);
+        setStep("Loading translations from editor...", 25);
         const { token } = await getDesignToken();
         const pulled = await pullCanvaLocalePages({
           auth: await resolveAuth(),

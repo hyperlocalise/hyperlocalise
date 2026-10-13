@@ -420,24 +420,6 @@ function countTranslationFileWords(file: Record<string, string>, sourceLocale: s
   return words;
 }
 
-export function mergeEditorTranslationsOverOutputFile(
-  outputFile: Record<string, string>,
-  editorSegments: Record<string, string>,
-): Record<string, string> {
-  if (Object.keys(editorSegments).length === 0) {
-    return outputFile;
-  }
-
-  const merged = { ...outputFile };
-  for (const [key, value] of Object.entries(editorSegments)) {
-    if (value.trim().length === 0) {
-      continue;
-    }
-    merged[key] = value;
-  }
-  return merged;
-}
-
 async function loadCanvaEditorTranslationsBySourcePath(input: {
   organizationId: string;
   projectId: string;
@@ -1001,6 +983,12 @@ export async function listCanvaDesignLocaleStatuses(input: {
     if (locale === sourceLocale) {
       continue;
     }
+    const editorByPath = await loadCanvaEditorTranslationsBySourcePath({
+      organizationId: input.organizationId,
+      projectId: project.id,
+      locale,
+      sourcePaths: pages.map((page) => page.sourcePath),
+    });
     const localePages: CanvaLocalePageStatus[] = [];
     for (const page of pages) {
       const sourceFile = sourceByPage.get(page.pageIndex) ?? {};
@@ -1011,7 +999,7 @@ export async function listCanvaDesignLocaleStatuses(input: {
           readMetadataNumber(candidate.inputPayload, "canvaPageIndex") === page.pageIndex &&
           readJobTargetLocales(candidate.inputPayload).includes(locale),
       );
-      const status = job ? publicCanvaJobStatus(job.status) : "idle";
+      let status: CanvaJobStatusName | "idle" = job ? publicCanvaJobStatus(job.status) : "idle";
       let translated = 0;
       let translatedWords = 0;
       if (job && status !== "idle" && canvaJobHasPullableTranslations(status)) {
@@ -1027,6 +1015,18 @@ export async function listCanvaDesignLocaleStatuses(input: {
           const translations = loaded[locale] ?? {};
           translated = countTranslatedKeys(translations, page.segmentCount);
           translatedWords = countTranslatedSourceWords(sourceFile, translations, sourceLocale);
+        }
+      }
+      const editorSegments = editorByPath.get(page.sourcePath) ?? {};
+      const editorTranslated = countTranslatedKeys(editorSegments, page.segmentCount);
+      if (editorTranslated > 0) {
+        translated = Math.max(translated, editorTranslated);
+        translatedWords = Math.max(
+          translatedWords,
+          countTranslatedSourceWords(sourceFile, editorSegments, sourceLocale),
+        );
+        if (status === "idle" || !canvaJobHasPullableTranslations(status)) {
+          status = "waiting_for_review";
         }
       }
       const approvedFromStore = approvalCounts.approvedByLocaleAndPath.get(
@@ -1201,35 +1201,25 @@ export async function pullCanvaLocalePageTranslations(input: {
       }
       continue;
     }
-    if (!page.jobId || (page.status !== "succeeded" && page.status !== "waiting_for_review")) {
+    const editorSegments = editorTranslationsByPath.get(page.sourcePath) ?? {};
+    const editorTranslations: Record<string, string> = {};
+    for (const [key, value] of Object.entries(editorSegments)) {
+      if (value.trim().length === 0) {
+        continue;
+      }
+      editorTranslations[key] = value;
+    }
+    if (Object.keys(editorTranslations).length === 0) {
       continue;
     }
-    const job = await getTranslationJobSnapshot({
-      jobId: page.jobId,
-      organizationId: input.organizationId,
-    });
-    const outputFiles = (publicJobOutputFiles(job) ?? []).filter(
-      (file) => file.locale === input.locale,
-    );
-    const loaded =
-      outputFiles.length > 0 && job.projectId
-        ? await loadTranslationsByLocale({
-            organizationId: input.organizationId,
-            projectId: job.projectId,
-            outputFiles,
-          })
-        : {};
-    const outputFile = loaded[input.locale] ?? {};
-    const editorSegments = editorTranslationsByPath.get(page.sourcePath) ?? {};
+    const pullStatus: CanvaJobStatusName =
+      page.status === "idle" ? "waiting_for_review" : page.status;
     pages.push({
       pageIndex: page.pageIndex,
       sourcePath: page.sourcePath,
-      jobId: page.jobId,
-      status: page.status,
-      translations: normalizePageScopedTranslationKeys(
-        mergeEditorTranslationsOverOutputFile(outputFile, editorSegments),
-        page.pageIndex,
-      ),
+      jobId: page.jobId ?? "",
+      status: pullStatus,
+      translations: normalizePageScopedTranslationKeys(editorTranslations, page.pageIndex),
     });
   }
 
