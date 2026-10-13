@@ -143,10 +143,6 @@
     "defaultMessage": "No Overview snapshot yet. Refresh to capture this market.",
     "description": "Overview has no cached provider snapshot"
   },
-  "+BzVn5MdKT": {
-    "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped.",
-    "description": "Body when Crowdin project is not linked in Hyperlocalise"
-  },
   "+Dso3VFqcL": {
     "defaultMessage": "A few things\nyou might ask.",
     "description": "FAQ heading on the Domains product page"
@@ -599,10 +595,6 @@
     "defaultMessage": "01 Connect",
     "description": "Guidelines workflow step 1"
   },
-  "/2wzw7IAoz": {
-    "defaultMessage": "Unable to open Hyperlocalise",
-    "description": "Title when Crowdin JWT bootstrap fails"
-  },
   "/4UJ9goNda": {
     "defaultMessage": "The image or text layers changed. Reload layers before saving.",
     "description": "Image viewer: conflict"
@@ -894,10 +886,6 @@
   "/Xo8nQrLMv": {
     "defaultMessage": "Add a block below",
     "description": "Document editor: block handle button that inserts a block"
-  },
-  "/Y3FQ08kzV": {
-    "defaultMessage": "Source locale",
-    "description": "Label for Canva source locale field"
   },
   "/Y9GJUEqGi": {
     "defaultMessage": "Extract text at playhead",
@@ -2083,6 +2071,10 @@
     "defaultMessage": "Jedes Licht erzählt eine Geschichte. Entdecken Sie die Orte, Menschen und alltäglichen Momente, die uns verbinden.",
     "description": "German sample article intro in the Domains live preview"
   },
+  "1oDvFz2774": {
+    "defaultMessage": "Show on canvas",
+    "description": "Button beside a validation issue that selects its step and moves the canvas to it"
+  },
   "1qmea9tlQm": {
     "defaultMessage": "Delete experiment",
     "description": "Confirm button to delete an experiment"
@@ -2199,6 +2191,10 @@
     "defaultMessage": "Actual result",
     "description": "Description skeleton heading for the QA failure issue template"
   },
+  "2/f6DOJ16h": {
+    "defaultMessage": "Screenshot context for this string",
+    "description": "Accessible fallback label for a screenshot preview image"
+  },
   "2/tGcgvmb8": {
     "defaultMessage": "No projects match your search. <clear>Clear search</clear>",
     "description": "Empty state when the project search returns no results, with clear action"
@@ -2242,6 +2238,10 @@
   "22cLivfsp0": {
     "defaultMessage": "Workspace",
     "description": "Automations page header eyebrow label"
+  },
+  "22szuz+pVL": {
+    "defaultMessage": "This step has a problem",
+    "description": "Label of the warning mark on a canvas step that a validation issue is about"
   },
   "23RDpfUwz6": {
     "defaultMessage": "Not mentioned",
@@ -2527,6 +2527,10 @@
     "defaultMessage": "View jobs",
     "description": "Button linking to the project jobs page"
   },
+  "2d92l/sm+5": {
+    "defaultMessage": "Open job {name}",
+    "description": "Accessible label for the link that covers a kanban job card"
+  },
   "2dSop4YkE1": {
     "defaultMessage": "Apply approved terminology, brand rules, market requirements, and compliance guardrails wherever people or AI agents create content.",
     "description": "Capability carousel card 05 body"
@@ -2550,6 +2554,10 @@
   "2f2Oa8dJQI": {
     "defaultMessage": "Inbox",
     "description": "App shell breadcrumb title for the inbox page"
+  },
+  "2fPK5TW6va": {
+    "defaultMessage": "Issue {current} of {total}",
+    "description": "Which of the workflow's validation issues is shown, above the issue. {current} and {total} are numbers"
   },
   "2fjmQhrN05": {
     "defaultMessage": "VIETNAMESE · ADAPTED",
@@ -2931,10 +2939,6 @@
     "defaultMessage": "Members failed to load.",
     "description": "Error title when the members list fails to load"
   },
-  "3Td/QL9gLC": {
-    "defaultMessage": "Screenshots attached in your TMS for this string.",
-    "description": "Supporting copy for TMS screenshot context in the CAT intelligence panel"
-  },
   "3U55zi8ElG": {
     "defaultMessage": "Markets",
     "description": "Knowledge mock UI memory item tag"
@@ -3206,6 +3210,10 @@
   "3wxYCVb3wu": {
     "defaultMessage": "No translated file yet",
     "description": "Empty state when the CAT File view target preview has no file"
+  },
+  "3x/TR5Dx/U": {
+    "defaultMessage": "Show {count} more",
+    "description": "Button at the bottom of a kanban column that reveals hidden older jobs"
   },
   "3xXiVgOezJ": {
     "defaultMessage": "That page is no longer valid. Showing the first page.",
@@ -4011,6 +4019,10 @@
     "defaultMessage": "Open",
     "description": "Issue status filter option when an issue is open"
   },
+  "5PqiPGaWW/": {
+    "defaultMessage": "{field} is required.",
+    "description": "Validation message when a setting or input of a step is empty. {field} is the setting's key, such as channelId"
+  },
   "5QHtbyWfn3": {
     "defaultMessage": "See the world in a different light.",
     "description": "Sample headline A in the Hyperlab comparison mock"
@@ -4538,6 +4550,10 @@
   "6PFnjoc6zP": {
     "defaultMessage": "Editor panel failed to load",
     "description": "Error boundary title when the CAT editor panel crashes"
+  },
+  "6PGWQNvIwm": {
+    "defaultMessage": "Overdue, was due {due}",
+    "description": "Tooltip on a kanban job card due chip when the job is past its due date"
   },
   "6PTSot2cji": {
     "defaultMessage": "Group terms by meaning, then add locale-specific terms inside each concept.",
@@ -5246,6 +5262,10 @@
   "7pIitLnb8n": {
     "defaultMessage": "{count} in progress",
     "description": "Workspace QA count of projects with a scan in progress"
+  },
+  "7pcrbzwv6o": {
+    "defaultMessage": "Uploading screenshot…",
+    "description": "Status shown while a visual context screenshot is uploading"
   },
   "7pn2UnpCsA": {
     "defaultMessage": "Retry and For each cannot wrap each other.",
@@ -7603,10 +7623,6 @@
     "defaultMessage": "Choose an API key.",
     "description": "Validation error when Canva API key is missing"
   },
-  "C1WvaRKpWU": {
-    "defaultMessage": "Connect Crowdin in Hyperlocalise",
-    "description": "Title when no Hyperlocalise org maps to this Crowdin org"
-  },
   "C1osco57de": {
     "defaultMessage": "Unsaved changes",
     "description": "Hint that a Hyperlab form has unsaved edits"
@@ -7706,10 +7722,6 @@
   "CAjTa5Br2o": {
     "defaultMessage": "Completed scan: {date}",
     "description": "QA finding scan date"
-  },
-  "CAun4UHQNn": {
-    "defaultMessage": "Target locales",
-    "description": "Label for Canva target locales field"
   },
   "CBECdPWm0s": {
     "defaultMessage": "Retrying…",
@@ -7970,6 +7982,10 @@
   "CdzuFVCOvh": {
     "defaultMessage": "Unable to load projects",
     "description": "Fallback error when projects fail to load on the translation memory detail page"
+  },
+  "Ce+Nk9+zQq": {
+    "defaultMessage": "Collapse {status} column",
+    "description": "Accessible label for the button that collapses a kanban column"
   },
   "Ce2REB8MXc": {
     "defaultMessage": "On",
@@ -8571,10 +8587,6 @@
     "defaultMessage": "Next workflow starts smarter",
     "description": "Knowledge mock UI stage 4 title"
   },
-  "DiXV/bkiCg": {
-    "defaultMessage": "Designs localized from Canva are stored in this project.",
-    "description": "Help text for the Canva project picker"
-  },
   "DjyFDSQhTb": {
     "defaultMessage": "See the world in a different light.",
     "description": "English sample article title in the Domains live preview"
@@ -9171,6 +9183,10 @@
     "defaultMessage": "Pricing CTA",
     "description": "Segment context label for pricing CTA strings in the CAT mock"
   },
+  "EpcpRJ0HL9": {
+    "defaultMessage": "+{count}",
+    "description": "Avatar showing how many more assignees a kanban job card has"
+  },
   "EqlihiOWKx": {
     "defaultMessage": "Assign works when selected issues belong to one project",
     "description": "Tooltip when bulk assign is disabled for a multi-project selection"
@@ -9559,6 +9575,10 @@
     "defaultMessage": "Last 24 hours",
     "description": "Last modified preset for the past 24 hours"
   },
+  "FUr8tWqfQs": {
+    "defaultMessage": "+{count}",
+    "description": "Chip showing how many more target locales a kanban job card has"
+  },
   "FVAIUC0HI7": {
     "defaultMessage": "Context needed: {key}",
     "description": "Issue sheet title when requesting context for a CAT segment key"
@@ -9590,6 +9610,10 @@
   "FY2mmq0gaX": {
     "defaultMessage": "Cancel",
     "description": "Button that cancels translation memory entry edits"
+  },
+  "FY4l4pFRcB": {
+    "defaultMessage": "Local development only. This token is shown once. Paste it into a locally running Canva app. Production uses Connect Hyperlocalise (OAuth).",
+    "description": "Description for the one-time Canva token reveal dialog"
   },
   "FZ/OkTcJpl": {
     "defaultMessage": "Files panel",
@@ -10042,6 +10066,10 @@
   "GS9z23Wjvp": {
     "defaultMessage": "This automation will validate localisation changes on every push to main and notify your team when blockers are found.",
     "description": "Step 5 description"
+  },
+  "GSFsE42qE6": {
+    "defaultMessage": "Previous issue",
+    "description": "Button that shows the previous validation issue of a visual workflow"
   },
   "GSXicc8Q67": {
     "defaultMessage": "New experiment",
@@ -10707,6 +10735,10 @@
     "defaultMessage": "AI-derived context, placement, and product meaning for this visual asset",
     "description": "Description for AI Context drawer in file view"
   },
+  "HmiZVn+TeY": {
+    "defaultMessage": "Screenshots must be PNG, JPEG, or WebP.",
+    "description": "Error when an unsupported visual context screenshot type is selected"
+  },
   "Hmzt+zT6qT": {
     "defaultMessage": "Persian (Iran)",
     "description": "Display name for BCP-47 locale fa-IR"
@@ -10714,6 +10746,10 @@
   "HnLFJWChXa": {
     "defaultMessage": "Play workflow preview",
     "description": "Accessible label for playing the workflow preview animation"
+  },
+  "HnN7Y1Kod7": {
+    "defaultMessage": "{status}, {count, plural, one {# job} other {# jobs}}",
+    "description": "Accessible label for a kanban column with its job count"
   },
   "HnQHQaB8I0": {
     "defaultMessage": "Enter a single word with no spaces.",
@@ -11070,10 +11106,6 @@
   "IRtZ/saWhr": {
     "defaultMessage": "Keep roles and permissions clear as your workspace grows. Enterprise adds SSO / SAML and dedicated support.",
     "description": "Third card body in the homepage trust and control section"
-  },
-  "ISCo8PAGGI": {
-    "defaultMessage": "No screenshots are attached to this string in the provider.",
-    "description": "Empty state when a TMS string has no screenshot context"
   },
   "IUbDcw9z2P": {
     "defaultMessage": "Create the workflow",
@@ -11779,10 +11811,6 @@
     "defaultMessage": "Project",
     "description": "Detail row label for the job project name"
   },
-  "JpSMiCgbq5": {
-    "defaultMessage": "Workspaces",
-    "description": "Label above the list of workspaces in the switch submenu"
-  },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
     "description": "Label above the sample native project i18n.yml config"
@@ -12331,6 +12359,10 @@
     "defaultMessage": "No target locale is specified for this task.",
     "description": "Empty state when the job has files but no target locale query param"
   },
+  "L60aKO1/cW": {
+    "defaultMessage": "Failed to upload screenshot.",
+    "description": "Error when a visual context screenshot upload fails"
+  },
   "L7iavACo3u": {
     "defaultMessage": "Next scheduled run: <time>{nextRunAt}</time>",
     "description": "Metadata label showing next scheduled automation run time"
@@ -12782,10 +12814,6 @@
   "Lvrd1itzcD": {
     "defaultMessage": "Import/export history",
     "description": "Menu item that opens translation memory import and export history"
-  },
-  "LwRsugxcAC": {
-    "defaultMessage": "Share",
-    "description": "Disabled share button in visual workflow chrome"
   },
   "LwpJvfb74D": {
     "defaultMessage": "Surface added, modified, and removed keys with context from the pull request description and linked issues.",
@@ -14139,6 +14167,10 @@
     "defaultMessage": "Move output {index} up",
     "description": "Move a Sequence output upward"
   },
+  "OLKEPlyZiF": {
+    "defaultMessage": "Switch workspace",
+    "description": "Label above the list of workspaces in the sidebar workspace switcher"
+  },
   "OMHukdK6Wt": {
     "defaultMessage": "Initials pronounced as a word",
     "description": "Description for the acronym term type"
@@ -15231,6 +15263,10 @@
     "defaultMessage": "Term base",
     "description": "Resource type badge for a term base resource"
   },
+  "QRPmcpjd59": {
+    "defaultMessage": "Screenshots must be 10 MB or smaller.",
+    "description": "Error when a visual context screenshot exceeds the upload size limit"
+  },
   "QRlf1XEwRc": {
     "defaultMessage": "Demo request: Reports",
     "description": "Email subject for Reports feature teaser contact link"
@@ -16035,10 +16071,6 @@
     "defaultMessage": "Catch",
     "description": "Try / Catch handled failure exit"
   },
-  "Rx1gsFSIpF": {
-    "defaultMessage": "This Crowdin session could not be verified. Reopen the Hyperlocalise tab.",
-    "description": "Body when Crowdin JWT bootstrap fails"
-  },
   "RxnCQxP9ZO": {
     "defaultMessage": "Animation preview",
     "description": "Section heading for Lottie animation preview in the CAT intelligence panel"
@@ -16691,10 +16723,6 @@
     "defaultMessage": "Live jobs assigned to you in the connected provider.",
     "description": "Description under the TMS jobs section for personal assigned scope"
   },
-  "TG1FpMpW2X": {
-    "defaultMessage": "Switch workspace",
-    "description": "Submenu trigger to switch between workspaces"
-  },
   "TGHvKVZXDF": {
     "defaultMessage": "The workflow for multilingual content operations.",
     "description": "Hero headline for the agents automation product page"
@@ -16818,10 +16846,6 @@
   "TUhxc0TwuH": {
     "defaultMessage": "Whoever already owns them—usually brand, legal, or localisation. Hyperlocalise does not replace that library. It reads it.",
     "description": "Guidelines FAQ answer about ownership"
-  },
-  "TUvTVcL3il": {
-    "defaultMessage": "Open in Hyperlocalise",
-    "description": "Deep link to the same conversation in the main app"
   },
   "TW8F48aPTu": {
     "defaultMessage": "+{count}",
@@ -17763,6 +17787,10 @@
     "defaultMessage": "It is pricing support for early-stage startups adopting Hyperlocalise Growth. Qualifying teams can receive up to 80% off for their first 12 months, or while they still meet the program criteria. Exact terms are confirmed on the demo.",
     "description": "Startups FAQ answer about what the program is"
   },
+  "V8Lhw4iJS1": {
+    "defaultMessage": "Select an API key",
+    "description": "Placeholder for the Canva API key picker"
+  },
   "V8Rg1mvKHG": {
     "defaultMessage": "Contentful connection saved",
     "description": "Toast after successfully saving a Contentful connection"
@@ -18022,10 +18050,6 @@
   "Vd8rri53Cw": {
     "defaultMessage": "Hyperlocalise",
     "description": "Heading for workspace translation memories"
-  },
-  "VdPMgzyWOp": {
-    "defaultMessage": "Project",
-    "description": "Label for the project bound to a Canva connection"
   },
   "VdjibQd9gV": {
     "defaultMessage": "Open full-page editor",
@@ -18478,6 +18502,10 @@
   "Wdc+D1uETy": {
     "defaultMessage": "Filter",
     "description": "Button that opens the issue list filter popover"
+  },
+  "We3SJU9IT4": {
+    "defaultMessage": "Next issue",
+    "description": "Button that shows the next validation issue of a visual workflow"
   },
   "WeOiVualPW": {
     "defaultMessage": "Cancel",
@@ -19490,6 +19518,10 @@
   "YRSpPEFYYW": {
     "defaultMessage": "Create",
     "description": "Marketing homepage create"
+  },
+  "YSEvWFKZ+S": {
+    "defaultMessage": "No screenshots are attached to this string.",
+    "description": "Empty state when a string has no screenshot context"
   },
   "YSaCuF5iBS": {
     "defaultMessage": "Cost per click in the provider currency.",
@@ -21043,10 +21075,6 @@
     "defaultMessage": "Input {index}",
     "description": "Merge execution input name placeholder"
   },
-  "bL4rc4u2xS": {
-    "defaultMessage": "Link your Crowdin account under Integrations in Hyperlocalise, then reopen this tab.",
-    "description": "Body when Crowdin user is not linked in Hyperlocalise"
-  },
   "bM4e1lioLc": {
     "defaultMessage": "Unable to load memory",
     "description": "Fallback error when a translation memory fails to load"
@@ -21206,6 +21234,10 @@
   "beO/JeLdTY": {
     "defaultMessage": "Apps & Features",
     "description": "Settings nav group label for apps and experiments"
+  },
+  "besNXCgM6P": {
+    "defaultMessage": "Export",
+    "description": "Button that opens the menu for copying or downloading the workflow JSON"
   },
   "bex2oneg24": {
     "defaultMessage": "Import/export history",
@@ -22191,10 +22223,6 @@
     "defaultMessage": "Add competitors",
     "description": "Add competitors dialog title"
   },
-  "dOX1AC82YS": {
-    "defaultMessage": "Choose a project.",
-    "description": "Validation error when Canva project is missing"
-  },
   "dOaxbDzrv5": {
     "defaultMessage": "Can't decide?",
     "description": "Heading for the undecided CTA band below the pricing FAQ"
@@ -22418,10 +22446,6 @@
   "dnuXZ5sBJ3": {
     "defaultMessage": "Job Failed",
     "description": "Activity log event type label for job failure"
-  },
-  "do0p3JfCkF": {
-    "defaultMessage": "View all workspaces",
-    "description": "Link to the organization selection page from the user menu"
   },
   "doe6TBv1GS": {
     "defaultMessage": "Guidelines is the connected file layer. Content Studio applies it while you create and review. Automation Workflow uses it when agents run repeatable jobs.",
@@ -23691,10 +23715,6 @@
     "defaultMessage": "Retrying…",
     "description": "Button label while a job retry is in progress"
   },
-  "g+80zjC0vY": {
-    "defaultMessage": "Comma-separated locale codes, for example es, fr, de.",
-    "description": "Help text for Canva target locales field"
-  },
   "g+dqlGrXPT": {
     "defaultMessage": "Timezone",
     "description": "Label for experiment timezone"
@@ -24182,6 +24202,10 @@
   "glmojNf0zj": {
     "defaultMessage": "Switch team",
     "description": "Menu label for the team switcher in the breadcrumb"
+  },
+  "glq4HgwVfm": {
+    "defaultMessage": "Expand {status} column",
+    "description": "Accessible label for the collapsed kanban column rail"
   },
   "gmm85srlvL": {
     "defaultMessage": "Request a Demo",
@@ -25407,6 +25431,10 @@
     "defaultMessage": "Warnings",
     "description": "Heading for import preview warnings"
   },
+  "ivA1MLtmhw": {
+    "defaultMessage": "Current workspace",
+    "description": "Screen-reader label for the check mark next to the active workspace"
+  },
   "ivdHFzfBNo": {
     "defaultMessage": "Forbidden term \"{term}\" appears in the target translation.",
     "description": "CAT format check message when a forbidden glossary term appears in the target"
@@ -25643,10 +25671,6 @@
     "defaultMessage": "Edit team...",
     "description": "Menu item to open the edit team dialog"
   },
-  "jORzWMtK+S": {
-    "defaultMessage": "Screenshot context for this string",
-    "description": "Accessible fallback label for a TMS screenshot preview image"
-  },
   "jOtw3PC362": {
     "defaultMessage": "Default (general prose)",
     "description": "SRX template option: default"
@@ -25754,6 +25778,10 @@
   "ja9cL+H+5B": {
     "defaultMessage": "Published webpage preview",
     "description": "Caption above the Domains published webpage preview"
+  },
+  "jaLdytkFWV": {
+    "defaultMessage": "Workspace settings",
+    "description": "Link to the workspace settings page from the sidebar workspace switcher"
   },
   "jal4p9crNk": {
     "defaultMessage": "Open in Scira",
@@ -26251,6 +26279,10 @@
     "defaultMessage": "Localised image",
     "description": "Image viewer: targetAlt"
   },
+  "kWMaY8JWYA": {
+    "defaultMessage": "Upload screenshot",
+    "description": "Button label for uploading a visual context screenshot"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the github-release-localisation use case"
@@ -26466,10 +26498,6 @@
   "kuwnF7iUJu": {
     "defaultMessage": "Play preview",
     "description": "Accessible label for playing a voice preview"
-  },
-  "kv8FmMqNvG": {
-    "defaultMessage": "Back to workflows",
-    "description": "Link from the visual workflow editor back to the list page"
   },
   "kvA8//3BBl": {
     "defaultMessage": "Files",
@@ -27134,6 +27162,10 @@
   "mCX+DFnK+p": {
     "defaultMessage": "Resources",
     "description": "Sidebar heading for integration resources on the detail page"
+  },
+  "mCqI44HE9m": {
+    "defaultMessage": "Use a saved credential for secret values instead of typing them into the step.",
+    "description": "Validation message when an HTTP step holds a token or secret header as plain text"
   },
   "mCz1OMRk2y": {
     "defaultMessage": "What it helps with",
@@ -28163,6 +28195,10 @@
     "defaultMessage": "Disconnecting…",
     "description": "Button label while disconnecting a provider"
   },
+  "nuXi9Hvr5G": {
+    "defaultMessage": "Invite and manage members",
+    "description": "Link to the workspace members page from the sidebar workspace switcher, shown to users who can invite members"
+  },
   "nwEXrsmZmr": {
     "defaultMessage": "Enable this repository before configuring automation.",
     "description": "API error when configuring automation on a disabled repository"
@@ -28326,6 +28362,10 @@
   "oHlz44sQOv": {
     "defaultMessage": "Save glossary name",
     "description": "Accessible label for saving the glossary name"
+  },
+  "oHvAH+qWap": {
+    "defaultMessage": "Screenshots that show where this string appears.",
+    "description": "Supporting copy for screenshot context in the CAT intelligence panel"
   },
   "oHxxsDmsrY": {
     "defaultMessage": "Deselect",
@@ -28555,6 +28595,10 @@
     "defaultMessage": "Unable to load the Intercom connection right now.",
     "description": "Intercom integration row description when connection status fails to load"
   },
+  "odqf980/gU": {
+    "defaultMessage": "View all workspaces",
+    "description": "Link to the organization selection page from the sidebar workspace switcher"
+  },
   "oeVZ6ETPjK": {
     "defaultMessage": "Select a member",
     "description": "Placeholder for the member select"
@@ -28578,10 +28622,6 @@
   "oh23JqGlqV": {
     "defaultMessage": "Try again.",
     "description": "Fallback error when a grouped workspace table section fails without a message"
-  },
-  "oh6mSziyuU": {
-    "defaultMessage": "Connect Crowdin for your Hyperlocalise workspace, then reopen this tab from Crowdin.",
-    "description": "Body when no Hyperlocalise org maps to this Crowdin org"
   },
   "ohFSHTwja2": {
     "defaultMessage": "Updated",
@@ -29075,10 +29115,6 @@
     "defaultMessage": "Passed",
     "description": "Label for a CAT format check that passed"
   },
-  "pV8l9BOlkk": {
-    "defaultMessage": "Create a project first.",
-    "description": "Empty state when no projects exist for Canva"
-  },
   "pVd6AgLLSN": {
     "defaultMessage": "Listed Starter and Growth prices are monthly. Enterprise pricing is custom and agreed during the demo.",
     "description": "Pricing FAQ answer about billing cadence"
@@ -29462,6 +29498,10 @@
   "q4g35VNiZ5": {
     "defaultMessage": "Jobs",
     "description": "Project page section label for the jobs view"
+  },
+  "q6TvmN/FEl": {
+    "defaultMessage": "{field} is not valid.",
+    "description": "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone"
   },
   "q6shYjldx9": {
     "defaultMessage": "Settings",
@@ -30339,6 +30379,10 @@
     "defaultMessage": "Get your workspace ready",
     "description": "Dashboard setup hero title before workspace is fully configured"
   },
+  "rfsreH4z0t": {
+    "defaultMessage": "Members",
+    "description": "Read-only link to the workspace members list from the sidebar workspace switcher"
+  },
   "rfurrkqR11": {
     "defaultMessage": "Issue",
     "description": "Badge label for an unresolved TMS issue on a segment"
@@ -31195,10 +31239,6 @@
     "defaultMessage": "A/B test",
     "description": "Experiment type option for an A/B test"
   },
-  "tJeeSJ6Rq1": {
-    "defaultMessage": "Visual Context",
-    "description": "Section heading for TMS screenshot context in the CAT intelligence panel"
-  },
   "tK7acLhoUb": {
     "defaultMessage": "Status",
     "description": "Run history column header for status"
@@ -31754,10 +31794,6 @@
   "uQuuO1WuxO": {
     "defaultMessage": "Automations",
     "description": "Feature teaser page title for automations"
-  },
-  "uR3HXqLFuY": {
-    "defaultMessage": "Open Hyperlocalise",
-    "description": "CTA to open Hyperlocalise outside Crowdin"
   },
   "uR4u77DLza": {
     "defaultMessage": "A translation is merged or a reviewer correction is accepted",
@@ -32466,10 +32502,6 @@
   "vbaH3BSX3d": {
     "defaultMessage": "Translation Memories",
     "description": "App shell breadcrumb title for the translation memories page"
-  },
-  "vcGdG7Kss8": {
-    "defaultMessage": "This token is shown once. Paste it into the Canva app, or use Connect Hyperlocalise from Canva instead.",
-    "description": "Description for the one-time Canva token reveal dialog"
   },
   "vcIHG9+CIG": {
     "defaultMessage": "Upload a verification file.",
@@ -33567,10 +33599,6 @@
     "defaultMessage": "Workspace",
     "description": "Breadcrumb-style label above the members page title"
   },
-  "xTpbtPORei": {
-    "defaultMessage": "Link this Crowdin project",
-    "description": "Title when Crowdin project is not linked in Hyperlocalise"
-  },
   "xTxrHZIjDK": {
     "defaultMessage": "{shortcut} to toggle",
     "description": "Document editor: keyboard shortcut hint"
@@ -33686,10 +33714,6 @@
   "xfMEcMmH8Z": {
     "defaultMessage": "Import",
     "description": "Button that opens the Queries import format menu"
-  },
-  "xfunHs6ciZ": {
-    "defaultMessage": "Link your Crowdin account",
-    "description": "Title when Crowdin user is not linked in Hyperlocalise"
   },
   "xgL5ochSWF": {
     "defaultMessage": "Running",
@@ -34235,6 +34259,10 @@
     "defaultMessage": "Create and adapt text, documents, slides, images, and video in one multilingual workspace with shared context and human review.",
     "description": "Meta description for the multilingual Content Studio product page"
   },
+  "yg5wvpMvk6": {
+    "defaultMessage": "Visual Context",
+    "description": "Section heading for screenshot context in the CAT intelligence panel"
+  },
   "yh5N07rqk9": {
     "defaultMessage": "Built for developer-led release workflows",
     "description": "Capabilities section title for the github-release-localisation use case"
@@ -34482,6 +34510,10 @@
   "zANk4lJfGw": {
     "defaultMessage": "Opens in a new tab",
     "description": "Screen-reader hint for external navbar links"
+  },
+  "zBmkUn+lbY": {
+    "defaultMessage": "Current workspace: {name}. Open workspace menu",
+    "description": "Screen-reader label for the workspace switcher trigger in the sidebar header"
   },
   "zCGS1KGzqn": {
     "defaultMessage": "Concordance search",

@@ -1,5 +1,5 @@
 ---
-title: "GitHub 현지화 워크플로: 풀 리퀘스트부터 다국어 릴리스까지"
+title: "GitHub 현지화 워크플로: 풀 리퀘스트에서 다국어 릴리스까지"
 date: 2026-09-09T00:00:00.000Z
 excerpt: 변경된 문자열을 확인하고, 원본 콘텐츠를 Hyperlocalise로 보내고, 검토된 번역을 가져와 다국어 릴리스 노트를 게시하는 실용적인 GitHub 현지화 워크플로를 구축하세요.
 category: 엔지니어링
@@ -16,22 +16,22 @@ tags:
   - translation review
 ---
 
-이 가이드에서는 GitHub Actions, `hyperlocalise` CLI, Hyperlocalise 플랫폼을 사용해 GitHub 현지화 워크플로를 설정하는 방법을 안내합니다. 간단한 예제로 시작해 첫 풀 리퀘스트부터 다국어 릴리스까지 제품 변경 사항 하나를 따라가 봅니다.
+This guide walks you through setting up a GitHub localization workflow with GitHub Actions, the `hyperlocalise` CLI, and the Hyperlocalise platform. You will start with a small example and follow one product change from its first pull request to a multilingual release.
 
-마지막에는 워크플로가 네 단계를 모두 포함하게 됩니다:
+최종적으로 워크플로는 다음 네 단계를 거치게 됩니다:
 
 1. 엔지니어가 영어 UI 문자열과 릴리스 노트를 변경합니다.
-2. GitHub은 풀 리퀘스트에 현지화 문제가 있는지 확인합니다.
-3. CLI는 소스 콘텐츠를 Hyperlocalise로 푸시하며, 팀은 그곳에서 번역을 검토합니다.
+2. GitHub은 풀 리퀘스트에서 현지화 문제가 있는지 확인합니다.
+3. CLI는 소스 콘텐츠를 Hyperlocalise에 전송하고, 팀은 그곳에서 번역을 검토합니다.
 4. GitHub는 검토된 파일을 가져와 영어, 프랑스어, 독일어 릴리스 노트가 포함된 릴리스 하나를 게시합니다.
 
-이는 저장소에 자연스럽게 통합된 프로세스입니다. 엔지니어는 풀 리퀘스트에서 작업하고, 언어 검토자는 Hyperlocalise에서 문맥을 확인하며, 릴리스에는 Git에 반영된 번역만 사용됩니다.
+그 결과 저장소에 자연스럽게 통합된 프로세스가 만들어집니다. 엔지니어는 풀 리퀘스트에서 작업하고, 언어 검토자는 Hyperlocalise에서 문맥을 확인하며 작업하며, 릴리스에는 Git으로 돌아온 번역만 사용됩니다.
 
-구현 세부 정보에 앞서 더 넓은 제품 패턴을 살펴보고 싶다면, [GitHub 제품 현지화 사용 사례](/use-cases/product-localisation)를 참조하세요.
+If you want the broader product pattern before the implementation details, see the [GitHub product localisation use case](/use-cases/product-localisation).
 
-## 우리가 만들 것
+## 만들어 볼 것
 
-다음과 같은 구조를 가진 웹 애플리케이션이 있다고 가정해 보세요:
+다음과 같은 구조의 웹 애플리케이션이 있다고 가정해 보세요:
 
 ```text
 .
@@ -49,20 +49,20 @@ tags:
 └── i18n.yml
 ```
 
-영어는 원본 로캘입니다. 프랑스어와 독일어는 대상 로캘입니다. JSON 파일에는 제품 문구가, Markdown 파일에는 릴리스 노트가 들어 있습니다. Hyperlocalise는 둘 다 번역 가능한 콘텐츠로 취급하므로, 동일한 검토 주기에서 인터페이스와 공지 사항을 함께 검토합니다.
+영어는 원본 로캘입니다. 프랑스어와 독일어는 대상 로캘입니다. JSON 파일에는 제품 문구가, Markdown 파일에는 릴리스 노트가 들어 있습니다. Hyperlocalise는 둘 다 번역할 콘텐츠로 취급하므로, 동일한 검토 주기에서 인터페이스와 공지 사항을 모두 검토합니다.
 
 필요한 것:
 
-- 소스 로캘이 `en-US`이고 `fr-FR` 및 `de-DE`를 대상으로 하는 Hyperlocalise 프로젝트;
-- `HYPERLOCALISE_API_KEY` GitHub Actions 시크릿;
-- 하나의 `HYPERLOCALISE_PROJECT_ID` GitHub Actions 시크릿; 그리고
-- 워크플로와 리포지토리 시크릿을 추가할 권한.
+- a Hyperlocalise project with `en-US` as its source locale and `fr-FR` and `de-DE` as targets;
+- a `HYPERLOCALISE_API_KEY` GitHub Actions secret;
+- a `HYPERLOCALISE_PROJECT_ID` GitHub Actions secret; and
+- 워크플로 및 리포지토리 시크릿 추가 권한.
 
-조직에서 배포 승인을 요구하는 경우 프로덕션 자격 증명에 `localisation`와 같은 GitHub 환경을 사용하세요.
+Use a GitHub environment such as `localisation` for production credentials if your organisation requires deployment approvals.
 
 ## 1단계: 소스 및 대상 파일 매핑
 
-저장소 루트에 `i18n.yml`을 생성하세요:
+Create `i18n.yml` at the repository root:
 
 ```yaml
 version: hyperlocalise@1.13.3
@@ -95,15 +95,15 @@ hyperlocalise:
   api_key_env: HYPERLOCALISE_API_KEY
 ```
 
-두 버킷은 소유권을 명확히 합니다. `product`은 하나의 소스 카탈로그를 각 대상 로캘의 카탈로그 하나에 매핑합니다. `release-notes`은 모든 영어 Markdown 파일을 파일명을 유지하면서 해당 로캘 디렉터리에 매핑합니다.
+The two buckets make ownership explicit. `product` maps one source catalogue to one catalogue per target locale. `release-notes` maps every English Markdown file to the equivalent locale directory while preserving its filename.
 
-설정에서 CLI 버전을 고정하면 로컬 및 CI 실행 결과도 일치합니다. 예시 버전을 팀에서 테스트한 릴리스로 업데이트하세요. `version`을 생략하는 경우, 대신 설치 작업에서 `version` 입력을 고정하세요.
+Pinning the CLI in the configuration also makes local and CI runs agree. Update the example version to the release your team has tested. If you omit `version`, pin the `version` input in the install action instead.
 
-LLM 프로필은 프로젝트에서 해당 공급자를 사용해 번역을 생성할 때 사용됩니다. 공급자 인증 정보는 워크플로에 추가하는 대신 Hyperlocalise에 저장하세요. GitHub 러너에는 Hyperlocalise 프로젝트에 대한 인증 정보만 있으면 됩니다.
+LLM 프로필은 프로젝트에서 해당 제공업체를 사용해 번역을 생성할 때 사용됩니다. 자격 증명을 워크플로에 추가하는 대신 Hyperlocalise에 저장하세요. GitHub 러너에는 Hyperlocalise 프로젝트에 대한 자격 증명만 있으면 됩니다.
 
-## 2단계: 제품을 한 가지 변경하기
+## 2단계: 제품을 한 가지 변경하세요.
 
-버전 1.8.0에서 저장된 필터를 추가한다고 가정해 보겠습니다. 풀 리퀘스트에서 `locales/en-US.json`을 변경합니다:
+Suppose version 1.8.0 adds saved filters. The pull request changes `locales/en-US.json`:
 
 ```json
 {
@@ -113,7 +113,7 @@ LLM 프로필은 프로젝트에서 해당 공급자를 사용해 번역을 생�
 }
 ```
 
-또한 `release-notes/en-US/v1.8.0.md`도 추가합니다:
+It also adds `release-notes/en-US/v1.8.0.md`:
 
 ```markdown
 # Saved filters
@@ -127,13 +127,13 @@ You can now save a filter and reuse it across your workspace.
 - Share the same filter criteria with your team.
 ```
 
-기능과 함께 소스 콘텐츠를 커밋하세요. 그러면 리뷰어가 하나의 풀 리퀘스트에서 코드 변경 사항, UI 문구, 고객 대상 설명을 모두 확인할 수 있습니다. 또한 Git 기록을 통해 특정 릴리스에 어떤 문구가 포함되어 출시되었는지 확인할 수 있습니다.
+기능 변경과 함께 원본 콘텐츠를 커밋하세요. 그러면 리뷰어가 하나의 풀 리퀘스트에서 코드 변경 사항, UI 문구, 고객에게 공개되는 설명을 확인할 수 있습니다. 또한 Git 기록을 통해 어떤 문구가 어떤 릴리스에 포함되었는지 확인할 수 있습니다.
 
-`fr-FR.json` 또는 `de-DE.json`에 영어 문자열을 그대로 복사해 넣지 마세요. 원문을 복사한 값은 간단한 키 개수 검사에서는 완성된 것처럼 보일 수 있지만, 실제로는 현지화가 이루어지지 않은 것입니다.
+Do not hand-copy English strings into `fr-FR.json` or `de-DE.json` as placeholders. A copied source value can look complete to a simple key-count check even though no localisation happened.
 
 ## 3단계: 풀 리퀘스트에서 변경된 문자열 확인
 
-`.github/workflows/localise.yml`를 추가하세요. 첫 번째 작업은 풀 리퀘스트에서 실행되며 Hyperlocalise에서 발견한 항목을 GitHub diff로 제한합니다:
+Add `.github/workflows/localise.yml`. The first job runs on pull requests and scopes Hyperlocalise findings to the GitHub diff:
 
 ```yaml
 name: Localise
@@ -184,15 +184,15 @@ jobs:
           upload-artifact: true
 ```
 
-`github-diff: true`을 사용하면 작업이 풀 리퀘스트 패치를 가져와 `hyperlocalise check --diff-stdin`에 전달합니다. 지원되는 구조화된 카탈로그의 경우, 작성자가 관련 없는 백로그를 해결하도록 하는 대신 이 풀 리퀘스트에서 변경된 키에 주석을 집중합니다.
+With `github-diff: true`, the action fetches the pull request patch and passes it to `hyperlocalise check --diff-stdin`. For supported structured catalogues, annotations focus on keys changed by this pull request rather than making the author resolve unrelated backlog.
 
-이 작업은 JSON 보고서와 텍스트 요약도 업로드합니다. 검사가 실패하더라도 해당 아티팩트를 보존하세요. 이를 통해 구조적 오류, 누락된 번역, 콘텐츠 관련 발견 사항을 설치 또는 구성 실패와 구분할 수 있습니다.
+이 작업은 JSON 보고서와 텍스트 요약도 업로드합니다. 검사가 실패하더라도 해당 파일을 보존하세요. 이 파일들은 구조 오류, 누락된 번역, 콘텐츠 관련 문제를 설치 또는 구성 실패와 구분하는 데 도움이 됩니다.
 
-이 검사는 언어 검토가 아니라 첫 번째 검토 단계입니다. 검토자가 각 번역의 정확성, 일관성, 제품 적합성을 판단하는 동안 저장소 문제를 조기에 발견합니다.
+이 검사는 첫 번째 검토 단계이지, 언어 검토는 아닙니다. 검토자가 각 번역이 정확하고 일관되며 제품에 적합한지 판단하는 동안 저장소 문제를 조기에 찾아냅니다.
 
-## 4단계: 병합된 소스 콘텐츠를 Hyperlocalise에 푸시
+## 4단계: 병합된 소스 콘텐츠를 Hyperlocalise에 푸시하기
 
-동일한 `localise.yml` 워크플로에 두 번째 작업을 추가합니다:
+Add a second job to the same `localise.yml` workflow:
 
 ```yaml
 push-sources:
@@ -216,9 +216,9 @@ push-sources:
         HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
 ```
 
-이것이 푸시 경계입니다. 기능 풀 리퀘스트가 `main`에 병합되면, `hl sync push`은 `i18n.yml`의 버킷을 읽고 영어 JSON 및 Markdown 소스를 연결된 Hyperlocalise 프로젝트로 전송합니다.
+This is the push boundary. After the feature pull request merges to `main`, `hl sync push` reads the buckets in `i18n.yml` and sends the English JSON and Markdown sources to the linked Hyperlocalise project.
 
-작업은 콘텐츠를 외부로 전송하지만 Git을 수정하지 않으므로 저장소에 대한 읽기 전용 권한을 갖습니다. 해당 자격 증명은 필요한 단계에만 저장됩니다. `paths` 필터는 관련 없는 병합으로 인해 불필요한 동기화 실행이 생성되는 것을 방지합니다.
+The job has read-only repository permission because it sends content out but does not modify Git. Its credentials live only in the step that needs them. The `paths` filter prevents unrelated merges from creating unnecessary sync runs.
 
 커밋하기 전에 동일한 작업을 실행할 수 있습니다:
 
@@ -229,29 +229,29 @@ hl sync push --dry-run
 hl sync push
 ```
 
-버킷 매핑을 변경할 때 `--dry-run`을 사용하세요. 원격 프로젝트를 업데이트하기 전에 계획을 확인할 수 있습니다.
+Use `--dry-run` when changing bucket mappings. It lets you inspect the plan before updating the remote project.
 
-## 5단계: 제품 문자열과 릴리스 노트를 함께 검토하기
+## 5단계: 제품 문자열과 릴리스 노트를 함께 검토하세요
 
 소스 동기화가 완료되면 Hyperlocalise에서 새 콘텐츠를 검토하세요. UI 문자열과 릴리스 노트는 별도의 버킷에 유지되지만 프로젝트 용어, 지침, 대상 로캘은 공유합니다.
 
-이 예시에서는 검토자가 문자 그대로의 정확성뿐 아니라 다른 측면도 확인해야 합니다:
+이 예시에서는 검토자가 문자 그대로의 정확성뿐 아니라 더 많은 것을 확인해야 합니다:
 
-| 내용            | 검토 질문                                                 |
+| 콘텐츠         | 검토 질문                                          |
 | --------------- | -------------------------------------------------------- |
-| `filters.save`  | 이것은 저장된 상태가 아니라 명확한 동작인가요?    |
-| `filters.saved` | 용어가 내비게이션 및 설정 문구와 일치하나요?        |
-| 설명     | UI에 적합하며 “workspace” 용어를 유지하나요? |
+| `filters.save`  | Is this clearly an action, rather than a saved state?    |
+| `filters.saved` | Does the term match navigation and settings copy?        |
+| UI에 잘 맞고 “workspace” 용어를 유지하나요? |
 | 릴리스 제목   | 제품 기능과 동일한 이름을 사용하나요?        |
-| 릴리스 항목 | 명령어, 메뉴 이름 및 사용자 결과가 일관되나요?  |
+| 릴리스 항목 | 명령어, 메뉴 이름 및 사용자 결과가 일관적인가요?  |
 
-짧은 문자열이 모호하다면 제품 맥락이나 스크린샷을 첨부하세요. 번역가가 “필터 저장”이라는 문구만 보면 버튼인지, 토스트 메시지인지, 페이지 제목인지 알 수 없습니다. 플랫폼은 바로 이 지점에서 CLI를 보완합니다. Git은 파일을 이동하고, Hyperlocalise는 올바른 언어적 판단을 내리는 데 필요한 정보를 전달합니다.
+짧은 문자열의 의미가 모호하다면 제품 관련 맥락이나 스크린샷을 첨부하세요. “필터 저장”이라는 문구만 본 번역가는 이것이 버튼인지, 토스트 메시지인지, 페이지 제목인지 알 수 없습니다. 바로 이런 맥락에서 플랫폼은 CLI를 보완합니다. Git은 파일을 옮기고, Hyperlocalise는 올바른 언어적 결정을 내리는 데 필요한 지식을 담아 전달합니다.
 
-프로젝트 워크플로에 따라 검토 의견을 해결하고 번역을 승인한 후 다시 가져오세요. 승인을 단순한 행정 절차가 아니라 릴리스 게이트로 취급하세요.
+가져오기 전에 프로젝트 워크플로에 따라 검토 의견을 해결하고 번역을 승인하세요. 승인은 행정 절차가 아니라 출시 관문으로 간주하세요.
 
 ## 6단계: 검토된 번역을 GitHub로 가져오기
 
-`localise.yml`에 세 번째 작업을 추가합니다:
+Add a third job to `localise.yml`:
 
 ```yaml
 pull-translations:
@@ -289,7 +289,7 @@ pull-translations:
         labels: localization
 ```
 
-검토 후 **Actions** 탭에서 이 작업을 실행하세요. `hl sync pull`은(는) 대상 콘텐츠를 `i18n.yml`에 지정된 경로에 기록하여 다음과 같은 파일을 생성합니다:
+Run this job from the **Actions** tab after review. `hl sync pull` writes target content to the paths in `i18n.yml`, producing files such as:
 
 ```text
 locales/fr-FR.json
@@ -298,30 +298,30 @@ release-notes/fr-FR/v1.8.0.md
 release-notes/de-DE/v1.8.0.md
 ```
 
-워크플로는 `main`에 직접 커밋하는 대신 풀 리퀘스트를 엽니다. 이렇게 하면 브랜치 보호가 유지되고, 엔지니어가 각 로캘로 애플리케이션을 실행해 볼 기회를 얻으며, 릴리스에 포함된 번역을 정확히 기록할 수 있습니다.
+The workflow opens a pull request instead of committing directly to `main`. That preserves branch protection, gives engineers a chance to run the application with each locale, and records the exact translations included in the release.
 
-프로덕션에서는 종속성 정책에 따라 타사 액션을 전체 커밋 SHA로 고정하세요. 변경될 수 있는 메이저 태그를 사용하면 이 튜토리얼을 쉽게 읽을 수 있지만, 변경 불가능한 참조를 사용하면 공급망 위험을 줄일 수 있습니다.
+프로덕션 환경에서는 종속성 정책에 따라 타사 액션을 전체 커밋 SHA로 고정하세요. 변경 가능한 메이저 태그를 사용하면 이 튜토리얼을 읽기 쉽게 유지할 수 있지만, 변경 불가능한 참조는 공급망 위험을 줄여 줍니다.
 
 ## 7단계: 번역된 풀 리퀘스트 테스트
 
-번역 풀 리퀘스트에서 `locales/**` 및 `release-notes/**`을 변경하므로 자동 검사가 다시 실행됩니다. 애플리케이션 자체 테스트도 필수 검사에 추가하세요.
+The automated check will run again because the translation pull request changes `locales/**` and `release-notes/**`. Add your application's own tests to the required checks as well.
 
 최소한 다음 사항을 확인하세요:
 
-- 모든 대상 카탈로그에는 새 키가 포함되어 있습니다;
-- 플레이스홀더와 ICU 인수는 원문과 일치합니다;
+- 모든 대상 카탈로그에 새 키가 포함되어 있습니다;
+- 플레이스홀더와 ICU 인수가 원본과 일치합니다;
 - 번역된 버튼이 지원되는 뷰포트 크기에 맞습니다;
-- Markdown 제목, 목록, 링크 및 코드 구문이 여전히 올바르게 렌더링됩니다;
-- 제품과 릴리스 노트에서 동일한 기능 이름을 사용하며;
-- 원본 문자열이 대상 파일로 유출되지 않았습니다.
+- 마크다운 제목, 목록, 링크 및 코드 스팬은 여전히 올바르게 렌더링됩니다;
+- 제품과 릴리스 노트는 동일한 기능명을 사용합니다; 그리고
+- 소스 문자열이 대상 파일로 유출되지 않았습니다.
 
-검토자는 렌더링된 제품도 열어봐야 합니다. 파일 수준의 검토로 용어 오류는 찾아낼 수 있지만, 버튼이 잘리거나 줄바꿈으로 중요한 텍스트가 가려지는 문제는 발견할 수 없습니다.
+검토자는 렌더링된 제품도 열어봐야 합니다. 파일 수준 검토로 용어 오류는 찾아낼 수 있지만, 버튼이 잘리거나 중요한 텍스트를 숨기는 줄바꿈은 확인할 수 없습니다.
 
-해당 검사가 통과한 경우에만 번역 풀 리퀘스트를 병합하세요. Git에는 이제 릴리스에 승인된 언어 상태가 포함되어 있습니다.
+해당 검사가 통과한 경우에만 번역 풀 리퀘스트를 병합하세요. 이제 Git에는 릴리스에 승인된 언어 상태가 포함되어 있습니다.
 
 ## 8단계: 다국어 릴리스 노트 게시
 
-GitHub 릴리스에는 릴리스 본문이 하나만 있으므로 각 로캘의 내용을 하나의 Markdown 문서로 모으세요. `.github/workflows/release.yml` 추가:
+GitHub Releases has one release body, so assemble each locale into one Markdown document. Add `.github/workflows/release.yml`:
 
 ```yaml
 name: Release
@@ -370,7 +370,7 @@ jobs:
         run: gh release create "${{ github.ref_name }}" --verify-tag --notes-file dist/release-notes.md
 ```
 
-기능 및 번역 풀 리퀘스트가 병합된 후에만 태그를 생성하세요:
+기능 및 번역 풀 리퀘스트가 모두 병합된 후에만 태그를 생성하세요:
 
 ```bash
 git switch main
@@ -379,13 +379,13 @@ git tag v1.8.0
 git push origin v1.8.0
 ```
 
-어느 로캘이든 릴리스 노트가 누락되었거나 비어 있으면 릴리스 작업이 실패합니다. 이는 의도된 동작입니다. 대체 처리를 조용히 수행하면 불완전한 릴리스가 다국어 릴리스로 표시되지만, 작업이 실패하면 팀은 어떤 파일을 검토 절차에 다시 보내야 하는지 정확히 알 수 있습니다.
+어느 로캘이든 릴리스 노트가 없거나 비어 있으면 릴리스 작업은 실패합니다. 이는 의도된 동작입니다. 별다른 알림 없이 대체 처리하면 불완전한 릴리스가 다국어 릴리스인 것처럼 표시됩니다. 작업이 실패하면 검토를 거쳐 다시 반영해야 할 파일이 무엇인지 팀에 정확히 알려 줍니다.
 
-같은 태그로 빌드 및 배포 작업을 실행할 수 있습니다. 공지가 게시되기 전에 바이너리가 있어야 한다면 릴리스 작업이 해당 작업에 의존하도록 설정하세요.
+동일한 태그로 빌드 및 배포 작업을 실행할 수 있습니다. 공지가 공개되기 전에 바이너리가 준비되어야 한다면 릴리스 작업이 해당 작업에 종속되도록 설정하세요.
 
-## 전체 흐름이 작동하는 방식
+## 전체 흐름은 어떻게 작동하는가
 
-완성된 GitHub 현지화 워크플로에는 명확한 방향이 있습니다:
+완성된 GitHub 현지화 워크플로는 방향이 명확합니다:
 
 ```text
 feature branch
@@ -418,49 +418,49 @@ feature branch
                                             └─ multilingual GitHub release
 ```
 
-각 전환에는 하나의 책임이 있습니다. 풀 리퀘스트는 저장소 변경 사항을 검토합니다. Hyperlocalise는 언어 관련 결정을 검토합니다. 태그는 변경할 수 없고 이미 검토된 상태를 게시합니다.
+각 전환에는 하나의 책임이 있습니다. 풀 리퀘스트는 저장소 변경 사항을 검토하고, Hyperlocalise는 언어 관련 결정을 검토합니다. 태그는 변경할 수 없는, 이미 검토된 상태를 게시합니다.
 
 ## 일반적인 실패 유형
 
-### PR 검사에서 관련 없는 번역이 보고됩니다.
+### PR 검사에서 관련 없는 번역이 보고됩니다
 
-액션이 `pull_request` 이벤트에서 실행되고 `github-diff: true`을 설정하는지 확인하세요. 액션이 패치를 가져오려면 `pull-requests: read`이 필요합니다. diff 범위 검사는 지원되는 구조화된 번역 파일에 적용됩니다. 백로그도 확인하려면 전체 프로젝트 검사는 별도의 예약 작업으로 유지하세요.
+Confirm the action runs on a `pull_request` event and sets `github-diff: true`. The action needs `pull-requests: read` so it can fetch the patch. Diff-scoped checking applies to supported structured translation files; keep full-project checks in a separate scheduled job if you also want backlog visibility.
 
-### 소스 푸시에 인증할 수 없습니다.
+### 소스 푸시를 인증할 수 없습니다.
 
-선택한 GitHub 환경에 `HYPERLOCALISE_API_KEY`과 `HYPERLOCALISE_PROJECT_ID`이 모두 있는지 확인하세요. 작업에서 해당 환경을 지정하지 않으면 환경 시크릿을 사용할 수 없으며, 보호된 환경은 승인을 기다려야 할 수 있습니다.
+Check that both `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` exist in the selected GitHub environment. Environment secrets are not available unless the job declares that environment, and protected environments may wait for approval.
 
-### 번역을 가져와도 Git diff가 발생하지 않습니다
+### 번역을 가져와도 Git diff가 생성되지 않습니다.
 
-먼저 `HYPERLOCALISE_PROJECT_ID`이라는 같은 프로젝트에서 번역 작업이 완료되었는지 확인하세요. 그런 다음 `i18n.yml`의 대상 경로를 확인하세요. 파일을 덮어쓰지 않고 다운로드 예정 항목을 확인하려면 `hl sync pull --dry-run`을 로컬에서 실행하세요.
+First confirm that translation work has finished in the same project named by `HYPERLOCALISE_PROJECT_ID`. Then check the target paths in `i18n.yml`. Run `hl sync pull --dry-run` locally to inspect the planned download without overwriting files.
 
-### 릴리스에서 릴리스 노트를 찾을 수 없습니다.
+### 릴리스에서 릴리스 노트를 찾을 수 없습니다
 
-태그와 Markdown 파일 이름이 정확히 일치해야 합니다. 태그 `v1.8.0`에는 `release-notes/<locale>/v1.8.0.md`이 필요합니다. 두 위치 모두에서 `v`을 유지하거나, 워크플로의 경로 구성을 한 번의 의도적인 규칙 업데이트로 변경하세요.
+The tag and Markdown filename must match exactly. Tag `v1.8.0` expects `release-notes/<locale>/v1.8.0.md`. Keep the `v` in both places, or change the workflow's path construction in one deliberate convention update.
 
-### 번역은 제품 출시 이후 제공됩니다.
+### 번역은 제품 출시 후에 도착합니다
 
-번역 동기화를 추적되지 않는 출시 후 작업으로 만들지 마세요. 태그를 만들기 전에 번역 풀 리퀘스트를 필수로 하거나, 배포 워크플로에서 현지화를 명시적인 릴리스 후보 점검 항목으로 설정하세요.
+번역 동기화를 추적되지 않는 출시 후 작업으로 만들지 마세요. 태그를 생성하기 전에 번역 풀 리퀘스트를 필수로 요구하거나, 배포 워크플로에서 현지화를 명시적인 릴리스 후보 검사 항목으로 지정하세요.
 
-## 출시 체크리스트
+## 릴리스 체크리스트
 
-다국어 버전에 태그를 지정하기 전에 다음을 확인하세요:
+다국어 버전에 태그를 지정하기 전에 다음 사항을 확인하세요:
 
-- [ ] 소스 문자열과 영어 릴리스 노트가 함께 병합됨;
+- [ ] 소스 문자열과 영어 릴리스 노트가 함께 병합되었습니다;
 - [ ] 풀 리퀘스트 현지화 검사를 통과했습니다;
-- [ ] `hl sync push` 병합 후 완료됨;
+- [ ] `hl sync push` completed after merge;
 - [ ] 대상 언어가 Hyperlocalise에서 검토 및 승인되었습니다;
-- [ ] `hl sync pull`님이 번역 풀 리퀘스트를 열었습니다;
-- [ ] 자동화, 언어 및 시각적 검사를 통과함;
-- [ ] 번역 풀 리퀘스트가 병합되었고;
-- [ ] 모든 릴리스 노트 로캘에는 태그와 일치하는 비어 있지 않은 파일이 있습니다.
+- [ ] `hl sync pull` opened a translation pull request;
+- [ ] 자동화, 언어 및 시각적 검사를 통과했습니다;
+- [ ] 번역 풀 리퀘스트가 병합되었으며; 그리고
+- [ ] 모든 릴리스 노트 로캘에 태그와 일치하는 비어 있지 않은 파일이 있습니다.
 
-## 현지화를 릴리스 프로세스에 포함하세요.
+## 현지화를 릴리스 프로세스 내에 유지하세요.
 
-GitHub 현지화에서 중요한 것은 YAML이 아닙니다. 책임 소재가 분명한 인수인계가 이어지는 과정입니다.
+GitHub 현지화에서 중요한 것은 YAML이 아닙니다. 책임 소재가 분명한 인계가 이어지는 과정입니다.
 
-`hyperlocalise` CLI는 저장소 파일을 플랫폼에 연결합니다. GitHub Action은 엔지니어가 변경된 문자열에 대한 피드백을 빠르게 받을 수 있도록 합니다. Hyperlocalise는 언어 검토자에게 Git만으로는 제공할 수 없는 문맥과 승인 워크플로를 제공합니다. 최종 태그는 팀이 검토한 내용을 정확히 게시합니다.
+The `hyperlocalise` CLI connects repository files to the platform. The GitHub Action gives engineers fast feedback on changed strings. Hyperlocalise gives language reviewers the context and approval workflow that Git alone cannot provide. The final tag publishes exactly what the team reviewed.
 
-그렇게 하면 현지화는 개발 후에 하는 작업이 아니라 릴리스 자체의 일부가 됩니다.
+이를 통해 현지화는 개발 후에 하는 작업이 아니라 릴리스 자체의 일부가 됩니다.
 
-[제품 현지화를 위해 Hyperlocalise를 살펴보세요](/use-cases/product-localisation) 저장소, 검토 워크플로, 다국어 릴리스를 연결하세요.
+[Explore Hyperlocalise for product localisation](/use-cases/product-localisation) to connect your repositories, review workflows, and multilingual releases.
