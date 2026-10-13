@@ -36,17 +36,30 @@ describe("canva segment-file", () => {
     );
   });
 
-  it("merges page-scoped full keys into page-local keys", () => {
+  it("fills page-local keys from page-scoped full keys when missing", () => {
     expect(
       normalizePageScopedTranslationKeys(
         {
-          "canva.segment.1.0": "English source copy",
           "canva.segment.0.1.0": "Bản dịch tiếng Việt",
         },
         0,
       ),
     ).toMatchObject({
       "canva.segment.1.0": "Bản dịch tiếng Việt",
+    });
+  });
+
+  it("keeps page-local keys when a page-scoped full key also exists", () => {
+    expect(
+      normalizePageScopedTranslationKeys(
+        {
+          "canva.segment.0.0": "menu",
+          "canva.segment.1.0.0": "Thực đơn",
+        },
+        1,
+      ),
+    ).toMatchObject({
+      "canva.segment.0.0": "menu",
     });
   });
 

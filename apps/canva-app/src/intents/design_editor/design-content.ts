@@ -171,6 +171,7 @@ function applyTranslationsToPageElements(
   elements: ElementCollection | readonly DesignElementNode[] | DesignElementNode[],
   translations: Record<string, string>,
   preserveFormatting: boolean,
+  pageIndex?: number,
 ): number {
   const normalized = normalizeTranslations(translations);
   let contentIndex = 0;
@@ -182,6 +183,7 @@ function applyTranslationsToPageElements(
       normalized,
       contentIndex,
       preserveFormatting,
+      pageIndex,
     );
     if (rangeHasApplyableContent(range, preserveFormatting)) {
       contentIndex += 1;
@@ -203,17 +205,19 @@ function applyTranslationsToIndexedRange(
   translations: Record<string, string>,
   contentIndex: number,
   preserveFormatting: boolean,
+  pageIndex?: number,
 ): number {
   if (!rangeHasApplyableContent(range, preserveFormatting)) {
     return 0;
   }
-  return applyTranslationsToRange(range, translations, contentIndex, preserveFormatting);
+  return applyTranslationsToRange(range, translations, contentIndex, preserveFormatting, pageIndex);
 }
 
 function applyTranslationsToRichtextContents(
   contents: readonly EditableRichtextRange[],
   translations: Record<string, string>,
   preserveFormatting: boolean,
+  pageIndex?: number,
 ): number {
   const normalized = normalizeTranslations(translations);
   let contentIndex = 0;
@@ -228,6 +232,7 @@ function applyTranslationsToRichtextContents(
       normalized,
       contentIndex,
       preserveFormatting,
+      pageIndex,
     );
     if (rangeHasApplyableContent(range, preserveFormatting)) {
       contentIndex += 1;
@@ -281,12 +286,13 @@ function wholeFormattedRangeReplacement(
   regions: Array<{ text: string }>,
   translations: Record<string, string>,
   contentIndex: number,
+  pageIndex?: number,
 ): string | undefined {
   if (regions.length <= 1) {
     return undefined;
   }
 
-  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0);
+  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0, pageIndex);
   if (firstTranslation == null || firstTranslation === regions[0]?.text) {
     return undefined;
   }
@@ -311,7 +317,7 @@ function wholeFormattedRangeReplacement(
 
   const assembled = regions
     .map((region, regionIndex) =>
-      lookupTranslatedText(translations, contentIndex, regionIndex) ?? region.text,
+      lookupTranslatedText(translations, contentIndex, regionIndex, pageIndex) ?? region.text,
     )
     .join("");
   const normalizedFirst = firstTranslation.replace(/\s+/g, " ").trim();
@@ -332,13 +338,14 @@ function wholeTextReplacementForFormattedRange(
   regions: Array<{ text: string }>,
   translations: Record<string, string>,
   contentIndex: number,
+  pageIndex?: number,
 ): string | undefined {
   if (regions.length <= 1) {
     return undefined;
   }
 
   const plaintext = range.readPlaintext();
-  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0);
+  const firstTranslation = lookupTranslatedText(translations, contentIndex, 0, pageIndex);
   if (firstTranslation == null || firstTranslation === plaintext) {
     return undefined;
   }
@@ -349,7 +356,7 @@ function wholeTextReplacementForFormattedRange(
     return firstTranslation;
   }
 
-  return wholeFormattedRangeReplacement(regions, translations, contentIndex);
+  return wholeFormattedRangeReplacement(regions, translations, contentIndex, pageIndex);
 }
 
 export function applyTranslationsToRange(
@@ -357,6 +364,7 @@ export function applyTranslationsToRange(
   translations: Record<string, string>,
   contentIndex: number,
   preserveFormatting: boolean,
+  pageIndex?: number,
 ): number {
   let replaced = 0;
 
@@ -368,6 +376,7 @@ export function applyTranslationsToRange(
       regions,
       translations,
       contentIndex,
+      pageIndex,
     );
     if (wholeReplacement != null && wholeReplacement !== plaintext) {
       range.replaceText({ index: 0, length: plaintext.length }, wholeReplacement);
@@ -378,7 +387,12 @@ export function applyTranslationsToRange(
 
     for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
       const region = regions[regionIndex];
-      const translatedText = lookupTranslatedText(translations, contentIndex, regionIndex);
+      const translatedText = lookupTranslatedText(
+        translations,
+        contentIndex,
+        regionIndex,
+        pageIndex,
+      );
       const offset = offsets[regionIndex];
 
       if (!region || translatedText == null || offset == null || translatedText === region.text) {
@@ -398,7 +412,7 @@ export function applyTranslationsToRange(
   }
 
   const plaintext = range.readPlaintext();
-  const translatedText = lookupTranslatedText(translations, contentIndex, 0);
+  const translatedText = lookupTranslatedText(translations, contentIndex, 0, pageIndex);
   if (translatedText == null || plaintext.length === 0 || translatedText === plaintext) {
     return 0;
   }
@@ -471,6 +485,7 @@ export async function extractDesignContent(
 export async function applyTranslationsToCurrentPage(
   translations: Record<string, string>,
   preserveFormatting: boolean,
+  pageIndex?: number,
 ): Promise<number> {
   let replaced = 0;
 
@@ -480,6 +495,7 @@ export async function applyTranslationsToCurrentPage(
         session.contents,
         translations,
         preserveFormatting,
+        pageIndex,
       );
       if (replaced > 0) {
         await session.sync();
@@ -499,6 +515,7 @@ export async function applyTranslationsToCurrentPage(
       session.page.elements,
       translations,
       preserveFormatting,
+      pageIndex,
     );
 
     if (replaced > 0) {
@@ -536,6 +553,7 @@ export async function applyTranslationsToDesign(
           pageResult.page.elements,
           translations,
           preserveFormatting,
+          pageIndex,
         );
       });
 

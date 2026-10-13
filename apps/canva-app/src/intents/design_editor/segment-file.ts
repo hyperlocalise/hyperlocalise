@@ -49,6 +49,10 @@ export function lookupTranslatedText(
     }
   }
 
+  if (pageIndex != null) {
+    return undefined;
+  }
+
   const contentRegionSuffix = `.${contentIndex}.${regionIndex}`;
   for (const [key, value] of Object.entries(translations)) {
     if (!/^canva\.segment\.\d+\.\d+\.\d+$/.test(key) || !key.endsWith(contentRegionSuffix)) {
@@ -80,7 +84,11 @@ export function normalizePageScopedTranslationKeys(
       continue;
     }
 
-    normalized[pageSegmentKey(Number(match[2]), Number(match[3]))] = translated;
+    const pageLocalKey = pageSegmentKey(Number(match[2]), Number(match[3]));
+    if (usableTranslation(normalized[pageLocalKey]) != null) {
+      continue;
+    }
+    normalized[pageLocalKey] = translated;
   }
 
   return normalized;

@@ -692,6 +692,7 @@ export const App = () => {
       const replaced = await applyTranslationsToCurrentPage(
         normalizePageScopedTranslationKeys(page.translations, sourcePageIndex),
         settings.preserveFormatting,
+        sourcePageIndex,
       );
       if (replaced === 0) {
         throw new Error("No matching text on this page. Collect the page again, then apply.");

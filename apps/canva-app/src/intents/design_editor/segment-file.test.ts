@@ -57,23 +57,47 @@ describe("segment-file", () => {
     expect(parseTranslationFile(file)).toEqual(file);
   });
 
-  it("merges page-scoped full keys into page-local keys", () => {
+  it("fills page-local keys from page-scoped full keys when missing", () => {
     expect(
       normalizePageScopedTranslationKeys(
         {
-          "canva.segment.1.0":
-            "Enjoy twice the flavor with our special Buy 1 Get 1 Free offer on selected food and drinks.",
           "canva.segment.0.1.0":
             "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
         },
         0,
       ),
-    ).toEqual({
+    ).toMatchObject({
       "canva.segment.1.0":
         "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
-      "canva.segment.0.1.0":
-        "Thưởng thức hương vị gấp đôi với ưu đãi đặc biệt Mua 1 Tặng 1 áp dụng cho một số món ăn và đồ uống được chọn.",
     });
+  });
+
+  it("keeps page-local keys when a page-scoped full key also exists", () => {
+    expect(
+      normalizePageScopedTranslationKeys(
+        {
+          "canva.segment.0.0": "menu",
+          "canva.segment.1.0.0": "Thực đơn",
+        },
+        1,
+      ),
+    ).toMatchObject({
+      "canva.segment.0.0": "menu",
+    });
+  });
+
+  it("does not borrow another page full key when pageIndex is provided", () => {
+    expect(
+      lookupTranslatedText(
+        {
+          "canva.segment.0.0": "menu",
+          "canva.segment.0.0.0": "Thực đơn",
+        },
+        0,
+        0,
+        1,
+      ),
+    ).toBe("menu");
   });
 
   it("counts translated regions for a text box content index", () => {

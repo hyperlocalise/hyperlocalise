@@ -46,7 +46,11 @@ export function normalizePageScopedTranslationKeys(
       continue;
     }
 
-    normalized[pageSegmentKey(Number(match[2]), Number(match[3]))] = translated;
+    const pageLocalKey = pageSegmentKey(Number(match[2]), Number(match[3]));
+    if (usableTranslation(normalized[pageLocalKey]) != null) {
+      continue;
+    }
+    normalized[pageLocalKey] = translated;
   }
 
   return normalized;

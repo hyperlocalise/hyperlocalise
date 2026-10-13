@@ -420,6 +420,71 @@ function countTranslationFileWords(file: Record<string, string>, sourceLocale: s
   return words;
 }
 
+export function mergeEditorTranslationsOverOutputFile(
+  outputFile: Record<string, string>,
+  editorSegments: Record<string, string>,
+): Record<string, string> {
+  if (Object.keys(editorSegments).length === 0) {
+    return outputFile;
+  }
+
+  const merged = { ...outputFile };
+  for (const [key, value] of Object.entries(editorSegments)) {
+    if (value.trim().length === 0) {
+      continue;
+    }
+    merged[key] = value;
+  }
+  return merged;
+}
+
+async function loadCanvaEditorTranslationsBySourcePath(input: {
+  organizationId: string;
+  projectId: string;
+  locale: string;
+  sourcePaths: string[];
+}): Promise<Map<string, Record<string, string>>> {
+  const byPath = new Map<string, Record<string, string>>();
+  if (input.sourcePaths.length === 0) {
+    return byPath;
+  }
+
+  const rows = await db
+    .select({
+      key: schema.projectTranslationKeys.key,
+      text: schema.projectTranslations.text,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.projectTranslations)
+    .innerJoin(
+      schema.projectTranslationKeys,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslations.organizationId, input.organizationId),
+        eq(schema.projectTranslations.projectId, input.projectId),
+        eq(schema.projectTranslations.targetLocale, input.locale),
+        inArray(schema.repositorySourceFiles.sourcePath, input.sourcePaths),
+      ),
+    );
+
+  for (const row of rows) {
+    if (row.text.trim().length === 0 || !row.sourcePath) {
+      continue;
+    }
+    const segments = byPath.get(row.sourcePath) ?? {};
+    segments[row.key] = row.text;
+    byPath.set(row.sourcePath, segments);
+  }
+
+  return byPath;
+}
+
 function countTranslatedSourceWords(
   sourceFile: Record<string, string>,
   translations: Record<string, string>,
@@ -1093,6 +1158,18 @@ export async function pullCanvaLocalePageTranslations(input: {
     throw new Error("job_target_locale_not_in_project");
   }
 
+  const pagesToPull = localeStatus.pages.filter(
+    (page) => input.pageIndex == null || page.pageIndex === input.pageIndex,
+  );
+  const editorTranslationsByPath = localeStatus.isSource
+    ? new Map<string, Record<string, string>>()
+    : await loadCanvaEditorTranslationsBySourcePath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        locale: input.locale,
+        sourcePaths: pagesToPull.map((page) => page.sourcePath),
+      });
+
   const pages = [];
   for (const page of localeStatus.pages) {
     if (input.pageIndex != null && page.pageIndex !== input.pageIndex) {
@@ -1142,13 +1219,15 @@ export async function pullCanvaLocalePageTranslations(input: {
             outputFiles,
           })
         : {};
+    const outputFile = loaded[input.locale] ?? {};
+    const editorSegments = editorTranslationsByPath.get(page.sourcePath) ?? {};
     pages.push({
       pageIndex: page.pageIndex,
       sourcePath: page.sourcePath,
       jobId: page.jobId,
       status: page.status,
       translations: normalizePageScopedTranslationKeys(
-        loaded[input.locale] ?? {},
+        mergeEditorTranslationsOverOutputFile(outputFile, editorSegments),
         page.pageIndex,
       ),
     });
