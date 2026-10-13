@@ -22,7 +22,8 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import type { GoSvcJobApi } from "@/lib/go-svc/go-svc-job-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -137,46 +138,30 @@ function toNativeJobRows(jobs: JobRow[]): JobRow[] {
 }
 
 async function fetchNativeWorkspaceJobs(
+  jobApi: GoSvcJobApi,
   organizationSlug: string,
   statusFilter: JobsStatusFilter,
-  loadJobsFailedMessage: string,
   relationship?: "assigned" | "created",
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
-    param: { organizationSlug },
-    query: {
-      limit: "100",
-      ...(relationship ? { relationship } : {}),
-      ...(statusFilter === "all" ? {} : { status: statusFilter }),
-    },
+  const body = await jobApi.list<JobListResponse>(organizationSlug, {
+    limit: 100,
+    ...(relationship ? { relationship } : {}),
+    ...(statusFilter === "all" ? {} : { status: statusFilter }),
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadJobsFailedMessage);
-  }
-
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return body.jobs;
 }
 
 async function fetchNativeProjectJobs(
+  jobApi: GoSvcJobApi,
   organizationSlug: string,
   projectId: string,
   statusFilter: JobsStatusFilter,
-  loadJobsFailedMessage: string,
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
-    param: { organizationSlug, projectId },
-    query: {
-      limit: "100",
-      ...(statusFilter === "all" ? {} : { status: statusFilter }),
-    },
+  const body = await jobApi.listProject<JobListResponse>(organizationSlug, projectId, {
+    limit: 100,
+    ...(statusFilter === "all" ? {} : { status: statusFilter }),
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, loadJobsFailedMessage);
-  }
-
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return body.jobs;
 }
 
 async function fetchTmsWorkspaceJobs(
@@ -218,6 +203,7 @@ export const JobsPageContent = observer(function JobsPageContent({
   projectId?: string;
 }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const pageStore = useJobsListUrlState(projectId);
   const statusFilter = pageStore.statusFilter;
   const [createJobOpen, setCreateJobOpen] = useState(false);
@@ -228,7 +214,6 @@ export const JobsPageContent = observer(function JobsPageContent({
   const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
     enabled: Boolean(projectId),
   });
-  const loadJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadJobsFailed);
   const loadTmsJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadTmsJobsFailed);
 
   const nativeJobsQueryKey = [
@@ -252,28 +237,23 @@ export const JobsPageContent = observer(function JobsPageContent({
     enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
-        return fetchNativeProjectJobs(
-          organizationSlug,
-          projectId,
-          statusFilter,
-          loadJobsFailedMessage,
-        );
+        return fetchNativeProjectJobs(goSvcClient.job, organizationSlug, projectId, statusFilter);
       }
 
-      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage);
+      return fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter);
     },
   });
   const assignedNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "assigned"],
     enabled: scope === "personal" && !projectId,
     queryFn: async () =>
-      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "assigned"),
+      fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter, "assigned"),
   });
   const createdNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "created"],
     enabled: scope === "personal" && !projectId,
     queryFn: async () =>
-      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "created"),
+      fetchNativeWorkspaceJobs(goSvcClient.job, organizationSlug, statusFilter, "created"),
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,

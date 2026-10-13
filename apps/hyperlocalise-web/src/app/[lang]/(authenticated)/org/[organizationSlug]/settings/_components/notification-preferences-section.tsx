@@ -19,7 +19,8 @@ import { toast } from "sonner";
 
 import { Rows } from "@/components/ui/layout/rows";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
+import type { GoSvcInboxApi } from "@/lib/go-svc/go-svc-inbox-api";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
 import { DEFAULT_USER_NOTIFICATION_PREFERENCES } from "@/lib/notifications/user-notification-preferences";
 
@@ -41,15 +42,10 @@ function normalizePreferences(value: unknown): NotificationPreferencesFormValues
 }
 
 async function fetchPreferences(
+  client: GoSvcInboxApi,
   organizationSlug: string,
 ): Promise<NotificationPreferencesFormValues> {
-  const response = await apiClient.api.orgs[":organizationSlug"]["notification-preferences"].$get({
-    param: { organizationSlug },
-  });
-  const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error("Failed to load notification preferences");
-  }
+  const body: unknown = await client.getPreferences(organizationSlug);
   if (body && typeof body === "object" && "preferences" in body) {
     return normalizePreferences(body.preferences);
   }
@@ -58,11 +54,12 @@ async function fetchPreferences(
 
 export function NotificationPreferencesSection({ organizationSlug }: { organizationSlug: string }) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
   const queryKey = ["notification-preferences", organizationSlug] as const;
   const { data, isLoading, isError } = useQuery({
     queryKey,
-    queryFn: () => fetchPreferences(organizationSlug),
+    queryFn: () => fetchPreferences(goSvcClient.inbox, organizationSlug),
   });
   const [values, setValues] = useState<NotificationPreferencesFormValues>(
     DEFAULT_USER_NOTIFICATION_PREFERENCES,
@@ -78,16 +75,7 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
     mutationFn: async (
       next: NotificationPreferencesFormValues,
     ): Promise<NotificationPreferencesFormValues> => {
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "notification-preferences"
-      ].$put({
-        param: { organizationSlug },
-        json: next,
-      });
-      const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error("Failed to save notification preferences");
-      }
+      const body: unknown = await goSvcClient.inbox.updatePreferences(organizationSlug, next);
       if (body && typeof body === "object" && "preferences" in body) {
         return normalizePreferences(body.preferences);
       }

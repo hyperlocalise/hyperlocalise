@@ -38,6 +38,8 @@ import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   buildJobContentEditorHref,
   canOpenJobContentEditor,
@@ -102,12 +104,24 @@ export function NativeJobDetailContent({
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
+      try {
+        const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+        if (body.job.projectId !== projectId) {
+          throw new Error(intl.formatMessage(messages.jobWrongProject));
+        }
+        return body.job;
+      } catch (error) {
+        if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+          throw error;
+        }
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });

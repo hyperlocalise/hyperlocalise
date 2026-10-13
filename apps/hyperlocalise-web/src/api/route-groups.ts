@@ -41,9 +41,6 @@ import { createIntercomConnectionRoutes } from "./routes/intercom-connection/int
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
-import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
-import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
-import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGitlabRoutes } from "./routes/gitlab/gitlab.route";
 import { createIntercomRoutes } from "./routes/intercom/intercom.route";
@@ -56,7 +53,6 @@ import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createFileRoutes } from "./routes/file/file.route";
-import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createAutomationAssistantRoutes } from "./routes/workspace-automation/automation-assistant.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
 import { createVisualWorkflowRoutes } from "./routes/visual-workflow/visual-workflow.route";
@@ -107,14 +103,10 @@ export function createPublicApiRoutes(options: PublicApiRouteOptions) {
 }
 
 export function createOrgInboxRoutes(options: OrgScopedRouteOptions) {
-  return new Hono()
-    .route("/notifications", createIssueNotificationsRoutes())
-    .route("/notification-preferences", createNotificationPreferencesRoutes())
-    .route("/mentions", createMentionSuggestionsRoutes())
-    .route(
-      "/conversations",
-      createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    );
+  return new Hono().route(
+    "/conversations",
+    createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+  );
 }
 
 export function createOrgKnowledgeRoutes(
@@ -140,7 +132,6 @@ export function createOrgProjectsRoutes(options: OrgScopedRouteOptions) {
       }),
     )
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
-    .route("/workspace-files", createWorkspaceFilesRoutes())
     .route("/automations/assistant", createAutomationAssistantRoutes())
     .route(
       "/automations",

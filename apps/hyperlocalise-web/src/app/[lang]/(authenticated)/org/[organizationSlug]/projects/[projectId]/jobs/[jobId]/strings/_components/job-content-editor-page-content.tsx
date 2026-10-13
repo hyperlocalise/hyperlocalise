@@ -273,6 +273,7 @@ export function JobContentEditorPageContent({
     enabled: !hasFileReference || allFiles,
     queryFn: async () => {
       const files = await loadJobContentEditorJobSourceFiles({
+        goSvcClient,
         organizationSlug,
         projectId,
         jobId,
@@ -312,14 +313,25 @@ export function JobContentEditorPageContent({
     queryKey: projectJobContentEditorProviderFilesQueryKey(organizationSlug, projectId, jobId),
     enabled: (hasFileReference && !isNativeJob) || allFiles,
     queryFn: () =>
-      loadJobContentEditorProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
+      loadJobContentEditorProviderJobFiles({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+        targetLocale,
+      }),
   });
 
   const jobLocalesQuery = useQuery({
     queryKey: projectJobContentEditorSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
     enabled: hasFileReference || allFiles,
     queryFn: () =>
-      loadJobContentEditorSelectableTargetLocales({ organizationSlug, projectId, jobId }),
+      loadJobContentEditorSelectableTargetLocales({
+        goSvcClient,
+        organizationSlug,
+        projectId,
+        jobId,
+      }),
   });
 
   const repositoriesQuery = useQuery({

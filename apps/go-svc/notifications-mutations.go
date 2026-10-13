@@ -10,10 +10,18 @@ import (
 func (api *notificationsAPI) loadOwnedNotification(ctx context.Context, actor notificationsActor, id string) (map[string]any, error) {
 	orgWide := actor.canReadAllTeams()
 	rows, err := api.pool.Query(ctx, `
-        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id, n.type, n.payload, n.read_at, n.created_at,
+        select n.id, n.organization_id, n.project_id, n.issue_id, n.qa_run_id,
+               priority_values.value #>> '{}', n.type, n.payload, n.read_at, n.created_at,
                n.actor_user_id, u.first_name, u.last_name, u.email, u.avatar_url
         from issue_notifications n
         join projects p on p.id = n.project_id
+        left join issue_sheet_columns priority_columns
+          on priority_columns.organization_id = n.organization_id
+         and priority_columns.project_id = n.project_id
+         and priority_columns.key = 'priority'
+        left join issue_sheet_row_values priority_values
+          on priority_values.issue_id = n.issue_id
+         and priority_values.column_id = priority_columns.id
         left join users u on u.id = n.actor_user_id
         where n.organization_id = $1 and n.recipient_user_id = $2 and n.id = $3
         and `+formatQaProjectTeamAccessSQL(4, 2, 1)+`

@@ -17,6 +17,8 @@ import { GoSvcConversationApi } from "./go-svc-conversation-api";
 import { GoSvcDictionaryApi } from "./go-svc-dictionary-api";
 import { GoSvcGlossaryApi } from "./go-svc-glossary-api";
 import { GoSvcIssueSheetApi } from "./go-svc-issue-sheet-api";
+import { GoSvcInboxApi } from "./go-svc-inbox-api";
+import { GoSvcJobApi } from "./go-svc-job-api";
 import { GoSvcMemoryApi } from "./go-svc-memory-api";
 import { GoSvcQaReportApi } from "./go-svc-qa-report-api";
 import {
@@ -46,6 +48,8 @@ export class GoSvcClient {
   readonly glossary: GoSvcGlossaryApi;
   readonly hyperlab: HyperlabGoSvcClient;
   readonly issueSheet: GoSvcIssueSheetApi;
+  readonly inbox: GoSvcInboxApi;
+  readonly job: GoSvcJobApi;
   readonly member: GoSvcMemberApi;
   readonly memory: GoSvcMemoryApi;
   readonly overview: GoSvcOverviewApi;
@@ -65,6 +69,8 @@ export class GoSvcClient {
     this.glossary = new GoSvcGlossaryApi(request);
     this.hyperlab = createHyperlabGoSvcClient(request);
     this.issueSheet = new GoSvcIssueSheetApi(request);
+    this.inbox = new GoSvcInboxApi(request);
+    this.job = new GoSvcJobApi(request);
     this.member = new GoSvcMemberApi(request);
     this.memory = new GoSvcMemoryApi(request);
     this.overview = new GoSvcOverviewApi(request);
