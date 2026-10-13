@@ -150,7 +150,12 @@ describe("compileVisualWorkflowV3Definition", () => {
       edgeId: "customer-binding",
       nodeId: "call",
     });
-    expect(result.issues).toContainEqual({ code: "missing_required_input", nodeId: "call" });
+    expect(result.issues).toContainEqual({
+      code: "missing_required_input",
+      field: "value.locale",
+      nodeId: "call",
+      reason: "required",
+    });
   });
 
   it("does not include data edges in the execution graph", () => {

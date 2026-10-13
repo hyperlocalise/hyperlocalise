@@ -118,6 +118,7 @@ describe("executeSubworkflowNode", () => {
       error: {
         code: "yield_execution",
         message: "The child workflow is still running.",
+        subworkflowRunId: childRun.id,
         wakeAt: "2026-10-13T00:00:00.000Z",
       },
     });

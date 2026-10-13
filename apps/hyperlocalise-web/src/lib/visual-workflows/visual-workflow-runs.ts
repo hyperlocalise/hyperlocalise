@@ -42,6 +42,11 @@ import { parseWaitResumeState, type WaitResumeState } from "./runtime/wait-sched
 import { parseMergeResumeState, type MergeResumeState } from "./runtime/merge-timeout";
 import { resolveDurableWaitMergeWake } from "./runtime/durable-resume-wake";
 import { WORKFLOW_LIMITS } from "./runtime/limits";
+import {
+  hasWorkflowRunExceededDeadline,
+  parseSubworkflowPausedMs,
+  parseSubworkflowResumeState,
+} from "./runtime/subworkflow-resume";
 
 export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
   executionLeaseBusy?: boolean;
@@ -1165,6 +1170,8 @@ export async function executeVisualWorkflowRun(input: {
   let retryResume = parseRetryResumeState(payload.retryBackoff);
   const waitResume = parseWaitResumeState(payload.waitResume);
   const mergeResume = parseMergeResumeState(payload.mergeResume);
+  const subworkflowResume = parseSubworkflowResumeState(payload.subworkflowResume);
+  const subworkflowPausedMs = parseSubworkflowPausedMs(payload.subworkflowPausedMs);
   if (retryResume?.wakeAt && !isRetryWakePending(retryResume)) {
     const { wakeAt: _wakeAt, ...withoutWake } = retryResume;
     retryResume = withoutWake;
@@ -1213,10 +1220,13 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
   if (
-    !waitResume &&
-    !mergeResume &&
-    run.startedAt &&
-    Date.now() - Date.parse(run.startedAt) > WORKFLOW_LIMITS.runTimeoutMs
+    hasWorkflowRunExceededDeadline({
+      startedAt: run.startedAt,
+      nowMs: Date.now(),
+      timeoutMs: WORKFLOW_LIMITS.runTimeoutMs,
+      pausedMs: subworkflowPausedMs,
+      hasDurableResume: Boolean(waitResume || mergeResume || subworkflowResume),
+    })
   )
     return finishVisualWorkflowRun({
       leaseToken,
@@ -1311,6 +1321,37 @@ export async function executeVisualWorkflowRun(input: {
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+  const yieldedSubworkflowRunId =
+    !result.ok &&
+    result.error.code === "yield_execution" &&
+    typeof result.error.subworkflowRunId === "string"
+      ? result.error.subworkflowRunId
+      : null;
+  if (subworkflowResume && yieldedSubworkflowRunId !== subworkflowResume.childRunId) {
+    const waitingSince = Date.parse(subworkflowResume.waitingSince);
+    const additionalPausedMs = Number.isFinite(waitingSince)
+      ? Math.max(0, Date.now() - waitingSince)
+      : 0;
+    const {
+      subworkflowResume: _removedSubworkflowResume,
+      subworkflowPausedMs: _previousPausedMs,
+      ...payloadWithoutSubworkflowResume
+    } = payload;
+    payload = {
+      ...payloadWithoutSubworkflowResume,
+      subworkflowPausedMs: subworkflowPausedMs + additionalPausedMs,
+    };
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({ encryptedPayload: encryptWorkflowPayload(payload), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+  }
   if (
     waitResume &&
     (result.ok || result.error.code !== "wait_suspended") &&
@@ -1450,9 +1491,22 @@ export async function executeVisualWorkflowRun(input: {
         typeof result.error.wakeAt === "string" && Number.isFinite(Date.parse(result.error.wakeAt))
           ? new Date(result.error.wakeAt)
           : null;
+      if (yieldedSubworkflowRunId) {
+        payload = {
+          ...payload,
+          subworkflowResume:
+            subworkflowResume?.childRunId === yieldedSubworkflowRunId
+              ? subworkflowResume
+              : { childRunId: yieldedSubworkflowRunId, waitingSince: new Date().toISOString() },
+        };
+      }
       await db
         .update(schema.visualWorkflowRuns)
-        .set({ leaseExpiresAt: wakeAt })
+        .set({
+          leaseExpiresAt: wakeAt,
+          ...(yieldedSubworkflowRunId ? { encryptedPayload: encryptWorkflowPayload(payload) } : {}),
+          updatedAt: new Date(),
+        })
         .where(
           and(
             eq(schema.visualWorkflowRuns.id, run.id),
@@ -1518,11 +1572,19 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
 
-  if (payload.retryBackoff || payload.waitResume || payload.mergeResume) {
+  if (
+    payload.retryBackoff ||
+    payload.waitResume ||
+    payload.mergeResume ||
+    payload.subworkflowResume ||
+    payload.subworkflowPausedMs
+  ) {
     const {
       retryBackoff: _removedRetry,
       waitResume: _removedWait,
       mergeResume: _removedMerge,
+      subworkflowResume: _removedSubworkflowResume,
+      subworkflowPausedMs: _removedSubworkflowPausedMs,
       ...payloadWithoutResume
     } = payload;
 

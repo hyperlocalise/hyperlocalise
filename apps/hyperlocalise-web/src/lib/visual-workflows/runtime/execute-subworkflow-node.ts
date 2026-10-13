@@ -97,6 +97,7 @@ export async function executeSubworkflowNode(input: {
       error: {
         code: "yield_execution",
         message: "The child workflow is still running.",
+        subworkflowRunId: executed.id,
         ...(executed.executionPausedUntil ? { wakeAt: executed.executionPausedUntil } : {}),
       },
     };

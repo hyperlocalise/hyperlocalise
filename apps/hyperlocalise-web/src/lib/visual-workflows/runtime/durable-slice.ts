@@ -52,6 +52,7 @@ import {
   computeTryCatchSuccessNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
 import { executeSubworkflowNode } from "./execute-subworkflow-node";
+import { shouldStopAutomaticNodeRetry } from "./subworkflow-resume";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -195,6 +196,8 @@ export async function executeDurableWorkflowSlice(input: {
                 "retryBackoff",
                 "waitResume",
                 "mergeResume",
+                "subworkflowResume",
+                "subworkflowPausedMs",
               ].includes(name),
           ),
         ),
@@ -355,7 +358,8 @@ export async function executeDurableWorkflowSlice(input: {
           }
           if (controller.signal.aborted)
             return { ok: false, error: { code: "cancelled", message: "Run cancelled." } };
-          if (execution.ok || offset === maxAttempts - 1) break;
+          if (execution.ok) break;
+          if (shouldStopAutomaticNodeRetry({ execution, offset, maxAttempts })) break;
           await upsertVisualWorkflowNodeRun({
             leaseToken: input.leaseToken,
             runId: input.run.id,
