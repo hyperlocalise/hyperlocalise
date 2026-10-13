@@ -174,6 +174,7 @@ func TestBillingResourceUsageRoutes(t *testing.T) {
 	api, scope := billingTestAPI(t, "admin")
 	path := scope.OrgPath("/billing/resource-usage")
 	require.Equal(t, http.StatusMethodNotAllowed, billingRequest(api, scope.WorkOSUserID, http.MethodPost, path).Code)
-	require.Equal(t, http.StatusNotFound, billingRequest(api, scope.WorkOSUserID, http.MethodPost, path+"/sync").Code)
+	require.Equal(t, http.StatusMethodNotAllowed, billingRequest(api, scope.WorkOSUserID, http.MethodGet, path+"/sync").Code)
 	require.Equal(t, http.StatusNotFound, billingRequest(api, scope.WorkOSUserID, http.MethodGet, "/api/go-svc"+path).Code)
+	require.Equal(t, http.StatusNotFound, billingRequest(api, scope.WorkOSUserID, http.MethodPost, "/api/go-svc"+path+"/sync").Code)
 }

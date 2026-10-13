@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing resource-usage reads, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing resource-usage reads and Autumn sync, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -615,15 +615,18 @@ default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 
 ## Billing resource usage
 
-Read-only API for organization-wide workspace resource usage at
-`/v1/orgs/{organizationSlug}/billing/resource-usage`.
+Organization-wide workspace resource usage at
+`/v1/orgs/{organizationSlug}/billing/resource-usage`, with Autumn usage sync.
 
-Requires `billing:read` (`admin` or `localization_manager`), WorkOS session
-authentication, and `DATABASE_URL`. Other roles receive `403 billing_read_forbidden`.
+Requires WorkOS session authentication and `DATABASE_URL`. Reads require
+`billing:read` (`admin` or `localization_manager`); other roles receive
+`403 billing_read_forbidden`. Sync requires `billing:write` (`admin` only); other
+roles receive `403 billing_write_forbidden`.
 
 | Method | Path | Operation |
 |--------|------|-----------|
 | GET | `/billing/resource-usage` | Count organization-wide workspace resources |
+| POST | `/billing/resource-usage/sync` | Push local resource usage deltas to Autumn |
 
 Response: `{ resourceUsage: { seats, projects, automations, integrations } }`.
 
@@ -634,10 +637,35 @@ Counts are calculated from PostgreSQL:
 - `automations`: non-archived `workspace_automations`, including paused automations.
 - `integrations`: TMS provider credentials, GitHub installations, enabled Contentful connections, and enabled connectors.
 
-No external billing API calls are required.
+### Sync
+
+`POST /v1/orgs/{organizationSlug}/billing/resource-usage/sync` synchronizes organization resource usage with Autumn.
+
+The endpoint requires `billing:write` and uses the server's `AUTUMN_API_KEY`. Resource counts are calculated from PostgreSQL.
+
+- Counts resources once, then synchronizes the four features concurrently, each in its own transaction protected by `pg_advisory_xact_lock`.
+- Calculates `delta = localUsage - synced_usage` and sends it to Autumn `balances.track` with the idempotency key `workspace_resource_usage_sync:{org}:{feature}:{sync_sequence+1}`.
+- A zero delta records `up_to_date` without calling Autumn.
+- HTTP 2xx or 409 records `synced` and advances `synced_usage` and `sync_sequence`. Other failures record `failed` without advancing either.
+- Without `AUTUMN_API_KEY`, returns `200` with `skipped` and `error: "autumn_not_configured"` for each feature, without writing sync state.
+
+Response: `{ syncResult: { status, resourceUsage, results } }`.
+
+Each result contains `featureId`, `localUsage`, `previousSyncedUsage`, `delta`, `status` (`synced` | `up_to_date` | `failed` | `skipped`), `operationKey`,
+and `error`.
+
+If any feature fails, the endpoint returns `502 billing_resource_usage_sync_partial_failed` with `details: { syncResult }`.
+
+Autumn HTTP errors use `Autumn resource usage sync failed with HTTP {status}`. Transport errors use sanitized categories to avoid exposing connection details
+or credentials.
+
+Each Autumn request has a 20-second timeout, and the overall sync has a 60-second timeout. Synchronization continues if the caller disconnects.
+
+Cross-origin browser mutations are rejected with `403 forbidden`.
 
 ```bash
-go test ./apps/go-svc -run 'BillingResourceUsage'
+go test ./apps/go-svc -run 'BillingResourceUsage|WorkspaceResourceSync'
+go test ./apps/go-svc/internal/autumn -run HTTPStatus
 ```
 
 ## Members

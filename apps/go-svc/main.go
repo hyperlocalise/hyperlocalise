@@ -129,6 +129,7 @@ func main() {
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 			h.projects.autumn = client
+			h.billing.autumn = client
 		}
 	}
 	var membershipLookup organizationMembershipLookup

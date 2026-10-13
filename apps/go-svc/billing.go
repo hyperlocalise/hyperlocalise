@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/autumn"
 )
 
 const billingRequestTimeout = 30 * time.Second
@@ -12,17 +14,19 @@ const billingRequestTimeout = 30 * time.Second
 type billingAPI struct {
 	pool       dictionaryPool
 	membership organizationMembershipLookup
+	autumn     *autumn.Client
 }
 
 type billingError struct {
 	status        int
 	code, message string
+	details       any
 }
 
 func (e *billingError) Error() string { return e.code }
 
 func billingFailure(status int, code, message string) error {
-	return &billingError{status, code, message}
+	return &billingError{status: status, code: code, message: message}
 }
 
 type workspaceResourceUsage struct {
@@ -38,40 +42,53 @@ type workspaceResourceUsageResponse struct {
 
 func (api *billingAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	registerAuthenticated(mux, verifier, "GET "+orgRoutePrefix+"/billing/resource-usage", http.HandlerFunc(api.serveResourceUsage))
+	registerAuthenticated(mux, verifier, "POST "+orgRoutePrefix+"/billing/resource-usage/sync", http.HandlerFunc(api.serveResourceUsageSync))
 }
 
 func writeBillingError(w http.ResponseWriter, r *http.Request, phase string, err error) {
 	var failure *billingError
 	if !errors.As(err, &failure) {
 		logRequestFailure(r, "billing_request_failed", phase, err)
-		failure = &billingError{500, "internal_error", "Internal server error"}
+		failure = &billingError{status: 500, code: "internal_error", message: "Internal server error"}
 	} else {
 		logRequestFailure(r, "billing_request_failed", phase, err, "status", failure.status, "code", failure.code)
 	}
-	writeJSON(w, failure.status, map[string]string{"error": failure.code, "message": failure.message})
+	body := map[string]any{"error": failure.code, "message": failure.message}
+	if failure.details != nil {
+		body["details"] = failure.details
+	}
+	writeJSON(w, failure.status, body)
+}
+
+func (api *billingAPI) authorize(w http.ResponseWriter, r *http.Request, capability, forbiddenCode, forbiddenMessage string) (organizationActor, bool) {
+	if api.pool == nil {
+		writeBillingError(w, r, "availability", billingFailure(503, "billing_unavailable", "Billing is unavailable"))
+		return organizationActor{}, false
+	}
+	claims, ok := r.Context().Value(authContextKey{}).(AuthClaims)
+	if !ok {
+		writeBillingError(w, r, "auth", billingFailure(401, "unauthorized", "Authentication required"))
+		return organizationActor{}, false
+	}
+	actor, err := resolveOrganizationActor(r.Context(), api.pool, api.membership, claims, r.PathValue("organizationSlug"))
+	if err != nil {
+		writeBillingError(w, r, "resolve_actor", mapOrganizationAccessError(err, billingFailure))
+		return organizationActor{}, false
+	}
+	if !hasOrganizationCapability(actor.role, capability) {
+		writeBillingError(w, r, "capability", billingFailure(403, forbiddenCode, forbiddenMessage))
+		return organizationActor{}, false
+	}
+	return actor, true
 }
 
 func (api *billingAPI) serveResourceUsage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if api.pool == nil {
-		writeBillingError(w, r, "availability", billingFailure(503, "billing_unavailable", "Billing is unavailable"))
-		return
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), billingRequestTimeout)
 	defer cancel()
 	r = r.WithContext(ctx)
-	claims, ok := ctx.Value(authContextKey{}).(AuthClaims)
+	actor, ok := api.authorize(w, r, "billing:read", "billing_read_forbidden", "Billing settings require workspace admin access")
 	if !ok {
-		writeBillingError(w, r, "auth", billingFailure(401, "unauthorized", "Authentication required"))
-		return
-	}
-	actor, err := resolveOrganizationActor(ctx, api.pool, api.membership, claims, r.PathValue("organizationSlug"))
-	if err != nil {
-		writeBillingError(w, r, "resolve_actor", mapOrganizationAccessError(err, billingFailure))
-		return
-	}
-	if !hasOrganizationCapability(actor.role, "billing:read") {
-		writeBillingError(w, r, "capability", billingFailure(403, "billing_read_forbidden", "Billing settings require workspace admin access"))
 		return
 	}
 	usage, err := countWorkspaceResourceUsage(ctx, api.pool, actor.organizationID)
@@ -80,6 +97,38 @@ func (api *billingAPI) serveResourceUsage(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, workspaceResourceUsageResponse{ResourceUsage: usage})
+}
+
+func (api *billingAPI) serveResourceUsageSync(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if denyBrowserMutation(r) {
+		writeBillingError(w, r, "origin", billingFailure(403, "forbidden", "Cross-origin request denied"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), billingRequestTimeout)
+	defer cancel()
+	r = r.WithContext(ctx)
+	actor, ok := api.authorize(w, r, "billing:write", "billing_write_forbidden", "Only workspace admins can sync billing usage")
+	if !ok {
+		return
+	}
+	syncCtx, syncCancel := context.WithTimeout(context.WithoutCancel(r.Context()), billingSyncTimeout)
+	defer syncCancel()
+	result, err := syncWorkspaceResourceUsage(syncCtx, api.pool, api.autumn, actor.organizationID)
+	if err != nil {
+		writeBillingError(w, r, "sync", err)
+		return
+	}
+	if result.Status == workspaceResourceSyncPartialFailed {
+		writeBillingError(w, r, "sync", &billingError{
+			status:  http.StatusBadGateway,
+			code:    "billing_resource_usage_sync_partial_failed",
+			message: "One or more billing resource usage features failed to sync",
+			details: map[string]any{"syncResult": result},
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"syncResult": result})
 }
 
 func countWorkspaceResourceUsage(ctx context.Context, db dictionaryDB, organizationID string) (workspaceResourceUsage, error) {

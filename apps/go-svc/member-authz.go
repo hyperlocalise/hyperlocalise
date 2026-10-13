@@ -16,7 +16,7 @@ var organizationCapabilityByRole = map[string]map[string]struct{}{
 		"workspace:read": {}, "members:invite": {}, "teams:write": {},
 		"projects:read": {}, "jobs:read": {}, "jobs:create": {}, "jobs:write": {},
 		"api_keys:read": {}, "api_keys:write": {},
-		"ai_actions:run": {}, "billing:read": {},
+		"ai_actions:run": {}, "billing:read": {}, "billing:write": {},
 	},
 	"localization_manager": {
 		"workspace:read": {}, "members:invite": {}, "teams:write": {},
