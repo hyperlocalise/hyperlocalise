@@ -1832,6 +1832,9 @@
   "1n6nJH8E8P": {
     "defaultMessage": "每一束光都在诉说一个故事。探索将我们联系在一起的地方、人们和日常点滴。"
   },
+  "1oDvFz2774": {
+    "defaultMessage": "Show on canvas"
+  },
   "1qmea9tlQm": {
     "defaultMessage": "删除实验"
   },
@@ -1928,6 +1931,9 @@
   "2/EGe6eITS": {
     "defaultMessage": "实际结果"
   },
+  "2/f6DOJ16h": {
+    "defaultMessage": "Screenshot context for this string"
+  },
   "2/tGcgvmb8": {
     "defaultMessage": "没有项目匹配您的搜索。<clear>清除搜索</clear>"
   },
@@ -1972,6 +1978,9 @@
   },
   "22cLivfsp0": {
     "defaultMessage": "Workspace"
+  },
+  "22szuz+pVL": {
+    "defaultMessage": "This step has a problem"
   },
   "23HR063Kml": {
     "defaultMessage": "Claude can start Hyperlocalise work with locale scope and source context attached."
@@ -2228,6 +2237,9 @@
   "2c+GvUZLgD": {
     "defaultMessage": "查看职位"
   },
+  "2d92l/sm+5": {
+    "defaultMessage": "Open job {name}"
+  },
   "2dSop4YkE1": {
     "defaultMessage": "无论是人员还是 AI 代理创建内容，都应遵循经批准的术语、品牌规范、市场要求和合规护栏。"
   },
@@ -2248,6 +2260,9 @@
   },
   "2f2Oa8dJQI": {
     "defaultMessage": "收件箱"
+  },
+  "2fPK5TW6va": {
+    "defaultMessage": "Issue {current} of {total}"
   },
   "2fjmQhrN05": {
     "defaultMessage": "越南语 · 已适配"
@@ -2857,6 +2872,9 @@
   },
   "3wxYCVb3wu": {
     "defaultMessage": "尚无翻译文件"
+  },
+  "3x/TR5Dx/U": {
+    "defaultMessage": "Show {count} more"
   },
   "3xXiVgOezJ": {
     "defaultMessage": "该页面已失效。正在显示第一页。"
@@ -3548,6 +3566,9 @@
   "5PgTvcChVL": {
     "defaultMessage": "Open"
   },
+  "5PqiPGaWW/": {
+    "defaultMessage": "{field} is required."
+  },
   "5Q7wl9b9ir": {
     "defaultMessage": "Advanced workflows"
   },
@@ -3994,6 +4015,9 @@
   },
   "6PFnjoc6zP": {
     "defaultMessage": "编辑面板加载失败"
+  },
+  "6PGWQNvIwm": {
+    "defaultMessage": "Overdue, was due {due}"
   },
   "6PTSot2cji": {
     "defaultMessage": "按含义对术语进行分组，然后在每个概念中添加特定于语言区域的术语。"
@@ -4627,6 +4651,9 @@
   },
   "7pTwJNAe0D": {
     "defaultMessage": "草稿准备好后通知 #localization。"
+  },
+  "7pcrbzwv6o": {
+    "defaultMessage": "Uploading screenshot…"
   },
   "7pn2UnpCsA": {
     "defaultMessage": "Retry 和 For each 不能相互嵌套。"
@@ -6938,6 +6965,9 @@
   "CdzuFVCOvh": {
     "defaultMessage": "无法加载项目"
   },
+  "Ce+Nk9+zQq": {
+    "defaultMessage": "Collapse {status} column"
+  },
   "Ce2REB8MXc": {
     "defaultMessage": "开启"
   },
@@ -7994,6 +8024,9 @@
   "EoUUnxtgJ8": {
     "defaultMessage": "定价行动号召"
   },
+  "EpcpRJ0HL9": {
+    "defaultMessage": "+{count}"
+  },
   "EqlihiOWKx": {
     "defaultMessage": "所选问题属于同一个项目时可以进行分配"
   },
@@ -8317,6 +8350,9 @@
   },
   "FTQusXXeii": {
     "defaultMessage": "过去 24 小时"
+  },
+  "FUr8tWqfQs": {
+    "defaultMessage": "+{count}"
   },
   "FVAIUC0HI7": {
     "defaultMessage": "需要上下文：{key}"
@@ -8722,6 +8758,9 @@
   },
   "GS9z23Wjvp": {
     "defaultMessage": "此自动化将在每次推送到 main 时验证本地化更改，并在发现阻塞问题时通知您的团队。"
+  },
+  "GSFsE42qE6": {
+    "defaultMessage": "Previous issue"
   },
   "GSXicc8Q67": {
     "defaultMessage": "新建实验"
@@ -9323,11 +9362,17 @@
   "Hmhv+bwMHl": {
     "defaultMessage": "撤销个人访问令牌"
   },
+  "HmiZVn+TeY": {
+    "defaultMessage": "Screenshots must be PNG, JPEG, or WebP."
+  },
   "Hmzt+zT6qT": {
     "defaultMessage": "波斯语（伊朗）"
   },
   "HnLFJWChXa": {
     "defaultMessage": "播放工作流预览"
+  },
+  "HnN7Y1Kod7": {
+    "defaultMessage": "{status}, {count, plural, one {# job} other {# jobs}}"
   },
   "HnQHQaB8I0": {
     "defaultMessage": "请输入一个不含空格的单词。"
@@ -10792,6 +10837,9 @@
   },
   "L402PDLeoZ": {
     "defaultMessage": "未为此任务指定目标区域设置。"
+  },
+  "L60aKO1/cW": {
+    "defaultMessage": "Failed to upload screenshot."
   },
   "L7iavACo3u": {
     "defaultMessage": "下一次计划运行：<time>{nextRunAt}</time>"
@@ -12317,6 +12365,9 @@
   "OL7E13SfCy": {
     "defaultMessage": "来源"
   },
+  "OLKEPlyZiF": {
+    "defaultMessage": "Switch workspace"
+  },
   "OLljhH3V9D": {
     "defaultMessage": "跟踪整个工作区中的 Hyperlocalise 任务和实时 TMS 任务。"
   },
@@ -13279,6 +13330,9 @@
   },
   "QR/HxiItgI": {
     "defaultMessage": "术语库"
+  },
+  "QRPmcpjd59": {
+    "defaultMessage": "Screenshots must be 10 MB or smaller."
   },
   "QRlf1XEwRc": {
     "defaultMessage": "演示请求：报告功能"
@@ -14846,6 +14900,9 @@
   "Ts8Uopd5oT": {
     "defaultMessage": "将速度定位为发布信心，而不是自动化捷径。"
   },
+  "TsN0FrgQBO": {
+    "defaultMessage": "Designs localized from Canva use this project's languages."
+  },
   "TtLubrrGZM": {
     "defaultMessage": "正在上传图片…"
   },
@@ -15454,6 +15511,9 @@
   },
   "V8A7lWd26M": {
     "defaultMessage": "这是为采用 Hyperlocalise Growth 的早期初创公司提供的定价支持。符合条件的团队在前 12 个月内，或在仍符合项目标准期间，可享受最高 80% 的折扣。具体条款将在演示中确认。"
+  },
+  "V8Lhw4iJS1": {
+    "defaultMessage": "Select an API key"
   },
   "V8Rg1mvKHG": {
     "defaultMessage": "Contentful 连接已保存"
@@ -16093,6 +16153,9 @@
   },
   "Wdc+D1uETy": {
     "defaultMessage": "筛选"
+  },
+  "We3SJU9IT4": {
+    "defaultMessage": "Next issue"
   },
   "WeOiVualPW": {
     "defaultMessage": "Cancel"
@@ -16972,6 +17035,9 @@
   },
   "YRSpPEFYYW": {
     "defaultMessage": "Create"
+  },
+  "YSEvWFKZ+S": {
+    "defaultMessage": "No screenshots are attached to this string."
   },
   "YSaCuF5iBS": {
     "defaultMessage": "按提供商货币计算的每次点击费用。"
@@ -18487,6 +18553,9 @@
   },
   "beO/JeLdTY": {
     "defaultMessage": "应用和功能"
+  },
+  "besNXCgM6P": {
+    "defaultMessage": "Export"
   },
   "bex2oneg24": {
     "defaultMessage": "导入/导出历史记录"
@@ -21056,6 +21125,9 @@
   "glmojNf0zj": {
     "defaultMessage": "切换团队"
   },
+  "glq4HgwVfm": {
+    "defaultMessage": "Expand {status} column"
+  },
   "gmm85srlvL": {
     "defaultMessage": "申请演示"
   },
@@ -22139,6 +22211,9 @@
   "iuBZTCJ+YX": {
     "defaultMessage": "Warnings"
   },
+  "ivA1MLtmhw": {
+    "defaultMessage": "Current workspace"
+  },
   "ivdHFzfBNo": {
     "defaultMessage": "目标译文中出现了禁用术语“{term}”。"
   },
@@ -22444,6 +22519,9 @@
   },
   "ja9cL+H+5B": {
     "defaultMessage": "已发布网页预览"
+  },
+  "jaLdytkFWV": {
+    "defaultMessage": "Workspace settings"
   },
   "jal4p9crNk": {
     "defaultMessage": "在 Scira 中打开"
@@ -22897,6 +22975,9 @@
   },
   "kVGz9stAFw": {
     "defaultMessage": "本地化图片"
+  },
+  "kWMaY8JWYA": {
+    "defaultMessage": "Upload screenshot"
   },
   "kWeceyqgt+": {
     "defaultMessage": "与 LLM 无关"
@@ -23686,6 +23767,9 @@
   },
   "mCX+DFnK+p": {
     "defaultMessage": "Resources"
+  },
+  "mCqI44HE9m": {
+    "defaultMessage": "Use a saved credential for secret values instead of typing them into the step."
   },
   "mCz1OMRk2y": {
     "defaultMessage": "适用场景"
@@ -24584,6 +24668,9 @@
   "ntvyMHkHZg": {
     "defaultMessage": "正在断开连接…"
   },
+  "nuXi9Hvr5G": {
+    "defaultMessage": "Invite and manage members"
+  },
   "nwEXrsmZmr": {
     "defaultMessage": "在配置自动化之前，请先启用此仓库。"
   },
@@ -24727,6 +24814,9 @@
   },
   "oHlz44sQOv": {
     "defaultMessage": "保存术语表名称"
+  },
+  "oHvAH+qWap": {
+    "defaultMessage": "Screenshots that show where this string appears."
   },
   "oHxxsDmsrY": {
     "defaultMessage": "取消选择"
@@ -24910,6 +25000,9 @@
   },
   "odqLHGre3m": {
     "defaultMessage": "目前无法加载 Intercom 连接。"
+  },
+  "odqf980/gU": {
+    "defaultMessage": "View all workspaces"
   },
   "oeD72ehQB/": {
     "defaultMessage": "要离开有未保存更改的页面吗？"
@@ -25663,6 +25756,9 @@
   },
   "q5MIT8loA8": {
     "defaultMessage": "Sync"
+  },
+  "q6TvmN/FEl": {
+    "defaultMessage": "{field} is not valid."
   },
   "q6shYjldx9": {
     "defaultMessage": "Settings"
@@ -26423,6 +26519,9 @@
   "ree/WWv9H5": {
     "defaultMessage": "准备好您的工作区"
   },
+  "rfsreH4z0t": {
+    "defaultMessage": "Members"
+  },
   "rfurrkqR11": {
     "defaultMessage": "问题"
   },
@@ -27040,6 +27139,9 @@
   },
   "t/bGej2tnr": {
     "defaultMessage": "仅向来自特定市场、计划或流量来源的访客显示更改"
+  },
+  "t0DApTD09b": {
+    "defaultMessage": "Select a project"
   },
   "t0biooOCbM": {
     "defaultMessage": "法语页面缺少语言链接"
@@ -29810,6 +29912,9 @@
   "yfyxggCpJF": {
     "defaultMessage": "在一个多语言工作区中创建和改编文本、文档、幻灯片、图像和视频，共享上下文并进行人工审核。"
   },
+  "yg5wvpMvk6": {
+    "defaultMessage": "Visual Context"
+  },
   "yh5N07rqk9": {
     "defaultMessage": "专为开发者主导的发布工作流程而设计"
   },
@@ -30019,6 +30124,9 @@
   },
   "zANk4lJfGw": {
     "defaultMessage": "在新标签页中打开"
+  },
+  "zBmkUn+lbY": {
+    "defaultMessage": "Current workspace: {name}. Open workspace menu"
   },
   "zCGS1KGzqn": {
     "defaultMessage": "一致性搜索"

@@ -129,6 +129,8 @@ const STEP_GLOW_CLASS = {
   // Inside the card, so it never mixes with the selection's glow around it.
   issue: "inset-shadow-[0_0_6px_1px_color-mix(in_oklab,var(--destructive)_50%,transparent)]",
   selected: "shadow-[0_0_6px_1px_color-mix(in_oklab,var(--ring)_50%,transparent)]",
+  // Where the selection's glow goes, which takes its place once the step is selected.
+  fresh: "shadow-[0_0_6px_1px_color-mix(in_oklab,var(--color-violet-600,#7c3aed)_70%,transparent)]",
 };
 
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
@@ -220,8 +222,9 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode, issueNodeIds } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds, freshNodeIds } = useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
+  const isFresh = !selected && freshNodeIds.has(id);
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isIf = data.catalogType === "logic.if";
@@ -313,6 +316,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         "relative w-[280px] gap-0 overflow-visible! rounded-xl p-3 shadow-sm",
         hasIssue ? STEP_GLOW_CLASS.issue : null,
         selected ? STEP_GLOW_CLASS.selected : null,
+        isFresh ? STEP_GLOW_CLASS.fresh : null,
         data.runStatus === "running" ? "ring-2 ring-primary/70" : null,
         data.runStatus === "succeeded" ? "border-grove-700/40 bg-grove-100/60" : null,
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,

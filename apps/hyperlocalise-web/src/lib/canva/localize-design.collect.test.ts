@@ -80,6 +80,7 @@ vi.mock("@/lib/projects/files/source-file-ingest", () => ({
 }));
 
 import { collectCanvaDesign } from "./localize-design";
+import { sourceTextKey } from "./segment-file";
 
 describe("collectCanvaDesign", () => {
   beforeEach(() => {
@@ -117,6 +118,10 @@ describe("collectCanvaDesign", () => {
           regionIndex: 0,
           text: "Hello",
         },
+        {
+          pageIndex: 0,
+          text: "  Hello\n",
+        },
       ],
     });
 
@@ -129,6 +134,16 @@ describe("collectCanvaDesign", () => {
     expect(createStoredFileMock).toHaveBeenCalledWith(
       expect.objectContaining({
         filename: "page-1.json",
+        content: Buffer.from(
+          JSON.stringify(
+            {
+              [sourceTextKey("Hello")]: "Hello",
+            },
+            null,
+            2,
+          ),
+          "utf8",
+        ),
         metadata: expect.objectContaining({
           wordCount: 1,
           segmentCount: 1,

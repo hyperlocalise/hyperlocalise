@@ -1,5 +1,5 @@
 {
-  "id": "f3ccf565-0c0f-47fe-a01d-793e27154784",
+  "id": "ee7497da-6781-48b8-a904-736b6d314ec7",
   "prevId": "474dd322-2d2d-48fd-85ab-e1c9ad37bfaf",
   "version": "7",
   "dialect": "postgresql",
@@ -14207,7 +14207,7 @@
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_by_user_id": {
           "name": "created_by_user_id",
@@ -14408,7 +14408,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "restrict",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "canva_connections_created_by_user_id_users_id_fk": {
@@ -18330,25 +18330,6 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "trace_id": {
-          "name": "trace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "parent_run_id": {
-          "name": "parent_run_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "parent_node_id": {
-          "name": "parent_node_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "visual_workflow_id": {
           "name": "visual_workflow_id",
           "type": "uuid",
@@ -18489,42 +18470,6 @@
           "method": "btree",
           "with": {}
         },
-        "idx_visual_workflow_runs_parent": {
-          "name": "idx_visual_workflow_runs_parent",
-          "columns": [
-            {
-              "expression": "parent_run_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_visual_workflow_runs_trace": {
-          "name": "idx_visual_workflow_runs_trace",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "trace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_visual_workflow_runs_org_status": {
           "name": "idx_visual_workflow_runs_org_status",
           "columns": [
@@ -18576,19 +18521,6 @@
         }
       },
       "foreignKeys": {
-        "visual_workflow_runs_parent_run_id_visual_workflow_runs_id_fk": {
-          "name": "visual_workflow_runs_parent_run_id_visual_workflow_runs_id_fk",
-          "tableFrom": "visual_workflow_runs",
-          "tableTo": "visual_workflow_runs",
-          "columnsFrom": [
-            "parent_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "visual_workflow_runs_visual_workflow_id_visual_workflows_id_fk": {
           "name": "visual_workflow_runs_visual_workflow_id_visual_workflows_id_fk",
           "tableFrom": "visual_workflow_runs",

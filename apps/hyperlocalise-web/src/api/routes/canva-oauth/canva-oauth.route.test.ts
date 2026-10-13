@@ -49,6 +49,7 @@ import { createCanvaConnection } from "@/lib/canva/connections";
 import {
   CANVA_OAUTH_REQUEST_COOKIE,
   createCanvaOauthAuthorizationRequest,
+  listCanvaOauthConsentConnections,
 } from "@/lib/canva/oauth";
 import { env } from "@/lib/env";
 import { db } from "@/lib/database/client";
@@ -60,7 +61,7 @@ const client = testClient<AppType>(app);
 const apiKeyFixture = createApiKeyTestFixture();
 const projectFixture = createProjectTestFixture(client);
 
-const REDIRECT_URI = "https://canva.example.test/oauth/callback";
+const REDIRECT_URI = "https://www.canva.com/apps/oauth/authorized";
 const VERIFIER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
 
 function pkceChallenge(verifier: string) {
@@ -111,6 +112,30 @@ describe("canvaOauthRoutes", () => {
     vi.clearAllMocks();
     await apiKeyFixture.cleanup();
     await projectFixture.cleanup();
+  });
+
+  it("lists unbound Canva connections for OAuth consent", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva unbound OAuth key",
+    });
+    const created = await createCanvaConnection({
+      organizationId: auth.organization.localOrganizationId,
+      userId: auth.user.localUserId,
+      displayName: "Unbound Canva OAuth",
+      apiKeyId: apiKey.id,
+    });
+
+    const connections = await listCanvaOauthConsentConnections(auth.user.localUserId);
+    expect(
+      connections.some((connection) => connection.connectionId === created.connection.id),
+    ).toBe(true);
+    expect(
+      connections.find((connection) => connection.connectionId === created.connection.id)
+        ?.projectName,
+    ).toBeNull();
   });
 
   it("publishes authorization server metadata", async () => {

@@ -102,7 +102,8 @@ export function formatWorkspaceAutomationUndoText(
   return intl.formatMessage(message);
 }
 
-function useShortcutLabels() {
+/** The keys of the undo and redo shortcuts, for tooltips and notices. */
+export function useShortcutLabels() {
   const isMac = useIsMac();
   const mod = getModKeyLabel(isMac);
   return {
@@ -113,7 +114,7 @@ function useShortcutLabels() {
   };
 }
 
-function ShortcutKeys({ keys }: { keys: string[] }) {
+export function ShortcutKeys({ keys }: { keys: string[] }) {
   return (
     <KbdGroup aria-hidden="true" className="ms-2">
       {keys.map((key) => (

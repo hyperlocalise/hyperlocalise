@@ -57,7 +57,7 @@ export type CanvaOauthConnectionRecord = {
   id: string;
   organizationId: string;
   apiKeyId: string;
-  projectId: string;
+  projectId: string | null;
   sourceLocale: string;
   targetLocales: string[];
   canvaBrandId: string | null;
@@ -71,8 +71,8 @@ export type CanvaOauthConsentConnection = {
   organizationId: string;
   organizationName: string;
   organizationSlug: string | null;
-  projectId: string;
-  projectName: string;
+  projectId: string | null;
+  projectName: string | null;
   role: OrganizationMembershipRole;
 };
 
@@ -466,7 +466,7 @@ export async function listCanvaOauthConsentConnections(
       schema.canvaConnections,
       eq(schema.canvaConnections.organizationId, schema.organizations.id),
     )
-    .innerJoin(schema.projects, eq(schema.canvaConnections.projectId, schema.projects.id))
+    .leftJoin(schema.projects, eq(schema.canvaConnections.projectId, schema.projects.id))
     .where(eq(schema.organizationMemberships.userId, userId));
 
   return rows;
