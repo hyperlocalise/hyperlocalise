@@ -858,10 +858,6 @@ describe("project job create", () => {
   });
 });
 
-describe("project job list triage", () => {});
-
-describe("workspace job list triage", () => {});
-
 describe("workspace job update", () => {
   it("updates native job title, description, and owner", async () => {
     const { identity, organization, project, user } =
