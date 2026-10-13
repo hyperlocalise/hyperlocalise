@@ -96,7 +96,9 @@ export function createUndoStackReducer<T, D>(options: UndoStackOptions<T, D>) {
     action: Extract<UndoStackAction<T, D>, { type: "record" }>,
   ): UndoStackState<T, D> {
     if (options.isEqual(state.present, action.next)) {
-      return state;
+      // What differs is nothing the stack tracks (a selection, say), so the document still
+      // updates, without a step.
+      return state.present === action.next ? state : { ...state, present: action.next };
     }
     const origin = action.origin ?? "user";
     const description = action.description ?? options.describe(state.present, action.next);
