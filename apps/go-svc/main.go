@@ -110,6 +110,7 @@ func main() {
 	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
+	h.billing = &billingAPI{}
 	visualContextMatchPublisher, visualContextMatchErr := newVisualContextMatchPublisher(context.Background())
 	if visualContextMatchErr != nil {
 		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
@@ -173,6 +174,7 @@ func main() {
 		h.members.pool = traced
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
+		h.billing.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
 		h.conversations.pool = traced
@@ -231,6 +233,7 @@ func main() {
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
+	h.billing.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
 	h.conversations.membership = membershipLookup

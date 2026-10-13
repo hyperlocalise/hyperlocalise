@@ -71,6 +71,7 @@ type handler struct {
 	issueSheets        *issueSheetAPI
 	notifications      *notificationsAPI
 	activityLogs       *activityLogAPI
+	billing            *billingAPI
 	activityLog        activityLogPublisher
 	contentEditor      *editorCatAPI
 	projects           *projectAPI
@@ -126,6 +127,9 @@ func registerRoutes(mux *http.ServeMux, h *handler, verifier SessionVerifier) {
 	}
 	if h.activityLogs != nil {
 		h.activityLogs.register(mux, verifier)
+	}
+	if h.billing != nil {
+		h.billing.register(mux, verifier)
 	}
 	if h.contentEditor != nil {
 		h.contentEditor.register(mux, verifier)

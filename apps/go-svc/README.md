@@ -1,6 +1,6 @@
 # go-svc
 
-Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
+Go backend service that runs beside the Next.js app on Vercel. It owns spellcheck dictionary CRUD, native glossary and translation-memory CRUD, project issue-sheet (core + social), org activity-log reads, workspace billing resource-usage reads, native job list/detail/status reads, native CAT editor APIs, personal API key management, database-backed public translation download and job reads, and powers CAT segment validation (format, length, and Hunspell spelling checks) and Domains lifecycle management and research through DataForSEO (`internal/dataforseo`). Google Search Console calls `internal/gsc`. Autumn entitlement checks and usage tracking live in `internal/autumn`.
 
 Public browser routes are served at `https://api.hyperlocalise.com/v1/...` from `GoSvcClient` callers (Bearer token, CORS). The Next.js server calls `/v1/...` or `/ofrep/...` at the same origin via `GO_SVC_URL` (typically `https://api.hyperlocalise.com` in production).
 
@@ -612,6 +612,33 @@ Read API for the workspace settings activity log at
 Query parameters match Hono: `actor`, `cursor`, `eventTypes`, `limit` (1–100,
 default 50), `range` (`24h` \| `7d` \| `30d` \| `all`). Response:
 `{ activityLogs, actors, nextCursor }`.
+
+## Billing resource usage
+
+Read-only API for organization-wide workspace resource usage at
+`/v1/orgs/{organizationSlug}/billing/resource-usage`.
+
+Requires `billing:read` (`admin` or `localization_manager`), WorkOS session
+authentication, and `DATABASE_URL`. Other roles receive `403 billing_read_forbidden`.
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| GET | `/billing/resource-usage` | Count organization-wide workspace resources |
+
+Response: `{ resourceUsage: { seats, projects, automations, integrations } }`.
+
+Counts are calculated from PostgreSQL:
+
+- `seats`: all `organization_memberships` rows, including pending invitations.
+- `projects`: projects where `is_active = true`.
+- `automations`: non-archived `workspace_automations`, including paused automations.
+- `integrations`: TMS provider credentials, GitHub installations, enabled Contentful connections, and enabled connectors.
+
+No external billing API calls are required.
+
+```bash
+go test ./apps/go-svc -run 'BillingResourceUsage'
+```
 
 ## Members
 
