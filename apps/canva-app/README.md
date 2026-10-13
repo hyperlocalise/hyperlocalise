@@ -43,8 +43,7 @@ Product steps live in [Localize Canva](../../docs/platform/connections/canva.mdx
 In the Hyperlocalise web app, create a **Canva connection** for your workspace:
 
 1. Choose an API key with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
-2. Select the native project whose source and target locales the jobs should use. The connection copies those locales; do not send a separate list.
-3. Copy the one-time **connection token** shown after creation, or connect with OAuth from the app.
+2. Local development only: copy the one-time **connection token** shown after creation. The published Canva app uses OAuth only.
 
 Set these values in `.env`:
 
@@ -56,10 +55,10 @@ Set these values in `.env`:
 
 Hyperlocalise is the OAuth authorization server. In the [Developer Portal](https://www.canva.com/developers/apps) Authentication settings, set:
 
-| Portal field | Value |
-| --- | --- |
+| Portal field             | Value                                |
+| ------------------------ | ------------------------------------ |
 | Authorization server URL | `{ORIGIN}/api/oauth/canva/authorize` |
-| Token exchange URL | `{ORIGIN}/api/oauth/canva/token` |
+| Token exchange URL       | `{ORIGIN}/api/oauth/canva/token`     |
 
 Use your public Hyperlocalise web origin for `{ORIGIN}` (production or a tunnel for local OAuth). Copy Canva’s **Client ID** and **Client secret** into `CANVA_OAUTH_CLIENT_ID` and `CANVA_OAUTH_CLIENT_SECRET` on `hyperlocalise-web`, along with `HYPERLOCALISE_PUBLIC_APP_URL`. Full steps: [Canva app OAuth](../../docs/contributing/canva-app-oauth.mdx).
 
@@ -67,9 +66,9 @@ For local dev without a tunnel, paste a **connection token** from workspace Inte
 
 In the Canva app UI:
 
-- **Connect Hyperlocalise** (OAuth) or paste a connection token
+- **Connect Hyperlocalise** (OAuth). A connection-token paste field appears only in local development.
 - **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
-- **Generate translation** / **Add to design** — source row first, then one row per project target, shown as `English (en-US)`
+- **Apply** — write existing translations for the selected locale onto the selected pages
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 

@@ -28,7 +28,8 @@ import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
 /**
- * Stores per-organization Canva app connections bound to an API key and default project settings.
+ * Stores per-organization Canva app connections bound to an API key.
+ * Designers pick a native project later from the Canva app.
  * The Canva iframe authenticates with an OAuth access token or a legacy connection token,
  * plus a Canva user JWT on app-originated requests.
  */
@@ -42,9 +43,7 @@ export const canvaConnections = pgTable(
     apiKeyId: uuid("api_key_id")
       .notNull()
       .references(() => organizationApiKeys.id, { onDelete: "restrict" }),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),

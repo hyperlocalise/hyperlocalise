@@ -21,8 +21,12 @@ export const canvaConnectionIdParamSchema = z.object({
 export const createCanvaConnectionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256),
   apiKeyId: z.string().uuid(),
-  projectId: projectIdSchema,
+  projectId: projectIdSchema.optional(),
   enabled: z.boolean().optional(),
+});
+
+export const bindCanvaProjectBodySchema = z.object({
+  projectId: projectIdSchema,
 });
 
 export const updateCanvaConnectionBodySchema = z.object({

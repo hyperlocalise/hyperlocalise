@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"testing"
 	"time"
@@ -110,7 +111,7 @@ func TestDeleteProjectTeamGlossaryGuard(t *testing.T) {
 	})
 }
 
-func TestDeleteProjectCascadesCanvaConnection(t *testing.T) {
+func TestDeleteProjectUnbindsCanvaConnection(t *testing.T) {
 	testenv.Require(t)
 	scope := testenv.Seed(t, testenv.Options{Role: "admin", WithProject: true})
 	api := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
@@ -144,13 +145,13 @@ func TestDeleteProjectCascadesCanvaConnection(t *testing.T) {
 	rec := projectMutationRequest(api, scope, http.MethodDelete, scope.OrgPath("/projects/"+scope.ProjectID), nil)
 	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
 
-	var connectionCount int
+	var projectID sql.NullString
 	require.NoError(t, scope.Pool.QueryRow(t.Context(),
-		`select count(*) from canva_connections where id=$1`, connectionID).Scan(&connectionCount))
-	require.Equal(t, 0, connectionCount, "Canva connection must cascade-delete with the project")
+		`select project_id from canva_connections where id=$1`, connectionID).Scan(&projectID))
+	require.False(t, projectID.Valid, "Canva connection project must be unbound when the project is deleted")
 
 	var tokenCount int
 	require.NoError(t, scope.Pool.QueryRow(t.Context(),
 		`select count(*) from canva_oauth_tokens where connection_id=$1`, connectionID).Scan(&tokenCount))
-	require.Equal(t, 0, tokenCount, "Canva OAuth tokens must cascade-delete with the connection")
+	require.Equal(t, 1, tokenCount, "Canva OAuth tokens must survive project delete")
 }

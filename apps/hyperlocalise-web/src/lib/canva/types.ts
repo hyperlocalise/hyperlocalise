@@ -18,11 +18,34 @@ export type CanvaDesignSegment = {
   text: string;
 };
 
+export type CanvaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+export type CanvaConnectionSession = {
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+  };
+  project: CanvaSessionProject | null;
+  projects: CanvaSessionProject[];
+  connection: {
+    id: string;
+    displayName: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
+};
+
 export type CanvaConnectionSummary = {
   id: string;
   organizationId: string;
   apiKeyId: string;
-  projectId: string;
+  projectId: string | null;
   displayName: string;
   sourceLocale: string;
   targetLocales: string[];

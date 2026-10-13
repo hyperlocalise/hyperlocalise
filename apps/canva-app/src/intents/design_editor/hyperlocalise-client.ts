@@ -24,6 +24,9 @@ const ACCESS_TOKEN_HEADER = "X-Hyperlocalise-Access-Token";
 const CONNECTION_TOKEN_HEADER = "X-Hyperlocalise-Connection-Token";
 const CLAIM_TOKEN_HEADER = "X-Hyperlocalise-Claim-Token";
 export const CANVA_JOB_POLL_INTERVAL_MS = 1_500;
+export const CANVA_JOB_WAIT_TIMEOUT_MS = 5 * 60 * 1_000;
+const READY_JOB_STATUSES = new Set(["succeeded", "waiting_for_review"]);
+const FAILED_JOB_STATUSES = new Set(["failed", "cancelled"]);
 const CLAIM_POLL_INTERVAL_MS = 1_500;
 const MAX_CLAIM_POLL_ATTEMPTS = 80;
 
@@ -219,6 +222,34 @@ export async function fetchCanvaSession(auth: string | CanvaResourceAuth): Promi
   return payload.session;
 }
 
+export async function bindCanvaProject(input: {
+  auth: string | CanvaResourceAuth;
+  projectId: string;
+}): Promise<CanvaSession> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/project`, {
+    method: "POST",
+    headers: buildRequestHeaders(input.auth, authorization),
+    body: JSON.stringify({ projectId: input.projectId }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({ session?: CanvaSession } & ErrorPayload)
+    | null;
+  throwIfFailed(
+    response,
+    payload,
+    "canva_project_bind_failed",
+    "Unable to select that Hyperlocalise project.",
+  );
+  if (!payload?.session) {
+    throw new HyperlocaliseClientError(
+      "canva_project_bind_failed",
+      "Unable to select that Hyperlocalise project.",
+    );
+  }
+  return payload.session;
+}
+
 export async function collectCanvaDesign(input: {
   auth: string | CanvaResourceAuth;
   designToken: string;
@@ -253,6 +284,61 @@ export async function collectCanvaDesign(input: {
     projectId: payload.projectId,
     pages: payload.pages,
   };
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export async function waitForCanvaJobs(input: {
+  auth: string | CanvaResourceAuth;
+  jobIds: string[];
+  onProgress?: (completed: number, total: number) => void;
+}): Promise<void> {
+  const pending = new Set(input.jobIds.filter((jobId) => jobId.trim().length > 0));
+  if (pending.size === 0) {
+    throw new HyperlocaliseClientError(
+      "canva_job_create_failed",
+      "No translation jobs were started.",
+    );
+  }
+
+  const total = pending.size;
+  const reportProgress = () => input.onProgress?.(total - pending.size, total);
+  reportProgress();
+
+  const startedAt = Date.now();
+  while (pending.size > 0) {
+    if (Date.now() - startedAt > CANVA_JOB_WAIT_TIMEOUT_MS) {
+      throw new HyperlocaliseClientError(
+        "canva_job_timeout",
+        "Translation is taking too long. Try Apply when the job finishes.",
+      );
+    }
+
+    for (const jobId of Array.from(pending)) {
+      const job = await getCanvaJob({
+        auth: input.auth,
+        jobId,
+      });
+      if (FAILED_JOB_STATUSES.has(job.status)) {
+        throw new HyperlocaliseClientError(
+          "canva_job_failed",
+          job.lastError ?? "Translation failed.",
+        );
+      }
+      if (READY_JOB_STATUSES.has(job.status)) {
+        pending.delete(jobId);
+        reportProgress();
+      }
+    }
+
+    if (pending.size > 0) {
+      await wait(CANVA_JOB_POLL_INTERVAL_MS);
+    }
+  }
 }
 
 export async function generateCanvaLocaleJob(input: {

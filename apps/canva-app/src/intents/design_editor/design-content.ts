@@ -316,8 +316,9 @@ function wholeFormattedRangeReplacement(
   }
 
   const assembled = regions
-    .map((region, regionIndex) =>
-      lookupTranslatedText(translations, contentIndex, regionIndex, pageIndex) ?? region.text,
+    .map(
+      (region, regionIndex) =>
+        lookupTranslatedText(translations, contentIndex, regionIndex, pageIndex) ?? region.text,
     )
     .join("");
   const normalizedFirst = firstTranslation.replace(/\s+/g, " ").trim();

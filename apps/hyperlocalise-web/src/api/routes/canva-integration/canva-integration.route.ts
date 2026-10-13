@@ -22,6 +22,7 @@ import { createCanvaJwtMiddleware } from "@/api/auth/canva-jwt";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   bindCanvaConnectionBrand,
+  bindCanvaConnectionProject,
   getCanvaConnectionSession,
   touchCanvaConnectionUsage,
 } from "@/lib/canva/connections";
@@ -47,6 +48,7 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { env } from "@/lib/env";
 
 import {
+  bindCanvaProjectBodySchema,
   canvaClaimIdParamSchema,
   canvaLocalesQuerySchema,
   collectCanvaDesignBodySchema,
@@ -145,6 +147,19 @@ const validateLocalesQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateBindProjectBody = validator("json", (value, c) => {
+  const parsed = bindCanvaProjectBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_canva_project_payload",
+      "Canva project payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
 const validatePullQuery = validator("query", (value, c) => {
   const parsed = pullCanvaTranslationsQuerySchema.safeParse(value);
   if (!parsed.success) {
@@ -183,6 +198,7 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
     "job_already_running",
     "file_translation_job_required",
     "native_job_required",
+    "canva_project_not_bound",
     "job_source_locale_not_in_project",
     "job_target_locale_not_in_project",
     "duplicate_job_target_locales",
@@ -241,6 +257,13 @@ async function applyCanvaBrandBinding(
   return null;
 }
 
+function requireBoundProject(connection: CanvaConnectionVariables["canvaConnection"]) {
+  if (!connection.projectId) {
+    throw new Error("canva_project_not_bound");
+  }
+  return connection.projectId;
+}
+
 export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRoutesOptions = {}) {
   return new Hono<{ Variables: CanvaConnectionVariables }>()
     .use("*", canvaCorsMiddleware)
@@ -294,7 +317,31 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const session = await getCanvaConnectionSession({
             organizationId: connection.organizationId,
             connectionId: connection.id,
-            projectId: connection.projectId,
+          });
+          return c.json({ session }, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/project",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validateBindProjectBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const connection = c.var.canvaConnection;
+        const brandError = await applyCanvaBrandBinding(c, connection, c.var.canvaUser);
+        if (brandError) {
+          return brandError;
+        }
+
+        try {
+          const session = await bindCanvaConnectionProject({
+            organizationId: connection.organizationId,
+            connectionId: connection.id,
+            projectId: payload.projectId,
           });
           return c.json({ session }, 200);
         } catch (error) {
@@ -321,7 +368,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             organizationId: connection.organizationId,
             apiKeyId: connection.apiKeyId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             designId,
             designTitle: payload.designTitle,
             segments: payload.segments,
@@ -348,7 +395,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const result = await listCanvaDesignLocaleStatuses({
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
             designId,
           });
@@ -382,7 +429,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
               organizationId: connection.organizationId,
               apiKeyId: connection.apiKeyId,
               canvaConnectionId: connection.id,
-              projectId: connection.projectId,
+              projectId: requireBoundProject(connection),
               sourceLocale: payload.sourceLocale,
               targetLocales: payload.targetLocales,
               designId,
@@ -399,7 +446,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             organizationId: connection.organizationId,
             apiKeyId: connection.apiKeyId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             designId,
             targetLocales: payload.targetLocales ?? [],
             jobQueue: options.jobQueue,
@@ -425,7 +472,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const result = await getCurrentCanvaDesignJob({
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
             designId,
           });
@@ -448,7 +495,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             jobId,
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
           });
           return c.json({ job: status }, 200);
@@ -473,7 +520,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const result = await generateCanvaLocalization({
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
             jobId,
             jobQueue: options.jobQueue,
@@ -500,7 +547,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             const translations = await pullCanvaLocalePageTranslations({
               organizationId: connection.organizationId,
               canvaConnectionId: connection.id,
-              projectId: connection.projectId,
+              projectId: requireBoundProject(connection),
               apiKeyId: connection.apiKeyId,
               designId,
               locale: query.locale,
@@ -511,7 +558,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const translations = await pullLatestCanvaTranslations({
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
             designId,
           });
@@ -540,7 +587,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             organizationId: connection.organizationId,
             apiKeyId: connection.apiKeyId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             sourceLocale: payload.sourceLocale,
             targetLocales: payload.targetLocales,
             designId,
@@ -577,7 +624,7 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             jobId,
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
-            projectId: connection.projectId,
+            projectId: requireBoundProject(connection),
             apiKeyId: connection.apiKeyId,
           });
 

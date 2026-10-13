@@ -12,7 +12,7 @@
  */
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v6";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v7";
 
 const defaultSettings: AppSettings = {
   connectionToken: "",
@@ -24,6 +24,7 @@ const defaultSettings: AppSettings = {
   targetLocales: "",
   preserveFormatting: true,
   selectedPageIndices: [],
+  selectedLocale: "",
   lastJobId: "",
 };
 
@@ -58,6 +59,7 @@ function normalizeSettings(parsed: Partial<AppSettings>): AppSettings {
     selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
       ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
       : defaultSettings.selectedPageIndices,
+    selectedLocale: parsed.selectedLocale ?? defaultSettings.selectedLocale,
     lastJobId: parsed.lastJobId ?? defaultSettings.lastJobId,
   };
 }

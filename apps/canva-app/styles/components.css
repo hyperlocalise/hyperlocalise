@@ -10,55 +10,47 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-/* Scroll container */
-.scrollContainer {
+.appShell {
   box-sizing: border-box;
-  overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: hidden;
   padding-top: var(--ui-kit-space-200);
   padding-right: var(--ui-kit-space-200);
   padding-bottom: var(--ui-kit-space-200);
-
-  /* for firefox */
-  scrollbar-width: thin;
-  scrollbar-color: var(--ui-kit-color-content-placeholder-fg) transparent;
 }
 
-.scrollContainer::-webkit-scrollbar {
-  position: absolute;
-  width: var(--ui-kit-base-unit);
-  height: 0;
+.header {
+  flex-shrink: 0;
 }
 
-.scrollContainer::-webkit-scrollbar-track {
-  background: transparent;
-  width: var(--ui-kit-base-unit);
-  margin-top: var(--ui-kit-space-100);
-  margin-bottom: var(--ui-kit-space-100);
-}
-
-.scrollContainer::-webkit-scrollbar-thumb {
-  border-radius: var(--ui-kit-radius-element-standard);
-  background: var(--ui-kit-color-content-placeholder-fg);
-  visibility: hidden;
-}
-
-.scrollContainer::-webkit-scrollbar-thumb,
-.scrollContainer:focus::-webkit-scrollbar-thumb,
-.scrollContainer:focus-within::-webkit-scrollbar-thumb {
-  visibility: visible;
-}
-
-.panel {
-  border: 1px solid var(--ui-kit-color-border-standard);
-  border-radius: var(--ui-kit-radius-element-standard);
-  background: var(--ui-kit-color-surface-standard);
-}
-
-.workflowStep {
+.body {
   display: flex;
-  align-items: center;
-  gap: var(--ui-kit-space-100);
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ui-kit-space-150);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.pageList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--ui-kit-space-050);
+  scrollbar-color: var(--ui-kit-color-content-placeholder-fg) transparent;
+  scrollbar-width: thin;
+}
+
+.pageList::-webkit-scrollbar {
+  width: var(--ui-kit-base-unit);
+}
+
+.pageList::-webkit-scrollbar-thumb {
+  background: var(--ui-kit-color-content-placeholder-fg);
+  border-radius: var(--ui-kit-radius-element-standard);
 }
 
 .pageActions {
@@ -66,35 +58,100 @@
   gap: var(--ui-kit-space-150);
 }
 
-.workspaceIdentity {
+.sectionRule {
+  background: var(--ui-kit-color-content-placeholder-fg);
+  border: 0;
+  flex-shrink: 0;
+  height: 1px;
+  margin-block: var(--ui-kit-space-050);
+  opacity: 0.35;
+  width: 100%;
+}
+
+.helperRow {
+  align-items: baseline;
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: var(--ui-kit-space-050);
 }
 
-.localeHeading {
+.projectCta {
+  align-items: baseline;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-kit-space-050);
+}
+
+.headerRow {
   align-items: center;
+  display: flex;
+  justify-content: space-between;
   gap: var(--ui-kit-space-100);
 }
 
-.localeDetail {
+.footer {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding-top: var(--ui-kit-space-150);
+  width: 100%;
+}
+
+.translateProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-kit-space-050);
+  width: 100%;
+}
+
+.toast {
+  flex-shrink: 0;
+  padding-top: var(--ui-kit-space-150);
+}
+
+.footer :global(svg [fill^="url("]) {
+  fill: currentColor;
+}
+
+.footer :global(svg stop) {
+  stop-color: currentColor;
+}
+
+.stepActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--ui-kit-space-100);
+}
+
+.pageField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-kit-space-050);
+}
+
+.pageFieldRow {
+  align-items: center;
+  display: flex;
+  gap: var(--ui-kit-space-050);
+}
+
+.pageFieldSelect {
+  flex: 1;
+  min-width: 0;
+}
+
+.pageMenuActions {
+  align-items: baseline;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0;
+  gap: var(--ui-kit-space-100);
 }
 
-.localeApproved {
-  color: var(--ui-kit-color-typography-positive, #128a4b);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.localeProgressSkeleton {
-  height: 8px;
-}
-
-.localeActionSkeleton {
-  height: 40px;
+.previewList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--ui-kit-space-100);
+  min-height: 0;
+  overflow-y: auto;
 }

@@ -68,6 +68,7 @@ describe("settings", () => {
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      selectedLocale: "fr-FR",
       lastJobId: "job_1",
     });
 
@@ -81,6 +82,7 @@ describe("settings", () => {
       targetLocales: "es,fr",
       preserveFormatting: true,
       selectedPageIndices: [0, 1],
+      selectedLocale: "fr-FR",
       lastJobId: "job_1",
     });
   });
@@ -115,6 +117,7 @@ describe("settings", () => {
       targetLocales: "",
       preserveFormatting: true,
       selectedPageIndices: [],
+      selectedLocale: "",
       lastJobId: "",
     });
   });

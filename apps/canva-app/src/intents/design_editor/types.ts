@@ -84,18 +84,21 @@ export type CanvaDesignJob = {
   translationsByLocale: Record<string, Record<string, string>>;
 };
 
+export type CanvaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
 export type CanvaSession = {
   organization: {
     id: string;
     name: string;
     slug: string | null;
   };
-  project: {
-    id: string;
-    name: string;
-    sourceLocale: string;
-    targetLocales: string[];
-  };
+  project: CanvaSessionProject | null;
+  projects: CanvaSessionProject[];
   connection: {
     id: string;
     displayName: string;
@@ -122,5 +125,6 @@ export type AppSettings = {
   targetLocales: string;
   preserveFormatting: boolean;
   selectedPageIndices: number[];
+  selectedLocale: string;
   lastJobId: string;
 };
