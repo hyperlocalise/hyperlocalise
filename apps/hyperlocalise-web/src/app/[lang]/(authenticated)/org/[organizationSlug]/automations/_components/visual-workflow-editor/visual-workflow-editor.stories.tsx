@@ -208,7 +208,7 @@ export const UndoRedo: Story = {
     docs: {
       description: {
         story:
-          "Every change to the graph is a step on one undo stack: adding a node from a handle is taken back by Undo, with its edge, and put back by Redo.",
+          "Every change to the graph is a step on one undo stack: adding a node from a handle is taken back by Undo, with its edge, and put back by Redo. The step Redo puts back has a violet band until it is selected.",
       },
     },
   },
@@ -219,7 +219,7 @@ export const UndoRedo: Story = {
     previewMode: true,
     playgroundMode: true,
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     const click = async (name: string | RegExp) => {
       const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
       button.click();
@@ -238,8 +238,18 @@ export const UndoRedo: Story = {
     await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
 
     await click("Redo");
-    await expect(await canvas.findByTestId(edge)).toBeInTheDocument();
+    const restored = await canvas.findByTestId(edge);
     await expect(canvas.getByRole("button", { name: "Redo" })).toBeDisabled();
+
+    const stepId = /^visual-workflow-edge-switch-(.+)-case-ready$/.exec(
+      restored.dataset.testid ?? "",
+    )?.[1];
+    const step = canvasElement.querySelector(
+      `.react-flow__node[data-id="${stepId}"] [data-slot="card"]`,
+    ) as HTMLElement;
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "fresh")));
+    await userEvent.click(step);
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "--ring")));
   },
 };
 
@@ -544,9 +554,10 @@ function stepBandShadow(step: Element) {
 }
 
 // The colour of a step's band, as the browser writes it in a computed style.
-function stepBandColour(step: Element, token: "--destructive" | "--ring") {
+function stepBandColour(step: Element, token: "--destructive" | "--ring" | "fresh") {
+  const source = token === "fresh" ? "var(--color-violet-600, #7c3aed)" : `var(${token})`;
   const probe = document.createElement("span");
-  probe.style.color = `color-mix(in srgb, var(${token}) 50%, transparent)`;
+  probe.style.color = `color-mix(in srgb, ${source} 50%, transparent)`;
   step.appendChild(probe);
   const colour = getComputedStyle(probe).color;
   probe.remove();
