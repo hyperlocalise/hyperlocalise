@@ -71,27 +71,36 @@ const HANDLE_CLASS = cn(
   "[&.connectingto.valid]:text-emerald-500",
 );
 
-// The glyph grows by its width and height, not by a scale. While a scale animates, the browser
-// draws the glyph and everything painted over it in layers of their own, snapped to whole pixels,
-// and on a canvas that sits at a fraction of a pixel the rest of the step visibly jumps.
 const HANDLE_GLYPH_CLASS = cn(
   // The pointer has to reach the handle itself, which is what React Flow looks for under it.
   "pointer-events-none absolute top-1/2 left-1/2 size-(--handle-glyph) -translate-1/2 overflow-visible",
-  // As quick as the app's menus and popovers; its 150ms default reads as slow on a change of size.
-  "transition-[width,height] duration-100 motion-reduce:transition-none",
-  // Under the pointer, and where a connection being dragged starts from.
-  "group-[:not(.connectingto):hover]/handle:size-[calc(var(--handle-glyph)*1.5)]",
-  "group-[.connectingfrom]/handle:size-[calc(var(--handle-glyph)*1.5)]",
+  "transition-colors duration-100 motion-reduce:transition-none",
   // Where a connection being dragged would land: dimmed until it is one the canvas allows.
-  "group-[.connectingto]/handle:size-[calc(var(--handle-glyph)*1.25)]",
   "group-[.connectingto]/handle:opacity-30 group-[.connectingto.valid]/handle:opacity-100",
+);
+
+// Under the pointer, and where a connection being dragged starts from, a handle keeps its size and
+// takes a stronger colour, as the app's buttons and links do. One that is still hollow also gets a
+// light fill of that colour.
+const HANDLE_GLYPH_HOLLOW_ACTIVE_CLASS = cn(
+  "group-[:not(.connectingto):hover]/handle:fill-[color-mix(in_oklab,currentColor_25%,var(--card))]",
+  "group-[.connectingfrom]/handle:fill-[color-mix(in_oklab,currentColor_25%,var(--card))]",
 );
 
 // The app's primary, destructive and muted colours are far heavier than the data ports' type
 // colours. Mixed with the background they sit at the same strength, and stay opaque, so neither
-// the card's border nor a step's band shows through.
-const EXECUTION_GLYPH_TONE_CLASS =
-  "text-[color:color-mix(in_oklab,currentColor_60%,var(--background))]";
+// the card's border nor a step's band shows through. The stronger colour is the app's own.
+const EXECUTION_GLYPH_TONE_CLASS = cn(
+  "text-[color:color-mix(in_oklab,currentColor_60%,var(--background))]",
+  "group-[:not(.connectingto):hover]/handle:text-current group-[.connectingfrom]/handle:text-current",
+);
+
+// A data port is already at its type colour's full strength, so its stronger colour is a step
+// towards the text colour.
+const DATA_GLYPH_TONE_CLASS = cn(
+  "group-[:not(.connectingto):hover]/handle:text-[color:color-mix(in_oklab,currentColor_70%,var(--foreground))]",
+  "group-[.connectingfrom]/handle:text-[color:color-mix(in_oklab,currentColor_70%,var(--foreground))]",
+);
 
 /**
  * The shape inside a handle: hollow until a wire is attached to the handle, then filled. Its
@@ -109,7 +118,11 @@ function HandleGlyph({
   return (
     <svg
       viewBox="0 0 16 16"
-      className={cn(HANDLE_GLYPH_CLASS, className)}
+      className={cn(
+        HANDLE_GLYPH_CLASS,
+        connected ? null : HANDLE_GLYPH_HOLLOW_ACTIVE_CLASS,
+        className,
+      )}
       fill={connected ? "currentColor" : "var(--card)"}
       stroke="currentColor"
       strokeWidth={2}
@@ -158,7 +171,11 @@ function DataHandle({ className, connected, ...props }: WorkflowHandleProps) {
       data-connected={connected ? "" : undefined}
       className={cn(HANDLE_CLASS, className)}
     >
-      <HandleGlyph shape="dot" connected={connected} className="[--handle-glyph:12px]" />
+      <HandleGlyph
+        shape="dot"
+        connected={connected}
+        className={cn(DATA_GLYPH_TONE_CLASS, "[--handle-glyph:12px]")}
+      />
     </Handle>
   );
 }
