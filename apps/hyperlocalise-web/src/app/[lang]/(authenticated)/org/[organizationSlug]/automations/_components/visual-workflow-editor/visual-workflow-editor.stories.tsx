@@ -280,6 +280,47 @@ export const UndoMove: Story = {
   },
 };
 
+export const UndoNoticeDismissedOnEdit: Story = {
+  name: "Dismiss the undo notice after a new edit",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A notice for a settings change taken back while its panel is closed goes away once another edit is recorded, so its Redo no longer offers a cleared stack.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const titles = await canvas.findAllByText("Notify Slack", {}, { timeout: 10_000 });
+    const node = titles
+      .map((title) => title.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null);
+    await expect(node).not.toBeUndefined();
+    await userEvent.click(node!);
+
+    const channel = await canvas.findByLabelText("Slack channel ID");
+    await userEvent.type(channel, "#deploys");
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await expect(await page.findByText("Undo changing a step's settings")).toBeInTheDocument();
+
+    await userEvent.type(canvas.getByRole("textbox", { name: "Workflow name" }), "!");
+    await waitFor(async () => {
+      await expect(page.queryByText("Undo changing a step's settings")).not.toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeDisabled();
+  },
+};
+
 export const SwitchCaseDelete: Story = {
   name: "Deleting a Switch case keeps other branches",
   args: {

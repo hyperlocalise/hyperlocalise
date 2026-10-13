@@ -41,6 +41,7 @@ import {
 import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
+  isVisualWorkflowGraphEqual,
   isVisualWorkflowUndoStepOutOfSight,
   visualWorkflowUndoStackOptions,
   type VisualWorkflowGraph,
@@ -164,11 +165,19 @@ export function VisualWorkflowEditor({
   selectedNodeIdRef.current = selectedNodeId;
   // The graph as it was when a drag began, so the drop records one step from there.
   const dragStartRef = useRef<VisualWorkflowGraph | null>(null);
+  const undoNotice = useVisualWorkflowUndoNotice();
+  const undoNoticeRef = useRef(undoNotice);
+  undoNoticeRef.current = undoNotice;
 
   /** Records a step. */
   const commit = useCallback((next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin }) => {
+    const previous = graphRef.current;
     graphRef.current = next;
     historyRef.current.change(next, meta);
+    // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
+    if (!isVisualWorkflowGraphEqual(previous, next)) {
+      undoNoticeRef.current.dismiss();
+    }
   }, []);
   /** Sets the graph without a step: a drag in progress, a selection, a run marker. */
   const place = useCallback((next: VisualWorkflowGraph) => {
@@ -191,6 +200,7 @@ export function VisualWorkflowEditor({
     // A whole workflow put in place is not new step by step.
     seenNodesRef.current = next.nodes;
     historyRef.current.reset(next);
+    undoNoticeRef.current.dismiss();
   }, []);
   const setNodes = useCallback(
     (
@@ -250,9 +260,6 @@ export function VisualWorkflowEditor({
     },
     [place],
   );
-  const undoNotice = useVisualWorkflowUndoNotice();
-  const undoNoticeRef = useRef(undoNotice);
-  undoNoticeRef.current = undoNotice;
   // The step whose settings panel is open; a change to its settings shows there.
   const openNodeIdRef = useRef<string | null>(null);
   openNodeIdRef.current = panelMode === "config" ? selectedNodeId : null;
