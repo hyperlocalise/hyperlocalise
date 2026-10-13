@@ -40,6 +40,7 @@ import {
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
+  isVisualWorkflowUndoStepOutOfSight,
   visualWorkflowUndoStackOptions,
   type VisualWorkflowGraph,
   type VisualWorkflowGraphChange,
@@ -80,7 +81,11 @@ import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-pane
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
-import { VisualWorkflowUndoRedoButtons } from "./visual-workflow-undo-buttons";
+import {
+  useVisualWorkflowUndoNotice,
+  VisualWorkflowUndoRedoButtons,
+  type VisualWorkflowUndoStep,
+} from "./visual-workflow-undo-buttons";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
 export function VisualWorkflowEditor({
@@ -230,6 +235,33 @@ export function VisualWorkflowEditor({
     },
     [place],
   );
+  const undoNotice = useVisualWorkflowUndoNotice();
+  const undoNoticeRef = useRef(undoNotice);
+  undoNoticeRef.current = undoNotice;
+  // The step whose settings panel is open; a change to its settings shows there.
+  const openNodeIdRef = useRef<string | null>(null);
+  openNodeIdRef.current = panelMode === "config" ? selectedNodeId : null;
+  // The notice's action runs after later renders, so it reads the callbacks as they are then.
+  const undoActionsRef = useRef({ undo: () => {}, redo: () => {} });
+  // What the latest undo or redo did, read out where no notice says it.
+  const [undoAnnouncement, setUndoAnnouncement] = useState<{ id: number; text: string } | null>(
+    null,
+  );
+  /** Says what an undo or a redo did: in a notice when the page does not show it, else aloud. */
+  const reportUndo = useCallback((step: VisualWorkflowUndoStep, direction: "undo" | "redo") => {
+    const notice = undoNoticeRef.current;
+    if (isVisualWorkflowUndoStepOutOfSight(step, openNodeIdRef.current)) {
+      if (direction === "undo") {
+        notice.notifyUndo(step, () => undoActionsRef.current.redo());
+      } else {
+        notice.notifyRedo(step, () => undoActionsRef.current.undo());
+      }
+      return;
+    }
+    notice.dismiss();
+    const text = direction === "undo" ? notice.undoTitle(step) : notice.redoTitle(step);
+    setUndoAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
+  }, []);
   const runUndo = useCallback(() => {
     const step = historyRef.current.undoStep;
     if (!step) {
@@ -237,7 +269,8 @@ export function VisualWorkflowEditor({
     }
     historyRef.current.undo();
     restore(step.before);
-  }, [restore]);
+    reportUndo(step, "undo");
+  }, [reportUndo, restore]);
   const runRedo = useCallback(() => {
     const step = historyRef.current.redoStep;
     if (!step) {
@@ -245,7 +278,9 @@ export function VisualWorkflowEditor({
     }
     historyRef.current.redo();
     restore(step.after);
-  }, [restore]);
+    reportUndo(step, "redo");
+  }, [reportUndo, restore]);
+  undoActionsRef.current = { undo: runUndo, redo: runRedo };
   const { rootRef } = useUndoShortcuts({
     onUndo: runUndo,
     onRedo: runRedo,
@@ -756,6 +791,9 @@ export function VisualWorkflowEditor({
       className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
       data-undo-root="visual-workflow"
     >
+      <div role="status" className="sr-only">
+        {undoAnnouncement ? <span key={undoAnnouncement.id}>{undoAnnouncement.text}</span> : null}
+      </div>
       <VisualWorkflowChrome
         name={name}
         onNameChange={setName}

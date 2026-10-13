@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { UndoStackOptions } from "@/lib/undo-stack/undo-stack";
+import type { UndoOrigin, UndoStackOptions } from "@/lib/undo-stack/undo-stack";
 
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
 
@@ -182,6 +182,25 @@ export function describeVisualWorkflowGraphChange(
     return { kind: "move", nodeIds: moved, coalesceKey: `move:${moved.join(",")}` };
   }
   return { kind: "edit", nodeIds: changedNodes };
+}
+
+/**
+ * Whether undoing or redoing a step shows nowhere on the page: a change to the settings or the
+ * type of a step whose settings panel is not the open one, or a step of the assistant, which
+ * may hold many changes.
+ */
+export function isVisualWorkflowUndoStepOutOfSight(
+  step: { origin: UndoOrigin; description: VisualWorkflowGraphChange },
+  openNodeId: string | null,
+): boolean {
+  if (step.origin === "assistant") {
+    return true;
+  }
+  const { kind, nodeIds } = step.description;
+  if (kind !== "configure" && kind !== "retype") {
+    return false;
+  }
+  return openNodeId === null || !nodeIds.includes(openNodeId);
 }
 
 export const visualWorkflowUndoStackOptions: UndoStackOptions<

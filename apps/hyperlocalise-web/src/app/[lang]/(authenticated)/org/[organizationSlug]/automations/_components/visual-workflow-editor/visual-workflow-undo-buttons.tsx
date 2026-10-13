@@ -14,6 +14,7 @@
  */
 import { ArrowUUpLeftIcon, ArrowUUpRightIcon } from "@phosphor-icons/react";
 import { useIntl, type IntlShape } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -59,6 +60,40 @@ function describeStep(intl: IntlShape, step: VisualWorkflowUndoStep): string {
     default:
       return assertNever(kind);
   }
+}
+
+/** One toast for every undo and redo, so a run of presses replaces it instead of stacking. */
+const VISUAL_WORKFLOW_UNDO_TOAST_ID = "visual-workflow-undo";
+
+/** Names an undo or a redo of a step, and raises the notice for one the page does not show. */
+export function useVisualWorkflowUndoNotice() {
+  const intl = useIntl();
+  const { undoText, redoText } = useShortcutLabels();
+  const undoTitle = (step: VisualWorkflowUndoStep) =>
+    intl.formatMessage(messages.undoTooltip, { action: describeStep(intl, step) });
+  const redoTitle = (step: VisualWorkflowUndoStep) =>
+    intl.formatMessage(messages.redoTooltip, { action: describeStep(intl, step) });
+
+  return {
+    undoTitle,
+    redoTitle,
+    notifyUndo: (step: VisualWorkflowUndoStep, redo: () => void) => {
+      toast.message(undoTitle(step), {
+        id: VISUAL_WORKFLOW_UNDO_TOAST_ID,
+        description: intl.formatMessage(automationUndoMessages.redoHint, { shortcut: redoText }),
+        action: { label: intl.formatMessage(automationUndoMessages.redo), onClick: redo },
+      });
+    },
+    notifyRedo: (step: VisualWorkflowUndoStep, undo: () => void) => {
+      toast.message(redoTitle(step), {
+        id: VISUAL_WORKFLOW_UNDO_TOAST_ID,
+        description: intl.formatMessage(automationUndoMessages.undoHint, { shortcut: undoText }),
+        action: { label: intl.formatMessage(automationUndoMessages.undo), onClick: undo },
+      });
+    },
+    /** Takes down a notice about an earlier step, whose way back no longer applies. */
+    dismiss: () => toast.dismiss(VISUAL_WORKFLOW_UNDO_TOAST_ID),
+  };
 }
 
 /** Undo and redo buttons for the visual editor's header, named after the step they apply. */

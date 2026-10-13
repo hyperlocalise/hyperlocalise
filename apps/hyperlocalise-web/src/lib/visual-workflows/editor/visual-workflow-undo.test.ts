@@ -21,6 +21,7 @@ import type {
 import {
   describeVisualWorkflowGraphChange,
   isVisualWorkflowGraphEqual,
+  isVisualWorkflowUndoStepOutOfSight,
   type VisualWorkflowGraph,
 } from "./visual-workflow-undo";
 
@@ -185,5 +186,47 @@ describe("describeVisualWorkflowGraphChange", () => {
         edges: base.edges,
       }),
     ).toEqual({ kind: "edit", nodeIds: ["set"] });
+  });
+});
+
+describe("isVisualWorkflowUndoStepOutOfSight", () => {
+  const configure = {
+    origin: "user" as const,
+    description: { kind: "configure" as const, nodeIds: ["set"] },
+  };
+
+  it("holds for a settings or type change of a step whose panel is not the open one", () => {
+    expect(isVisualWorkflowUndoStepOutOfSight(configure, null)).toBe(true);
+    expect(isVisualWorkflowUndoStepOutOfSight(configure, "trigger")).toBe(true);
+    expect(
+      isVisualWorkflowUndoStepOutOfSight(
+        { origin: "user", description: { kind: "retype", nodeIds: ["set"] } },
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not hold while that step's panel is open", () => {
+    expect(isVisualWorkflowUndoStepOutOfSight(configure, "set")).toBe(false);
+  });
+
+  it("does not hold for what the canvas and the header show", () => {
+    for (const kind of ["add", "remove", "connect", "disconnect", "move", "rename"] as const) {
+      expect(
+        isVisualWorkflowUndoStepOutOfSight(
+          { origin: "user", description: { kind, nodeIds: ["set"] } },
+          null,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("holds for a step of the assistant, whatever it changed", () => {
+    expect(
+      isVisualWorkflowUndoStepOutOfSight(
+        { origin: "assistant", description: { kind: "add", nodeIds: ["set"] } },
+        "set",
+      ),
+    ).toBe(true);
   });
 });
