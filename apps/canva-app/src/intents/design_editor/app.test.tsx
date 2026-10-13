@@ -381,6 +381,53 @@ describe("Hyperlocalise Canva app", () => {
     });
   });
 
+  it("enables Apply for source locale when selected pages are collected", async () => {
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({ selectedLocale: "en-US", selectedPageIndices: [0] }),
+    );
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [
+        {
+          locale: "en-US",
+          isSource: true,
+          status: "succeeded",
+          translated: 1,
+          total: 1,
+          translatedWords: 1,
+          wordCount: 1,
+          percent: 100,
+          approved: 1,
+          approvedPercent: 100,
+          canAdd: true,
+          pages: [
+            {
+              pageIndex: 0,
+              sourcePath: "canva/designs/mic/page-1.json",
+              jobId: null,
+              status: "succeeded",
+              translated: 1,
+              total: 1,
+              translatedWords: 1,
+              wordCount: 1,
+              approved: 1,
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Apply" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+    });
+  });
+
   it("enables Apply for a ready page when locale canAdd is false", async () => {
     vi.mocked(designContent.listDesignPages).mockResolvedValue([
       { index: 0, label: "Page 1", locked: false, editable: true },
@@ -638,6 +685,7 @@ describe("Hyperlocalise Canva app", () => {
     await waitFor(() => {
       expect(result.getByText("Project")).toBeTruthy();
       expect(result.getByText("Switch Account")).toBeTruthy();
+      expect(result.getByRole("button", { name: "Reload projects" })).toBeTruthy();
       expect(result.getByRole("combobox", { name: "No options selected" })).toBeTruthy();
     });
 
@@ -650,6 +698,29 @@ describe("Hyperlocalise Canva app", () => {
           projectId: "project_1",
         }),
       );
+    });
+  });
+
+  it("reloads the project list on the project picker", async () => {
+    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ projectId: "" }));
+    const { fetchCanvaSession } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(
+      session({
+        project: null,
+      }),
+    );
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Reload projects" })).toBeTruthy();
+    });
+    const sessionCallsAfterLoad = vi.mocked(fetchCanvaSession).mock.calls.length;
+
+    fireEvent.click(result.getByRole("button", { name: "Reload projects" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(fetchCanvaSession).mock.calls.length).toBeGreaterThan(sessionCallsAfterLoad);
     });
   });
 

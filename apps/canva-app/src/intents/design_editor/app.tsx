@@ -191,6 +191,7 @@ export const App = () => {
   const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
   const [pagesLoading, setPagesLoading] = useState(true);
   const [localesLoading, setLocalesLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
   const [applyStatusLoading, setApplyStatusLoading] = useState(false);
   const [localeStatuses, setLocaleStatuses] = useState<CanvaLocaleStatus[]>([]);
   const [projects, setProjects] = useState<CanvaSessionProject[]>([]);
@@ -257,13 +258,9 @@ export const App = () => {
 
   const canUpload =
     connected && Boolean(settings.projectId) && selectedPageIndices.length > 0 && busy == null;
-  const applyingTargetLocale =
-    Boolean(settings.selectedLocale) &&
-    Boolean(selectedProject) &&
-    settings.selectedLocale !== selectedProject?.sourceLocale;
   const canApply =
     canUpload &&
-    applyingTargetLocale &&
+    Boolean(settings.selectedLocale) &&
     !applyStatusLoading &&
     canApplySelectedPages(selectedLocaleStatus, selectedPageIndices);
   const canTranslate =
@@ -447,8 +444,7 @@ export const App = () => {
       !connected ||
       !settings.projectId ||
       selectedPageIndices.length === 0 ||
-      !settings.selectedLocale ||
-      settings.selectedLocale === selectedProject?.sourceLocale
+      !settings.selectedLocale
     ) {
       return;
     }
@@ -558,6 +554,28 @@ export const App = () => {
     return statuses;
   };
 
+  const reloadProjectOptions = async () => {
+    setProjectsLoading(true);
+    try {
+      const session = await fetchCanvaSession(await resolveAuth());
+      setProjects(session.projects);
+      persistSettings(applySession(session, settings));
+      if (!session.project) {
+        setLocaleStatuses([]);
+        return;
+      }
+      await refreshLocaleStatuses();
+    } catch (error) {
+      if (isReconnectError(error)) {
+        disconnect("Reconnect Hyperlocalise to continue.", "critical");
+        return;
+      }
+      showToast(error instanceof Error ? error.message : "Unable to reload projects.", "warn");
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
   const reloadLocaleOptions = async () => {
     if (!settings.projectId) {
       return;
@@ -658,11 +676,12 @@ export const App = () => {
         if (!settings.selectedLocale) {
           throw new Error("Choose a language.");
         }
-        if (settings.selectedLocale === selectedProject?.sourceLocale) {
-          throw new Error("Choose a target language to apply Hyperlocalise translations.");
-        }
         setUploadPreview(null);
-        setStep("Loading translations from editor...", 25);
+        const loadingLabel =
+          settings.selectedLocale === selectedProject?.sourceLocale
+            ? "Loading source strings..."
+            : "Loading translations from editor...";
+        setStep(loadingLabel, 25);
         const { token } = await getDesignToken();
         const pulled = await pullCanvaLocalePages({
           auth: await resolveAuth(),
@@ -792,19 +811,39 @@ export const App = () => {
             label="Project"
             value={settings.projectId}
             control={(props) => (
-              <Select
-                {...props}
-                stretch
-                placeholder={busy === "bind" ? "Connecting..." : "Select a project"}
-                disabled={busy === "bind"}
-                options={projects.map((project) => ({
-                  value: project.id,
-                  label: project.name,
-                }))}
-                onChange={(value) => {
-                  void handleProjectChange(value);
-                }}
-              />
+              <div className={styles.pageFieldRow}>
+                <div className={styles.pageFieldSelect}>
+                  <Select
+                    {...props}
+                    stretch
+                    placeholder={
+                      busy === "bind"
+                        ? "Connecting..."
+                        : projectsLoading
+                          ? "Loading projects..."
+                          : "Select a project"
+                    }
+                    disabled={busy === "bind" || projectsLoading}
+                    options={projects.map((project) => ({
+                      value: project.id,
+                      label: project.name,
+                    }))}
+                    onChange={(value) => {
+                      void handleProjectChange(value);
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  icon={ReloadIcon}
+                  ariaLabel="Reload projects"
+                  tooltipLabel="Reload projects"
+                  onClick={() => void reloadProjectOptions()}
+                  loading={projectsLoading}
+                  disabled={projectsLoading || busy === "bind"}
+                />
+              </div>
             )}
           />
           {busy === "bind" && bindProgress ? (
