@@ -24,20 +24,26 @@ const NO_NODE_IDS: ReadonlySet<string> = new Set();
 const VisualWorkflowCanvasActionsContext = createContext<{
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
   issueNodeIds: ReadonlySet<string>;
+  freshNodeIds: ReadonlySet<string>;
 } | null>(null);
 
 export function VisualWorkflowCanvasActionsProvider({
   onAddFromNode,
   issueNodeIds = NO_NODE_IDS,
+  freshNodeIds = NO_NODE_IDS,
   children,
 }: {
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
   /** The steps a validation issue is about, which the canvas marks. */
   issueNodeIds?: ReadonlySet<string>;
+  /** The steps that appeared or were changed and have not been selected since, which the canvas marks. */
+  freshNodeIds?: ReadonlySet<string>;
   children: ReactNode;
 }) {
   return (
-    <VisualWorkflowCanvasActionsContext.Provider value={{ onAddFromNode, issueNodeIds }}>
+    <VisualWorkflowCanvasActionsContext.Provider
+      value={{ onAddFromNode, issueNodeIds, freshNodeIds }}
+    >
       {children}
     </VisualWorkflowCanvasActionsContext.Provider>
   );

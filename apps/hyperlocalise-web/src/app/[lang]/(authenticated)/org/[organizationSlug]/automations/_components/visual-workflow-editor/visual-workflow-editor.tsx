@@ -20,7 +20,7 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -38,8 +38,16 @@ import {
   replaceVisualWorkflowNodeType,
   reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
+import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
+import {
+  isVisualWorkflowGraphEqual,
+  isVisualWorkflowUndoStepOutOfSight,
+  visualWorkflowUndoStackOptions,
+  type VisualWorkflowGraph,
+  type VisualWorkflowGraphChange,
+} from "@/lib/visual-workflows/editor/visual-workflow-undo";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   MockNodeRunStatus,
@@ -51,6 +59,9 @@ import type {
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
+import type { UndoOrigin } from "@/lib/undo-stack/undo-stack";
+import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
@@ -72,43 +83,14 @@ import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-pane
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
+import {
+  useVisualWorkflowUndoNotice,
+  VisualWorkflowUndoRedoButtons,
+  type VisualWorkflowUndoStep,
+} from "./visual-workflow-undo-buttons";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
-const NODE_GAP_X = 340;
-const NODE_GAP_Y = 36;
-
-function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {
-  const sourceHeight =
-    source.height ?? getVisualNodeDimensions(source.data.catalogType, source.data.config).height;
-  const branchStep = sourceHeight + NODE_GAP_Y;
-
-  if (!handleId || handleId === "true" || handleId === "each") {
-    return 0;
-  }
-  if (source.data.catalogType === "logic.try_catch") {
-    const outputIndex = ["try", "success", "catch", "finally"].indexOf(handleId);
-    if (outputIndex >= 0) return outputIndex * branchStep;
-  }
-  if (source.data.config.kind === "logic.sequence") {
-    const outputIndex = source.data.config.outputs.findIndex((output) => output.id === handleId);
-    if (outputIndex >= 0) {
-      return outputIndex * branchStep;
-    }
-  }
-  if (handleId === "false" || handleId === "done" || handleId === "error") {
-    return branchStep;
-  }
-  if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
-    if (handleId === "default") {
-      return source.data.config.cases.length * branchStep;
-    }
-    const caseIndex = getSwitchCaseIndexByHandleId(source.data.config.cases, handleId);
-    if (caseIndex !== null) {
-      return caseIndex * branchStep;
-    }
-  }
-  return 0;
-}
+const NO_FRESH_STEPS: ReadonlySet<string> = new Set();
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -155,9 +137,16 @@ export function VisualWorkflowEditor({
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [name, setName] = useState(initialName ?? intl.formatMessage(messages.untitledName));
-  const [nodes, setNodes] = useState<VisualWorkflowRfNode[]>(initialNodes);
-  const [edges, setEdges] = useState<VisualWorkflowRfEdge[]>(initialEdges);
+  // Every change to the graph, by hand or by the assistant, is a step on this one stack.
+  const history = useUndoStack<VisualWorkflowGraph, VisualWorkflowGraphChange>(
+    {
+      name: initialName ?? intl.formatMessage(messages.untitledName),
+      nodes: initialNodes,
+      edges: initialEdges,
+    },
+    visualWorkflowUndoStackOptions,
+  );
+  const { name, nodes, edges } = history.form;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [focusNode, setFocusNode] = useState<{ nodeId: string } | null>(null);
   const [panelMode, setPanelMode] = useState<"picker" | "config">("picker");
@@ -166,8 +155,159 @@ export function VisualWorkflowEditor({
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
-  const graphRef = useRef({ nodes, edges });
-  graphRef.current = { nodes, edges };
+  // The graph as of the latest change, so changes made in one event build on each other before
+  // the next render.
+  const graphRef = useRef(history.form);
+  graphRef.current = history.form;
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  selectedNodeIdRef.current = selectedNodeId;
+  // The graph as it was when a drag began, so the drop records one step from there.
+  const dragStartRef = useRef<VisualWorkflowGraph | null>(null);
+  const undoNotice = useVisualWorkflowUndoNotice();
+  const undoNoticeRef = useRef(undoNotice);
+  undoNoticeRef.current = undoNotice;
+
+  /** Records a step. */
+  const commit = useCallback((next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin }) => {
+    const previous = graphRef.current;
+    graphRef.current = next;
+    historyRef.current.change(next, meta);
+    // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
+    if (!isVisualWorkflowGraphEqual(previous, next)) {
+      undoNoticeRef.current.dismiss();
+    }
+  }, []);
+  /** Sets the graph without a step: a drag in progress, a selection, a run marker. */
+  const place = useCallback((next: VisualWorkflowGraph) => {
+    graphRef.current = next;
+    historyRef.current.replace(next);
+  }, []);
+  // Steps that appeared or were changed, and have not been selected since, which the canvas marks.
+  const [freshNodeIds, setFreshNodeIds] = useState<ReadonlySet<string>>(NO_FRESH_STEPS);
+  const seenNodesRef = useRef(nodes);
+  useEffect(() => {
+    const previous = seenNodesRef.current;
+    seenNodesRef.current = nodes;
+    setFreshNodeIds((marked) =>
+      markFreshVisualWorkflowSteps({ marked, previous, next: nodes, selectedNodeId }),
+    );
+  }, [nodes, selectedNodeId]);
+  /** Sets the graph and forgets every step. */
+  const load = useCallback((next: VisualWorkflowGraph) => {
+    graphRef.current = next;
+    // A whole workflow put in place is not new step by step.
+    seenNodesRef.current = next.nodes;
+    historyRef.current.reset(next);
+    undoNoticeRef.current.dismiss();
+  }, []);
+  const setNodes = useCallback(
+    (
+      update: (current: VisualWorkflowRfNode[]) => VisualWorkflowRfNode[],
+      mode: "step" | "quiet" = "step",
+    ) => {
+      const current = graphRef.current;
+      const next = { ...current, nodes: update(current.nodes) };
+      if (mode === "step") {
+        commit(next);
+      } else {
+        place(next);
+      }
+    },
+    [commit, place],
+  );
+  /**
+   * Like `setNodes`, for the edges. A change of selection alone is equal under the stack's
+   * comparison, so either setter carries it without recording a step.
+   */
+  const setEdges = useCallback(
+    (
+      update: (current: VisualWorkflowRfEdge[]) => VisualWorkflowRfEdge[],
+      mode: "step" | "quiet" = "step",
+    ) => {
+      const current = graphRef.current;
+      const next = { ...current, edges: update(current.edges) };
+      if (mode === "step") {
+        commit(next);
+      } else {
+        place(next);
+      }
+    },
+    [commit, place],
+  );
+  const setName = useCallback(
+    (next: string) => commit({ ...graphRef.current, name: next }),
+    [commit],
+  );
+
+  /**
+   * Puts a step's graph back with the selection as it is now, not as it was then, so an undo
+   * neither selects a node of the past nor closes the panel of the node being edited.
+   */
+  const restore = useCallback(
+    (graph: VisualWorkflowGraph) => {
+      const selected = selectedNodeIdRef.current;
+      place({
+        ...graph,
+        nodes: graph.nodes.map((node) =>
+          (node.selected ?? false) === (node.id === selected)
+            ? node
+            : { ...node, selected: node.id === selected },
+        ),
+        edges: graph.edges.map((edge) => (edge.selected ? { ...edge, selected: false } : edge)),
+      });
+    },
+    [place],
+  );
+  // The step whose settings panel is open; a change to its settings shows there.
+  const openNodeIdRef = useRef<string | null>(null);
+  openNodeIdRef.current = panelMode === "config" ? selectedNodeId : null;
+  // The notice's action runs after later renders, so it reads the callbacks as they are then.
+  const undoActionsRef = useRef({ undo: () => {}, redo: () => {} });
+  // What the latest undo or redo did, read out where no notice says it.
+  const [undoAnnouncement, setUndoAnnouncement] = useState<{ id: number; text: string } | null>(
+    null,
+  );
+  /** Says what an undo or a redo did: in a notice when the page does not show it, else aloud. */
+  const reportUndo = useCallback((step: VisualWorkflowUndoStep, direction: "undo" | "redo") => {
+    const notice = undoNoticeRef.current;
+    if (isVisualWorkflowUndoStepOutOfSight(step, openNodeIdRef.current)) {
+      if (direction === "undo") {
+        notice.notifyUndo(step, () => undoActionsRef.current.redo());
+      } else {
+        notice.notifyRedo(step, () => undoActionsRef.current.undo());
+      }
+      return;
+    }
+    notice.dismiss();
+    const text = direction === "undo" ? notice.undoTitle(step) : notice.redoTitle(step);
+    setUndoAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
+  }, []);
+  const runUndo = useCallback(() => {
+    const step = historyRef.current.undoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.undo();
+    restore(step.before);
+    reportUndo(step, "undo");
+  }, [reportUndo, restore]);
+  const runRedo = useCallback(() => {
+    const step = historyRef.current.redoStep;
+    if (!step) {
+      return;
+    }
+    historyRef.current.redo();
+    restore(step.after);
+    reportUndo(step, "redo");
+  }, [reportUndo, restore]);
+  undoActionsRef.current = { undo: runUndo, redo: runRedo };
+  const { rootRef } = useUndoShortcuts({
+    onUndo: runUndo,
+    onRedo: runRedo,
+    onSeal: history.seal,
+  });
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const issues = useMemo(
@@ -183,43 +323,131 @@ export function VisualWorkflowEditor({
   const saveDisabled = issues.length > 0;
   const isActive = workflowStatus === "active";
 
-  const onNodesChange = useCallback((changes: NodeChange<VisualWorkflowRfNode>[]) => {
-    setNodes((current) => applyNodeChanges(changes, current));
-  }, []);
+  const onNodesChange = useCallback(
+    (changes: NodeChange<VisualWorkflowRfNode>[]) => {
+      const current = graphRef.current;
+      // A removed node takes its edges with it, in the same step.
+      let graph = current;
+      for (const change of changes) {
+        if (change.type === "remove") {
+          graph = { ...graph, ...removeVisualWorkflowNode(graph.nodes, graph.edges, change.id) };
+        }
+      }
+      const next = {
+        ...graph,
+        nodes: applyNodeChanges(
+          changes.filter((change) => change.type !== "remove"),
+          graph.nodes,
+        ),
+      };
+      const positions = changes.filter((change) => change.type === "position");
+      if (positions.some((change) => change.dragging)) {
+        dragStartRef.current ??= current;
+        place(next);
+        return;
+      }
+      // A node settles where it is dropped or where a key nudged it; the rest is selection
+      // and measuring.
+      if (positions.length === 0 && graph === current) {
+        place(next);
+        return;
+      }
+      if (dragStartRef.current) {
+        // Back to where the drag began, keeping the selection and measurements made since.
+        const flags = new Map(current.nodes.map((node) => [node.id, node]));
+        place({
+          ...dragStartRef.current,
+          nodes: dragStartRef.current.nodes.map((node) => {
+            const latest = flags.get(node.id);
+            return latest
+              ? { ...node, selected: latest.selected, measured: latest.measured }
+              : node;
+          }),
+        });
+        dragStartRef.current = null;
+      }
+      commit(next);
+    },
+    [commit, place],
+  );
 
-  const onEdgesChange = useCallback((changes: EdgeChange<VisualWorkflowRfEdge>[]) => {
-    const removesEdge = changes.some((change) => change.type === "remove");
-    if (!removesEdge) {
-      setEdges((current) => applyEdgeChanges(changes, current));
-      return;
-    }
-    const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
-    const nextEdges = applyEdgeChanges(changes, currentEdges);
-    setEdges(nextEdges);
-    setNodes(reconcileFlowBodyMembership(currentNodes, nextEdges));
-  }, []);
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange<VisualWorkflowRfEdge>[]) => {
+      const current = graphRef.current;
+      const nextEdges = applyEdgeChanges(changes, current.edges);
+      if (!changes.some((change) => change.type === "remove")) {
+        place({ ...current, edges: nextEdges });
+        return;
+      }
+      commit({
+        ...current,
+        edges: nextEdges,
+        nodes: reconcileFlowBodyMembership(current.nodes, nextEdges),
+      });
+    },
+    [commit, place],
+  );
 
-  const onConnect = useCallback((connection: Connection) => {
-    const next = applyVisualWorkflowGraphConnection(
-      graphRef.current.nodes,
-      graphRef.current.edges,
-      connection,
-    );
-    setNodes(next.nodes);
-    setEdges(next.edges);
-  }, []);
+  // Deleting from the keyboard is one step for the nodes and their edges together.
+  const onBeforeDelete = useCallback(
+    async ({
+      nodes: doomedNodes,
+      edges: doomedEdges,
+    }: {
+      nodes: VisualWorkflowRfNode[];
+      edges: VisualWorkflowRfEdge[];
+    }) => {
+      let graph = graphRef.current;
+      for (const node of doomedNodes) {
+        graph = { ...graph, ...removeVisualWorkflowNode(graph.nodes, graph.edges, node.id) };
+      }
+      const doomedEdgeIds = new Set(doomedEdges.map((edge) => edge.id));
+      const edgesLeft = graph.edges.filter((edge) => !doomedEdgeIds.has(edge.id));
+      if (edgesLeft.length !== graph.edges.length) {
+        graph = {
+          ...graph,
+          edges: edgesLeft,
+          nodes: reconcileFlowBodyMembership(graph.nodes, edgesLeft),
+        };
+      }
+      commit(graph);
+      if (doomedNodes.some((node) => node.id === selectedNodeIdRef.current)) {
+        setSelectedNodeId(null);
+        setPanelMode("picker");
+        setAddFrom(null);
+      }
+      // The graph is already changed, so React Flow has nothing left to delete.
+      return false;
+    },
+    [commit],
+  );
 
-  const onReconnect = useCallback((oldEdge: VisualWorkflowRfEdge, connection: Connection) => {
-    const next = reconnectVisualWorkflowGraphConnection(
-      graphRef.current.nodes,
-      graphRef.current.edges,
-      oldEdge.id,
-      connection,
-    );
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const current = graphRef.current;
+      commit({
+        ...current,
+        ...applyVisualWorkflowGraphConnection(current.nodes, current.edges, connection),
+      });
+    },
+    [commit],
+  );
 
-    setNodes(next.nodes);
-    setEdges(next.edges);
-  }, []);
+  const onReconnect = useCallback(
+    (oldEdge: VisualWorkflowRfEdge, connection: Connection) => {
+      const current = graphRef.current;
+      commit({
+        ...current,
+        ...reconnectVisualWorkflowGraphConnection(
+          current.nodes,
+          current.edges,
+          oldEdge.id,
+          connection,
+        ),
+      });
+    },
+    [commit],
+  );
 
   const onSelectionChange = useCallback((params: OnSelectionChangeParams) => {
     const nextId = params.nodes[0]?.id ?? null;
@@ -282,20 +510,22 @@ export function VisualWorkflowEditor({
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? `vw_${crypto.randomUUID().slice(0, 8)}`
           : `vw_${Date.now()}`;
-      const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
+      const current = graphRef.current;
+      const { nodes: currentNodes, edges: currentEdges } = current;
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
-      const position = source
-        ? {
-            x: source.position.x + NODE_GAP_X,
-            y: source.position.y + quickAddOffsetY(addFrom?.handleId, source),
-          }
-        : { x: 120 + currentNodes.length * 24, y: 160 + currentNodes.length * 16 };
+      const position = placeNewVisualWorkflowNode({
+        nodes: currentNodes,
+        source,
+        handleId: addFrom?.handleId,
+      });
 
       const config = createDefaultConfig(type);
+      // The new step is selected, as a click on it would leave it.
       const nextNode: VisualWorkflowRfNode = {
         id,
         type,
         position,
+        selected: true,
         ...getVisualNodeDimensions(type, config),
         data: {
           catalogType: type,
@@ -303,25 +533,32 @@ export function VisualWorkflowEditor({
           runStatus: "idle",
         },
       };
+      const otherNodes = currentNodes.map((node) =>
+        node.selected ? { ...node, selected: false } : node,
+      );
+      const otherEdges = currentEdges.map((edge) =>
+        edge.selected ? { ...edge, selected: false } : edge,
+      );
 
       if (source && !isTriggerType(type)) {
-        const next = applyVisualWorkflowGraphConnection([...currentNodes, nextNode], currentEdges, {
-          source: source.id,
-          target: id,
-          sourceHandle: addFrom?.handleId ?? null,
-          targetHandle: null,
+        commit({
+          ...current,
+          ...applyVisualWorkflowGraphConnection([...otherNodes, nextNode], otherEdges, {
+            source: source.id,
+            target: id,
+            sourceHandle: addFrom?.handleId ?? null,
+            targetHandle: null,
+          }),
         });
-        setNodes(next.nodes);
-        setEdges(next.edges);
       } else {
-        setNodes([...currentNodes, nextNode]);
+        commit({ ...current, nodes: [...otherNodes, nextNode], edges: otherEdges });
       }
       setAddFrom(null);
       setSelectedNodeId(id);
       setPanelMode("config");
       setMobilePanelOpen(true);
     },
-    [addFrom],
+    [addFrom, commit],
   );
 
   const onChangeConfig = useCallback(
@@ -329,11 +566,13 @@ export function VisualWorkflowEditor({
       if (!selectedNodeId) {
         return;
       }
-      const next = applyNodeConfigUpdate(nodes, edges, selectedNodeId, config);
-      setNodes(next.nodes);
-      setEdges(next.edges);
+      const current = graphRef.current;
+      commit({
+        ...current,
+        ...applyNodeConfigUpdate(current.nodes, current.edges, selectedNodeId, config),
+      });
     },
-    [edges, nodes, selectedNodeId],
+    [commit, selectedNodeId],
   );
 
   const onChangeNodeType = useCallback(
@@ -347,20 +586,22 @@ export function VisualWorkflowEditor({
         ),
       );
     },
-    [selectedNodeId],
+    [selectedNodeId, setNodes],
   );
 
   const onDeleteNode = useCallback(() => {
     if (!selectedNodeId) {
       return;
     }
-    const next = removeVisualWorkflowNode(nodes, edges, selectedNodeId);
-    setNodes(next.nodes);
-    setEdges(next.edges);
+    const current = graphRef.current;
+    commit({
+      ...current,
+      ...removeVisualWorkflowNode(current.nodes, current.edges, selectedNodeId),
+    });
     setSelectedNodeId(null);
     setPanelMode("picker");
     setAddFrom(null);
-  }, [edges, nodes, selectedNodeId]);
+  }, [commit, selectedNodeId]);
 
   const setNodeOutputSnapshot = useCallback(
     (
@@ -368,31 +609,38 @@ export function VisualWorkflowEditor({
       output: Record<string, unknown> | null,
       error: Record<string, unknown> | null,
     ) => {
-      setNodes((current) =>
-        current.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  lastOutput: output,
-                  lastError: error,
-                },
-              }
-            : node,
-        ),
+      setNodes(
+        (current) =>
+          current.map((node) =>
+            node.id === nodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    lastOutput: output,
+                    lastError: error,
+                  },
+                }
+              : node,
+          ),
+        "quiet",
       );
     },
-    [],
+    [setNodes],
   );
 
-  const setRunStatus = useCallback((nodeId: string, status: MockNodeRunStatus) => {
-    setNodes((current) =>
-      current.map((node) =>
-        node.id === nodeId ? { ...node, data: { ...node.data, runStatus: status } } : node,
-      ),
-    );
-  }, []);
+  const setRunStatus = useCallback(
+    (nodeId: string, status: MockNodeRunStatus) => {
+      setNodes(
+        (current) =>
+          current.map((node) =>
+            node.id === nodeId ? { ...node, data: { ...node.data, runStatus: status } } : node,
+          ),
+        "quiet",
+      );
+    },
+    [setNodes],
+  );
 
   const applyNodeRunStatuses = useCallback(
     (
@@ -405,31 +653,33 @@ export function VisualWorkflowEditor({
       }>,
     ) => {
       const runByNodeId = new Map(nodeRuns.map((nodeRun) => [nodeRun.nodeId, nodeRun]));
-      setNodes((current) =>
-        current.map((node) => {
-          const nodeRun = runByNodeId.get(node.id);
-          if (!nodeRun) {
-            return node;
-          }
-          const mappedStatus: MockNodeRunStatus =
-            nodeRun.status === "queued" ? "idle" : (nodeRun.status as MockNodeRunStatus);
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              runStatus: mappedStatus,
-              lastOutput:
-                nodeRun.outputSnapshot && Object.keys(nodeRun.outputSnapshot).length > 0
-                  ? nodeRun.outputSnapshot
-                  : null,
-              lastInput: nodeRun.inputSnapshot ?? null,
-              lastError: nodeRun.error ?? null,
-            },
-          };
-        }),
+      setNodes(
+        (current) =>
+          current.map((node) => {
+            const nodeRun = runByNodeId.get(node.id);
+            if (!nodeRun) {
+              return node;
+            }
+            const mappedStatus: MockNodeRunStatus =
+              nodeRun.status === "queued" ? "idle" : (nodeRun.status as MockNodeRunStatus);
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                runStatus: mappedStatus,
+                lastOutput:
+                  nodeRun.outputSnapshot && Object.keys(nodeRun.outputSnapshot).length > 0
+                    ? nodeRun.outputSnapshot
+                    : null,
+                lastInput: nodeRun.inputSnapshot ?? null,
+                lastError: nodeRun.error ?? null,
+              },
+            };
+          }),
+        "quiet",
       );
     },
-    [],
+    [setNodes],
   );
 
   const onTestWorkflowClick = useCallback(async () => {
@@ -437,11 +687,13 @@ export function VisualWorkflowEditor({
     const controller = new AbortController();
     runAbortRef.current = controller;
     setIsRunning(true);
-    setNodes((current) =>
-      current.map((node) => ({
-        ...node,
-        data: { ...node.data, runStatus: "idle", lastOutput: null, lastError: null },
-      })),
+    setNodes(
+      (current) =>
+        current.map((node) => ({
+          ...node,
+          data: { ...node.data, runStatus: "idle", lastOutput: null, lastError: null },
+        })),
+      "quiet",
     );
 
     const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
@@ -519,6 +771,7 @@ export function VisualWorkflowEditor({
     organizationSlug,
     playgroundMode,
     setNodeOutputSnapshot,
+    setNodes,
     setRunStatus,
     visualWorkflowId,
     visualWorkflowsApi,
@@ -550,6 +803,7 @@ export function VisualWorkflowEditor({
       return;
     }
     void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
+    setFreshNodeIds(NO_FRESH_STEPS);
   }, [edges, name, nodes, onSave, saveDisabled]);
 
   const handleStatusChange = useCallback(
@@ -563,10 +817,27 @@ export function VisualWorkflowEditor({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div
+      ref={rootRef}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      data-undo-root="visual-workflow"
+    >
+      <div role="status" className="sr-only">
+        {undoAnnouncement ? <span key={undoAnnouncement.id}>{undoAnnouncement.text}</span> : null}
+      </div>
       <VisualWorkflowChrome
         name={name}
         onNameChange={setName}
+        undoRedo={
+          <VisualWorkflowUndoRedoButtons
+            canUndo={history.canUndo}
+            canRedo={history.canRedo}
+            undoStep={history.undoStep}
+            redoStep={history.redoStep}
+            onUndo={runUndo}
+            onRedo={runRedo}
+          />
+        }
         copied={copied}
         onExport={onExport}
         onCopy={onCopy}
@@ -639,6 +910,7 @@ export function VisualWorkflowEditor({
           <VisualWorkflowCanvasActionsProvider
             onAddFromNode={openPicker}
             issueNodeIds={issueNodeIds}
+            freshNodeIds={freshNodeIds}
           >
             <VisualWorkflowCanvas
               nodes={nodes}
@@ -646,6 +918,7 @@ export function VisualWorkflowEditor({
               isRunning={isRunning}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
+              onBeforeDelete={onBeforeDelete}
               onConnect={onConnect}
               onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
@@ -653,9 +926,7 @@ export function VisualWorkflowEditor({
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
                 const draft = sampleDraft ?? visualWorkflowDemoDraft;
-                setName(draft.name);
-                setNodes(draft.nodes);
-                setEdges(draft.edges);
+                load({ name: draft.name, nodes: draft.nodes, edges: draft.edges });
                 setSelectedNodeId(null);
                 setPanelMode("picker");
                 setAddFrom(null);

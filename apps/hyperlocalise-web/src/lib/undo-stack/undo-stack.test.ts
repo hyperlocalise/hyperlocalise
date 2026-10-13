@@ -61,11 +61,18 @@ describe("undo-stack reducer", () => {
     expect(state.future).toEqual([]);
   });
 
-  it("returns the same state when the next document equals the present", () => {
-    const initial = createUndoStackState<Doc, Change>(start);
-    const state = reducer(initial, { type: "record", next: { ...start }, at: 0 });
+  it("sets the document without a step when the next one equals the present", () => {
+    const initial = run([
+      { type: "record", next: { name: "a", count: 0 }, at: 0 },
+      { type: "undo" },
+    ]);
+    const next = { ...start };
+    const state = reducer(initial, { type: "record", next, at: 2000 });
 
-    expect(state).toBe(initial);
+    expect(state.present).toBe(next);
+    expect(state.past).toBe(initial.past);
+    expect(state.future).toBe(initial.future);
+    expect(reducer(initial, { type: "record", next: initial.present, at: 2000 })).toBe(initial);
   });
 
   it("merges a burst of typing into one step, keeping the first before and the latest after", () => {
