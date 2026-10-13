@@ -12,15 +12,16 @@
  */
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v5";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v6";
 
 const defaultSettings: AppSettings = {
   connectionToken: "",
   organizationSlug: "",
   organizationName: "",
+  projectId: "",
   projectName: "",
-  sourceLocale: "en",
-  targetLocales: "es,fr,de",
+  sourceLocale: "",
+  targetLocales: "",
   preserveFormatting: true,
   selectedPageIndices: [],
   lastJobId: "",
@@ -34,28 +35,10 @@ export function loadSettings(): AppSettings {
   try {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) {
-      return loadLegacySettings();
-    }
-
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return normalizeSettings(parsed);
-  } catch {
-    return defaultSettings;
-  }
-}
-
-function loadLegacySettings(): AppSettings {
-  try {
-    const raw =
-      window.localStorage.getItem("hyperlocalise:canva-app:settings:v4") ??
-      window.localStorage.getItem("hyperlocalise:canva-app:settings:v3") ??
-      window.localStorage.getItem("hyperlocalise:canva-app:settings:v2") ??
-      window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");
-    if (!raw) {
       return defaultSettings;
     }
 
-    const parsed = JSON.parse(raw) as Partial<AppSettings> & { projectId?: string };
+    const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return normalizeSettings(parsed);
   } catch {
     return defaultSettings;
@@ -67,6 +50,7 @@ function normalizeSettings(parsed: Partial<AppSettings>): AppSettings {
     connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
     organizationSlug: parsed.organizationSlug ?? defaultSettings.organizationSlug,
     organizationName: parsed.organizationName ?? defaultSettings.organizationName,
+    projectId: parsed.projectId ?? defaultSettings.projectId,
     projectName: parsed.projectName ?? defaultSettings.projectName,
     sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
     targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
@@ -99,6 +83,16 @@ export function parseTargetLocales(value: string): string[] {
 
 export function selectedPageValues(pageIndices: number[]): string[] {
   return pageIndices.map((index) => String(index));
+}
+
+export function projectLocalesToSettings(project: {
+  sourceLocale: string;
+  targetLocales: string[];
+}): Pick<AppSettings, "sourceLocale" | "targetLocales"> {
+  return {
+    sourceLocale: project.sourceLocale,
+    targetLocales: project.targetLocales.join(", "),
+  };
 }
 
 export function parseSelectedPageValues(values: string[]): number[] {

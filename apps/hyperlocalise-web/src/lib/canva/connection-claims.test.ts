@@ -80,8 +80,6 @@ describe("completeCanvaConnectionClaim", () => {
       displayName: "Race Canva",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
     const claim = await createCanvaConnectionClaim();
 

@@ -24,6 +24,7 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
@@ -43,9 +44,6 @@ import {
 } from "./inbox-notifications-api";
 import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
-
-const inboxApi = createInboxApi(apiClient);
-const notificationsApi = createInboxNotificationsApi(apiClient);
 
 const NOTIFICATIONS_PAGE_SIZE = 50;
 
@@ -69,8 +67,8 @@ export function InboxPageContent({
   currentUser,
   organizationSlug,
   canDeleteQueries = false,
-  inboxApi: injectedInboxApi = inboxApi,
-  notificationsApi: injectedNotificationsApi = notificationsApi,
+  inboxApi: injectedInboxApi,
+  notificationsApi: injectedNotificationsApi,
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
@@ -78,14 +76,24 @@ export function InboxPageContent({
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+  const notificationsApi = useMemo(
+    () => injectedNotificationsApi ?? createInboxNotificationsApi(goSvcClient.inbox),
+    [goSvcClient, injectedNotificationsApi],
+  );
+  const inboxApi = useMemo(
+    () => injectedInboxApi ?? createInboxApi(apiClient, goSvcClient.conversation),
+    [goSvcClient, injectedInboxApi],
+  );
+
   return (
     <InboxPageStoreProvider organizationSlug={organizationSlug}>
       <InboxPageContentObserver
         currentUser={currentUser}
         organizationSlug={organizationSlug}
         canDeleteQueries={canDeleteQueries}
-        inboxApi={injectedInboxApi}
-        notificationsApi={injectedNotificationsApi}
+        inboxApi={inboxApi}
+        notificationsApi={notificationsApi}
       />
     </InboxPageStoreProvider>
   );

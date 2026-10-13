@@ -13,9 +13,13 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildCanvaSourceLocaleStatus,
+  canvaApprovalPercent,
   isCanvaIntegrationJob,
+  latestPublishedCanvaCollectBatchId,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
+  resolveCanvaJobLocales,
 } from "./localize-design";
 
 describe("publicJobOutputFiles", () => {
@@ -142,5 +146,140 @@ describe("readCanvaConnectionIdFromJobInput", () => {
         metadata: { canvaConnectionId: "conn_top" },
       }),
     ).toBe("conn_top");
+  });
+});
+
+describe("resolveCanvaJobLocales", () => {
+  it("uses the project source and all project targets when none are requested", () => {
+    expect(
+      resolveCanvaJobLocales({
+        project: { sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] },
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+  });
+
+  it("keeps a requested subset of project targets", () => {
+    expect(
+      resolveCanvaJobLocales({
+        project: { sourceLocale: "en-US", targetLocales: ["fr-FR", "de-DE"] },
+        requestedTargetLocales: ["de-DE"],
+      }),
+    ).toEqual({
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE"],
+    });
+  });
+
+  it("ignores a missing project source until validation", () => {
+    expect(() =>
+      resolveCanvaJobLocales({
+        project: { sourceLocale: null, targetLocales: ["fr-FR"] },
+      }),
+    ).toThrow("job_source_locale_not_in_project");
+  });
+});
+
+describe("latestPublishedCanvaCollectBatchId", () => {
+  it("skips newer incomplete batches so a failed collect cannot hide the last complete one", () => {
+    expect(
+      latestPublishedCanvaCollectBatchId([
+        {
+          metadata: {
+            canvaCollectBatchId: "partial",
+          },
+        },
+        {
+          metadata: {
+            canvaCollectBatchId: "complete",
+            canvaCollectBatchComplete: true,
+          },
+        },
+      ]),
+    ).toBe("complete");
+  });
+
+  it("returns null when no collect batch has been published", () => {
+    expect(
+      latestPublishedCanvaCollectBatchId([
+        {
+          metadata: {
+            canvaCollectBatchId: "partial",
+          },
+        },
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("canvaApprovalPercent", () => {
+  it("rounds approved segments against the collected total", () => {
+    expect(canvaApprovalPercent(0, 0)).toBe(0);
+    expect(canvaApprovalPercent(1, 4)).toBe(25);
+    expect(canvaApprovalPercent(4, 4)).toBe(100);
+  });
+});
+
+describe("buildCanvaSourceLocaleStatus", () => {
+  it("marks collected source pages as ready to apply", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [
+          {
+            pageIndex: 0,
+            sourcePath: "canva/designs/mic/page-1.json",
+            sourceFileId: "file_1",
+            segmentCount: 3,
+            wordCount: 12,
+          },
+        ],
+        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+      }),
+    ).toEqual({
+      locale: "en-US",
+      isSource: true,
+      status: "succeeded",
+      translated: 3,
+      total: 3,
+      translatedWords: 12,
+      wordCount: 12,
+      percent: 100,
+      approved: 3,
+      approvedPercent: 100,
+      canAdd: true,
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/mic/page-1.json",
+          jobId: null,
+          status: "succeeded",
+          translated: 3,
+          total: 3,
+          translatedWords: 12,
+          wordCount: 12,
+          approved: 3,
+        },
+      ],
+    });
+  });
+
+  it("stays idle when nothing has been collected", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [],
+        sourceByPage: new Map(),
+      }),
+    ).toMatchObject({
+      isSource: true,
+      status: "idle",
+      canAdd: false,
+      percent: 0,
+    });
   });
 });

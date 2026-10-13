@@ -12,6 +12,12 @@
  */
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
+import type {
+  GoSvcConversationApi,
+  GoSvcConversationMessage,
+} from "@/lib/go-svc/go-svc-conversation-api";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 
 import type { ChatRepository, ChatRepositoryProvider } from "../../_components/chat-repository";
 import {
@@ -54,18 +60,15 @@ export type InboxApi = {
 
 type ApiClient = ReturnType<typeof createApiClient>;
 
+export type InboxConversationReads = Pick<
+  GoSvcConversationApi,
+  "list" | "listMessages" | "listJobs"
+>;
+
 const FILE_ONLY_CONVERSATION_TEXT = "Please translate the attached source file.";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isConversationMessages(value: unknown): value is ConversationMessage[] {
-  return Array.isArray(value);
-}
-
-function isLinkedJobs(value: unknown): value is LinkedJob[] {
-  return Array.isArray(value);
 }
 
 function isCreatedConversation(value: unknown): value is {
@@ -78,48 +81,69 @@ function isCreatedConversation(value: unknown): value is {
   return typeof value.conversation.id === "string";
 }
 
-export function createInboxApi(client: ApiClient): InboxApi {
+function toConversationMessage(message: GoSvcConversationMessage): ConversationMessage {
+  return {
+    id: message.id,
+    conversationId: message.interactionId,
+    senderType: message.senderType,
+    senderEmail: message.senderEmail,
+    text: message.text,
+    parts: Array.isArray(message.parts) ? message.parts : null,
+    attachments: Array.isArray(message.attachments)
+      ? (message.attachments as ConversationMessage["attachments"])
+      : null,
+    createdAt: message.createdAt,
+  };
+}
+
+function conversationReadError(error: unknown, fallback: string): Error {
+  if (error instanceof GoSvcClientError) {
+    return new Error(goSvcErrorMessage(error, fallback), { cause: error });
+  }
+  return error instanceof Error ? error : new Error(fallback);
+}
+
+export function createInboxApi(
+  client: ApiClient,
+  conversationReads?: InboxConversationReads,
+): InboxApi {
   const conversations = client.api.orgs[":organizationSlug"].conversations;
 
   return {
     async listConversations(organizationSlug, limit = 50) {
-      const response = await conversations.$get({
-        param: { organizationSlug },
-        query: { limit: String(limit) },
-      });
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load conversations");
+      if (!conversationReads) {
+        throw new Error("Failed to load conversations");
       }
-      const body = await response.json();
-      return body.conversations;
+      try {
+        const body = await conversationReads.list(organizationSlug, { limit });
+        return body.conversations;
+      } catch (error) {
+        throw conversationReadError(error, "Failed to load conversations");
+      }
     },
 
     async listMessages(organizationSlug, conversationId) {
-      const response = await conversations[":conversationId"].messages.$get({
-        param: { organizationSlug, conversationId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load messages");
-      }
-      const body = await response.json();
-      if (!isRecord(body) || !isConversationMessages(body.messages)) {
+      if (!conversationReads) {
         throw new Error("Failed to load messages");
       }
-      return body.messages;
+      try {
+        const body = await conversationReads.listMessages(organizationSlug, conversationId);
+        return body.messages.map(toConversationMessage);
+      } catch (error) {
+        throw conversationReadError(error, "Failed to load messages");
+      }
     },
 
     async listLinkedJobs(organizationSlug, conversationId) {
-      const response = await conversations[":conversationId"].jobs.$get({
-        param: { organizationSlug, conversationId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load jobs");
-      }
-      const body = await response.json();
-      if (!isRecord(body) || !isLinkedJobs(body.jobs)) {
+      if (!conversationReads) {
         throw new Error("Failed to load jobs");
       }
-      return body.jobs;
+      try {
+        const body = await conversationReads.listJobs(organizationSlug, conversationId);
+        return body.jobs;
+      } catch (error) {
+        throw conversationReadError(error, "Failed to load jobs");
+      }
     },
 
     async listChatRepositories(organizationSlug) {

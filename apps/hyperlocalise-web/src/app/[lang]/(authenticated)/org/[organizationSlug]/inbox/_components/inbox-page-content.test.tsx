@@ -90,6 +90,19 @@ vi.mock("@/lib/billing/use-ai-features-access", () => ({
   useAiFeaturesAccess: () => ({ status: "allowed" }),
 }));
 
+vi.mock("@/lib/go-svc/use-go-svc-client", () => ({
+  useGoSvcClient: () => ({
+    client: {
+      conversation: {
+        list: vi.fn(),
+        listMessages: vi.fn(),
+        listJobs: vi.fn(),
+      },
+    },
+    loading: false,
+  }),
+}));
+
 vi.mock("./reply-composer", () => ({
   ReplyComposer: ({
     disabled,

@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -150,6 +150,28 @@ describe("AppShellFooter", () => {
       "/org/acme/settings/billing#plan-usage",
     );
   });
+
+  it.each(["Open billing", "See all plans"])(
+    "closes plan usage after following %s",
+    async (linkName) => {
+      const user = userEvent.setup();
+      autumnMocks.useCustomer.mockReturnValue({
+        data: { subscriptions: [], balances: {} },
+        isLoading: false,
+        error: null,
+      });
+      autumnMocks.useListPlans.mockReturnValue({ data: [], isLoading: false, error: null });
+
+      renderFooter({ showPlan: true });
+
+      await user.click(screen.getByRole("button", { name: /Open plan usage/ }));
+      const link = screen.getByRole("link", { name: linkName });
+      link.addEventListener("click", (event) => event.preventDefault());
+      await user.click(link);
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    },
+  );
 
   it("keeps support available without billing access", () => {
     renderFooter({ showPlan: false });

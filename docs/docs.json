@@ -208,6 +208,7 @@
                       "platform/connections/github",
                       "platform/connections/intercom",
                       "platform/connections/braze",
+                      "platform/connections/canva",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false

@@ -10,13 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { z } from "zod";
 
-export const notificationPreferencesSchema = z.object({
-  emailEnabled: z.boolean(),
-  emailFormat: z.enum(["digest", "immediate"]),
-});
-
-export const updateNotificationPreferencesBodySchema = notificationPreferencesSchema;
-
-export type NotificationPreferencesDto = z.infer<typeof notificationPreferencesSchema>;
+export function slugifyCanvaDesignTitle(title: string | undefined, fallback: string): string {
+  const slug = (title ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const fallbackSlug = fallback
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || fallbackSlug || "untitled";
+}

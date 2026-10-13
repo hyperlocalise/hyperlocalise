@@ -24,6 +24,8 @@ Do not install Vitest, Oxlint, or Oxfmt directly. Import test utilities from `vi
 
 Canva preview and bundling still use webpack via `vp run start` and `vp run bundle` because the Apps SDK expects a single `app.js` bundle with Canva-specific dev server settings.
 
+CI runs `vp check`, `vp test`, and `vp run bundle` from [`.github/workflows/canva-app.yml`](../../.github/workflows/canva-app.yml).
+
 ## Before Finalizing
 
 Run `vp check --fix` and `vp test` in `apps/canva-app`.

@@ -46,30 +46,25 @@ export const canvaConnectionPanelMessages = defineMessages({
     id: "IqfvPpBfRa",
     description: "Help text for the Canva API key picker",
   },
+  apiKeyPlaceholder: {
+    defaultMessage: "Select an API key",
+    id: "V8Lhw4iJS1",
+    description: "Placeholder for the Canva API key picker",
+  },
   projectLabel: {
     defaultMessage: "Project",
     id: "VdPMgzyWOp",
     description: "Label for the project bound to a Canva connection",
   },
   projectHelp: {
-    defaultMessage: "Designs localized from Canva are stored in this project.",
-    id: "DiXV/bkiCg",
+    defaultMessage: "Designs localized from Canva use this project's languages.",
+    id: "TsN0FrgQBO",
     description: "Help text for the Canva project picker",
   },
-  sourceLocaleLabel: {
-    defaultMessage: "Source locale",
-    id: "/Y3FQ08kzV",
-    description: "Label for Canva source locale field",
-  },
-  targetLocalesLabel: {
-    defaultMessage: "Target locales",
-    id: "CAun4UHQNn",
-    description: "Label for Canva target locales field",
-  },
-  targetLocalesHelp: {
-    defaultMessage: "Comma-separated locale codes, for example es, fr, de.",
-    id: "g+80zjC0vY",
-    description: "Help text for Canva target locales field",
+  projectPlaceholder: {
+    defaultMessage: "Select a project",
+    id: "t0DApTD09b",
+    description: "Placeholder for the Canva project picker",
   },
   save: {
     defaultMessage: "Save",

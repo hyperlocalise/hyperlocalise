@@ -1,16 +1,15 @@
 # Hyperlocalise Canva App
 
-Canva design editor app that uploads selected pages from a design as a JSON translation file to Hyperlocalise, runs a localization job, and syncs translated text back into the design.
+Canva design editor app that collects one JSON file per page, generates each project language, and applies translations back onto the design.
 
 ## What it does
 
 1. **Select pages** from the full design (all editable pages are selected by default).
-2. **Extract** text from the selected pages (with optional inline formatting preservation).
-3. **Upload** a JSON source file to Hyperlocalise through the web app integration API.
-4. **Translate** through a Hyperlocalise file job using the org's stored API key.
-5. **Sync** the selected target locale back into the selected Canva pages.
+2. **Collect texts** to upload one JSON source file for one selected page, or for every selected page.
+3. **Generate translation** per project target locale (one file job per page file in the latest collect).
+4. **Add to design** on the source language row to restore collected copy, or on a target row to write that translation. Each row can apply one page or every matching page.
 
-The Canva app calls `hyperlocalise-web` at `/api/integrations/canva/localize`. There is no separate Canva backend to deploy.
+The Canva app calls `hyperlocalise-web` at `/api/integrations/canva` (`/collect`, `/locales`, `/jobs`, `/translations`). There is no separate Canva backend to deploy.
 
 ## Requirements
 
@@ -39,27 +38,26 @@ vp run bundle
 
 ## Configure Hyperlocalise
 
+Product steps live in [Localize Canva](../../docs/platform/connections/canva.mdx).
+
 In the Hyperlocalise web app, create a **Canva connection** for your workspace:
 
 1. Choose an API key with `files:read`, `files:write`, `jobs:read`, and `jobs:write`.
-2. Set the default project and locales for the connection.
-3. Copy the one-time **connection token** shown after creation.
+2. Select the native project whose source and target locales the jobs should use. The connection copies those locales; do not send a separate list.
+3. Copy the one-time **connection token** shown after creation, or connect with OAuth from the app.
 
 Set these values in `.env`:
 
 - `CANVA_BACKEND_HOST` — Hyperlocalise web app origin (`http://localhost:3000` in development)
 - `CANVA_APP_ID` — your Canva app ID for JWT verification
 
-In the Canva app UI, provide:
+In the Canva app UI:
 
-- **Connection token** — from the Hyperlocalise Canva connection
-- **Project ID override** — optional; leave blank to use the connection default
-- **Source locale** — language of the current design text
-- **Target locales** — comma-separated locale codes (for example `es, fr, de`)
-- **Apply locale** — which translated locale to write back into Canva
-- **Pages to localize** — choose one or more editable pages from the design
+- **Connect Hyperlocalise** (OAuth) or paste a connection token
+- **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
+- **Generate translation** / **Add to design** — source row first, then one row per project target, shown as `English (en-US)`
 
-Each design is stored at a stable source path: `canva/designs/<design-id>.json`.
+Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 
 ## Preview in Canva
 

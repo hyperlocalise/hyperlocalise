@@ -22,6 +22,10 @@ const mocks = vi.hoisted(() => ({
   }),
   enqueueActivityLogEventsMock: vi.fn().mockResolvedValue([]),
   startCanvaLocalizationMock: vi.fn(),
+  collectCanvaDesignMock: vi.fn(),
+  generateCanvaLocaleJobsMock: vi.fn(),
+  listCanvaDesignLocaleStatusesMock: vi.fn(),
+  pullCanvaLocalePageTranslationsMock: vi.fn(),
   getCanvaLocalizationStatusMock: vi.fn(),
   generateCanvaLocalizationMock: vi.fn(),
   getCurrentCanvaDesignJobMock: vi.fn(),
@@ -51,6 +55,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/canva/localize-design", () => ({
   startCanvaLocalization: mocks.startCanvaLocalizationMock,
+  collectCanvaDesign: mocks.collectCanvaDesignMock,
+  generateCanvaLocaleJobs: mocks.generateCanvaLocaleJobsMock,
+  listCanvaDesignLocaleStatuses: mocks.listCanvaDesignLocaleStatusesMock,
+  pullCanvaLocalePageTranslations: mocks.pullCanvaLocalePageTranslationsMock,
   getCanvaLocalizationStatus: mocks.getCanvaLocalizationStatusMock,
   generateCanvaLocalization: mocks.generateCanvaLocalizationMock,
   getCurrentCanvaDesignJob: mocks.getCurrentCanvaDesignJobMock,
@@ -88,6 +96,30 @@ describe("canvaIntegrationRoutes", () => {
     await projectFixture.cleanup();
   });
 
+  it("allows Canva Apps iframe origins on OPTIONS", async () => {
+    const previewOrigin = "https://app-aahognqjkw4.canva-apps.com";
+    const allowed = await createApp().request("http://localhost/api/integrations/canva/session", {
+      method: "OPTIONS",
+      headers: { Origin: previewOrigin },
+    });
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe(previewOrigin);
+    expect(allowed.headers.get("Access-Control-Allow-Methods")).toContain("GET");
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "authorization",
+    );
+    expect(allowed.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "x-hyperlocalise-access-token",
+    );
+
+    const denied = await createApp().request("http://localhost/api/integrations/canva/health", {
+      method: "GET",
+      headers: { Origin: "https://evil.example" },
+    });
+    expect(denied.status).toBe(200);
+    expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
   it("starts localization when the connection token is valid", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
@@ -106,8 +138,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva test",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     mocks.startCanvaLocalizationMock.mockResolvedValue({
@@ -153,6 +183,128 @@ describe("canvaIntegrationRoutes", () => {
     );
   });
 
+  it("collects page files and lists locale status", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva collect key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva test",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.collectCanvaDesignMock.mockResolvedValue({
+      designSlug: "marketing-flyer",
+      projectId: projectBody.project.id,
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/marketing-flyer/page-0.json",
+          sourceFileId: "file_1",
+          segmentCount: 1,
+        },
+      ],
+    });
+    mocks.listCanvaDesignLocaleStatusesMock.mockResolvedValue({
+      locales: [
+        {
+          locale: "es",
+          status: "idle",
+          translated: 0,
+          total: 1,
+          percent: 0,
+          canAdd: false,
+          pages: [],
+        },
+      ],
+      pages: [],
+    });
+
+    const collectResponse = await client.api.integrations.canva.collect.$post(
+      {
+        json: {
+          designToken: "design-token",
+          designTitle: "Marketing flyer",
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(collectResponse.status).toBe(201);
+    await expect(collectResponse.json()).resolves.toEqual({
+      designSlug: "marketing-flyer",
+      projectId: projectBody.project.id,
+      pages: [
+        {
+          pageIndex: 0,
+          sourcePath: "canva/designs/marketing-flyer/page-0.json",
+          sourceFileId: "file_1",
+          segmentCount: 1,
+        },
+      ],
+    });
+    expect(mocks.collectCanvaDesignMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        projectId: projectBody.project.id,
+        designId: "design-id",
+        designTitle: "Marketing flyer",
+      }),
+    );
+
+    const localesResponse = await client.api.integrations.canva.locales.$get(
+      {
+        query: { designToken: "design-token" },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(localesResponse.status).toBe(200);
+    await expect(localesResponse.json()).resolves.toEqual({
+      locales: [
+        {
+          locale: "es",
+          status: "idle",
+          translated: 0,
+          total: 1,
+          percent: 0,
+          canAdd: false,
+          pages: [],
+        },
+      ],
+      pages: [],
+    });
+  });
+
   it("scopes localization to the connection project even when projectId is sent", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
@@ -173,8 +325,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva test",
       apiKeyId: apiKey.id,
       projectId: boundProjectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     mocks.startCanvaLocalizationMock.mockResolvedValue({
@@ -234,8 +384,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva test",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     mocks.getCanvaLocalizationStatusMock.mockResolvedValue({
@@ -318,8 +466,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva test",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     const response = await client.api.integrations.canva.localize.$post(
@@ -389,8 +535,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva session",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     const response = await client.api.integrations.canva.session.$get(
@@ -428,8 +572,6 @@ describe("canvaIntegrationRoutes", () => {
       displayName: "Canva jobs",
       apiKeyId: apiKey.id,
       projectId: projectBody.project.id,
-      sourceLocale: "en",
-      targetLocales: ["es"],
     });
 
     mocks.startCanvaLocalizationMock.mockResolvedValue({

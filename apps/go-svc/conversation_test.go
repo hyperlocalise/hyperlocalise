@@ -298,7 +298,7 @@ func TestConversationReadsTeamAccess(t *testing.T) {
 		requireVisible(t, f, mustConversation(t, f.scope, conversationSeed{source: "slack_agent", projectID: &externalProject}), true)
 	})
 
-	t.Run("owned workspace chats stay visible to their author", func(t *testing.T) {
+	t.Run("member can read own workspace chat but not teammate's", func(t *testing.T) {
 		f := newConversationFixture(t, "member")
 		liveProject := "ext:phrase:" + uuid.NewString()
 		ownedUnscoped := mustConversation(t, f.scope, conversationSeed{})
@@ -316,8 +316,10 @@ func TestConversationReadsTeamAccess(t *testing.T) {
 		mustConversationMessage(t, f.scope, ownedOnLocalProject, conversationMessageSeed{text: "hi", senderEmail: &f.email})
 
 		requireVisible(t, f, ownedUnscoped, true)
+		require.Equal(t, http.StatusOK, f.get(t, "/"+ownedUnscoped).Code)
 		requireVisible(t, f, ownedLive, true)
 		requireVisible(t, f, someoneElse, false)
+		requireConversationError(t, f.get(t, "/"+someoneElse), http.StatusNotFound, `{"error":"not_found"}`)
 		requireVisible(t, f, agentOnly, false)
 		requireVisible(t, f, otherSource, false)
 		requireVisible(t, f, ownedOnLocalProject, false)

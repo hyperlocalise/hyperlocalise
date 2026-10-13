@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   buildCanvaJobUrl,
+  buildCanvaProjectUrl,
   fetchCanvaSession,
   HyperlocaliseClientError,
 } from "./hyperlocalise-client";
@@ -32,6 +33,21 @@ describe("hyperlocalise-client", () => {
         jobId: "job_1",
       }),
     ).toBe("https://app.example.test/org/acme/projects/project_1/jobs/job_1");
+  });
+
+  it("builds a Hyperlocalise project URL", () => {
+    expect(
+      buildCanvaProjectUrl({
+        organizationSlug: "acme",
+        projectId: "project_1",
+      }),
+    ).toBe("https://app.example.test/org/acme/projects/project_1");
+    expect(
+      buildCanvaProjectUrl({
+        organizationSlug: "",
+        projectId: "project_1",
+      }),
+    ).toBeNull();
   });
 
   it("loads a Canva session", async () => {

@@ -53,24 +53,13 @@ type CanvaConnectionForm = {
   displayName: string;
   apiKeyId: string;
   projectId: string;
-  sourceLocale: string;
-  targetLocales: string;
 };
 
 const emptyForm = (): CanvaConnectionForm => ({
   displayName: "Canva",
   apiKeyId: "",
   projectId: "",
-  sourceLocale: "en",
-  targetLocales: "es, fr, de",
 });
-
-function parseTargetLocales(value: string) {
-  return value
-    .split(/[,\s]+/)
-    .map((locale) => locale.trim())
-    .filter((locale) => locale.length > 0);
-}
 
 export function useCanvaConnections(organizationSlug: string) {
   const intl = useIntl();
@@ -171,8 +160,6 @@ export function CanvaConnectionPanel({
           displayName,
           apiKeyId: payload.apiKeyId,
           projectId: payload.projectId,
-          sourceLocale: payload.sourceLocale.trim() || "en",
-          targetLocales: parseTargetLocales(payload.targetLocales),
           enabled: true,
         },
       });
@@ -318,6 +305,14 @@ export function CanvaConnectionPanel({
   const showForm = adding || connections.length === 0;
   const apiKeys = apiKeysQuery.data ?? [];
   const projects = projectsQuery.data ?? [];
+  const apiKeyItems = apiKeys.map((apiKey) => ({ value: apiKey.id, label: apiKey.name }));
+  const projectItems = projects.map((project) => ({ value: project.id, label: project.name }));
+  const selectedApiKeyLabel = form.apiKeyId
+    ? (apiKeyItems.find((item) => item.value === form.apiKeyId)?.label ?? form.apiKeyId)
+    : undefined;
+  const selectedProjectLabel = form.projectId
+    ? (projectItems.find((item) => item.value === form.projectId)?.label ?? form.projectId)
+    : undefined;
 
   function handleExpandedChange(nextExpanded: boolean) {
     setExpanded(nextExpanded);
@@ -449,7 +444,8 @@ export function CanvaConnectionPanel({
                   <FormattedMessage {...canvaConnectionPanelMessages.apiKeyLabel} />
                 </FieldLabel>
                 <Select
-                  value={form.apiKeyId}
+                  value={form.apiKeyId || null}
+                  items={apiKeyItems}
                   disabled={disabled || saveMutation.isPending || apiKeys.length === 0}
                   onValueChange={(value) => {
                     if (typeof value === "string") {
@@ -458,11 +454,17 @@ export function CanvaConnectionPanel({
                   }}
                 >
                   <SelectTrigger className="h-9 w-full">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={intl.formatMessage(
+                        canvaConnectionPanelMessages.apiKeyPlaceholder,
+                      )}
+                    >
+                      {selectedApiKeyLabel}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {apiKeys.map((apiKey) => (
-                      <SelectItem key={apiKey.id} value={apiKey.id}>
+                      <SelectItem key={apiKey.id} value={apiKey.id} label={apiKey.name}>
                         {apiKey.name}
                       </SelectItem>
                     ))}
@@ -481,7 +483,8 @@ export function CanvaConnectionPanel({
                   <FormattedMessage {...canvaConnectionPanelMessages.projectLabel} />
                 </FieldLabel>
                 <Select
-                  value={form.projectId}
+                  value={form.projectId || null}
+                  items={projectItems}
                   disabled={disabled || saveMutation.isPending || projects.length === 0}
                   onValueChange={(value) => {
                     if (typeof value === "string") {
@@ -490,11 +493,17 @@ export function CanvaConnectionPanel({
                   }}
                 >
                   <SelectTrigger className="h-9 w-full">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={intl.formatMessage(
+                        canvaConnectionPanelMessages.projectPlaceholder,
+                      )}
+                    >
+                      {selectedProjectLabel}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
+                      <SelectItem key={project.id} value={project.id} label={project.name}>
                         {project.name}
                       </SelectItem>
                     ))}
@@ -506,33 +515,6 @@ export function CanvaConnectionPanel({
                   ) : (
                     <FormattedMessage {...canvaConnectionPanelMessages.projectHelp} />
                   )}
-                </p>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...canvaConnectionPanelMessages.sourceLocaleLabel} />
-                </FieldLabel>
-                <Input
-                  value={form.sourceLocale}
-                  disabled={disabled || saveMutation.isPending}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, sourceLocale: event.target.value }))
-                  }
-                />
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...canvaConnectionPanelMessages.targetLocalesLabel} />
-                </FieldLabel>
-                <Input
-                  value={form.targetLocales}
-                  disabled={disabled || saveMutation.isPending}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, targetLocales: event.target.value }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  <FormattedMessage {...canvaConnectionPanelMessages.targetLocalesHelp} />
                 </p>
               </Field>
               <div className="flex justify-end gap-2">

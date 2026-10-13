@@ -13,11 +13,13 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { JobRecord } from "@/api/routes/project/job.schema";
+import type { GoSvcJobApi } from "@/lib/go-svc/go-svc-job-api";
 
 const { nativeJobsGetMock, tmsJobsGetMock } = vi.hoisted(() => ({
   nativeJobsGetMock: vi.fn(),
   tmsJobsGetMock: vi.fn(),
 }));
+const jobApi = { listProject: nativeJobsGetMock } as unknown as GoSvcJobApi;
 
 vi.mock("@/lib/api-client-instance", () => ({
   apiClient: {
@@ -117,15 +119,15 @@ describe("fetchProjectJobs", () => {
       createJob({ id: "job_queued", status: "queued" }),
       createJob({ id: "job_running", status: "running" }),
     ];
-    nativeJobsGetMock.mockResolvedValue(jsonResponse({ jobs }));
+    nativeJobsGetMock.mockResolvedValue({ jobs });
 
     await expect(
-      fetchNativeProjectJobs("acme", "project_1", { open: true, limit: 5 }),
+      fetchNativeProjectJobs(jobApi, "acme", "project_1", { open: true, limit: 5 }),
     ).resolves.toEqual(jobs);
 
-    expect(nativeJobsGetMock).toHaveBeenCalledWith({
-      param: { organizationSlug: "acme", projectId: "project_1" },
-      query: { limit: "5", open: true },
+    expect(nativeJobsGetMock).toHaveBeenCalledWith("acme", "project_1", {
+      limit: 5,
+      open: true,
     });
   });
 
@@ -134,15 +136,15 @@ describe("fetchProjectJobs", () => {
       createJob({ id: "job_review", status: "waiting_for_review" }),
       createJob({ id: "job_failed", status: "failed" }),
     ];
-    nativeJobsGetMock.mockResolvedValue(jsonResponse({ jobs }));
+    nativeJobsGetMock.mockResolvedValue({ jobs });
 
     await expect(
-      fetchNativeProjectJobs("acme", "project_1", { triage: true, limit: 5 }),
+      fetchNativeProjectJobs(jobApi, "acme", "project_1", { triage: true, limit: 5 }),
     ).resolves.toEqual(jobs);
 
-    expect(nativeJobsGetMock).toHaveBeenCalledWith({
-      param: { organizationSlug: "acme", projectId: "project_1" },
-      query: { limit: "5", triage: true },
+    expect(nativeJobsGetMock).toHaveBeenCalledWith("acme", "project_1", {
+      limit: 5,
+      triage: true,
     });
   });
 
