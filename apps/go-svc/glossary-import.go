@@ -614,6 +614,12 @@ func newCSVHeaderIndices() csvHeaderIndices {
 	}
 }
 
+const glossaryCSVCapacityHintCap = 65_536
+
+func glossaryCSVCapacityHint(content string) int {
+	return min(strings.Count(content, "\n")+1, glossaryCSVCapacityHintCap)
+}
+
 func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	diagnostics := []glossaryImportDiagnostic{}
 	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
@@ -690,10 +696,12 @@ func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImport
 		return unescapeGlossaryCSVFormula(v)
 	}
 
-	lineCount := strings.Count(content, "\n") + 1
-	// BOLT OPTIMIZATION: Pre-allocate map and order slice based on line count estimate.
-	byConcept := make(map[string]*glossaryImportConcept, lineCount)
-	order := make([]string, 0, lineCount)
+	// Quoted CSV fields may contain newlines, so physical line count is not a
+	// record count. Cap the hint so a single multiline cell cannot reserve
+	// millions of empty map and slice slots.
+	hint := glossaryCSVCapacityHint(content)
+	byConcept := make(map[string]*glossaryImportConcept, hint)
+	order := make([]string, 0, hint)
 
 	rowNum := 1
 	processRow := func(row []string) {
