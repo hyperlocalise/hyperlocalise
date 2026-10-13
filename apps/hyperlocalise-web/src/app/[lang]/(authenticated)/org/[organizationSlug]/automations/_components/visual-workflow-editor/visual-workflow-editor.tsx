@@ -20,7 +20,7 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -38,6 +38,7 @@ import {
   replaceVisualWorkflowNodeType,
   reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
 import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
@@ -119,6 +120,8 @@ export function VisualWorkflowEditor({
   sampleDraft,
   onSave,
   isSaving = false,
+  savedDefinition,
+  onUnsavedChangesChange,
   organizationSlug,
   visualWorkflowId,
   visualWorkflowsApi,
@@ -136,6 +139,9 @@ export function VisualWorkflowEditor({
   sampleDraft?: VisualWorkflowEditorState;
   onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
   isSaving?: boolean;
+  /** The workflow as last saved. With it, the editor reports whether its graph differs from it. */
+  savedDefinition?: VisualWorkflowV3Definition;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   organizationSlug?: string;
   visualWorkflowId?: string;
   visualWorkflowsApi?: VisualWorkflowsApi;
@@ -170,10 +176,19 @@ export function VisualWorkflowEditor({
   graphRef.current = { nodes, edges };
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const issues = useMemo(
-    () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
+  const definition = useMemo(
+    () => toVisualWorkflowV3Definition({ name, nodes, edges }),
     [edges, name, nodes],
   );
+  const issues = useMemo(() => validateVisualWorkflowV3Definition(definition), [definition]);
+  const hasUnsavedChanges = useMemo(
+    () =>
+      savedDefinition !== undefined && !visualWorkflowDefinitionsEqual(savedDefinition, definition),
+    [definition, savedDefinition],
+  );
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
   const issueNodeIds = useMemo(
     () => new Set(issues.flatMap((issue) => (issue.nodeId ? [issue.nodeId] : []))),
     [issues],
@@ -466,8 +481,6 @@ export function VisualWorkflowEditor({
       })),
     );
 
-    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
-
     try {
       if (organizationSlug && visualWorkflowId && visualWorkflowsApi) {
         const idempotencyKey = `manual-${visualWorkflowId}-${Date.now()}`;
@@ -534,6 +547,7 @@ export function VisualWorkflowEditor({
     testPayload,
     mockOutputs,
     liveTest,
+    definition,
     edges,
     intl,
     name,
@@ -546,10 +560,11 @@ export function VisualWorkflowEditor({
     visualWorkflowsApi,
   ]);
 
-  const draftJson = useCallback(() => {
-    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
-    return `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`;
-  }, [edges, name, nodes]);
+  const draftJson = useCallback(
+    () =>
+      `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`,
+    [definition],
+  );
 
   const onExport = useCallback(() => {
     const blob = new Blob([draftJson()], { type: "application/json" });
@@ -571,17 +586,17 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
-  }, [edges, name, nodes, onSave, saveDisabled]);
+    void onSave(definition);
+  }, [definition, onSave]);
 
   const handleStatusChange = useCallback(
     async (active: boolean) => {
       if (!onStatusChange || (active && saveDisabled)) {
         return;
       }
-      await onStatusChange(active, toVisualWorkflowV3Definition({ name, nodes, edges }));
+      await onStatusChange(active, definition);
     },
-    [edges, name, nodes, onStatusChange, saveDisabled],
+    [definition, onStatusChange, saveDisabled],
   );
 
   return (

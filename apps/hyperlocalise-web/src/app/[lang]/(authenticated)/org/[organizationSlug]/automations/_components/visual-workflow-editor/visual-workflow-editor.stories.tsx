@@ -11,7 +11,9 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 
 import {
   visualWorkflowDemoDraft,
@@ -368,6 +370,47 @@ export const LeaveStepSettings: Story = {
     await expectPicker();
 
     await openSettings();
+  },
+};
+
+export const UnsavedChanges: Story = {
+  name: "Unsaved changes",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The editor reports whether its graph differs from the workflow as last saved. A change that is taken back, and a step that is only selected, leave nothing to save.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    savedDefinition: toVisualWorkflowV3Definition(edgeKindsDraft),
+    onUnsavedChangesChange: fn(),
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ args, canvas }) => {
+    const expectUnsaved = (unsaved: boolean) =>
+      waitFor(() => expect(args.onUnsavedChangesChange).toHaveBeenLastCalledWith(unsaved));
+    const name = await canvas.findByRole("textbox", { name: "Workflow name" });
+    const requestNode = (await canvas.findByTitle("url: string", {}, { timeout: 10_000 })).closest(
+      ".react-flow__node",
+    );
+    await expectUnsaved(false);
+
+    await userEvent.type(name, "!");
+    await expectUnsaved(true);
+    await userEvent.type(name, "{Backspace}");
+    await expectUnsaved(false);
+
+    await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
+    await expectUnsaved(false);
+    await userEvent.click(await canvas.findByRole("combobox", { name: "Method" }));
+    await userEvent.click(await within(document.body).findByRole("option", { name: "POST" }));
+    await expectUnsaved(true);
   },
 };
 
