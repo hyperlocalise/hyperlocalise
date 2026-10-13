@@ -1306,4 +1306,79 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "vwVyosrRNf",
     description: "Accessible label for the lightning badge on trigger nodes",
   },
+  undoTooltip: {
+    defaultMessage: "Undo {action}",
+    id: "h9hqEywbg6",
+    description:
+      "Tooltip of the visual editor's undo button; {action} is what the step did, such as 'adding a step'",
+  },
+  redoTooltip: {
+    defaultMessage: "Redo {action}",
+    id: "zfWAg4fbJG",
+    description:
+      "Tooltip of the visual editor's redo button; {action} is what the step did, such as 'adding a step'",
+  },
+  undoNothing: {
+    defaultMessage: "Nothing to undo",
+    id: "bwvCqV1CkU",
+    description: "Tooltip of the visual editor's undo button when there is no step to take back",
+  },
+  redoNothing: {
+    defaultMessage: "Nothing to redo",
+    id: "2Gc1+aVeLn",
+    description: "Tooltip of the visual editor's redo button when there is no step to put back",
+  },
+  undoActionAdd: {
+    defaultMessage: "{count, plural, one {adding a step} other {adding # steps}}",
+    id: "+HijiNTvvx",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were added to the workflow",
+  },
+  undoActionRemove: {
+    defaultMessage: "{count, plural, one {removing a step} other {removing # steps}}",
+    id: "mcpumDgw0v",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': nodes were removed from the workflow",
+  },
+  undoActionConnect: {
+    defaultMessage: "connecting steps",
+    id: "Fm7MxbuOiN",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was added",
+  },
+  undoActionDisconnect: {
+    defaultMessage: "disconnecting steps",
+    id: "t5xBIlTLwl",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was removed",
+  },
+  undoActionMove: {
+    defaultMessage: "{count, plural, one {moving a step} other {moving # steps}}",
+    id: "ZZerbQkD+z",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were moved on the canvas",
+  },
+  undoActionConfigure: {
+    defaultMessage: "changing a step's settings",
+    id: "gl6BIyGKNo",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node's settings were changed",
+  },
+  undoActionRetype: {
+    defaultMessage: "changing a step's type",
+    id: "enQcoq4887",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node was given another type",
+  },
+  undoActionRename: {
+    defaultMessage: "renaming the workflow",
+    id: "WdGY58H2dj",
+    description: "What an undo step did, after 'Undo' or 'Redo': the workflow's name was changed",
+  },
+  undoActionEdit: {
+    defaultMessage: "the last change",
+    id: "8MkwvIyeaM",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once",
+  },
+  undoActionAssistant: {
+    defaultMessage: "the assistant's changes",
+    id: "5dSB/hCLGx",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': the assistant changed the workflow",
+  },
 });
