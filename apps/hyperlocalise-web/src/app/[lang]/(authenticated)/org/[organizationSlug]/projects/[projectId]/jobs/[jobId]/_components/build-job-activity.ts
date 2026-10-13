@@ -157,6 +157,33 @@ export function isJobStatusActive(status: string) {
   return status === "queued" || status === "running";
 }
 
+/** Keep polling briefly after status settles so late terminal events are not missed. */
+export const JOB_TERMINAL_EVENT_POLL_GRACE_MS = 30_000;
+
+export function hasTerminalJobEvent(events: JobEventRecord[] | undefined) {
+  return (
+    events?.some((event) => event.type === "job_succeeded" || event.type === "job_failed") ?? false
+  );
+}
+
+export function shouldPollJobEvents(
+  status: string,
+  events: JobEventRecord[] | undefined,
+  options?: { waitingForTerminalEventMs?: number },
+) {
+  if (isJobStatusActive(status)) {
+    return true;
+  }
+  if (status !== "succeeded" && status !== "failed") {
+    return false;
+  }
+  if (hasTerminalJobEvent(events)) {
+    return false;
+  }
+  const waited = options?.waitingForTerminalEventMs ?? 0;
+  return waited < JOB_TERMINAL_EVENT_POLL_GRACE_MS;
+}
+
 function settledStageForJobStatus(status: string): JobActivityRunStage {
   if (status === "succeeded") return "succeeded";
   if (status === "failed") return "failed";

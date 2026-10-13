@@ -13,13 +13,13 @@
  * Version 2.0 or later.
  */
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import { useAssignableIssueMembersQuery } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/use-assignable-issue-members";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
-import { buildJobActivity, isJobStatusActive } from "./build-job-activity";
+import { buildJobActivity, hasTerminalJobEvent, shouldPollJobEvents } from "./build-job-activity";
 import { JobActivityView } from "./job-activity-view";
 import type { JobDetailRecord } from "./job-detail-types";
 import { isNativeFileTranslationJob } from "./native-job-detail-helpers";
@@ -40,19 +40,31 @@ export function JobActivitySection({
   job: Pick<JobDetailRecord, "id" | "status" | "createdAt" | "createdByUserId">;
 }) {
   const { client: goSvcClient } = useGoSvcClient();
-  const active = isJobStatusActive(job.status);
+  const terminalEventWaitStartedAt = useRef<number | null>(null);
 
-  // Status is in the key so a final fetch runs when the job settles, picking up
-  // terminal events written just after the status change.
   const eventsQuery = useQuery({
     queryKey: ["job-events", organizationSlug, job.id, job.status],
     queryFn: () => goSvcClient.job.listEvents(organizationSlug, job.id),
     placeholderData: keepPreviousData,
-    refetchInterval: active ? JOB_ACTIVITY_POLL_INTERVAL_MS : false,
+    refetchInterval: (query) => {
+      const events = query.state.data?.events;
+      const waitingForTerminalEventMs = terminalEventWaitStartedAt.current
+        ? Date.now() - terminalEventWaitStartedAt.current
+        : 0;
+      return shouldPollJobEvents(job.status, events, { waitingForTerminalEventMs })
+        ? JOB_ACTIVITY_POLL_INTERVAL_MS
+        : false;
+    },
   });
-  const membersQuery = useAssignableIssueMembersQuery({ organizationSlug, projectId });
 
   const events = eventsQuery.data?.events;
+  if ((job.status === "succeeded" || job.status === "failed") && !hasTerminalJobEvent(events)) {
+    terminalEventWaitStartedAt.current ??= Date.now();
+  } else {
+    terminalEventWaitStartedAt.current = null;
+  }
+  const membersQuery = useAssignableIssueMembersQuery({ organizationSlug, projectId });
+
   const items = useMemo(
     () => (events ? buildJobActivity(events, { jobStatus: job.status }) : null),
     [events, job.status],

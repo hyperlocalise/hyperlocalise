@@ -595,6 +595,22 @@ export async function completeFileTranslationJobStep(input: {
     );
   }
 
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_succeeded",
+        payload: {
+          completedLocales: input.outputFiles.map((file) => file.locale),
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+
   const { captureJobStatus } = await import("@/lib/reporting/capture");
   await captureJobStatus({
     jobId: input.jobId,
@@ -637,22 +653,6 @@ export async function completeFileTranslationJobStep(input: {
       error: formatUsageControlError(trackUsageResult.error),
     });
   }
-
-  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
-  await recordJobEvents({
-    jobId: input.jobId,
-    workflowRunId: input.workflowRunId,
-    events: [
-      {
-        type: "job_succeeded",
-        payload: {
-          completedLocales: input.outputFiles.map((file) => file.locale),
-          failedLocales: input.failedLocales ?? [],
-          followUpJobId: input.followUpJobId ?? null,
-        },
-      },
-    ],
-  });
 }
 
 export async function localizeImageVariantForJobStep(input: {

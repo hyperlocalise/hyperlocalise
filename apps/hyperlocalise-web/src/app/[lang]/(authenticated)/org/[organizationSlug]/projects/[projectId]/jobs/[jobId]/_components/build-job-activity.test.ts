@@ -12,13 +12,24 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildJobActivity, type JobActivityRun } from "./build-job-activity";
+import {
+  buildJobActivity,
+  hasTerminalJobEvent,
+  JOB_TERMINAL_EVENT_POLL_GRACE_MS,
+  shouldPollJobEvents,
+  type JobActivityRun,
+} from "./build-job-activity";
 import {
   failedThenRetriedJobEvents,
   inProgressJobEvents,
   jobEventsFixture,
   partialFailureJobEvents,
 } from "./job-activity.fixture";
+
+const succeededTerminalEvent = partialFailureJobEvents.find(
+  (event) => event.type === "job_succeeded",
+);
+const failedTerminalEvent = failedThenRetriedJobEvents.find((event) => event.type === "job_failed");
 
 function onlyRun(items: ReturnType<typeof buildJobActivity>): JobActivityRun {
   expect(items).toHaveLength(1);
@@ -148,5 +159,34 @@ describe("buildJobActivity", () => {
         reusedCount: null,
       },
     ]);
+  });
+});
+
+describe("shouldPollJobEvents", () => {
+  it("polls while the job is active", () => {
+    expect(shouldPollJobEvents("running", [])).toBe(true);
+    expect(shouldPollJobEvents("queued", undefined)).toBe(true);
+  });
+
+  it("keeps polling after terminal status until a terminal event arrives", () => {
+    expect(shouldPollJobEvents("succeeded", [])).toBe(true);
+    expect(shouldPollJobEvents("failed", [])).toBe(true);
+    expect(shouldPollJobEvents("succeeded", [succeededTerminalEvent!])).toBe(false);
+    expect(shouldPollJobEvents("failed", [failedTerminalEvent!])).toBe(false);
+  });
+
+  it("stops polling for cancelled jobs and after the grace window", () => {
+    expect(shouldPollJobEvents("cancelled", [])).toBe(false);
+    expect(
+      shouldPollJobEvents("succeeded", [], {
+        waitingForTerminalEventMs: JOB_TERMINAL_EVENT_POLL_GRACE_MS,
+      }),
+    ).toBe(false);
+  });
+
+  it("detects terminal job events", () => {
+    expect(hasTerminalJobEvent([])).toBe(false);
+    expect(hasTerminalJobEvent(succeededTerminalEvent ? [succeededTerminalEvent] : [])).toBe(true);
+    expect(hasTerminalJobEvent(failedTerminalEvent ? [failedTerminalEvent] : [])).toBe(true);
   });
 });

@@ -53,6 +53,7 @@ async function insertJob() {
 describe("recordJobEvents", () => {
   it("stores events with the job's organization in order", async () => {
     const { jobId, organizationId } = await insertJob();
+    await db.update(schema.jobs).set({ workflowRunId: "run-1" }).where(eq(schema.jobs.id, jobId));
 
     await recordJobEvents({
       jobId,
@@ -80,6 +81,51 @@ describe("recordJobEvents", () => {
         payload: { translatedCount: 4, totalCount: 10 },
       },
     ]);
+  });
+
+  it("ignores workflow events when the run no longer owns the job", async () => {
+    const { jobId } = await insertJob();
+    await db
+      .update(schema.jobs)
+      .set({ workflowRunId: "run-current" })
+      .where(eq(schema.jobs.id, jobId));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await recordJobEvents({
+      jobId,
+      workflowRunId: "run-stale",
+      events: [
+        {
+          type: "locale_progress",
+          locale: "fr-FR",
+          payload: { translatedCount: 1, totalCount: 2 },
+        },
+      ],
+    });
+
+    const rows = await db.select().from(schema.jobEvents).where(eq(schema.jobEvents.jobId, jobId));
+    expect(rows).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith(
+      "[job-events] ignored events from stale workflow run",
+      expect.objectContaining({
+        jobId,
+        workflowRunId: "run-stale",
+        currentWorkflowRunId: "run-current",
+      }),
+    );
+  });
+
+  it("records user-action events without a workflow run when ownership was cleared", async () => {
+    const { jobId } = await insertJob();
+    await db.update(schema.jobs).set({ workflowRunId: null }).where(eq(schema.jobs.id, jobId));
+
+    await recordJobEvents({
+      jobId,
+      events: [{ type: "job_cancelled", payload: {} }],
+    });
+
+    const rows = await db.select().from(schema.jobEvents).where(eq(schema.jobEvents.jobId, jobId));
+    expect(rows).toMatchObject([{ type: "job_cancelled", workflowRunId: null, actorUserId: null }]);
   });
 
   it("ignores unknown jobs without throwing", async () => {

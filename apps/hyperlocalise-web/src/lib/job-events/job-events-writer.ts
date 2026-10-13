@@ -36,8 +36,12 @@ export async function recordJobEvents(
   }
 
   try {
+    const workflowRunId = input.workflowRunId ?? null;
     const [job] = await database
-      .select({ organizationId: schema.jobs.organizationId })
+      .select({
+        organizationId: schema.jobs.organizationId,
+        workflowRunId: schema.jobs.workflowRunId,
+      })
       .from(schema.jobs)
       .where(eq(schema.jobs.id, input.jobId))
       .limit(1);
@@ -45,11 +49,21 @@ export async function recordJobEvents(
       return;
     }
 
+    if (workflowRunId !== null && job.workflowRunId !== workflowRunId) {
+      console.warn("[job-events] ignored events from stale workflow run", {
+        jobId: input.jobId,
+        workflowRunId,
+        currentWorkflowRunId: job.workflowRunId,
+        eventTypes: input.events.map((event) => event.type),
+      });
+      return;
+    }
+
     await database.insert(schema.jobEvents).values(
       input.events.map((event) => ({
         jobId: input.jobId,
         organizationId: job.organizationId,
-        workflowRunId: input.workflowRunId ?? null,
+        workflowRunId,
         actorUserId: input.actorUserId ?? null,
         type: event.type,
         locale: event.locale ?? null,
