@@ -99,6 +99,70 @@ describe("markFreshVisualWorkflowSteps", () => {
     expect([...back]).toEqual(["b"]);
   });
 
+  it("marks a step whose settings or type change while it is not selected", () => {
+    const configured = node("a", {
+      data: {
+        catalogType: "logic.set",
+        config: { kind: "logic.set", assignments: [{ key: "greeting", value: "hello" }] },
+        runStatus: "idle",
+      },
+    });
+    expect([
+      ...markFreshVisualWorkflowSteps({
+        marked: none,
+        previous: [node("a")],
+        next: [configured],
+        selectedNodeId: null,
+      }),
+    ]).toEqual(["a"]);
+    const retyped = node("a", {
+      type: "logic.if",
+      data: { catalogType: "logic.if", config: createDefaultConfig("logic.if"), runStatus: "idle" },
+    });
+    expect([
+      ...markFreshVisualWorkflowSteps({
+        marked: none,
+        previous: [node("a")],
+        next: [retyped],
+        selectedNodeId: null,
+      }),
+    ]).toEqual(["a"]);
+    expect(
+      markFreshVisualWorkflowSteps({
+        marked: none,
+        previous: [node("a")],
+        next: [configured],
+        selectedNodeId: "a",
+      }).size,
+    ).toBe(0);
+  });
+
+  it("does not mark a move, a test run's marks or a change to a loop's body steps", () => {
+    const loop = node("a", {
+      type: "logic.for_each",
+      data: {
+        catalogType: "logic.for_each",
+        config: createDefaultConfig("logic.for_each"),
+        runStatus: "idle",
+      },
+    });
+    const later = [
+      { ...loop, position: { x: 40, y: 80 } },
+      { ...loop, data: { ...loop.data, runStatus: "succeeded" as const, lastOutput: { n: 1 } } },
+      { ...loop, data: { ...loop.data, bodyNodeIds: ["b"] } },
+    ];
+    for (const next of later) {
+      expect(
+        markFreshVisualWorkflowSteps({
+          marked: none,
+          previous: [loop],
+          next: [next],
+          selectedNodeId: null,
+        }).size,
+      ).toBe(0);
+    }
+  });
+
   it("returns the same set when nothing changes", () => {
     const steps = [node("a")];
     expect(

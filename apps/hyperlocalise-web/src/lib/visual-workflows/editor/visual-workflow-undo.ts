@@ -70,6 +70,15 @@ function nodeSettings(node: VisualWorkflowRfNode): string {
   return stable({ type: node.type, width: node.width, height: node.height, data });
 }
 
+/**
+ * What a person sets on a step: its type, configuration, inputs and declared outputs. Not what
+ * follows from its connections, such as a loop's body steps, nor what a test run leaves.
+ */
+export function visualWorkflowStepSettings(node: VisualWorkflowRfNode): string {
+  const { catalogType, config, inputs, outputFields, collect } = node.data;
+  return stable({ catalogType, config, inputs, outputFields, collect });
+}
+
 function nodePosition(node: VisualWorkflowRfNode): string {
   return `${node.position.x},${node.position.y}`;
 }

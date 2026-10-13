@@ -175,7 +175,7 @@ export function VisualWorkflowEditor({
     graphRef.current = next;
     historyRef.current.replace(next);
   }, []);
-  // Steps that appeared and have not been selected since, which the canvas marks as new.
+  // Steps that appeared or were changed, and have not been selected since, which the canvas marks.
   const [freshNodeIds, setFreshNodeIds] = useState<ReadonlySet<string>>(NO_FRESH_STEPS);
   const seenNodesRef = useRef(nodes);
   useEffect(() => {

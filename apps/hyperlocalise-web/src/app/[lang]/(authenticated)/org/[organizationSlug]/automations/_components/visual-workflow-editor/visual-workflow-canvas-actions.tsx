@@ -36,7 +36,7 @@ export function VisualWorkflowCanvasActionsProvider({
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
   /** The steps a validation issue is about, which the canvas marks. */
   issueNodeIds?: ReadonlySet<string>;
-  /** The steps that appeared and have not been selected since, which the canvas marks. */
+  /** The steps that appeared or were changed and have not been selected since, which the canvas marks. */
   freshNodeIds?: ReadonlySet<string>;
   children: ReactNode;
 }) {
