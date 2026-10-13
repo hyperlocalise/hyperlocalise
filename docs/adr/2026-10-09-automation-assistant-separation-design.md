@@ -6,7 +6,7 @@ Accepted on 2026-10-09. Built the same day on `feat/web-automations-assistant-2`
 
 ## Context
 
-The automation setup assistant was built as a capability of the chat dock's localisation agent ([plan](../plans/2026-10-05-automation-assistant-design.md)). That agent is a worker: it translates files, finds context for source strings, reads git history, checks TMS progress, searches glossaries and keeps the organisation's Memory. It serves the dock, the Inbox, the Crowdin app and Slack from one loop, and its conversations are the team's threads, listed in the Inbox by design ([Inbox design](2026-05-01-inbox-design.md)).
+The automation setup assistant was built as a capability of the chat dock's localisation agent ([plan](../plans/2026-10-05-automation-assistant-design.md)). That agent is a worker: it translates files, finds context for source strings, reads git history, checks TMS progress, searches glossaries and keeps the organisation's Memory. It serves the dock, the Inbox and Slack from one loop, and its conversations are the team's threads, listed in the Inbox by design ([Inbox design](2026-05-01-inbox-design.md)).
 
 Fitting setup into it needed an operator gate, a context only the web dock can send, a skip of the repository classifier, and a prompt that carries every other skill. A setup chat turns back into a localisation chat the moment its page closes. The gate is a requirement (automations are for admins and localisation managers); the rest is the cost of putting a configuration helper inside a content worker.
 

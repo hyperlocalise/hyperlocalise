@@ -5275,10 +5275,6 @@
     "defaultMessage": "Save to provider",
     "description": "Primary CAT action label when saving translations back to a TMS provider"
   },
-  "7rtL+2WjPy": {
-    "defaultMessage": "New request",
-    "description": "Button to start a new project-scoped conversation in Crowdin App inbox"
-  },
   "7rwI1YGn2f": {
     "defaultMessage": "No context recorded",
     "description": "Empty state when a translation memory entry has no context metadata"
@@ -30883,10 +30879,6 @@
     "defaultMessage": "Localization roles are assigned manually in Hyperlocalise. They are not synced from SCIM directory groups.",
     "description": "Notice that localization roles are managed in-app rather than via SCIM"
   },
-  "si5HssHaNU": {
-    "defaultMessage": "Loading Hyperlocalise…",
-    "description": "Loading state while Crowdin App inbox bootstraps"
-  },
   "sishbO9DCq": {
     "defaultMessage": "This key will immediately lose access to the workspace API. Any integrations using it will stop working.",
     "description": "Description in the revoke API key confirmation dialog"
@@ -32855,10 +32847,6 @@
     "defaultMessage": "e.g. Keep the logo unchanged and translate on-screen text only.",
     "description": "Placeholder for AI prompt when generating a translated image in CAT file view"
   },
-  "wGu07dv5qW": {
-    "defaultMessage": "Project: {projectName}",
-    "description": "Crowdin App inbox header showing the linked Hyperlocalise project"
-  },
   "wHFmp4/+wj": {
     "defaultMessage": "Source file",
     "description": "Inbox issue detail source label in content ops mock"
@@ -33218,10 +33206,6 @@
   "wuTr/wBWSH": {
     "defaultMessage": "This domain is not in the workspace catalog.",
     "description": "Description when a linked domain id is unknown"
-  },
-  "wueVNaKGWk": {
-    "defaultMessage": "Hyperlocalise",
-    "description": "Brand name in the Crowdin App inbox header"
   },
   "wufZJk5FA/": {
     "defaultMessage": "Guideline",

@@ -29,7 +29,7 @@ describe("project selector model", () => {
         tmsProjects: [
           {
             id: "ext:crowdin:42",
-            name: "Crowdin App",
+            name: "Crowdin Project",
             source: "external_tms",
             externalProviderKind: "crowdin",
           },
@@ -44,7 +44,7 @@ describe("project selector model", () => {
     ).toEqual([
       {
         id: "ext:crowdin:42",
-        name: "Crowdin App",
+        name: "Crowdin Project",
         source: "external_tms",
         externalProviderKind: "crowdin",
       },
