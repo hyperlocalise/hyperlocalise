@@ -38,8 +38,8 @@ import {
   replaceVisualWorkflowNodeType,
   reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import { visualWorkflowDemoDraft } from "@/lib/visual-workflows/fixtures/demo-draft";
-import { getSwitchCaseIndexByHandleId } from "@/lib/visual-workflows/schema/switch-cases";
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   MockNodeRunStatus,
@@ -73,42 +73,6 @@ import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
-
-const NODE_GAP_X = 340;
-const NODE_GAP_Y = 36;
-
-function quickAddOffsetY(handleId: string | undefined, source: VisualWorkflowRfNode): number {
-  const sourceHeight =
-    source.height ?? getVisualNodeDimensions(source.data.catalogType, source.data.config).height;
-  const branchStep = sourceHeight + NODE_GAP_Y;
-
-  if (!handleId || handleId === "true" || handleId === "each") {
-    return 0;
-  }
-  if (source.data.catalogType === "logic.try_catch") {
-    const outputIndex = ["try", "success", "catch", "finally"].indexOf(handleId);
-    if (outputIndex >= 0) return outputIndex * branchStep;
-  }
-  if (source.data.config.kind === "logic.sequence") {
-    const outputIndex = source.data.config.outputs.findIndex((output) => output.id === handleId);
-    if (outputIndex >= 0) {
-      return outputIndex * branchStep;
-    }
-  }
-  if (handleId === "false" || handleId === "done" || handleId === "error") {
-    return branchStep;
-  }
-  if (source.data.catalogType === "logic.switch" && source.data.config.kind === "logic.switch") {
-    if (handleId === "default") {
-      return source.data.config.cases.length * branchStep;
-    }
-    const caseIndex = getSwitchCaseIndexByHandleId(source.data.config.cases, handleId);
-    if (caseIndex !== null) {
-      return caseIndex * branchStep;
-    }
-  }
-  return 0;
-}
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -284,12 +248,11 @@ export function VisualWorkflowEditor({
           : `vw_${Date.now()}`;
       const { nodes: currentNodes, edges: currentEdges } = graphRef.current;
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
-      const position = source
-        ? {
-            x: source.position.x + NODE_GAP_X,
-            y: source.position.y + quickAddOffsetY(addFrom?.handleId, source),
-          }
-        : { x: 120 + currentNodes.length * 24, y: 160 + currentNodes.length * 16 };
+      const position = placeNewVisualWorkflowNode({
+        nodes: currentNodes,
+        source,
+        handleId: addFrom?.handleId,
+      });
 
       const config = createDefaultConfig(type);
       const nextNode: VisualWorkflowRfNode = {
