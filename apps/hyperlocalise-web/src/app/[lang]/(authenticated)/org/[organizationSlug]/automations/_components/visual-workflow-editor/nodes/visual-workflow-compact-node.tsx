@@ -191,9 +191,14 @@ const EXECUTION_HANDLE_PITCH = 24;
 // The row of the execution input and the main output on a step with data ports: beside the title,
 // clear of the data ports below.
 const EXECUTION_MAIN_ROW_TOP = 64;
+// The rows start below the marks in the card's top corners, so the first label never runs under
+// the issue mark.
+const EXECUTION_ZONE_TOP_INSET = 12;
 
 function executionTop(fraction: number): CSSProperties {
-  return { top: `calc(var(${EXECUTION_ZONE_VARIABLE}) * ${fraction})` };
+  return {
+    top: `calc(${EXECUTION_ZONE_TOP_INSET}px + (var(${EXECUTION_ZONE_VARIABLE}) - ${EXECUTION_ZONE_TOP_INSET}px) * ${fraction})`,
+  };
 }
 
 /** Where `count` handles go when spread evenly down the execution zone. */
