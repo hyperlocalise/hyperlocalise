@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const visualWorkflowEditorMessages = defineMessages({
+  executionChildRuns: {
+    defaultMessage: "Child workflow executions",
+    id: "TIDKg7QM0N",
+    description: "Heading for child workflow runs launched by the selected parent run",
+  },
   untitledName: {
     defaultMessage: "Untitled workflow",
     id: "dfVzkj5hWL",
@@ -599,6 +604,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Handle failures from a bounded execution region",
     id: "X5HXzEgA4e",
     description: "Visual workflow Try / Catch node picker hint",
+  },
+  nodeCallWorkflow: {
+    defaultMessage: "Call workflow",
+    id: "AX4bE25lbf",
+    description: "Visual workflow Call Workflow node title",
+  },
+  nodeCallWorkflowHint: {
+    defaultMessage: "Run a pinned version of a reusable workflow.",
+    id: "EIF7eE+7GJ",
+    description: "Visual workflow Call Workflow node picker hint",
   },
   sequenceOutputs: {
     defaultMessage: "Execution outputs",

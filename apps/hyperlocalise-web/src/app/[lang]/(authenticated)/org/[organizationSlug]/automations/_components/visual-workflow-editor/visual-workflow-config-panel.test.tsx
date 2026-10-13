@@ -35,6 +35,35 @@ vi.mock("./visual-workflow-resource-options", () => ({
   useVisualWorkflowResourceOptions: () => ({
     projects: [{ id: "project-1", name: "Acme" }],
     availableProviders: ["github"],
+    workflows: [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Enrich customer",
+        publishedVersion: 3,
+        publishedDefinition: {
+          version: 3,
+          nodes: [
+            {
+              id: "trigger",
+              type: "trigger.manual",
+              position: { x: 0, y: 0 },
+              config: { kind: "trigger.manual" },
+              outputFields: [{ path: "customerId", type: "string" }],
+            },
+            {
+              id: "return",
+              type: "flow.return",
+              position: { x: 320, y: 0 },
+              config: {
+                kind: "flow.return",
+                outputs: [{ id: "result-id", name: "result", type: "object" }],
+              },
+            },
+          ],
+          edges: [],
+        },
+      },
+    ],
     resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
   }),
 }));
@@ -138,6 +167,27 @@ function terminalNode(
     position: { x: 0, y: 0 },
     ...getVisualNodeDimensions(type),
     data: { catalogType: type, config, runStatus: "idle" },
+  };
+}
+
+function callWorkflowNode(): VisualWorkflowRfNode {
+  return {
+    id: "call",
+    type: "flow.call_workflow",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("flow.call_workflow"),
+    data: {
+      catalogType: "flow.call_workflow",
+      config: {
+        kind: "flow.call_workflow",
+        workflowId: "11111111-1111-4111-8111-111111111111",
+        version: 3,
+        inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+        outputFields: [{ id: "result-id", name: "result", type: "object", required: true }],
+        onError: "stop",
+      },
+      runStatus: "idle",
+    },
   };
 }
 
@@ -639,6 +689,44 @@ describe("VisualWorkflowConfigPanel", () => {
       kind: "flow.fail",
       errorCode: "ORDER_REJECTED",
       message: "Workflow failed",
+    });
+  });
+
+  it("configures a published workflow and its immutable contract", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={callWorkflowNode()}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("customerId")).toBeInTheDocument();
+    expect(screen.getByText("result")).toBeInTheDocument();
+    expect(screen.getAllByText("object · required")).toHaveLength(1);
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Immutable version" }), {
+      target: { value: "4" },
+    });
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kind: "flow.call_workflow", version: 4 }),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Published workflow" }));
+    await user.click(await screen.findByRole("option", { name: "Enrich customer · v3" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith({
+      kind: "flow.call_workflow",
+      workflowId: "11111111-1111-4111-8111-111111111111",
+      version: 3,
+      inputFields: [{ id: "customerId", name: "customerId", type: "string", required: true }],
+      outputFields: [{ id: "result-id", name: "result", type: "object", required: true }],
+      onError: "stop",
     });
   });
 });

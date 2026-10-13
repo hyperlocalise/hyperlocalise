@@ -176,6 +176,11 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     ],
     mock: {},
   },
+  "flow.call_workflow": {
+    inputs: [],
+    outputs: [],
+    mock: {},
+  },
 };
 export function matchesWorkflowType(value: unknown, type: WorkflowValueType): boolean {
   if (type === "unknown") return true;
@@ -210,6 +215,15 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
       fields.set(name, { path: name, type });
     }
   }
+  if (node.config.kind === "flow.call_workflow") {
+    for (const outputField of node.config.outputFields) {
+      fields.set(`value.${outputField.id}`, {
+        path: `value.${outputField.id}`,
+        type: outputField.type,
+        optional: outputField.required === false,
+      });
+    }
+  }
   for (const field of node.outputFields ?? []) fields.set(field.path, field);
   return [...fields.values()];
 }
@@ -220,6 +234,14 @@ export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): Workf
       name: `value.${returnOutput.id}`,
       type: returnOutput.type,
       required: true,
+    }));
+  }
+
+  if (node.config.kind === "flow.call_workflow") {
+    return node.config.inputFields.map((inputField) => ({
+      name: `value.${inputField.id}`,
+      type: inputField.type,
+      required: inputField.required !== false,
     }));
   }
 

@@ -846,5 +846,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSequence;
     case "logic.try_catch":
       return messages.nodeTryCatch;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflow;
   }
 }
