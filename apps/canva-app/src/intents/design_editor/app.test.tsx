@@ -48,7 +48,8 @@ function emptySettings(overrides: Partial<AppSettings> = {}): AppSettings {
     preserveFormatting: true,
     selectedPageIndices: [],
     selectedLocale: "",
-    appliedLocale: "",
+    designId: "",
+    appliedLocaleByPage: {},
     lastJobId: "",
     ...overrides,
   };
@@ -184,6 +185,7 @@ function applied(overrides: Partial<ApplyResult> = {}): ApplyResult {
     skipped: 0,
     untranslated: 0,
     pagesNeedingUpload: [],
+    appliedPageIndices: [0],
     ...overrides,
   };
 }
@@ -641,12 +643,15 @@ describe("Hyperlocalise Canva app", () => {
   });
 
   it("disables Upload when the design is not on the source locale", async () => {
-    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "fr-FR" }));
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({ appliedLocaleByPage: { "0": "fr-FR" } }),
+    );
     const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue(session());
     vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
       locales: [readySourceStatus(), readyFrenchStatus()],
       pages: [],
+      designId: "design_1",
     });
 
     const result = renderInTestProvider(<App />);
@@ -664,11 +669,106 @@ describe("Hyperlocalise Canva app", () => {
     });
   });
 
-  it("disables Translate for unuploaded pages while a target locale is applied", async () => {
-    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "fr-FR" }));
+  it("keeps Upload enabled for a selected page that still has source text", async () => {
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({
+        selectedPageIndices: [1],
+        appliedLocaleByPage: { "0": "fr-FR" },
+      }),
+    );
     const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
     vi.mocked(fetchCanvaSession).mockResolvedValue(session());
-    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({ locales: [], pages: [] });
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus(), readyFrenchStatus()],
+      pages: [],
+      designId: "design_1",
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+    });
+  });
+
+  it("clears applied locales when the design id changes", async () => {
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({
+        designId: "design_a",
+        appliedLocaleByPage: { "0": "fr-FR" },
+      }),
+    );
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readySourceStatus(), readyFrenchStatus()],
+      pages: [],
+      designId: "design_b",
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+    });
+  });
+
+  it("does not stamp applied locales for pages that needed a re-upload", async () => {
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({ designId: "design_1", appliedLocaleByPage: {} }),
+    );
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses, pullCanvaLocalePages } =
+      await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [readyFrenchStatus()],
+      pages: [],
+      designId: "design_1",
+    });
+    vi.mocked(pullCanvaLocalePages).mockResolvedValue({
+      locale: "fr-FR",
+      projectId: "project_1",
+      pages: [pullPage()],
+    });
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(
+      applied({
+        replaced: 0,
+        alreadyApplied: 0,
+        pagesNeedingUpload: [0],
+        appliedPageIndices: [],
+      }),
+    );
+
+    const result = renderInTestProvider(<App />);
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Apply" }).getAttribute("aria-disabled")).not.toBe(
+        "true",
+      );
+    });
+    fireEvent.click(result.getByRole("button", { name: "Apply" }));
+    await waitFor(() => {
+      expect(result.getByText("Upload Page 1 again to apply translations.")).toBeTruthy();
+    });
+    expect(result.getByRole("button", { name: "Upload" }).getAttribute("aria-disabled")).not.toBe(
+      "true",
+    );
+  });
+
+  it("disables Translate for unuploaded pages while a target locale is applied", async () => {
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({ appliedLocaleByPage: { "0": "fr-FR" } }),
+    );
+    const { fetchCanvaSession, fetchCanvaLocaleStatuses } = await import("./hyperlocalise-client");
+    vi.mocked(fetchCanvaSession).mockResolvedValue(session());
+    vi.mocked(fetchCanvaLocaleStatuses).mockResolvedValue({
+      locales: [],
+      pages: [],
+      designId: "design_1",
+    });
 
     const result = renderInTestProvider(<App />);
 
@@ -686,7 +786,9 @@ describe("Hyperlocalise Canva app", () => {
   });
 
   it("uploads unuploaded pages before translating when the source is applied", async () => {
-    vi.mocked(loadSettings).mockReturnValue(connectedSettings({ appliedLocale: "en-US" }));
+    vi.mocked(loadSettings).mockReturnValue(
+      connectedSettings({ appliedLocaleByPage: { "0": "en-US" } }),
+    );
     const {
       fetchCanvaSession,
       fetchCanvaLocaleStatuses,

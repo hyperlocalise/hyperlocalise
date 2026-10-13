@@ -49,8 +49,11 @@ import {
   parseSelectedPageValues,
   parseTargetLocales,
   projectLocalesToSettings,
+  recordAppliedLocales,
   saveSettings,
+  selectedPagesShowSourceLocale,
   selectedPageValues,
+  settingsForDesign,
 } from "./settings";
 import type {
   AppSettings,
@@ -172,11 +175,19 @@ function selectedPagesCollected(entry: CanvaLocaleStatus | undefined, selected: 
   );
 }
 
-function designShowsSourceLocale(appliedLocale: string, sourceLocale: string) {
-  if (!sourceLocale) {
-    return false;
-  }
-  return !appliedLocale || appliedLocale === sourceLocale;
+function persistAppliedLocale(
+  settings: AppSettings,
+  locale: string,
+  appliedPageIndices: number[],
+): AppSettings {
+  return {
+    ...settings,
+    appliedLocaleByPage: recordAppliedLocales(
+      settings.appliedLocaleByPage,
+      appliedPageIndices,
+      locale,
+    ),
+  };
 }
 
 function uniqueUploadedTextCount(segments: ExtractedDesignContent["segments"]) {
@@ -369,7 +380,11 @@ export const App = () => {
     selectedPageIndices,
   );
   const sourceLocale = selectedProject?.sourceLocale || settings.sourceLocale;
-  const canUploadSource = designShowsSourceLocale(settings.appliedLocale, sourceLocale);
+  const canUploadSource = selectedPagesShowSourceLocale(
+    settings.appliedLocaleByPage,
+    selectedPageIndices,
+    sourceLocale,
+  );
   const canUpload =
     connected &&
     Boolean(settings.projectId) &&
@@ -439,6 +454,17 @@ export const App = () => {
     saveSettings(next);
   };
 
+  const rememberDesign = (designId: string | undefined) => {
+    if (!designId) {
+      return;
+    }
+    setSettings((current) => {
+      const next = settingsForDesign(current, designId);
+      saveSettings(next);
+      return next;
+    });
+  };
+
   const applySession = (session: CanvaSession, next: AppSettings): AppSettings => {
     setProjects(session.projects);
     if (!session.project) {
@@ -452,7 +478,7 @@ export const App = () => {
         sourceLocale: "",
         targetLocales: "",
         selectedLocale: "",
-        appliedLocale: "",
+        appliedLocaleByPage: {},
       };
     }
     setPickingProject(false);
@@ -466,7 +492,6 @@ export const App = () => {
       projectName: session.project.name,
       ...locales,
       selectedLocale: defaultSelectedLocale(session.project, next.selectedLocale),
-      appliedLocale: next.appliedLocale || session.project.sourceLocale,
     };
   };
 
@@ -485,7 +510,8 @@ export const App = () => {
       projectId: "",
       projectName: "",
       selectedLocale: "",
-      appliedLocale: "",
+      designId: "",
+      appliedLocaleByPage: {},
       lastJobId: "",
     });
     setProjects([]);
@@ -588,6 +614,7 @@ export const App = () => {
         });
         if (!cancelled) {
           setLocaleStatuses(statuses.locales);
+          rememberDesign(statuses.designId);
         }
       } catch (error) {
         if (cancelled) {
@@ -630,6 +657,7 @@ export const App = () => {
         });
         if (!cancelled) {
           setLocaleStatuses(statuses.locales);
+          rememberDesign(statuses.designId);
         }
       } catch (error) {
         if (cancelled) {
@@ -720,6 +748,7 @@ export const App = () => {
       designToken: token,
     });
     setLocaleStatuses(statuses.locales);
+    rememberDesign(statuses.designId);
     return statuses;
   };
 
@@ -795,6 +824,7 @@ export const App = () => {
           designToken: token,
         });
         setLocaleStatuses(statuses.locales);
+        rememberDesign(statuses.designId);
         setStep("Almost ready...", 90);
       } finally {
         setBindProgress(null);
@@ -852,7 +882,13 @@ export const App = () => {
       if (selectedPageIndices.length === 0) {
         throw new Error("Select at least one editable page.");
       }
-      if (!designShowsSourceLocale(settings.appliedLocale, sourceLocale)) {
+      if (
+        !selectedPagesShowSourceLocale(
+          settings.appliedLocaleByPage,
+          selectedPageIndices,
+          sourceLocale,
+        )
+      ) {
         throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before uploading.`);
       }
       setUploadPreview(await extractSelectedSourcePages());
@@ -900,10 +936,9 @@ export const App = () => {
         if (outcome.tone === "critical") {
           throw new Error(outcome.message);
         }
-        persistSettings({
-          ...settings,
-          appliedLocale: settings.selectedLocale,
-        });
+        persistSettings(
+          persistAppliedLocale(settings, settings.selectedLocale, applied.appliedPageIndices),
+        );
         setStep("Finishing up...", 95);
         showToast(outcome.message);
       } finally {
@@ -978,9 +1013,8 @@ export const App = () => {
         }
 
         persistSettings({
-          ...settings,
+          ...persistAppliedLocale(settings, settings.selectedLocale, applied.appliedPageIndices),
           lastJobId: generated.jobIds[0] ?? settings.lastJobId,
-          appliedLocale: settings.selectedLocale,
         });
         setStep("Finishing up...", 96);
         await refreshLocaleStatuses();

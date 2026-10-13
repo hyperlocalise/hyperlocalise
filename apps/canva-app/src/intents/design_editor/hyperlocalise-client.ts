@@ -377,7 +377,7 @@ export async function generateCanvaLocaleJob(input: {
 export async function fetchCanvaLocaleStatuses(input: {
   auth: string | CanvaResourceAuth;
   designToken: string;
-}): Promise<{ locales: CanvaLocaleStatus[]; pages: CollectedCanvaPage[] }> {
+}): Promise<{ locales: CanvaLocaleStatus[]; pages: CollectedCanvaPage[]; designId?: string }> {
   const authorization = await getAuthorizationHeader();
   const params = new URLSearchParams({ designToken: input.designToken });
   const response = await fetch(
@@ -388,6 +388,7 @@ export async function fetchCanvaLocaleStatuses(input: {
     | ({
         locales?: CanvaLocaleStatus[];
         pages?: CollectedCanvaPage[];
+        designId?: string;
       } & ErrorPayload)
     | null;
   if (!response.ok || !payload?.locales) {
@@ -399,6 +400,7 @@ export async function fetchCanvaLocaleStatuses(input: {
   return {
     locales: payload.locales,
     pages: payload.pages ?? [],
+    designId: payload.designId,
   };
 }
 

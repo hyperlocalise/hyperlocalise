@@ -35,6 +35,7 @@ export type CanvaPullPage = {
 export type CanvaLocalePullResult = {
   locale: string;
   projectId: string;
+  designId?: string;
   pages: CanvaPullPage[];
 };
 

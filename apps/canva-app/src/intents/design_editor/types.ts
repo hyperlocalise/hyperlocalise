@@ -53,6 +53,7 @@ export type ApplyResult = {
   skipped: number;
   untranslated: number;
   pagesNeedingUpload: number[];
+  appliedPageIndices: number[];
 };
 
 export type CanvaJobStatusName =
@@ -151,6 +152,7 @@ export type AppSettings = {
   preserveFormatting: boolean;
   selectedPageIndices: number[];
   selectedLocale: string;
-  appliedLocale: string;
+  designId: string;
+  appliedLocaleByPage: Record<string, string>;
   lastJobId: string;
 };

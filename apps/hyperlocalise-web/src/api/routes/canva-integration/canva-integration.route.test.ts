@@ -242,6 +242,7 @@ describe("canvaIntegrationRoutes", () => {
         },
       ],
       pages: [],
+      designId: "design-id",
     });
 
     const collectResponse = await client.api.integrations.canva.collect.$post(
@@ -316,6 +317,7 @@ describe("canvaIntegrationRoutes", () => {
         },
       ],
       pages: [],
+      designId: "design-id",
     });
   });
 

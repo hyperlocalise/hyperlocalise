@@ -231,6 +231,7 @@ export async function applyTranslationsToDesign(pages: CanvaPullPage[]): Promise
     skipped: 0,
     untranslated: 0,
     pagesNeedingUpload: [],
+    appliedPageIndices: [],
   };
   const pagesByIndex = new Map<number, CanvaPullPage>();
   for (const page of pages) {
@@ -260,6 +261,7 @@ export async function applyTranslationsToDesign(pages: CanvaPullPage[]): Promise
             return;
           }
 
+          const matchedBefore = result.replaced + result.alreadyApplied;
           walkTextElements(pageResult.page.elements, (range) => {
             const plaintext = range.readPlaintext();
             const norm = normalizeSegmentText(plaintext);
@@ -273,6 +275,9 @@ export async function applyTranslationsToDesign(pages: CanvaPullPage[]): Promise
             }
             applyEntryToRange(range, entry, result);
           });
+          if (result.replaced + result.alreadyApplied > matchedBefore) {
+            result.appliedPageIndices.push(pageIndex);
+          }
         });
 
         if (opened.status === "executed") {

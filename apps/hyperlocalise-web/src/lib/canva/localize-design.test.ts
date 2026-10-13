@@ -10,17 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   buildCanvaPullEntries,
   buildCanvaSourceLocaleStatus,
   canvaApprovalPercent,
+  canvaSourceIngestIsSettled,
   isCanvaIntegrationJob,
   latestPublishedCanvaCollectBatchId,
+  mergeCanvaPullTranslations,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
   resolveCanvaJobLocales,
+  waitForCanvaSourceIngest,
 } from "./localize-design";
 
 describe("publicJobOutputFiles", () => {
@@ -353,5 +356,125 @@ describe("buildCanvaPullEntries", () => {
         knownTexts: [],
       },
     ]);
+  });
+
+  it("fills missing editor rows from job output and keeps editor edits", () => {
+    const merged = mergeCanvaPullTranslations(
+      { "canva.t.hello": "Hola (editor)" },
+      { "canva.t.hello": "Hola (job)", "canva.t.world": "Mundo" },
+    );
+    expect(merged).toEqual({
+      "canva.t.hello": "Hola (editor)",
+      "canva.t.world": "Mundo",
+    });
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.t.world": "World" },
+        localeIsSource: false,
+        editorTranslations: merged,
+        knownTextsByKey: new Map(),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola (editor)",
+        knownTexts: [],
+      },
+      {
+        key: "canva.t.world",
+        source: "World",
+        target: "Mundo",
+        knownTexts: [],
+      },
+    ]);
+  });
+
+  it("returns job output when editor rows are empty after a succeeded job", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello" },
+        localeIsSource: false,
+        editorTranslations: mergeCanvaPullTranslations({}, { "canva.t.hello": "Hola" }),
+        knownTextsByKey: new Map(),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola",
+        knownTexts: [],
+      },
+    ]);
+  });
+});
+
+describe("waitForCanvaSourceIngest", () => {
+  it("treats ingested, skipped, and failed as settled", () => {
+    expect(canvaSourceIngestIsSettled("ingested")).toBe(true);
+    expect(canvaSourceIngestIsSettled("skipped")).toBe(true);
+    expect(canvaSourceIngestIsSettled("failed")).toBe(true);
+    expect(canvaSourceIngestIsSettled("pending")).toBe(false);
+    expect(canvaSourceIngestIsSettled("ingesting")).toBe(false);
+    expect(canvaSourceIngestIsSettled(null)).toBe(false);
+  });
+
+  it("returns immediately when every collected page has ingested", async () => {
+    const loadStates = vi.fn(async () => ["ingested"]);
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        loadStates,
+      }),
+    ).resolves.toBe(true);
+    expect(loadStates).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits until ingest settles before generate can start jobs", async () => {
+    const loadStates = vi
+      .fn()
+      .mockResolvedValueOnce(["pending"])
+      .mockResolvedValueOnce(["ingesting"])
+      .mockResolvedValueOnce(["ingested"]);
+    let now = 0;
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        timeoutMs: 5_000,
+        intervalMs: 10,
+        now: () => now,
+        sleep: async (ms) => {
+          now += ms;
+        },
+        loadStates,
+      }),
+    ).resolves.toBe(true);
+    expect(loadStates).toHaveBeenCalledTimes(3);
+  });
+
+  it("times out and still lets jobs start when ingest is delayed", async () => {
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        timeoutMs: 20,
+        intervalMs: 10,
+        now: (() => {
+          let value = 0;
+          return () => {
+            const current = value;
+            value += 10;
+            return current;
+          };
+        })(),
+        sleep: async () => {},
+        loadStates: async () => ["pending"],
+      }),
+    ).resolves.toBe(false);
   });
 });

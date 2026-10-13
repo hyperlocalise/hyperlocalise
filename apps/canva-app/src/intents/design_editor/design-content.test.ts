@@ -382,6 +382,7 @@ describe("design-content", () => {
       skipped: 1,
       untranslated: 0,
       pagesNeedingUpload: [],
+      appliedPageIndices: [0],
     });
     expect(replacements).toEqual(["Hola"]);
   });
@@ -438,6 +439,7 @@ describe("design-content", () => {
       skipped: 0,
       untranslated: 0,
       pagesNeedingUpload: [0],
+      appliedPageIndices: [],
     });
     expect(replacements).toEqual([]);
     expect(sync).not.toHaveBeenCalled();
