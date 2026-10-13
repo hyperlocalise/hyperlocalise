@@ -578,67 +578,147 @@ func parseGlossaryImport(format, content string) ([]glossaryImportConcept, []glo
 	return parseGlossaryCSV(content)
 }
 
+type csvHeaderIndices struct {
+	conceptID    int
+	conceptKey   int
+	locale       int
+	term         int
+	primaryTerm  int
+	subject      int
+	definition   int
+	conceptNote  int
+	termNote     int
+	note         int
+	termID       int
+	description  int
+	partOfSpeech int
+	status       int
+}
+
+func newCSVHeaderIndices() csvHeaderIndices {
+	return csvHeaderIndices{
+		conceptID:    -1,
+		conceptKey:   -1,
+		locale:       -1,
+		term:         -1,
+		primaryTerm:  -1,
+		subject:      -1,
+		definition:   -1,
+		conceptNote:  -1,
+		termNote:     -1,
+		note:         -1,
+		termID:       -1,
+		description:  -1,
+		partOfSpeech: -1,
+		status:       -1,
+	}
+}
+
 func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	diagnostics := []glossaryImportDiagnostic{}
 	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(content, "\ufeff")))
 	reader.FieldsPerRecord = -1
-	rows, err := reader.ReadAll()
+	// BOLT OPTIMIZATION: Reuse record slice to eliminate row allocations during streaming CSV parsing.
+	reader.ReuseRecord = true
+
+	firstRow, err := reader.Read()
+	if err == io.EOF {
+		return nil, diagnostics
+	}
 	if err != nil {
 		return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_csv", Message: "Unable to parse CSV content"}}
 	}
-	if len(rows) == 0 {
-		return nil, diagnostics
-	}
-	headerIndex := map[string]int{}
-	start := 0
-	for i, cell := range rows[0] {
+
+	indices := newCSVHeaderIndices()
+	hasHeader := false
+	for _, cell := range firstRow {
 		key := strings.ToLower(strings.TrimSpace(cell))
 		if key == "conceptid" || key == "locale" || key == "term" || key == "primaryterm" {
-			for j, h := range rows[0] {
-				headerIndex[strings.ToLower(strings.TrimSpace(h))] = j
-			}
-			start = 1
+			hasHeader = true
 			break
 		}
-		_ = i
 	}
-	if start == 0 {
-		headerIndex = map[string]int{"conceptid": 0, "locale": 1, "term": 2}
+
+	if hasHeader {
+		for j, cell := range firstRow {
+			key := strings.ToLower(strings.TrimSpace(cell))
+			switch key {
+			case "conceptid":
+				indices.conceptID = j
+			case "conceptkey":
+				indices.conceptKey = j
+			case "locale":
+				indices.locale = j
+			case "term":
+				indices.term = j
+			case "primaryterm":
+				indices.primaryTerm = j
+			case "subject":
+				indices.subject = j
+			case "definition":
+				indices.definition = j
+			case "conceptnote":
+				indices.conceptNote = j
+			case "termnote":
+				indices.termNote = j
+			case "note":
+				indices.note = j
+			case "termid":
+				indices.termID = j
+			case "description":
+				indices.description = j
+			case "partofspeech":
+				indices.partOfSpeech = j
+			case "status":
+				indices.status = j
+			}
+		}
+	} else {
+		indices.conceptID = 0
+		indices.locale = 1
+		indices.term = 2
 	}
-	cell := func(row []string, key string) string {
-		idx, ok := headerIndex[key]
-		if !ok || idx >= len(row) {
+
+	cellVal := func(row []string, idx int) string {
+		if idx < 0 || idx >= len(row) {
 			return ""
 		}
-		return unescapeGlossaryCSVFormula(strings.TrimSpace(row[idx]))
-	}
-	byConcept := map[string]*glossaryImportConcept{}
-	order := []string{}
-	for i := start; i < len(rows); i++ {
-		row := rows[i]
-		rowNum := i + 1
-		conceptID := cell(row, "conceptid")
-		if conceptID == "" {
-			conceptID = cell(row, "conceptkey")
+		v := strings.TrimSpace(row[idx])
+		if v == "" {
+			return ""
 		}
-		locale := strings.ReplaceAll(cell(row, "locale"), "_", "-")
-		termText := cell(row, "term")
+		return unescapeGlossaryCSVFormula(v)
+	}
+
+	lineCount := strings.Count(content, "\n") + 1
+	// BOLT OPTIMIZATION: Pre-allocate map and order slice based on line count estimate.
+	byConcept := make(map[string]*glossaryImportConcept, lineCount)
+	order := make([]string, 0, lineCount)
+
+	rowNum := 1
+	processRow := func(row []string) {
+		conceptID := cellVal(row, indices.conceptID)
+		if conceptID == "" {
+			conceptID = cellVal(row, indices.conceptKey)
+		}
+		locale := strings.ReplaceAll(cellVal(row, indices.locale), "_", "-")
+		termText := cellVal(row, indices.term)
 		if conceptID == "" {
 			conceptID = termText
 		}
 		if conceptID == "" || locale == "" || termText == "" {
 			n := rowNum
 			diagnostics = append(diagnostics, glossaryImportDiagnostic{Severity: "error", Code: "invalid_csv_row", Message: "Row is missing conceptId, locale, or term", SourceRow: &n})
-			continue
+			return
 		}
 		concept, ok := byConcept[conceptID]
 		if !ok {
 			concept = &glossaryImportConcept{
 				ID:          conceptID,
-				PrimaryTerm: cell(row, "primaryterm"),
-				Subject:     cell(row, "subject"),
-				Definition:  cell(row, "definition"),
-				Note:        firstNonEmpty(cell(row, "conceptnote"), cell(row, "note")),
+				PrimaryTerm: cellVal(row, indices.primaryTerm),
+				Subject:     cellVal(row, indices.subject),
+				Definition:  cellVal(row, indices.definition),
+				Note:        firstNonEmpty(cellVal(row, indices.conceptNote), cellVal(row, indices.note)),
 			}
 			if concept.PrimaryTerm == "" {
 				concept.PrimaryTerm = termText
@@ -646,16 +726,33 @@ func parseGlossaryCSV(content string) ([]glossaryImportConcept, []glossaryImport
 			byConcept[conceptID] = concept
 			order = append(order, conceptID)
 		}
-		termID := cell(row, "termid")
+		termID := cellVal(row, indices.termID)
 		if termID == "" {
 			termID = uuid.NewString()
 		}
 		concept.Terms = append(concept.Terms, glossaryImportTerm{
 			ID: termID, Locale: locale, Term: termText,
-			Description: cell(row, "description"), Note: firstNonEmpty(cell(row, "termnote"), cell(row, "note")),
-			PartOfSpeech: cell(row, "partofspeech"), Status: firstNonEmpty(cell(row, "status"), "draft"),
+			Description: cellVal(row, indices.description), Note: firstNonEmpty(cellVal(row, indices.termNote), cellVal(row, indices.note)),
+			PartOfSpeech: cellVal(row, indices.partOfSpeech), Status: firstNonEmpty(cellVal(row, indices.status), "draft"),
 		})
 	}
+
+	if !hasHeader {
+		processRow(firstRow)
+	}
+
+	for {
+		rowNum++
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, []glossaryImportDiagnostic{{Severity: "error", Code: "invalid_csv", Message: "Unable to parse CSV content"}}
+		}
+		processRow(row)
+	}
+
 	concepts := make([]glossaryImportConcept, 0, len(order))
 	for _, id := range order {
 		concepts = append(concepts, *byConcept[id])
@@ -696,7 +793,8 @@ type tbxTermSec struct {
 func parseGlossaryTBX(content string) ([]glossaryImportConcept, []glossaryImportDiagnostic) {
 	diagnostics := []glossaryImportDiagnostic{}
 	decoder := xml.NewDecoder(strings.NewReader(content))
-	concepts := []glossaryImportConcept{}
+	// BOLT OPTIMIZATION: Pre-allocate concepts slice capacity based on XML entry count.
+	concepts := make([]glossaryImportConcept, 0, strings.Count(content, "<conceptEntry"))
 	for {
 		tok, err := decoder.Token()
 		if err == io.EOF {
