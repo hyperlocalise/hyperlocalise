@@ -50,6 +50,22 @@ func TestParseGlossaryCSV(t *testing.T) {
 	require.Empty(t, diagnostics)
 }
 
+func TestGlossaryCSVCapacityHintCapsEmbeddedNewlines(t *testing.T) {
+	require.Equal(t, 1, glossaryCSVCapacityHint("a"))
+	require.Equal(t, 3, glossaryCSVCapacityHint("a\nb\nc"))
+	require.Equal(t, glossaryCSVCapacityHintCap, glossaryCSVCapacityHint(strings.Repeat("\n", glossaryCSVCapacityHintCap+1000)))
+}
+
+func TestParseGlossaryCSVQuotedMultilineField(t *testing.T) {
+	definition := "Payment\nstep\nacross\nlines"
+	content := "conceptId,locale,term,definition\nc1,en-US,Checkout,\"" + definition + "\"\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Equal(t, "Checkout", concepts[0].Terms[0].Term)
+	require.Equal(t, definition, concepts[0].Definition)
+}
+
 func TestParseGlossaryTBX(t *testing.T) {
 	content := `<?xml version="1.0"?><tbx><text><body>
 <conceptEntry id="c-abc">
