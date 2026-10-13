@@ -27,12 +27,10 @@ Every node:
 A node with one execution output needs nothing else on the card. A node with several:
 
 - **List its outputs** in `getAllowedExecutionSourceHandles` and its main one in `getPrimaryExecutionSourceHandle` (`validation/execution-handles.ts`). Validation rejects a connection from an unlisted handle. The card does not read this list, so keep the two in step by hand.
-- **Draw each output** with `ExecutionHandle`, not React Flow's `Handle`. Place it with `style={executionTop(fraction)}` and set its tone with a text color such as `text-destructive`.
-- **Label the outputs** in a block positioned with `absolute top-0 h-(--execution-zone)`.
-- **Count a variable number of outputs** in `spreadExecutionDotCount`, so the top of the card grows to fit them.
-- **Exclude the type** from `hasSingleExecutionOutput` and give it a `primaryHandleLabel`.
+- **Describe each output** in the `outputs` list of `VisualWorkflowCompactNode`: its handle id, the label drawn inside the card beside the handle, its row (`executionTop(fraction)` or `spreadTop(index, count)`) and a text color such as `text-destructive` for its tone. The card draws the handle, its label and its "+" button from this.
+- **Count a variable number of outputs** in `spreadExecutionHandleCount`, so the top of the card grows to fit them.
 
-`executionTop` fractions are of the card's top part, which stays above the data ports. Execution handles and data ports must not share a spot on the card's edge.
+`executionTop` fractions are of the card's top part, which stays above the data ports. Execution handles and data ports must not share a spot on the card's edge. A handle's glyph is hollow until a wire is attached (`isExecutionHandleConnected` in `editor/visual-workflow-execution-ports.ts` for execution handles, `connectionCount` for data ports).
 
 On the card:
 

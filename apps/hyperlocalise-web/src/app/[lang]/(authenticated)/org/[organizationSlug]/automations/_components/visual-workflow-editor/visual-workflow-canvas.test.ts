@@ -154,6 +154,22 @@ describe("presentVisualWorkflowEdges", () => {
       stroke: "var(--muted-foreground)",
       strokeWidth: 2,
     });
+
+    // The way the workflow runs is read from the handles, so execution edges carry no arrowhead.
+    expect(presented.every((edge) => edge.markerEnd === undefined)).toBe(true);
+  });
+
+  it("outlines a label's letters in the canvas colour instead of boxing them", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("branch", "logic.if"), node("slack", "action.notify_slack")],
+      [{ ...executionEdge("branch-slack", "branch", "slack", "false"), label: "false" }],
+    );
+
+    expect(presented[0]).toMatchObject({
+      label: "false",
+      labelShowBg: false,
+      labelStyle: { paintOrder: "stroke", stroke: "var(--sidebar)" },
+    });
   });
 
   it("keeps data edges visually distinct from loop execution regions", () => {
@@ -178,9 +194,11 @@ describe("presentVisualWorkflowEdges", () => {
 
     expect(data).toMatchObject({
       label: "item → value",
+      labelShowBg: false,
       style: {
         strokeDasharray: "5 4",
       },
+      markerEnd: { type: "arrowclosed" },
     });
   });
 });

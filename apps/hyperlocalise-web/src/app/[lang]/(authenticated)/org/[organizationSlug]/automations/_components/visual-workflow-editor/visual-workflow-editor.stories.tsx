@@ -279,8 +279,13 @@ export const PortCompatibility: Story = {
       await expect(canvas.getAllByText(type).length).toBeGreaterThan(0);
     }
 
-    await expect(dataInput.className).toContain("ring-2");
-    await expect(dataOutput.className).toContain("ring-2");
+    // A handle's glyph is hollow until a wire is attached, then filled.
+    await expect(dataInput).toHaveAttribute("data-connected");
+    await expect(dataOutput).toHaveAttribute("data-connected");
+    await expect(optionalInput).not.toHaveAttribute("data-connected");
+    await expect(dataInput.querySelector("svg")).toHaveAttribute("fill", "currentColor");
+    await expect(optionalInput.querySelector("svg")).toHaveAttribute("fill", "var(--card)");
+    await expect(executionInput[0]).toHaveAttribute("data-connected");
 
     await expect(dataInput.className).toContain("[&.connectingto.valid]:text-emerald-500");
     await expect(dataInput.querySelector("svg")?.getAttribute("class")).toContain(

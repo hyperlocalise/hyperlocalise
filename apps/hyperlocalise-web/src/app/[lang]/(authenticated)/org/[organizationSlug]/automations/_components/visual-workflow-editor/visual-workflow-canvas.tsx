@@ -47,6 +47,19 @@ export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
   ]),
 ) as Record<VisualCatalogType, typeof VisualWorkflowCompactNode>;
 
+// A label's letters get an outline in the canvas colour, which hides the line and the dots right
+// behind them and nothing else. React Flow's own box behind a label is white, and shows.
+const EDGE_LABEL_PROPS = {
+  labelShowBg: false,
+  labelStyle: {
+    fill: "var(--muted-foreground)",
+    paintOrder: "stroke",
+    stroke: "var(--sidebar)",
+    strokeWidth: 4,
+    strokeLinejoin: "round",
+  },
+} satisfies Partial<VisualWorkflowRfEdge>;
+
 type ForEachPresentedRegion = {
   loopId: string;
   bodyNodeIds: Set<string>;
@@ -73,11 +86,13 @@ export function presentVisualWorkflowEdges(
     if (edge.data?.kind === "data") {
       return {
         ...edge,
+        ...EDGE_LABEL_PROPS,
         label: `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`,
         style: {
           ...edge.style,
           strokeDasharray: "5 4",
         },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       };
     }
 
@@ -94,12 +109,6 @@ export function presentVisualWorkflowEdges(
           ...edge.style,
           stroke: "var(--primary)",
           strokeWidth: 2,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: "var(--primary)",
         },
       };
     }
@@ -118,16 +127,10 @@ export function presentVisualWorkflowEdges(
           stroke: "var(--muted-foreground)",
           strokeWidth: 2,
         },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: "var(--muted-foreground)",
-        },
       };
     }
 
-    return edge;
+    return edge.label === undefined ? edge : { ...edge, ...EDGE_LABEL_PROPS };
   });
 }
 
@@ -248,9 +251,9 @@ export function VisualWorkflowCanvas({
         panOnDrag
         selectionOnDrag={false}
         fitView
-        defaultEdgeOptions={{
-          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-        }}
+        // A click on a handle would otherwise start a connection that waits for a click on another
+        // handle, and the handle stays marked as its start until then.
+        connectOnClick={false}
         onInit={(reactFlow) => {
           reactFlowRef.current = reactFlow;
           void reactFlow.fitView({ padding: 0.2 });
