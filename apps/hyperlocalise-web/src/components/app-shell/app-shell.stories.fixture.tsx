@@ -13,9 +13,7 @@
  * Version 2.0 or later.
  */
 import { type CSSProperties, type ReactNode } from "react";
-import { useIntl, type IntlShape } from "react-intl";
-
-import { BrandLockup } from "@/components/brand/brand-lockup";
+import type { IntlShape } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +31,6 @@ import { annotateNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-n
 import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities";
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 
-import { appShellClientMessages } from "./app-shell-client.messages";
 import { AppShellClient } from "./app-shell-client";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { AppShellNavigation } from "./app-shell-navigation";
@@ -43,6 +40,7 @@ import {
   buildProjectNavigationGroups,
 } from "./navigation-config";
 import { NavUser } from "./nav-user";
+import { OrganizationSwitcher } from "./organization-switcher";
 import { AppShellHeaderActions } from "./store/app-shell-header-actions";
 import { AppShellStoreProvider } from "./store/app-shell-store-context";
 import { SidebarStoreBridge } from "./store/sidebar-store-bridge";
@@ -205,7 +203,6 @@ function AppShellHeaderStoryBar({
           ) : null}
           <NavUser
             organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG}
-            organizations={[...appShellStoryOrganizations]}
             showApiKeysLink={showAdminLinks}
             showBillingLink={showAdminLinks}
             showMembersLink={showAdminLinks}
@@ -283,8 +280,6 @@ export function AppShellSidebarStoryFrame({
   collapsed?: boolean;
   variant?: "global" | "project" | "domain";
 }) {
-  const intl = useIntl();
-
   return (
     <AppShellStoreProvider
       defaultNavigationGroups={buildAppShellStoryNavigationGroups()}
@@ -299,15 +294,12 @@ export function AppShellSidebarStoryFrame({
         {variant === "project" ? <ProjectSidebarStorySetup /> : null}
         {variant === "domain" ? <DomainSidebarStorySetup /> : null}
         <Sidebar variant="sidebar" collapsible="icon">
-          <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-            <div className="rounded-xl px-1 py-1 group-data-[collapsible=icon]:px-0">
-              <BrandLockup
-                logoAlt={intl.formatMessage(appShellClientMessages.logoAlt)}
-                markClassName="size-7"
-                typClassName="group-data-[collapsible=icon]:hidden"
-                className="group-data-[collapsible=icon]:justify-center"
-              />
-            </div>
+          <SidebarHeader className="h-(--app-shell-header-height) shrink-0 justify-center border-b border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:items-center">
+            <OrganizationSwitcher
+              activeOrganization={appShellStoryOrganizations[0]}
+              organizations={[...appShellStoryOrganizations]}
+              showMembersLink
+            />
           </SidebarHeader>
           <SidebarContent className="gap-0 px-2 pt-2">
             <AppShellNavigation organizationSlug={APP_SHELL_STORY_ORGANIZATION_SLUG} />

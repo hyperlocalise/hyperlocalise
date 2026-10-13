@@ -16,7 +16,6 @@ import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useIntl } from "react-intl";
 
-import { BrandLockup } from "@/components/brand/brand-lockup";
 import {
   Sidebar,
   SidebarContent,
@@ -46,11 +45,10 @@ import type { WorkspaceFeatureFlagState } from "@/lib/flags/workos-flag-entities
 import type { TmsUserConnectCta } from "@/lib/providers/credentials/tms-user-connection-shared";
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
+import { OrganizationSwitcher } from "./organization-switcher";
 import { Separator } from "@/components/ui/separator";
 import { AppShellFooter } from "./app-shell-footer";
 import { UpdateAnnouncer } from "./update-announcer/update-announcer";
-
-import { appShellClientMessages } from "./app-shell-client.messages";
 
 type AppShellClientProps = {
   autumnConfigured?: boolean;
@@ -152,15 +150,12 @@ export function AppShellClient({
             collapsible="icon"
             style={{ viewTransitionName: "app-shell-sidebar" }}
           >
-            <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
-              <div className="rounded-xl px-1 py-1 group-data-[collapsible=icon]:px-0">
-                <BrandLockup
-                  logoAlt={intl.formatMessage(appShellClientMessages.logoAlt)}
-                  markClassName="size-7"
-                  typClassName="group-data-[collapsible=icon]:hidden"
-                  className="group-data-[collapsible=icon]:justify-center"
-                />
-              </div>
+            <SidebarHeader className="h-(--app-shell-header-height) shrink-0 justify-center border-b border-sidebar-border px-2 py-0 group-data-[collapsible=icon]:items-center">
+              <OrganizationSwitcher
+                activeOrganization={activeOrganization}
+                organizations={organizations}
+                showMembersLink={showMembersLink}
+              />
             </SidebarHeader>
 
             <SidebarContent className="gap-0 px-2 pt-2 pb-[var(--app-shell-footer-height)]">
@@ -196,7 +191,6 @@ export function AppShellClient({
                   ) : null}
                   <NavUser
                     organizationSlug={activeOrganization.slug ?? ""}
-                    organizations={organizations}
                     showApiKeysLink={showApiKeysLink}
                     showBillingLink={showBillingLink}
                     showMembersLink={showMembersLink}
