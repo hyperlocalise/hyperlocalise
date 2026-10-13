@@ -22,6 +22,7 @@ import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-con
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { cn } from "@/lib/primitives/cn";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
@@ -44,7 +45,21 @@ import {
 import { jobsPageContentMessages } from "./jobs-page-content.messages";
 import { useJobsListUrlState } from "./use-jobs-list-url-state";
 
-function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
+function renderProductionJobLink({
+  href,
+  kind,
+  children,
+  className,
+  ariaLabel,
+}: Parameters<JobsLinkRenderer>[0]) {
+  if (kind === "card") {
+    return (
+      <Link href={href} className={className} aria-label={ariaLabel}>
+        {children}
+      </Link>
+    );
+  }
+
   if (kind === "title") {
     return (
       <Button
@@ -60,7 +75,12 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
 
   if (kind === "content-editor") {
     return (
-      <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
+      <Button
+        nativeButton={false}
+        render={<Link href={href} aria-label={ariaLabel} />}
+        size="sm"
+        className={cn("w-fit", className)}
+      >
         <TranslateIcon />
         {children}
       </Button>

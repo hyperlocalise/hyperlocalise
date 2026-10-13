@@ -41,11 +41,7 @@ import {
 import { jobsPageViewMessages } from "./jobs-page-view.messages";
 import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
-import {
-  PageHeader,
-  WorkspacePageShell,
-  type Tone,
-} from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import {
   ProjectPageShell,
   ProjectSectionHeader,
@@ -104,12 +100,14 @@ export const jobsStatusOptions = [
 
 export type JobsStatusFilter = (typeof jobsStatusOptions)[number];
 
-type JobLinkKind = "title" | "details" | "content-editor";
+type JobLinkKind = "title" | "card" | "details" | "content-editor";
 
 export type JobsLinkRenderer = (props: {
   href: string;
   kind: JobLinkKind;
   children: ReactNode;
+  className?: string;
+  ariaLabel?: string;
 }) => ReactNode;
 
 export type JobsErrorRenderer = (props: { error: unknown; organizationSlug: string }) => ReactNode;
@@ -125,20 +123,6 @@ const jobStatusLabels = {
 
 export function formatJobStatusLabel(status: ApiJob["status"]) {
   return jobStatusLabels[status];
-}
-
-export function jobTone(status: ApiJob["status"]): Tone {
-  switch (status) {
-    case "succeeded":
-      return "safe";
-    case "failed":
-      return "risk";
-    case "queued":
-    case "waiting_for_review":
-      return "watch";
-    default:
-      return "info";
-  }
 }
 
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -321,13 +305,17 @@ function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: J
   return matchesStatus && matchesSearch;
 }
 
-export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
+export function getJobTargetLocaleIds(job: ApiJob) {
   const fallbackTargetLocales = job.externalTargetLocales?.length
     ? job.externalTargetLocales
     : job.reviewTargetLocale
       ? [job.reviewTargetLocale]
       : getInputPayloadStringArray(job, "targetLocales");
-  const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
+  return getCrowdinTargetLocales(null, fallbackTargetLocales);
+}
+
+export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
+  const locales = formatLocaleList(getJobTargetLocaleIds(job));
   const people = assignees(job, intl);
   const assignmentSummary =
     locales === "—" && people === "—"
@@ -361,7 +349,21 @@ export function taskDetailSummary(job: ApiJob, intl?: IntlShape) {
   return `${assignmentSummary} · ${failureParts.join(" · ")}`;
 }
 
-function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
+function defaultRenderJobLink({
+  href,
+  kind,
+  children,
+  className,
+  ariaLabel,
+}: Parameters<JobsLinkRenderer>[0]) {
+  if (kind === "card") {
+    return (
+      <a href={href} className={className} aria-label={ariaLabel}>
+        {children}
+      </a>
+    );
+  }
+
   if (kind === "title") {
     return (
       <Button
@@ -377,7 +379,12 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
 
   if (kind === "content-editor") {
     return (
-      <Button nativeButton={false} render={<a href={href} />} size="sm" className="w-fit">
+      <Button
+        nativeButton={false}
+        render={<a href={href} aria-label={ariaLabel} />}
+        size="sm"
+        className={cn("w-fit", className)}
+      >
         <TranslateIcon />
         {children}
       </Button>
@@ -634,8 +641,10 @@ export function JobsPageView({
   const [viewMode, setViewMode] = useState<JobsViewMode>(projectId ? "kanban" : "row");
   const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
     useState<JobsStatusFilter>(initialStatusFilter);
-  const statusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
+  const selectedStatusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
   const listViewMode = projectId ? viewMode : "row";
+  const isBoardView = listViewMode === "kanban";
+  const statusFilter: JobsStatusFilter = isBoardView ? "all" : selectedStatusFilter;
   const activeStatus = statusFilter === "all" ? undefined : statusFilter;
 
   useEffect(() => {
@@ -707,9 +716,10 @@ export function JobsPageView({
       <JobsListToolbar
         searchDraft={search}
         onSearchDraftChange={setSearch}
-        statusFilter={statusFilter}
+        statusFilter={selectedStatusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         onClearFilters={handleClearFilters}
+        showStatusFilter={!isBoardView}
         trailing={
           projectId ? (
             <JobsViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
