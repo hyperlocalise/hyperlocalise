@@ -29,7 +29,7 @@ export type RecordJobEventsInput = {
  */
 export async function recordJobEvents(
   input: RecordJobEventsInput,
-  database: Pick<typeof db, "select" | "insert"> = db,
+  database: Pick<typeof db, "transaction"> = db,
 ): Promise<void> {
   if (input.events.length === 0) {
     return;
@@ -37,39 +37,42 @@ export async function recordJobEvents(
 
   try {
     const workflowRunId = input.workflowRunId ?? null;
-    const [job] = await database
-      .select({
-        organizationId: schema.jobs.organizationId,
-        workflowRunId: schema.jobs.workflowRunId,
-      })
-      .from(schema.jobs)
-      .where(eq(schema.jobs.id, input.jobId))
-      .limit(1);
-    if (!job) {
-      return;
-    }
+    await database.transaction(async (tx) => {
+      const [job] = await tx
+        .select({
+          organizationId: schema.jobs.organizationId,
+          workflowRunId: schema.jobs.workflowRunId,
+        })
+        .from(schema.jobs)
+        .where(eq(schema.jobs.id, input.jobId))
+        .for("update")
+        .limit(1);
+      if (!job) {
+        return;
+      }
 
-    if (workflowRunId !== null && job.workflowRunId !== workflowRunId) {
-      console.warn("[job-events] ignored events from stale workflow run", {
-        jobId: input.jobId,
-        workflowRunId,
-        currentWorkflowRunId: job.workflowRunId,
-        eventTypes: input.events.map((event) => event.type),
-      });
-      return;
-    }
+      if (workflowRunId !== null && job.workflowRunId !== workflowRunId) {
+        console.warn("[job-events] ignored events from stale workflow run", {
+          jobId: input.jobId,
+          workflowRunId,
+          currentWorkflowRunId: job.workflowRunId,
+          eventTypes: input.events.map((event) => event.type),
+        });
+        return;
+      }
 
-    await database.insert(schema.jobEvents).values(
-      input.events.map((event) => ({
-        jobId: input.jobId,
-        organizationId: job.organizationId,
-        workflowRunId,
-        actorUserId: input.actorUserId ?? null,
-        type: event.type,
-        locale: event.locale ?? null,
-        payload: event.payload,
-      })),
-    );
+      await tx.insert(schema.jobEvents).values(
+        input.events.map((event) => ({
+          jobId: input.jobId,
+          organizationId: job.organizationId,
+          workflowRunId,
+          actorUserId: input.actorUserId ?? null,
+          type: event.type,
+          locale: event.locale ?? null,
+          payload: event.payload,
+        })),
+      );
+    });
   } catch (error) {
     console.warn("[job-events] failed to record job events", {
       jobId: input.jobId,

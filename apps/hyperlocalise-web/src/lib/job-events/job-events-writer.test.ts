@@ -137,13 +137,65 @@ describe("recordJobEvents", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("does not insert a stale run after a concurrent owner change", async () => {
+    const { jobId } = await insertJob();
+    await db
+      .update(schema.jobs)
+      .set({ workflowRunId: "run-stale" })
+      .where(eq(schema.jobs.id, jobId));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    let releaseLock!: () => void;
+    const lockHeld = Promise.withResolvers<void>();
+    const canRelease = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    const locker = db.transaction(async (tx) => {
+      await tx
+        .select({ id: schema.jobs.id })
+        .from(schema.jobs)
+        .where(eq(schema.jobs.id, jobId))
+        .for("update");
+      lockHeld.resolve();
+      await canRelease;
+      await tx.update(schema.jobs).set({ workflowRunId: null }).where(eq(schema.jobs.id, jobId));
+    });
+
+    await lockHeld.promise;
+    const write = recordJobEvents({
+      jobId,
+      workflowRunId: "run-stale",
+      events: [
+        {
+          type: "locale_progress",
+          locale: "fr-FR",
+          payload: { translatedCount: 1, totalCount: 2 },
+        },
+      ],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    releaseLock();
+    await Promise.all([locker, write]);
+
+    const rows = await db.select().from(schema.jobEvents).where(eq(schema.jobEvents.jobId, jobId));
+    expect(rows).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith(
+      "[job-events] ignored events from stale workflow run",
+      expect.objectContaining({
+        jobId,
+        workflowRunId: "run-stale",
+        currentWorkflowRunId: null,
+      }),
+    );
+  });
+
   it("logs and swallows write failures", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const failingDatabase = {
-      select: () => {
+      transaction: async () => {
         throw new Error("connection lost");
       },
-      insert: db.insert.bind(db),
     } as unknown as Parameters<typeof recordJobEvents>[1];
 
     await expect(
