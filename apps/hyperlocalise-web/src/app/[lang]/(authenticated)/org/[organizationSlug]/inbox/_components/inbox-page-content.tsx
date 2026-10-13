@@ -45,8 +45,6 @@ import {
 import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
 
-const notificationsApi = createInboxNotificationsApi(apiClient);
-
 const NOTIFICATIONS_PAGE_SIZE = 50;
 
 function conversationsQueryKey(organizationSlug: string) {
@@ -70,7 +68,7 @@ export function InboxPageContent({
   organizationSlug,
   canDeleteQueries = false,
   inboxApi: injectedInboxApi,
-  notificationsApi: injectedNotificationsApi = notificationsApi,
+  notificationsApi: injectedNotificationsApi,
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
@@ -79,6 +77,10 @@ export function InboxPageContent({
   notificationsApi?: InboxNotificationsApi;
 }) {
   const { client: goSvcClient } = useGoSvcClient();
+  const notificationsApi = useMemo(
+    () => injectedNotificationsApi ?? createInboxNotificationsApi(goSvcClient.inbox),
+    [goSvcClient, injectedNotificationsApi],
+  );
   const inboxApi = useMemo(
     () => injectedInboxApi ?? createInboxApi(apiClient, goSvcClient.conversation),
     [goSvcClient, injectedInboxApi],
@@ -91,7 +93,7 @@ export function InboxPageContent({
         organizationSlug={organizationSlug}
         canDeleteQueries={canDeleteQueries}
         inboxApi={inboxApi}
-        notificationsApi={injectedNotificationsApi}
+        notificationsApi={notificationsApi}
       />
     </InboxPageStoreProvider>
   );
