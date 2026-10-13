@@ -67,7 +67,7 @@ type AppToast = {
   message: string;
 };
 
-type TranslateProgress = {
+type StepProgress = {
   label: string;
   value: number;
 };
@@ -122,19 +122,26 @@ function localeOptions(project: CanvaSessionProject | null) {
     }));
 }
 
+function pageHasPullableTranslations(
+  entry: CanvaLocaleStatus,
+  page: CanvaLocaleStatus["pages"][number],
+) {
+  if (entry.isSource) {
+    return page.status === "succeeded";
+  }
+  return page.status === "succeeded" || page.status === "waiting_for_review";
+}
+
 function canApplySelectedPages(entry: CanvaLocaleStatus | undefined, selected: number[]) {
   if (!entry?.canAdd || selected.length === 0) {
     return false;
   }
-  return selected.some((index) => {
+  return selected.every((index) => {
     const page = entry.pages.find((item) => item.pageIndex === index);
     if (!page) {
       return false;
     }
-    if (entry.isSource) {
-      return page.status === "succeeded";
-    }
-    return page.status === "succeeded" || page.status === "waiting_for_review";
+    return pageHasPullableTranslations(entry, page);
   });
 }
 
@@ -160,6 +167,23 @@ function isReconnectError(error: unknown) {
   );
 }
 
+function formatActionError(error: unknown): string {
+  if (error instanceof HyperlocaliseClientError) {
+    switch (error.code) {
+      case "canva_project_not_bound":
+        return "Choose a project in the app before applying.";
+      case "canva_design_not_collected":
+        return "Upload the selected pages first, then apply.";
+      case "job_target_locale_not_in_project":
+        return "That language is not in the project. Reload languages or update project settings.";
+      default:
+        return error.message;
+    }
+  }
+
+  return error instanceof Error ? error.message : "Something went wrong.";
+}
+
 export const App = () => {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [tokenDraft, setTokenDraft] = useState("");
@@ -167,6 +191,7 @@ export const App = () => {
   const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
   const [pagesLoading, setPagesLoading] = useState(true);
   const [localesLoading, setLocalesLoading] = useState(false);
+  const [applyStatusLoading, setApplyStatusLoading] = useState(false);
   const [localeStatuses, setLocaleStatuses] = useState<CanvaLocaleStatus[]>([]);
   const [projects, setProjects] = useState<CanvaSessionProject[]>([]);
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -174,7 +199,9 @@ export const App = () => {
   const [pickingProject, setPickingProject] = useState(() => !loadSettings().projectId);
   const [pagesReloadKey, setPagesReloadKey] = useState(0);
   const [uploadPreview, setUploadPreview] = useState<ExtractedDesignContent | null>(null);
-  const [translateProgress, setTranslateProgress] = useState<TranslateProgress | null>(null);
+  const [bindProgress, setBindProgress] = useState<StepProgress | null>(null);
+  const [applyProgress, setApplyProgress] = useState<StepProgress | null>(null);
+  const [translateProgress, setTranslateProgress] = useState<StepProgress | null>(null);
   const [toast, setToast] = useState<AppToast | null>(null);
   const didInitializePages = useRef(false);
 
@@ -198,6 +225,11 @@ export const App = () => {
       ),
     [editablePages, settings.selectedPageIndices],
   );
+  const selectedPagesKey = useMemo(() => {
+    const sorted = [...selectedPageIndices];
+    sorted.sort((left, right) => left - right);
+    return sorted.join(",");
+  }, [selectedPageIndices]);
   const allowConnectionToken = isLocalDevelopment();
   const legacyConnectionToken = allowConnectionToken ? settings.connectionToken.trim() : "";
   const connected = oauthReady || legacyConnectionToken.length > 0;
@@ -225,9 +257,14 @@ export const App = () => {
 
   const canUpload =
     connected && Boolean(settings.projectId) && selectedPageIndices.length > 0 && busy == null;
+  const applyingTargetLocale =
+    Boolean(settings.selectedLocale) &&
+    Boolean(selectedProject) &&
+    settings.selectedLocale !== selectedProject?.sourceLocale;
   const canApply =
     canUpload &&
-    Boolean(settings.selectedLocale) &&
+    applyingTargetLocale &&
+    !applyStatusLoading &&
     canApplySelectedPages(selectedLocaleStatus, selectedPageIndices);
   const canTranslate =
     canUpload &&
@@ -405,6 +442,54 @@ export const App = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
 
+  useEffect(() => {
+    if (
+      !connected ||
+      !settings.projectId ||
+      selectedPageIndices.length === 0 ||
+      !settings.selectedLocale ||
+      settings.selectedLocale === selectedProject?.sourceLocale
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function refreshApplyEligibility() {
+      setApplyStatusLoading(true);
+      try {
+        const { token } = await getDesignToken();
+        const statuses = await fetchCanvaLocaleStatuses({
+          auth: await resolveAuth(),
+          designToken: token,
+        });
+        if (!cancelled) {
+          setLocaleStatuses(statuses.locales);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        if (isReconnectError(error)) {
+          disconnect("Reconnect Hyperlocalise to continue.", "critical");
+          return;
+        }
+      } finally {
+        if (!cancelled) {
+          setApplyStatusLoading(false);
+        }
+      }
+    }
+
+    void refreshApplyEligibility();
+
+    return () => {
+      cancelled = true;
+    };
+    // Refetch when the target locale or selected pages change so Apply reflects latest jobs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, settings.projectId, settings.selectedLocale, selectedPagesKey]);
+
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
     try {
@@ -414,7 +499,7 @@ export const App = () => {
         disconnect("Reconnect Hyperlocalise to continue.", "critical");
         return;
       }
-      showToast(error instanceof Error ? error.message : "Something went wrong.", "critical");
+      showToast(formatActionError(error), "critical");
     } finally {
       setBusy(null);
     }
@@ -500,23 +585,33 @@ export const App = () => {
 
   const handleProjectChange = (projectId: string) =>
     runAction("bind", async () => {
-      const session = await bindCanvaProject({
-        auth: await resolveAuth(),
-        projectId,
-      });
-      persistSettings(applySession(session, settings));
-      if (!session.project) {
-        setLocaleStatuses([]);
-        setPickingProject(true);
-        return;
+      const setStep = (label: string, value: number) => {
+        setBindProgress({ label, value });
+      };
+
+      try {
+        setStep("Connecting project...", 20);
+        const session = await bindCanvaProject({
+          auth: await resolveAuth(),
+          projectId,
+        });
+        setStep("Loading languages...", 55);
+        persistSettings(applySession(session, settings));
+        if (!session.project) {
+          setLocaleStatuses([]);
+          setPickingProject(true);
+          return;
+        }
+        const { token } = await getDesignToken();
+        const statuses = await fetchCanvaLocaleStatuses({
+          auth: await resolveAuth(),
+          designToken: token,
+        });
+        setLocaleStatuses(statuses.locales);
+        setStep("Almost ready...", 90);
+      } finally {
+        setBindProgress(null);
       }
-      setPickingProject(false);
-      const { token } = await getDesignToken();
-      const statuses = await fetchCanvaLocaleStatuses({
-        auth: await resolveAuth(),
-        designToken: token,
-      });
-      setLocaleStatuses(statuses.locales);
     });
 
   const openUploadPreview = () =>
@@ -555,28 +650,42 @@ export const App = () => {
 
   const handleApply = () =>
     runAction("apply", async () => {
-      if (!settings.selectedLocale) {
-        throw new Error("Choose a language.");
+      const setStep = (label: string, value: number) => {
+        setApplyProgress({ label, value });
+      };
+
+      try {
+        if (!settings.selectedLocale) {
+          throw new Error("Choose a language.");
+        }
+        if (settings.selectedLocale === selectedProject?.sourceLocale) {
+          throw new Error("Choose a target language to apply Hyperlocalise translations.");
+        }
+        setUploadPreview(null);
+        setStep("Loading Hyperlocalise translations...", 25);
+        const { token } = await getDesignToken();
+        const pulled = await pullCanvaLocalePages({
+          auth: await resolveAuth(),
+          designToken: token,
+          locale: settings.selectedLocale,
+        });
+        const selected = new Set(selectedPageIndices);
+        const pages = pulled.pages.filter((page) => selected.has(page.pageIndex));
+        if (pages.length === 0) {
+          throw new Error("No translations to apply for the selected pages.");
+        }
+        setStep("Writing translations to selected pages...", 70);
+        const replaced = await applyTranslationsToDesign(pages, settings.preserveFormatting);
+        if (replaced === 0) {
+          throw new Error("No matching text on those pages. Upload the pages again, then apply.");
+        }
+        setStep("Finishing up...", 95);
+        showToast(
+          `Applied ${localeLabel(settings.selectedLocale)} translations to ${pages.length} selected page${pages.length === 1 ? "" : "s"}.`,
+        );
+      } finally {
+        setApplyProgress(null);
       }
-      setUploadPreview(null);
-      const { token } = await getDesignToken();
-      const pulled = await pullCanvaLocalePages({
-        auth: await resolveAuth(),
-        designToken: token,
-        locale: settings.selectedLocale,
-      });
-      const selected = new Set(selectedPageIndices);
-      const pages = pulled.pages.filter((page) => selected.has(page.pageIndex));
-      if (pages.length === 0) {
-        throw new Error("No translations to apply.");
-      }
-      const replaced = await applyTranslationsToDesign(pages, settings.preserveFormatting);
-      if (replaced === 0) {
-        throw new Error("No matching text on those pages. Upload the pages again, then apply.");
-      }
-      showToast(
-        `Applied ${localeLabel(settings.selectedLocale)} to ${pages.length} page${pages.length === 1 ? "" : "s"}.`,
-      );
     });
 
   const handleTranslate = () =>
@@ -686,7 +795,8 @@ export const App = () => {
               <Select
                 {...props}
                 stretch
-                placeholder="Select a project"
+                placeholder={busy === "bind" ? "Connecting..." : "Select a project"}
+                disabled={busy === "bind"}
                 options={projects.map((project) => ({
                   value: project.id,
                   label: project.name,
@@ -697,6 +807,14 @@ export const App = () => {
               />
             )}
           />
+          {busy === "bind" && bindProgress ? (
+            <div className={styles.stepProgress}>
+              <Text size="small" tone="secondary">
+                {bindProgress.label}
+              </Text>
+              <ProgressBar size="small" value={bindProgress.value} ariaLabel={bindProgress.label} />
+            </div>
+          ) : null}
           <div className={styles.projectCta}>
             {selectedProject ? (
               <LinkButton onClick={() => setPickingProject(false)}>Cancel</LinkButton>
@@ -870,16 +988,29 @@ export const App = () => {
                 onClick={handleApply}
                 disabled={!canApply}
                 loading={busy === "apply"}
+                tooltipLabel="Apply Hyperlocalise translations to the selected pages"
               >
                 Apply
               </Button>
             </div>
+            {busy === "apply" && applyProgress ? (
+              <div className={styles.stepProgress}>
+                <Text size="small" tone="secondary">
+                  {applyProgress.label}
+                </Text>
+                <ProgressBar
+                  size="small"
+                  value={applyProgress.value}
+                  ariaLabel={applyProgress.label}
+                />
+              </div>
+            ) : null}
             {toastMarkup}
           </div>
           <div className={styles.footer}>
             <Rows spacing="1u">
               {busy === "translate" && translateProgress ? (
-                <div className={styles.translateProgress}>
+                <div className={styles.stepProgress}>
                   <Text size="small" tone="secondary">
                     {translateProgress.label}
                   </Text>

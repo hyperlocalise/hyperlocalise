@@ -568,7 +568,7 @@ export async function applyTranslationsToDesign(
     }
   });
 
-  if (pages.length > 0 && openedPages === 0) {
+  if (pages.length > 0 && openedPages === 0 && replaced === 0) {
     throw new Error("Canva skipped those pages. Open an editable page, then apply again.");
   }
 

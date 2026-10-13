@@ -68,7 +68,7 @@ In the Canva app UI:
 
 - **Connect Hyperlocalise** (OAuth). A connection-token paste field appears only in local development.
 - **Collect texts** — select pages, then upload them as `canva/designs/<design-slug>/page-<n>.json`
-- **Apply** — write existing translations for the selected locale onto the selected pages
+- **Apply** — pull Hyperlocalise target-locale output and write it onto the selected pages
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
 

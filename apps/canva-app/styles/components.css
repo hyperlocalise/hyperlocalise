@@ -97,7 +97,7 @@
   width: 100%;
 }
 
-.translateProgress {
+.stepProgress {
   display: flex;
   flex-direction: column;
   gap: var(--ui-kit-space-050);

@@ -80,11 +80,11 @@ Upload and Apply stay available as separate confirmed steps. Open the page files
 
 ## Step 6: Apply to the design
 
-Apply replaces text on the selected Canva pages. It does not insert a page above or below.
+**Apply** pulls Hyperlocalise output for the chosen **target** language and writes it onto the **selected** Canva pages. It does not insert a page above or below, and it does not apply the source language.
 
-1. Select the locale. The source locale writes collected source JSON back. A target locale writes that locale’s job output.
-2. Select the pages to write.
-3. Choose **Apply** when that locale has pullable translations for at least one selected page. The app pulls translations and writes them to the design immediately.
+1. Under **Translate to**, pick the target locale whose translations you want on the design.
+2. Under **Pages to translate**, pick every page that should receive that language.
+3. Choose **Apply** when each selected page has pullable translations (job succeeded or waiting for review). The app pulls from Hyperlocalise and updates the design immediately.
 4. Inspect layout after applying another language, especially for longer text.
 
 Apply uses page-local keys from the latest collect. It does not rewrite older single-file designs.

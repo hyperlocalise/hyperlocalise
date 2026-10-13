@@ -411,4 +411,60 @@ describe("design-content", () => {
     expect(replacements).toEqual(["Hola", "Mundo"]);
     expect(sync).toHaveBeenCalledTimes(1);
   });
+
+  it("does not fail when Canva omits executed status but text was replaced", async () => {
+    const replacements: string[] = [];
+    const sync = vi.fn(async () => undefined);
+
+    vi.mocked(openDesign).mockImplementation(async (_options, callback) => {
+      await callback({
+        pageRefs: {
+          toArray: () => [{ type: "absolute", locked: false }],
+        },
+        helpers: {
+          openPage: async (
+            _pageRef: unknown,
+            pageCallback: (result: {
+              page: {
+                type: string;
+                locked: boolean;
+                elements: { forEach: (visitor: (element: unknown) => void) => void };
+              };
+            }) => Promise<void>,
+          ) => {
+            await pageCallback({
+              page: {
+                type: "absolute",
+                locked: false,
+                elements: {
+                  forEach: (visitor: (element: unknown) => void) => {
+                    visitor({
+                      type: "text",
+                      text: {
+                        readPlaintext: () => "Hello",
+                        readTextRegions: () => [{ text: "Hello" }],
+                        replaceText: (_range: unknown, text: string) => {
+                          replacements.push(text);
+                        },
+                      },
+                    });
+                  },
+                },
+              },
+            });
+            return { status: "skipped" };
+          },
+        },
+        sync,
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToDesign(
+        [{ pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } }],
+        false,
+      ),
+    ).resolves.toBe(1);
+    expect(replacements).toEqual(["Hola"]);
+  });
 });
