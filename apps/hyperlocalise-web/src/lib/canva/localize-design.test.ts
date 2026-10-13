@@ -16,10 +16,13 @@ import {
   buildCanvaPullEntries,
   buildCanvaSourceLocaleStatus,
   canvaApprovalPercent,
+  canvaJobHasPullableTranslations,
+  canvaJobMatchesDesign,
   canvaSourceIngestIsSettled,
   isCanvaIntegrationJob,
   latestPublishedCanvaCollectBatchId,
   mergeCanvaPullTranslations,
+  publicCanvaJobStatus,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
   resolveCanvaJobLocales,
@@ -95,6 +98,50 @@ describe("publicJobOutputFiles", () => {
       { fileId: "file_1", locale: "es", filename: "design.es.json" },
       { fileId: "file_2", locale: "fr", filename: "design.fr.json" },
     ]);
+  });
+});
+
+describe("publicCanvaJobStatus", () => {
+  it("keeps known job statuses and falls back to queued", () => {
+    expect(publicCanvaJobStatus("succeeded")).toBe("succeeded");
+    expect(publicCanvaJobStatus("waiting_for_review")).toBe("waiting_for_review");
+    expect(publicCanvaJobStatus("cancelled")).toBe("cancelled");
+    expect(publicCanvaJobStatus("mystery")).toBe("queued");
+  });
+});
+
+describe("canvaJobHasPullableTranslations", () => {
+  it("allows pull only after review or success", () => {
+    expect(canvaJobHasPullableTranslations("succeeded")).toBe(true);
+    expect(canvaJobHasPullableTranslations("waiting_for_review")).toBe(true);
+    expect(canvaJobHasPullableTranslations("running")).toBe(false);
+    expect(canvaJobHasPullableTranslations("failed")).toBe(false);
+  });
+});
+
+describe("canvaJobMatchesDesign", () => {
+  it("requires canva-app metadata and the same design id", () => {
+    expect(
+      canvaJobMatchesDesign(
+        { metadata: { integration: "canva-app", canvaDesignId: "design_1" } },
+        "design_1",
+      ),
+    ).toBe(true);
+    expect(
+      canvaJobMatchesDesign(
+        { fileInput: { metadata: { integration: "canva-app", canvaDesignId: "design_1" } } },
+        "design_1",
+      ),
+    ).toBe(true);
+    expect(
+      canvaJobMatchesDesign(
+        { metadata: { integration: "canva-app", canvaDesignId: "design_1" } },
+        "design_2",
+      ),
+    ).toBe(false);
+    expect(canvaJobMatchesDesign({ metadata: { canvaDesignId: "design_1" } }, "design_1")).toBe(
+      false,
+    );
   });
 });
 
