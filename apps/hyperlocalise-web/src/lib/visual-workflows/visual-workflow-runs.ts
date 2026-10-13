@@ -13,7 +13,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, sql, or, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, sql, or, isNull, lte, inArray } from "drizzle-orm";
 
 import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
 import { enqueueVisualWorkflowRunStartedActivity } from "@/lib/activity-log/visual-workflow-events";
@@ -575,11 +575,6 @@ export async function getVisualWorkflowRunById(input: {
     return serializeRun(row);
   }
 
-  const nodeRuns = await listVisualWorkflowNodeRuns({
-    organizationId: input.organizationId,
-    runId: input.runId,
-    dbClient,
-  });
   const traceRows = await dbClient
     .select()
     .from(schema.visualWorkflowRuns)
@@ -597,22 +592,71 @@ export async function getVisualWorkflowRunById(input: {
     children.push(traceRow);
     childRowsByParent.set(traceRow.parentRunId, children);
   }
-  const serializeChildren = async (parentRunId: string): Promise<VisualWorkflowRunRecord[]> =>
-    Promise.all(
-      (childRowsByParent.get(parentRunId) ?? []).map(async (childRow) =>
-        serializeRun(
-          childRow,
-          await listVisualWorkflowNodeRuns({
-            organizationId: input.organizationId,
-            runId: childRow.id,
-            dbClient,
-          }),
-          await serializeChildren(childRow.id),
-        ),
+  const traceRunIds = traceRows.map((traceRow) => traceRow.id);
+  const traceNodeRows =
+    traceRunIds.length === 0
+      ? []
+      : await dbClient
+          .select()
+          .from(schema.visualWorkflowNodeRuns)
+          .where(
+            and(
+              eq(schema.visualWorkflowNodeRuns.organizationId, input.organizationId),
+              inArray(schema.visualWorkflowNodeRuns.runId, traceRunIds),
+            ),
+          )
+          .orderBy(
+            schema.visualWorkflowNodeRuns.createdAt,
+            schema.visualWorkflowNodeRuns.iteration,
+            schema.visualWorkflowNodeRuns.attempt,
+          );
+  const nodeRunsByRunId = new Map<string, VisualWorkflowNodeRunRecord[]>();
+  for (const nodeRow of traceNodeRows) {
+    const nodeRuns = nodeRunsByRunId.get(nodeRow.runId) ?? [];
+    nodeRuns.push(serializeNodeRun(nodeRow));
+    nodeRunsByRunId.set(nodeRow.runId, nodeRuns);
+  }
+  const serializeChildren = (parentRunId: string): VisualWorkflowRunRecord[] =>
+    (childRowsByParent.get(parentRunId) ?? []).map((childRow) =>
+      serializeRun(
+        childRow,
+        nodeRunsByRunId.get(childRow.id) ?? [],
+        serializeChildren(childRow.id),
       ),
     );
 
-  return serializeRun(row, nodeRuns, await serializeChildren(row.id));
+  return serializeRun(row, nodeRunsByRunId.get(row.id) ?? [], serializeChildren(row.id));
+}
+
+export async function getVisualWorkflowReturnedOutputs(input: {
+  organizationId: string;
+  runId: string;
+  dbClient?: DatabaseClient;
+}): Promise<Record<string, unknown>> {
+  const dbClient = input.dbClient ?? db;
+  const [returnNodeRun] = await dbClient
+    .select({ encryptedOutput: schema.visualWorkflowNodeRuns.encryptedOutput })
+    .from(schema.visualWorkflowNodeRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowNodeRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowNodeRuns.runId, input.runId),
+        eq(schema.visualWorkflowNodeRuns.nodeType, "flow.return"),
+        eq(schema.visualWorkflowNodeRuns.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(schema.visualWorkflowNodeRuns.updatedAt))
+    .limit(1);
+  if (!returnNodeRun?.encryptedOutput) return {};
+
+  const execution = decryptWorkflowPayload(returnNodeRun.encryptedOutput) as {
+    ok?: boolean;
+    output?: { returnedOutputs?: unknown };
+  };
+  const returnedOutputs = execution.ok ? execution.output?.returnedOutputs : null;
+  return returnedOutputs && typeof returnedOutputs === "object"
+    ? (returnedOutputs as Record<string, unknown>)
+    : {};
 }
 
 export async function listVisualWorkflowRuns(input: {

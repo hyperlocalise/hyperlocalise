@@ -11,15 +11,20 @@
  * Version 2.0 or later.
  */
 import type { CanonicalVisualWorkflowNode } from "../schema/types";
-import { createVisualWorkflowRun, executeVisualWorkflowRun } from "../visual-workflow-runs";
+import {
+  createVisualWorkflowRun,
+  executeVisualWorkflowRun,
+  getVisualWorkflowReturnedOutputs,
+} from "../visual-workflow-runs";
 import type { VisualWorkflowNodeExecutionResult } from "./execution-result";
 
 function subworkflowIdempotencyKey(input: {
   parentRunId: string;
   nodeId: string;
   iteration?: number;
+  attempt: number;
 }): string {
-  return `subworkflow:${input.parentRunId}:${input.nodeId}:${input.iteration ?? -1}`;
+  return `subworkflow:${input.parentRunId}:${input.nodeId}:${input.iteration ?? -1}:${input.attempt}`;
 }
 
 export async function executeSubworkflowNode(input: {
@@ -28,6 +33,7 @@ export async function executeSubworkflowNode(input: {
   parentRunId: string;
   traceId: string;
   iteration?: number;
+  attempt: number;
 }): Promise<VisualWorkflowNodeExecutionResult> {
   if (input.node.config.kind !== "flow.call_workflow") {
     return {
@@ -53,6 +59,7 @@ export async function executeSubworkflowNode(input: {
         parentRunId: input.parentRunId,
         nodeId: input.node.id,
         iteration: input.iteration,
+        attempt: input.attempt,
       }),
       inputSnapshot: childInput,
       parentRunId: input.parentRunId,
@@ -114,11 +121,10 @@ export async function executeSubworkflowNode(input: {
     };
   }
 
-  const returnedOutputs =
-    executed.outputSummary.returnedOutputs &&
-    typeof executed.outputSummary.returnedOutputs === "object"
-      ? (executed.outputSummary.returnedOutputs as Record<string, unknown>)
-      : {};
+  const returnedOutputs = await getVisualWorkflowReturnedOutputs({
+    organizationId: input.organizationId,
+    runId: executed.id,
+  });
 
   return {
     ok: true,

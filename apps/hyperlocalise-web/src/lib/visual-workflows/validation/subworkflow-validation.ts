@@ -58,7 +58,7 @@ function sameFields(
 export function deriveReusableWorkflowContract(
   definition: VisualWorkflowV3Definition,
 ): ReusableWorkflowContract | null {
-  const trigger = definition.nodes.find((node) => node.type.startsWith("trigger."));
+  const trigger = definition.nodes.find((node) => node.type === "trigger.manual");
   if (!trigger) return null;
 
   const inputs = (trigger.outputFields ?? []).map((field) => ({
@@ -70,6 +70,7 @@ export function deriveReusableWorkflowContract(
   const returns = definition.nodes.filter(
     (node) => node.type === "flow.return" && node.config.kind === "flow.return",
   );
+  if (returns.length === 0) return null;
   const returnOutputs = returns[0]?.config.kind === "flow.return" ? returns[0].config.outputs : [];
   const outputs = returnOutputs.map((field) => ({ ...field, required: true }));
 

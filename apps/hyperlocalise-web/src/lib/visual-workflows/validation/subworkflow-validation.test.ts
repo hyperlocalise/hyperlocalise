@@ -83,6 +83,23 @@ describe("subworkflow validation", () => {
     });
   });
 
+  it("rejects non-manual workflows and workflows without a Return node", () => {
+    const scheduled = reusableDefinition();
+    scheduled.nodes[0] = {
+      id: "trigger",
+      type: "trigger.scheduled",
+      config: {
+        kind: "trigger.scheduled",
+        schedule: { cadence: "daily", timezone: "UTC" },
+      },
+    };
+    const withoutReturn = reusableDefinition();
+    withoutReturn.nodes = withoutReturn.nodes.filter((node) => node.type !== "flow.return");
+
+    expect(deriveReusableWorkflowContract(scheduled)).toBeNull();
+    expect(deriveReusableWorkflowContract(withoutReturn)).toBeNull();
+  });
+
   it("accepts a call pinned to an existing compatible version", async () => {
     const child = reusableDefinition();
     const parent = reusableDefinition([{ workflowId: "child" }]);

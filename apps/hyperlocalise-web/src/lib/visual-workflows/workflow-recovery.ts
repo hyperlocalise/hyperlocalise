@@ -19,6 +19,9 @@ import { getVisualWorkflowRunById } from "./visual-workflow-runs";
 const logger = createLogger("visual-workflow-recovery");
 type RunIdentity = { organizationId: string; visualWorkflowId: string; runId: string };
 export async function requestWorkflowCancellation(input: RunIdentity) {
+  const root = await getVisualWorkflowRunById(input);
+  if (!root) return null;
+
   const now = new Date();
   const runIds = [input.runId];
   let frontier = [input.runId];

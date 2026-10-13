@@ -17,11 +17,13 @@ import type { CanonicalVisualWorkflowNode } from "../schema/types";
 const mocks = vi.hoisted(() => ({
   createRun: vi.fn(),
   executeRun: vi.fn(),
+  getReturnedOutputs: vi.fn(),
 }));
 
 vi.mock("../visual-workflow-runs", () => ({
   createVisualWorkflowRun: mocks.createRun,
   executeVisualWorkflowRun: mocks.executeRun,
+  getVisualWorkflowReturnedOutputs: mocks.getReturnedOutputs,
 }));
 
 import { executeSubworkflowNode } from "./execute-subworkflow-node";
@@ -50,13 +52,14 @@ describe("executeSubworkflowNode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.createRun.mockResolvedValue(childRun);
+    mocks.getReturnedOutputs.mockResolvedValue({ result: { accepted: true } });
   });
 
   it("pins the immutable version and propagates input, trace and idempotency", async () => {
     mocks.executeRun.mockResolvedValue({
       ...childRun,
       status: "succeeded",
-      outputSummary: { returnedOutputs: { result: { accepted: true } } },
+      outputSummary: { returnedOutputs: { result: "[redacted]" } },
       error: null,
     });
 
@@ -66,6 +69,7 @@ describe("executeSubworkflowNode", () => {
       parentRunId: "11111111-1111-4111-8111-111111111111",
       traceId: childRun.traceId,
       iteration: 2,
+      attempt: 3,
     });
 
     expect(mocks.createRun).toHaveBeenCalledWith(
@@ -75,7 +79,7 @@ describe("executeSubworkflowNode", () => {
         parentRunId: "11111111-1111-4111-8111-111111111111",
         parentNodeId: "call-child",
         traceId: childRun.traceId,
-        idempotencyKey: "subworkflow:11111111-1111-4111-8111-111111111111:call-child:2",
+        idempotencyKey: "subworkflow:11111111-1111-4111-8111-111111111111:call-child:2:3",
         enqueue: false,
       }),
     );
@@ -87,6 +91,10 @@ describe("executeSubworkflowNode", () => {
         traceId: childRun.traceId,
         definitionVersion: 7,
       },
+    });
+    expect(mocks.getReturnedOutputs).toHaveBeenCalledWith({
+      organizationId: "organization",
+      runId: childRun.id,
     });
   });
 
@@ -103,6 +111,7 @@ describe("executeSubworkflowNode", () => {
         organizationId: "organization",
         parentRunId: "parent",
         traceId: childRun.traceId,
+        attempt: 1,
       }),
     ).resolves.toEqual({
       ok: false,
@@ -134,6 +143,7 @@ describe("executeSubworkflowNode", () => {
       organizationId: "organization",
       parentRunId: "parent",
       traceId: childRun.traceId,
+      attempt: 1,
     });
 
     expect(result).toEqual({

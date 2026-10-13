@@ -431,6 +431,29 @@ describe("visual workflow runs", () => {
     expect(cancelled.every((run) => run.at instanceof Date)).toBe(true);
   });
 
+  it("does not cancel a run when the requested workflow ID does not own it", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      idempotencyKey: "cancel-wrong-workflow",
+    });
+
+    const cancelled = await requestWorkflowCancellation({
+      organizationId,
+      visualWorkflowId: "00000000-0000-4000-8000-000000000001",
+      runId: run.id,
+    });
+    const [stored] = await db
+      .select({ cancelRequestedAt: schema.visualWorkflowRuns.cancelRequestedAt })
+      .from(schema.visualWorkflowRuns)
+      .where(eq(schema.visualWorkflowRuns.id, run.id));
+
+    expect(cancelled).toBeNull();
+    expect(stored?.cancelRequestedAt).toBeNull();
+  });
+
   it("enqueues at most once and clears the marker when enqueue fails", async () => {
     const { organizationId, workflow } = await seedWorkflow();
     const run = await createVisualWorkflowRun({

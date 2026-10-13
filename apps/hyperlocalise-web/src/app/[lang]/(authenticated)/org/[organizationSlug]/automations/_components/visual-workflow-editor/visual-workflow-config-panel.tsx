@@ -737,10 +737,16 @@ export function VisualWorkflowConfigPanel({
                 id: "UbCGk5WHRG",
                 description: "Placeholder for selecting a reusable workflow",
               })}
-              items={resources.workflows.map((workflow) => ({
-                value: workflow.id,
-                label: `${workflow.name} · v${workflow.publishedVersion}`,
-              }))}
+              items={resources.workflows
+                .filter(
+                  (workflow) =>
+                    workflow.publishedDefinition !== null &&
+                    deriveReusableWorkflowContract(workflow.publishedDefinition) !== null,
+                )
+                .map((workflow) => ({
+                  value: workflow.id,
+                  label: `${workflow.name} · v${workflow.publishedVersion}`,
+                }))}
               onValueChange={(workflowId) => {
                 const workflow = resources.workflows.find((entry) => entry.id === workflowId);
                 if (!workflow?.publishedDefinition || workflow.publishedVersion === null) return;

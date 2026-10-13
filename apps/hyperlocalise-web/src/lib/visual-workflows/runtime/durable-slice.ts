@@ -286,7 +286,10 @@ export async function executeDurableWorkflowSlice(input: {
             node: args.node,
           }),
         };
-        const firstAttempt = (previous?.attempt ?? 0) + 1;
+        const firstAttempt =
+          previous?.error?.code === "yield_execution"
+            ? previous.attempt
+            : (previous?.attempt ?? 0) + 1;
         const currentAttempts = records.filter(
           (record) =>
             key(record.nodeId, record.iteration) === id &&
@@ -335,6 +338,7 @@ export async function executeDurableWorkflowSlice(input: {
                       parentRunId: input.run.id,
                       traceId: input.run.traceId,
                       iteration: args.iteration,
+                      attempt,
                     })
                   : await executeVisualWorkflowNode(resolved);
           } catch {
