@@ -59,8 +59,8 @@ export function getLocalisationAuditPageCopy(locale: string) {
       description: "Placeholder for optional focus languages on the localisation audit form",
     }),
     focusHint: intl.formatMessage({
-      defaultMessage: "We'll look more closely at up to two.",
-      id: "KigHdi8k7w",
+      defaultMessage: "Up to two, separated by commas. We'll look more closely at these.",
+      id: "VN0xcE3Kek",
       description: "Hint under the optional focus languages field on the localisation audit form",
     }),
     crawlAccessNoteHeading: intl.formatMessage({
@@ -111,42 +111,60 @@ export function getLocalisationAuditPageCopy(locale: string) {
     notices: [
       {
         title: intl.formatMessage({
-          defaultMessage: "Voice",
-          id: "FVIz6ikiua",
-          description: "Title of the voice methodology card on the localisation audit landing page",
+          defaultMessage: "Technical",
+          id: "26WPvvCIx0",
+          description:
+            "Title of the technical dimension on the localisation audit landing page methodology",
         }),
         body: intl.formatMessage({
-          defaultMessage: "Does the writing still sound like you, once the language changes?",
-          id: "ULcCfIfBDx",
-          description: "Body of the voice methodology card on the localisation audit landing page",
+          defaultMessage:
+            "Can people and search engines find the right version of each page — hreflang, routing, sitemaps?",
+          id: "SYIZFG7njP",
+          description:
+            "Body of the technical dimension on the localisation audit landing page methodology",
         }),
       },
       {
         title: intl.formatMessage({
-          defaultMessage: "Presence",
-          id: "TEByVD08L+",
+          defaultMessage: "Linguistic",
+          id: "DoXSBl+jxH",
           description:
-            "Title of the presence methodology card on the localisation audit landing page",
+            "Title of the linguistic dimension on the localisation audit landing page methodology",
         }),
         body: intl.formatMessage({
-          defaultMessage: "Do pages still feel considered — layout, images, and all?",
-          id: "731nFVbbU3",
+          defaultMessage:
+            "Is every page fully translated, and does the writing still sound like you?",
+          id: "3IN5K2pGkM",
           description:
-            "Body of the presence methodology card on the localisation audit landing page",
+            "Body of the linguistic dimension on the localisation audit landing page methodology",
         }),
       },
       {
         title: intl.formatMessage({
-          defaultMessage: "Discovery",
-          id: "mrmSpANeux",
+          defaultMessage: "Contextual",
+          id: "wEfVjS52RW",
           description:
-            "Title of the discovery methodology card on the localisation audit landing page",
+            "Title of the contextual dimension on the localisation audit landing page methodology",
         }),
         body: intl.formatMessage({
-          defaultMessage: "Can visitors find the right version of the site?",
-          id: "ZT4A78YiXg",
+          defaultMessage: "Do prices, dates, buttons, and examples make sense in each market?",
+          id: "vhieXbkbZZ",
           description:
-            "Body of the discovery methodology card on the localisation audit landing page",
+            "Body of the contextual dimension on the localisation audit landing page methodology",
+        }),
+      },
+      {
+        title: intl.formatMessage({
+          defaultMessage: "Visual",
+          id: "fhU1eNTuT6",
+          description:
+            "Title of the visual dimension on the localisation audit landing page methodology",
+        }),
+        body: intl.formatMessage({
+          defaultMessage: "Do layouts, fonts, and images hold up when the text gets longer?",
+          id: "tGpj/Eb7w4",
+          description:
+            "Body of the visual dimension on the localisation audit landing page methodology",
         }),
       },
     ],
@@ -525,14 +543,14 @@ export function getLocalisationAuditResultCopy(locale: string) {
       description: "Heading for headline findings on a localisation audit result",
     }),
     unlockHeading: intl.formatMessage({
-      defaultMessage: "Email me a summary",
-      id: "S+w63pqvse",
+      defaultMessage: "Send this to your team",
+      id: "qupERHBhUI",
       description: "Heading for the email-summary form on a localisation audit result",
     }),
     unlockBody: intl.formatMessage({
       defaultMessage:
-        "Optional. Enter your work email and we will send a concise summary of this public report.",
-      id: "re+MJ8bLl3",
+        "We'll email a short summary — score, top fixes, and a link back to this report — so it's easy to forward.",
+      id: "NDXmA1pbVL",
       description: "Body for the email-summary form on a localisation audit result",
     }),
     standingHeading: intl.formatMessage({
@@ -549,12 +567,14 @@ export function getLocalisationAuditResultCopy(locale: string) {
         },
         values,
       ),
-    standingPercentile: (values: { percentile: number }) =>
+    standingAhead: (values: { ahead: number }) =>
       intl.formatMessage(
         {
-          defaultMessage: "Top {percentile}% of audited domains",
-          id: "F0U2CC+DdD",
-          description: "Percentile line on a localisation audit result standing section",
+          defaultMessage:
+            "Ahead of {ahead, plural, one {# other public audit} other {# other public audits}}",
+          id: "QWitM4s7rG",
+          description:
+            "Line on a localisation audit result standing section counting lower-scoring public audits",
         },
         values,
       ),
@@ -677,16 +697,48 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "6YovIP6EMt",
       description: "Heading for the full findings list on a localisation audit result",
     }),
+    otherFindingsHeading: intl.formatMessage({
+      defaultMessage: "Other findings",
+      id: "TA6Yq+oOXe",
+      description:
+        "Heading for localisation audit findings that are not shown under a failing or watched criterion",
+    }),
+    otherFindingsBody: intl.formatMessage({
+      defaultMessage: "Findings not listed under a criterion above.",
+      id: "EKyvEH55l4",
+      description: "Intro under the other findings heading on a localisation audit result",
+    }),
+    fixFirstSeeDetails: intl.formatMessage({
+      defaultMessage: "See details",
+      id: "7+2d5ot9yA",
+      description: "Link from a fix-first item to its full finding on a localisation audit result",
+    }),
+    evidenceShowMore: intl.formatMessage({
+      defaultMessage: "Show more",
+      id: "L1kbT9LQu4",
+      description: "Expands long evidence on a localisation audit finding",
+    }),
+    evidenceShowLess: intl.formatMessage({
+      defaultMessage: "Show less",
+      id: "p0+iOS1jKZ",
+      description: "Collapses long evidence on a localisation audit finding",
+    }),
+    reportNavLabel: intl.formatMessage({
+      defaultMessage: "Report sections",
+      id: "R4pAZFit9e",
+      description: "Accessible label for the in-page section links on a localisation audit result",
+    }),
     creditsHeading: intl.formatMessage({
       defaultMessage: "Audit criteria",
       id: "XN2gagpvC2",
       description: "Heading for the criteria list on a localisation audit result",
     }),
-    criteriaSummary: (values: { passed: number; failed: number; na: number }) =>
+    criteriaSummary: (values: { passed: number; watch: number; failed: number; na: number }) =>
       intl.formatMessage(
         {
-          defaultMessage: "{passed} passed · {failed} to fix · {na} not applicable",
-          id: "IoY6mjCVOS",
+          defaultMessage:
+            "{passed} passed · {watch} to watch · {failed} to fix · {na} not applicable",
+          id: "674eGK4ons",
           description: "Summary counts above localisation audit criteria groups",
         },
         values,
@@ -697,6 +749,16 @@ export function getLocalisationAuditResultCopy(locale: string) {
           defaultMessage: "Needs attention ({count})",
           id: "AJbIBJ8rQ5",
           description: "Heading for failed localisation audit criteria",
+        },
+        values,
+      ),
+    criteriaWatchHeading: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "Worth a look ({count})",
+          id: "GwtVJbyKbN",
+          description:
+            "Heading for localisation audit criteria that scored just under the pass threshold",
         },
         values,
       ),
@@ -727,6 +789,12 @@ export function getLocalisationAuditResultCopy(locale: string) {
       defaultMessage: "Fail",
       id: "RseiYzhfDo",
       description: "Status badge for a failed localisation audit criterion",
+    }),
+    criteriaWatchLabel: intl.formatMessage({
+      defaultMessage: "Watch",
+      id: "fO4X7c0JA4",
+      description:
+        "Status badge for a localisation audit criterion that scored just under the pass threshold",
     }),
     criteriaNaLabel: intl.formatMessage({
       defaultMessage: "N/A",
@@ -763,6 +831,60 @@ export function getLocalisationAuditResultCopy(locale: string) {
       id: "MasHu7akaE",
       description: "Heading for sampled pages on a localisation audit result",
     }),
+    pagesExpand: (values: { count: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "{count, plural, one {Show # page} other {Show all # pages}}",
+          id: "8SYhKATZ36",
+          description: "Control to expand the sampled pages list on a localisation audit result",
+        },
+        values,
+      ),
+    pagesCollapse: intl.formatMessage({
+      defaultMessage: "Hide pages",
+      id: "ljM3NRfDH1",
+      description: "Control to collapse the sampled pages list on a localisation audit result",
+    }),
+    pagesHttpStatus: (values: { status: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "HTTP {status}",
+          id: "aZJfFdGVsu",
+          description:
+            "Badge for a sampled page that did not load successfully on a localisation audit result",
+        },
+        values,
+      ),
+    localeSourceHreflang: intl.formatMessage({
+      defaultMessage: "hreflang",
+      id: "4OtY5abyua",
+      description: "Detected-locale source: found in hreflang link tags",
+    }),
+    localeSourceHtmlLang: intl.formatMessage({
+      defaultMessage: "page language",
+      id: "xWfYWzBNtl",
+      description: "Detected-locale source: found in the html lang attribute",
+    }),
+    localeSourceUrlPrefix: intl.formatMessage({
+      defaultMessage: "URL path",
+      id: "Zmyn4vetdi",
+      description: "Detected-locale source: found as a URL path prefix such as /fr/",
+    }),
+    localeSourceUrlSubdomain: intl.formatMessage({
+      defaultMessage: "subdomain",
+      id: "lgwEY2kWZQ",
+      description: "Detected-locale source: found as a subdomain such as fr.example.com",
+    }),
+    localeSourceFocus: intl.formatMessage({
+      defaultMessage: "you asked",
+      id: "DDkCNI/bRQ",
+      description: "Detected-locale source: requested by the visitor as a focus language",
+    }),
+    localesEmpty: intl.formatMessage({
+      defaultMessage: "We did not find any language versions on the sampled pages.",
+      id: "S46qITlTKj",
+      description: "Empty state when a localisation audit detected no locales",
+    }),
     sampledPages: (values: { count: number }) =>
       intl.formatMessage(
         {
@@ -780,31 +902,21 @@ export function getLocalisationAuditResultCopy(locale: string) {
     }),
     reauditBodyLow: intl.formatMessage({
       defaultMessage:
-        "Critical gaps showed up. Create a workspace to run a deeper registered audit, or book a review with our team.",
-      id: "9GZfIBGhFw",
+        "Critical gaps showed up. Claim this domain to track fixes in a workspace, or book a review with our team.",
+      id: "8aChGc1qtS",
       description: "Next-step body for a low localisation audit score",
     }),
     reauditBodyMid: intl.formatMessage({
       defaultMessage:
-        "Solid baseline with room to improve. Create a workspace for continuous locale monitoring, or book an audit review.",
-      id: "mS/hL9d9Ru",
+        "Solid baseline with room to improve. Claim this domain to monitor locales as you ship, or book an audit review.",
+      id: "oFnZSOUSL4",
       description: "Next-step body for a mid localisation audit score",
     }),
     reauditBodyHigh: intl.formatMessage({
       defaultMessage:
-        "Strong localisation signals. Create a workspace to keep locales healthy as you ship, or book a deeper review.",
-      id: "q4MSNg1UjH",
+        "Strong localisation signals. Claim this domain to keep locales healthy as you ship, or book a deeper review.",
+      id: "5ZM/k6uYbC",
       description: "Next-step body for a high localisation audit score",
-    }),
-    createWorkspace: intl.formatMessage({
-      defaultMessage: "Create a workspace",
-      id: "fHty0SN0KU",
-      description: "CTA to create a workspace from a low-scoring localisation audit",
-    }),
-    deeperAudit: intl.formatMessage({
-      defaultMessage: "Run a deeper registered audit",
-      id: "eVmVzJRp/f",
-      description: "CTA to start a deeper registered audit from a localisation audit result",
     }),
     claimDomain: intl.formatMessage({
       defaultMessage: "Claim this domain",

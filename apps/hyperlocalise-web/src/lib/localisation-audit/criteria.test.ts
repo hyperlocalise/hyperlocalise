@@ -48,8 +48,13 @@ describe("creditCriterionStatus", () => {
     expect(creditCriterionStatus(credit({ id: "hreflang", score: 100 }))).toBe("pass");
   });
 
-  it("marks scores below the pass threshold as fail", () => {
-    expect(creditCriterionStatus(credit({ id: "hreflang", score: 89 }))).toBe("fail");
+  it("marks near-pass scores as watch", () => {
+    expect(creditCriterionStatus(credit({ id: "hreflang", score: 89 }))).toBe("watch");
+    expect(creditCriterionStatus(credit({ id: "hreflang", score: 75 }))).toBe("watch");
+  });
+
+  it("marks scores below the watch band as fail", () => {
+    expect(creditCriterionStatus(credit({ id: "hreflang", score: 74 }))).toBe("fail");
     expect(creditCriterionStatus(credit({ id: "hreflang", score: 0 }))).toBe("fail");
   });
 
@@ -104,16 +109,18 @@ describe("buildLocalisationAuditCriteria", () => {
 });
 
 describe("groupLocalisationAuditCriteria", () => {
-  it("buckets criteria into passed, failed, and not applicable", () => {
+  it("buckets criteria into passed, watch, failed, and not applicable", () => {
     const grouped = groupLocalisationAuditCriteria(
       buildLocalisationAuditCriteria([
         credit({ id: "hreflang", score: 40 }),
         credit({ id: "canonical-urls", score: 96 }),
+        credit({ id: "sitemap", score: 82 }),
         credit({ id: "glossary-compliance", score: null, method: "na" }),
       ]),
     );
 
     expect(grouped.failed.map((item) => item.id)).toEqual(["hreflang"]);
+    expect(grouped.watch.map((item) => item.id)).toEqual(["sitemap"]);
     expect(grouped.passed.map((item) => item.id)).toEqual(["canonical-urls"]);
     expect(grouped.notApplicable.map((item) => item.id)).toEqual(["glossary-compliance"]);
   });
