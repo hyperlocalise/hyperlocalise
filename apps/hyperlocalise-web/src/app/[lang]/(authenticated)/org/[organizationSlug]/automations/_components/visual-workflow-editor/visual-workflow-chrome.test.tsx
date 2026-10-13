@@ -69,6 +69,36 @@ describe("VisualWorkflowChrome", () => {
     expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();
   });
 
+  it("shows the status once, on the switch before the name", () => {
+    renderChrome({ workflowStatus: "active", onStatusChange: vi.fn() });
+
+    const status = screen.getByRole("switch", { name: "Active" });
+    expect(status).toBeChecked();
+    expect(screen.getAllByText("Active")).toHaveLength(1);
+    expect(
+      status.compareDocumentPosition(screen.getByRole("textbox", { name: "Workflow name" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("names a paused workflow on the switch and turns it on from there", async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn();
+    renderChrome({ workflowStatus: "paused", onStatusChange });
+
+    expect(screen.getByRole("switch", { name: "Paused" })).not.toBeChecked();
+    expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Paused"));
+    expect(onStatusChange).toHaveBeenCalledWith(true);
+  });
+
+  it("calls a workflow that was never published inactive", () => {
+    renderChrome({ workflowStatus: "draft", onStatusChange: vi.fn() });
+
+    expect(screen.getByRole("switch", { name: "Inactive" })).not.toBeChecked();
+  });
+
   it("marks Delete as destructive", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
