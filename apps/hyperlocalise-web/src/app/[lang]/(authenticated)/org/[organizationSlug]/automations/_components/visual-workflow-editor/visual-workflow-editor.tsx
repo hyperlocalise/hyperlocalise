@@ -180,6 +180,10 @@ export function VisualWorkflowEditor({
   );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
+  // What the side panel shows, for the canvas's selection handler, which is told of a change of
+  // selection after the render that caused it.
+  const showConfigRef = useRef(showConfig);
+  showConfigRef.current = showConfig;
   const saveDisabled = issues.length > 0;
   const isActive = workflowStatus === "active";
 
@@ -230,7 +234,20 @@ export function VisualWorkflowEditor({
       setMobilePanelOpen(true);
       return;
     }
-    setMobilePanelOpen(false);
+    // A click on the canvas put the step's settings away. When the panel had already moved on to
+    // the picker, it stays open.
+    if (showConfigRef.current) {
+      setMobilePanelOpen(false);
+    }
+  }, []);
+
+  /** Takes the selection off the canvas, so a click on the same step selects it again. */
+  const deselectNodes = useCallback(() => {
+    setNodes((current) =>
+      current.some((node) => node.selected)
+        ? current.map((node) => (node.selected ? { ...node, selected: false } : node))
+        : current,
+    );
   }, []);
 
   /** Selects a step from outside the canvas, as a click on it would. */
@@ -265,16 +282,21 @@ export function VisualWorkflowEditor({
     setSelectedNodeId(null);
     setPanelMode("picker");
     setAddFrom(null);
-  }, []);
+    deselectNodes();
+  }, [deselectNodes]);
 
-  const openPicker = useCallback((from: VisualWorkflowAddFrom | null = null) => {
-    setAddFrom(from);
-    setPanelMode("picker");
-    setMobilePanelOpen(true);
-    if (from) {
-      setSelectedNodeId(null);
-    }
-  }, []);
+  const openPicker = useCallback(
+    (from: VisualWorkflowAddFrom | null = null) => {
+      setAddFrom(from);
+      setPanelMode("picker");
+      setMobilePanelOpen(true);
+      if (from) {
+        setSelectedNodeId(null);
+        deselectNodes();
+      }
+    },
+    [deselectNodes],
+  );
 
   const addNode = useCallback(
     (type: VisualCatalogType) => {
@@ -698,6 +720,7 @@ export function VisualWorkflowEditor({
                 onBack={() => {
                   setPanelMode("picker");
                   setSelectedNodeId(null);
+                  deselectNodes();
                 }}
                 onChangeConfig={onChangeConfig}
                 onChangeNodeType={onChangeNodeType}

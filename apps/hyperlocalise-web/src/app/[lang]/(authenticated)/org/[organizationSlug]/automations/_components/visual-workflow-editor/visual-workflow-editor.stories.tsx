@@ -319,6 +319,54 @@ export const PortCompatibility: Story = {
   },
 };
 
+export const LeaveStepSettings: Story = {
+  name: "Leave a step's settings",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Back and the add button put a step's settings away and take the selection off the canvas, so a click on the same step opens its settings again.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const requestNode = (await canvas.findByTitle("url: string", {}, { timeout: 10_000 })).closest(
+      ".react-flow__node",
+    );
+    await expect(requestNode).not.toBeNull();
+    const openSettings = async () => {
+      await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
+      await expect(await canvas.findByText("Find upstream fields")).toBeInTheDocument();
+      await expect(requestNode).toHaveClass("selected");
+    };
+    const expectPicker = async () => {
+      await expect(await canvas.findByText("What happens next?")).toBeInTheDocument();
+      await waitFor(() => expect(requestNode).not.toHaveClass("selected"));
+    };
+
+    await openSettings();
+    const back = canvas.getByRole("button", { name: "Back" });
+
+    await userEvent.click(back);
+    await expectPicker();
+
+    await openSettings();
+    await userEvent.click(
+      within(requestNode as HTMLElement).getByRole("button", { name: "Add node" }),
+    );
+    await expectPicker();
+
+    await openSettings();
+  },
+};
+
 export const InvalidStep: Story = {
   name: "Invalid step",
   parameters: {
