@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const visualWorkflowEditorMessages = defineMessages({
+  executionChildRuns: {
+    defaultMessage: "Child workflow executions",
+    id: "TIDKg7QM0N",
+    description: "Heading for child workflow runs launched by the selected parent run",
+  },
   untitledName: {
     defaultMessage: "Untitled workflow",
     id: "dfVzkj5hWL",
@@ -599,6 +604,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Handle failures from a bounded execution region",
     id: "X5HXzEgA4e",
     description: "Visual workflow Try / Catch node picker hint",
+  },
+  nodeCallWorkflow: {
+    defaultMessage: "Call workflow",
+    id: "AX4bE25lbf",
+    description: "Visual workflow Call Workflow node title",
+  },
+  nodeCallWorkflowHint: {
+    defaultMessage: "Run a pinned version of a reusable workflow.",
+    id: "EIF7eE+7GJ",
+    description: "Visual workflow Call Workflow node picker hint",
   },
   sequenceOutputs: {
     defaultMessage: "Execution outputs",
@@ -1305,5 +1320,80 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Trigger",
     id: "vwVyosrRNf",
     description: "Accessible label for the lightning badge on trigger nodes",
+  },
+  undoTooltip: {
+    defaultMessage: "Undo {action}",
+    id: "h9hqEywbg6",
+    description:
+      "Tooltip of the visual editor's undo button; {action} is what the step did, such as 'adding a step'",
+  },
+  redoTooltip: {
+    defaultMessage: "Redo {action}",
+    id: "zfWAg4fbJG",
+    description:
+      "Tooltip of the visual editor's redo button; {action} is what the step did, such as 'adding a step'",
+  },
+  undoNothing: {
+    defaultMessage: "Nothing to undo",
+    id: "bwvCqV1CkU",
+    description: "Tooltip of the visual editor's undo button when there is no step to take back",
+  },
+  redoNothing: {
+    defaultMessage: "Nothing to redo",
+    id: "2Gc1+aVeLn",
+    description: "Tooltip of the visual editor's redo button when there is no step to put back",
+  },
+  undoActionAdd: {
+    defaultMessage: "{count, plural, one {adding a step} other {adding # steps}}",
+    id: "+HijiNTvvx",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were added to the workflow",
+  },
+  undoActionRemove: {
+    defaultMessage: "{count, plural, one {removing a step} other {removing # steps}}",
+    id: "mcpumDgw0v",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': nodes were removed from the workflow",
+  },
+  undoActionConnect: {
+    defaultMessage: "connecting steps",
+    id: "Fm7MxbuOiN",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was added",
+  },
+  undoActionDisconnect: {
+    defaultMessage: "disconnecting steps",
+    id: "t5xBIlTLwl",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was removed",
+  },
+  undoActionMove: {
+    defaultMessage: "{count, plural, one {moving a step} other {moving # steps}}",
+    id: "ZZerbQkD+z",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were moved on the canvas",
+  },
+  undoActionConfigure: {
+    defaultMessage: "changing a step's settings",
+    id: "gl6BIyGKNo",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node's settings were changed",
+  },
+  undoActionRetype: {
+    defaultMessage: "changing a step's type",
+    id: "enQcoq4887",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node was given another type",
+  },
+  undoActionRename: {
+    defaultMessage: "renaming the workflow",
+    id: "WdGY58H2dj",
+    description: "What an undo step did, after 'Undo' or 'Redo': the workflow's name was changed",
+  },
+  undoActionEdit: {
+    defaultMessage: "the last change",
+    id: "8MkwvIyeaM",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once",
+  },
+  undoActionAssistant: {
+    defaultMessage: "the assistant's changes",
+    id: "5dSB/hCLGx",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': the assistant changed the workflow",
   },
 });

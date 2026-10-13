@@ -168,6 +168,12 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     enabled: true,
     icon: GitBranchIcon,
   },
+  {
+    type: "flow.call_workflow",
+    category: "flow",
+    enabled: true,
+    icon: PathIcon,
+  },
 ];
 
 export const VISUAL_CATALOG_CATEGORY_ORDER: readonly VisualCatalogCategory[] = [
@@ -295,6 +301,15 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "logic.try_catch":
       return { kind: "logic.try_catch" };
+    case "flow.call_workflow":
+      return {
+        kind: "flow.call_workflow",
+        workflowId: "",
+        version: 1,
+        inputFields: [],
+        outputFields: [],
+        onError: "stop",
+      };
     default:
       return assertNever(type);
   }
@@ -337,6 +352,9 @@ export function getVisualNodeDimensions(
   }
   if (type === "logic.try_catch") {
     return { width: 280, height: 156 };
+  }
+  if (type === "flow.call_workflow") {
+    return { width: 280, height: 140 };
   }
   return { width: 280, height: 104 };
 }
@@ -407,6 +425,8 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.outputs.length === 1 ? "1 output" : `${config.outputs.length} outputs`;
     case "logic.try_catch":
       return "Try / Catch boundary";
+    case "flow.call_workflow":
+      return config.workflowId ? `Version ${config.version}` : "Select workflow";
     default:
       return assertNever(config);
   }

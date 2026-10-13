@@ -14,6 +14,7 @@
  */
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import { visualWorkflowEditorMessages as messages } from "./visual-workflow-edit
 export function VisualWorkflowChrome({
   name,
   onNameChange,
+  undoRedo,
   copied,
   onExport,
   onCopy,
@@ -52,6 +54,8 @@ export function VisualWorkflowChrome({
 }: {
   name: string;
   onNameChange: (name: string) => void;
+  /** Undo and redo buttons, shown first among the actions. */
+  undoRedo?: ReactNode;
   copied: boolean;
   onExport: () => void;
   onCopy: () => void;
@@ -121,6 +125,7 @@ export function VisualWorkflowChrome({
       </Tabs>
 
       <div className="flex flex-1 items-center justify-end gap-2">
+        {undoRedo}
         {previewMode || !onStatusChange ? (
           <Tooltip>
             <TooltipTrigger

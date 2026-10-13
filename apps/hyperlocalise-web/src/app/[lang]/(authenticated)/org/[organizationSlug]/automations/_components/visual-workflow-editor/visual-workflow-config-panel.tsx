@@ -60,6 +60,7 @@ import type {
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
+  VisualSubworkflowField,
   VisualWorkflowGithubTriggerEvent,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
@@ -76,6 +77,7 @@ import { visualWorkflowEditorMessages as messages } from "./visual-workflow-edit
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
 const ANY_PROJECT_VALUE = "__any_project__";
 const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
@@ -723,6 +725,88 @@ export function VisualWorkflowConfigPanel({
               onChange={(reason) => onChangeConfig({ ...config, reason: reason || undefined })}
             />
           </>
+        ) : null}
+        {config.kind === "flow.call_workflow" ? (
+          <div className="grid gap-4">
+            <SelectField
+              id="vw-call-workflow"
+              label={intl.formatMessage({
+                defaultMessage: "Published workflow",
+                id: "zMLRlSi4TO",
+                description: "Workflow selected by a Call Workflow node",
+              })}
+              value={config.workflowId}
+              placeholder={intl.formatMessage({
+                defaultMessage: "Select a reusable workflow",
+                id: "UbCGk5WHRG",
+                description: "Placeholder for selecting a reusable workflow",
+              })}
+              items={resources.workflows
+                .filter(
+                  (workflow) =>
+                    workflow.publishedDefinition !== null &&
+                    deriveReusableWorkflowContract(workflow.publishedDefinition) !== null,
+                )
+                .map((workflow) => ({
+                  value: workflow.id,
+                  label: `${workflow.name} · v${workflow.publishedVersion}`,
+                }))}
+              onValueChange={(workflowId) => {
+                const workflow = resources.workflows.find((entry) => entry.id === workflowId);
+                if (!workflow?.publishedDefinition || workflow.publishedVersion === null) return;
+                const contract = deriveReusableWorkflowContract(workflow.publishedDefinition);
+                if (!contract) return;
+                onChangeConfig({
+                  ...config,
+                  workflowId: workflow.id,
+                  version: workflow.publishedVersion,
+                  inputFields: contract.inputs,
+                  outputFields: contract.outputs,
+                });
+              }}
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-call-version">
+                {intl.formatMessage({
+                  defaultMessage: "Immutable version",
+                  id: "6NfqQj4VJh",
+                  description: "Pinned immutable workflow version",
+                })}
+              </Label>
+              <Input
+                id="vw-call-version"
+                type="number"
+                min={1}
+                value={config.version}
+                onChange={(event) =>
+                  onChangeConfig({
+                    ...config,
+                    version: Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                  })
+                }
+              />
+            </div>
+            <ContractFieldList
+              label={intl.formatMessage({
+                defaultMessage: "Inputs",
+                id: "C2mkhlL6tc",
+                description: "Snapshotted Call Workflow inputs",
+              })}
+              fields={config.inputFields}
+            />
+            <ContractFieldList
+              label={intl.formatMessage({
+                defaultMessage: "Outputs",
+                id: "xhGJ7UWFLE",
+                description: "Snapshotted Call Workflow outputs",
+              })}
+              fields={config.outputFields}
+            />
+            <ErrorBehaviorField
+              value={config.onError ?? "stop"}
+              onChange={(onError) => onChangeConfig({ ...config, onError })}
+            />
+          </div>
         ) : null}
         {config.kind === "flow.return" ? (
           <div className="grid gap-2">
@@ -1643,6 +1727,35 @@ function SelectField({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function ContractFieldList({
+  label,
+  fields,
+}: {
+  label: string;
+  fields: readonly VisualSubworkflowField[];
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      {fields.length === 0 ? (
+        <p className="text-xs text-muted-foreground">None</p>
+      ) : (
+        <ul className="grid gap-1 rounded-md border border-border p-2 text-xs">
+          {fields.map((field) => (
+            <li key={field.id ?? field.name} className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono">{field.name}</span>
+              <span className="text-muted-foreground">
+                {field.type}
+                {field.required === false ? " · optional" : " · required"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -14,11 +14,8 @@
  */
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   UserCircleIcon,
-  BuildingsIcon,
-  CheckCircleIcon,
   CreditCardIcon,
   GlobeIcon,
   KeyIcon,
@@ -36,16 +33,12 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { LocaleDialog } from "@/components/locale-toggle/locale-dialog";
 import { localeDialogMessages } from "@/components/locale-toggle/locale-dialog.messages";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
-import { buildOrganizationSwitchHref } from "@/components/team-switcher";
 import {
   getAppLocaleFlagEmoji,
   getNativeLocaleDisplayName,
@@ -55,21 +48,14 @@ import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 
 import { navUserMessages } from "./nav-user.messages";
 
-type OrganizationOption = {
-  name: string;
-  slug?: string | null;
-};
-
 export function NavUser({
   organizationSlug,
-  organizations,
   showApiKeysLink = false,
   showBillingLink = false,
   showMembersLink = false,
   user,
 }: {
   organizationSlug: string;
-  organizations: OrganizationOption[];
   showApiKeysLink?: boolean;
   showBillingLink?: boolean;
   showMembersLink?: boolean;
@@ -79,13 +65,8 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const pathname = usePathname();
   const activeLocale = useAppLocale();
   const [languageDialogOpen, setLanguageDialogOpen] = useState(false);
-  const switchableOrganizations = organizations.filter(
-    (organization): organization is { name: string; slug: string } => Boolean(organization.slug),
-  );
-  const canSwitchWorkspace = organizationSlug && switchableOrganizations.length > 1;
   const initials =
     user.name
       .split(" ")
@@ -188,50 +169,6 @@ export function NavUser({
             ) : null}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          {canSwitchWorkspace ? (
-            <>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <BuildingsIcon className="size-4" />
-                  <FormattedMessage {...navUserMessages.switchWorkspace} />
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="min-w-56">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">
-                      <FormattedMessage {...navUserMessages.workspaces} />
-                    </DropdownMenuLabel>
-                    {switchableOrganizations.map((organization) => {
-                      const isActive = organization.slug === organizationSlug;
-
-                      return (
-                        <DropdownMenuItem
-                          key={organization.slug}
-                          className="gap-2 p-2"
-                          render={
-                            <Link
-                              href={buildOrganizationSwitchHref(
-                                organization.slug,
-                                pathname,
-                                organizationSlug,
-                              )}
-                            />
-                          }
-                        >
-                          <span className="flex-1 truncate">{organization.name}</span>
-                          {isActive ? <CheckCircleIcon className="size-4 text-bud-400" /> : null}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem render={<Link href="/auth/select-organization" />}>
-                    <FormattedMessage {...navUserMessages.viewAllWorkspaces} />
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-            </>
-          ) : null}
           <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}>
             <SignOutIcon className="size-4" />
             <FormattedMessage {...navUserMessages.logOut} />

@@ -164,6 +164,7 @@ export function buildConfig({
     plugins: [
       new DefinePlugin({
         BACKEND_HOST: JSON.stringify(backendHost),
+        IS_LOCAL_DEVELOPMENT: JSON.stringify(mode === "development"),
       }),
       // Apps can only submit a single JS file via the Developer Portal
       new optimize.LimitChunkCountPlugin({ maxChunks: 1 }),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -400,5 +401,18 @@ func TestAPIErrorMessage(t *testing.T) {
 	err = &apiError{StatusCode: 500}
 	if got := err.Error(); got != "autumn: HTTP 500" {
 		t.Fatalf("Error() = %q", got)
+	}
+}
+
+func TestHTTPStatus(t *testing.T) {
+	status, ok := HTTPStatus(fmt.Errorf("wrapped: %w", &apiError{StatusCode: 409}))
+	if !ok || status != 409 {
+		t.Fatalf("HTTPStatus = %d, %v; want 409, true", status, ok)
+	}
+	if _, ok := HTTPStatus(errors.New("dial tcp: connection refused")); ok {
+		t.Fatal("HTTPStatus reported a status for a transport error")
+	}
+	if _, ok := HTTPStatus(nil); ok {
+		t.Fatal("HTTPStatus reported a status for nil")
 	}
 }

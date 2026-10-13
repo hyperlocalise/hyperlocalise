@@ -37,6 +37,14 @@ On the card:
 - Do not transition `transform`, `scale`, `opacity`, or `filter`. In Chromium the rest of the canvas jumps for a frame. Animate `width` and `height` instead.
 - A class on a React Flow handle needs `!` wherever React Flow's stylesheet sets the same property.
 
+Undo and marks on the canvas:
+
+- The editor keeps the name, nodes, and edges on one undo stack (`editor/visual-workflow-undo.ts`). A new node gets undo and its tooltip wording without extra code.
+- Change the graph through `commit` (records a step) or `place` (no step) in `visual-workflow-editor.tsx`. State kept beside the graph is not undone.
+- Keep what a person sets on a step in `config`, `inputs`, `outputFields`, or `collect`. `visualWorkflowStepSettings` reads those four to mark a step that changed while it was not selected.
+- A value that a test run writes to a node's data must be left out in `nodeSettings`, as `runStatus` and `lastOutput` are. Otherwise a test run records undo steps.
+- A mark on a step reaches the card through the canvas actions context (`issueNodeIds`, `freshNodeIds`), not through the node's data, because undo compares that data.
+
 Validation issues:
 
 - A setting that fails the config schema is reported once per step and setting, with `field` and `reason`. A new node gets this without extra code.

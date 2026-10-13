@@ -41,6 +41,22 @@ Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow 
 
 These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.
 
+## Undo and redo edits
+
+**Undo** and **Redo** in the editor header walk back and forward through your edits in order. You can also press Ctrl+Z and Ctrl+Shift+Z (⌘Z and ⌘⇧Z on a Mac). Hover either button to see which edit it applies to.
+
+Each of these is one step:
+
+- Adding a step, or removing one together with its connections.
+- Connecting or disconnecting two steps.
+- Moving a step. A drag counts once, when you drop it.
+- Changing a step's settings or its type. Typing in one setting is grouped into a single step.
+- Renaming the workflow.
+
+When an undo or redo changes the settings of a step whose settings panel is closed, a notice names the change and offers the way back. A step that appears or changes without you selecting it, for example one that an undo brings back, has a violet band until you select it.
+
+Undo and redo change the draft on the canvas only. Nothing is saved or published until you select **Save** or **Publish**. The history is cleared when you reload or leave the page, and the editor does not warn you about unsaved changes, so save before you leave.
+
 ## Test, save, and publish
 
 Tests default to **mock** mode. Enter a trigger payload and optional per-action mock outputs. Mock execution follows the same bindings, branches, and loops without calling external services.

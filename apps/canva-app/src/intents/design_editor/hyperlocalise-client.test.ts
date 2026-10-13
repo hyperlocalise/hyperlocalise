@@ -64,6 +64,14 @@ describe("hyperlocalise-client", () => {
               sourceLocale: "en",
               targetLocales: ["es"],
             },
+            projects: [
+              {
+                id: "project_1",
+                name: "Marketing",
+                sourceLocale: "en",
+                targetLocales: ["es"],
+              },
+            ],
             connection: {
               id: "conn_1",
               displayName: "Canva",
@@ -78,6 +86,7 @@ describe("hyperlocalise-client", () => {
     await expect(fetchCanvaSession({ accessToken: "hl_canva_at_test" })).resolves.toEqual({
       organization: { id: "org_1", name: "Acme", slug: "acme" },
       project: { id: "project_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] },
+      projects: [{ id: "project_1", name: "Marketing", sourceLocale: "en", targetLocales: ["es"] }],
       connection: {
         id: "conn_1",
         displayName: "Canva",

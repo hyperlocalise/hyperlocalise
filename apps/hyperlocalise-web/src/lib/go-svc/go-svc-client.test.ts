@@ -781,4 +781,84 @@ describe("GoSvcClient", () => {
       "/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/segments/key%2F1/target",
     );
   });
+
+  it("lists jobs and project job status from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1", status: "running" } }));
+    const client = clientWith(fetchMock);
+
+    await client.job.list("acme / eu", { status: "running", open: true, limit: 20 });
+    await client.job.listProject("acme / eu", "project/1", { kind: "translation" });
+    await client.job.get("acme / eu", "job/1");
+    await client.job.getProject("acme / eu", "project/1", "job/1");
+    await client.job.status("acme / eu", "project/1", "job/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs?status=running&open=true&limit=20`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs?kind=translation`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs/job%2F1`, "GET"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1/status`,
+        "GET",
+      ],
+    ]);
+  });
+
+  it("reads inbox notifications, preferences, and mentions from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ notifications: [], total: 0 }))
+      .mockResolvedValueOnce(Response.json({ unreadCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ markedCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: true } }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: false } }))
+      .mockResolvedValueOnce(Response.json({ mentionSuggestions: { users: [], issues: [] } }));
+    const client = clientWith(fetchMock);
+
+    await client.inbox.listNotifications("acme / eu", { unreadOnly: true, limit: 10, offset: 5 });
+    await client.inbox.unreadCount("acme / eu");
+    await client.inbox.getNotification("acme / eu", "note/1");
+    await client.inbox.markNotificationRead("acme / eu", "note/1");
+    await client.inbox.markAllNotificationsRead("acme / eu");
+    await client.inbox.getPreferences("acme / eu");
+    await client.inbox.updatePreferences("acme / eu", {
+      emailEnabled: false,
+      emailFormat: "digest",
+    });
+    await client.inbox.mentions("acme / eu", { q: "ada", projectId: "project/1", limit: 8 });
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications?unreadOnly=true&limit=10&offset=5`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/unread-count`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1/read`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/read-all`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "PUT"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/mentions?q=ada&projectId=project%2F1&limit=8`,
+        "GET",
+      ],
+    ]);
+  });
 });

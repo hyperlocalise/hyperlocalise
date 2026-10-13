@@ -44,7 +44,7 @@ function getInputFields(node: VisualWorkflowRfNode) {
     }));
   }
 
-  if (node.data.config.kind === "flow.return") {
+  if (node.data.config.kind === "flow.return" || node.data.config.kind === "flow.call_workflow") {
     return getWorkflowInputFields({
       id: node.id,
       type: node.data.catalogType,

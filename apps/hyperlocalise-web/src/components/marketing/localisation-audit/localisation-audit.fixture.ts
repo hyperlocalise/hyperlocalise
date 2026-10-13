@@ -274,6 +274,18 @@ const sampledPages: LocalisationAuditReport["pages"] = [
     htmlLang: "de",
     title: "Preise — Acme",
   },
+  {
+    url: "https://acme.example/de/pricing",
+    status: 200,
+    htmlLang: "de",
+    title: "Preise — Acme",
+  },
+  {
+    url: "https://acme.example/ja-JP",
+    status: 403,
+    htmlLang: null,
+    title: null,
+  },
 ];
 
 const detectedLocales: LocalisationAuditTeaser["detectedLocales"] = [
@@ -368,7 +380,7 @@ export function localisationAuditStanding(score: number): LocalisationAuditStand
     rank: 12,
     total: 84,
     score,
-    percentile: 14,
+    ahead: 72,
     averageScore: 61,
   };
 }

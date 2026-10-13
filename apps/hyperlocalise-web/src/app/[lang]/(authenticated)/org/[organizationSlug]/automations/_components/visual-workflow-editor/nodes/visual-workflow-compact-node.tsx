@@ -191,6 +191,9 @@ const STEP_BAND_CLASS =
 const STEP_BAND_TONE_CLASS = {
   issue: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--destructive)_50%,transparent)]",
   selected: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--ring)_50%,transparent)]",
+  // A step that appeared or was changed and has not been selected since; the selection's band
+  // takes its place once it is.
+  fresh: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-violet-600,#7c3aed)_50%,transparent)]",
 };
 
 const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
@@ -310,8 +313,9 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode, issueNodeIds } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds, freshNodeIds } = useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
+  const isFresh = !selected && freshNodeIds.has(id);
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
@@ -504,15 +508,19 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
-      {/* A selected step shows the selection alone; its issue mark still says it has a problem.
-          The band comes before the handles, which are drawn over it. */}
-      {selected || hasIssue ? (
+      {/* A selected or fresh step shows that band alone; its issue mark still says it has a
+          problem. The band comes before the handles, which are drawn over it. */}
+      {selected || isFresh || hasIssue ? (
         <span
           aria-hidden
           data-slot="step-band"
           className={cn(
             STEP_BAND_CLASS,
-            selected ? STEP_BAND_TONE_CLASS.selected : STEP_BAND_TONE_CLASS.issue,
+            selected
+              ? STEP_BAND_TONE_CLASS.selected
+              : isFresh
+                ? STEP_BAND_TONE_CLASS.fresh
+                : STEP_BAND_TONE_CLASS.issue,
           )}
         />
       ) : null}
@@ -712,5 +720,7 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSequence;
     case "logic.try_catch":
       return messages.nodeTryCatch;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflow;
   }
 }

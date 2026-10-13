@@ -46,6 +46,7 @@ const ENABLED_TYPES = new Set<VisualCatalogType>([
   "logic.merge",
   "logic.sequence",
   "logic.try_catch",
+  "flow.call_workflow",
 ]);
 
 function deriveFlowBodyMembership(

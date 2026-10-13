@@ -132,6 +132,14 @@ export async function findLocalisationAuditById(auditId: string) {
   return row ?? null;
 }
 
+/** Mirrors `hasLocalisationAuditSuccessfulPage` so legacy scores built from blocked pages stay unpublished. */
+const reportHasSuccessfulPage = sql<boolean>`exists (
+  select 1
+  from jsonb_array_elements(coalesce(${schema.localisationAudits.report}->'pages', '[]'::jsonb)) as page
+  where (page->>'status') ~ '^[0-9]+$'
+    and (page->>'status')::int between 200 and 299
+)`;
+
 export async function listCompletedLocalisationAuditSlugs(limit = 200) {
   const rows = await db
     .select({
@@ -143,6 +151,7 @@ export async function listCompletedLocalisationAuditSlugs(limit = 200) {
       and(
         eq(schema.localisationAudits.status, "succeeded"),
         isNotNull(schema.localisationAudits.completedAt),
+        reportHasSuccessfulPage,
       ),
     )
     .orderBy(desc(schema.localisationAudits.completedAt))
@@ -184,6 +193,7 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
         eq(schema.localisationAudits.status, "succeeded"),
         isNotNull(schema.localisationAudits.score),
         isNotNull(schema.localisationAudits.teaser),
+        reportHasSuccessfulPage,
       ),
     )
     .orderBy(
@@ -213,11 +223,12 @@ export type LocalisationAuditStanding = {
   rank: number;
   total: number;
   score: number;
-  percentile: number;
+  /** Public audits with a strictly lower score. */
+  ahead: number;
   averageScore: number | null;
 };
 
-/** Rank/percentile for a succeeded audit among all public teaser scores. */
+/** Rank among all publishable teaser scores. */
 export async function getLocalisationAuditStanding(input: {
   domainSlug: string;
   score: number;
@@ -226,7 +237,8 @@ export async function getLocalisationAuditStanding(input: {
     .select({
       total: sql<number>`count(*)::int`,
       averageScore: sql<number | null>`avg(${schema.localisationAudits.score})`,
-      betterOrEqual: sql<number>`count(*) filter (where ${schema.localisationAudits.score} > ${input.score})::int`,
+      better: sql<number>`count(*) filter (where ${schema.localisationAudits.score} > ${input.score})::int`,
+      lower: sql<number>`count(*) filter (where ${schema.localisationAudits.score} < ${input.score})::int`,
     })
     .from(schema.localisationAudits)
     .where(
@@ -234,21 +246,20 @@ export async function getLocalisationAuditStanding(input: {
         eq(schema.localisationAudits.status, "succeeded"),
         isNotNull(schema.localisationAudits.score),
         isNotNull(schema.localisationAudits.teaser),
+        reportHasSuccessfulPage,
       ),
     );
 
   const total = stats?.total ?? 0;
   if (total === 0) return null;
 
-  const rank = (stats?.betterOrEqual ?? 0) + 1;
-  const percentile = Math.max(1, Math.min(99, Math.round(((total - rank + 1) / total) * 100)));
   const averageScore = stats?.averageScore == null ? null : Math.round(Number(stats.averageScore));
 
   return {
-    rank,
+    rank: (stats?.better ?? 0) + 1,
     total,
     score: input.score,
-    percentile,
+    ahead: stats?.lower ?? 0,
     averageScore,
   };
 }

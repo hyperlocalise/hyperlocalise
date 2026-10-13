@@ -10,16 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
+  buildCanvaPullEntries,
   buildCanvaSourceLocaleStatus,
   canvaApprovalPercent,
+  canvaJobHasPullableTranslations,
+  canvaJobMatchesDesign,
+  canvaSourceIngestIsSettled,
   isCanvaIntegrationJob,
   latestPublishedCanvaCollectBatchId,
+  mergeCanvaPullTranslations,
+  publicCanvaJobStatus,
   publicJobOutputFiles,
   readCanvaConnectionIdFromJobInput,
   resolveCanvaJobLocales,
+  waitForCanvaSourceIngest,
 } from "./localize-design";
 
 describe("publicJobOutputFiles", () => {
@@ -91,6 +98,50 @@ describe("publicJobOutputFiles", () => {
       { fileId: "file_1", locale: "es", filename: "design.es.json" },
       { fileId: "file_2", locale: "fr", filename: "design.fr.json" },
     ]);
+  });
+});
+
+describe("publicCanvaJobStatus", () => {
+  it("keeps known job statuses and falls back to queued", () => {
+    expect(publicCanvaJobStatus("succeeded")).toBe("succeeded");
+    expect(publicCanvaJobStatus("waiting_for_review")).toBe("waiting_for_review");
+    expect(publicCanvaJobStatus("cancelled")).toBe("cancelled");
+    expect(publicCanvaJobStatus("mystery")).toBe("queued");
+  });
+});
+
+describe("canvaJobHasPullableTranslations", () => {
+  it("allows pull only after review or success", () => {
+    expect(canvaJobHasPullableTranslations("succeeded")).toBe(true);
+    expect(canvaJobHasPullableTranslations("waiting_for_review")).toBe(true);
+    expect(canvaJobHasPullableTranslations("running")).toBe(false);
+    expect(canvaJobHasPullableTranslations("failed")).toBe(false);
+  });
+});
+
+describe("canvaJobMatchesDesign", () => {
+  it("requires canva-app metadata and the same design id", () => {
+    expect(
+      canvaJobMatchesDesign(
+        { metadata: { integration: "canva-app", canvaDesignId: "design_1" } },
+        "design_1",
+      ),
+    ).toBe(true);
+    expect(
+      canvaJobMatchesDesign(
+        { fileInput: { metadata: { integration: "canva-app", canvaDesignId: "design_1" } } },
+        "design_1",
+      ),
+    ).toBe(true);
+    expect(
+      canvaJobMatchesDesign(
+        { metadata: { integration: "canva-app", canvaDesignId: "design_1" } },
+        "design_2",
+      ),
+    ).toBe(false);
+    expect(canvaJobMatchesDesign({ metadata: { canvaDesignId: "design_1" } }, "design_1")).toBe(
+      false,
+    );
   });
 });
 
@@ -237,7 +288,7 @@ describe("buildCanvaSourceLocaleStatus", () => {
             wordCount: 12,
           },
         ],
-        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+        sourceByPage: new Map([[0, { "canva.t.abcdef0123456789": "Hello" }]]),
       }),
     ).toEqual({
       locale: "en-US",
@@ -262,8 +313,32 @@ describe("buildCanvaSourceLocaleStatus", () => {
           translatedWords: 12,
           wordCount: 12,
           approved: 3,
+          needsReupload: false,
         },
       ],
+    });
+  });
+
+  it("marks positional source files as needing a re-upload", () => {
+    expect(
+      buildCanvaSourceLocaleStatus({
+        locale: "en-US",
+        sourceLocale: "en-US",
+        pages: [
+          {
+            pageIndex: 0,
+            sourcePath: "canva/designs/mic/page-1.json",
+            sourceFileId: "file_1",
+            segmentCount: 3,
+            wordCount: 12,
+          },
+        ],
+        sourceByPage: new Map([[0, { "canva.segment.0.0": "Hello" }]]),
+      }),
+    ).toMatchObject({
+      status: "idle",
+      canAdd: false,
+      pages: [{ needsReupload: true, status: "idle", translated: 0 }],
     });
   });
 
@@ -281,5 +356,172 @@ describe("buildCanvaSourceLocaleStatus", () => {
       canAdd: false,
       percent: 0,
     });
+  });
+});
+
+describe("buildCanvaPullEntries", () => {
+  it("uses the source text as the target for the source locale", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.segment.0.0": "Legacy" },
+        localeIsSource: true,
+        editorTranslations: {},
+        knownTextsByKey: new Map([["canva.t.hello", ["Hola"]]]),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hello",
+        knownTexts: ["Hola"],
+      },
+    ]);
+  });
+
+  it("uses editor text for a target locale and null when missing", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.t.world": "World" },
+        localeIsSource: false,
+        editorTranslations: { "canva.t.hello": "Hola" },
+        knownTextsByKey: new Map([
+          ["canva.t.hello", ["Hola", "Bonjour"]],
+          ["canva.t.world", []],
+        ]),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola",
+        knownTexts: ["Hola", "Bonjour"],
+      },
+      {
+        key: "canva.t.world",
+        source: "World",
+        target: null,
+        knownTexts: [],
+      },
+    ]);
+  });
+
+  it("fills missing editor rows from job output and keeps editor edits", () => {
+    const merged = mergeCanvaPullTranslations(
+      { "canva.t.hello": "Hola (editor)" },
+      { "canva.t.hello": "Hola (job)", "canva.t.world": "Mundo" },
+    );
+    expect(merged).toEqual({
+      "canva.t.hello": "Hola (editor)",
+      "canva.t.world": "Mundo",
+    });
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello", "canva.t.world": "World" },
+        localeIsSource: false,
+        editorTranslations: merged,
+        knownTextsByKey: new Map(),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola (editor)",
+        knownTexts: [],
+      },
+      {
+        key: "canva.t.world",
+        source: "World",
+        target: "Mundo",
+        knownTexts: [],
+      },
+    ]);
+  });
+
+  it("returns job output when editor rows are empty after a succeeded job", () => {
+    expect(
+      buildCanvaPullEntries({
+        sourceFile: { "canva.t.hello": "Hello" },
+        localeIsSource: false,
+        editorTranslations: mergeCanvaPullTranslations({}, { "canva.t.hello": "Hola" }),
+        knownTextsByKey: new Map(),
+      }),
+    ).toEqual([
+      {
+        key: "canva.t.hello",
+        source: "Hello",
+        target: "Hola",
+        knownTexts: [],
+      },
+    ]);
+  });
+});
+
+describe("waitForCanvaSourceIngest", () => {
+  it("treats ingested, skipped, and failed as settled", () => {
+    expect(canvaSourceIngestIsSettled("ingested")).toBe(true);
+    expect(canvaSourceIngestIsSettled("skipped")).toBe(true);
+    expect(canvaSourceIngestIsSettled("failed")).toBe(true);
+    expect(canvaSourceIngestIsSettled("pending")).toBe(false);
+    expect(canvaSourceIngestIsSettled("ingesting")).toBe(false);
+    expect(canvaSourceIngestIsSettled(null)).toBe(false);
+  });
+
+  it("returns immediately when every collected page has ingested", async () => {
+    const loadStates = vi.fn(async () => ["ingested"]);
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        loadStates,
+      }),
+    ).resolves.toBe(true);
+    expect(loadStates).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits until ingest settles before generate can start jobs", async () => {
+    const loadStates = vi
+      .fn()
+      .mockResolvedValueOnce(["pending"])
+      .mockResolvedValueOnce(["ingesting"])
+      .mockResolvedValueOnce(["ingested"]);
+    let now = 0;
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        timeoutMs: 5_000,
+        intervalMs: 10,
+        now: () => now,
+        sleep: async (ms) => {
+          now += ms;
+        },
+        loadStates,
+      }),
+    ).resolves.toBe(true);
+    expect(loadStates).toHaveBeenCalledTimes(3);
+  });
+
+  it("times out and still lets jobs start when ingest is delayed", async () => {
+    await expect(
+      waitForCanvaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["canva/designs/mic/page-1.json"],
+        timeoutMs: 20,
+        intervalMs: 10,
+        now: (() => {
+          let value = 0;
+          return () => {
+            const current = value;
+            value += 10;
+            return current;
+          };
+        })(),
+        sleep: async () => {},
+        loadStates: async () => ["pending"],
+      }),
+    ).resolves.toBe(false);
   });
 });

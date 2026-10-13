@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   index,
   integer,
   jsonb,
@@ -37,6 +38,11 @@ export const visualWorkflowRuns = pgTable(
   "visual_workflow_runs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    traceId: uuid("trace_id").defaultRandom().notNull(),
+    parentRunId: uuid("parent_run_id").references((): AnyPgColumn => visualWorkflowRuns.id, {
+      onDelete: "cascade",
+    }),
+    parentNodeId: text("parent_node_id"),
     visualWorkflowId: uuid("visual_workflow_id")
       .notNull()
       .references(() => visualWorkflows.id, { onDelete: "cascade" }),
@@ -71,6 +77,8 @@ export const visualWorkflowRuns = pgTable(
   },
   (table) => [
     index("idx_visual_workflow_runs_workflow_created").on(table.visualWorkflowId, table.createdAt),
+    index("idx_visual_workflow_runs_parent").on(table.parentRunId),
+    index("idx_visual_workflow_runs_trace").on(table.organizationId, table.traceId),
     index("idx_visual_workflow_runs_org_status").on(table.organizationId, table.status),
     uniqueIndex("idx_visual_workflow_runs_idempotency_key")
       .on(table.organizationId, table.visualWorkflowId, table.idempotencyKey)

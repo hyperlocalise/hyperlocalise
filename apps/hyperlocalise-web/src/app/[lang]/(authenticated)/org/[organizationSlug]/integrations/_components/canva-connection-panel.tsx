@@ -12,8 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createElement, useState } from "react";
-import { CopyIcon, TrashIcon, FloppyDiskIcon, CheckIcon } from "@phosphor-icons/react";
+import { createElement, useEffect, useState } from "react";
+import { CheckIcon, CopyIcon, FloppyDiskIcon, TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -49,16 +49,18 @@ import { IntegrationLogo } from "./integration-logo";
 const api = createApiClient();
 const REQUIRED_API_KEY_PERMISSIONS = ["files:read", "files:write", "jobs:read", "jobs:write"];
 
+function isLocalHostName(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
 type CanvaConnectionForm = {
   displayName: string;
   apiKeyId: string;
-  projectId: string;
 };
 
 const emptyForm = (): CanvaConnectionForm => ({
   displayName: "Canva",
   apiKeyId: "",
-  projectId: "",
 });
 
 export function useCanvaConnections(organizationSlug: string) {
@@ -99,6 +101,11 @@ export function CanvaConnectionPanel({
   const [form, setForm] = useState<CanvaConnectionForm>(emptyForm);
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showLocalTokenActions, setShowLocalTokenActions] = useState(false);
+
+  useEffect(() => {
+    setShowLocalTokenActions(isLocalHostName(window.location.hostname));
+  }, []);
 
   const apiKeysQuery = useQuery({
     queryKey: ["api-keys", organizationSlug],
@@ -122,25 +129,6 @@ export function CanvaConnectionPanel({
     enabled: expanded,
   });
 
-  const projectsQuery = useQuery({
-    queryKey: ["org-projects", organizationSlug],
-    queryFn: async () => {
-      try {
-        const body = await goSvcClient.project.list(organizationSlug);
-        return body.projects.map((project) => ({
-          id: project.id,
-          name: project.name,
-        }));
-      } catch (error) {
-        throw new Error(
-          goSvcErrorMessage(error, intl.formatMessage(canvaConnectionPanelMessages.fetchFailed)),
-          { cause: error },
-        );
-      }
-    },
-    enabled: expanded,
-  });
-
   const saveMutation = useMutation({
     mutationFn: async (payload: CanvaConnectionForm) => {
       const displayName = payload.displayName.trim();
@@ -150,16 +138,12 @@ export function CanvaConnectionPanel({
       if (!payload.apiKeyId) {
         throw new Error(intl.formatMessage(canvaConnectionPanelMessages.apiKeyRequired));
       }
-      if (!payload.projectId) {
-        throw new Error(intl.formatMessage(canvaConnectionPanelMessages.projectRequired));
-      }
 
       const response = await api.api.orgs[":organizationSlug"]["canva-connections"].$post({
         param: { organizationSlug },
         json: {
           displayName,
           apiKeyId: payload.apiKeyId,
-          projectId: payload.projectId,
           enabled: true,
         },
       });
@@ -181,7 +165,9 @@ export function CanvaConnectionPanel({
       toast.success(intl.formatMessage(canvaConnectionPanelMessages.saveSucceeded));
       setAdding(false);
       setForm(emptyForm());
-      setRevealedToken(result.connectionToken);
+      if (isLocalHostName(window.location.hostname)) {
+        setRevealedToken(result.connectionToken);
+      }
       await queryClient.invalidateQueries({
         queryKey: ["canva-connections", organizationSlug],
       });
@@ -304,14 +290,9 @@ export function CanvaConnectionPanel({
   const isConnected = connections.length > 0;
   const showForm = adding || connections.length === 0;
   const apiKeys = apiKeysQuery.data ?? [];
-  const projects = projectsQuery.data ?? [];
   const apiKeyItems = apiKeys.map((apiKey) => ({ value: apiKey.id, label: apiKey.name }));
-  const projectItems = projects.map((project) => ({ value: project.id, label: project.name }));
   const selectedApiKeyLabel = form.apiKeyId
     ? (apiKeyItems.find((item) => item.value === form.apiKeyId)?.label ?? form.apiKeyId)
-    : undefined;
-  const selectedProjectLabel = form.projectId
-    ? (projectItems.find((item) => item.value === form.projectId)?.label ?? form.projectId)
     : undefined;
 
   function handleExpandedChange(nextExpanded: boolean) {
@@ -357,11 +338,13 @@ export function CanvaConnectionPanel({
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm text-foreground">{connection.displayName}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {intl.formatMessage(canvaConnectionPanelMessages.tokenPrefix, {
-                        prefix: connection.connectionTokenPrefix,
-                      })}
-                    </p>
+                    {showLocalTokenActions ? (
+                      <p className="text-xs text-muted-foreground">
+                        {intl.formatMessage(canvaConnectionPanelMessages.tokenPrefix, {
+                          prefix: connection.connectionTokenPrefix,
+                        })}
+                      </p>
+                    ) : null}
                     {connection.canvaBrandId ? (
                       <p className="text-xs text-muted-foreground">
                         {intl.formatMessage(canvaConnectionPanelMessages.brandBound, {
@@ -386,15 +369,17 @@ export function CanvaConnectionPanel({
                         <FormattedMessage {...canvaConnectionPanelMessages.authorize} />
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={disabled || regenerateMutation.isPending}
-                      onClick={() => regenerateMutation.mutate(connection.id)}
-                    >
-                      <FormattedMessage {...canvaConnectionPanelMessages.regenerate} />
-                    </Button>
+                    {showLocalTokenActions ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || regenerateMutation.isPending}
+                        onClick={() => regenerateMutation.mutate(connection.id)}
+                      >
+                        <FormattedMessage {...canvaConnectionPanelMessages.regenerate} />
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="ghost"
@@ -475,45 +460,6 @@ export function CanvaConnectionPanel({
                     <FormattedMessage {...canvaConnectionPanelMessages.noEligibleApiKeys} />
                   ) : (
                     <FormattedMessage {...canvaConnectionPanelMessages.apiKeyHelp} />
-                  )}
-                </p>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  <FormattedMessage {...canvaConnectionPanelMessages.projectLabel} />
-                </FieldLabel>
-                <Select
-                  value={form.projectId || null}
-                  items={projectItems}
-                  disabled={disabled || saveMutation.isPending || projects.length === 0}
-                  onValueChange={(value) => {
-                    if (typeof value === "string") {
-                      setForm((current) => ({ ...current, projectId: value }));
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-9 w-full">
-                    <SelectValue
-                      placeholder={intl.formatMessage(
-                        canvaConnectionPanelMessages.projectPlaceholder,
-                      )}
-                    >
-                      {selectedProjectLabel}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id} label={project.name}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {projects.length === 0 ? (
-                    <FormattedMessage {...canvaConnectionPanelMessages.noProjects} />
-                  ) : (
-                    <FormattedMessage {...canvaConnectionPanelMessages.projectHelp} />
                   )}
                 </p>
               </Field>

@@ -73,11 +73,15 @@ export const PublicFullReport: Story = {
     await expect(heading).toBeInTheDocument();
     const section = heading.closest("section");
     await expect(section).not.toBeNull();
-    await expect(section).toHaveTextContent(/passed · .+ to fix · .+ not applicable/);
+    await expect(section).toHaveTextContent(/passed · .+ to watch · .+ to fix · .+ not applicable/);
     await expect(section).toHaveTextContent("Needs attention");
+    await expect(section).toHaveTextContent("Worth a look");
     await expect(section).toHaveTextContent("Passed audits");
     await expect(section).toHaveTextContent("Pass");
+    await expect(section).toHaveTextContent("Watch");
     await expect(section).toHaveTextContent("Fail");
+    await expect(canvas.getByRole("navigation", { name: "Report sections" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("link", { name: "See details" }).length).toBeGreaterThan(0);
     const showPassed = canvas.queryByRole("button", { name: "Show passed audits" });
     if (showPassed) {
       await userEvent.click(showPassed);
@@ -92,8 +96,13 @@ export const PublicFullReport: Story = {
     await expect(
       canvas.getByText(/src="\/_next\/image\?url=%2Fimages%2Fgame%2Fmath-sudoku\.png/),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Full findings" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Email me a summary" })).toBeInTheDocument();
+    await expect(canvas.getAllByText("Missing reciprocal hreflang")).toHaveLength(2);
+    await userEvent.click(canvas.getByRole("button", { name: "Show all 6 pages" }));
+    await expect(canvas.getByText("HTTP 403")).toBeInTheDocument();
+    await expect(canvas.getByText("French")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "Send this to your team" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
   },
 };
@@ -109,8 +118,9 @@ export const EmailSummary: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Email me a summary" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Full findings" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "Send this to your team" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Email me a summary" })).toBeInTheDocument();
   },
 };

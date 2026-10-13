@@ -21,8 +21,12 @@ export const canvaConnectionIdParamSchema = z.object({
 export const createCanvaConnectionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256),
   apiKeyId: z.string().uuid(),
-  projectId: projectIdSchema,
+  projectId: projectIdSchema.optional(),
   enabled: z.boolean().optional(),
+});
+
+export const bindCanvaProjectBodySchema = z.object({
+  projectId: projectIdSchema,
 });
 
 export const updateCanvaConnectionBodySchema = z.object({
@@ -33,11 +37,11 @@ export const updateCanvaConnectionBodySchema = z.object({
 });
 
 const canvaSegmentSchema = z.object({
-  key: z.string().trim().min(1),
   pageIndex: z.number().int().nonnegative(),
-  contentIndex: z.number().int().nonnegative(),
-  regionIndex: z.number().int().nonnegative(),
   text: z.string().trim().min(1),
+  key: z.string().trim().min(1).optional(),
+  contentIndex: z.number().int().nonnegative().optional(),
+  regionIndex: z.number().int().nonnegative().optional(),
 });
 
 export const localizeCanvaDesignBodySchema = z.object({
