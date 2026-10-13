@@ -13,7 +13,7 @@
 import "dotenv/config";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   enqueueActivityLogEventMock: vi.fn().mockResolvedValue({
@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
       globalThis.__testApiAuthContext ??
       null,
   ),
+  reconcileWorkosMembershipsForUserMock: vi.fn(),
 }));
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
@@ -50,6 +51,15 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-membership-reconcile")>();
+
+  return {
+    ...actual,
+    reconcileWorkosMembershipsForUser: mocks.reconcileWorkosMembershipsForUserMock,
   };
 });
 
@@ -88,6 +98,10 @@ const projectFixture = createProjectTestFixture(client);
 describe("canvaIntegrationRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    mocks.reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
   });
 
   afterEach(async () => {
@@ -228,6 +242,7 @@ describe("canvaIntegrationRoutes", () => {
         },
       ],
       pages: [],
+      designId: "design-id",
     });
 
     const collectResponse = await client.api.integrations.canva.collect.$post(
@@ -302,6 +317,7 @@ describe("canvaIntegrationRoutes", () => {
         },
       ],
       pages: [],
+      designId: "design-id",
     });
   });
 
@@ -617,6 +633,145 @@ describe("canvaIntegrationRoutes", () => {
     expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generate: false,
+        projectId: projectBody.project.id,
+      }),
+    );
+  });
+
+  it("returns an unbound session and lists org projects", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva session key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as {
+      project: { id: string; name: string };
+    };
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva unbound",
+      apiKeyId: apiKey.id,
+    });
+
+    const response = await client.api.integrations.canva.session.$get(
+      {},
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      session: {
+        project: { id: string } | null;
+        projects: Array<{ id: string; name: string }>;
+      };
+    };
+    expect(body.session.project).toBeNull();
+    expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
+  });
+
+  it("rejects collect until a project is bound, then collects after bind", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva bind key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva bind",
+      apiKeyId: apiKey.id,
+    });
+
+    const unboundCollect = await client.api.integrations.canva.collect.$post(
+      {
+        json: {
+          designToken: "design-token",
+          designTitle: "Marketing flyer",
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+    expect(unboundCollect.status).toBe(400);
+    await expect(unboundCollect.json()).resolves.toEqual(
+      expect.objectContaining({ error: "canva_project_not_bound" }),
+    );
+
+    const bindResponse = await client.api.integrations.canva.project.$post(
+      { json: { projectId: projectBody.project.id } },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+    expect(bindResponse.status).toBe(200);
+    const bindBody = (await bindResponse.json()) as {
+      session: { project: { id: string } | null };
+    };
+    expect(bindBody.session.project?.id).toBe(projectBody.project.id);
+
+    mocks.collectCanvaDesignMock.mockResolvedValue({
+      designSlug: "marketing-flyer",
+      projectId: projectBody.project.id,
+      pages: [],
+    });
+
+    const collectResponse = await client.api.integrations.canva.collect.$post(
+      {
+        json: {
+          designToken: "design-token",
+          designTitle: "Marketing flyer",
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+    expect(collectResponse.status).toBe(201);
+    expect(mocks.collectCanvaDesignMock).toHaveBeenCalledWith(
+      expect.objectContaining({
         projectId: projectBody.project.id,
       }),
     );

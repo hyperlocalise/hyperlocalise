@@ -51,21 +51,6 @@ export const canvaConnectionPanelMessages = defineMessages({
     id: "V8Lhw4iJS1",
     description: "Placeholder for the Canva API key picker",
   },
-  projectLabel: {
-    defaultMessage: "Project",
-    id: "VdPMgzyWOp",
-    description: "Label for the project bound to a Canva connection",
-  },
-  projectHelp: {
-    defaultMessage: "Designs localized from Canva use this project's languages.",
-    id: "TsN0FrgQBO",
-    description: "Help text for the Canva project picker",
-  },
-  projectPlaceholder: {
-    defaultMessage: "Select a project",
-    id: "t0DApTD09b",
-    description: "Placeholder for the Canva project picker",
-  },
   save: {
     defaultMessage: "Save",
     id: "bf/8sd/M64",
@@ -123,8 +108,8 @@ export const canvaConnectionPanelMessages = defineMessages({
   },
   tokenDialogDescription: {
     defaultMessage:
-      "This token is shown once. Paste it into the Canva app, or use Connect Hyperlocalise from Canva instead.",
-    id: "vcGdG7Kss8",
+      "Local development only. This token is shown once. Paste it into a locally running Canva app. Production uses Connect Hyperlocalise (OAuth).",
+    id: "FY4l4pFRcB",
     description: "Description for the one-time Canva token reveal dialog",
   },
   copyToken: {
@@ -167,20 +152,10 @@ export const canvaConnectionPanelMessages = defineMessages({
     id: "C0s0NtIxgf",
     description: "Validation error when Canva API key is missing",
   },
-  projectRequired: {
-    defaultMessage: "Choose a project.",
-    id: "dOX1AC82YS",
-    description: "Validation error when Canva project is missing",
-  },
   noEligibleApiKeys: {
     defaultMessage: "Create an API key with files and jobs permissions first.",
     id: "1c/OEBKiks",
     description: "Empty state when no eligible API keys exist for Canva",
-  },
-  noProjects: {
-    defaultMessage: "Create a project first.",
-    id: "pV8l9BOlkk",
-    description: "Empty state when no projects exist for Canva",
   },
   authorize: {
     defaultMessage: "Authorize Canva",

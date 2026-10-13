@@ -12,6 +12,8 @@
  */
 import { and, desc, eq, isNull } from "drizzle-orm";
 
+import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 
 import {
@@ -19,7 +21,12 @@ import {
   getCanvaConnectionTokenPrefix,
   hashCanvaConnectionToken,
 } from "./connection-token";
-import type { CanvaConnectionSecretResult, CanvaConnectionSummary } from "./types";
+import type {
+  CanvaConnectionSecretResult,
+  CanvaConnectionSession,
+  CanvaConnectionSummary,
+  CanvaSessionProject,
+} from "./types";
 
 type CanvaConnectionRow = typeof schema.canvaConnections.$inferSelect;
 
@@ -107,11 +114,69 @@ async function loadProjectLocaleSnapshot(input: {
   };
 }
 
+function serializeSessionProject(project: {
+  id: string;
+  name: string;
+  sourceLocale: string | null;
+  targetLocales: string[] | null;
+}): CanvaSessionProject {
+  return {
+    id: project.id,
+    name: project.name,
+    sourceLocale: project.sourceLocale ?? "",
+    targetLocales: project.targetLocales ?? [],
+  };
+}
+
+export async function listCanvaAccessibleProjects(input: {
+  organizationId: string;
+  apiKeyId: string;
+}): Promise<CanvaSessionProject[]> {
+  const [apiKey] = await db
+    .select({
+      id: schema.organizationApiKeys.id,
+      createdByUserId: schema.organizationApiKeys.createdByUserId,
+    })
+    .from(schema.organizationApiKeys)
+    .where(
+      and(
+        eq(schema.organizationApiKeys.id, input.apiKeyId),
+        eq(schema.organizationApiKeys.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!apiKey) {
+    return [];
+  }
+
+  const teamAccess = await resolveApiKeyTeamAccessContext({
+    organizationId: input.organizationId,
+    createdByUserId: apiKey.createdByUserId,
+  });
+  if (!teamAccess) {
+    return [];
+  }
+
+  const accessWhere = await buildAccessibleProjectsWhere(teamAccess);
+  const rows = await db
+    .select({
+      id: schema.projects.id,
+      name: schema.projects.name,
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(and(accessWhere, eq(schema.projects.source, "native")))
+    .orderBy(schema.projects.name);
+
+  return rows.map(serializeSessionProject);
+}
+
 export async function getCanvaConnectionSession(input: {
   organizationId: string;
   connectionId: string;
-  projectId: string;
-}) {
+}): Promise<CanvaConnectionSession> {
   const connection = await getCanvaConnection({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
@@ -127,24 +192,37 @@ export async function getCanvaConnectionSession(input: {
     .where(eq(schema.organizations.id, input.organizationId))
     .limit(1);
 
-  const [project] = await db
-    .select({
-      id: schema.projects.id,
-      name: schema.projects.name,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.id, input.projectId),
-        eq(schema.projects.organizationId, input.organizationId),
-      ),
-    )
-    .limit(1);
-
-  if (!connection || !organization || !project) {
+  if (!connection || !organization) {
     throw new Error("canva_session_not_found");
+  }
+
+  const projects = await listCanvaAccessibleProjects({
+    organizationId: input.organizationId,
+    apiKeyId: connection.apiKeyId,
+  });
+
+  let project =
+    connection.projectId == null
+      ? null
+      : (projects.find((entry) => entry.id === connection.projectId) ?? null);
+
+  if (!project && connection.projectId) {
+    const [boundProject] = await db
+      .select({
+        id: schema.projects.id,
+        name: schema.projects.name,
+        sourceLocale: schema.projects.sourceLocale,
+        targetLocales: schema.projects.targetLocales,
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, connection.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+    project = boundProject ? serializeSessionProject(boundProject) : null;
   }
 
   return {
@@ -153,12 +231,8 @@ export async function getCanvaConnectionSession(input: {
       name: organization.name,
       slug: organization.slug ?? null,
     },
-    project: {
-      id: project.id,
-      name: project.name,
-      sourceLocale: project.sourceLocale ?? "",
-      targetLocales: project.targetLocales ?? [],
-    },
+    project,
+    projects,
     connection: {
       id: connection.id,
       displayName: connection.displayName,
@@ -166,6 +240,56 @@ export async function getCanvaConnectionSession(input: {
       targetLocales: connection.targetLocales,
     },
   };
+}
+
+export async function bindCanvaConnectionProject(input: {
+  organizationId: string;
+  connectionId: string;
+  projectId: string;
+}): Promise<CanvaConnectionSession> {
+  const connection = await getCanvaConnection({
+    organizationId: input.organizationId,
+    connectionId: input.connectionId,
+  });
+  if (!connection) {
+    throw new Error("canva_session_not_found");
+  }
+
+  const locales = await loadProjectLocaleSnapshot({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+  const accessible = await listCanvaAccessibleProjects({
+    organizationId: input.organizationId,
+    apiKeyId: connection.apiKeyId,
+  });
+  if (!accessible.some((project) => project.id === input.projectId)) {
+    throw new Error("canva_project_not_found");
+  }
+
+  const [updated] = await db
+    .update(schema.canvaConnections)
+    .set({
+      projectId: input.projectId,
+      sourceLocale: locales.sourceLocale,
+      targetLocales: locales.targetLocales,
+    })
+    .where(
+      and(
+        eq(schema.canvaConnections.organizationId, input.organizationId),
+        eq(schema.canvaConnections.id, input.connectionId),
+      ),
+    )
+    .returning({ id: schema.canvaConnections.id });
+
+  if (!updated) {
+    throw new Error("canva_session_not_found");
+  }
+
+  return getCanvaConnectionSession({
+    organizationId: input.organizationId,
+    connectionId: input.connectionId,
+  });
 }
 
 export async function listCanvaConnections(input: {
@@ -205,17 +329,19 @@ export async function createCanvaConnection(input: {
   userId: string;
   displayName: string;
   apiKeyId: string;
-  projectId: string;
+  projectId?: string;
   enabled?: boolean;
 }): Promise<CanvaConnectionSecretResult> {
   await assertApiKeyUsableForCanva({
     organizationId: input.organizationId,
     apiKeyId: input.apiKeyId,
   });
-  const locales = await loadProjectLocaleSnapshot({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-  });
+  const locales = input.projectId
+    ? await loadProjectLocaleSnapshot({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      })
+    : { sourceLocale: "", targetLocales: [] as string[] };
 
   const connectionToken = generateCanvaConnectionToken();
   const [connection] = await db
@@ -223,7 +349,7 @@ export async function createCanvaConnection(input: {
     .values({
       organizationId: input.organizationId,
       apiKeyId: input.apiKeyId,
-      projectId: input.projectId,
+      projectId: input.projectId ?? null,
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,
@@ -269,11 +395,13 @@ export async function updateCanvaConnection(input: {
     });
   }
 
-  const nextProjectId = input.projectId ?? existing.projectId;
-  const locales = await loadProjectLocaleSnapshot({
-    organizationId: input.organizationId,
-    projectId: nextProjectId,
-  });
+  const nextProjectId = input.projectId !== undefined ? input.projectId : existing.projectId;
+  const locales = nextProjectId
+    ? await loadProjectLocaleSnapshot({
+        organizationId: input.organizationId,
+        projectId: nextProjectId,
+      })
+    : { sourceLocale: "", targetLocales: [] as string[] };
 
   const [connection] = await db
     .update(schema.canvaConnections)

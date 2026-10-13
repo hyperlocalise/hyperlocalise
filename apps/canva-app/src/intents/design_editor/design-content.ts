@@ -10,10 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { editContent, openDesign } from "@canva/design";
+import { openDesign } from "@canva/design";
 
-import { lookupTranslatedText, parseTranslationFile, segmentKey } from "./segment-file";
-import type { DesignPageInfo, DesignSegment, ExtractedDesignContent } from "./types";
+import { normalizeSegmentText } from "./segment-file";
+import type {
+  ApplyResult,
+  CanvaPullEntry,
+  CanvaPullPage,
+  DesignPageInfo,
+  DesignSegment,
+  ExtractedDesignContent,
+} from "./types";
 
 type RichtextRange = {
   readPlaintext: () => string;
@@ -57,62 +64,10 @@ type AllPagesSession = {
   sync: () => Promise<void>;
 };
 
-type CurrentPageSession = {
-  page: OpenedPage;
-  sync: () => Promise<void>;
-};
-
-type EditableRichtextRange = RichtextRange & {
-  deleted?: boolean;
-};
-
-type RichtextContentSession = {
-  contents: readonly EditableRichtextRange[];
-  sync: () => Promise<void>;
-};
-
-function findRegionOffsets(plaintext: string, regions: Array<{ text: string }>): number[] {
-  const offsets: number[] = [];
-  let searchFrom = 0;
-
-  for (const region of regions) {
-    const regionIndex = plaintext.indexOf(region.text, searchFrom);
-    if (regionIndex === -1) {
-      offsets.push(searchFrom);
-      searchFrom += region.text.length;
-    } else {
-      offsets.push(regionIndex);
-      searchFrom = regionIndex + region.text.length;
-    }
-  }
-
-  return offsets;
-}
-
 async function openAllPages(callback: (session: AllPagesSession) => Promise<void>): Promise<void> {
   await openDesign(
     { type: "all_pages" } as unknown as Parameters<typeof openDesign>[0],
     callback as unknown as Parameters<typeof openDesign>[1],
-  );
-}
-
-async function openCurrentPage(
-  callback: (session: CurrentPageSession) => Promise<void>,
-): Promise<void> {
-  await openDesign(
-    { type: "current_page" } as unknown as Parameters<typeof openDesign>[0],
-    callback as unknown as Parameters<typeof openDesign>[1],
-  );
-}
-
-async function editCurrentPageRichtext(
-  callback: (session: RichtextContentSession) => Promise<void>,
-): Promise<void> {
-  await editContent(
-    { contentType: "richtext", target: "current_page" } as unknown as Parameters<
-      typeof editContent
-    >[0],
-    callback as unknown as Parameters<typeof editContent>[1],
   );
 }
 
@@ -157,162 +112,58 @@ function walkTextElements(
   });
 }
 
-function normalizeTranslations(translations: Record<string, string>): Record<string, string> {
-  return parseTranslationFile(translations);
-}
+export function buildApplyTextIndex(entries: CanvaPullEntry[]): Map<string, CanvaPullEntry> {
+  const index = new Map<string, CanvaPullEntry>();
+  const ambiguous = new Set<string>();
 
-function applyTranslationsToPageElements(
-  elements: ElementCollection | readonly DesignElementNode[] | DesignElementNode[],
-  translations: Record<string, string>,
-  preserveFormatting: boolean,
-): number {
-  const normalized = normalizeTranslations(translations);
-  let contentIndex = 0;
-  let replaced = 0;
-
-  walkTextElements(elements, (range) => {
-    replaced += applyTranslationsToIndexedRange(
-      range,
-      normalized,
-      contentIndex,
-      preserveFormatting,
-    );
-    if (rangeHasApplyableContent(range, preserveFormatting)) {
-      contentIndex += 1;
-    }
-  });
-
-  return replaced;
-}
-
-function rangeHasApplyableContent(range: RichtextRange, preserveFormatting: boolean): boolean {
-  if (preserveFormatting) {
-    return range.readTextRegions().some((region) => region.text.length > 0);
-  }
-  return range.readPlaintext().length > 0;
-}
-
-function applyTranslationsToIndexedRange(
-  range: RichtextRange,
-  translations: Record<string, string>,
-  contentIndex: number,
-  preserveFormatting: boolean,
-): number {
-  if (!rangeHasApplyableContent(range, preserveFormatting)) {
-    return 0;
-  }
-  return applyTranslationsToRange(range, translations, contentIndex, preserveFormatting);
-}
-
-function applyTranslationsToRichtextContents(
-  contents: readonly EditableRichtextRange[],
-  translations: Record<string, string>,
-  preserveFormatting: boolean,
-): number {
-  const normalized = normalizeTranslations(translations);
-  let contentIndex = 0;
-  let replaced = 0;
-
-  for (const range of contents) {
-    if (range.deleted) {
-      continue;
-    }
-    replaced += applyTranslationsToIndexedRange(
-      range,
-      normalized,
-      contentIndex,
-      preserveFormatting,
-    );
-    if (rangeHasApplyableContent(range, preserveFormatting)) {
-      contentIndex += 1;
+  for (const entry of entries) {
+    const sourceNorm = normalizeSegmentText(entry.source);
+    if (sourceNorm) {
+      index.set(sourceNorm, entry);
     }
   }
 
-  return replaced;
-}
-
-export function extractSegmentsFromRange(
-  range: RichtextRange,
-  pageIndex: number,
-  contentIndex: number,
-  preserveFormatting: boolean,
-): DesignSegment[] {
-  if (preserveFormatting) {
-    return range.readTextRegions().flatMap((region, regionIndex) => {
-      if (region.text.length === 0) {
-        return [];
-      }
-
-      return [
-        {
-          key: segmentKey(pageIndex, contentIndex, regionIndex),
-          pageIndex,
-          contentIndex,
-          regionIndex,
-          text: region.text,
-        },
-      ];
-    });
-  }
-
-  const plaintext = range.readPlaintext();
-  if (plaintext.length === 0) {
-    return [];
-  }
-
-  return [
-    {
-      key: segmentKey(pageIndex, contentIndex, 0),
-      pageIndex,
-      contentIndex,
-      regionIndex: 0,
-      text: plaintext,
-    },
-  ];
-}
-
-export function applyTranslationsToRange(
-  range: RichtextRange,
-  translations: Record<string, string>,
-  contentIndex: number,
-  preserveFormatting: boolean,
-): number {
-  let replaced = 0;
-
-  if (preserveFormatting) {
-    const regions = range.readTextRegions();
-    const plaintext = range.readPlaintext();
-    const offsets = findRegionOffsets(plaintext, regions);
-
-    for (let regionIndex = regions.length - 1; regionIndex >= 0; regionIndex -= 1) {
-      const region = regions[regionIndex];
-      const translatedText = lookupTranslatedText(translations, contentIndex, regionIndex);
-      const offset = offsets[regionIndex];
-
-      if (!region || translatedText == null || offset == null || translatedText === region.text) {
+  for (const entry of entries) {
+    const extras = [...entry.knownTexts];
+    if (entry.target != null) {
+      extras.push(entry.target);
+    }
+    for (const text of extras) {
+      const norm = normalizeSegmentText(text);
+      if (!norm || ambiguous.has(norm)) {
         continue;
       }
-
-      range.replaceText(
-        {
-          index: offset,
-          length: region.text.length,
-        },
-        translatedText,
-      );
-      replaced += 1;
+      const existing = index.get(norm);
+      if (existing && existing.key !== entry.key) {
+        index.delete(norm);
+        ambiguous.add(norm);
+        continue;
+      }
+      if (!existing) {
+        index.set(norm, entry);
+      }
     }
-    return replaced;
+  }
+
+  return index;
+}
+
+function applyEntryToRange(range: RichtextRange, entry: CanvaPullEntry, result: ApplyResult): void {
+  if (entry.target == null) {
+    result.untranslated += 1;
+    return;
   }
 
   const plaintext = range.readPlaintext();
-  const translatedText = lookupTranslatedText(translations, contentIndex, 0);
-  if (translatedText == null || plaintext.length === 0 || translatedText === plaintext) {
-    return 0;
+  if (plaintext === entry.target) {
+    result.alreadyApplied += 1;
+    return;
   }
 
-  range.replaceText({ index: 0, length: plaintext.length }, translatedText);
-  return 1;
+  // One Hyperlocalise string per text box: replace the full plaintext range even when Canva
+  // exposes multiple styled runs (e.g. "Buy " + "Now"), so the complete translation is applied.
+  range.replaceText({ index: 0, length: plaintext.length }, entry.target);
+  result.replaced += 1;
 }
 
 export function buildPageSummaries(pageRefs: PageRef[]): DesignPageInfo[] {
@@ -336,9 +187,10 @@ export async function listDesignPages(): Promise<DesignPageInfo[]> {
 
 export async function extractDesignContent(
   pageIndices: number[],
-  preserveFormatting: boolean,
+  sourcePages: CanvaPullPage[] = [],
 ): Promise<ExtractedDesignContent> {
   const selectedPages = new Set(pageIndices);
+  const sourceByPage = new Map(sourcePages.map((page) => [page.pageIndex, page]));
   const segments: DesignSegment[] = [];
 
   await openAllPages(async (session) => {
@@ -348,22 +200,19 @@ export async function extractDesignContent(
       if (!selectedPages.has(pageIndex) || pageRef.type !== "absolute" || pageRef.locked) {
         continue;
       }
+      const sourcePage = sourceByPage.get(pageIndex);
+      const textIndex =
+        sourcePage && !sourcePage.needsReupload ? buildApplyTextIndex(sourcePage.entries) : null;
 
       await session.helpers.openPage(pageRef, async (pageResult) => {
-        let contentIndex = 0;
-
         walkTextElements(pageResult.page.elements, (range) => {
-          const pageSegments = extractSegmentsFromRange(
-            range,
-            pageIndex,
-            contentIndex,
-            preserveFormatting,
-          );
-
-          if (pageSegments.length > 0) {
-            segments.push(...pageSegments);
-            contentIndex += 1;
+          const text = range.readPlaintext();
+          const norm = normalizeSegmentText(text);
+          if (!norm) {
+            return;
           }
+          const entry = textIndex?.get(norm);
+          segments.push({ pageIndex, text: entry?.source ?? text });
         });
       });
     }
@@ -372,93 +221,79 @@ export async function extractDesignContent(
   return {
     segments,
     pageIndices,
-    preserveFormatting,
   };
 }
 
-export async function applyTranslationsToCurrentPage(
-  translations: Record<string, string>,
-  preserveFormatting: boolean,
-): Promise<number> {
-  let replaced = 0;
+export async function applyTranslationsToDesign(pages: CanvaPullPage[]): Promise<ApplyResult> {
+  const result: ApplyResult = {
+    replaced: 0,
+    alreadyApplied: 0,
+    skipped: 0,
+    untranslated: 0,
+    pagesNeedingUpload: [],
+    appliedPageIndices: [],
+  };
+  const pagesByIndex = new Map<number, CanvaPullPage>();
+  for (const page of pages) {
+    if (page.needsReupload) {
+      result.pagesNeedingUpload.push(page.pageIndex);
+      continue;
+    }
+    pagesByIndex.set(page.pageIndex, page);
+  }
 
-  try {
-    await editCurrentPageRichtext(async (session) => {
-      replaced = applyTranslationsToRichtextContents(
-        session.contents,
-        translations,
-        preserveFormatting,
-      );
-      if (replaced > 0) {
+  let openedPages = 0;
+  const requestedApplyPages = pages.filter((page) => !page.needsReupload);
+
+  if (requestedApplyPages.length > 0) {
+    await openAllPages(async (session) => {
+      const pageRefs = session.pageRefs.toArray();
+
+      for (const [pageIndex, pageRef] of pageRefs.entries()) {
+        const page = pagesByIndex.get(pageIndex);
+        if (!page || pageRef.type !== "absolute" || pageRef.locked) {
+          continue;
+        }
+        const index = buildApplyTextIndex(page.entries);
+
+        const opened = await session.helpers.openPage(pageRef, async (pageResult) => {
+          if (pageResult.page.type === "unsupported" || pageResult.page.locked) {
+            return;
+          }
+
+          const matchedBefore = result.replaced + result.alreadyApplied;
+          walkTextElements(pageResult.page.elements, (range) => {
+            const plaintext = range.readPlaintext();
+            const norm = normalizeSegmentText(plaintext);
+            if (!norm) {
+              return;
+            }
+            const entry = index.get(norm);
+            if (!entry) {
+              result.skipped += 1;
+              return;
+            }
+            applyEntryToRange(range, entry, result);
+          });
+          if (result.replaced + result.alreadyApplied > matchedBefore) {
+            result.appliedPageIndices.push(pageIndex);
+          }
+        });
+
+        if (opened.status === "executed") {
+          openedPages += 1;
+        }
+      }
+
+      if (result.replaced > 0) {
         await session.sync();
       }
     });
-    return replaced;
-  } catch {
-    // Fall back when editContent is unavailable on this surface.
   }
 
-  await openCurrentPage(async (session) => {
-    if (session.page.type === "unsupported" || session.page.locked) {
-      throw new Error("This Canva page is locked or cannot be edited.");
-    }
-
-    replaced = applyTranslationsToPageElements(
-      session.page.elements,
-      translations,
-      preserveFormatting,
-    );
-
-    if (replaced > 0) {
-      await session.sync();
-    }
-  });
-
-  return replaced;
-}
-
-export async function applyTranslationsToDesign(
-  pages: Array<{ pageIndex: number; translations: Record<string, string> }>,
-  preserveFormatting: boolean,
-): Promise<number> {
-  const translationsByPage = new Map(pages.map((page) => [page.pageIndex, page.translations]));
-  let replaced = 0;
-  let openedPages = 0;
-
-  await openAllPages(async (session) => {
-    const pageRefs = session.pageRefs.toArray();
-
-    for (const [pageIndex, pageRef] of pageRefs.entries()) {
-      const translations = translationsByPage.get(pageIndex);
-      if (!translations || pageRef.type !== "absolute" || pageRef.locked) {
-        continue;
-      }
-
-      const opened = await session.helpers.openPage(pageRef, async (pageResult) => {
-        if (pageResult.page.type === "unsupported" || pageResult.page.locked) {
-          return;
-        }
-
-        replaced += applyTranslationsToPageElements(
-          pageResult.page.elements,
-          translations,
-          preserveFormatting,
-        );
-      });
-
-      if (opened.status === "executed") {
-        openedPages += 1;
-      }
-    }
-
-    if (replaced > 0) {
-      await session.sync();
-    }
-  });
-
-  if (pages.length > 0 && openedPages === 0) {
+  if (requestedApplyPages.length > 0 && openedPages === 0 && result.replaced === 0) {
     throw new Error("Canva skipped those pages. Open an editable page, then apply again.");
   }
 
-  return replaced;
+  return result;
 }

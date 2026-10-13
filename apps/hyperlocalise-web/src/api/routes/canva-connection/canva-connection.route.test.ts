@@ -105,6 +105,35 @@ describe("canvaConnectionRoutes", () => {
     expect(body.canvaConnection.connectionTokenPrefix).toBe(body.connectionToken.slice(0, 12));
   });
 
+  it("creates a Canva connection without a project", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    const headers = await apiKeyFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva Unbound Key",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["canva-connections"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Unbound Canva",
+          apiKeyId: apiKey.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      canvaConnection: { projectId: string | null; sourceLocale: string; targetLocales: string[] };
+    };
+    expect(body.canvaConnection.projectId).toBeNull();
+    expect(body.canvaConnection.sourceLocale).toBe("");
+    expect(body.canvaConnection.targetLocales).toEqual([]);
+  });
+
   it("records a credential rotation when the connection token is regenerated", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     const headers = await apiKeyFixture.authHeadersFor(identity);

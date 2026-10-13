@@ -18,17 +18,42 @@ export type DesignPageInfo = {
 };
 
 export type DesignSegment = {
-  key: string;
   pageIndex: number;
-  contentIndex: number;
-  regionIndex: number;
   text: string;
 };
 
 export type ExtractedDesignContent = {
   segments: DesignSegment[];
   pageIndices: number[];
-  preserveFormatting: boolean;
+};
+
+export type CanvaPullEntry = {
+  key: string;
+  source: string;
+  target: string | null;
+  knownTexts: string[];
+};
+
+export type CanvaPullPage = {
+  pageIndex: number;
+  sourcePath?: string;
+  needsReupload: boolean;
+  entries: CanvaPullEntry[];
+};
+
+export type CanvaLocalePullResult = {
+  locale: string;
+  projectId: string;
+  pages: CanvaPullPage[];
+};
+
+export type ApplyResult = {
+  replaced: number;
+  alreadyApplied: number;
+  skipped: number;
+  untranslated: number;
+  pagesNeedingUpload: number[];
+  appliedPageIndices: number[];
 };
 
 export type CanvaJobStatusName =
@@ -49,6 +74,7 @@ export type CanvaLocalePageStatus = {
   translatedWords: number;
   wordCount: number;
   approved: number;
+  needsReupload: boolean;
 };
 
 export type CanvaLocaleStatus = {
@@ -84,18 +110,21 @@ export type CanvaDesignJob = {
   translationsByLocale: Record<string, Record<string, string>>;
 };
 
+export type CanvaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
 export type CanvaSession = {
   organization: {
     id: string;
     name: string;
     slug: string | null;
   };
-  project: {
-    id: string;
-    name: string;
-    sourceLocale: string;
-    targetLocales: string[];
-  };
+  project: CanvaSessionProject | null;
+  projects: CanvaSessionProject[];
   connection: {
     id: string;
     displayName: string;
@@ -122,5 +151,8 @@ export type AppSettings = {
   targetLocales: string;
   preserveFormatting: boolean;
   selectedPageIndices: number[];
+  selectedLocale: string;
+  designId: string;
+  appliedLocaleByPage: Record<string, string>;
   lastJobId: string;
 };

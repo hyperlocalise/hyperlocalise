@@ -542,6 +542,7 @@
                     "pages": [
                       "contributing/docs-contributions",
                       "contributing/development",
+                      "contributing/canva-app-oauth",
                       "contributing/lambda-deploy",
                       "contributing/release-maintenance"
                     ],
