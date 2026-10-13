@@ -44,7 +44,7 @@ export const canvaConnections = pgTable(
       .references(() => organizationApiKeys.id, { onDelete: "restrict" }),
     projectId: text("project_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "restrict" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),

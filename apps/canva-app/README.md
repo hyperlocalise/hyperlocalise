@@ -50,6 +50,20 @@ Set these values in `.env`:
 
 - `CANVA_BACKEND_HOST` — Hyperlocalise web app origin (`http://localhost:3000` in development)
 - `CANVA_APP_ID` — your Canva app ID for JWT verification
+- `CANVA_APP_ORIGIN` — app origin from Developer Portal → Settings → Security when required
+
+### OAuth (Connect Hyperlocalise)
+
+Hyperlocalise is the OAuth authorization server. In the [Developer Portal](https://www.canva.com/developers/apps) Authentication settings, set:
+
+| Portal field | Value |
+| --- | --- |
+| Authorization server URL | `{ORIGIN}/api/oauth/canva/authorize` |
+| Token exchange URL | `{ORIGIN}/api/oauth/canva/token` |
+
+Use your public Hyperlocalise web origin for `{ORIGIN}` (production or a tunnel for local OAuth). Copy Canva’s **Client ID** and **Client secret** into `CANVA_OAUTH_CLIENT_ID` and `CANVA_OAUTH_CLIENT_SECRET` on `hyperlocalise-web`, along with `HYPERLOCALISE_PUBLIC_APP_URL`. Full steps: [Canva app OAuth](../../docs/contributing/canva-app-oauth.mdx).
+
+For local dev without a tunnel, paste a **connection token** from workspace Integrations instead of OAuth.
 
 In the Canva app UI:
 

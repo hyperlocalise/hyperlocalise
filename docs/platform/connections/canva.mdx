@@ -24,6 +24,8 @@ There is no separate Canva locale list. Jobs use the project's source locale and
 4. Save. Hyperlocalise copies the project's source locale and target locales onto the connection. You do not set locales on this form.
 5. Copy the connection token shown once after creation if you will paste it into the app. Prefer **Connect Hyperlocalise** (OAuth) in the Canva app when that is available.
 
+App developers enable OAuth in the Canva Developer Portal and on the Hyperlocalise deployment. See [Canva app OAuth](/contributing/canva-app-oauth) for authorization server URL, token exchange URL, and environment variables.
+
 If you lose the one-time token, create a replacement connection or reconnect with OAuth. The token is not shown again. See [Connection troubleshooting](/platform/help/connections).
 
 Connect Canva before you collect texts. Changing the bound project changes the next collect and generate.
@@ -104,6 +106,8 @@ Apply uses page-local keys from the latest collect. It does not rewrite older si
 ## Change or remove access
 
 Disconnect from the Canva app when this editor session should stop using the workspace. Disconnect the connection from **Integrations** when the workspace should stop using that token and project.
+
+Deleting the bound **native project** removes any workspace Canva connections that pointed at it. Designers must reconnect from the Canva app, or an admin must create a new connection in **Integrations**.
 
 If you lost the one-time connection token, replace the connection rather than expecting to reveal it again. Revoke the old credential after the replacement works.
 
