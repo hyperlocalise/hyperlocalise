@@ -31,9 +31,13 @@ import {
 } from "@/lib/canva/connection-claims";
 import { resolveCanvaDesignId } from "@/lib/canva/auth";
 import {
+  collectCanvaDesign,
+  generateCanvaLocaleJobs,
   generateCanvaLocalization,
   getCanvaLocalizationStatus,
   getCurrentCanvaDesignJob,
+  listCanvaDesignLocaleStatuses,
+  pullCanvaLocalePageTranslations,
   pullLatestCanvaTranslations,
   startCanvaLocalization,
 } from "@/lib/canva/localize-design";
@@ -44,6 +48,8 @@ import { env } from "@/lib/env";
 
 import {
   canvaClaimIdParamSchema,
+  canvaLocalesQuerySchema,
+  collectCanvaDesignBodySchema,
   createCanvaJobBodySchema,
   currentCanvaJobQuerySchema,
   localizeCanvaDesignBodySchema,
@@ -60,6 +66,19 @@ const validateLocalizeBody = validator("json", (value, c) => {
       c,
       "invalid_canva_localize_payload",
       "Canva localize payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateCollectBody = validator("json", (value, c) => {
+  const parsed = collectCanvaDesignBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_canva_collect_payload",
+      "Canva collect payload is invalid.",
       parsed.error.flatten(),
     );
   }
@@ -113,6 +132,19 @@ const validateCurrentJobQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateLocalesQuery = validator("query", (value, c) => {
+  const parsed = canvaLocalesQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_canva_locales_query",
+      "Canva locales query is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
 const validatePullQuery = validator("query", (value, c) => {
   const parsed = pullCanvaTranslationsQuerySchema.safeParse(value);
   if (!parsed.success) {
@@ -146,6 +178,7 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
 
   const badRequestCodes = new Set([
     "canva_no_text_segments",
+    "canva_design_not_collected",
     "job_not_enqueueable",
     "job_already_running",
     "file_translation_job_required",
@@ -270,6 +303,62 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
       },
     )
     .post(
+      "/collect",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validateCollectBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const connection = c.var.canvaConnection;
+        const brandError = await applyCanvaBrandBinding(c, connection, c.var.canvaUser);
+        if (brandError) {
+          return brandError;
+        }
+
+        try {
+          const designId = await resolveCanvaDesignId(payload.designToken, env.CANVA_APP_ID);
+          const result = await collectCanvaDesign({
+            organizationId: connection.organizationId,
+            apiKeyId: connection.apiKeyId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            designId,
+            designTitle: payload.designTitle,
+            segments: payload.segments,
+            fileStorageAdapter: options.fileStorageAdapter,
+          });
+          return c.json(result, 201);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/locales",
+      canvaConnectionAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
+      validateLocalesQuery,
+      async (c) => {
+        const query = c.req.valid("query");
+        const connection = c.var.canvaConnection;
+        try {
+          const designId =
+            query.designId ??
+            (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
+          const result = await listCanvaDesignLocaleStatuses({
+            organizationId: connection.organizationId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            apiKeyId: connection.apiKeyId,
+            designId,
+          });
+          return c.json(result, 200);
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
       "/jobs",
       canvaConnectionAuthMiddleware,
       createCanvaJwtMiddleware({ required: true }),
@@ -288,21 +377,34 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
 
         try {
           const designId = await resolveCanvaDesignId(payload.designToken, env.CANVA_APP_ID);
-          const result = await startCanvaLocalization({
+          if (payload.segments && payload.segments.length > 0) {
+            const result = await startCanvaLocalization({
+              organizationId: connection.organizationId,
+              apiKeyId: connection.apiKeyId,
+              canvaConnectionId: connection.id,
+              projectId: connection.projectId,
+              sourceLocale: payload.sourceLocale,
+              targetLocales: payload.targetLocales,
+              designId,
+              designTitle: payload.designTitle,
+              segments: payload.segments,
+              generate: payload.generate,
+              jobQueue: options.jobQueue,
+              fileStorageAdapter: options.fileStorageAdapter,
+            });
+            return c.json({ job: result }, 201);
+          }
+
+          const result = await generateCanvaLocaleJobs({
             organizationId: connection.organizationId,
             apiKeyId: connection.apiKeyId,
             canvaConnectionId: connection.id,
             projectId: connection.projectId,
-            sourceLocale: payload.sourceLocale ?? connection.sourceLocale,
-            targetLocales: payload.targetLocales ?? connection.targetLocales,
             designId,
-            segments: payload.segments,
-            generate: payload.generate,
+            targetLocales: payload.targetLocales ?? [],
             jobQueue: options.jobQueue,
-            fileStorageAdapter: options.fileStorageAdapter,
           });
-
-          return c.json({ job: result }, 201);
+          return c.json({ jobs: result }, 201);
         } catch (error) {
           return localizeErrorResponse(c, error);
         }
@@ -394,6 +496,18 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const designId =
             query.designId ??
             (await resolveCanvaDesignId(query.designToken ?? "", env.CANVA_APP_ID));
+          if (query.locale) {
+            const translations = await pullCanvaLocalePageTranslations({
+              organizationId: connection.organizationId,
+              canvaConnectionId: connection.id,
+              projectId: connection.projectId,
+              apiKeyId: connection.apiKeyId,
+              designId,
+              locale: query.locale,
+              pageIndex: query.pageIndex,
+            });
+            return c.json({ translations }, 200);
+          }
           const translations = await pullLatestCanvaTranslations({
             organizationId: connection.organizationId,
             canvaConnectionId: connection.id,
@@ -427,9 +541,10 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             apiKeyId: connection.apiKeyId,
             canvaConnectionId: connection.id,
             projectId: connection.projectId,
-            sourceLocale: payload.sourceLocale ?? connection.sourceLocale,
-            targetLocales: payload.targetLocales ?? connection.targetLocales,
+            sourceLocale: payload.sourceLocale,
+            targetLocales: payload.targetLocales,
             designId,
+            designTitle: payload.designTitle,
             segments: payload.segments,
             generate: Boolean(options.jobQueue),
             jobQueue: options.jobQueue,

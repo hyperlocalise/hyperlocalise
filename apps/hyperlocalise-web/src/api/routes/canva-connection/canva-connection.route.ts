@@ -112,6 +112,12 @@ function mapCreateError(c: Parameters<typeof badRequestResponse>[0], error: unkn
       );
     case "canva_project_not_found":
       return notFoundResponse(c, error.message, "Project was not found for this workspace.");
+    case "canva_project_source_locale_missing":
+      return badRequestResponse(
+        c,
+        error.message,
+        "The selected project must have a source locale.",
+      );
     default:
       return badRequestResponse(c, "canva_connection_create_failed");
   }
@@ -145,8 +151,6 @@ export function createCanvaConnectionRoutes() {
           displayName: payload.displayName,
           apiKeyId: payload.apiKeyId,
           projectId: payload.projectId,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
           enabled: payload.enabled,
         });
 

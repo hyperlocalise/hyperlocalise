@@ -13,7 +13,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildPageSourcePath,
   buildSourcePath,
+  lookupTranslatedText,
   parseTranslationFile,
   segmentKey,
   segmentsToTranslationFile,
@@ -23,6 +25,8 @@ describe("segment-file", () => {
   it("builds stable segment keys and source paths", () => {
     expect(segmentKey(1, 2, 3)).toBe("canva.segment.1.2.3");
     expect(buildSourcePath("design-123")).toBe("canva/designs/design-123.json");
+    expect(buildPageSourcePath("mic", "DAF1", 0)).toBe("canva/designs/mic-DAF1/page-1.json");
+    expect(buildPageSourcePath("mic", "DAF2", 1)).toBe("canva/designs/mic-DAF2/page-2.json");
   });
 
   it("serializes and parses translation files", () => {
@@ -49,5 +53,49 @@ describe("segment-file", () => {
     });
 
     expect(parseTranslationFile(file)).toEqual(file);
+  });
+
+  it("ignores blank translations when looking up apply text", () => {
+    expect(
+      lookupTranslatedText(
+        {
+          "canva.segment.0.0": "   ",
+          "canva.segment.1.0.0": "Hola",
+        },
+        0,
+        0,
+      ),
+    ).toBe("Hola");
+  });
+
+  it("flattens nested job output and prefers translated values over leftover source keys", () => {
+    expect(
+      parseTranslationFile({
+        "canva.segment.0.0": "Hello",
+        canva: {
+          segment: {
+            "0": {
+              "0": "Bonjour",
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      "canva.segment.0.0": "Bonjour",
+    });
+    expect(
+      parseTranslationFile({
+        canva: {
+          segment: {
+            "0": {
+              "0": "Xin chào",
+            },
+          },
+        },
+        "canva.segment.0.0": "Hello",
+      }),
+    ).toEqual({
+      "canva.segment.0.0": "Xin chào",
+    });
   });
 });

@@ -10,20 +10,29 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("@canva/design", () => ({
   openDesign: vi.fn(),
   editContent: vi.fn(),
 }));
 
+import { editContent, openDesign } from "@canva/design";
+
 import {
+  applyTranslationsToCurrentPage,
+  applyTranslationsToDesign,
   applyTranslationsToRange,
   buildPageSummaries,
   extractSegmentsFromRange,
 } from "./design-content";
 
 describe("design-content", () => {
+  beforeEach(() => {
+    vi.mocked(openDesign).mockReset();
+    vi.mocked(editContent).mockReset();
+  });
+
   it("builds page summaries from page references", () => {
     expect(
       buildPageSummaries([
@@ -103,10 +112,9 @@ describe("design-content", () => {
         },
       },
       {
-        "canva.segment.0.1.0": "Hola",
-        "canva.segment.0.1.1": " mundo",
+        "canva.segment.1.0": "Hola",
+        "canva.segment.1.1": " mundo",
       },
-      0,
       1,
       true,
     );
@@ -115,5 +123,245 @@ describe("design-content", () => {
       { index: 5, length: 6, text: " mundo" },
       { index: 0, length: 5, text: "Hola" },
     ]);
+  });
+
+  it("applies page-local keys when writing onto another page", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    applyTranslationsToRange(
+      {
+        readPlaintext: () => "Hello",
+        readTextRegions: () => [{ text: "Hello" }],
+        replaceText: (range, text) => {
+          replacements.push({ index: range.index, length: range.length, text });
+        },
+      },
+      {
+        "canva.segment.0.0": "Hallo",
+      },
+      0,
+      false,
+    );
+
+    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
+  });
+
+  it("applies full-page keys from older collected files", () => {
+    const replacements: Array<{ index: number; length: number; text: string }> = [];
+
+    applyTranslationsToRange(
+      {
+        readPlaintext: () => "Hello",
+        readTextRegions: () => [{ text: "Hello" }],
+        replaceText: (range, text) => {
+          replacements.push({ index: range.index, length: range.length, text });
+        },
+      },
+      {
+        "canva.segment.2.0.0": "Hallo",
+      },
+      0,
+      false,
+    );
+
+    expect(replacements).toEqual([{ index: 0, length: 5, text: "Hallo" }]);
+  });
+
+  it("skips blank translations when applying", () => {
+    const replacements: string[] = [];
+
+    expect(
+      applyTranslationsToRange(
+        {
+          readPlaintext: () => "Hello",
+          readTextRegions: () => [{ text: "Hello" }],
+          replaceText: (_range, text) => {
+            replacements.push(text);
+          },
+        },
+        {
+          "canva.segment.0.0": "   ",
+        },
+        0,
+        false,
+      ),
+    ).toBe(0);
+    expect(replacements).toEqual([]);
+  });
+
+  it("skips translations that already match the design text", () => {
+    const replacements: string[] = [];
+
+    expect(
+      applyTranslationsToRange(
+        {
+          readPlaintext: () => "Hello",
+          readTextRegions: () => [{ text: "Hello" }],
+          replaceText: (_range, text) => {
+            replacements.push(text);
+          },
+        },
+        {
+          "canva.segment.0.0": "Hello",
+        },
+        0,
+        false,
+      ),
+    ).toBe(0);
+    expect(replacements).toEqual([]);
+  });
+
+  it("applies the selected file onto the current Canva page through editContent", async () => {
+    const replacements: string[] = [];
+    const sync = vi.fn(async () => undefined);
+
+    vi.mocked(editContent).mockImplementation(async (options, callback) => {
+      expect(options).toEqual({ contentType: "richtext", target: "current_page" });
+      await callback({
+        contents: [
+          {
+            deleted: false,
+            readPlaintext: () => "Hello",
+            readTextRegions: () => [{ text: "Hello" }],
+            replaceText: (_range: { index: number; length: number }, text: string) => {
+              replacements.push(text);
+            },
+          },
+        ],
+        sync,
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hola" }, false),
+    ).resolves.toBe(1);
+    expect(replacements).toEqual(["Hola"]);
+    expect(sync).toHaveBeenCalledTimes(1);
+    expect(openDesign).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to openDesign when editContent finds no replacements", async () => {
+    vi.mocked(editContent).mockImplementation(async (_options, callback) => {
+      await callback({
+        contents: [
+          {
+            deleted: false,
+            readPlaintext: () => "Hello",
+            readTextRegions: () => [{ text: "Hello" }],
+            replaceText: () => {
+              throw new Error("should not replace");
+            },
+          },
+        ],
+        sync: vi.fn(async () => undefined),
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hello" }, false),
+    ).resolves.toBe(0);
+    expect(openDesign).not.toHaveBeenCalled();
+  });
+
+  it("falls back to openDesign when editContent is unavailable", async () => {
+    const replacements: string[] = [];
+    const sync = vi.fn(async () => undefined);
+
+    vi.mocked(editContent).mockRejectedValue(new Error("unsupported"));
+    vi.mocked(openDesign).mockImplementation(async (options, callback) => {
+      expect(options).toEqual({ type: "current_page" });
+      await callback({
+        page: {
+          type: "absolute",
+          locked: false,
+          elements: {
+            forEach: (visitor: (element: { type: string; text: unknown }) => void) => {
+              visitor({
+                type: "text",
+                text: {
+                  readPlaintext: () => "Hello",
+                  readTextRegions: () => [{ text: "Hello" }],
+                  replaceText: (_range: { index: number; length: number }, text: string) => {
+                    replacements.push(text);
+                  },
+                },
+              });
+            },
+          },
+        },
+        sync,
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToCurrentPage({ "canva.segment.0.0": "Hola" }, false),
+    ).resolves.toBe(1);
+    expect(replacements).toEqual(["Hola"]);
+    expect(sync).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies every page in one all_pages session", async () => {
+    const replacements: string[] = [];
+    const sync = vi.fn(async () => undefined);
+
+    vi.mocked(openDesign).mockImplementation(async (options, callback) => {
+      expect(options).toEqual({ type: "all_pages" });
+      await callback({
+        pageRefs: {
+          toArray: () => [
+            { type: "absolute", locked: false },
+            { type: "absolute", locked: false },
+          ],
+        },
+        helpers: {
+          openPage: async (
+            _pageRef: unknown,
+            pageCallback: (result: {
+              page: {
+                type: string;
+                locked: boolean;
+                elements: { forEach: (visitor: (element: unknown) => void) => void };
+              };
+            }) => Promise<void>,
+          ) => {
+            const pageIndex = replacements.length;
+            await pageCallback({
+              page: {
+                type: "absolute",
+                locked: false,
+                elements: {
+                  forEach: (visitor: (element: unknown) => void) => {
+                    visitor({
+                      type: "text",
+                      text: {
+                        readPlaintext: () => (pageIndex === 0 ? "Hello" : "World"),
+                        readTextRegions: () => [{ text: pageIndex === 0 ? "Hello" : "World" }],
+                        replaceText: (_range: unknown, text: string) => {
+                          replacements.push(text);
+                        },
+                      },
+                    });
+                  },
+                },
+              },
+            });
+            return { status: "executed" };
+          },
+        },
+        sync,
+      } as never);
+    });
+
+    await expect(
+      applyTranslationsToDesign(
+        [
+          { pageIndex: 0, translations: { "canva.segment.0.0": "Hola" } },
+          { pageIndex: 1, translations: { "canva.segment.0.0": "Mundo" } },
+        ],
+        false,
+      ),
+    ).resolves.toBe(2);
+    expect(replacements).toEqual(["Hola", "Mundo"]);
+    expect(sync).toHaveBeenCalledTimes(1);
   });
 });

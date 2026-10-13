@@ -19,6 +19,10 @@ Secrets are shown once. If you lost one, create a replacement, update the client
 
 Confirm **Integrations** → **Intercom** is connected for the workspace that owns the Help Center. Reauthorize if Platform asks you to. Check the automation’s **Intercom region** (`United States`, `European Union`, or `Australia`) and selected Help Center. Project locales must match Intercom locale codes exactly. See [Localize Intercom Help Center articles](/platform/connections/intercom).
 
+## A Canva job rejects the source locale
+
+The Canva app does not keep its own language list. The job source is the bound project's source locale, and targets must already belong to that project. `en` is not `en-US`. Collect writes a new batch of page files; generate and add-to-design use that batch only. After collect, the source language row can apply that JSON back onto the design. Open [project languages](/platform/projects/languages), then reconnect in Canva so the app reloads the project list. See [Localize Canva](/platform/connections/canva).
+
 ## Braze library is missing or import fails
 
 Confirm **Integrations** → **Braze** has a REST API key and the REST cluster for that instance. Save pings Braze before it stores the pair; a rejected key, missing permission, or wrong cluster is not saved. The key needs `templates.email`, `content_blocks`, `campaigns`, and `canvas` list access. Reconnect if Platform asks you to. Check that the automation’s source locale matches the project source language. Email Templates maps project locales onto copy suffixes. Campaigns & Canvas maps those tags to Braze locale UUIDs. Keep locked pairs such as `en-US` and `en-GB` separate. Apply **Translate Braze Email Templates** or **Translate Braze Campaigns & Canvas**, not both. See [Localize Braze](/platform/connections/braze).

@@ -97,8 +97,6 @@ async function createConnectedWorkspace() {
     displayName: "Canva OAuth",
     apiKeyId: apiKey.id,
     projectId: projectBody.project.id,
-    sourceLocale: "en",
-    targetLocales: ["es"],
   });
 
   return { auth, created };

@@ -54,6 +54,53 @@ export type StartCanvaLocalizationResult = {
   sourcePath: string;
 };
 
+export type CollectedCanvaPageFile = {
+  pageIndex: number;
+  sourcePath: string;
+  sourceFileId: string;
+  segmentCount: number;
+  wordCount: number;
+};
+
+export type CollectCanvaDesignResult = {
+  designSlug: string;
+  projectId: string;
+  pages: CollectedCanvaPageFile[];
+};
+
+export type GenerateCanvaLocaleResult = {
+  locale: string;
+  projectId: string;
+  jobIds: string[];
+};
+
+export type CanvaLocalePageStatus = {
+  pageIndex: number;
+  sourcePath: string;
+  jobId: string | null;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+  translatedWords: number;
+  wordCount: number;
+  approved: number;
+};
+
+export type CanvaLocaleStatus = {
+  locale: string;
+  isSource?: boolean;
+  status: CanvaJobStatusName | "idle";
+  translated: number;
+  total: number;
+  translatedWords: number;
+  wordCount: number;
+  percent: number;
+  approved: number;
+  approvedPercent: number;
+  canAdd: boolean;
+  pages: CanvaLocalePageStatus[];
+};
+
 export type CanvaDesignJob = {
   jobId: string;
   status: CanvaJobStatusName;

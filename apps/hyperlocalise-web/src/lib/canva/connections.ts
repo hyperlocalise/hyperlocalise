@@ -73,12 +73,16 @@ async function assertApiKeyUsableForCanva(input: { organizationId: string; apiKe
   return apiKey;
 }
 
-async function assertProjectBelongsToOrganization(input: {
+async function loadProjectLocaleSnapshot(input: {
   organizationId: string;
   projectId: string;
-}) {
+}): Promise<{ sourceLocale: string; targetLocales: string[] }> {
   const [project] = await db
-    .select({ id: schema.projects.id })
+    .select({
+      id: schema.projects.id,
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
+    })
     .from(schema.projects)
     .where(
       and(
@@ -91,6 +95,16 @@ async function assertProjectBelongsToOrganization(input: {
   if (!project) {
     throw new Error("canva_project_not_found");
   }
+
+  const sourceLocale = project.sourceLocale?.trim();
+  if (!sourceLocale) {
+    throw new Error("canva_project_source_locale_missing");
+  }
+
+  return {
+    sourceLocale,
+    targetLocales: project.targetLocales ?? [],
+  };
 }
 
 export async function getCanvaConnectionSession(input: {
@@ -142,7 +156,7 @@ export async function getCanvaConnectionSession(input: {
     project: {
       id: project.id,
       name: project.name,
-      sourceLocale: project.sourceLocale ?? "en",
+      sourceLocale: project.sourceLocale ?? "",
       targetLocales: project.targetLocales ?? [],
     },
     connection: {
@@ -192,15 +206,13 @@ export async function createCanvaConnection(input: {
   displayName: string;
   apiKeyId: string;
   projectId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   enabled?: boolean;
 }): Promise<CanvaConnectionSecretResult> {
   await assertApiKeyUsableForCanva({
     organizationId: input.organizationId,
     apiKeyId: input.apiKeyId,
   });
-  await assertProjectBelongsToOrganization({
+  const locales = await loadProjectLocaleSnapshot({
     organizationId: input.organizationId,
     projectId: input.projectId,
   });
@@ -215,8 +227,8 @@ export async function createCanvaConnection(input: {
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,
-      sourceLocale: input.sourceLocale,
-      targetLocales: input.targetLocales,
+      sourceLocale: locales.sourceLocale,
+      targetLocales: locales.targetLocales,
       enabled: input.enabled ?? true,
       connectionTokenHash: hashCanvaConnectionToken(connectionToken),
       connectionTokenPrefix: getCanvaConnectionTokenPrefix(connectionToken),
@@ -240,8 +252,6 @@ export async function updateCanvaConnection(input: {
   displayName?: string;
   apiKeyId?: string;
   projectId?: string;
-  sourceLocale?: string;
-  targetLocales?: string[];
   enabled?: boolean;
 }): Promise<CanvaConnectionSummary | null> {
   const existing = await getCanvaConnection({
@@ -259,12 +269,11 @@ export async function updateCanvaConnection(input: {
     });
   }
 
-  if (input.projectId) {
-    await assertProjectBelongsToOrganization({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-    });
-  }
+  const nextProjectId = input.projectId ?? existing.projectId;
+  const locales = await loadProjectLocaleSnapshot({
+    organizationId: input.organizationId,
+    projectId: nextProjectId,
+  });
 
   const [connection] = await db
     .update(schema.canvaConnections)
@@ -272,8 +281,8 @@ export async function updateCanvaConnection(input: {
       displayName: input.displayName,
       apiKeyId: input.apiKeyId,
       projectId: input.projectId,
-      sourceLocale: input.sourceLocale,
-      targetLocales: input.targetLocales,
+      sourceLocale: locales.sourceLocale,
+      targetLocales: locales.targetLocales,
       enabled: input.enabled,
       updatedByUserId: input.userId,
     })
