@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { PlusIcon, TranslateIcon } from "@phosphor-icons/react";
@@ -22,6 +23,7 @@ import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-con
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { cn } from "@/lib/primitives/cn";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
@@ -44,7 +46,21 @@ import {
 import { jobsPageContentMessages } from "./jobs-page-content.messages";
 import { useJobsListUrlState } from "./use-jobs-list-url-state";
 
-function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
+function renderProductionJobLink({
+  href,
+  kind,
+  children,
+  className,
+  ariaLabel,
+}: Parameters<JobsLinkRenderer>[0]) {
+  if (kind === "card") {
+    return (
+      <Link href={href} className={className} aria-label={ariaLabel}>
+        {children}
+      </Link>
+    );
+  }
+
   if (kind === "title") {
     return (
       <Button
@@ -60,7 +76,12 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
 
   if (kind === "content-editor") {
     return (
-      <Button nativeButton={false} render={<Link href={href} />} size="sm" className="w-fit">
+      <Button
+        nativeButton={false}
+        render={<Link href={href} aria-label={ariaLabel} />}
+        size="sm"
+        className={cn("w-fit", className)}
+      >
         <TranslateIcon />
         {children}
       </Button>
@@ -187,7 +208,7 @@ async function fetchTmsProjectJobs(
   return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
-export function JobsPageContent({
+export const JobsPageContent = observer(function JobsPageContent({
   organizationSlug,
   scope = "all",
   projectId,
@@ -197,8 +218,8 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useJobsListUrlState();
-  const statusFilter = state.status;
+  const pageStore = useJobsListUrlState(projectId);
+  const statusFilter = pageStore.statusFilter;
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
@@ -312,16 +333,12 @@ export function JobsPageContent({
         isTmsLoading={tmsJobsQuery.isLoading && !tmsJobsQuery.data}
         nativeError={nativeError}
         nativeJobs={nativeJobs}
-        onClearFilters={clearFilters}
-        onSearchDraftChange={setSearchDraft}
-        onStatusFilterChange={(nextStatus) => updateState({ status: nextStatus })}
+        pageStore={pageStore}
         organizationSlug={organizationSlug}
         projectId={projectId}
         renderError={renderProductionJobsError}
         renderJobLink={renderProductionJobLink}
         scope={scope}
-        searchDraft={searchDraft}
-        statusFilter={statusFilter}
         tmsError={tmsJobsQuery.error}
         tmsJobs={tmsJobs}
       />
@@ -340,4 +357,4 @@ export function JobsPageContent({
       ) : null}
     </>
   );
-}
+});

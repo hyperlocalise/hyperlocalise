@@ -14,8 +14,10 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildJobDetailHref,
+  getDueUrgency,
   isKanbanStatus,
   readJobsViewMode,
+  sortBoardJobs,
   writeJobsViewMode,
 } from "./jobs-view-helpers";
 
@@ -67,5 +69,71 @@ describe("jobs-view-helpers", () => {
     expect(readJobsViewMode()).toBe("kanban");
     expect(() => writeJobsViewMode("row")).not.toThrow();
     expect(readJobsViewMode()).toBe("kanban");
+  });
+});
+
+describe("sortBoardJobs", () => {
+  const job = (
+    id: string,
+    overrides: { due?: string | null; updatedAt?: string; completedAt?: string | null },
+  ) => ({
+    id,
+    externalDueDate: overrides.due ?? null,
+    updatedAt: overrides.updatedAt ?? "2026-06-01T00:00:00.000Z",
+    completedAt: overrides.completedAt ?? null,
+  });
+
+  it("orders open work by soonest due date, undated jobs last", () => {
+    const jobs = [
+      job("undated", {}),
+      job("later", { due: "2026-06-10T00:00:00.000Z" }),
+      job("sooner", { due: "2026-06-03T00:00:00.000Z" }),
+    ];
+
+    expect(sortBoardJobs("running", jobs).map((item) => item.id)).toEqual([
+      "sooner",
+      "later",
+      "undated",
+    ]);
+  });
+
+  it("orders closed and failed work by most recent activity", () => {
+    const jobs = [
+      job("old", { updatedAt: "2026-06-01T00:00:00.000Z" }),
+      job("completed", {
+        updatedAt: "2026-06-01T00:00:00.000Z",
+        completedAt: "2026-06-05T00:00:00.000Z",
+      }),
+      job("recent", { updatedAt: "2026-06-04T00:00:00.000Z" }),
+    ];
+
+    expect(sortBoardJobs("succeeded", jobs).map((item) => item.id)).toEqual([
+      "completed",
+      "recent",
+      "old",
+    ]);
+    expect(sortBoardJobs("failed", jobs).map((item) => item.id)).toEqual([
+      "completed",
+      "recent",
+      "old",
+    ]);
+  });
+
+  it("does not mutate the input", () => {
+    const jobs = [job("b", { due: "2026-06-10T00:00:00.000Z" }), job("a", { due: null })];
+    sortBoardJobs("queued", jobs);
+    expect(jobs.map((item) => item.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("getDueUrgency", () => {
+  const now = Date.UTC(2026, 5, 6, 12, 0, 0);
+
+  it("classifies due dates relative to now", () => {
+    expect(getDueUrgency(null, now)).toBeNull();
+    expect(getDueUrgency("not a date", now)).toBeNull();
+    expect(getDueUrgency(new Date(now - 60_000).toISOString(), now)).toBe("overdue");
+    expect(getDueUrgency(new Date(now + 3_600_000).toISOString(), now)).toBe("soon");
+    expect(getDueUrgency(new Date(now + 3 * 86_400_000).toISOString(), now)).toBe("upcoming");
   });
 });

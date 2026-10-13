@@ -90,6 +90,22 @@ describe("getJobName", () => {
 });
 
 describe("taskDetailSummary", () => {
+  it("includes unfinished locales on a partially succeeded file job", () => {
+    const summary = taskDetailSummary(
+      createJob({
+        assigneeType: "agent",
+        status: "succeeded",
+        outcomePayload: {
+          outputFiles: [{ locale: "de-DE" }],
+          failedLocales: ["ja-JP"],
+          followUpJobId: "job_retry",
+        },
+      }),
+    );
+
+    expect(summary).toContain("Unfinished: ja-JP");
+  });
+
   it("appends the stored failure reason for failed jobs", () => {
     const summary = taskDetailSummary(
       createJob({
