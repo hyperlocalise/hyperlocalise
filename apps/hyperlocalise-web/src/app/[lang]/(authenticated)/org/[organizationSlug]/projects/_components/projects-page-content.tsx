@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { observer } from "mobx-react-lite";
 import { PlusIcon, SquaresFourIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -42,37 +43,14 @@ import {
   type ProjectFormValues,
 } from "./project-form";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
-import { PROJECTS_PAGE_SIZE, ProjectsTable, ProjectsTableHeader } from "./projects-table";
+import { ProjectsTable, ProjectsTableHeader } from "./projects-table";
 import { projectsPageContentMessages } from "./projects-page-content.messages";
-import { recordRecentProjectVisit, resolveRecentProjects } from "./recent-projects";
+import { ProjectsPageStore, type ProjectSourceFilter } from "./projects-page-store";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
   ["translation-projects", organizationSlug, "native"] as const;
 
 const EMPTY_PROJECTS: ProjectListRow[] = [];
-
-type ProjectSourceFilter = "all" | "tms" | "native";
-
-function useProjectSearch(projects: ProjectListRow[]) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredProjects = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return projects;
-
-    return projects.filter((project) => {
-      const matchesName = project.name.toLowerCase().includes(query);
-      const matchesId = project.id.toLowerCase().includes(query);
-      return matchesName || matchesId;
-    });
-  }, [projects, searchQuery]);
-
-  return {
-    searchQuery,
-    setSearchQuery,
-    filteredProjects,
-  };
-}
 
 function ProjectsSectionHeader({ title, description }: { title: string; description: string }) {
   return (
@@ -147,17 +125,15 @@ function RecentProjectsStrip({
   );
 }
 
-export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
+export const ProjectsPageContent = observer(function ProjectsPageContent({
+  organizationSlug,
+}: {
+  organizationSlug: string;
+}) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
-  const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
-  const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
-  const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
-  const [sourceFilter, setSourceFilter] = useState<ProjectSourceFilter>("all");
-  const [recentProjects, setRecentProjects] = useState<Array<{ id: string; name: string }>>([]);
-  const [nativeVisibleCount, setNativeVisibleCount] = useState(PROJECTS_PAGE_SIZE);
-  const [tmsVisibleCount, setTmsVisibleCount] = useState(PROJECTS_PAGE_SIZE);
+  const [pageStore] = useState(() => new ProjectsPageStore(organizationSlug));
 
   const nativeProjectsQuery = useQuery({
     queryKey: nativeProjectsQueryKey(organizationSlug),
@@ -203,7 +179,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     },
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
-      setProjectDialogMode(null);
+      pageStore.closeProjectDialog(false);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectCreated));
     },
     onError: (error) => {
@@ -218,8 +194,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           projectId,
           toProjectPayload(values, {
             mode: "edit",
-            includeLocales: editingProject?.source === "native",
-            includeMetadata: editingProject?.source === "native",
+            includeLocales: pageStore.editingProject?.source === "native",
+            includeMetadata: pageStore.editingProject?.source === "native",
           }),
         );
       } catch (error) {
@@ -234,8 +210,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     },
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
-      setProjectDialogMode(null);
-      setEditingProject(null);
+      pageStore.closeProjectDialog(false);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectUpdated));
     },
     onError: (error) => {
@@ -258,7 +233,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     },
     onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
-      setDeleteProject(null);
+      pageStore.setDeleteProject(null);
       toast.success(intl.formatMessage(projectsPageContentMessages.projectDeleted));
     },
     onError: (error) => {
@@ -272,75 +247,40 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     () => [...tmsProjects, ...nativeProjects],
     [nativeProjects, tmsProjects],
   );
-  const {
-    searchQuery,
-    setSearchQuery,
-    filteredProjects: filteredNativeProjects,
-  } = useProjectSearch(nativeProjects);
-  const filteredTmsProjects = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return tmsProjects;
-
-    return tmsProjects.filter((project) => {
-      const matchesName = project.name.toLowerCase().includes(query);
-      const matchesId = project.id.toLowerCase().includes(query);
-      return matchesName || matchesId;
-    });
-  }, [searchQuery, tmsProjects]);
-
-  useEffect(() => {
-    setNativeVisibleCount(PROJECTS_PAGE_SIZE);
-    setTmsVisibleCount(PROJECTS_PAGE_SIZE);
-  }, [searchQuery, sourceFilter]);
-
-  const visibleNativeProjects = filteredNativeProjects.slice(0, nativeVisibleCount);
-  const visibleTmsProjects = filteredTmsProjects.slice(0, tmsVisibleCount);
+  const filteredNativeProjects = pageStore.filterProjects(nativeProjects);
+  const filteredTmsProjects = pageStore.filterProjects(tmsProjects);
+  const visibleNativeProjects = filteredNativeProjects.slice(0, pageStore.nativeVisibleCount);
+  const visibleTmsProjects = filteredTmsProjects.slice(0, pageStore.tmsVisibleCount);
   const hasMoreNativeProjects = visibleNativeProjects.length < filteredNativeProjects.length;
   const hasMoreTmsProjects = visibleTmsProjects.length < filteredTmsProjects.length;
 
-  const loadMoreNativeProjects = useCallback(() => {
-    setNativeVisibleCount((current) => current + PROJECTS_PAGE_SIZE);
-  }, []);
-
-  const loadMoreTmsProjects = useCallback(() => {
-    setTmsVisibleCount((current) => current + PROJECTS_PAGE_SIZE);
-  }, []);
-
-  const handleOpenProject = useCallback(
-    (projectId: string) => {
-      recordRecentProjectVisit(organizationSlug, projectId);
-      setRecentProjects(resolveRecentProjects(organizationSlug, allProjects));
-    },
-    [allProjects, organizationSlug],
-  );
-
   useEffect(() => {
-    setRecentProjects(resolveRecentProjects(organizationSlug, allProjects));
-  }, [allProjects, organizationSlug]);
+    pageStore.syncRecentProjects(allProjects);
+  }, [allProjects, pageStore]);
 
   const isSavingProject = createProject.isPending || updateProject.isPending;
   const projectDialogTitle =
-    projectDialogMode === "edit"
+    pageStore.projectDialogMode === "edit"
       ? intl.formatMessage(projectsPageContentMessages.editProjectTitle)
       : intl.formatMessage(projectsPageContentMessages.createProjectTitle);
   const projectDialogDescription =
-    projectDialogMode === "edit"
+    pageStore.projectDialogMode === "edit"
       ? intl.formatMessage(projectsPageContentMessages.editProjectDescription)
       : intl.formatMessage(projectsPageContentMessages.createProjectDescription);
   const initialProjectValues = useMemo(
     () =>
-      projectDialogMode === "edit" && editingProject
-        ? createProjectFormFromRow(editingProject)
+      pageStore.projectDialogMode === "edit" && pageStore.editingProject
+        ? createProjectFormFromRow(pageStore.editingProject)
         : createEmptyProjectForm(),
-    [editingProject, projectDialogMode],
+    [pageStore.editingProject, pageStore.projectDialogMode],
   );
 
   const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
   const isTmsProjectsLoading = tmsProjectsQuery.isLoading || tmsProjectsQuery.isFetching;
   const showTmsSection =
     (hasTmsConnection || isTmsProjectsLoading) &&
-    (sourceFilter === "all" || sourceFilter === "tms");
-  const showNativeSection = sourceFilter === "all" || sourceFilter === "native";
+    (pageStore.sourceFilter === "all" || pageStore.sourceFilter === "tms");
+  const showNativeSection = pageStore.sourceFilter === "all" || pageStore.sourceFilter === "native";
   const hasFilteredResults =
     (showNativeSection && visibleNativeProjects.length > 0) ||
     (showTmsSection && visibleTmsProjects.length > 0);
@@ -350,28 +290,9 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const hasTmsPrimaryWorkflow = hasTmsConnection && tmsProjects.length > 0;
   const compactNativeEmpty = hasTmsPrimaryWorkflow && nativeProjects.length === 0;
 
-  function openCreateProjectDialog() {
-    setEditingProject(null);
-    setProjectDialogMode("create");
-  }
-
-  function openEditProjectDialog(project: ProjectListRow) {
-    setEditingProject(project);
-    setProjectDialogMode("edit");
-  }
-
-  function closeProjectDialog(open: boolean) {
-    if (open) {
-      return;
-    }
-
-    setProjectDialogMode(null);
-    setEditingProject(null);
-  }
-
   function saveProject(values: ProjectFormValues) {
-    if (projectDialogMode === "edit" && editingProject) {
-      updateProject.mutate({ projectId: editingProject.id, values });
+    if (pageStore.projectDialogMode === "edit" && pageStore.editingProject) {
+      updateProject.mutate({ projectId: pageStore.editingProject.id, values });
       return;
     }
 
@@ -382,7 +303,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     hasTmsPrimaryWorkflow && nativeProjects.length === 0 ? (
       <Button
         type="button"
-        onClick={openCreateProjectDialog}
+        onClick={() => pageStore.openCreateProjectDialog()}
         variant="outline"
         className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
@@ -393,7 +314,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     ) : (
       <Button
         type="button"
-        onClick={openCreateProjectDialog}
+        onClick={() => pageStore.openCreateProjectDialog()}
         className="w-full rounded-lg sm:w-fit"
         disabled={isSavingProject}
       >
@@ -407,7 +328,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       grouped
       groupLabel={tmsProviderName}
       totalCount={filteredTmsProjects.length}
-      suppressEmpty={Boolean(searchQuery.trim())}
+      suppressEmpty={Boolean(pageStore.searchQuery.trim())}
       projects={visibleTmsProjects}
       projectsQuery={tmsProjectsQuery}
       isSavingProject={isSavingProject}
@@ -415,8 +336,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       organizationSlug={organizationSlug}
       variant="tms"
       hasMore={hasMoreTmsProjects}
-      onLoadMore={loadMoreTmsProjects}
-      onOpenProject={handleOpenProject}
+      onLoadMore={() => pageStore.loadMoreTmsProjects()}
+      onOpenProject={(projectId) => pageStore.openProject(projectId, allProjects)}
     />
   ) : null;
 
@@ -425,7 +346,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       grouped
       groupLabel={intl.formatMessage(projectsPageContentMessages.filterHyperlocalise)}
       totalCount={filteredNativeProjects.length}
-      suppressEmpty={Boolean(searchQuery.trim())}
+      suppressEmpty={Boolean(pageStore.searchQuery.trim())}
       projects={visibleNativeProjects}
       projectsQuery={nativeProjectsQuery}
       isSavingProject={isSavingProject}
@@ -434,11 +355,11 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       variant="native"
       compactEmptyNative={compactNativeEmpty}
       hasMore={hasMoreNativeProjects}
-      onLoadMore={loadMoreNativeProjects}
-      onEditProject={openEditProjectDialog}
-      onDeleteProject={setDeleteProject}
-      onCreateProject={openCreateProjectDialog}
-      onOpenProject={handleOpenProject}
+      onLoadMore={() => pageStore.loadMoreNativeProjects()}
+      onEditProject={(project) => pageStore.openEditProjectDialog(project)}
+      onDeleteProject={(project) => pageStore.setDeleteProject(project)}
+      onCreateProject={() => pageStore.openCreateProjectDialog()}
+      onOpenProject={(projectId) => pageStore.openProject(projectId, allProjects)}
     />
   ) : null;
 
@@ -531,15 +452,15 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
             <Input
               aria-label={intl.formatMessage(projectsPageContentMessages.searchLabel)}
               placeholder={intl.formatMessage(projectsPageContentMessages.searchPlaceholder)}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={pageStore.searchQuery}
+              onChange={(e) => pageStore.setSearchQuery(e.target.value)}
               className="h-9 w-full rounded-lg ps-9"
             />
           </div>
           {hasTmsConnection ? (
             <Tabs
-              value={sourceFilter}
-              onValueChange={(value) => setSourceFilter(value as ProjectSourceFilter)}
+              value={pageStore.sourceFilter}
+              onValueChange={(value) => pageStore.setSourceFilter(value as ProjectSourceFilter)}
             >
               <TabsList className="max-w-full gap-1 rounded-lg p-1">
                 <TabsTrigger className="rounded-md px-3 data-active:border-border" value="all">
@@ -560,14 +481,14 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       {hasAnyProjects ? (
         <RecentProjectsStrip
           organizationSlug={organizationSlug}
-          projects={recentProjects}
+          projects={pageStore.recentProjects}
           allProjects={allProjects}
-          onOpenProject={handleOpenProject}
+          onOpenProject={(projectId) => pageStore.openProject(projectId, allProjects)}
         />
       ) : null}
 
       {hasAnyProjects &&
-      searchQuery.trim() &&
+      pageStore.searchQuery.trim() &&
       !hasFilteredResults &&
       !nativeProjectsQuery.isLoading &&
       !isTmsProjectsLoading ? (
@@ -578,7 +499,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
               clear: (chunks) => (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => pageStore.setSearchQuery("")}
                   className="text-subtle-foreground underline hover:text-foreground"
                 >
                   {chunks}
@@ -602,26 +523,26 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       {connectTmsSection}
 
       <ProjectDialog
-        open={projectDialogMode !== null}
+        open={pageStore.isProjectDialogOpen}
         title={projectDialogTitle}
         description={projectDialogDescription}
-        mode={projectDialogMode === "edit" ? "edit" : "create"}
-        projectSource={editingProject?.source ?? "native"}
+        mode={pageStore.projectDialogMode === "edit" ? "edit" : "create"}
+        projectSource={pageStore.editingProject?.source ?? "native"}
         initialValues={initialProjectValues}
         isSaving={isSavingProject}
-        onOpenChange={closeProjectDialog}
+        onOpenChange={(open) => pageStore.closeProjectDialog(open)}
         onSubmit={saveProject}
       />
       <DeleteProjectDialog
-        project={deleteProject}
+        project={pageStore.deleteProject}
         isDeleting={deleteProjectMutation.isPending}
         onOpenChange={(open) => {
           if (!open && !deleteProjectMutation.isPending) {
-            setDeleteProject(null);
+            pageStore.setDeleteProject(null);
           }
         }}
         onDelete={deleteProjectMutation.mutate}
       />
     </WorkspacePageShell>
   );
-}
+});
