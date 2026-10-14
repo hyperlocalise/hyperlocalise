@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import { useDomainResearchCatalog } from "./domain-research-context";
-import { useState } from "react";
+import { useLayoutEffect } from "react";
+import { observer } from "mobx-react-lite";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -36,7 +37,6 @@ import {
   isLiveDomainResearchId,
   type DomainResearchCatalog,
   type KeywordIdea,
-  type SerpResult,
 } from "@/lib/domains/research-prototype";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
@@ -45,26 +45,9 @@ import { formatKeywordIntent } from "./domain-research-format";
 import { domainKeywordsViewMessages as shared } from "./domain-keywords-view.messages";
 import { keywordScreenMessages as messages } from "./domain-keyword-screen.messages";
 import { DomainKeywordAnalysis } from "./domain-keyword-analysis";
-import {
-  filterKeywordIdeas,
-  keywordIdeasCsv,
-  resolveActiveKeyword,
-  type KeywordFilters,
-  type KeywordSort,
-} from "@/lib/domains/keyword-screen";
+import { keywordIdeasCsv } from "@/lib/domains/keyword-screen";
 import { liveDomainResearchQueryKey } from "./use-live-domain-research";
-
-const EMPTY_FILTERS: KeywordFilters = {
-  include: "",
-  exclude: "",
-  minVolume: "",
-  maxVolume: "",
-  minKd: "",
-  maxKd: "",
-  minCpc: "",
-  maxCpc: "",
-  intent: "all",
-};
+import { useDomainResearchShellStore } from "../store/domains-store-context";
 
 export function DomainKeywordsView({
   linkedDomainId,
@@ -77,7 +60,6 @@ export function DomainKeywordsView({
   const live = Boolean(organizationSlug && isLiveDomainResearchId(linkedDomainId));
   return catalog ? (
     <KeywordScreen
-      key={`${linkedDomainId}-${catalog.market.id}`}
       catalog={catalog}
       linkedDomainId={linkedDomainId}
       organizationSlug={organizationSlug}
@@ -86,7 +68,7 @@ export function DomainKeywordsView({
   ) : null;
 }
 
-function KeywordScreen({
+const KeywordScreen = observer(function KeywordScreen({
   catalog,
   linkedDomainId,
   organizationSlug,
@@ -101,32 +83,20 @@ function KeywordScreen({
   const t = intl.formatMessage;
   const queryClient = useQueryClient();
   const { client: goSvcClient } = useGoSvcClient();
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
+  const { keywords: store } = useDomainResearchShellStore();
+  const fallbackActiveId = catalog.keywords[0]?.id ?? null;
 
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [showFilters, setShowFilters] = useState(false);
-  const [sort, setSort] = useState<KeywordSort>({ field: "volume", direction: "desc" });
-  const [selected, setSelected] = useState<string[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(catalog.keywords[0]?.id ?? null);
-  const [ideas, setIdeas] = useState<KeywordIdea[] | null>(null);
-  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
-  const [seedKeyword, setSeedKeyword] = useState<string | undefined>();
-  const [expandedCapturedAt, setExpandedCapturedAt] = useState<string | undefined>();
-  const [seedPending, setSeedPending] = useState(false);
-  const [persistPending, setPersistPending] = useState(false);
-  const [liveSerpResults, setLiveSerpResults] = useState<SerpResult[] | null>(null);
-  const [serpKeywordId, setSerpKeywordId] = useState<string | null>(null);
-  const [serpPending, setSerpPending] = useState(false);
+  useLayoutEffect(() => {
+    store.syncMarket(catalog.market.id, fallbackActiveId);
+  }, [catalog.market.id, fallbackActiveId, store]);
+
   const market = catalog.market.id;
-  const keywords = ideas && expandedMarketId === market ? ideas : catalog.keywords;
-  const rows = filterKeywordIdeas(keywords, live ? "" : search, filters, sort);
-  const active = resolveActiveKeyword(rows, activeId);
-  const selectedRows = rows.filter((row) => selected.includes(row.id));
-  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
-  const activeFilterCount = Object.entries(filters).filter(
-    ([key, value]) => value !== "" && !(key === "intent" && value === "all"),
-  ).length;
+  const keywords = store.sourceKeywords(catalog);
+  const rows = store.rows(catalog, live);
+  const active = store.active(catalog, live);
+  const selectedRows = store.selectedRows(catalog, live);
+  const allSelected = store.allSelected(catalog, live);
+  const activeFilterCount = store.activeFilterCount;
   const columns = [
     { field: "keyword", label: shared.columnKeyword },
     { field: "volume", label: shared.columnVolume, help: messages.volumeHelp },
@@ -134,31 +104,26 @@ function KeywordScreen({
     { field: "cpc", label: shared.columnCpc, help: messages.cpcHelp },
     { field: "competition", label: messages.competition, help: messages.competitionHelp },
   ] as const;
-  const serpResults =
-    live && serpKeywordId === active?.id && liveSerpResults
-      ? liveSerpResults
-      : active
-        ? (catalog.serpByKeywordId[active.id] ?? [])
-        : [];
+  const serpResults = store.serpResults(catalog, live);
 
   async function expandIdeas(seed: string, marketId: string) {
     if (!organizationSlug || !live) {
       toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
     }
-    setSeedPending(true);
+    store.setSeedPending(true);
     try {
       const body = await goSvcClient.domains.expandKeywords(organizationSlug, linkedDomainId, {
         seedKeyword: seed,
         marketId,
       });
-      setIdeas(body.ideas);
-      setExpandedCapturedAt(body.capturedAt);
-      setSelected([]);
-      setExpandedMarketId(marketId);
-      setSeedKeyword(seed);
+      store.applySeedResults({
+        ideas: body.ideas,
+        marketId,
+        seedKeyword: seed,
+        capturedAt: body.capturedAt,
+      });
       const nextActive = body.ideas[0] ?? null;
-      setActiveId(nextActive?.id ?? null);
       if (nextActive) {
         void inspectSerp(nextActive, marketId);
       }
@@ -168,53 +133,49 @@ function KeywordScreen({
       toast.error(goSvcErrorMessage(error, intl.formatMessage(shared.seedError)));
       return false;
     } finally {
-      setSeedPending(false);
+      store.setSeedPending(false);
     }
   }
 
   async function inspectSerp(keyword: KeywordIdea, marketId = market) {
-    setActiveId(keyword.id);
     const cached = catalog.serpByKeywordId[keyword.id];
     if (cached?.length) {
-      setSerpKeywordId(keyword.id);
-      setLiveSerpResults(cached);
+      store.applySerp(keyword.id, cached);
       return;
     }
     if (!organizationSlug || !live) {
-      setSerpKeywordId(keyword.id);
-      setLiveSerpResults(null);
+      store.applySerp(keyword.id, null);
       return;
     }
-    setSerpKeywordId(keyword.id);
-    setSerpPending(true);
-    setLiveSerpResults(null);
+    store.applySerp(keyword.id, null);
+    store.setSerpPending(true);
     try {
       const body = await goSvcClient.domains.inspectSerp(organizationSlug, linkedDomainId, {
         keyword: keyword.keyword,
         marketId,
       });
-      setLiveSerpResults(body.results);
+      store.applySerp(keyword.id, body.results);
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
     } catch (error) {
       toast.error(goSvcErrorMessage(error, intl.formatMessage(shared.serpError)));
     } finally {
-      setSerpPending(false);
+      store.setSerpPending(false);
     }
   }
 
   async function persistSelected(path: "save" | "ranks") {
     if (!organizationSlug || !live) {
       toast.success(intl.formatMessage(path === "save" ? shared.saved : shared.sentToRanks));
-      setSelected([]);
+      store.clearSelection();
       return;
     }
-    setPersistPending(true);
+    store.setPersistPending(true);
     const payload = {
-      marketId: expandedMarketId ?? market,
-      seedKeyword,
-      capturedAt: expandedCapturedAt,
+      marketId: store.expandedMarketId ?? market,
+      seedKeyword: store.seedKeyword,
+      capturedAt: store.expandedCapturedAt,
       keywords: selectedRows.map((row) => ({
         keyword: row.keyword,
         volume: row.volume,
@@ -235,9 +196,7 @@ function KeywordScreen({
           keywords: payload.keywords,
         });
       }
-      setSelected([]);
-      setIdeas(null);
-      setExpandedMarketId(null);
+      store.applyPersistSuccess();
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });
@@ -250,7 +209,7 @@ function KeywordScreen({
         ),
       );
     } finally {
-      setPersistPending(false);
+      store.setPersistPending(false);
     }
   }
 
@@ -262,15 +221,6 @@ function KeywordScreen({
     link.download = `keywords-${catalog.domain.domainKey}-${catalog.market.id}.csv`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-  function reset() {
-    setQuery("");
-    setSearch("");
-    setFilters(EMPTY_FILTERS);
-    setSelected([]);
-    setIdeas(null);
-    setExpandedMarketId(null);
-    setActiveId(catalog.keywords[0]?.id ?? null);
   }
   function metric(row: KeywordIdea, field: "volume" | "kd" | "cpc" | "competition") {
     const value = row[field];
@@ -286,29 +236,26 @@ function KeywordScreen({
         className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
         onSubmit={(event) => {
           event.preventDefault();
-          const nextQuery = query.trim();
+          const nextQuery = store.query.trim();
           if (live && nextQuery) {
             void expandIdeas(nextQuery, market);
-            setSearch("");
             return;
           }
-          setSearch(nextQuery);
-          setActiveId(filterKeywordIdeas(keywords, nextQuery, filters, sort)[0]?.id ?? null);
-          setSelected([]);
+          store.commitLocalSearch(catalog);
         }}
       >
         <Field className="min-w-48 flex-1">
           <FieldLabel htmlFor="keyword-query">{t(messages.query)}</FieldLabel>
           <Input
             id="keyword-query"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={store.query}
+            onChange={(event) => store.setQuery(event.target.value)}
             placeholder={catalog.keywords[0]?.keyword ?? t(messages.query)}
-            disabled={seedPending}
+            disabled={store.seedPending}
           />
         </Field>
-        <Button type="submit" disabled={seedPending}>
-          {seedPending ? <Spinner className="size-3.5" /> : null}
+        <Button type="submit" disabled={store.seedPending}>
+          {store.seedPending ? <Spinner className="size-3.5" /> : null}
           {t(messages.search)}
         </Button>
       </form>
@@ -345,9 +292,9 @@ function KeywordScreen({
               <Button
                 size="sm"
                 variant="outline"
-                aria-expanded={showFilters}
+                aria-expanded={store.showFilters}
                 aria-controls="keyword-filters"
-                onClick={() => setShowFilters(!showFilters)}
+                onClick={() => store.toggleFilters()}
               >
                 {t(messages.filters)}
                 {activeFilterCount ? ` (${activeFilterCount})` : ""}
@@ -365,7 +312,7 @@ function KeywordScreen({
                 {t(selectedRows.length ? messages.exportSelected : messages.export)}
               </Button>
             </div>
-            {showFilters ? (
+            {store.showFilters ? (
               <div
                 id="keyword-filters"
                 className="grid gap-3 border-b border-border bg-muted/20 p-4 sm:grid-cols-2"
@@ -389,17 +336,15 @@ function KeywordScreen({
                       type={name === "include" || name === "exclude" ? "text" : "number"}
                       min={0}
                       step={name.endsWith("Cpc") ? "0.01" : "1"}
-                      value={filters[name]}
-                      onChange={(event) =>
-                        setFilters((current) => ({ ...current, [name]: event.target.value }))
-                      }
+                      value={store.filters[name]}
+                      onChange={(event) => store.patchFilter(name, event.target.value)}
                     />
                   </Field>
                 ))}
                 <Field>
                   <FieldLabel htmlFor="keyword-intent">{t(shared.columnIntent)}</FieldLabel>
                   <Select
-                    value={filters.intent}
+                    value={store.filters.intent}
                     items={[
                       { value: "all", label: t(messages.allIntents) },
                       ...(
@@ -410,7 +355,7 @@ function KeywordScreen({
                       })),
                     ]}
                     onValueChange={(value) => {
-                      if (value) setFilters((current) => ({ ...current, intent: value }));
+                      if (value) store.patchFilter("intent", value);
                     }}
                   >
                     <SelectTrigger id="keyword-intent">
@@ -434,7 +379,7 @@ function KeywordScreen({
                   variant="ghost"
                   size="sm"
                   className="self-end"
-                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  onClick={() => store.clearFilters()}
                 >
                   {t(messages.clear)}
                 </Button>
@@ -446,13 +391,13 @@ function KeywordScreen({
                   {t(shared.selectedCount, { count: selectedRows.length })}
                 </span>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                  <Button size="sm" variant="ghost" onClick={() => store.clearSelection()}>
                     {t(messages.clearSelection)}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={persistPending}
+                    disabled={store.persistPending}
                     onClick={() => {
                       void persistSelected("save");
                     }}
@@ -461,7 +406,7 @@ function KeywordScreen({
                   </Button>
                   <Button
                     size="sm"
-                    disabled={persistPending}
+                    disabled={store.persistPending}
                     onClick={() => {
                       void persistSelected("ranks");
                     }}
@@ -480,7 +425,7 @@ function KeywordScreen({
                         aria-label={t(messages.selectAll)}
                         checked={allSelected ? true : selectedRows.length ? "indeterminate" : false}
                         onCheckedChange={(checked) =>
-                          setSelected(checked === true ? rows.map((row) => row.id) : [])
+                          store.setSelectedIds(checked === true ? rows.map((row) => row.id) : [])
                         }
                       />
                     </th>
@@ -489,8 +434,8 @@ function KeywordScreen({
                         key={col.field}
                         className="whitespace-nowrap px-3 py-2 text-start"
                         aria-sort={
-                          sort.field === col.field
-                            ? sort.direction === "asc"
+                          store.sort.field === col.field
+                            ? store.sort.direction === "asc"
                               ? "ascending"
                               : "descending"
                             : "none"
@@ -500,18 +445,14 @@ function KeywordScreen({
                           type="button"
                           title={"help" in col ? t(col.help) : undefined}
                           className="py-2"
-                          onClick={() =>
-                            setSort({
-                              field: col.field,
-                              direction:
-                                sort.field === col.field && sort.direction === "desc"
-                                  ? "asc"
-                                  : "desc",
-                            })
-                          }
+                          onClick={() => store.toggleSort(col.field)}
                         >
                           {t(col.label)}{" "}
-                          {sort.field === col.field ? (sort.direction === "asc" ? "↑" : "↓") : ""}
+                          {store.sort.field === col.field
+                            ? store.sort.direction === "asc"
+                              ? "↑"
+                              : "↓"
+                            : ""}
                         </button>
                       </th>
                     ))}
@@ -526,14 +467,10 @@ function KeywordScreen({
                     >
                       <td className="p-3">
                         <Checkbox
-                          checked={selected.includes(row.id)}
+                          checked={store.selected.includes(row.id)}
                           aria-label={t(shared.selectKeyword, { keyword: row.keyword })}
                           onCheckedChange={(checked) =>
-                            setSelected((current) =>
-                              checked === true
-                                ? [...new Set([...current, row.id])]
-                                : current.filter((id) => id !== row.id),
-                            )
+                            store.toggleSelected(row.id, checked === true)
                           }
                         />
                       </td>
@@ -569,20 +506,20 @@ function KeywordScreen({
               <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
                 <p className="text-sm text-muted-foreground">
                   {t(
-                    live && keywords.length === 0 && !search
+                    live && keywords.length === 0 && !store.search
                       ? shared.emptyDescription
                       : messages.noMatches,
                   )}
                 </p>
-                <Button size="sm" variant="outline" onClick={reset}>
+                <Button size="sm" variant="outline" onClick={() => store.reset(catalog)}>
                   {t(messages.resetSearch)}
                 </Button>
               </div>
             ) : null}
           </section>
         </div>
-        <DomainKeywordAnalysis keyword={active} results={serpResults} loading={serpPending} />
+        <DomainKeywordAnalysis keyword={active} results={serpResults} loading={store.serpPending} />
       </div>
     </div>
   );
-}
+});

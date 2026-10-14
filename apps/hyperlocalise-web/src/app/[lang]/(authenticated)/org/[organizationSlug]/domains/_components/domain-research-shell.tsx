@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useLayoutEffect } from "react";
 import { GlobeIcon } from "@phosphor-icons/react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -79,6 +79,15 @@ const DomainResearchShellView = observer(function DomainResearchShellView({
   const router = useOrgRouter();
   const store = useDomainResearchShellStore();
   const localeSelectId = useId();
+  const fallbackKeywordId = store.activeCatalog?.keywords[0]?.id ?? null;
+
+  useLayoutEffect(() => {
+    if (!store.localeId) {
+      return;
+    }
+    store.ui.syncSurface(store.localeId);
+    store.keywords.syncMarket(store.localeId, fallbackKeywordId);
+  }, [fallbackKeywordId, store, store.localeId]);
 
   const domain = store.domain;
   const locale = store.locale;
