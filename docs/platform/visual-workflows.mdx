@@ -59,7 +59,9 @@ Undo and redo change the draft on the canvas only. Nothing is saved or published
 
 ## Test, save, and publish
 
-Tests default to **mock** mode. Enter a trigger payload and optional per-action mock outputs. Mock execution follows the same bindings, branches, and loops without calling external services.
+Tests default to **mock** mode. Mock execution follows the same bindings, branches, and loops without calling external services. Set the values a test uses on the **Test** tab of the trigger and of each step that calls out: HTTP, AI, Slack, email, content sync, and Call workflow. The trigger's values are its sample event. A step's values are what it returns in place of doing its work. Other steps compute their own results.
+
+Nothing is made up. A test does not start while a value it needs is empty, and it names the first one and opens its **Test** tab. **Fill with examples** writes example values that you can see and change, and **Use last run** copies the step's output from the last test. In the run history, **Use as test data** copies a past run's values into every step. Test values stay in the editor and are lost when you reload the page. After a test, hover over a pin to see the value that passed through it.
 
 Select **live** explicitly to test real integrations. Live testing can send notifications and change external systems. It never publishes your draft.
 

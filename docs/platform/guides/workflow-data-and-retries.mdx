@@ -32,6 +32,6 @@ A retry can repeat an external action. For an HTTP POST, use an idempotency key 
 
 ## Test the failure paths
 
-Use mock outputs to test success, an empty list, a missing required field, a branch that is skipped, and retry exhaustion. Run a small live test only after checking destinations and credentials. Live tests can send messages or write to external systems.
+Use the values on each step's **Test** tab to test success, an empty list, and a branch that is skipped. Run a small live test only after checking destinations and credentials. Live tests can send messages or write to external systems.
 
 Publish after inspecting the results. If a live run needs attention, check whether the external action completed before retrying it. See [Visual workflows](/platform/visual-workflows) for versioning, cancellation, and limits.
