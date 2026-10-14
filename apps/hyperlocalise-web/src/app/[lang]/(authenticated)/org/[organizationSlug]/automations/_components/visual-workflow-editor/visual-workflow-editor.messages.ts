@@ -356,6 +356,115 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "mqq6dTwRZM",
     description: "Visual workflow editor control",
   },
+  testTab: {
+    defaultMessage: "Test",
+    id: "VjG0Zt9Hr8",
+    description:
+      "Tab of a workflow step's settings that holds the values the step uses in a test run",
+  },
+  testDataTriggerDescription: {
+    defaultMessage:
+      "The event this trigger passes on when you test the workflow. Real runs use the real event.",
+    id: "kC1soSUZq7",
+    description: "Explains the Test tab of a workflow trigger",
+  },
+  testDataActionDescription: {
+    defaultMessage:
+      "What this step returns when you test the workflow without Live test, in place of doing its work. Nothing is made up: a value left empty stops the test.",
+    id: "hwX7b8KKNn",
+    description: "Explains the Test tab of a workflow step that calls out to another service",
+  },
+  testDataFillExamples: {
+    defaultMessage: "Fill with examples",
+    id: "kN6qwzFh/5",
+    description:
+      "Button on a workflow step's Test tab that writes example values into its empty fields",
+  },
+  testDataUseLastRun: {
+    defaultMessage: "Use last run",
+    id: "JVogogkuBP",
+    description:
+      "Button on a workflow step's Test tab that copies the step's output from the last run",
+  },
+  testDataClear: {
+    defaultMessage: "Clear",
+    id: "1U9PZ5VcN2",
+    description: "Button on a workflow step's Test tab that removes all its test values",
+  },
+  testDataOptional: {
+    defaultMessage: "optional",
+    id: "Bb2iyK74xB",
+    description: "Marks a test value a workflow step can do without",
+  },
+  testDataNeeded: {
+    defaultMessage: "Needed for a test run.",
+    id: "zRCtWtCl4W",
+    description: "Under an empty required test value of a workflow step",
+  },
+  testDataReadByStep: {
+    defaultMessage: "Another step reads this, so a test run needs it.",
+    id: "NbAZVkN3TH",
+    description: "Under an empty optional test value that another workflow step uses",
+  },
+  testDataNotSet: {
+    defaultMessage: "Not set",
+    id: "wQGnFQYS2q",
+    description: "Placeholder of a true or false test value that has no value yet",
+  },
+  testDataChooseProject: {
+    defaultMessage: "Choose a project",
+    id: "zDoKlB01Q1",
+    description: "Placeholder of the project picker on a workflow trigger's Test tab",
+  },
+  testDataJson: {
+    defaultMessage: "All test data (JSON)",
+    id: "T17lvAfQL0",
+    description: "Label of the box that shows all of a workflow step's test values as JSON",
+  },
+  testDataInvalidJson: {
+    defaultMessage: "Enter valid JSON.",
+    id: "JQuMZXhBtU",
+    description: "Under a test value of a workflow step whose JSON cannot be read",
+  },
+  testRunMissingData: {
+    defaultMessage:
+      "{count, plural, one {A test value is missing} other {# test values are missing}}",
+    id: "c43lsobCtO",
+    description: "Toast when a workflow test run is not started because test values are not set",
+  },
+  testRunMissingDataFirst: {
+    defaultMessage: "Set {path} on the Test tab of {step}.",
+    id: "ch9gwSSThi",
+    description:
+      "Under the missing test values toast: the first one to set. {path} is a field name, {step} a step's name",
+  },
+  testRunMissingDataShow: {
+    defaultMessage: "Show",
+    id: "mqYq/LYRBZ",
+    description: "Action of the missing test values toast that opens the step's Test tab",
+  },
+  testRunCouldNotStart: {
+    defaultMessage: "The test run could not start.",
+    id: "94INRlGgGA",
+    description: "Toast when the request that starts a workflow test run fails",
+  },
+  testSettingsHint: {
+    defaultMessage:
+      "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses.",
+    id: "HZMm0ZutTU",
+    description: "In the test settings bar of the workflow editor, where test values are set",
+  },
+  useRunAsTestData: {
+    defaultMessage: "Use as test data",
+    id: "CQU1/0C8er",
+    description: "Button on a past workflow run that copies its values into the steps' test data",
+  },
+  usedRunAsTestData: {
+    defaultMessage:
+      "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
+    id: "1Dpcm8IxPm",
+    description: "Toast after a past workflow run's values were copied into the steps' test data",
+  },
   stepHasNoInputs: {
     defaultMessage: "This step takes no inputs.",
     id: "UyyYqJFLYo",

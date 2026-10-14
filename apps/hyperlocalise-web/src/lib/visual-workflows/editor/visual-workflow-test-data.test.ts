@@ -24,6 +24,7 @@ import {
   getTestDataFields,
   takesTestData,
   testDataFromRun,
+  withTestValue,
 } from "./visual-workflow-test-data";
 
 function node(
@@ -238,5 +239,17 @@ describe("testDataFromRun", () => {
         { nodeId: "if", status: "succeeded", outputSnapshot: { result: true } },
       ]),
     ).toEqual({ t: { name: "Ada" }, http: httpOutput });
+  });
+});
+
+describe("withTestValue", () => {
+  it("sets a nested value and removes one without touching the rest", () => {
+    const data = { status: 200, json: { items: [] } };
+    expect(withTestValue(data, "json.count", 2)).toEqual({
+      status: 200,
+      json: { items: [], count: 2 },
+    });
+    expect(withTestValue(data, "json.items", undefined)).toEqual({ status: 200, json: {} });
+    expect(data).toEqual({ status: 200, json: { items: [] } });
   });
 });

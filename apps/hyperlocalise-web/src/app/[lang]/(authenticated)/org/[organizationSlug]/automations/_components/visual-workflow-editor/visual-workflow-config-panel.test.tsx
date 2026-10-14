@@ -899,3 +899,98 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 });
+
+describe("Test tab", () => {
+  function panel(
+    node: VisualWorkflowRfNode,
+    props: Partial<Parameters<typeof VisualWorkflowConfigPanel>[0]> = {},
+  ) {
+    return (
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[node]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeContract={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+        onChangeTestData={vi.fn()}
+        {...props}
+      />
+    );
+  }
+
+  it("is offered on triggers and steps that call out, not on steps that compute", () => {
+    const { rerender } = renderPanel(panel(slackNode()));
+    expect(screen.getByRole("tab", { name: "Test" })).toBeInTheDocument();
+
+    const set: VisualWorkflowRfNode = {
+      ...slackNode("set"),
+      type: "logic.set",
+      data: {
+        catalogType: "logic.set",
+        config: createDefaultConfig("logic.set"),
+        runStatus: "idle",
+      },
+    };
+    rerender(panel(set));
+    expect(screen.queryByRole("tab", { name: "Test" })).not.toBeInTheDocument();
+  });
+
+  it("opens when asked from outside, with a box per output and the missing ones marked", async () => {
+    renderPanel(
+      panel(slackNode(), {
+        testData: { sent: true },
+        missingTestValues: [{ nodeId: "slack", path: "channelId", reason: "required" }],
+        requestedTab: { tab: "test", key: 1 },
+      }),
+    );
+
+    expect(await screen.findByRole("tab", { name: "Test" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("textbox", { name: /channelId/ })).toHaveValue("");
+    expect(screen.getByText("Needed for a test run.")).toBeInTheDocument();
+  });
+
+  it("sets a value as it is typed and fills the rest with visible examples", async () => {
+    const user = userEvent.setup();
+    const onChangeTestData = vi.fn();
+    renderPanel(panel(slackNode(), { onChangeTestData, requestedTab: { tab: "test", key: 1 } }));
+
+    await user.type(await screen.findByRole("textbox", { name: /channelId/ }), "C");
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ channelId: "C" });
+
+    await user.click(screen.getByRole("button", { name: "Fill with examples" }));
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ sent: true, channelId: "mock-channel" });
+  });
+
+  it("copies the step's output from the last run, and is off when there was none", async () => {
+    const user = userEvent.setup();
+    const onChangeTestData = vi.fn();
+    const ran = slackNode();
+    ran.data.lastOutput = { sent: true, channelId: "C9", simulated: true };
+    const { rerender } = renderPanel(
+      panel(slackNode(), { onChangeTestData, requestedTab: { tab: "test", key: 1 } }),
+    );
+    expect(await screen.findByRole("button", { name: "Use last run" })).toBeDisabled();
+
+    rerender(panel(ran, { onChangeTestData, requestedTab: { tab: "test", key: 1 } }));
+    await user.click(screen.getByRole("button", { name: "Use last run" }));
+    expect(onChangeTestData).toHaveBeenLastCalledWith({ sent: true, channelId: "C9" });
+  });
+
+  it("offers the workspace's projects for a source upload trigger's project", async () => {
+    renderPanel(
+      panel(triggerNode("trigger.source_upload"), { requestedTab: { tab: "test", key: 1 } }),
+    );
+
+    expect(await screen.findByRole("combobox", { name: /projectId/ })).toHaveTextContent(
+      "Choose a project",
+    );
+    expect(screen.getByRole("textbox", { name: /sourceFileId/ })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /triggeredAt/ })).not.toBeInTheDocument();
+  });
+});

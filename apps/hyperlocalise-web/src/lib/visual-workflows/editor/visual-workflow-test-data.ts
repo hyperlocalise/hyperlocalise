@@ -223,6 +223,24 @@ function setPath(target: Record<string, unknown>, path: readonly string[], value
   if (key && !["__proto__", "constructor", "prototype"].includes(key)) current[key] = value;
 }
 
+/** Test data with one value set, or removed when `value` is undefined. */
+export function withTestValue(
+  data: Record<string, unknown>,
+  path: string,
+  value: unknown,
+): Record<string, unknown> {
+  const next = structuredClone(data);
+  const segments = path.split(".");
+  if (value !== undefined) {
+    setPath(next, segments, value);
+    return next;
+  }
+  const parent = readWorkflowPath(next, segments.slice(0, -1));
+  if (parent && typeof parent === "object")
+    delete (parent as Record<string, unknown>)[segments.at(-1)!];
+  return next;
+}
+
 function exampleValue(field: WorkflowOutputField): unknown {
   switch (field.type) {
     case "number":

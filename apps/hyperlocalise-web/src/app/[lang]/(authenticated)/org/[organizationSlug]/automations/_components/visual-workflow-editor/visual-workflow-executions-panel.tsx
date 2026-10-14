@@ -42,12 +42,19 @@ export function VisualWorkflowExecutionsPanel({
   visualWorkflowsApi,
   selectedRunId,
   onSelectRun,
+  onUseRunAsTestData,
 }: {
   organizationSlug: string;
   visualWorkflowId: string;
   visualWorkflowsApi: VisualWorkflowsApi;
   selectedRunId: string | null;
   onSelectRun: (runId: string | null) => void;
+  /** Copies a run's recorded values into the steps' test data. */
+  onUseRunAsTestData?: (
+    nodeRuns: NonNullable<
+      Awaited<ReturnType<VisualWorkflowsApi["getVisualWorkflowRun"]>>["nodeRuns"]
+    >,
+  ) => void;
 }) {
   const intl = useIntl();
   const runsQuery = useQuery({
@@ -153,6 +160,17 @@ export function VisualWorkflowExecutionsPanel({
                 {selectedRunQuery.data.triggerSource} · {selectedRunQuery.data.mode ?? "live"} · v
                 {selectedRunQuery.data.definitionVersion}
               </span>
+              {onUseRunAsTestData && (selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ms-auto"
+                  onClick={() => onUseRunAsTestData(selectedRunQuery.data.nodeRuns ?? [])}
+                >
+                  <FormattedMessage {...messages.useRunAsTestData} />
+                </Button>
+              ) : null}
             </div>
             {(selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
               <div className="overflow-hidden rounded-lg border border-border">

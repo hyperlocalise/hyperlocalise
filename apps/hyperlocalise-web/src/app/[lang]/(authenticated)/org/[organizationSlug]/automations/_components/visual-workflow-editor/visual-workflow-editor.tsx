@@ -64,6 +64,12 @@ import type { UndoOrigin } from "@/lib/undo-stack/undo-stack";
 import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
+import {
+  buildTestRunData,
+  findMissingTestValues,
+  testDataFromRun,
+  type VisualWorkflowTestData,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 
 import {
   VisualWorkflowCanvas,
@@ -78,10 +84,10 @@ import {
   redactWorkflowSnapshot,
   collectWorkflowSecrets,
 } from "@/lib/visual-workflows/runtime/snapshots";
-import { WorkflowJsonField } from "./workflow-data-panel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldLabel } from "@/components/ui/field";
-import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
+import { VisualWorkflowConfigPanel, type StepSettingsTab } from "./visual-workflow-config-panel";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
@@ -140,9 +146,10 @@ export function VisualWorkflowEditor({
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
-  const [testPayload, setTestPayload] = useState<Record<string, unknown>>({});
-  const [mockOutputs, setMockOutputs] = useState<Record<string, Record<string, unknown>>>({});
+  // Each step's own test data; kept out of the steps, so editing it is no undo step.
+  const [testData, setTestData] = useState<VisualWorkflowTestData>({});
   const [liveTest, setLiveTest] = useState(false);
+  const [requestedTab, setRequestedTab] = useState<{ tab: StepSettingsTab; key: number }>();
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -726,7 +733,37 @@ export function VisualWorkflowEditor({
     [setNodes],
   );
 
+  const missingTestValues = useMemo(
+    () => findMissingTestValues({ nodes, edges, testData, live: liveTest }),
+    [edges, liveTest, nodes, testData],
+  );
+
   const onTestWorkflowClick = useCallback(async () => {
+    // A test run invents no values, so one that lacks any is not started.
+    const firstMissing = missingTestValues[0];
+    if (firstMissing) {
+      const step = nodes.find((node) => node.id === firstMissing.nodeId);
+      toast.error(
+        intl.formatMessage(messages.testRunMissingData, { count: missingTestValues.length }),
+        {
+          description: step
+            ? intl.formatMessage(messages.testRunMissingDataFirst, {
+                path: firstMissing.path,
+                step: intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType)),
+              })
+            : undefined,
+          action: {
+            label: intl.formatMessage(messages.testRunMissingDataShow),
+            onClick: () => {
+              showNode(firstMissing.nodeId);
+              setRequestedTab({ tab: "test", key: Date.now() });
+            },
+          },
+        },
+      );
+      return;
+    }
+    const { triggerInput, mockOutputs } = buildTestRunData({ nodes, testData, live: liveTest });
     runAbortRef.current?.abort();
     const controller = new AbortController();
     runAbortRef.current = controller;
@@ -749,7 +786,7 @@ export function VisualWorkflowEditor({
           {
             idempotencyKey,
             definition,
-            inputSnapshot: testPayload,
+            inputSnapshot: triggerInput,
             mode: liveTest ? "live" : "mock",
             mockOutputs,
           },
@@ -786,7 +823,7 @@ export function VisualWorkflowEditor({
           name,
           nodes,
           edges,
-          triggerInput: testPayload,
+          triggerInput,
           mockOutputs,
           signal: controller.signal,
           onStatus: setRunStatus,
@@ -796,6 +833,12 @@ export function VisualWorkflowEditor({
           toast.error(intl.formatMessage(messages.testRunFailed));
         }
       }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        toast.error(intl.formatMessage(messages.testRunCouldNotStart), {
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
     } finally {
       if (!controller.signal.aborted) {
         setIsRunning(false);
@@ -803,8 +846,9 @@ export function VisualWorkflowEditor({
     }
   }, [
     applyNodeRunStatuses,
-    testPayload,
-    mockOutputs,
+    missingTestValues,
+    showNode,
+    testData,
     liveTest,
     definition,
     edges,
@@ -907,25 +951,10 @@ export function VisualWorkflowEditor({
               defaultMessage: "Test settings · mock by default",
             })}
           </summary>
-          <div className="grid gap-3 py-3 md:grid-cols-2">
-            <WorkflowJsonField
-              label={intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "SfxPvLTS+B",
-                defaultMessage: "Trigger payload (JSON)",
-              })}
-              value={testPayload}
-              onChange={(value) => setTestPayload(value as Record<string, unknown>)}
-            />
-            <WorkflowJsonField
-              label={intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "UsvrwYmjnb",
-                defaultMessage: "Mock outputs by node ID (JSON)",
-              })}
-              value={mockOutputs}
-              onChange={(value) => setMockOutputs(value as Record<string, Record<string, unknown>>)}
-            />
+          <div className="grid gap-3 py-3">
+            <p className="text-sm text-muted-foreground">
+              {intl.formatMessage(messages.testSettingsHint)}
+            </p>
             <FieldLabel>
               <Checkbox
                 checked={liveTest}
@@ -948,6 +977,15 @@ export function VisualWorkflowEditor({
           visualWorkflowsApi={visualWorkflowsApi}
           selectedRunId={selectedRunId}
           onSelectRun={setSelectedRunId}
+          onUseRunAsTestData={(nodeRuns) => {
+            const fromRun = testDataFromRun(nodes, nodeRuns);
+            setTestData((current) => ({ ...current, ...fromRun }));
+            toast.success(
+              intl.formatMessage(messages.usedRunAsTestData, {
+                count: Object.keys(fromRun).length,
+              }),
+            );
+          }}
         />
       ) : (
         <div className="relative flex min-h-0 min-w-0 flex-1">
@@ -1019,6 +1057,14 @@ export function VisualWorkflowEditor({
                 onChangeConfig={onChangeConfig}
                 onChangeNodeType={onChangeNodeType}
                 onDeleteNode={onDeleteNode}
+                testData={testData[selectedNode.id]}
+                missingTestValues={missingTestValues.filter(
+                  (entry) => entry.nodeId === selectedNode.id,
+                )}
+                onChangeTestData={(value) =>
+                  setTestData((current) => ({ ...current, [selectedNode.id]: value }))
+                }
+                requestedTab={requestedTab}
               />
             ) : (
               <>

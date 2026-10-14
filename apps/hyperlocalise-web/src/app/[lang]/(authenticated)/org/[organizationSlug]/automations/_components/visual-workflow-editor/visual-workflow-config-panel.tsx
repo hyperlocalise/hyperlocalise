@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
+import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import type {
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
@@ -78,6 +79,10 @@ import {
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import {
+  takesTestData,
+  type MissingTestValue,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
@@ -95,12 +100,13 @@ const GITHUB_EVENTS: VisualWorkflowGithubTriggerEvent[] = ["push", "pull_request
 const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
 
 /** The parts of a step's settings, one shown at a time. */
-type StepSettingsTab = "configuration" | "inputs" | "outputs";
+export type StepSettingsTab = "configuration" | "inputs" | "outputs" | "test";
 
 const STEP_SETTINGS_TABS = [
   { value: "configuration", message: messages.configurationTab },
   { value: "inputs", message: messages.inputsTab },
   { value: "outputs", message: messages.outputsTab },
+  { value: "test", message: messages.testTab },
 ] as const;
 
 /**
@@ -130,6 +136,10 @@ export function VisualWorkflowConfigPanel({
   onChangeConfig,
   onChangeNodeType,
   onDeleteNode,
+  testData,
+  missingTestValues = [],
+  onChangeTestData,
+  requestedTab,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
@@ -145,6 +155,13 @@ export function VisualWorkflowConfigPanel({
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
   onDeleteNode: () => void;
+  /** The step's test data, shown on its Test tab with `onChangeTestData`. */
+  testData?: Record<string, unknown>;
+  /** The values of this step a test run needs and does not have. */
+  missingTestValues?: readonly MissingTestValue[];
+  onChangeTestData?: (value: Record<string, unknown>) => void;
+  /** Opens a tab from outside the panel; a new `key` opens it again. */
+  requestedTab?: { tab: StepSettingsTab; key: number };
 }) {
   const intl = useIntl();
   const { config } = node.data;
@@ -178,12 +195,18 @@ export function VisualWorkflowConfigPanel({
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
   const [tab, setTab] = useState<StepSettingsTab>("configuration");
+  useEffect(() => {
+    if (requestedTab) setTab(requestedTab.tab);
+  }, [requestedTab]);
+  const hasTestTab = Boolean(onChangeTestData) && takesTestData(node.data.catalogType);
+  // A step without a Test tab shows its own form while that tab is the chosen one.
+  const shownTab = tab === "test" && !hasTestTab ? "configuration" : tab;
   /** Shows where a step's issues are marked, whichever tab was open. */
   const showIssueTab = (nodeId: string) => setTab(issueTabFor(issues, nodeId));
 
   return (
     <Tabs
-      value={tab}
+      value={shownTab}
       onValueChange={(value) => setTab(value as StepSettingsTab)}
       className="h-full min-h-0 gap-0"
     >
@@ -212,14 +235,16 @@ export function VisualWorkflowConfigPanel({
             aria-label={intl.formatMessage(messages.stepSettingsTabs)}
             className="min-w-0 flex-1 group-data-horizontal/tabs:h-8"
           >
-            {STEP_SETTINGS_TABS.map((entry) => (
-              // A tab is as wide as its name and gives way only when the row runs out of room.
-              <TabsTrigger key={entry.value} value={entry.value} className="min-w-0 flex-auto">
-                <span className="truncate">
-                  <FormattedMessage {...entry.message} />
-                </span>
-              </TabsTrigger>
-            ))}
+            {STEP_SETTINGS_TABS.filter((entry) => entry.value !== "test" || hasTestTab).map(
+              (entry) => (
+                // A tab is as wide as its name and gives way only when the row runs out of room.
+                <TabsTrigger key={entry.value} value={entry.value} className="min-w-0 flex-auto">
+                  <span className="truncate">
+                    <FormattedMessage {...entry.message} />
+                  </span>
+                </TabsTrigger>
+              ),
+            )}
           </TabsList>
         ) : null}
         <Tooltip>
@@ -255,6 +280,17 @@ export function VisualWorkflowConfigPanel({
               onChange={onChangeContract}
             />
           </TabsContent>
+          {hasTestTab && onChangeTestData ? (
+            <TabsContent value="test" className="min-h-0 overflow-y-auto p-4">
+              <WorkflowTestDataPanel
+                node={node}
+                value={testData}
+                missing={missingTestValues}
+                projects={resources.projects}
+                onChange={onChangeTestData}
+              />
+            </TabsContent>
+          ) : null}
           <TabsContent value="outputs" className="min-h-0 overflow-y-auto p-4">
             <WorkflowDataPanel
               section="outputs"
