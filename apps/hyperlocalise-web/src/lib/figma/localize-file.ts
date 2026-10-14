@@ -192,7 +192,43 @@ export function pickTranslationsForLocale(
   const match = Object.entries(translationsByLocale).find(
     ([entryLocale]) => localeKey(entryLocale) === targetKey,
   );
-  return match?.[1];
+  if (match && countNonEmptyTranslations(match[1])) {
+    return match[1];
+  }
+
+  let requestedLanguage: string | null = null;
+  try {
+    const canonicalRequested = canonicalizeLocale(trimmed);
+    if (canonicalRequested) {
+      requestedLanguage = new Intl.Locale(canonicalRequested).language;
+    }
+  } catch {
+    requestedLanguage = null;
+  }
+  if (!requestedLanguage) {
+    return undefined;
+  }
+  const languageMatches = Object.entries(translationsByLocale).filter(
+    ([entryLocale, translations]) => {
+      if (countNonEmptyTranslations(translations) === 0) {
+        return false;
+      }
+      try {
+        const canonicalEntry = canonicalizeLocale(entryLocale);
+        if (!canonicalEntry) {
+          return false;
+        }
+        return new Intl.Locale(canonicalEntry).language === requestedLanguage;
+      } catch {
+        return false;
+      }
+    },
+  );
+  if (languageMatches.length === 1) {
+    return languageMatches[0]![1];
+  }
+
+  return undefined;
 }
 
 function countNonEmptyTranslations(translations: Record<string, string>): number {
@@ -326,6 +362,14 @@ export function figmaJobHasPullableTranslations(status: FigmaJobStatusName) {
   return status === "succeeded" || status === "waiting_for_review";
 }
 
+function readJobSourceLocale(inputPayload: unknown): string | null {
+  if (!inputPayload || typeof inputPayload !== "object") {
+    return null;
+  }
+  const value = (inputPayload as Record<string, unknown>).sourceLocale;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 function readJobTargetLocales(inputPayload: unknown): string[] {
   if (!inputPayload || typeof inputPayload !== "object") {
     return [];
@@ -399,6 +443,38 @@ async function toFigmaPageJob(input: {
       jobTranslations,
       targetLocales,
     });
+
+    const jobSourceLocale = readJobSourceLocale(input.job.inputPayload);
+    const sourceFileId = getJobInputPayloadString(input.job.inputPayload, "sourceFileId");
+    if (jobSourceLocale && sourceFileId) {
+      try {
+        const { content } = await getStoredFileContent({
+          organizationId: input.organizationId,
+          projectId,
+          fileId: sourceFileId,
+        });
+        const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+        const sourceFile = parseTranslationFile(parsed);
+        const sourceSegments: Record<string, string> = {};
+        for (const [key, value] of Object.entries(sourceFile)) {
+          if (isFigmaStampSegmentKey(key) && value.trim().length > 0) {
+            sourceSegments[key] = value;
+          }
+        }
+        const editorSource = await loadFigmaEditorTranslationsBySourcePath({
+          organizationId: input.organizationId,
+          projectId,
+          locale: jobSourceLocale,
+          sourcePath,
+        });
+        const mergedSource = mergeFigmaPullTranslations(editorSource, sourceSegments);
+        if (countNonEmptyTranslations(mergedSource) > 0) {
+          translationsByLocale[jobSourceLocale] = mergedSource;
+        }
+      } catch {
+        // Source file missing or unreadable; target pulls still work.
+      }
+    }
   }
 
   return {

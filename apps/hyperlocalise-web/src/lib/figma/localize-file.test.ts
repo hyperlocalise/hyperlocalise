@@ -46,6 +46,11 @@ describe("pickTranslationsForLocale", () => {
     const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
     expect(pickTranslationsForLocale(map, "vi-vn")).toEqual({ "figma.k.a": "Xin chào" });
   });
+
+  it("matches by language subtag when the region tag differs", () => {
+    const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
+    expect(pickTranslationsForLocale(map, "vi")).toEqual({ "figma.k.a": "Xin chào" });
+  });
 });
 
 describe("isProjectSourceLocale", () => {

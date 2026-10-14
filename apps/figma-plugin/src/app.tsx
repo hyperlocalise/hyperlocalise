@@ -52,7 +52,7 @@ import {
   selectedPagesCollected,
   type FigmaLocaleStatus,
 } from "./figma-locale-status";
-import { pickTranslationsForLocale } from "./locale-map";
+import { localesMatchForPick, pickTranslationsForLocale } from "./locale-map";
 import {
   DEFAULT_APP_URL,
   DEFAULT_SETTINGS,
@@ -232,8 +232,8 @@ export function App() {
 
   usePluginUiResize(shellRef, postPluginMessage, uiLayoutKey);
 
-  const selectedLocaleStatus = localeStatuses.find(
-    (entry) => entry.locale === settings.selectedLocale,
+  const selectedLocaleStatus = localeStatuses.find((entry) =>
+    localesMatchForPick(settings.selectedLocale, entry.locale),
   );
   const sourceLocaleStatus =
     localeStatuses.find((entry) => entry.isSource) ??
@@ -980,24 +980,54 @@ export function App() {
       throw new Error("Select a project to pull translations from.");
     }
 
-    const pulled = await pullFigmaTranslations({
-      appUrl: settings.appUrl,
-      auth: auth,
-      projectId,
-      fileKey: file.fileKey,
-      pageId: originatedPageId,
-    });
-    let translationsByLocale: Record<string, Record<string, string>>;
-    if (isFigmaPageJobPayload(pulled)) {
-      rememberPageJob(pulled, originatedPageId);
-      translationsByLocale = pulled.translationsByLocale;
-    } else {
-      translationsByLocale = pulled;
+    let localeTranslations: Record<string, string> | undefined;
+
+    const applyingSource = localesMatchForPick(locale, sourceLocale);
+
+    if (applyingSource) {
+      try {
+        const sourcePage = await pullFigmaSourcePage({
+          appUrl: settings.appUrl,
+          auth,
+          projectId,
+          fileKey: file.fileKey,
+          pageId: originatedPageId,
+          locale: sourceLocale,
+        });
+        if (!sourcePage.needsReupload && sourcePage.entries.length > 0) {
+          localeTranslations = Object.fromEntries(
+            sourcePage.entries.map((entry) => [entry.key, entry.source]),
+          );
+        }
+      } catch {
+        localeTranslations = undefined;
+      }
     }
+
+    if (!localeTranslations) {
+      const pulled = await pullFigmaTranslations({
+        appUrl: settings.appUrl,
+        auth: auth,
+        projectId,
+        fileKey: file.fileKey,
+        pageId: originatedPageId,
+      });
+      let translationsByLocale: Record<string, Record<string, string>>;
+      if (isFigmaPageJobPayload(pulled)) {
+        rememberPageJob(pulled, originatedPageId);
+        translationsByLocale = pulled.translationsByLocale;
+      } else {
+        translationsByLocale = pulled;
+      }
+      if (pageIdRef.current !== originatedPageId) {
+        return 0;
+      }
+      localeTranslations = pickTranslationsForLocale(translationsByLocale, locale);
+    }
+
     if (pageIdRef.current !== originatedPageId) {
       return 0;
     }
-    const localeTranslations = pickTranslationsForLocale(translationsByLocale, locale);
     if (!localeTranslations) {
       throw new Error("No translations for the selected language.");
     }
