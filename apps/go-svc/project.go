@@ -123,6 +123,7 @@ func (api *projectAPI) register(mux *http.ServeMux, verifier SessionVerifier) {
 	route("GET "+orgRoutePrefix+"/workspace-files", bindActor(api, (*projectAPI).workspaceFilesHandler))
 	route("GET "+orgRoutePrefix+"/jobs", bindActor(api, (*projectAPI).orgJobsListHandler))
 	route("GET "+orgRoutePrefix+"/jobs/{jobId}", bindActor(api, (*projectAPI).orgJobDetailHandler))
+	route("GET "+orgRoutePrefix+"/jobs/{jobId}/events", bindActor(api, (*projectAPI).orgJobEventsHandler))
 }
 
 func (api *projectAPI) actor(ctx context.Context, claims AuthClaims, slug string) (projectActor, error) {

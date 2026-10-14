@@ -617,6 +617,12 @@ describe("project job create", () => {
       .where(eq(schema.jobs.id, created.job.id))
       .limit(1);
     expect(job?.status).toBe("cancelled");
+
+    const events = await db
+      .select({ type: schema.jobEvents.type, actorUserId: schema.jobEvents.actorUserId })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_cancelled", actorUserId: expect.any(String) }]);
   });
 
   it("rejects mark-failed for human-assigned native jobs", async () => {
@@ -726,6 +732,12 @@ describe("project job create", () => {
     expect(markFailedResponse.status).toBe(200);
     const failed = (await markFailedResponse.json()) as { job: { id: string; status: string } };
     expect(failed.job.status).toBe("failed");
+
+    const events = await db
+      .select({ type: schema.jobEvents.type })
+      .from(schema.jobEvents)
+      .where(eq(schema.jobEvents.jobId, created.job.id));
+    expect(events).toEqual([{ type: "job_marked_failed" }]);
   });
 
   it("rejects cancel and mark-failed for provider-backed waiting_for_review jobs", async () => {

@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { JobEventRecord } from "@/lib/job-events/job-events-contract";
+
 import type { GoSvcRequestOptions } from "./go-svc-client.types";
 import { orgPath, type GoSvcRequest } from "./go-svc-request";
 
@@ -51,6 +53,13 @@ export class GoSvcJobApi {
 
   get<T>(organizationSlug: string, jobId: string, options: GoSvcRequestOptions = {}) {
     return this.request.json<{ job: T }>(orgPath(organizationSlug, "jobs", jobId), options);
+  }
+
+  listEvents(organizationSlug: string, jobId: string, options: GoSvcRequestOptions = {}) {
+    return this.request.json<{ events: JobEventRecord[] }>(
+      orgPath(organizationSlug, "jobs", jobId, "events"),
+      options,
+    );
   }
 
   getProject<T>(

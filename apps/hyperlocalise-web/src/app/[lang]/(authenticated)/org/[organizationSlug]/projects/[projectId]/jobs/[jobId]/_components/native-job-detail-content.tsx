@@ -52,6 +52,12 @@ import {
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 
+import { isJobStatusActive } from "./build-job-activity";
+import {
+  hasJobActivityFeed,
+  JOB_ACTIVITY_POLL_INTERVAL_MS,
+  JobActivitySection,
+} from "./job-activity-section";
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
@@ -135,6 +141,12 @@ export function NativeJobDetailContent({
         throw new Error(intl.formatMessage(messages.jobWrongProject));
       }
       return body.job;
+    },
+    refetchInterval: (query) => {
+      const current = query.state.data;
+      return current && hasJobActivityFeed(current) && isJobStatusActive(current.status)
+        ? JOB_ACTIVITY_POLL_INTERVAL_MS
+        : false;
     },
   });
 
@@ -416,7 +428,9 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderExtraMain={
-          showFailureNotice || (job && isProviderBackedJob(job)) || reportsEnabled
+          showFailureNotice ||
+          (job && (isProviderBackedJob(job) || hasJobActivityFeed(job))) ||
+          reportsEnabled
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -424,6 +438,13 @@ export function NativeJobDetailContent({
                       details={failureDetails}
                       followUpHref={followUpHref}
                       variant={job?.status === "failed" ? "failed" : "partial"}
+                    />
+                  ) : null}
+                  {job && hasJobActivityFeed(job) ? (
+                    <JobActivitySection
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      job={job}
                     />
                   ) : null}
                   {job && isProviderBackedJob(job) ? (
