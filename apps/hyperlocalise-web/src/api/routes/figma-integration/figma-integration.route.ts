@@ -14,12 +14,17 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import {
-  apiKeyAuthMiddleware,
-  requireApiKeyPermission,
-  type ApiKeyAuthVariables,
-} from "@/api/auth/api-key";
+  figmaConnectionAuthMiddleware,
+  type FigmaConnectionVariables,
+} from "@/api/auth/figma-connection";
 import { figmaCorsMiddleware } from "@/api/auth/figma-cors";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  bindFigmaConnectionProject,
+  getFigmaConnectionSession,
+  resolveTeamAccessForFigmaConnection,
+  touchFigmaConnectionUsage,
+} from "@/lib/figma/connections";
 import {
   generateFigmaLocalization,
   getCurrentFigmaPageJob,
@@ -28,19 +33,13 @@ import {
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
-import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import { env } from "@/lib/env";
 
+import { bindFigmaProjectBodySchema } from "../figma-connection/figma-connection.schema";
 import {
   createFigmaJobBodySchema,
   currentFigmaJobQuerySchema,
-  FIGMA_FILES_READ_PERMISSION,
-  FIGMA_FILES_WRITE_PERMISSION,
-  FIGMA_JOB_READ_PERMISSION,
-  FIGMA_JOB_WRITE_PERMISSION,
-  FIGMA_PROJECTS_PERMISSION,
-  FIGMA_SESSION_PERMISSION,
-  FIGMA_TRANSLATIONS_PERMISSION,
   figmaJobIdParamSchema,
   pullFigmaTranslationsQuerySchema,
 } from "./figma-integration.schema";
@@ -92,6 +91,19 @@ const validatePullQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateBindProjectBody = validator("json", (value, c) => {
+  const parsed = bindFigmaProjectBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_project_payload",
+      "Figma project payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
 type CreateFigmaIntegrationRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
@@ -101,6 +113,7 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
   const message = error instanceof Error ? error.message : "figma_localize_failed";
   const notFoundCodes = new Set([
     "figma_project_not_found",
+    "figma_session_not_found",
     "translation_job_not_found",
     "job_not_found",
   ]);
@@ -114,6 +127,7 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
     "job_already_running",
     "file_translation_job_required",
     "native_job_required",
+    "figma_project_not_bound",
     "job_source_locale_not_in_project",
     "job_target_locale_not_in_project",
     "duplicate_job_target_locales",
@@ -133,131 +147,136 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
   );
 }
 
+function requireBoundProject(connection: FigmaConnectionVariables["figmaConnection"]) {
+  if (!connection.projectId) {
+    throw new Error("figma_project_not_bound");
+  }
+  return connection.projectId;
+}
+
+async function resolveConnectionAuth(connection: FigmaConnectionVariables["figmaConnection"]) {
+  const auth = await resolveTeamAccessForFigmaConnection({
+    organizationId: connection.organizationId,
+    apiKeyId: connection.apiKeyId,
+  });
+  if (!auth) {
+    throw new Error("figma_api_key_unauthorized");
+  }
+  return auth;
+}
+
 export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRoutesOptions = {}) {
-  return new Hono<{ Variables: ApiKeyAuthVariables }>()
+  return new Hono<{ Variables: FigmaConnectionVariables }>()
     .use("*", figmaCorsMiddleware)
     .get("/health", async (c) => {
-      return c.json({ ok: true }, 200);
+      return c.json(
+        {
+          ok: true,
+          figmaOauthConfigured: Boolean(env.FIGMA_OAUTH_CLIENT_ID),
+        },
+        200,
+      );
     })
-    .get(
-      "/session",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_SESSION_PERMISSION),
-      async (c) => {
-        const auth = c.var.auth.teamAccess;
-        return c.json(
-          {
-            session: {
-              user: {
-                email: auth.user.email,
-                localUserId: auth.user.localUserId,
-              },
-              organization: {
-                slug: auth.organization.slug ?? null,
-                name: auth.organization.name,
-                id: auth.organization.localOrganizationId,
-              },
-            },
-          },
-          200,
-        );
-      },
-    )
-    .get(
-      "/projects",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_PROJECTS_PERMISSION),
-      async (c) => {
-        const projects = await listOrganizationProjects(c.var.auth.teamAccess);
-        return c.json(
-          {
-            projects: projects.map((project) => ({
-              id: project.id,
-              name: project.name,
-              sourceLocale: project.sourceLocale ?? "en",
-              targetLocales: project.targetLocales ?? [],
-            })),
-          },
-          200,
-        );
-      },
-    )
-    .post(
-      "/jobs",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_JOB_WRITE_PERMISSION),
-      requireApiKeyPermission(FIGMA_FILES_WRITE_PERMISSION),
-      validateCreateJobBody,
-      async (c) => {
-        if (!options.jobQueue) {
-          return c.json({ error: "translation_job_queue_unavailable" }, 503);
-        }
+    .get("/session", figmaConnectionAuthMiddleware, async (c) => {
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
 
-        const payload = c.req.valid("json");
-        try {
-          const result = await startFigmaLocalization({
-            auth: c.var.auth.teamAccess,
-            projectId: payload.projectId,
-            fileKey: payload.fileKey,
-            pageId: payload.pageId,
-            fileName: payload.fileName,
-            sourceLocale: payload.sourceLocale,
-            targetLocales: payload.targetLocales,
-            segments: payload.segments,
-            generate: payload.generate,
-            jobQueue: options.jobQueue,
-            fileStorageAdapter: options.fileStorageAdapter,
-          });
-          return c.json({ job: result }, 201);
-        } catch (error) {
-          return localizeErrorResponse(c, error);
-        }
-      },
-    )
-    .get(
-      "/jobs/current",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
-      requireApiKeyPermission(FIGMA_FILES_READ_PERMISSION),
-      validateCurrentJobQuery,
-      async (c) => {
-        const query = c.req.valid("query");
-        try {
-          const result = await getCurrentFigmaPageJob({
-            auth: c.var.auth.teamAccess,
-            fileKey: query.fileKey,
-            pageId: query.pageId,
-            projectId: query.projectId,
-          });
-          return c.json(result, 200);
-        } catch (error) {
-          return localizeErrorResponse(c, error);
-        }
-      },
-    )
-    .get(
-      "/jobs/:jobId",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_JOB_READ_PERMISSION),
-      requireApiKeyPermission(FIGMA_FILES_READ_PERMISSION),
-      validateJobIdParams,
-      async (c) => {
-        const { jobId } = c.req.valid("param");
-        try {
-          const status = await getFigmaLocalizationStatus({
-            auth: c.var.auth.teamAccess,
-            jobId,
-          });
-          return c.json({ job: status }, 200);
-        } catch (error) {
-          return localizeErrorResponse(c, error);
-        }
-      },
-    )
+      try {
+        const session = await getFigmaConnectionSession({
+          organizationId: connection.organizationId,
+          connectionId: connection.id,
+        });
+        return c.json({ session }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .post("/project", figmaConnectionAuthMiddleware, validateBindProjectBody, async (c) => {
+      const payload = c.req.valid("json");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const session = await bindFigmaConnectionProject({
+          organizationId: connection.organizationId,
+          connectionId: connection.id,
+          projectId: payload.projectId,
+        });
+        return c.json({ session }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .post("/jobs", figmaConnectionAuthMiddleware, validateCreateJobBody, async (c) => {
+      if (!options.jobQueue) {
+        return c.json({ error: "translation_job_queue_unavailable" }, 503);
+      }
+
+      const payload = c.req.valid("json");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const projectId = requireBoundProject(connection);
+        const sourceLocale = payload.sourceLocale ?? connection.sourceLocale;
+        const targetLocales = payload.targetLocales ?? connection.targetLocales;
+
+        const result = await startFigmaLocalization({
+          auth,
+          projectId,
+          fileKey: payload.fileKey,
+          pageId: payload.pageId,
+          fileName: payload.fileName,
+          sourceLocale,
+          targetLocales,
+          segments: payload.segments,
+          generate: payload.generate,
+          jobQueue: options.jobQueue,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        return c.json({ job: result }, 201);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .get("/jobs/current", figmaConnectionAuthMiddleware, validateCurrentJobQuery, async (c) => {
+      const query = c.req.valid("query");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const result = await getCurrentFigmaPageJob({
+          auth,
+          fileKey: query.fileKey,
+          pageId: query.pageId,
+          projectId: query.projectId ?? requireBoundProject(connection),
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .get("/jobs/:jobId", figmaConnectionAuthMiddleware, validateJobIdParams, async (c) => {
+      const { jobId } = c.req.valid("param");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const status = await getFigmaLocalizationStatus({
+          auth,
+          jobId,
+        });
+        return c.json({ job: status }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
     .post(
       "/jobs/:jobId/generate",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_JOB_WRITE_PERMISSION),
+      figmaConnectionAuthMiddleware,
       validateJobIdParams,
       async (c) => {
         if (!options.jobQueue) {
@@ -265,9 +284,13 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         }
 
         const { jobId } = c.req.valid("param");
+        const connection = c.var.figmaConnection;
+        await touchFigmaConnectionUsage(connection.id);
+
         try {
+          const auth = await resolveConnectionAuth(connection);
           const result = await generateFigmaLocalization({
-            auth: c.var.auth.teamAccess,
+            auth,
             jobId,
             jobQueue: options.jobQueue,
           });
@@ -277,24 +300,22 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         }
       },
     )
-    .get(
-      "/translations",
-      apiKeyAuthMiddleware,
-      requireApiKeyPermission(FIGMA_TRANSLATIONS_PERMISSION),
-      validatePullQuery,
-      async (c) => {
-        const query = c.req.valid("query");
-        try {
-          const translations = await pullLatestFigmaTranslations({
-            auth: c.var.auth.teamAccess,
-            projectId: query.projectId,
-            fileKey: query.fileKey,
-            pageId: query.pageId,
-          });
-          return c.json({ translations }, 200);
-        } catch (error) {
-          return localizeErrorResponse(c, error);
-        }
-      },
-    );
+    .get("/translations", figmaConnectionAuthMiddleware, validatePullQuery, async (c) => {
+      const query = c.req.valid("query");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const translations = await pullLatestFigmaTranslations({
+          auth,
+          projectId: query.projectId ?? requireBoundProject(connection),
+          fileKey: query.fileKey,
+          pageId: query.pageId,
+        });
+        return c.json({ translations }, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    });
 }

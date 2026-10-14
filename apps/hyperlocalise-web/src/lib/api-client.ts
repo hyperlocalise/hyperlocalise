@@ -73,6 +73,7 @@ function createOrgSlugClient(origin: string) {
       "braze",
       "intercom-connections",
       "canva-connections",
+      "figma-connections",
     ]),
     ...pickClientPaths(agents, [
       "agent-email",

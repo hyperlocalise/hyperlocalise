@@ -12,10 +12,24 @@
  */
 import type { FigmaDesignSegment } from "./types";
 
-export const FIGMA_SEGMENT_KEY_PREFIX = "figma.segment.";
+export const FIGMA_SEGMENT_KEY_PREFIX = "figma.k.";
+export const FIGMA_LEGACY_SEGMENT_KEY_PREFIX = "figma.segment.";
 
-export function figmaSegmentKey(nodeId: string, regionIndex: number): string {
-  return `${FIGMA_SEGMENT_KEY_PREFIX}${nodeId}.${regionIndex}`;
+export function isFigmaStampSegmentKey(key: string): boolean {
+  return key.startsWith(FIGMA_SEGMENT_KEY_PREFIX);
+}
+
+export function isLegacyFigmaSegmentKey(key: string): boolean {
+  return key.startsWith(FIGMA_LEGACY_SEGMENT_KEY_PREFIX);
+}
+
+export function figmaSourceFileNeedsReupload(sourceFile: Record<string, unknown>): boolean {
+  for (const key of Object.keys(sourceFile)) {
+    if (isLegacyFigmaSegmentKey(key)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function segmentsToTranslationFile(segments: FigmaDesignSegment[]): Record<string, string> {
@@ -23,6 +37,9 @@ export function segmentsToTranslationFile(segments: FigmaDesignSegment[]): Recor
 
   for (const segment of segments) {
     if (segment.text.trim().length === 0) {
+      continue;
+    }
+    if (!isFigmaStampSegmentKey(segment.key)) {
       continue;
     }
     entries[segment.key] = segment.text;
@@ -35,7 +52,7 @@ export function parseTranslationFile(content: Record<string, unknown>): Record<s
   const translations: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(content)) {
-    if (!key.startsWith(FIGMA_SEGMENT_KEY_PREFIX) || typeof value !== "string") {
+    if (!isFigmaStampSegmentKey(key) || typeof value !== "string") {
       continue;
     }
     translations[key] = value;

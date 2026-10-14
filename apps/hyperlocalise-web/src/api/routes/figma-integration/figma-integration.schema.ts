@@ -31,15 +31,30 @@ export const figmaSegmentSchema = z.object({
   text: z.string().max(20_000),
 });
 
+const stampedSegmentKeySchema = z
+  .string()
+  .min(1)
+  .max(256)
+  .refine((key) => key.startsWith("figma.k."), {
+    message: "segment key must be a figma.k.* stamp",
+  });
+
 export const createFigmaJobBodySchema = z.object({
-  projectId: projectIdSchema,
+  projectId: projectIdSchema.optional(),
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
   fileName: z.string().min(1).max(256).optional(),
-  sourceLocale: z.string().min(2).max(32),
-  targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50),
+  sourceLocale: z.string().min(2).max(32).optional(),
+  targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50).optional(),
   generate: z.boolean().optional().default(true),
-  segments: z.array(figmaSegmentSchema).min(1).max(5_000),
+  segments: z
+    .array(
+      figmaSegmentSchema.extend({
+        key: stampedSegmentKeySchema,
+      }),
+    )
+    .min(1)
+    .max(5_000),
 });
 
 export const figmaJobIdParamSchema = z.object({

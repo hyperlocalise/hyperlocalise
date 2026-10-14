@@ -18,7 +18,8 @@ translations, and pulls them back onto the file.
 ```bash
 cd apps/figma-plugin
 vp install
-HYPERLOCALISE_APP_URL=http://localhost:3000 vp run dev
+cp .env.example .env   # set HYPERLOCALISE_APP_URL=http://localhost:3000
+vp run dev
 ```
 
 Vite writes `dist/ui.html` and `dist/code.js`. Import the plugin in Figma using `manifest.json`.

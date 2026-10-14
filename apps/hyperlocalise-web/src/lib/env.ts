@@ -280,6 +280,12 @@ export const env = createEnv({
     /** Comma-separated browser origins allowed to call the Figma plugin API. */
     FIGMA_CORS_ORIGINS: z.string().min(1).optional(),
 
+    /** Public OAuth client id for the Figma plugin (PKCE, no client secret). */
+    FIGMA_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Comma-separated redirect URIs allowed for Figma plugin OAuth. */
+    FIGMA_OAUTH_REDIRECT_URI: z.string().min(1).optional(),
+
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
 
@@ -409,6 +415,13 @@ export const env = createEnv({
         ? "https://www.canva.com/apps/oauth/authorized,https://canva.example.test/oauth/callback"
         : undefined),
     FIGMA_CORS_ORIGINS: process.env.FIGMA_CORS_ORIGINS,
+    FIGMA_OAUTH_CLIENT_ID:
+      process.env.FIGMA_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-figma-oauth-client" : undefined),
+    FIGMA_OAUTH_REDIRECT_URI:
+      process.env.FIGMA_OAUTH_REDIRECT_URI ??
+      (isTestEnv
+        ? "https://www.figma.com/apps/oauth/authorized,http://localhost:3000/connect/figma/oauth/callback,figma://oauth/callback"
+        : undefined),
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     GO_SVC_URL: process.env.GO_SVC_URL ?? (isTestEnv ? "http://127.0.0.1:8080" : undefined),
     NEXT_PUBLIC_WORKOS_REDIRECT_URI:

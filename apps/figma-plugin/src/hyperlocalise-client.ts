@@ -1,8 +1,35 @@
 import type { FigmaPageJob, FigmaSegment } from "./plugin-messages";
 import { normalizeAppUrl } from "./settings";
 
-const API_KEY_HEADER = "x-api-key";
+const ACCESS_TOKEN_HEADER = "X-Hyperlocalise-Access-Token";
+const CONNECTION_TOKEN_HEADER = "X-Hyperlocalise-Connection-Token";
 export const FIGMA_JOB_POLL_INTERVAL_MS = 1_500;
+
+export type FigmaResourceAuth = {
+  accessToken?: string;
+  connectionToken?: string;
+};
+
+export type FigmaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+export type FigmaSession = {
+  organization: { id: string; name: string; slug: string | null };
+  project: FigmaSessionProject | null;
+  projects: FigmaSessionProject[];
+  connection: {
+    id: string;
+    displayName: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
+};
+
+export type FigmaJobStatus = FigmaPageJob;
 
 export class HyperlocaliseClientError extends Error {
   readonly code: string;
@@ -14,30 +41,24 @@ export class HyperlocaliseClientError extends Error {
   }
 }
 
-export type FigmaSession = {
-  user: { email: string; localUserId: string };
-  organization: { slug: string | null; name: string; id: string };
-};
-
-export type FigmaProject = {
-  id: string;
-  name: string;
-  sourceLocale: string;
-  targetLocales: string[];
-};
-
-export type FigmaJobStatus = FigmaPageJob;
-
 type ErrorPayload = { error?: string; message?: string };
 
 function apiUrl(appUrl: string, path: string) {
   return `${normalizeAppUrl(appUrl)}${path}`;
 }
 
-function apiKeyHeaders(personalAccessToken: string) {
+function normalizeResourceAuth(auth: string | FigmaResourceAuth): FigmaResourceAuth {
+  return typeof auth === "string" ? { connectionToken: auth } : auth;
+}
+
+function buildRequestHeaders(appUrl: string, auth: string | FigmaResourceAuth) {
+  const resourceAuth = normalizeResourceAuth(auth);
   return {
     "Content-Type": "application/json",
-    [API_KEY_HEADER]: personalAccessToken,
+    ...(resourceAuth.accessToken ? { [ACCESS_TOKEN_HEADER]: resourceAuth.accessToken } : {}),
+    ...(resourceAuth.connectionToken
+      ? { [CONNECTION_TOKEN_HEADER]: resourceAuth.connectionToken }
+      : {}),
   };
 }
 
@@ -45,68 +66,104 @@ async function readError(response: Response): Promise<ErrorPayload> {
   return ((await response.json().catch(() => null)) as ErrorPayload | null) ?? {};
 }
 
+function throwIfFailed(
+  response: Response,
+  payload: ErrorPayload | null,
+  fallbackCode: string,
+  fallbackMessage: string,
+) {
+  if (response.ok) {
+    return;
+  }
+  throw new HyperlocaliseClientError(
+    payload?.error ?? fallbackCode,
+    payload?.message ?? fallbackMessage,
+  );
+}
+
+export function resourceAuthFromSettings(input: {
+  accessToken?: string | null;
+  connectionToken?: string | null;
+}): FigmaResourceAuth | null {
+  const accessToken = input.accessToken?.trim();
+  const connectionToken = input.connectionToken?.trim();
+  if (accessToken) {
+    return { accessToken };
+  }
+  if (connectionToken) {
+    return { connectionToken };
+  }
+  return null;
+}
+
 export async function fetchFigmaSession(input: {
   appUrl: string;
-  personalAccessToken: string;
+  auth: string | FigmaResourceAuth;
 }): Promise<FigmaSession> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/session"), {
-    headers: apiKeyHeaders(input.personalAccessToken),
+    headers: buildRequestHeaders(input.appUrl, input.auth),
   });
   const payload = (await response.json().catch(() => null)) as
-    | ({
-        session?: FigmaSession;
-      } & ErrorPayload)
+    | ({ session?: FigmaSession } & ErrorPayload)
     | null;
-  if (!response.ok || !payload?.session) {
+  throwIfFailed(
+    response,
+    payload,
+    "figma_session_failed",
+    "Unable to load your Hyperlocalise session.",
+  );
+  if (!payload?.session) {
     throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_session_failed",
-      payload?.message ?? "Unable to load your Hyperlocalise session.",
+      "figma_session_failed",
+      "Unable to load your Hyperlocalise session.",
     );
   }
   return payload.session;
 }
 
-export async function fetchFigmaProjects(input: {
+export async function bindFigmaProject(input: {
   appUrl: string;
-  personalAccessToken: string;
-}): Promise<FigmaProject[]> {
-  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/projects"), {
-    headers: apiKeyHeaders(input.personalAccessToken),
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+}): Promise<FigmaSession> {
+  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/project"), {
+    method: "POST",
+    headers: buildRequestHeaders(input.appUrl, input.auth),
+    body: JSON.stringify({ projectId: input.projectId }),
   });
   const payload = (await response.json().catch(() => null)) as
-    | ({
-        projects?: FigmaProject[];
-      } & ErrorPayload)
+    | ({ session?: FigmaSession } & ErrorPayload)
     | null;
-  if (!response.ok || !payload?.projects) {
+  throwIfFailed(
+    response,
+    payload,
+    "figma_project_bind_failed",
+    "Unable to select that Hyperlocalise project.",
+  );
+  if (!payload?.session) {
     throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_projects_failed",
-      payload?.message ?? "Unable to load projects.",
+      "figma_project_bind_failed",
+      "Unable to select that Hyperlocalise project.",
     );
   }
-  return payload.projects;
+  return payload.session;
 }
 
 export async function createFigmaJob(input: {
   appUrl: string;
-  personalAccessToken: string;
+  auth: string | FigmaResourceAuth;
   projectId: string;
   fileKey: string;
   pageId: string;
   fileName?: string;
   sourceLocale: string;
   targetLocales: string[];
-  generate: boolean;
   segments: FigmaSegment[];
-}): Promise<{
-  jobId: string;
-  generated: boolean;
-  projectId: string;
-  sourcePath: string;
-}> {
+  generate: boolean;
+}): Promise<{ jobId: string; generated: boolean; projectId: string; sourcePath: string }> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/jobs"), {
     method: "POST",
-    headers: apiKeyHeaders(input.personalAccessToken),
+    headers: buildRequestHeaders(input.appUrl, input.auth),
     body: JSON.stringify({
       projectId: input.projectId,
       fileKey: input.fileKey,
@@ -114,37 +171,75 @@ export async function createFigmaJob(input: {
       fileName: input.fileName,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
+      segments: input.segments.map((segment) => ({
+        key: segment.key,
+        nodeId: segment.nodeId,
+        regionIndex: segment.regionIndex,
+        text: segment.text,
+      })),
       generate: input.generate,
-      segments: input.segments,
     }),
   });
   const payload = (await response.json().catch(() => null)) as
     | ({
-        job?: {
-          jobId?: string;
-          generated?: boolean;
-          projectId?: string;
-          sourcePath?: string;
-        };
+        job?: { jobId: string; generated: boolean; projectId: string; sourcePath: string };
       } & ErrorPayload)
     | null;
-  if (!response.ok || !payload?.job?.jobId || !payload.job.projectId || !payload.job.sourcePath) {
-    throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_job_create_failed",
-      payload?.message ?? "Unable to create a translation job.",
-    );
+  throwIfFailed(response, payload, "figma_job_create_failed", "Unable to start translation.");
+  if (!payload?.job) {
+    throw new HyperlocaliseClientError("figma_job_create_failed", "Unable to start translation.");
   }
-  return {
-    jobId: payload.job.jobId,
-    generated: payload.job.generated ?? input.generate,
-    projectId: payload.job.projectId,
-    sourcePath: payload.job.sourcePath,
-  };
+  return payload.job;
+}
+
+export async function fetchCurrentFigmaJob(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  fileKey: string;
+  pageId: string;
+  projectId: string;
+}): Promise<{ job: FigmaPageJob | null }> {
+  const params = new URLSearchParams({
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+  });
+  const projectId = input.projectId.trim();
+  if (projectId) {
+    params.set("projectId", projectId);
+  }
+  const response = await fetch(
+    apiUrl(input.appUrl, `/api/integrations/figma/jobs/current?${params.toString()}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ job?: FigmaPageJob | null } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_job_fetch_failed", "Unable to load the current job.");
+  return { job: payload?.job ?? null };
+}
+
+export async function getFigmaJob(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  jobId: string;
+}): Promise<FigmaPageJob> {
+  const response = await fetch(
+    apiUrl(input.appUrl, `/api/integrations/figma/jobs/${encodeURIComponent(input.jobId)}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ job?: FigmaPageJob } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_job_fetch_failed", "Unable to load the job.");
+  if (!payload?.job) {
+    throw new HyperlocaliseClientError("figma_job_fetch_failed", "Unable to load the job.");
+  }
+  return payload.job;
 }
 
 export async function generateFigmaJob(input: {
   appUrl: string;
-  personalAccessToken: string;
+  auth: string | FigmaResourceAuth;
   jobId: string;
 }): Promise<void> {
   const response = await fetch(
@@ -152,140 +247,73 @@ export async function generateFigmaJob(input: {
       input.appUrl,
       `/api/integrations/figma/jobs/${encodeURIComponent(input.jobId)}/generate`,
     ),
-    {
-      method: "POST",
-      headers: apiKeyHeaders(input.personalAccessToken),
-    },
+    { method: "POST", headers: buildRequestHeaders(input.appUrl, input.auth) },
   );
-  if (!response.ok) {
-    const payload = await readError(response);
-    throw new HyperlocaliseClientError(
-      payload.error ?? "figma_job_generate_failed",
-      payload.message ?? "Unable to generate translations.",
-    );
-  }
+  const payload = await readError(response);
+  throwIfFailed(response, payload, "figma_job_generate_failed", "Unable to generate translations.");
 }
 
-export async function getFigmaJob(input: {
-  appUrl: string;
-  personalAccessToken: string;
-  jobId: string;
-}): Promise<FigmaJobStatus> {
-  const response = await fetch(
-    apiUrl(input.appUrl, `/api/integrations/figma/jobs/${encodeURIComponent(input.jobId)}`),
-    { headers: apiKeyHeaders(input.personalAccessToken) },
-  );
-  const payload = (await response.json().catch(() => null)) as
-    | ({
-        job?: FigmaJobStatus;
-      } & ErrorPayload)
-    | null;
+export type FigmaPullTranslationsPayload = FigmaPageJob | Record<string, Record<string, string>>;
 
-  if (!response.ok || !payload?.job?.jobId) {
-    throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_job_poll_failed",
-      payload?.message ?? "Unable to check job status.",
-    );
+export function isFigmaPageJobPayload(value: unknown): value is FigmaPageJob {
+  if (!value || typeof value !== "object") {
+    return false;
   }
-
-  return payload.job;
+  const candidate = value as FigmaPageJob;
+  return (
+    typeof candidate.jobId === "string" &&
+    typeof candidate.projectId === "string" &&
+    candidate.translationsByLocale !== undefined &&
+    typeof candidate.translationsByLocale === "object"
+  );
 }
 
-export async function fetchCurrentFigmaJob(input: {
-  appUrl: string;
-  personalAccessToken: string;
-  fileKey: string;
-  pageId: string;
-  projectId?: string;
-}): Promise<FigmaJobStatus | null> {
-  const params = new URLSearchParams({
-    fileKey: input.fileKey,
-    pageId: input.pageId,
-  });
-  if (input.projectId) {
-    params.set("projectId", input.projectId);
+function isLocaleTranslationMap(value: unknown): value is Record<string, Record<string, string>> {
+  if (!value || typeof value !== "object" || isFigmaPageJobPayload(value)) {
+    return false;
   }
-
-  const response = await fetch(
-    apiUrl(input.appUrl, `/api/integrations/figma/jobs/current?${params.toString()}`),
-    { headers: apiKeyHeaders(input.personalAccessToken) },
+  if ("jobId" in value && (value as { jobId: unknown }).jobId === null) {
+    return false;
+  }
+  return Object.values(value).every(
+    (entry) => entry !== null && typeof entry === "object" && !Array.isArray(entry),
   );
-  const payload = (await response.json().catch(() => null)) as
-    | ({
-        job?: FigmaJobStatus | null;
-      } & ErrorPayload)
-    | null;
-
-  if (!response.ok) {
-    throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_current_job_failed",
-      payload?.message ?? "Unable to load the job for this page.",
-    );
-  }
-
-  return payload?.job ?? null;
 }
 
 export async function pullFigmaTranslations(input: {
   appUrl: string;
-  personalAccessToken: string;
+  auth: string | FigmaResourceAuth;
   projectId: string;
   fileKey: string;
   pageId: string;
-}): Promise<FigmaJobStatus> {
+}): Promise<FigmaPullTranslationsPayload> {
+  const params = new URLSearchParams({
+    projectId: input.projectId,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+  });
   const response = await fetch(
-    apiUrl(
-      input.appUrl,
-      `/api/integrations/figma/translations?projectId=${encodeURIComponent(input.projectId)}&fileKey=${encodeURIComponent(input.fileKey)}&pageId=${encodeURIComponent(input.pageId)}`,
-    ),
-    { headers: apiKeyHeaders(input.personalAccessToken) },
+    apiUrl(input.appUrl, `/api/integrations/figma/translations?${params.toString()}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
   );
   const payload = (await response.json().catch(() => null)) as
-    | ({
-        translations?: {
-          jobId?: string | null;
-          status?: FigmaJobStatus["status"] | "not_found";
-          projectId?: string;
-          sourcePath?: string;
-          targetLocales?: string[];
-          lastError?: string | null;
-          translationsByLocale?: Record<string, Record<string, string>>;
-        };
-      } & ErrorPayload)
+    | ({ translations?: FigmaPullTranslationsPayload } & ErrorPayload)
     | null;
-
-  if (!response.ok || !payload?.translations) {
-    throw new HyperlocaliseClientError(
-      payload?.error ?? "figma_translations_failed",
-      payload?.message ?? "Unable to pull translations.",
-    );
+  throwIfFailed(response, payload, "figma_translations_failed", "Unable to load translations.");
+  const translations = payload?.translations;
+  if (
+    translations &&
+    typeof translations === "object" &&
+    "jobId" in translations &&
+    translations.jobId === null
+  ) {
+    throw new Error("No translations found for this page.");
   }
-
-  if (payload.translations.status === "not_found" || !payload.translations.jobId) {
-    throw new HyperlocaliseClientError(
-      "translations_not_found",
-      "No job for this page yet. Create a job first.",
-    );
+  if (isFigmaPageJobPayload(translations)) {
+    return translations;
   }
-
-  if (payload.translations.status === "queued" || payload.translations.status === "running") {
-    throw new HyperlocaliseClientError(
-      "translations_not_ready",
-      "Translations are still running. Wait until the job is ready, then pull.",
-    );
+  if (isLocaleTranslationMap(translations)) {
+    return translations;
   }
-
-  if (!payload.translations.projectId || !payload.translations.sourcePath) {
-    throw new HyperlocaliseClientError("figma_translations_failed", "Unable to pull translations.");
-  }
-
-  return {
-    jobId: payload.translations.jobId,
-    status: payload.translations.status as FigmaJobStatus["status"],
-    projectId: payload.translations.projectId,
-    sourcePath: payload.translations.sourcePath,
-    targetLocales: payload.translations.targetLocales ?? [],
-    lastError: payload.translations.lastError ?? null,
-    translationsByLocale: payload.translations.translationsByLocale ?? {},
-  };
+  throw new Error("Unable to load translations.");
 }

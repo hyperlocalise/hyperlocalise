@@ -30,6 +30,7 @@ import { createSlackConnectRoutes } from "./routes/slack-connect/slack-connect.r
 import { authRoutes } from "./routes/auth/auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
+import { createFigmaConnectionRoutes } from "./routes/figma-connection/figma-connection.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
@@ -164,7 +165,8 @@ export function createOrgIntegrationsRoutes() {
     .route("/pipes", createPipesRoutes())
     .route("/braze", createBrazeRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
-    .route("/canva-connections", createCanvaConnectionRoutes());
+    .route("/canva-connections", createCanvaConnectionRoutes())
+    .route("/figma-connections", createFigmaConnectionRoutes());
 }
 
 export function createOrgAgentsRoutes() {

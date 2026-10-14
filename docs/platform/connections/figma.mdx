@@ -1,0 +1,58 @@
+---
+title: "Localize Figma"
+description: "Connect Hyperlocalise, pick a native project in the Figma plugin, upload page text, translate, and apply results."
+---
+
+Figma does not translate. Hyperlocalise jobs do. Create one workspace Figma connection, then use the Hyperlocalise Figma plugin to pick a [native project](/platform/projects/create-project), upload text from pages, run translation jobs, and apply completed locales back onto the file.
+
+Jobs use the project's source locale and target locales. `en` is not `en-US`.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will apply. |
+| Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The token inherits your workspace role and project access. |
+| Hyperlocalise Figma plugin | The plugin installed in the Figma editor for your team. |
+| Editable text | Each text layer you upload becomes one segment keyed with `figma.k.*` in plugin data. |
+
+## Connect Figma
+
+1. Open workspace **Integrations** and find **Figma**.
+2. Enter a display name.
+3. Select the personal access token. The dropdown shows the token name.
+4. Save. You do not choose a project or locales on this form.
+
+App developers enable OAuth in the Figma Developer settings and on the Hyperlocalise deployment. See [Figma plugin OAuth](/contributing/figma-plugin-oauth) for authorization server URL, token exchange URL, and environment variables.
+
+A **connection token** is a local-development fallback only. On `localhost`, Integrations shows **Copy token** after save and **Regenerate token** on each connection. Production builds should use OAuth (`X-Hyperlocalise-Access-Token`) instead of a pasted token.
+
+Connect Figma before you upload text. Changing the project in the plugin changes the next upload and apply.
+
+## Step 1: Match project locales
+
+Create or choose the [native project](/platform/projects/create-project) you will select in the Figma plugin.
+
+1. Set the project **source locale** to the language of the copy on the pages you will upload.
+2. Add a project target locale for each language you will apply.
+3. Use exact BCP-47 tags. There is no language fallback.
+
+Change languages in [project settings](/platform/projects/languages), then pick the project again in the plugin so it reloads the list.
+
+## Step 2: Connect from the plugin
+
+1. Open the Figma file in the editor and run the Hyperlocalise plugin.
+2. Connect with OAuth in production, or paste a connection token when developing against `localhost`.
+3. Select the native project. The plugin binds that project to the connection.
+
+## Step 3: Upload, translate, and apply
+
+1. Choose the pages to process and **Upload** source text into the project.
+2. **Translate** starts jobs for the selected target locales.
+3. **Apply** writes completed translations back onto the matching text nodes using the stamped `figma.k.*` keys.
+
+If segment keys use the older `figma.segment.*` shape, upload again so the plugin mints new stamped keys before you apply.
+
+## Segment keys
+
+Each text node gets a stable `figma.k.<ulid>` key stored in plugin data (`hyperlocalise:segment:v1`). Keys follow the node's source text, not Figma's internal node id alone. Editing text in Figma after upload means that node needs a fresh upload before apply can match it.

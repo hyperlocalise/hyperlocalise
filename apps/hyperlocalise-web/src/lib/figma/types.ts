@@ -17,6 +17,49 @@ export type FigmaDesignSegment = {
   text: string;
 };
 
+export type FigmaSessionProject = {
+  id: string;
+  name: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+export type FigmaConnectionSession = {
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+  };
+  project: FigmaSessionProject | null;
+  projects: FigmaSessionProject[];
+  connection: {
+    id: string;
+    displayName: string;
+    sourceLocale: string;
+    targetLocales: string[];
+  };
+};
+
+export type FigmaConnectionSummary = {
+  id: string;
+  organizationId: string;
+  apiKeyId: string;
+  projectId: string | null;
+  displayName: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  connectionTokenPrefix: string;
+  enabled: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FigmaConnectionSecretResult = {
+  connection: FigmaConnectionSummary;
+  connectionToken: string;
+};
+
 export type FigmaJobStatusName =
   | "queued"
   | "running"
@@ -24,6 +67,13 @@ export type FigmaJobStatusName =
   | "succeeded"
   | "failed"
   | "cancelled";
+
+export type StartFigmaLocalizationResult = {
+  jobId: string;
+  generated: boolean;
+  projectId: string;
+  sourcePath: string;
+};
 
 export type FigmaPageJob = {
   jobId: string;
@@ -33,13 +83,6 @@ export type FigmaPageJob = {
   targetLocales: string[];
   lastError: string | null;
   translationsByLocale: Record<string, Record<string, string>>;
-};
-
-export type StartFigmaLocalizationResult = {
-  jobId: string;
-  generated: boolean;
-  projectId: string;
-  sourcePath: string;
 };
 
 export type FigmaLocalizationStatus = FigmaPageJob;

@@ -14,31 +14,51 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   buildFigmaSourcePath,
-  figmaSegmentKey,
+  figmaSourceFileNeedsReupload,
   parseTranslationFile,
   segmentsToTranslationFile,
 } from "./segment-file";
 
 describe("figma segment file", () => {
-  it("builds stable keys and source paths", () => {
-    expect(figmaSegmentKey("12:34", 0)).toBe("figma.segment.12:34.0");
+  it("builds source paths", () => {
     expect(buildFigmaSourcePath("abc123", "12:34")).toBe("figma/files/abc123/pages/12:34.json");
     expect(buildFigmaSourcePath("../oops", "page/a")).toBe("figma/files/oops/pages/page_a.json");
   });
 
-  it("round-trips translation files and skips empty text", () => {
+  it("round-trips stamped keys and skips empty or legacy keys", () => {
     const file = segmentsToTranslationFile([
-      { key: "figma.segment.1:1.0", nodeId: "1:1", regionIndex: 0, text: "Hello" },
-      { key: "figma.segment.1:2.0", nodeId: "1:2", regionIndex: 0, text: "   " },
+      {
+        key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        nodeId: "1:2",
+        regionIndex: 0,
+        text: "Hello",
+      },
+      {
+        key: "figma.segment.1:2.0",
+        nodeId: "1:2",
+        regionIndex: 0,
+        text: "Legacy",
+      },
+      {
+        key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAW",
+        nodeId: "1:3",
+        regionIndex: 0,
+        text: "   ",
+      },
     ]);
 
-    expect(file).toEqual({ "figma.segment.1:1.0": "Hello" });
+    expect(file).toEqual({ "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hello" });
     expect(
       parseTranslationFile({
-        "figma.segment.1:1.0": "Hola",
+        "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hola",
+        "figma.segment.1:1.0": "ignored legacy",
         ignored: 1,
-        other: "skip",
       }),
-    ).toEqual({ "figma.segment.1:1.0": "Hola" });
+    ).toEqual({ "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hola" });
+  });
+
+  it("flags legacy source files for reupload", () => {
+    expect(figmaSourceFileNeedsReupload({ "figma.k.abc": "Hi" })).toBe(false);
+    expect(figmaSourceFileNeedsReupload({ "figma.segment.1:1.0": "Hi" })).toBe(true);
   });
 });

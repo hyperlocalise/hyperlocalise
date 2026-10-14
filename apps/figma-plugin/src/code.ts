@@ -1,4 +1,9 @@
-import type { FigmaFileInfo, SandboxToUiMessage, UiToSandboxMessage } from "./plugin-messages";
+import type {
+  FigmaFileInfo,
+  FigmaPageOption,
+  SandboxToUiMessage,
+  UiToSandboxMessage,
+} from "./plugin-messages";
 import { SETTINGS_STORAGE_KEY } from "./plugin-messages";
 import {
   PAGE_BINDING_KEY,
@@ -7,18 +12,33 @@ import {
   type FigmaPageJobBinding,
 } from "./page-binding";
 import { createFigmaSegment } from "./segment-file";
+import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
 import { hadLegacyFigmaSession, mergeSettings } from "./settings";
 
-figma.showUI(__html__, { themeColors: true, width: 360, height: 720 });
+figma.showUI(__html__, {
+  themeColors: true,
+  width: PLUGIN_UI_WIDTH,
+  height: clampPluginUiHeight(280),
+});
 
 figma.on("currentpagechange", () => {
-  postToUi({ type: "page-changed", file: currentFileInfo(), binding: readPageBinding() });
+  postToUi({
+    type: "page-changed",
+    file: currentFileInfo(),
+    pages: listPages(),
+    binding: readPageBinding(),
+  });
 });
 
 figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
   try {
     if (msg.type === "cancel") {
       figma.closePlugin();
+      return;
+    }
+
+    if (msg.type === "resize-ui") {
+      figma.ui.resize(PLUGIN_UI_WIDTH, clampPluginUiHeight(msg.height));
       return;
     }
 
@@ -33,6 +53,7 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
         type: "ready",
         settings,
         file: currentFileInfo(),
+        pages: listPages(),
         binding: readPageBinding(),
         legacySessionCleared,
       });
@@ -57,16 +78,28 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
       return;
     }
 
+    if (msg.type === "binding-read") {
+      const page = await pageNode(msg.pageId);
+      postToUi({
+        type: "binding-loaded",
+        pageId: msg.pageId,
+        binding: page ? readPageBindingOnPage(page) : null,
+      });
+      return;
+    }
+
     if (msg.type === "extract") {
-      const textNodes = collectTextNodes();
-      const segments = extractSegments(textNodes, msg.preserveFormatting);
-      postToUi({ type: "extracted", segments, file: currentFileInfo() });
+      const page = await requirePage(msg.pageId);
+      const textNodes = collectTextNodes(page);
+      const segments = extractSegments(textNodes);
+      postToUi({ type: "extracted", segments, file: fileInfoForPage(page) });
       return;
     }
 
     if (msg.type === "apply") {
-      const textNodes = collectTextNodes();
-      const count = await applyTranslations(textNodes, msg.translations, msg.preserveFormatting);
+      const page = await requirePage(msg.pageId);
+      const textNodes = collectTextNodes(page);
+      const count = await applyTranslations(textNodes, msg.translations);
       postToUi({ type: "applied", count });
     }
   } catch (error) {
@@ -78,7 +111,37 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
 };
 
 function readPageBinding(): FigmaPageJobBinding | null {
-  return parsePageJobBinding(figma.currentPage.getPluginData(PAGE_BINDING_KEY));
+  return readPageBindingOnPage(figma.currentPage);
+}
+
+function readPageBindingOnPage(page: PageNode): FigmaPageJobBinding | null {
+  return parsePageJobBinding(page.getPluginData(PAGE_BINDING_KEY));
+}
+
+function listPages(): FigmaPageOption[] {
+  return figma.root.children
+    .filter((node): node is PageNode => node.type === "PAGE")
+    .map((page) => ({
+      pageId: page.id,
+      pageName: page.name,
+    }));
+}
+
+async function requirePage(pageId: string): Promise<PageNode> {
+  const page = await pageNode(pageId);
+  if (!page) {
+    throw new Error("Page not found.");
+  }
+  return page;
+}
+
+function fileInfoForPage(page: PageNode): FigmaFileInfo {
+  return {
+    fileKey: resolveFileKey(),
+    fileName: figma.root.name,
+    pageId: page.id,
+    pageName: page.name,
+  };
 }
 
 async function pageNode(pageId: string): Promise<PageNode | null> {
@@ -114,9 +177,10 @@ function resolveFileKey(): string {
     return existing;
   }
 
+  const webCrypto = globalThis.crypto;
   const generated =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? `local-${crypto.randomUUID()}`
+    webCrypto && typeof webCrypto.randomUUID === "function"
+      ? `local-${webCrypto.randomUUID()}`
       : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   figma.root.setPluginData(LOCAL_FILE_ID_KEY, generated);
   return generated;
@@ -131,8 +195,8 @@ function currentFileInfo(): FigmaFileInfo {
   };
 }
 
-function collectTextNodes(): TextNode[] {
-  const selected = figma.currentPage.selection.flatMap((node) => {
+function collectTextNodes(page: PageNode): TextNode[] {
+  const selected = page.selection.flatMap((node) => {
     if (node.type === "TEXT") {
       return [node];
     }
@@ -146,10 +210,10 @@ function collectTextNodes(): TextNode[] {
     return selected;
   }
 
-  return figma.currentPage.findAll((node) => node.type === "TEXT") as TextNode[];
+  return page.findAll((node) => node.type === "TEXT") as TextNode[];
 }
 
-function extractSegments(nodes: TextNode[], preserveFormatting: boolean) {
+function extractSegments(nodes: TextNode[]) {
   const segments = [];
 
   for (const node of nodes) {
@@ -157,40 +221,19 @@ function extractSegments(nodes: TextNode[], preserveFormatting: boolean) {
       continue;
     }
 
-    if (!preserveFormatting) {
-      segments.push(
-        createFigmaSegment({
-          nodeId: node.id,
-          regionIndex: 0,
-          text: node.characters,
-        }),
-      );
-      continue;
-    }
-
-    const styled = node.getStyledTextSegments(["fontName"]);
-    styled.forEach((segment, regionIndex) => {
-      if (!segment.characters.trim()) {
-        return;
-      }
-      segments.push(
-        createFigmaSegment({
-          nodeId: node.id,
-          regionIndex,
-          text: segment.characters,
-        }),
-      );
-    });
+    segments.push(
+      createFigmaSegment({
+        node,
+        regionIndex: 0,
+        text: node.characters,
+      }),
+    );
   }
 
   return segments;
 }
 
-async function applyTranslations(
-  nodes: TextNode[],
-  translations: Record<string, string>,
-  preserveFormatting: boolean,
-) {
+async function applyTranslations(nodes: TextNode[], translations: Record<string, string>) {
   let applied = 0;
 
   for (const node of nodes) {
@@ -200,47 +243,17 @@ async function applyTranslations(
 
     await loadFontsForNode(node);
 
-    if (!preserveFormatting) {
-      const nextText =
-        translations[
-          createFigmaSegment({
-            nodeId: node.id,
-            regionIndex: 0,
-            text: node.characters,
-          }).key
-        ];
-      if (!nextText || nextText === node.characters) {
-        continue;
-      }
-      node.characters = nextText;
-      applied += 1;
+    const segment = createFigmaSegment({
+      node,
+      regionIndex: 0,
+      text: node.characters,
+    });
+    const nextText = translations[segment.key];
+    if (!nextText || nextText === node.characters) {
       continue;
     }
-
-    const styled = node.getStyledTextSegments(["fontName"]);
-    for (let index = styled.length - 1; index >= 0; index -= 1) {
-      const segment = styled[index];
-      if (!segment) {
-        continue;
-      }
-      const nextText =
-        translations[
-          createFigmaSegment({
-            nodeId: node.id,
-            regionIndex: index,
-            text: segment.characters,
-          }).key
-        ];
-      if (!nextText || nextText === segment.characters) {
-        continue;
-      }
-
-      node.deleteCharacters(segment.start, segment.end);
-      node.insertCharacters(segment.start, nextText);
-      await figma.loadFontAsync(segment.fontName);
-      node.setRangeFontName(segment.start, segment.start + nextText.length, segment.fontName);
-      applied += 1;
-    }
+    node.characters = nextText;
+    applied += 1;
   }
 
   return applied;

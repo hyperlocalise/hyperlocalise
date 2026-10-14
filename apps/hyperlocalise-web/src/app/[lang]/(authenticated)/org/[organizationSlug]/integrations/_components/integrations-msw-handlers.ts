@@ -89,6 +89,9 @@ function createIntegrationsGetHandlers({
     http.get("/api/orgs/:organizationSlug/canva-connections", () =>
       HttpResponse.json({ canvaConnections: [] }),
     ),
+    http.get("/api/orgs/:organizationSlug/figma-connections", () =>
+      HttpResponse.json({ figmaConnections: [] }),
+    ),
     http.get("/api/orgs/:organizationSlug/semrush-connections", () =>
       HttpResponse.json({ semrushConnections: [] }),
     ),
@@ -221,6 +224,10 @@ export const integrationsLoadingMswHandlers = [
   http.get("/api/orgs/:organizationSlug/canva-connections", async () => {
     await delay("infinite");
     return HttpResponse.json({ canvaConnections: [] });
+  }),
+  http.get("/api/orgs/:organizationSlug/figma-connections", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ figmaConnections: [] });
   }),
   http.get("/api/orgs/:organizationSlug/semrush-connections", async () => {
     await delay("infinite");

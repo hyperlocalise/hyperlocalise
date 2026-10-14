@@ -40,16 +40,16 @@ full WorkOS identity model.
 9. **WorkOS session cookie is the primary API auth channel for org routes.**
    Forged `x-hyperlocalise-auth` headers or other client-supplied identity must
    not bypass `workosAuthMiddleware`.
-   9a. **Figma plugin clients use a personal access token.** The plugin sends
-   the PAT as `x-api-key` only. Protected `/api/integrations/figma/*` routes
-   authenticate through `apiKeyAuthMiddleware` and authorize with
-   `requireApiKeyPermission`. Compound routes require every scope they
-   exercise: session and job-status reads need `files:read` (job status also
-   needs `jobs:read`); creating a job needs `jobs:write` and `files:write`.
-   Effective access is the token scopes ∩ the owner's current membership,
-   role, team access, and capabilities. Do not accept WorkOS sealed sessions,
-   `X-Hyperlocalise-Figma-Session`, or `Authorization: Bearer` as Figma
-   integration auth. Do not mint a Figma-specific identity token.
+   9a. **Figma plugin clients use workspace connection credentials.** Protected
+   `/api/integrations/figma/*` routes authenticate through
+   `figmaConnectionAuthMiddleware` with `X-Hyperlocalise-Connection-Token`
+   (localhost development) or `X-Hyperlocalise-Access-Token` (OAuth PKCE from
+   `/api/oauth/figma/*`). Each connection stores the backing personal access
+   token; effective access is that PAT's scopes ∩ the owner's current
+   membership, role, team access, and capabilities. Do not accept WorkOS
+   sealed sessions, `x-api-key`, `X-Hyperlocalise-Figma-Session`, or
+   `Authorization: Bearer` as Figma integration auth. Do not mint a
+   Figma-specific identity token.
    9b. **WorkOS agent JWTs are an explicit alternate channel for MCP and
    `/api/v1` only.** Agents register through AuthKit (`service_auth`), complete
    the hosted claim ceremony, and present a short-lived access token as
