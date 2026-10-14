@@ -45,6 +45,8 @@ export function InboxPageView({
   conversationsIsLoading,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   filters,
   hasMoreNotifications,
   isLoadingMoreNotifications,
@@ -60,6 +62,8 @@ export function InboxPageView({
   notificationsIsError,
   notificationsIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onFiltersChange,
   onLoadMoreNotifications,
   onMarkAllRead,
@@ -80,6 +84,8 @@ export function InboxPageView({
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   filters?: InboxListFilters;
   hasMoreNotifications: boolean;
   isLoadingMoreNotifications: boolean;
@@ -95,6 +101,8 @@ export function InboxPageView({
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onFiltersChange?: (filters: InboxListFilters) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
@@ -192,6 +200,8 @@ export function InboxPageView({
                 conversation={selectedConversation}
                 currentUser={currentUser}
                 draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
                 isComposingNew={selection?.kind === "new"}
                 isSending={isSending}
                 isStreaming={isStreaming}
@@ -200,6 +210,8 @@ export function InboxPageView({
                 messages={messages}
                 messagesIsLoading={messagesIsLoading}
                 onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
                 onSendMessage={onSendMessage}
                 organizationSlug={organizationSlug}
                 streamedAssistant={streamedAssistant}

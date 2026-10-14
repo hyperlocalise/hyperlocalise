@@ -74,6 +74,8 @@ export function ConversationPanel({
   conversation,
   currentUser,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   isComposingNew = false,
   isSending,
   isStreaming,
@@ -82,6 +84,8 @@ export function ConversationPanel({
   messages,
   messagesIsLoading,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onSendMessage,
   organizationSlug,
   streamedAssistant,
@@ -89,6 +93,8 @@ export function ConversationPanel({
   conversation: Conversation | undefined;
   currentUser: InboxCurrentUser;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   isComposingNew?: boolean;
   isSending: boolean;
   isStreaming: boolean;
@@ -97,6 +103,8 @@ export function ConversationPanel({
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -217,9 +225,16 @@ export function ConversationPanel({
               resetKeys={[conversation.id, composerDisabled]}
             >
               <ReplyComposer
+                key={conversation.id}
                 disabled={composerDisabled}
+                draft={draft}
+                draftProjectId={draftProjectId}
+                draftRepositoryKey={draftRepositoryKey}
                 isStreaming={isStreaming}
                 lockedProjectId={conversation.projectId}
+                onDraftChange={onDraftChange}
+                onDraftProjectChange={onDraftProjectChange}
+                onDraftRepositoryChange={onDraftRepositoryChange}
                 onSend={onSendMessage}
                 organizationSlug={organizationSlug}
               />
