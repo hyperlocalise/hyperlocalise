@@ -88,6 +88,40 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", "page.fr.html");
   });
 
+  it("reconciles Canva JSON from the target file when hl entries lag source fallbacks", async () => {
+    const key = "canva.t.2b52fdaa63b8822c";
+    const sourceEntries = { [key]: "Describe a Cat" };
+    const outputFilename = "page-1-vi-VN.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor(outputFilename, [key]));
+      }
+      if (path === outputFilename) {
+        return JSON.stringify({ [key]: "Mô tả một con mèo" });
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { [key]: "Describe a Cat" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_canva",
+        inputFilename: "page-1.json",
+        outputFilenames: { "vi-VN": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+        hlRunFingerprint: "0:1:6:0:0",
+      }),
+    ).resolves.toEqual({
+      "vi-VN": { [key]: "Mô tả một con mèo" },
+    });
+  });
+
   it("omits confirmed HTML path keys and locales that have nothing new", async () => {
     const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
     const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());

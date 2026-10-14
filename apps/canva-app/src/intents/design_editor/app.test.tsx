@@ -226,6 +226,7 @@ vi.mock("./hyperlocalise-client", () => ({
   fetchCanvaSession: vi.fn(),
   bindCanvaProject: vi.fn(),
   collectCanvaDesign: vi.fn(),
+  collectAndGenerateCanvaLocaleJobs: vi.fn(),
   generateCanvaLocaleJob: vi.fn(),
   waitForCanvaJobs: vi.fn(),
   getCanvaJob: vi.fn(),
@@ -792,7 +793,7 @@ describe("Hyperlocalise Canva app", () => {
     const {
       fetchCanvaSession,
       fetchCanvaLocaleStatuses,
-      collectCanvaDesign,
+      collectAndGenerateCanvaLocaleJobs,
       generateCanvaLocaleJob,
       waitForCanvaJobs,
       pullCanvaLocalePages,
@@ -808,25 +809,13 @@ describe("Hyperlocalise Canva app", () => {
       segments: [{ pageIndex: 0, text: "Hello" }],
       pageIndices: [0],
     });
-    vi.mocked(collectCanvaDesign).mockClear();
-    vi.mocked(collectCanvaDesign).mockResolvedValue({
-      designSlug: "marketing-flyer",
-      projectId: "project_1",
-      pages: [
-        {
-          pageIndex: 0,
-          sourcePath: "canva/designs/marketing-flyer/page-1.json",
-          sourceFileId: "file_1",
-          segmentCount: 1,
-          wordCount: 1,
-        },
-      ],
-    });
-    vi.mocked(generateCanvaLocaleJob).mockResolvedValue({
+    vi.mocked(collectAndGenerateCanvaLocaleJobs).mockClear();
+    vi.mocked(collectAndGenerateCanvaLocaleJobs).mockResolvedValue({
       locale: "fr-FR",
       projectId: "project_1",
       jobIds: ["job_1"],
     });
+    vi.mocked(generateCanvaLocaleJob).mockClear();
     vi.mocked(waitForCanvaJobs).mockResolvedValue();
     vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(applied());
 
@@ -840,13 +829,14 @@ describe("Hyperlocalise Canva app", () => {
     fireEvent.click(result.getByRole("button", { name: "Translate" }));
 
     await waitFor(() => {
-      expect(collectCanvaDesign).toHaveBeenCalledTimes(1);
-      expect(collectCanvaDesign).toHaveBeenCalledWith(
-        expect.objectContaining({ segments: [{ pageIndex: 0, text: "Hello" }] }),
+      expect(collectAndGenerateCanvaLocaleJobs).toHaveBeenCalledTimes(1);
+      expect(collectAndGenerateCanvaLocaleJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          locale: "fr-FR",
+          segments: [{ pageIndex: 0, text: "Hello" }],
+        }),
       );
-      expect(generateCanvaLocaleJob).toHaveBeenCalledWith(
-        expect.objectContaining({ locale: "fr-FR" }),
-      );
+      expect(generateCanvaLocaleJob).not.toHaveBeenCalled();
       expect(designContent.applyTranslationsToDesign).toHaveBeenCalled();
       expect(result.getByText("Translated French (fr-FR) and applied to 1 page.")).toBeTruthy();
     });

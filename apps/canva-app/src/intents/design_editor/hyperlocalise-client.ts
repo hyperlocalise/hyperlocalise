@@ -342,6 +342,51 @@ export async function waitForCanvaJobs(input: {
   }
 }
 
+export async function collectAndGenerateCanvaLocaleJobs(input: {
+  auth: string | CanvaResourceAuth;
+  designToken: string;
+  designTitle?: string;
+  locale: string;
+  segments: DesignSegment[];
+}): Promise<{ locale: string; projectId: string; jobIds: string[] }> {
+  const authorization = await getAuthorizationHeader();
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/jobs`, {
+    method: "POST",
+    headers: buildRequestHeaders(input.auth, authorization),
+    body: JSON.stringify({
+      designToken: input.designToken,
+      designTitle: input.designTitle,
+      segments: input.segments,
+      targetLocales: [input.locale],
+      generate: true,
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        job?: {
+          locale?: string;
+          projectId?: string;
+          jobId?: string;
+          jobIds?: string[];
+        };
+      } & ErrorPayload)
+    | null;
+  const jobIds =
+    payload?.job?.jobIds?.filter((jobId) => jobId.trim().length > 0) ??
+    (payload?.job?.jobId ? [payload.job.jobId] : []);
+  if (!response.ok || jobIds.length === 0 || !payload?.job?.projectId) {
+    throw new HyperlocaliseClientError(
+      payload?.error ?? "canva_job_create_failed",
+      payload?.message ?? "Unable to start translation after upload.",
+    );
+  }
+  return {
+    locale: input.locale,
+    projectId: payload.job.projectId,
+    jobIds,
+  };
+}
+
 export async function generateCanvaLocaleJob(input: {
   auth: string | CanvaResourceAuth;
   designToken: string;

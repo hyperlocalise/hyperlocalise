@@ -68,7 +68,7 @@ In the Canva app UI:
 
 - **Connect Hyperlocalise** (OAuth). A connection-token paste field appears only in local development.
 - **Collect texts** — select pages, then upload one JSON file per page. Each text box is one string keyed by its source text (`canva.t.<hash>`). If the design already shows a translation, Upload still sends the Hyperlocalise source string.
-- **Translate** — starts a job for the chosen language from the last Upload, then applies it. It does not collect. Upload first.
+- **Translate** — for the chosen target language: if selected pages are not uploaded yet, uploads source text (when the design shows the project source locale) and starts translation in one request; otherwise starts a job from the last upload. Waits for the job, then applies to the design. Use **Upload** when you only want to sync source without translating.
 - **Apply** — pull locale strings from Hyperlocalise and write them onto boxes that still match uploaded source text or a known translation. Pages uploaded with older positional keys need a fresh Upload.
 
 Each collected page is stored at `canva/designs/<design-slug>/page-<n>.json`, starting at `page-1.json`. The slug is the Canva design title. Untitled designs fall back to the design id.
