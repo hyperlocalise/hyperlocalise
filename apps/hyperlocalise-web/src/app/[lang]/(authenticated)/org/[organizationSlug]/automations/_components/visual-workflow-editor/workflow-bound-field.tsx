@@ -46,6 +46,8 @@ export type BoundPort = {
   required: boolean;
   /** What gives the setting its value, shown in place of its editor. */
   source?: {
+    /** The step the value comes from, marked on the canvas under the pointer. */
+    nodeId?: string;
     label: string;
     detail?: string;
     removeLabel: string;
@@ -56,6 +58,8 @@ export type BoundPort = {
   stepTitle: (nodeId: string) => string;
   /** The trigger step, whose fields are read as `trigger.<path>`. */
   triggerId?: string;
+  /** Called with the step a value under the pointer comes from, and with null when it leaves. */
+  onPoint?: (nodeId: string | null) => void;
 };
 
 const SAMPLE_LENGTH = 40;
@@ -153,6 +157,9 @@ export function WorkflowBoundField({
     setEditing(true);
     setPendingCaret(at + reference.length);
   };
+  const stepOf = (segment: { trigger: boolean; nodeId: string | null }) =>
+    segment.trigger ? (port.triggerId ?? null) : segment.nodeId;
+  const point = (nodeId: string | null | undefined) => port.onPoint?.(nodeId ?? null);
   const referenceTitle = (
     segment: Extract<ReturnType<typeof splitTemplate>[number], { kind: "reference" }>,
   ) => {
@@ -214,6 +221,8 @@ export function WorkflowBoundField({
         <div
           data-slot="bound-source"
           className="flex min-h-9 items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 ps-3 pe-1 text-sm"
+          onMouseEnter={() => point(port.source?.nodeId)}
+          onMouseLeave={() => point(null)}
         >
           <PlugsConnectedIcon className="size-4 shrink-0 text-primary" aria-hidden />
           <span className="min-w-0 flex-1 truncate">
@@ -263,6 +272,8 @@ export function WorkflowBoundField({
                     key={index}
                     data-slot="field-pill"
                     title={referenceTitle(segment)}
+                    onMouseEnter={() => point(stepOf(segment))}
+                    onMouseLeave={() => point(null)}
                     className="inline-flex h-5.5 items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 text-xs font-medium text-primary"
                   >
                     {segment.path.at(-1) ?? segment.raw}
@@ -317,6 +328,8 @@ export function WorkflowBoundField({
                             key={`${field.nodeId}.${field.path}`}
                             value={`${field.nodeId}.${field.path}`}
                             onSelect={() => insert(field)}
+                            onMouseEnter={() => point(field.nodeId)}
+                            onMouseLeave={() => point(null)}
                           >
                             <PortMark type={field.type} filled />
                             <span className="min-w-0 truncate font-mono text-xs">{field.path}</span>

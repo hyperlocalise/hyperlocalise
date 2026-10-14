@@ -831,8 +831,9 @@ describe("VisualWorkflowConfigPanel", () => {
       );
     });
 
-    it("shows a setting's fields as pills until it is clicked", async () => {
+    it("shows a setting's fields as pills until it is clicked, and points at their steps", async () => {
       const user = userEvent.setup();
+      const onPointStep = vi.fn();
       const http: VisualWorkflowRfNode = {
         id: "http",
         type: "action.http",
@@ -849,11 +850,16 @@ describe("VisualWorkflowConfigPanel", () => {
         ...slack.data.config,
         message: "{{ nodes.http.json.count }} new strings",
       } as typeof slack.data.config;
-      renderPanel(panel(slack, { nodes: [http, slack], edges: [] }));
+      renderPanel(panel(slack, { nodes: [http, slack], edges: [], onPointStep }));
 
       const pill = screen.getByText("count");
       expect(pill).toHaveAttribute("title", "HTTP Request › json › count");
       expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+
+      await user.hover(pill);
+      expect(onPointStep).toHaveBeenLastCalledWith("http");
+      await user.unhover(pill);
+      expect(onPointStep).toHaveBeenLastCalledWith(null);
 
       await user.click(screen.getByRole("button", { name: "Message" }));
       expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
@@ -891,7 +897,9 @@ describe("VisualWorkflowConfigPanel", () => {
       };
       renderPanel(panel(tryCatch));
 
-      expect(screen.getByText("This step has no settings.")).toBeInTheDocument();
+      expect(
+        screen.getByText("This step has nothing to set up. Its outputs are on the Outputs tab."),
+      ).toBeInTheDocument();
     });
 
     it("keeps what happens on failure under its own heading", async () => {

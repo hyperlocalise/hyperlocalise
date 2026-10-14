@@ -86,7 +86,7 @@ import {
 } from "@/lib/visual-workflows/runtime/snapshots";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FieldLabel } from "@/components/ui/field";
+import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import {
   Popover,
   PopoverContent,
@@ -160,6 +160,8 @@ export function VisualWorkflowEditor({
   const [testData, setTestData] = useState<VisualWorkflowTestData>({});
   const [liveTest, setLiveTest] = useState(false);
   const [requestedTab, setRequestedTab] = useState<{ tab: StepSettingsTab; key: number }>();
+  // The step a value under the pointer in the settings panel comes from, marked on the canvas.
+  const [pointedNodeId, setPointedNodeId] = useState<string | null>(null);
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -190,6 +192,9 @@ export function VisualWorkflowEditor({
   historyRef.current = history;
   const selectedNodeIdRef = useRef(selectedNodeId);
   selectedNodeIdRef.current = selectedNodeId;
+  useEffect(() => {
+    setPointedNodeId(null);
+  }, [selectedNodeId]);
   // The graph as it was when a drag began, so the drop records one step from there.
   const dragStartRef = useRef<VisualWorkflowGraph | null>(null);
   const undoNotice = useVisualWorkflowUndoNotice();
@@ -992,6 +997,7 @@ export function VisualWorkflowEditor({
             onAddFromNode={openPicker}
             issueNodeIds={issueNodeIds}
             freshNodeIds={freshNodeIds}
+            pointedNodeId={pointedNodeId}
           >
             <VisualWorkflowCanvas
               nodes={nodes}
@@ -1024,6 +1030,7 @@ export function VisualWorkflowEditor({
                           type="button"
                           variant="outline"
                           size="icon"
+                          className="bg-background shadow-xs"
                           aria-label={intl.formatMessage(messages.testSettings)}
                           title={intl.formatMessage(messages.testSettings)}
                         />
@@ -1038,18 +1045,18 @@ export function VisualWorkflowEditor({
                           {intl.formatMessage(messages.testSettingsHint)}
                         </PopoverDescription>
                       </PopoverHeader>
-                      <FieldLabel className="mt-3 items-start gap-2 text-sm">
-                        <Checkbox
-                          checked={liveTest}
-                          onCheckedChange={(value) => setLiveTest(Boolean(value))}
-                        />
-                        {intl.formatMessage({
-                          description: "Visual workflow editor control",
-                          id: "RnDCfBW6QI",
-                          defaultMessage:
-                            "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
-                        })}
-                      </FieldLabel>
+                      <div className="mt-3 grid gap-1.5">
+                        <FieldLabel className="gap-2 text-sm">
+                          <Checkbox
+                            checked={liveTest}
+                            onCheckedChange={(value) => setLiveTest(Boolean(value))}
+                          />
+                          {intl.formatMessage(messages.liveTestLabel)}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {intl.formatMessage(messages.liveTestDescription)}
+                        </FieldDescription>
+                      </div>
                     </PopoverContent>
                   </Popover>
                 ) : null
@@ -1105,6 +1112,7 @@ export function VisualWorkflowEditor({
                 }
                 requestedTab={requestedTab}
                 onDisconnectInput={onDisconnectInput}
+                onPointStep={setPointedNodeId}
               />
             ) : (
               <>

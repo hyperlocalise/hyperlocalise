@@ -195,6 +195,8 @@ const STEP_BAND_TONE_CLASS = {
   // A step that appeared or was changed and has not been selected since; the selection's band
   // takes its place once it is.
   fresh: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-violet-600,#7c3aed)_50%,transparent)]",
+  // The step a value under the pointer in the settings panel comes from.
+  pointed: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_25%,transparent)]",
 };
 
 export const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
@@ -329,9 +331,11 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode, issueNodeIds, freshNodeIds } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId } =
+    useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
   const isFresh = !selected && freshNodeIds.has(id);
+  const isPointed = !selected && pointedNodeId === id;
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
@@ -524,9 +528,9 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
-      {/* A selected or fresh step shows that band alone; its issue mark still says it has a
-          problem. The band comes before the handles, which are drawn over it. */}
-      {selected || isFresh || hasIssue ? (
+      {/* A selected, pointed or fresh step shows that band alone; its issue mark still says it
+          has a problem. The band comes before the handles, which are drawn over it. */}
+      {selected || isPointed || isFresh || hasIssue ? (
         <span
           aria-hidden
           data-slot="step-band"
@@ -534,9 +538,11 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             STEP_BAND_CLASS,
             selected
               ? STEP_BAND_TONE_CLASS.selected
-              : isFresh
-                ? STEP_BAND_TONE_CLASS.fresh
-                : STEP_BAND_TONE_CLASS.issue,
+              : isPointed
+                ? STEP_BAND_TONE_CLASS.pointed
+                : isFresh
+                  ? STEP_BAND_TONE_CLASS.fresh
+                  : STEP_BAND_TONE_CLASS.issue,
           )}
         />
       ) : null}

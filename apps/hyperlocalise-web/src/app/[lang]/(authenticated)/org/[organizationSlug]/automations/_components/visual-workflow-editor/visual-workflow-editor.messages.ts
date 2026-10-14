@@ -1138,13 +1138,14 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Hint under disabled AI agent configuration slots",
   },
   noConfig: {
-    defaultMessage: "This step has no settings. Its sample event is set on the Test tab.",
-    id: "LCXCbyngkd",
+    defaultMessage:
+      "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab.",
+    id: "iUENcP8UXx",
     description: "Config panel empty copy for a manual trigger, which has no fields",
   },
   noSettings: {
-    defaultMessage: "This step has no settings.",
-    id: "XD/J+Q8CFt",
+    defaultMessage: "This step has nothing to set up. Its outputs are on the Outputs tab.",
+    id: "KbaeWqdfEa",
     description: "Config panel empty copy for a step without fields",
   },
   editBindingAsText: {
@@ -1152,6 +1153,17 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "X+6eLCg8p5",
     description:
       "Button that turns a stored fixed value or template of a workflow step's setting into the setting's own text",
+  },
+  liveTestLabel: {
+    defaultMessage: "Live test",
+    id: "DcGjOYQ6/j",
+    description: "Switch in the test settings popover that makes a test run call real services",
+  },
+  liveTestDescription: {
+    defaultMessage:
+      "Sends real requests, generates AI content, and delivers notifications. Does not publish.",
+    id: "RPiMDhF6XI",
+    description: "Under the live test switch, what a live test run does",
   },
   testSettings: {
     defaultMessage: "Test settings",

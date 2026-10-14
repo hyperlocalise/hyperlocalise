@@ -136,6 +136,7 @@ export function VisualWorkflowConfigPanel({
   onChangeTestData,
   requestedTab,
   onDisconnectInput,
+  onPointStep,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
@@ -162,6 +163,8 @@ export function VisualWorkflowConfigPanel({
   requestedTab?: { tab: StepSettingsTab; key: number };
   /** Removes the data wire that feeds one of this step's settings. */
   onDisconnectInput?: (portId: string) => void;
+  /** Called with the step a value under the pointer comes from, and with null when it leaves. */
+  onPointStep?: (nodeId: string | null) => void;
 }) {
   const intl = useIntl();
   const { config } = node.data;
@@ -213,6 +216,7 @@ export function VisualWorkflowConfigPanel({
     const binding = node.data.inputs?.[portId];
     const source = wired
       ? {
+          nodeId: wired.nodeId,
           label: stepTitle(wired.nodeId),
           detail: wired.path.join(" › "),
           removeLabel: intl.formatMessage(messages.disconnectInput),
@@ -220,6 +224,12 @@ export function VisualWorkflowConfigPanel({
         }
       : binding
         ? {
+            nodeId:
+              binding.kind === "reference"
+                ? binding.nodeId === "$trigger"
+                  ? triggerId
+                  : binding.nodeId
+                : undefined,
             label:
               binding.kind === "reference"
                 ? stepTitle(
@@ -259,6 +269,7 @@ export function VisualWorkflowConfigPanel({
       fields: upstreamFields,
       stepTitle,
       triggerId,
+      onPoint: onPointStep,
     };
   };
   const connectedInputProps = (portId: string) => ({
@@ -1581,7 +1592,7 @@ export function VisualWorkflowConfigPanel({
           </>
         ) : null}
         {config.kind === "trigger.manual" || config.kind === "logic.try_catch" ? (
-          <TypographyP size="small" tone="subtle">
+          <TypographyP size="small" tone="subtle" className="py-6 text-center text-balance">
             <FormattedMessage
               {...(config.kind === "trigger.manual" ? messages.noConfig : messages.noSettings)}
             />
