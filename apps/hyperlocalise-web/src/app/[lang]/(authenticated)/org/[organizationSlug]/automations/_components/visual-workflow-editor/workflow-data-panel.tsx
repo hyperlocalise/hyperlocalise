@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  getWorkflowInputFields,
   getWorkflowOutputFields,
   NODE_CONTRACTS,
 } from "@/lib/visual-workflows/catalog/node-contracts";
@@ -40,6 +41,8 @@ import type {
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { computeForEachBodyNodeIds } from "@/lib/visual-workflows/editor/for-each-body-membership";
+
+import { visualWorkflowEditorMessages } from "./visual-workflow-editor.messages";
 
 const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
 
@@ -76,9 +79,12 @@ export function WorkflowDataPanel({
   onChange,
   organizationSlug,
   invalidFields,
+  section,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
+  /** Shows that part alone, without its heading, for a caller that names it itself. */
+  section?: "inputs" | "outputs";
   /** The inputs of this step that a validation issue names. */
   invalidFields?: ReadonlySet<string>;
   nodes: readonly VisualWorkflowRfNode[];
@@ -169,30 +175,61 @@ export function WorkflowDataPanel({
   };
   const forEachBodyNodeIds =
     node.data.catalogType === "logic.for_each" ? computeForEachBodyNodeIds(node.id, edges) : [];
+  const showInputs = section !== "outputs";
+  const showOutputs = section !== "inputs";
+  const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
+  const hasBody =
+    node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry";
+  if (section === "inputs" && inputFields.length === 0 && !hasSecretField && !hasBody) {
+    // A Call workflow or Return step has inputs that are not listed here: they are ports on its
+    // card.
+    const hasWiredInputs =
+      getWorkflowInputFields({
+        id: node.id,
+        type: node.data.catalogType,
+        config: node.data.config,
+        inputs: node.data.inputs,
+        outputFields: node.data.outputFields,
+      }).length > 0;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {intl.formatMessage(
+          hasWiredInputs
+            ? visualWorkflowEditorMessages.stepInputsAreWired
+            : visualWorkflowEditorMessages.stepHasNoInputs,
+        )}
+      </p>
+    );
+  }
   return (
     <FieldGroup>
-      <h3 className="text-sm font-medium">
-        {intl.formatMessage({
-          description: "Visual workflow editor control",
-          id: "DoPyHmkOAP",
-          defaultMessage: "Inputs",
-        })}
-      </h3>
-      <Field>
-        <FieldLabel htmlFor="workflow-field-search">
+      {section ? null : (
+        <h3 className="text-sm font-medium">
           {intl.formatMessage({
             description: "Visual workflow editor control",
-            id: "CY0//qPgu1",
-            defaultMessage: "Find upstream fields",
+            id: "DoPyHmkOAP",
+            defaultMessage: "Inputs",
           })}
-        </FieldLabel>
-        <Input
-          id="workflow-field-search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </Field>
-      {inputFields.map((field) => {
+        </h3>
+      )}
+      {/* The search narrows the source fields of an input, so it needs an input to be of use. */}
+      {showInputs && (!section || inputFields.length > 0) ? (
+        <Field>
+          <FieldLabel htmlFor="workflow-field-search">
+            {intl.formatMessage({
+              description: "Visual workflow editor control",
+              id: "CY0//qPgu1",
+              defaultMessage: "Find upstream fields",
+            })}
+          </FieldLabel>
+          <Input
+            id="workflow-field-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </Field>
+      ) : null}
+      {(showInputs ? inputFields : []).map((field) => {
         const wiredBinding = getVisualWorkflowDataEdgeBinding({
           nodeId: node.id,
           portId: field.name,
@@ -356,7 +393,7 @@ export function WorkflowDataPanel({
           </Field>
         );
       })}
-      {node.data.catalogType === "action.http" && organizationSlug ? (
+      {showInputs && node.data.catalogType === "action.http" && organizationSlug ? (
         <Field>
           <FieldLabel>
             {intl.formatMessage({
@@ -421,7 +458,7 @@ export function WorkflowDataPanel({
           ) : null}
         </Field>
       ) : null}
-      {node.data.catalogType === "logic.for_each" ? (
+      {showInputs && node.data.catalogType === "logic.for_each" ? (
         <Field>
           <FieldLabel>
             {intl.formatMessage({
@@ -458,7 +495,7 @@ export function WorkflowDataPanel({
         </Field>
       ) : null}
 
-      {node.data.catalogType === "logic.retry" ? (
+      {showInputs && node.data.catalogType === "logic.retry" ? (
         <Field>
           <FieldLabel>
             {intl.formatMessage({
@@ -491,7 +528,7 @@ export function WorkflowDataPanel({
         </Field>
       ) : null}
 
-      {node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry" ? (
+      {showInputs && hasBody ? (
         <WorkflowJsonField
           label={intl.formatMessage({
             description: "Visual workflow editor control",
@@ -507,40 +544,44 @@ export function WorkflowDataPanel({
           }
         />
       ) : null}
-      <h3 className="text-sm font-medium">
-        {intl.formatMessage({
-          description: "Visual workflow editor control",
-          id: "mqq6dTwRZM",
-          defaultMessage: "Outputs",
-        })}
-      </h3>
-      <WorkflowJsonField
-        label={intl.formatMessage({
-          description: "Visual workflow editor control",
-          id: "Y4l3a1ThxU",
-          defaultMessage: "Output fields (path, type, optional)",
-        })}
-        validate={(value) =>
-          Array.isArray(value) &&
-          value.every(
-            (field) =>
-              field &&
-              typeof field === "object" &&
-              typeof field.path === "string" &&
-              ["string", "number", "boolean", "object", "array", "unknown"].includes(field.type),
-          )
-        }
-        value={node.data.outputFields ?? contract.outputs}
-        onChange={(value) =>
-          onChange({ outputFields: value as WorkflowNodeContract["outputFields"] })
-        }
-      />
-      {node.data.lastOutput ? (
+      {section ? null : (
+        <h3 className="text-sm font-medium">
+          {intl.formatMessage({
+            description: "Visual workflow editor control",
+            id: "mqq6dTwRZM",
+            defaultMessage: "Outputs",
+          })}
+        </h3>
+      )}
+      {showOutputs ? (
+        <WorkflowJsonField
+          label={intl.formatMessage({
+            description: "Visual workflow editor control",
+            id: "Y4l3a1ThxU",
+            defaultMessage: "Output fields (path, type, optional)",
+          })}
+          validate={(value) =>
+            Array.isArray(value) &&
+            value.every(
+              (field) =>
+                field &&
+                typeof field === "object" &&
+                typeof field.path === "string" &&
+                ["string", "number", "boolean", "object", "array", "unknown"].includes(field.type),
+            )
+          }
+          value={node.data.outputFields ?? contract.outputs}
+          onChange={(value) =>
+            onChange({ outputFields: value as WorkflowNodeContract["outputFields"] })
+          }
+        />
+      ) : null}
+      {showOutputs && node.data.lastOutput ? (
         <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
           {JSON.stringify(node.data.lastOutput, null, 2)}
         </pre>
       ) : null}
-      {node.data.lastInput ? (
+      {showOutputs && node.data.lastInput ? (
         <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
           {JSON.stringify(node.data.lastInput, null, 2)}
         </pre>

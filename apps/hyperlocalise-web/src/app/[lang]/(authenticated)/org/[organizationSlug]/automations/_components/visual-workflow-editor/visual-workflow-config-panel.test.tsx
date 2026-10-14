@@ -72,11 +72,27 @@ function renderPanel(ui: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <IntlProvider locale="en" messages={{}}>
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    </IntlProvider>,
-  );
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <IntlProvider locale="en" messages={{}}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </IntlProvider>
+    ),
+  });
+}
+
+function slackNode(id = "slack"): VisualWorkflowRfNode {
+  return {
+    id,
+    type: "action.notify_slack",
+    position: { x: 0, y: 0 },
+    ...getVisualNodeDimensions("action.notify_slack"),
+    data: {
+      catalogType: "action.notify_slack",
+      config: createDefaultConfig("action.notify_slack"),
+      runStatus: "idle",
+    },
+  };
 }
 
 function triggerNode(type: VisualWorkflowRfNode["type"] = "trigger.manual"): VisualWorkflowRfNode {
@@ -212,10 +228,14 @@ describe("VisualWorkflowConfigPanel", () => {
     await user.click(await screen.findByRole("option", { name: "GitHub" }));
     expect(onChangeNodeType).toHaveBeenCalledWith("trigger.github");
 
-    // Delete sits in the panel's header beside Back, in the destructive style.
+    // Delete sits in the panel's header beside Back, in the destructive style. Both are icons
+    // that keep their names.
     const deleteStep = screen.getByRole("button", { name: "Delete step" });
-    expect(deleteStep.parentElement).toContainElement(screen.getByRole("button", { name: "Back" }));
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(deleteStep.parentElement).toContainElement(back);
     expect(deleteStep).toHaveClass("text-destructive");
+    expect(deleteStep).toHaveTextContent("");
+    expect(back).toHaveTextContent("");
     await user.click(deleteStep);
     expect(onDeleteNode).toHaveBeenCalledOnce();
   });
@@ -631,18 +651,9 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
-  it("marks the settings and inputs an issue names", () => {
-    const slack: VisualWorkflowRfNode = {
-      id: "slack",
-      type: "action.notify_slack",
-      position: { x: 0, y: 0 },
-      ...getVisualNodeDimensions("action.notify_slack"),
-      data: {
-        catalogType: "action.notify_slack",
-        config: createDefaultConfig("action.notify_slack"),
-        runStatus: "idle",
-      },
-    };
+  it("marks the settings and inputs an issue names", async () => {
+    const user = userEvent.setup();
+    const slack = slackNode();
     renderPanel(
       <VisualWorkflowConfigPanel
         node={slack}
@@ -660,13 +671,167 @@ describe("VisualWorkflowConfigPanel", () => {
     );
 
     expect(document.getElementById("vw-slack-channel")).toHaveAttribute("aria-invalid", "true");
+    // An issue about another step's setting of the same name marks nothing here.
+    expect(document.getElementById("vw-slack-message")).not.toHaveAttribute("aria-invalid");
+
+    await user.click(screen.getByRole("tab", { name: "Inputs" }));
     expect(screen.getByRole("combobox", { name: "channelId" })).toHaveAttribute(
       "aria-invalid",
       "true",
     );
-    // An issue about another step's setting of the same name marks nothing here.
-    expect(document.getElementById("vw-slack-message")).not.toHaveAttribute("aria-invalid");
     expect(screen.getByRole("combobox", { name: "message" })).not.toHaveAttribute("aria-invalid");
+  });
+
+  describe("tabs", () => {
+    function panel(
+      node: VisualWorkflowRfNode,
+      props: Partial<Parameters<typeof VisualWorkflowConfigPanel>[0]> = {},
+    ) {
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          nodes={[node]}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={vi.fn()}
+          onChangeContract={vi.fn()}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+          {...props}
+        />
+      );
+    }
+
+    it("opens on the step's own form and shows inputs and outputs on their own tabs", async () => {
+      const user = userEvent.setup();
+      renderPanel(panel(slackNode()));
+
+      expect(screen.getByRole("tab", { name: "Configuration" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(screen.getByLabelText("Slack channel ID")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Output fields (path, type, optional)")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: "Inputs" }));
+      expect(screen.getByRole("combobox", { name: "channelId" })).toBeInTheDocument();
+      // By role, as the test DOM keeps a panel that was left in the tree, hidden.
+      expect(screen.queryByRole("textbox", { name: "Slack channel ID" })).not.toBeInTheDocument();
+      // The tab names the part, so the part has no heading of its own.
+      expect(screen.queryByRole("heading", { name: "Inputs" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      expect(screen.getByText("Output fields (path, type, optional)")).toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the chosen tab when another step is selected", async () => {
+      const user = userEvent.setup();
+      const { rerender } = renderPanel(panel(slackNode("first")));
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      rerender(panel(slackNode("second")));
+
+      expect(screen.getByRole("tab", { name: "Outputs" })).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("shows the step's own form when an issue about a setting is picked", async () => {
+      const user = userEvent.setup();
+      const slack = slackNode();
+      renderPanel(
+        panel(slack, {
+          issues: [
+            {
+              code: "invalid_node_config",
+              nodeId: "slack",
+              field: "channelId",
+              reason: "required",
+            },
+          ],
+          onSelectNode: vi.fn(),
+        }),
+      );
+
+      await user.click(screen.getByRole("tab", { name: "Outputs" }));
+      await user.click(screen.getByText("channelId is required."));
+
+      expect(screen.getByRole("tab", { name: "Configuration" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      expect(screen.getByLabelText("Slack channel ID")).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("shows the inputs when the issue picked is a broken binding", async () => {
+      const user = userEvent.setup();
+      const onSelectNode = vi.fn();
+      const slack = slackNode();
+      renderPanel(
+        panel(slack, {
+          issues: [
+            { code: "invalid_binding", nodeId: "slack", field: "message", reason: "invalid" },
+          ],
+          onSelectNode,
+        }),
+      );
+
+      await user.click(screen.getByText("message is not valid."));
+
+      expect(onSelectNode).toHaveBeenCalledWith("slack");
+      expect(screen.getByRole("tab", { name: "Inputs" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("combobox", { name: "message" })).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+    });
+
+    it("says so when a step takes no inputs", async () => {
+      const user = userEvent.setup();
+      renderPanel(panel(triggerNode()));
+
+      await user.click(screen.getByRole("tab", { name: "Inputs" }));
+
+      expect(screen.getByText("This step takes no inputs.")).toBeInTheDocument();
+      expect(screen.queryByText("Find upstream fields")).not.toBeInTheDocument();
+    });
+
+    it("says that inputs are wired on the canvas for a step whose inputs are only ports", async () => {
+      const user = userEvent.setup();
+      const call: VisualWorkflowRfNode = {
+        id: "call",
+        type: "flow.call_workflow",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("flow.call_workflow"),
+        data: {
+          catalogType: "flow.call_workflow",
+          config: {
+            kind: "flow.call_workflow",
+            workflowId: "11111111-1111-4111-8111-111111111111",
+            version: 3,
+            inputFields: [{ id: "customerId", name: "customerId", type: "string" }],
+            outputFields: [],
+          },
+          runStatus: "idle",
+        },
+      };
+      renderPanel(panel(call));
+
+      await user.click(screen.getByRole("tab", { name: "Inputs" }));
+
+      expect(
+        screen.getByText("This step's inputs are set with data wires on the canvas."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("This step takes no inputs.")).not.toBeInTheDocument();
+    });
+
+    it("has no tabs when the step's inputs and outputs cannot be changed", () => {
+      renderPanel(panel(slackNode(), { onChangeContract: undefined }));
+
+      expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Configure step" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Slack channel ID")).toBeInTheDocument();
+    });
   });
 
   it("configures a controlled Fail code and message", () => {

@@ -508,6 +508,83 @@ export const PortCompatibility: Story = {
   },
 };
 
+export const StepSettingsTabs: Story = {
+  name: "Step settings tabs",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step's settings open on its own form. Its inputs and its outputs are each on a tab of their own, in the header row beside Back and Delete step. The chosen tab stays when another step is selected, and picking an issue shows the tab the issue is marked on.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const stepTitled = async (title: string) => {
+      const titles = await canvas.findAllByText(title, {}, { timeout: 10_000 });
+      return titles
+        .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+        .find((candidate) => candidate !== null)!;
+    };
+    const expectSelectedTab = (name: string) =>
+      waitFor(() =>
+        expect(canvas.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true"),
+      );
+
+    await userEvent.click(await stepTitled("Notify Slack"));
+    await expectSelectedTab("Configuration");
+    await expect(canvas.getByLabelText("Slack channel ID")).toBeVisible();
+    await expect(canvas.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
+
+    // The tabs share the header's one row with the two icon buttons, and none is cut short.
+    const tabs = canvas.getByRole("tablist", { name: "Step settings" });
+    const middle = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return box.top + box.height / 2;
+    };
+    for (const name of ["Back", "Delete step"]) {
+      await expect(
+        Math.abs(middle(canvas.getByRole("button", { name })) - middle(tabs)),
+      ).toBeLessThan(1);
+    }
+    for (const label of tabs.querySelectorAll("[role=tab] > span")) {
+      await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+    }
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Inputs" }));
+    await expect(await canvas.findByRole("combobox", { name: "channelId" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await expect(canvas.queryByLabelText("Slack channel ID")).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Outputs" }));
+    await expect(
+      await canvas.findByText("Output fields (path, type, optional)"),
+    ).toBeInTheDocument();
+
+    // Another step, picked on the canvas: the tab stays, and a trigger says it takes no inputs.
+    await userEvent.click(await stepTitled("Manual trigger"));
+    await expectSelectedTab("Outputs");
+    await userEvent.click(canvas.getByRole("tab", { name: "Inputs" }));
+    await expect(await canvas.findByText("This step takes no inputs.")).toBeInTheDocument();
+
+    // The issue is about a setting of the Slack step's own form.
+    await userEvent.click(canvas.getByText("channelId is required."));
+    await expectSelectedTab("Configuration");
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  },
+};
+
 export const LeaveStepSettings: Story = {
   name: "Leave a step's settings",
   parameters: {
@@ -532,7 +609,7 @@ export const LeaveStepSettings: Story = {
     await expect(requestNode).not.toBeNull();
     const openSettings = async () => {
       await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
-      await expect(await canvas.findByText("Find upstream fields")).toBeInTheDocument();
+      await expect(await canvas.findByRole("tab", { name: "Configuration" })).toBeInTheDocument();
       await expect(requestNode).toHaveClass("selected");
     };
     const expectPicker = async () => {

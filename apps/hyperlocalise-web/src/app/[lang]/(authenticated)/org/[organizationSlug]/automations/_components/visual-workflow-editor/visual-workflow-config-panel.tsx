@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
@@ -40,7 +40,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import {
   createMergeInputId,
@@ -91,6 +93,29 @@ const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
 const GITHUB_EVENTS: VisualWorkflowGithubTriggerEvent[] = ["push", "pull_request"];
 const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
+
+/** The parts of a step's settings, one shown at a time. */
+type StepSettingsTab = "configuration" | "inputs" | "outputs";
+
+const STEP_SETTINGS_TABS = [
+  { value: "configuration", message: messages.configurationTab },
+  { value: "inputs", message: messages.inputsTab },
+  { value: "outputs", message: messages.outputsTab },
+] as const;
+
+/**
+ * The tab that marks what a step's issues are about. A broken binding is marked on its input;
+ * every other issue names a setting of the step's own form.
+ */
+function issueTabFor(
+  issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[],
+  nodeId: string,
+): StepSettingsTab {
+  const ofStep = issues.filter((issue) => issue.nodeId === nodeId);
+  return ofStep.length > 0 && ofStep.every((issue) => issue.code === "invalid_binding")
+    ? "inputs"
+    : "configuration";
+}
 
 export function VisualWorkflowConfigPanel({
   node,
@@ -151,32 +176,108 @@ export function VisualWorkflowConfigPanel({
     };
   };
 
+  // The tab stays as chosen from step to step, and starts over when the panel is opened again.
+  const [tab, setTab] = useState<StepSettingsTab>("configuration");
+  /** Shows where a step's issues are marked, whichever tab was open. */
+  const showIssueTab = (nodeId: string) => setTab(issueTabFor(issues, nodeId));
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeftIcon className="size-4" />
-          <FormattedMessage {...messages.backToPicker} />
-        </Button>
-        <Button type="button" variant="destructive" size="sm" onClick={onDeleteNode}>
-          <TrashIcon className="size-4" />
-          <FormattedMessage {...messages.deleteStep} />
-        </Button>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {onChangeContract ? (
-          <WorkflowDataPanel
-            node={node}
-            nodes={nodes}
-            edges={edges}
-            organizationSlug={organizationSlug}
-            invalidFields={invalidFields}
-            onChange={onChangeContract}
+    <Tabs
+      value={tab}
+      onValueChange={(value) => setTab(value as StepSettingsTab)}
+      className="h-full min-h-0 gap-0"
+    >
+      {/* Back and Delete step are icons, so the tabs fit beside them in the panel's one header row. */}
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={intl.formatMessage(messages.backToPicker)}
+                onClick={onBack}
+              >
+                <ArrowLeftIcon />
+              </Button>
+            }
           />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.backToPicker} />
+          </TooltipContent>
+        </Tooltip>
+        {onChangeContract ? (
+          <TabsList
+            aria-label={intl.formatMessage(messages.stepSettingsTabs)}
+            className="min-w-0 flex-1 group-data-horizontal/tabs:h-8"
+          >
+            {STEP_SETTINGS_TABS.map((entry) => (
+              // A tab is as wide as its name and gives way only when the row runs out of room.
+              <TabsTrigger key={entry.value} value={entry.value} className="min-w-0 flex-auto">
+                <span className="truncate">
+                  <FormattedMessage {...entry.message} />
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
         ) : null}
-        <h2 className="text-sm font-medium">
-          <FormattedMessage {...messages.configTitle} />
-        </h2>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon-sm"
+                className="ms-auto"
+                aria-label={intl.formatMessage(messages.deleteStep)}
+                onClick={onDeleteNode}
+              >
+                <TrashIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.deleteStep} />
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      {onChangeContract ? (
+        <>
+          <TabsContent value="inputs" className="min-h-0 overflow-y-auto p-4">
+            <WorkflowDataPanel
+              section="inputs"
+              node={node}
+              nodes={nodes}
+              edges={edges}
+              organizationSlug={organizationSlug}
+              invalidFields={invalidFields}
+              onChange={onChangeContract}
+            />
+          </TabsContent>
+          <TabsContent value="outputs" className="min-h-0 overflow-y-auto p-4">
+            <WorkflowDataPanel
+              section="outputs"
+              node={node}
+              nodes={nodes}
+              edges={edges}
+              organizationSlug={organizationSlug}
+              invalidFields={invalidFields}
+              onChange={onChangeContract}
+            />
+          </TabsContent>
+        </>
+      ) : null}
+      <TabsContent
+        value="configuration"
+        className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4"
+      >
+        {/* Without the tabs nothing else names this part. */}
+        {onChangeContract ? null : (
+          <h2 className="text-sm font-medium">
+            <FormattedMessage {...messages.configTitle} />
+          </h2>
+        )}
         {isTrigger ? (
           <SelectField
             id="vw-trigger-type"
@@ -1430,15 +1531,29 @@ export function VisualWorkflowConfigPanel({
             </pre>
           </div>
         ) : null}
-      </div>
+      </TabsContent>
       <VisualWorkflowIssueList
         issues={issues}
         nodes={nodes}
         selectedNodeId={node.id}
-        onSelectNode={onSelectNode}
-        onShowNode={onShowNode}
+        onSelectNode={
+          onSelectNode
+            ? (nodeId) => {
+                showIssueTab(nodeId);
+                onSelectNode(nodeId);
+              }
+            : undefined
+        }
+        onShowNode={
+          onShowNode
+            ? (nodeId) => {
+                showIssueTab(nodeId);
+                onShowNode(nodeId);
+              }
+            : undefined
+        }
       />
-    </div>
+    </Tabs>
   );
 }
 

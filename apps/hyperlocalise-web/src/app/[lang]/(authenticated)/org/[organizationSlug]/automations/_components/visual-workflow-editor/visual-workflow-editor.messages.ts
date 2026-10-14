@@ -335,6 +335,38 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "t4mVRTnKLW",
     description: "Right panel heading when a node is selected",
   },
+  stepSettingsTabs: {
+    defaultMessage: "Step settings",
+    id: "kzH21n29Rp",
+    description:
+      "Accessible name of the tabs that switch between the parts of a workflow step's settings",
+  },
+  configurationTab: {
+    defaultMessage: "Configuration",
+    id: "GxutMPC4gp",
+    description: "Tab of a workflow step's settings that holds the step's own form",
+  },
+  inputsTab: {
+    defaultMessage: "Inputs",
+    id: "DoPyHmkOAP",
+    description: "Visual workflow editor control",
+  },
+  outputsTab: {
+    defaultMessage: "Outputs",
+    id: "mqq6dTwRZM",
+    description: "Visual workflow editor control",
+  },
+  stepHasNoInputs: {
+    defaultMessage: "This step takes no inputs.",
+    id: "UyyYqJFLYo",
+    description: "Shown on the Inputs tab of a workflow step that has nothing to bind",
+  },
+  stepInputsAreWired: {
+    defaultMessage: "This step's inputs are set with data wires on the canvas.",
+    id: "27szzkZstW",
+    description:
+      "Shown on the Inputs tab of a workflow step whose inputs can only be connected on the canvas",
+  },
   triggerType: {
     defaultMessage: "Trigger",
     id: "cSkIY27SIk",
