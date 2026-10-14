@@ -197,7 +197,7 @@ const STEP_BAND_TONE_CLASS = {
   fresh: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-violet-600,#7c3aed)_50%,transparent)]",
 };
 
-const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+export const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
   string: "text-blue-500",
   number: "text-amber-500",
   boolean: "text-violet-500",

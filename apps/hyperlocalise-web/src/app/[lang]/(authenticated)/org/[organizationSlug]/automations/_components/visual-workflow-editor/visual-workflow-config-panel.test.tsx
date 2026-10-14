@@ -651,8 +651,7 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
-  it("marks the settings and inputs an issue names", async () => {
-    const user = userEvent.setup();
+  it("marks the settings an issue names", () => {
     const slack = slackNode();
     renderPanel(
       <VisualWorkflowConfigPanel
@@ -673,13 +672,6 @@ describe("VisualWorkflowConfigPanel", () => {
     expect(document.getElementById("vw-slack-channel")).toHaveAttribute("aria-invalid", "true");
     // An issue about another step's setting of the same name marks nothing here.
     expect(document.getElementById("vw-slack-message")).not.toHaveAttribute("aria-invalid");
-
-    await user.click(screen.getByRole("tab", { name: "Inputs" }));
-    expect(screen.getByRole("combobox", { name: "channelId" })).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(screen.getByRole("combobox", { name: "message" })).not.toHaveAttribute("aria-invalid");
   });
 
   describe("tabs", () => {
@@ -702,7 +694,7 @@ describe("VisualWorkflowConfigPanel", () => {
       );
     }
 
-    it("opens on the step's own form and shows inputs and outputs on their own tabs", async () => {
+    it("opens on the step's own form, with its outputs on a tab of their own", async () => {
       const user = userEvent.setup();
       renderPanel(panel(slackNode()));
 
@@ -710,20 +702,14 @@ describe("VisualWorkflowConfigPanel", () => {
         "aria-selected",
         "true",
       );
+      expect(screen.queryByRole("tab", { name: "Inputs" })).not.toBeInTheDocument();
       expect(screen.getByLabelText("Slack channel ID")).toBeInTheDocument();
-      expect(screen.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
       expect(screen.queryByText("Output fields (path, type, optional)")).not.toBeInTheDocument();
-
-      await user.click(screen.getByRole("tab", { name: "Inputs" }));
-      expect(screen.getByRole("combobox", { name: "channelId" })).toBeInTheDocument();
-      // By role, as the test DOM keeps a panel that was left in the tree, hidden.
-      expect(screen.queryByRole("textbox", { name: "Slack channel ID" })).not.toBeInTheDocument();
-      // The tab names the part, so the part has no heading of its own.
-      expect(screen.queryByRole("heading", { name: "Inputs" })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("tab", { name: "Outputs" }));
       expect(screen.getByText("Output fields (path, type, optional)")).toBeInTheDocument();
-      expect(screen.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
+      // The tab names the part, so the part has no heading of its own.
+      expect(screen.queryByRole("heading", { name: "Outputs" })).not.toBeInTheDocument();
     });
 
     it("keeps the chosen tab when another step is selected", async () => {
@@ -763,40 +749,89 @@ describe("VisualWorkflowConfigPanel", () => {
       expect(screen.getByLabelText("Slack channel ID")).toHaveAttribute("aria-invalid", "true");
     });
 
-    it("shows the inputs when the issue picked is a broken binding", async () => {
+    it("shows which step feeds a wired setting, and can disconnect it", async () => {
       const user = userEvent.setup();
-      const onSelectNode = vi.fn();
-      const slack = slackNode();
+      const onDisconnectInput = vi.fn();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
       renderPanel(
-        panel(slack, {
-          issues: [
-            { code: "invalid_binding", nodeId: "slack", field: "message", reason: "invalid" },
+        panel(slackNode(), {
+          nodes: [http, slackNode()],
+          edges: [
+            {
+              id: "wire",
+              source: "http",
+              target: "slack",
+              sourceHandle: "json.reviewers",
+              targetHandle: "message",
+              data: { kind: "data" },
+            },
           ],
-          onSelectNode,
+          onDisconnectInput,
         }),
       );
 
-      await user.click(screen.getByText("message is not valid."));
+      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+      expect(screen.getByText("HTTP Request")).toBeInTheDocument();
+      expect(screen.getByText("› json › reviewers")).toBeInTheDocument();
+      // The channel is still typed, and still has its port.
+      expect(screen.getByRole("textbox", { name: "Slack channel ID" })).toBeInTheDocument();
 
-      expect(onSelectNode).toHaveBeenCalledWith("slack");
-      expect(screen.getByRole("tab", { name: "Inputs" })).toHaveAttribute("aria-selected", "true");
-      expect(screen.getByRole("combobox", { name: "message" })).toHaveAttribute(
-        "aria-invalid",
-        "true",
+      await user.click(screen.getByRole("button", { name: "Disconnect" }));
+      expect(onDisconnectInput).toHaveBeenCalledWith("message");
+    });
+
+    it("puts a field of an earlier step into a setting's text from the Insert menu", async () => {
+      const user = userEvent.setup();
+      const onChangeConfig = vi.fn();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = { ...slack.data.config, message: "Hi " } as typeof slack.data.config;
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          allTestData: { http: { json: { reviewers: "ana@acme.dev" } } },
+          onChangeConfig,
+        }),
+      );
+
+      await user.click(screen.getByRole("button", { name: "Insert a field into Message" }));
+      // The menu's contents are hidden from the test DOM's accessibility tree, as the app's other
+      // pickers are.
+      await user.type(
+        await screen.findByRole("combobox", { name: "Find a field", hidden: true }),
+        "review",
+      );
+      await user.click(
+        await screen.findByRole("option", { name: /json\.reviewers/, hidden: true }),
+      );
+
+      expect(onChangeConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Hi {{ nodes.http.json.reviewers }}" }),
       );
     });
 
-    it("says so when a step takes no inputs", async () => {
-      const user = userEvent.setup();
-      renderPanel(panel(triggerNode()));
-
-      await user.click(screen.getByRole("tab", { name: "Inputs" }));
-
-      expect(screen.getByText("This step takes no inputs.")).toBeInTheDocument();
-      expect(screen.queryByText("Find upstream fields")).not.toBeInTheDocument();
-    });
-
-    it("offers the fields in an earlier step's test data as source fields before any run", async () => {
+    it("shows a setting's fields as pills until it is clicked", async () => {
       const user = userEvent.setup();
       const http: VisualWorkflowRfNode = {
         id: "http",
@@ -809,29 +844,51 @@ describe("VisualWorkflowConfigPanel", () => {
           runStatus: "idle",
         },
       };
-      // The message already takes its value from the HTTP step, so its source can be changed.
       const slack = slackNode();
-      slack.data.inputs = { message: { kind: "reference", nodeId: "http", path: ["json"] } };
-      renderPanel(
-        panel(slack, {
-          nodes: [http, slack],
-          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
-          allTestData: { http: { json: { reviewers: "ana@acme.dev" } } },
-        }),
+      slack.data.config = {
+        ...slack.data.config,
+        message: "{{ nodes.http.json.count }} new strings",
+      } as typeof slack.data.config;
+      renderPanel(panel(slack, { nodes: [http, slack], edges: [] }));
+
+      const pill = screen.getByText("count");
+      expect(pill).toHaveAttribute("title", "HTTP Request › json › count");
+      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Message" }));
+      expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
+        "{{ nodes.http.json.count }} new strings",
       );
-
-      await user.click(screen.getByRole("tab", { name: "Inputs" }));
-      await user.click(screen.getByRole("combobox", { name: "Source field" }));
-
-      expect(
-        await screen.findByRole("option", {
-          name: 'http · json.reviewers (string, observed only) · "ana@acme.dev"',
-        }),
-      ).toBeInTheDocument();
     });
 
-    it("says that inputs are wired on the canvas for a step whose inputs are only ports", async () => {
+    it("shows a stored binding as the setting's source, with a way to remove it", async () => {
       const user = userEvent.setup();
+      const onChangeContract = vi.fn();
+      const slack = slackNode();
+      slack.data.inputs = { channelId: { kind: "literal", value: "C123" } };
+      renderPanel(panel(slack, { onChangeContract }));
+
+      expect(screen.getByText("Fixed value")).toBeInTheDocument();
+      expect(screen.getByText('› "C123"')).toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Slack channel ID" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Remove" }));
+      expect(onChangeContract).toHaveBeenCalledWith({ inputs: {} });
+    });
+
+    it("keeps what happens on failure under its own heading", async () => {
+      const user = userEvent.setup();
+      renderPanel(panel(slackNode()));
+
+      expect(screen.queryByRole("combobox", { name: "On error" })).not.toBeInTheDocument();
+      const heading = screen.getByRole("button", { name: /If this step fails/ });
+      expect(heading).toHaveTextContent("Stop workflow");
+
+      await user.click(heading);
+      expect(screen.getByRole("combobox", { name: "On error" })).toBeInTheDocument();
+    });
+
+    it("lists a step's wire-only inputs and asks for a wire", () => {
       const call: VisualWorkflowRfNode = {
         id: "call",
         type: "flow.call_workflow",
@@ -851,12 +908,8 @@ describe("VisualWorkflowConfigPanel", () => {
       };
       renderPanel(panel(call));
 
-      await user.click(screen.getByRole("tab", { name: "Inputs" }));
-
-      expect(
-        screen.getByText("This step's inputs are set with data wires on the canvas."),
-      ).toBeInTheDocument();
-      expect(screen.queryByText("This step takes no inputs.")).not.toBeInTheDocument();
+      expect(screen.getByText("Connect this on the canvas.")).toBeInTheDocument();
+      expect(screen.getByText("customerId", { selector: "label" })).toBeInTheDocument();
     });
 
     it("has no tabs when the step's inputs and outputs cannot be changed", () => {

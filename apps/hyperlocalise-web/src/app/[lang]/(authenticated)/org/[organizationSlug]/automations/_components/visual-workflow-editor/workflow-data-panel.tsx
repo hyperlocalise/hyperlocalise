@@ -18,33 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldDescription, FieldGroup } from "@/components/ui/field";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-  SelectGroup,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  getWorkflowInputFields,
-  getWorkflowOutputFields,
-  NODE_CONTRACTS,
-} from "@/lib/visual-workflows/catalog/node-contracts";
+import { NODE_CONTRACTS } from "@/lib/visual-workflows/catalog/node-contracts";
 import type {
   VisualWorkflowRfNode,
   VisualWorkflowRfEdge,
   WorkflowNodeContract,
   WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
-import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
-import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { computeForEachBodyNodeIds } from "@/lib/visual-workflows/editor/for-each-body-membership";
-import type { VisualWorkflowTestData } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
-
-import { visualWorkflowEditorMessages } from "./visual-workflow-editor.messages";
-
 const HTTP_SECRET_BINDING_PATH = /^(headers|body)\.[A-Za-z0-9_.-]+$/;
 
 export function listHttpSecretBindings(
@@ -73,469 +55,181 @@ export function upsertHttpSecretBinding(input: {
   return inputs;
 }
 
+/**
+ * The parts of a step's inputs and outputs that its own form does not show: a saved credential in
+ * an HTTP header or body, a loop's or retry's body steps, and the step's declared outputs.
+ */
 export function WorkflowDataPanel({
   node,
   nodes,
   edges,
   onChange,
   organizationSlug,
-  invalidFields,
   section,
-  testData,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
-  /** Every step's test data by step id; what a step has not yet returned in a run it has here. */
-  testData?: VisualWorkflowTestData;
-  /** Shows that part alone, without its heading, for a caller that names it itself. */
-  section?: "inputs" | "outputs";
-  /** The inputs of this step that a validation issue names. */
-  invalidFields?: ReadonlySet<string>;
+  section: "settings" | "outputs";
   nodes: readonly VisualWorkflowRfNode[];
   edges: readonly VisualWorkflowRfEdge[];
   onChange: (patch: WorkflowNodeContract) => void;
 }) {
   const intl = useIntl();
-  const [search, setSearch] = useState("");
   const [secretTarget, setSecretTarget] = useState("headers.X-API-Key");
-  const upstream = new Set<string>();
-  const queue = [node.id];
-  while (queue.length) {
-    const current = queue.shift();
-    for (const edge of edges.filter((edge) => edge.target === current))
-      if (!upstream.has(edge.source)) {
-        upstream.add(edge.source);
-        queue.push(edge.source);
-      }
-  }
-  const options = nodes
-    .filter((candidate) => upstream.has(candidate.id))
-    .flatMap((candidate) =>
-      [
-        ...getWorkflowOutputFields({
-          id: candidate.id,
-          type: candidate.data.catalogType,
-          config: candidate.data.config,
-          inputs: candidate.data.inputs,
-          outputFields: candidate.data.outputFields,
-        }).map((field) => ({ ...field, observed: false })),
-        ...observedOutputFields(candidate.data.lastOutput ?? testData?.[candidate.id]).filter(
-          (field) =>
-            !getWorkflowOutputFields({
-              id: candidate.id,
-              type: candidate.data.catalogType,
-              config: candidate.data.config,
-              inputs: candidate.data.inputs,
-              outputFields: candidate.data.outputFields,
-            }).some((declared) => declared.path === field.path),
-        ),
-      ]
-        .filter((field) => {
-          const inBody =
-            candidate.data.catalogType === "logic.for_each"
-              ? computeForEachBodyNodeIds(candidate.id, edges).includes(node.id)
-              : (candidate.data.bodyNodeIds?.includes(node.id) ?? false);
-
-          if (candidate.data.catalogType === "logic.for_each") {
-            if (["item", "index"].includes(field.path)) {
-              return inBody;
-            }
-          }
-
-          if (candidate.data.catalogType === "logic.retry") {
-            if (field.path === "attemptNumber") {
-              return inBody;
-            }
-          }
-
-          return true;
-        })
-        .map((field) => ({
-          nodeId: candidate.id,
-          path: field.path
-            .split(".")
-            .map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment)),
-          label: `${candidate.id} · ${field.path} (${field.type}${field.observed ? ", observed only" : field.optional ? ", optional" : ""})`,
-          sample: readWorkflowPath(
-            candidate.data.lastOutput ?? testData?.[candidate.id],
-            field.path.split("."),
-          ),
-        })),
-    );
   const contract = NODE_CONTRACTS[node.data.catalogType];
-  const inputFields =
-    node.data.config.kind === "logic.set"
-      ? [
-          ...new Set([
-            ...node.data.config.assignments.map((assignment) => assignment.key),
-            ...Object.keys(node.data.inputs ?? {}),
-          ]),
-        ]
-          .filter(Boolean)
-          .map((name) => ({ name, type: "unknown" as const, required: false }))
-      : contract.inputs;
-  const change = (name: string, binding: WorkflowBinding | undefined) => {
+  const removeInput = (name: string) => {
     const inputs = { ...node.data.inputs };
-    if (binding) inputs[name] = binding;
-    else delete inputs[name];
+    delete inputs[name];
     onChange({ inputs });
   };
   const forEachBodyNodeIds =
     node.data.catalogType === "logic.for_each" ? computeForEachBodyNodeIds(node.id, edges) : [];
-  const showInputs = section !== "outputs";
-  const showOutputs = section !== "inputs";
-  const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
   const hasBody =
     node.data.catalogType === "logic.for_each" || node.data.catalogType === "logic.retry";
-  if (section === "inputs" && inputFields.length === 0 && !hasSecretField && !hasBody) {
-    // A Call workflow or Return step has inputs that are not listed here: they are ports on its
-    // card.
-    const hasWiredInputs =
-      getWorkflowInputFields({
-        id: node.id,
-        type: node.data.catalogType,
-        config: node.data.config,
-        inputs: node.data.inputs,
-        outputFields: node.data.outputFields,
-      }).length > 0;
+  const hasSecretField = node.data.catalogType === "action.http" && Boolean(organizationSlug);
+  if (section === "settings") {
+    if (!hasSecretField && !hasBody) return null;
     return (
-      <p className="text-sm text-muted-foreground">
-        {intl.formatMessage(
-          hasWiredInputs
-            ? visualWorkflowEditorMessages.stepInputsAreWired
-            : visualWorkflowEditorMessages.stepHasNoInputs,
-        )}
-      </p>
-    );
-  }
-  return (
-    <FieldGroup>
-      {section ? null : (
-        <h3 className="text-sm font-medium">
-          {intl.formatMessage({
-            description: "Visual workflow editor control",
-            id: "DoPyHmkOAP",
-            defaultMessage: "Inputs",
-          })}
-        </h3>
-      )}
-      {/* The search narrows the source fields of an input, so it needs an input to be of use. */}
-      {showInputs && (!section || inputFields.length > 0) ? (
-        <Field>
-          <FieldLabel htmlFor="workflow-field-search">
-            {intl.formatMessage({
-              description: "Visual workflow editor control",
-              id: "CY0//qPgu1",
-              defaultMessage: "Find upstream fields",
-            })}
-          </FieldLabel>
-          <Input
-            id="workflow-field-search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </Field>
-      ) : null}
-      {(showInputs ? inputFields : []).map((field) => {
-        const wiredBinding = getVisualWorkflowDataEdgeBinding({
-          nodeId: node.id,
-          portId: field.name,
-          edges,
-        });
-        const binding = wiredBinding ?? node.data.inputs?.[field.name];
-        const isWired = wiredBinding !== undefined;
-        const invalid = invalidFields?.has(field.name) || undefined;
-        return (
-          <Field key={field.name} data-invalid={invalid}>
+      <FieldGroup>
+        {hasSecretField && organizationSlug ? (
+          <Field>
             <FieldLabel>
-              {field.name} · {field.type} {field.required ? "*" : ""}
+              {intl.formatMessage({
+                defaultMessage: "Secret field",
+                id: "NkkzP9kJMz",
+                description: "Workflow secret destination label",
+              })}
             </FieldLabel>
-            <Select
-              value={binding?.kind ?? "configuration"}
-              disabled={isWired}
-              onValueChange={(value) => {
-                if (value === "reference")
-                  change(field.name, {
-                    kind: "reference",
-                    nodeId: options[0]?.nodeId ?? "$trigger",
-                    path: options[0]?.path ?? [],
-                  });
-                else if (value === "literal") change(field.name, { kind: "literal", value: "" });
-                else if (value === "template")
-                  change(field.name, { kind: "template", template: "" });
-                else change(field.name, undefined);
-              }}
-            >
-              <SelectTrigger aria-label={field.name} aria-invalid={invalid}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {["configuration", "reference", "literal", "template"].map((mode) => (
-                    <SelectItem key={mode} value={mode}>
-                      {mode}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {isWired ? (
-              <FieldDescription>
-                {intl.formatMessage(
-                  {
-                    description: "Visual workflow connected data input description",
-                    id: "02ZUVYObvj",
-                    defaultMessage:
-                      "Connected from {nodeId} · {path}. Remove the data wire to configure this input manually.",
-                  },
-                  {
-                    nodeId: wiredBinding.nodeId,
-                    path: wiredBinding.path.join("."),
-                  },
-                )}
-              </FieldDescription>
-            ) : null}
-            {binding?.kind === "reference" && !isWired ? (
-              <>
-                <Select
-                  value={JSON.stringify([binding.nodeId, binding.path])}
-                  onValueChange={(value) => {
-                    if (value) {
-                      const [nodeId, path] = JSON.parse(value);
-                      change(field.name, { ...binding, nodeId, path });
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    aria-label={intl.formatMessage({
-                      description: "Visual workflow editor control",
-                      id: "nOPkXXYDPf",
-                      defaultMessage: "Source field",
-                    })}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {options
-                        .filter((option) =>
-                          option.label.toLowerCase().includes(search.toLowerCase()),
-                        )
-                        .map((option) => (
-                          <SelectItem
-                            key={JSON.stringify([option.nodeId, option.path])}
-                            value={JSON.stringify([option.nodeId, option.path])}
-                          >
-                            {option.label}
-                            {option.sample !== undefined
-                              ? ` · ${JSON.stringify(option.sample).slice(0, 80)}`
-                              : ""}
-                          </SelectItem>
-                        ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Input
-                  aria-label={intl.formatMessage({
-                    description: "Visual workflow editor control",
-                    id: "XLQ4My0c2z",
-                    defaultMessage: "Field path",
-                  })}
-                  value={binding.path.join(".")}
-                  onChange={(event) =>
-                    change(field.name, {
-                      ...binding,
-                      path: event.target.value
-                        .split(".")
-                        .map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment)),
-                    })
-                  }
-                />
-                <FieldDescription>
+            {listHttpSecretBindings(node.data.inputs).map(([name]) => (
+              <div key={name} className="flex items-center justify-between gap-2">
+                <span className="text-sm">{name}</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeInput(name)}>
                   {intl.formatMessage({
-                    description: "Visual workflow editor control",
-                    id: "qtmhT9t6TF",
-                    defaultMessage:
-                      "Samples describe observed data. Unknown fields are checked at run time.",
+                    defaultMessage: "Remove",
+                    id: "b9xdOWPMtl",
+                    description: "Remove a workflow secret binding",
                   })}
-                </FieldDescription>
-                <FieldLabel>
-                  <Checkbox
-                    checked={binding.optional ?? false}
-                    onCheckedChange={(value) =>
-                      change(field.name, { ...binding, optional: Boolean(value) })
-                    }
-                  />
-                  {intl.formatMessage({
-                    description: "Visual workflow editor control",
-                    id: "KsKu3atOfj",
-                    defaultMessage: "Allow missing value",
-                  })}
-                </FieldLabel>
-                <WorkflowJsonField
-                  label={intl.formatMessage({
-                    description: "Visual workflow editor control",
-                    id: "BezqwlCa/n",
-                    defaultMessage: "Fallback value (JSON)",
-                  })}
-                  value={binding.fallback}
-                  onChange={(fallback) => change(field.name, { ...binding, fallback })}
-                />
-              </>
-            ) : binding?.kind === "literal" ? (
-              <WorkflowJsonField
-                label={field.name}
-                value={binding.value}
-                onChange={(value) => change(field.name, { ...binding, value })}
-              />
-            ) : binding?.kind === "template" ? (
-              <Textarea
-                aria-label={field.name}
-                value={binding.template}
-                onChange={(event) =>
-                  change(field.name, { ...binding, template: event.target.value })
+                </Button>
+              </div>
+            ))}
+            <Input
+              aria-label={intl.formatMessage({
+                defaultMessage: "Secret field path",
+                id: "EH/CNk39Q2",
+                description: "Workflow secret destination path",
+              })}
+              value={secretTarget}
+              onChange={(event) => setSecretTarget(event.target.value)}
+            />
+            <FieldDescription>
+              {intl.formatMessage({
+                defaultMessage:
+                  "Use headers.X-API-Key or body.fieldName. The value is loaded only during live execution.",
+                id: "Eja7ryRh39",
+                description: "Workflow secret binding instructions",
+              })}
+            </FieldDescription>
+            {HTTP_SECRET_BINDING_PATH.test(secretTarget) ? (
+              <WorkflowCredentialField
+                organizationSlug={organizationSlug}
+                value={
+                  node.data.inputs?.[secretTarget]?.kind === "secret"
+                    ? (
+                        node.data.inputs[secretTarget] as Extract<
+                          WorkflowBinding,
+                          { kind: "secret" }
+                        >
+                      ).credentialId
+                    : undefined
+                }
+                onChange={(credentialId) =>
+                  onChange({
+                    inputs: upsertHttpSecretBinding({
+                      inputs: node.data.inputs,
+                      target: secretTarget,
+                      credentialId,
+                    }),
+                  })
                 }
               />
             ) : null}
           </Field>
-        );
-      })}
-      {showInputs && node.data.catalogType === "action.http" && organizationSlug ? (
-        <Field>
-          <FieldLabel>
-            {intl.formatMessage({
-              defaultMessage: "Secret field",
-              id: "NkkzP9kJMz",
-              description: "Workflow secret destination label",
-            })}
-          </FieldLabel>
-          {listHttpSecretBindings(node.data.inputs).map(([name]) => (
-            <div key={name} className="flex items-center justify-between gap-2">
-              <span className="text-sm">{name}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => change(name, undefined)}
-              >
-                {intl.formatMessage({
-                  defaultMessage: "Remove",
-                  id: "b9xdOWPMtl",
-                  description: "Remove a workflow secret binding",
-                })}
-              </Button>
-            </div>
-          ))}
-          <Input
-            aria-label={intl.formatMessage({
-              defaultMessage: "Secret field path",
-              id: "EH/CNk39Q2",
-              description: "Workflow secret destination path",
-            })}
-            value={secretTarget}
-            onChange={(event) => setSecretTarget(event.target.value)}
-          />
-          <FieldDescription>
-            {intl.formatMessage({
-              defaultMessage:
-                "Use headers.X-API-Key or body.fieldName. The value is loaded only during live execution.",
-              id: "Eja7ryRh39",
-              description: "Workflow secret binding instructions",
-            })}
-          </FieldDescription>
-          {HTTP_SECRET_BINDING_PATH.test(secretTarget) ? (
-            <WorkflowCredentialField
-              organizationSlug={organizationSlug}
-              value={
-                node.data.inputs?.[secretTarget]?.kind === "secret"
-                  ? (node.data.inputs[secretTarget] as Extract<WorkflowBinding, { kind: "secret" }>)
-                      .credentialId
-                  : undefined
-              }
-              onChange={(credentialId) =>
-                onChange({
-                  inputs: upsertHttpSecretBinding({
-                    inputs: node.data.inputs,
-                    target: secretTarget,
-                    credentialId,
-                  }),
-                })
-              }
-            />
-          ) : null}
-        </Field>
-      ) : null}
-      {showInputs && node.data.catalogType === "logic.for_each" ? (
-        <Field>
-          <FieldLabel>
-            {intl.formatMessage({
-              description: "Visual workflow editor control",
-              id: "P7iGJ3MOIk",
-              defaultMessage: "Nodes inside Each item",
-            })}
-          </FieldLabel>
-
-          <FieldDescription>
-            {intl.formatMessage({
-              description: "Explanation of graph-derived For Each membership",
-              id: "3OlJR3Fxjp",
-              defaultMessage:
-                "Loop membership is derived automatically from connections leaving the Each item port.",
-            })}
-          </FieldDescription>
-
-          {forEachBodyNodeIds.length > 0 ? (
-            <ul className="space-y-1 text-sm">
-              {forEachBodyNodeIds.map((bodyNodeId) => (
-                <li key={bodyNodeId}>{bodyNodeId}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground text-sm">
+        ) : null}
+        {node.data.catalogType === "logic.for_each" ? (
+          <Field>
+            <FieldLabel>
               {intl.formatMessage({
-                description: "Empty graph-derived For Each body",
-                id: "yIZkW24JC2",
-                defaultMessage: "No nodes are connected to the Each item region.",
+                description: "Visual workflow editor control",
+                id: "P7iGJ3MOIk",
+                defaultMessage: "Nodes inside Each item",
               })}
-            </p>
-          )}
-        </Field>
-      ) : null}
+            </FieldLabel>
 
-      {showInputs && node.data.catalogType === "logic.retry" ? (
-        <Field>
-          <FieldLabel>
-            {intl.formatMessage({
-              description: "Visual workflow editor control",
-              id: "cpyaLTW85o",
-              defaultMessage: "Nodes inside Attempt",
-            })}
-          </FieldLabel>
+            <FieldDescription>
+              {intl.formatMessage({
+                description: "Explanation of graph-derived For Each membership",
+                id: "3OlJR3Fxjp",
+                defaultMessage:
+                  "Loop membership is derived automatically from connections leaving the Each item port.",
+              })}
+            </FieldDescription>
 
-          {nodes
-            .filter(
-              (candidate) =>
-                candidate.id !== node.id && !candidate.data.catalogType.startsWith("trigger."),
-            )
-            .map((candidate) => (
-              <FieldLabel key={candidate.id}>
-                <Checkbox
-                  checked={node.data.bodyNodeIds?.includes(candidate.id) ?? false}
-                  onCheckedChange={(checked) =>
-                    onChange({
-                      bodyNodeIds: checked
-                        ? [...(node.data.bodyNodeIds ?? []), candidate.id]
-                        : (node.data.bodyNodeIds ?? []).filter((id) => id !== candidate.id),
-                    })
-                  }
-                />
-                {candidate.id}
-              </FieldLabel>
-            ))}
-        </Field>
-      ) : null}
+            {forEachBodyNodeIds.length > 0 ? (
+              <ul className="space-y-1 text-sm">
+                {forEachBodyNodeIds.map((bodyNodeId) => (
+                  <li key={bodyNodeId}>{bodyNodeId}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {intl.formatMessage({
+                  description: "Empty graph-derived For Each body",
+                  id: "yIZkW24JC2",
+                  defaultMessage: "No nodes are connected to the Each item region.",
+                })}
+              </p>
+            )}
+          </Field>
+        ) : null}
 
-      {showInputs && hasBody ? (
+        {node.data.catalogType === "logic.retry" ? (
+          <Field>
+            <FieldLabel>
+              {intl.formatMessage({
+                description: "Visual workflow editor control",
+                id: "cpyaLTW85o",
+                defaultMessage: "Nodes inside Attempt",
+              })}
+            </FieldLabel>
+
+            {nodes
+              .filter(
+                (candidate) =>
+                  candidate.id !== node.id && !candidate.data.catalogType.startsWith("trigger."),
+              )
+              .map((candidate) => (
+                <FieldLabel key={candidate.id}>
+                  <Checkbox
+                    checked={node.data.bodyNodeIds?.includes(candidate.id) ?? false}
+                    onCheckedChange={(checked) =>
+                      onChange({
+                        bodyNodeIds: checked
+                          ? [...(node.data.bodyNodeIds ?? []), candidate.id]
+                          : (node.data.bodyNodeIds ?? []).filter((id) => id !== candidate.id),
+                      })
+                    }
+                  />
+                  {candidate.id}
+                </FieldLabel>
+              ))}
+          </Field>
+        ) : null}
+      </FieldGroup>
+    );
+  }
+  return (
+    <FieldGroup>
+      {hasBody ? (
         <WorkflowJsonField
           label={intl.formatMessage({
             description: "Visual workflow editor control",
@@ -551,44 +245,33 @@ export function WorkflowDataPanel({
           }
         />
       ) : null}
-      {section ? null : (
-        <h3 className="text-sm font-medium">
-          {intl.formatMessage({
-            description: "Visual workflow editor control",
-            id: "mqq6dTwRZM",
-            defaultMessage: "Outputs",
-          })}
-        </h3>
-      )}
-      {showOutputs ? (
-        <WorkflowJsonField
-          label={intl.formatMessage({
-            description: "Visual workflow editor control",
-            id: "Y4l3a1ThxU",
-            defaultMessage: "Output fields (path, type, optional)",
-          })}
-          validate={(value) =>
-            Array.isArray(value) &&
-            value.every(
-              (field) =>
-                field &&
-                typeof field === "object" &&
-                typeof field.path === "string" &&
-                ["string", "number", "boolean", "object", "array", "unknown"].includes(field.type),
-            )
-          }
-          value={node.data.outputFields ?? contract.outputs}
-          onChange={(value) =>
-            onChange({ outputFields: value as WorkflowNodeContract["outputFields"] })
-          }
-        />
-      ) : null}
-      {showOutputs && node.data.lastOutput ? (
+      <WorkflowJsonField
+        label={intl.formatMessage({
+          description: "Visual workflow editor control",
+          id: "Y4l3a1ThxU",
+          defaultMessage: "Output fields (path, type, optional)",
+        })}
+        validate={(value) =>
+          Array.isArray(value) &&
+          value.every(
+            (field) =>
+              field &&
+              typeof field === "object" &&
+              typeof field.path === "string" &&
+              ["string", "number", "boolean", "object", "array", "unknown"].includes(field.type),
+          )
+        }
+        value={node.data.outputFields ?? contract.outputs}
+        onChange={(value) =>
+          onChange({ outputFields: value as WorkflowNodeContract["outputFields"] })
+        }
+      />
+      {node.data.lastOutput ? (
         <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
           {JSON.stringify(node.data.lastOutput, null, 2)}
         </pre>
       ) : null}
-      {showOutputs && node.data.lastInput ? (
+      {node.data.lastInput ? (
         <pre className="max-h-48 overflow-auto rounded-md bg-muted p-2 text-xs">
           {JSON.stringify(node.data.lastInput, null, 2)}
         </pre>
@@ -639,24 +322,4 @@ export function WorkflowJsonField({
       ) : null}
     </Field>
   );
-}
-
-function observedOutputFields(value: unknown) {
-  const fields: { path: string; type: string; optional: boolean; observed: boolean }[] = [];
-  const visit = (current: unknown, path: string[], depth: number) => {
-    if (depth > 4 || fields.length >= 50 || !current || typeof current !== "object") return;
-    for (const [key, entry] of Object.entries(current)) {
-      if (fields.length >= 50) break;
-      const next = [...path, key];
-      fields.push({
-        path: next.join("."),
-        type: Array.isArray(entry) ? "array" : entry === null ? "unknown" : typeof entry,
-        optional: true,
-        observed: true,
-      });
-      visit(entry, next, depth + 1);
-    }
-  };
-  visit(value, [], 0);
-  return fields;
 }

@@ -514,7 +514,7 @@ export const StepSettingsTabs: Story = {
     docs: {
       description: {
         story:
-          "A step's settings open on its own form. Its inputs and its outputs are each on a tab of their own, in the header row beside Back and Delete step. The chosen tab stays when another step is selected, and picking an issue shows the tab the issue is marked on.",
+          "A step's settings open on its own form, where a setting that an earlier step can feed shows its port. Its outputs are on a tab of their own, in the header row beside Back and Delete step. The chosen tab stays when another step is selected, and picking an issue shows the tab the issue is marked on.",
       },
     },
   },
@@ -540,7 +540,7 @@ export const StepSettingsTabs: Story = {
     await userEvent.click(await stepTitled("Notify Slack"));
     await expectSelectedTab("Configuration");
     await expect(canvas.getByLabelText("Slack channel ID")).toBeVisible();
-    await expect(canvas.queryByRole("combobox", { name: "channelId" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("tab", { name: "Inputs" })).not.toBeInTheDocument();
 
     // The tabs share the header's one row with the two icon buttons, and none is cut short.
     const tabs = canvas.getByRole("tablist", { name: "Step settings" });
@@ -557,23 +557,14 @@ export const StepSettingsTabs: Story = {
       await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
     }
 
-    await userEvent.click(canvas.getByRole("tab", { name: "Inputs" }));
-    await expect(await canvas.findByRole("combobox", { name: "channelId" })).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    await expect(canvas.queryByLabelText("Slack channel ID")).not.toBeInTheDocument();
-
     await userEvent.click(canvas.getByRole("tab", { name: "Outputs" }));
     await expect(
       await canvas.findByText("Output fields (path, type, optional)"),
     ).toBeInTheDocument();
 
-    // Another step, picked on the canvas: the tab stays, and a trigger says it takes no inputs.
+    // Another step, picked on the canvas: the tab stays.
     await userEvent.click(await stepTitled("Manual trigger"));
     await expectSelectedTab("Outputs");
-    await userEvent.click(canvas.getByRole("tab", { name: "Inputs" }));
-    await expect(await canvas.findByText("This step takes no inputs.")).toBeInTheDocument();
 
     // The issue is about a setting of the Slack step's own form.
     await userEvent.click(canvas.getByText("channelId is required."));

@@ -452,6 +452,23 @@ export function VisualWorkflowEditor({
     [commit],
   );
 
+  /** Takes away the data wire that feeds a setting of the open step. */
+  const onDisconnectInput = useCallback(
+    (portId: string) => {
+      const current = graphRef.current;
+      const nodeId = selectedNodeIdRef.current;
+      const edges = current.edges.filter(
+        (edge) =>
+          !(edge.data?.kind === "data" && edge.target === nodeId && edge.targetHandle === portId),
+      );
+      if (edges.length === current.edges.length) {
+        return;
+      }
+      commit({ ...current, edges, nodes: reconcileFlowBodyMembership(current.nodes, edges) });
+    },
+    [commit],
+  );
+
   const onConnect = useCallback(
     (connection: Connection) => {
       const current = graphRef.current;
@@ -1066,6 +1083,7 @@ export function VisualWorkflowEditor({
                   setTestData((current) => ({ ...current, [selectedNode.id]: value }))
                 }
                 requestedTab={requestedTab}
+                onDisconnectInput={onDisconnectInput}
               />
             ) : (
               <>

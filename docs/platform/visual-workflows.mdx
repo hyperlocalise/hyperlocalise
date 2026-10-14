@@ -10,7 +10,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
 2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, or Retry nodes.
 3. Connect execution order on the canvas.
-4. Select a node. Its settings open on the **Configuration** tab, which holds provider and action settings. On the **Inputs** tab, select a typed literal, an upstream field, or a text template.
+4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps with the braces button beside the box, or wire the port on the canvas. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
 
 Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
@@ -36,7 +36,7 @@ Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow 
 | Node | When to use it | Run outcome |
 | --- | --- | --- |
 | **Stop** | The workflow succeeded or should exit without treating the exit as an error | **Completed** marks the run successful. Optional reason text appears in run details. **Cancelled** ends the run as an intentional stop (for example nothing left to process). |
-| **Return** | A branch should exit early and expose structured values to callers | Declare up to 32 named outputs, then bind each output under **Inputs** (`value.<outputId>`). Run history stores the returned map by public output name. **Return** inside a **For each** body exits the whole workflow, not just the current item. |
+| **Return** | A branch should exit early and expose structured values to callers | Declare up to 32 named outputs, then wire each one (`value.<outputId>`) on the canvas; the **Configuration** tab lists them. Run history stores the returned map by public output name. **Return** inside a **For each** body exits the whole workflow, not just the current item. |
 | **Fail** | A branch should stop with a stable, machine-readable error | Set an error code (uppercase letters, digits, underscores; for example `INVALID_ORDER`) and a short message (up to 500 characters). The run fails at that node with a controlled terminal error. |
 
 These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.

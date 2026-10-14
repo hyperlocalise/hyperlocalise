@@ -20,7 +20,7 @@ Every node:
 
 - **Type and config:** `schema/types.ts`, `schema/definition-schema.ts`, `schema/serializers.ts`.
 - **Catalog:** the entry, default config, card size, and subtitle in `catalog/node-catalog.ts`.
-- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the settings panel's Inputs tab are drawn from this.
+- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the port marks on the settings form are drawn from this: a setting whose name is an input in the contract shows its port, the fields of earlier steps and, when wired, its source.
 - **Runtime:** `runtime/execute-node.ts` for an action; `runtime/execute-logic-node.ts` and `runtime/interpreter.ts` for control flow. An action with outside effects also belongs in `validation/retry-idempotency.ts`.
 - **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`, which is the panel's Configuration tab.
 

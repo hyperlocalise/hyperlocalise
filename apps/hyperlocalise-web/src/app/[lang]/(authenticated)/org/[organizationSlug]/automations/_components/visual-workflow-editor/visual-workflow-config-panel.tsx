@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
+import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import type {
   WorkflowNodeContract,
@@ -27,6 +28,7 @@ import {
   CaretUpIcon,
   TrashIcon,
   PlusIcon,
+  CaretRightIcon,
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -42,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
@@ -79,6 +82,10 @@ import {
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { listUpstreamFields } from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
+import { getWorkflowInputFields } from "@/lib/visual-workflows/catalog/node-contracts";
+import { cn } from "@/lib/primitives/cn";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import {
   takesTestData,
   type MissingTestValue,
@@ -101,28 +108,13 @@ const GITHUB_EVENTS: VisualWorkflowGithubTriggerEvent[] = ["push", "pull_request
 const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
 
 /** The parts of a step's settings, one shown at a time. */
-export type StepSettingsTab = "configuration" | "inputs" | "outputs" | "test";
+export type StepSettingsTab = "configuration" | "outputs" | "test";
 
 const STEP_SETTINGS_TABS = [
   { value: "configuration", message: messages.configurationTab },
-  { value: "inputs", message: messages.inputsTab },
   { value: "outputs", message: messages.outputsTab },
   { value: "test", message: messages.testTab },
 ] as const;
-
-/**
- * The tab that marks what a step's issues are about. A broken binding is marked on its input;
- * every other issue names a setting of the step's own form.
- */
-function issueTabFor(
-  issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[],
-  nodeId: string,
-): StepSettingsTab {
-  const ofStep = issues.filter((issue) => issue.nodeId === nodeId);
-  return ofStep.length > 0 && ofStep.every((issue) => issue.code === "invalid_binding")
-    ? "inputs"
-    : "configuration";
-}
 
 export function VisualWorkflowConfigPanel({
   node,
@@ -142,6 +134,7 @@ export function VisualWorkflowConfigPanel({
   missingTestValues = [],
   onChangeTestData,
   requestedTab,
+  onDisconnectInput,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
@@ -166,36 +159,89 @@ export function VisualWorkflowConfigPanel({
   onChangeTestData?: (value: Record<string, unknown>) => void;
   /** Opens a tab from outside the panel; a new `key` opens it again. */
   requestedTab?: { tab: StepSettingsTab; key: number };
+  /** Removes the data wire that feeds one of this step's settings. */
+  onDisconnectInput?: (portId: string) => void;
 }) {
   const intl = useIntl();
   const { config } = node.data;
   const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const isTrigger = isTriggerType(node.data.catalogType);
-  const isInputConnected = (portId: string) =>
-    getVisualWorkflowDataEdgeBinding({
-      nodeId: node.id,
-      portId,
-      edges,
-    }) !== undefined;
-
-  const connectedInputDescription = intl.formatMessage({
-    id: "uwi6wLAbuv",
-    defaultMessage:
-      "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-    description: "Description for an inline workflow value overridden by a data connection",
-  });
   // The settings and inputs of this step that an issue names.
   const invalidFields = new Set(
     issues.flatMap((issue) => (issue.nodeId === node.id && issue.field ? [issue.field] : [])),
   );
-  const connectedInputProps = (portId: string) => {
-    const disabled = isInputConnected(portId);
+  const inputFields = getWorkflowInputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
+  });
+  const upstreamFields = listUpstreamFields({ node, nodes, edges, testData: allTestData });
+  const triggerId = nodes.find((step) => isTriggerType(step.data.catalogType))?.id;
+  const stepTitle = (nodeId: string) => {
+    const step = nodes.find((entry) => entry.id === nodeId);
+    return step
+      ? intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType))
+      : nodeId;
+  };
+  const removeBinding = (portId: string) => {
+    const inputs = { ...node.data.inputs };
+    delete inputs[portId];
+    onChangeContract?.({ inputs });
+  };
+  /** A setting's port and what feeds it: a wire on the canvas, or a binding stored earlier. */
+  const portFor = (portId: string): BoundPort => {
+    const field = inputFields.find((entry) => entry.name === portId);
+    const wired = getVisualWorkflowDataEdgeBinding({ nodeId: node.id, portId, edges });
+    const binding = node.data.inputs?.[portId];
+    const source = wired
+      ? {
+          label: stepTitle(wired.nodeId),
+          detail: wired.path.join(" › "),
+          removeLabel: intl.formatMessage(messages.disconnectInput),
+          onRemove: onDisconnectInput ? () => onDisconnectInput(portId) : undefined,
+        }
+      : binding
+        ? {
+            label:
+              binding.kind === "reference"
+                ? stepTitle(
+                    binding.nodeId === "$trigger" ? (triggerId ?? binding.nodeId) : binding.nodeId,
+                  )
+                : binding.kind === "literal"
+                  ? intl.formatMessage(messages.fixedValueSource)
+                  : binding.kind === "template"
+                    ? intl.formatMessage(messages.templateSource)
+                    : intl.formatMessage(messages.credentialSource),
+            detail:
+              binding.kind === "reference"
+                ? binding.path.join(" › ")
+                : binding.kind === "literal"
+                  ? JSON.stringify(binding.value)
+                  : binding.kind === "template"
+                    ? binding.template
+                    : undefined,
+            removeLabel: intl.formatMessage(messages.removeBinding),
+            onRemove: onChangeContract ? () => removeBinding(portId) : undefined,
+          }
+        : undefined;
     return {
-      disabled,
-      description: disabled ? connectedInputDescription : undefined,
-      invalid: invalidFields.has(portId),
+      id: portId,
+      type: field?.type ?? "string",
+      required: field?.required ?? false,
+      source,
+      fields: upstreamFields,
+      stepTitle,
+      triggerId,
     };
   };
+  const connectedInputProps = (portId: string) => ({
+    port: portFor(portId),
+    invalid: invalidFields.has(portId),
+  });
+  // Inputs that only a wire can feed, such as a Call workflow's or a Return's values.
+  const wireOnlyInputs = inputFields.filter((field) => field.name.startsWith("value."));
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
   const [tab, setTab] = useState<StepSettingsTab>("configuration");
@@ -205,8 +251,9 @@ export function VisualWorkflowConfigPanel({
   const hasTestTab = Boolean(onChangeTestData) && takesTestData(node.data.catalogType);
   // A step without a Test tab shows its own form while that tab is the chosen one.
   const shownTab = tab === "test" && !hasTestTab ? "configuration" : tab;
-  /** Shows where a step's issues are marked, whichever tab was open. */
-  const showIssueTab = (nodeId: string) => setTab(issueTabFor(issues, nodeId));
+  /** Shows the step's own form, where its issues are marked, whichever tab was open. */
+  const showIssueTab = () => setTab("configuration");
+  const [failOpen, setFailOpen] = useState(false);
 
   return (
     <Tabs
@@ -273,18 +320,6 @@ export function VisualWorkflowConfigPanel({
       </div>
       {onChangeContract ? (
         <>
-          <TabsContent value="inputs" className="min-h-0 overflow-y-auto p-4">
-            <WorkflowDataPanel
-              section="inputs"
-              node={node}
-              nodes={nodes}
-              edges={edges}
-              organizationSlug={organizationSlug}
-              invalidFields={invalidFields}
-              testData={allTestData}
-              onChange={onChangeContract}
-            />
-          </TabsContent>
           {hasTestTab && onChangeTestData ? (
             <TabsContent value="test" className="min-h-0 overflow-y-auto p-4">
               <WorkflowTestDataPanel
@@ -303,8 +338,6 @@ export function VisualWorkflowConfigPanel({
               nodes={nodes}
               edges={edges}
               organizationSlug={organizationSlug}
-              invalidFields={invalidFields}
-              testData={allTestData}
               onChange={onChangeContract}
             />
           </TabsContent>
@@ -470,18 +503,6 @@ export function VisualWorkflowConfigPanel({
               onCheckedChange={(checked) =>
                 onChangeConfig({ ...config, parseJsonBody: checked === true })
               }
-            />
-            <CheckboxField
-              id="vw-http-fail-on-error"
-              label={intl.formatMessage(messages.httpFailOnError)}
-              checked={config.failOnHttpError ?? true}
-              onCheckedChange={(checked) =>
-                onChangeConfig({ ...config, failOnHttpError: checked === true })
-              }
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -931,23 +952,11 @@ export function VisualWorkflowConfigPanel({
             </div>
             <ContractFieldList
               label={intl.formatMessage({
-                defaultMessage: "Inputs",
-                id: "C2mkhlL6tc",
-                description: "Snapshotted Call Workflow inputs",
-              })}
-              fields={config.inputFields}
-            />
-            <ContractFieldList
-              label={intl.formatMessage({
                 defaultMessage: "Outputs",
                 id: "xhGJ7UWFLE",
                 description: "Snapshotted Call Workflow outputs",
               })}
               fields={config.outputFields}
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </div>
         ) : null}
@@ -1287,10 +1296,6 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
         {config.kind === "action.notify_email" ? (
@@ -1354,10 +1359,6 @@ export function VisualWorkflowConfigPanel({
               value={config.message}
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -1552,16 +1553,76 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("prompt")}
               onChange={(value) => onChangeConfig({ ...config, prompt: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
         {config.kind === "trigger.manual" ? (
           <TypographyP size="small" tone="subtle">
             <FormattedMessage {...messages.noConfig} />
           </TypographyP>
+        ) : null}
+        {wireOnlyInputs.map((field) => (
+          <WorkflowBoundField
+            key={field.name}
+            id={`vw-port-${field.name}`}
+            label={field.name.slice("value.".length)}
+            value=""
+            onChange={() => {}}
+            editable={false}
+            invalid={invalidFields.has(field.name)}
+            port={portFor(field.name)}
+          />
+        ))}
+        {onChangeContract ? (
+          <WorkflowDataPanel
+            section="settings"
+            node={node}
+            nodes={nodes}
+            edges={edges}
+            organizationSlug={organizationSlug}
+            onChange={onChangeContract}
+          />
+        ) : null}
+        {"onError" in config ? (
+          <Collapsible
+            open={failOpen}
+            onOpenChange={setFailOpen}
+            className="border-t border-border pt-2"
+          >
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between px-1"
+                />
+              }
+            >
+              <span className="flex items-center gap-1.5">
+                <CaretRightIcon className={cn("size-3.5", failOpen && "rotate-90")} />
+                <FormattedMessage {...messages.ifStepFails} />
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {intl.formatMessage(errorBehaviorMessage(config.onError ?? "stop"))}
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="grid gap-4 pt-3">
+              <ErrorBehaviorField
+                value={config.onError ?? "stop"}
+                onChange={(onError) => onChangeConfig({ ...config, onError })}
+              />
+              {config.kind === "action.http" ? (
+                <CheckboxField
+                  id="vw-http-fail-on-error"
+                  label={intl.formatMessage(messages.httpFailOnError)}
+                  checked={config.failOnHttpError ?? true}
+                  onCheckedChange={(checked) =>
+                    onChangeConfig({ ...config, failOnHttpError: checked === true })
+                  }
+                />
+              ) : null}
+            </CollapsibleContent>
+          </Collapsible>
         ) : null}
         {node.data.lastOutput || node.data.lastError ? (
           <div className="grid gap-1.5 border-t border-border pt-4">
@@ -1581,7 +1642,7 @@ export function VisualWorkflowConfigPanel({
         onSelectNode={
           onSelectNode
             ? (nodeId) => {
-                showIssueTab(nodeId);
+                showIssueTab();
                 onSelectNode(nodeId);
               }
             : undefined
@@ -1589,7 +1650,7 @@ export function VisualWorkflowConfigPanel({
         onShowNode={
           onShowNode
             ? (nodeId) => {
-                showIssueTab(nodeId);
+                showIssueTab();
                 onShowNode(nodeId);
               }
             : undefined
@@ -1845,10 +1906,6 @@ function ContentSyncConfigFields({
         value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
-      <ErrorBehaviorField
-        value={config.onError ?? "stop"}
-        onChange={(onError) => onChangeConfig({ ...config, onError })}
-      />
     </>
   );
 }
@@ -1926,6 +1983,7 @@ function TextField({
   disabled = false,
   description,
   invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1935,7 +1993,23 @@ function TextField({
   disabled?: boolean;
   description?: string;
   invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -1961,6 +2035,7 @@ function TextAreaField({
   disabled = false,
   description,
   invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1970,7 +2045,24 @@ function TextAreaField({
   disabled?: boolean;
   description?: string;
   invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        multiline
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>

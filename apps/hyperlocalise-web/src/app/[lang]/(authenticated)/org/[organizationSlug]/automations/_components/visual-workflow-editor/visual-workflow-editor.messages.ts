@@ -341,15 +341,72 @@ export const visualWorkflowEditorMessages = defineMessages({
     description:
       "Accessible name of the tabs that switch between the parts of a workflow step's settings",
   },
+  ifStepFails: {
+    defaultMessage: "If this step fails",
+    id: "wBBk0AbwLo",
+    description:
+      "Heading of the collapsed part of a workflow step's settings that holds its error behaviour",
+  },
+  insertField: {
+    defaultMessage: "Insert a field into {label}",
+    id: "7zsudhIRfP",
+    description:
+      "Accessible name of the button that puts a field of an earlier workflow step into a setting's text; {label} is the setting",
+  },
+  insertFieldTitle: {
+    defaultMessage: "Insert a field from an earlier step",
+    id: "it+CxLEVkH",
+    description:
+      "Tooltip of the button that puts a field of an earlier workflow step into a setting's text",
+  },
+  insertFieldSearch: {
+    defaultMessage: "Find a field",
+    id: "V2whWmooom",
+    description: "Search box of the menu that lists the fields of earlier workflow steps",
+  },
+  insertFieldEmpty: {
+    defaultMessage: "No fields from earlier steps.",
+    id: "u9Qg5J09WM",
+    description: "Shown when the menu of fields from earlier workflow steps has nothing to list",
+  },
+  connectOnCanvas: {
+    defaultMessage: "Connect this on the canvas.",
+    id: "hLqs+EeEG8",
+    description:
+      "Shown in place of the editor of a workflow step setting that only a data wire can feed",
+  },
+  disconnectInput: {
+    defaultMessage: "Disconnect",
+    id: "kEhYEqOX8G",
+    description: "Button that removes the data wire feeding a workflow step's setting",
+  },
+  removeBinding: {
+    defaultMessage: "Remove",
+    id: "cRhF5oMlHA",
+    description: "Button that removes the stored binding feeding a workflow step's setting",
+  },
+  fixedValueSource: {
+    defaultMessage: "Fixed value",
+    id: "Dhw0m5NXT1",
+    description:
+      "Name of a stored literal binding shown as the source of a workflow step's setting",
+  },
+  templateSource: {
+    defaultMessage: "Template",
+    id: "2+el5hYSzQ",
+    description:
+      "Name of a stored template binding shown as the source of a workflow step's setting",
+  },
+  credentialSource: {
+    defaultMessage: "Saved credential",
+    id: "FWjftu2kiI",
+    description:
+      "Name of a stored credential binding shown as the source of a workflow step's setting",
+  },
   configurationTab: {
     defaultMessage: "Configuration",
     id: "GxutMPC4gp",
     description: "Tab of a workflow step's settings that holds the step's own form",
-  },
-  inputsTab: {
-    defaultMessage: "Inputs",
-    id: "DoPyHmkOAP",
-    description: "Visual workflow editor control",
   },
   outputsTab: {
     defaultMessage: "Outputs",
@@ -464,17 +521,6 @@ export const visualWorkflowEditorMessages = defineMessages({
       "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
     id: "1Dpcm8IxPm",
     description: "Toast after a past workflow run's values were copied into the steps' test data",
-  },
-  stepHasNoInputs: {
-    defaultMessage: "This step takes no inputs.",
-    id: "UyyYqJFLYo",
-    description: "Shown on the Inputs tab of a workflow step that has nothing to bind",
-  },
-  stepInputsAreWired: {
-    defaultMessage: "This step's inputs are set with data wires on the canvas.",
-    id: "27szzkZstW",
-    description:
-      "Shown on the Inputs tab of a workflow step whose inputs can only be connected on the canvas",
   },
   triggerType: {
     defaultMessage: "Trigger",
