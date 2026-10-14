@@ -1868,6 +1868,236 @@ export const useCasePageMessages = defineMessages({
     id: "t1KHg7fLsI",
     description: "GitHub pull request action label in the scenario card",
   },
+  marketingScenarioBriefTitle: {
+    defaultMessage: "Campaign brief",
+    id: "nuxsGyK6N4",
+    description: "Title of the first Marketing Localisation simulation card.",
+  },
+  marketingScenarioBriefDescription: {
+    defaultMessage:
+      "A growth lead shares campaign positioning, audience segments, and legal disclaimers in Slack.",
+    id: "yM7Cl6bUBX",
+    description: "Description of the campaign brief received through Slack.",
+  },
+  marketingScenarioBriefSource: {
+    defaultMessage: "Slack",
+    id: "yURXz3x3Hv",
+    description: "Source application for the marketing campaign brief.",
+  },
+  marketingScenarioBriefStatus: {
+    defaultMessage: "Campaign brief received",
+    id: "eRtr9amu/L",
+    description: "Status of the incoming marketing campaign brief.",
+  },
+
+  marketingScenarioDraftTitle: {
+    defaultMessage: "AI-powered localisation",
+    id: "wws2Pzerxm",
+    description: "Title of the AI localisation step in the Marketing simulation.",
+  },
+  marketingScenarioDraftDescription: {
+    defaultMessage:
+      "Hyperlocalise applies brand glossary and tone rules, then generates adapted campaign drafts for each locale.",
+    id: "UVudBl1p7W",
+    description: "Description of AI-assisted marketing campaign localisation.",
+  },
+  marketingScenarioDraftSource: {
+    defaultMessage: "Hyperlocalise",
+    id: "Q6ERj50qSO",
+    description: "Name of the localisation platform in the simulation.",
+  },
+  marketingScenarioDraftStatus: {
+    defaultMessage: "Generating locale-adapted drafts",
+    id: "CuOG9Sefef",
+    description: "Status displayed while campaign translations are generated.",
+  },
+
+  marketingScenarioPublishTitle: {
+    defaultMessage: "Review and publishing",
+    id: "zBFGKMaCxa",
+    description: "Title of the final Marketing Localisation simulation step.",
+  },
+  marketingScenarioPublishDescription: {
+    defaultMessage:
+      "Marketing and legal approve the copy. Approved content syncs to the CMS and ad platforms, while messaging drift is flagged.",
+    id: "0CLu3MDE4V",
+    description: "Description of marketing review, publishing, and quality checks.",
+  },
+  marketingScenarioPublishSource: {
+    defaultMessage: "CMS and ad platforms",
+    id: "T//suWqUw/",
+    description: "Publishing destinations for approved marketing content.",
+  },
+  marketingScenarioPublishStatus: {
+    defaultMessage: "Review and publishing",
+    id: "SPSa2Ut2gl",
+    description: "Status of the marketing approval and publishing step.",
+  },
+
+  marketingScenarioReady: {
+    defaultMessage: "Ready to simulate the campaign workflow",
+    id: "RcyYRYcusK",
+    description: "Initial status of the Marketing Localisation simulation.",
+  },
+  marketingScenarioRunning: {
+    defaultMessage: "Campaign localisation in progress",
+    id: "hhiF7SIUhg",
+    description: "Status while the Marketing Localisation simulation runs.",
+  },
+  marketingScenarioComplete: {
+    defaultMessage: "Campaign localisation complete",
+    id: "cKJzBi4JnQ",
+    description: "Status displayed after the Marketing Localisation simulation finishes.",
+  },
+  marketingScenarioRunButton: {
+    defaultMessage: "Run simulation",
+    id: "gVam4afICX",
+    description: "Button to start the Marketing Localisation simulation.",
+  },
+  marketingScenarioRunningButton: {
+    defaultMessage: "Running simulation",
+    id: "Gi9LiMK3Dj",
+    description: "Button label while the Marketing Localisation simulation is running.",
+  },
+  marketingScenarioRerunButton: {
+    defaultMessage: "Rerun simulation",
+    id: "XNJ0GkbiuT",
+    description: "Button to restart the Marketing Localisation simulation.",
+  },
+  marketingWorkflowSlackChannel: {
+    defaultMessage: "#campaign-launch",
+    id: "qTM/tGnsSP",
+    description: "Slack channel shown in the marketing workflow illustration.",
+  },
+  marketingWorkflowSlackSubtitle: {
+    defaultMessage: "Campaign planning",
+    id: "cioiuNfe/r",
+    description: "Subtitle of the Slack campaign channel.",
+  },
+  marketingWorkflowGrowthLead: {
+    defaultMessage: "Growth lead",
+    id: "NLtLhCxp1n",
+    description: "Author of the campaign brief in the Slack illustration.",
+  },
+  marketingWorkflowBriefMessage: {
+    defaultMessage: "Launching in six markets. Brief and brand guidelines attached.",
+    id: "sllw9a+osU",
+    description: "Example Slack message sharing a campaign launch brief.",
+  },
+  marketingWorkflowBriefFile: {
+    defaultMessage: "Global launch brief",
+    id: "35W0ZRNR3b",
+    description: "Name of the attached marketing campaign brief.",
+  },
+  marketingWorkflowBriefFileMeta: {
+    defaultMessage: "Positioning · Audience · Legal",
+    id: "qnC4LfUtVQ",
+    description: "Contents of the attached campaign brief.",
+  },
+  marketingWorkflowBriefCaptured: {
+    defaultMessage: "Brief captured",
+    id: "OxcpPm8gaO",
+    description: "Confirmation that the campaign brief has been captured.",
+  },
+
+  marketingWorkflowDraftsHeader: {
+    defaultMessage: "Campaign localisation",
+    id: "FrzH0KWGY7",
+    description: "Heading in the AI-generated marketing drafts illustration.",
+  },
+  marketingWorkflowSourceLabel: {
+    defaultMessage: "Original campaign",
+    id: "elsjbm8F6D",
+    description: "Label identifying the source campaign copy.",
+  },
+  marketingWorkflowSourceCopy: {
+    defaultMessage: "Your next chapter starts here.",
+    id: "x45mGOPwFY",
+    description: "Example English source copy used in the campaign illustration.",
+  },
+  marketingWorkflowFrenchDraft: {
+    defaultMessage: "Votre prochain chapitre commence ici.",
+    id: "gmlleXfb9W",
+    description: "Example French campaign translation.",
+  },
+  marketingWorkflowGermanDraft: {
+    defaultMessage: "Dein nächstes Kapitel beginnt hier.",
+    id: "CF/ENx2P5F",
+    description: "Example German campaign translation.",
+  },
+  marketingWorkflowJapaneseDraft: {
+    defaultMessage: "次の章はここから始まる。",
+    id: "c/9KiH5Wy9",
+    description: "Example Japanese campaign translation.",
+  },
+  marketingWorkflowRulesApplied: {
+    defaultMessage: "Brand glossary and tone rules applied",
+    id: "8vhErzA257",
+    description: "Confirmation that brand terminology and tone rules were applied.",
+  },
+
+  marketingWorkflowPublishingHeader: {
+    defaultMessage: "Launch readiness",
+    id: "uqNgscIC+F",
+    description: "Heading in the marketing approval and publishing illustration.",
+  },
+  marketingWorkflowPublishingSubtitle: {
+    defaultMessage: "Campaign delivery",
+    id: "GVyL2TEDjC",
+    description: "Subtitle in the marketing publishing illustration.",
+  },
+  marketingWorkflowLegalApproved: {
+    defaultMessage: "Marketing and legal approved",
+    id: "Sn0KIM3wA1",
+    description: "Approval status for the localised marketing campaign.",
+  },
+  marketingWorkflowCmsPublished: {
+    defaultMessage: "CMS content published",
+    id: "sdvJ5hS0hP",
+    description: "Publishing status for the campaign website content.",
+  },
+  marketingWorkflowAdsSynced: {
+    defaultMessage: "Ad platforms synced",
+    id: "OW4UNK2cPP",
+    description: "Sync status for advertising platforms.",
+  },
+  marketingWorkflowDriftMonitored: {
+    defaultMessage: "Messaging drift monitored",
+    id: "OOje5vbW61",
+    description: "Confirmation that messaging drift is being monitored.",
+  },
+
+  marketingWorkflowStepBriefTitle: {
+    defaultMessage: "Share the campaign brief",
+    id: "1TMVqVcYbL",
+    description: "Title of the first marketing workflow step.",
+  },
+  marketingWorkflowStepBriefDescription: {
+    defaultMessage:
+      "Capture positioning, audience segments, and legal requirements directly from Slack.",
+    id: "KOGscd0NLa",
+    description: "Description of the campaign intake step.",
+  },
+  marketingWorkflowStepLocaliseTitle: {
+    defaultMessage: "Adapt for every market",
+    id: "BMj/d764Ie",
+    description: "Title of the second marketing workflow step.",
+  },
+  marketingWorkflowStepLocaliseDescription: {
+    defaultMessage: "Generate locale-ready drafts that follow your brand glossary and tone.",
+    id: "Pymp/rqM/G",
+    description: "Description of the AI localisation step.",
+  },
+  marketingWorkflowStepPublishTitle: {
+    defaultMessage: "Review and publish",
+    id: "Eu7/DQx6Fe",
+    description: "Title of the final marketing workflow step.",
+  },
+  marketingWorkflowStepPublishDescription: {
+    defaultMessage: "Route approvals, sync content to your channels, and catch messaging drift.",
+    id: "QMOQI6gBa/",
+    description: "Description of the approval and publishing step.",
+  },
 });
 
 export type UseCaseMessageKey = keyof typeof useCasePageMessages;

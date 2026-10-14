@@ -26,6 +26,9 @@ import {
 import { ProductLocalisationWorkflowSection } from "./product-localisation-workflow";
 import { ProductLocalisationCapabilities } from "./product-localisation-capabilities";
 import { ProductLocalisationScenario } from "./product-localisation-scenario";
+import { MarketingLocalisationScenario } from "./marketing-localisation-scenario";
+import { MarketingLocalisationWorkflowSection } from "./marketing-localisation-workflow";
+import { MarketingLocalisationCapabilities } from "./marketing-localisation-capabilities";
 
 type UseCasePageProps = {
   content: UseCasePageContent;
@@ -46,6 +49,8 @@ export function UseCasePage({ content }: UseCasePageProps) {
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           {content.slug === "product-localisation" ? (
             <ProductLocalisationWorkflowSection content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationWorkflowSection content={content} />
           ) : (
             <UseCaseWorkflowSection content={content.workflow} />
           )}
@@ -54,6 +59,8 @@ export function UseCasePage({ content }: UseCasePageProps) {
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           {content.slug === "product-localisation" ? (
             <ProductLocalisationCapabilities content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationCapabilities content={content} />
           ) : (
             <UseCaseCapabilitiesSection content={content.capabilities} />
           )}
@@ -66,6 +73,8 @@ export function UseCasePage({ content }: UseCasePageProps) {
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
           {content.slug === "product-localisation" ? (
             <ProductLocalisationScenario content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationScenario content={content} />
           ) : (
             <UseCaseScenarioSection content={content.scenario} />
           )}

@@ -111,9 +111,10 @@ type UseCaseOverviewSectionProps = {
 };
 
 export function UseCaseOverviewSection({ content }: UseCaseOverviewSectionProps) {
-  const isProductLocalisation = content.slug === "product-localisation";
+  const useEditorialOverview =
+    content.slug === "product-localisation" || content.slug === "marketing-localisation";
 
-  if (!isProductLocalisation) {
+  if (!useEditorialOverview) {
     return (
       <section>
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.4fr] lg:items-start">

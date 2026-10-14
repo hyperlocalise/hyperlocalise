@@ -15,54 +15,39 @@
 
 import * as React from "react";
 import Image from "next/image";
-
+import { useEffect, useRef } from "react";
 import {
   ArrowRightIcon,
   BookOpenIcon,
   CheckCircleIcon,
-  CircleNotchIcon,
   CodeIcon,
   GitPullRequestIcon,
-  GlobeIcon,
-  LightningIcon,
   ShieldCheckIcon,
+  SparkleIcon,
   TranslateIcon,
   UsersIcon,
-  SparkleIcon,
-  MagnifyingGlassIcon,
-  ChatCircleTextIcon,
-  ClockIcon,
 } from "@phosphor-icons/react";
-
 import { FormattedMessage } from "react-intl";
-import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
-import type { UseCasePageContent, UseCaseWorkflowStep } from "./use-case-page-content";
-import { useCasePageMessages, type UseCaseMessageKey } from "./use-case-page-content.messages";
-import { useEffect, useRef } from "react";
+import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { IntegrationLogoMark } from "@/components/marketing/integrations/integration-logo-mark";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { getIntegrationCatalogEntry } from "@/lib/integrations/integration-catalog";
 import { resolveIntegrationBySlug } from "@/lib/integrations/resolve-integration-catalog";
+import type { UseCasePageContent, UseCaseWorkflowStep } from "./use-case-page-content";
+import { useCasePageMessages, type UseCaseMessageKey } from "./use-case-page-content.messages";
 
-type Props = {
-  content: UseCasePageContent;
-};
+type Props = { content: UseCasePageContent };
 
 function Message({ messageKey }: { messageKey: UseCaseMessageKey }) {
   return <FormattedMessage {...useCasePageMessages[messageKey]} />;
 }
 
-const meshSources = ["/images/mesh/mesh-gradient-1784864145512.jpg"] as const;
-
-const stepIcons = [
-  GitPullRequestIcon,
-  BookOpenIcon,
-  TranslateIcon,
-  UsersIcon,
-  SparkleIcon,
-  MagnifyingGlassIcon,
-  CircleNotchIcon,
-  ShieldCheckIcon,
+const visibleStepIndices = [0, 1, 2, 5] as const;
+const meshSources = [
+  "/images/mesh/mesh-gradient-1784864073608.jpg",
+  "/images/mesh/mesh-gradient-1788785908604.jpg",
+  "/images/mesh/mesh-gradient-1784864042890.jpg",
+  "/images/mesh/mesh-gradient-1784864145512.jpg",
 ] as const;
 
 function MockRow({
@@ -131,89 +116,6 @@ function AIDraftVisual({ step, expanded }: WorkflowGlassVisualProps) {
         ))}
         <ArrowRightIcon className="ml-auto size-4 text-primary" aria-hidden />
       </div>
-      {expanded ? <div className="mt-auto h-1 rounded-full bg-primary/40" /> : null}
-    </div>
-  );
-}
-
-function HumanReviewVisual({ step, expanded }: WorkflowGlassVisualProps) {
-  const reviewItems = [
-    {
-      locale: "FR",
-      languageKey: "productLocalisationReviewFrench",
-      statusKey: "productLocalisationReviewAssigned",
-      Icon: CheckCircleIcon,
-    },
-    {
-      locale: "DE",
-      languageKey: "productLocalisationReviewGerman",
-      statusKey: "productLocalisationReviewInReview",
-      Icon: ChatCircleTextIcon,
-    },
-    {
-      locale: "JA",
-      languageKey: "productLocalisationReviewJapanese",
-      statusKey: "productLocalisationReviewWaiting",
-      Icon: ClockIcon,
-    },
-  ] as const;
-
-  return (
-    <div className="absolute inset-x-[8%] top-[24%] flex flex-col gap-1.5">
-      {/* Floating glass header */}
-      <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-accent/50 px-3 py-2 shadow-lg backdrop-blur-xl">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-background/15">
-          <UsersIcon className="size-3.5 text-foreground" aria-hidden />
-        </span>
-
-        <span className="min-w-0 flex-1 truncate text-[0.7rem] font-medium text-foreground">
-          <Message messageKey={step.labelKey} />
-        </span>
-
-        <span aria-hidden className="size-1.5 rounded-full bg-primary" />
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-border/20 bg-accent/50 px-2 py-1.5 shadow-lg backdrop-blur-xl">
-        {reviewItems.map(({ locale, languageKey, statusKey, Icon }, index) => {
-          const highlighted = expanded && index === 1;
-
-          return (
-            <div
-              key={locale}
-              className={[
-                "flex items-center gap-2 rounded-lg px-1 py-1",
-                "transition-colors duration-200",
-                highlighted ? "bg-primary/25" : "hover:bg-background/10",
-              ].join(" ")}
-            >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-background/15 text-[0.65rem] font-semibold text-foreground">
-                {locale}
-              </span>
-
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[0.7rem] font-medium leading-4 text-foreground">
-                  <Message messageKey={languageKey} />
-                </span>
-
-                <span className="truncate text-[0.6rem] leading-3 text-foreground/75">
-                  <Message messageKey={statusKey} />
-                </span>
-              </div>
-
-              <span
-                className={[
-                  "flex size-7 shrink-0 items-center justify-center rounded-md",
-                  highlighted
-                    ? "bg-primary/30 text-background"
-                    : "bg-background/15 text-foreground",
-                ].join(" ")}
-              >
-                <Icon className="size-3.5" weight={index === 0 ? "fill" : "regular"} aria-hidden />
-              </span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -226,7 +128,7 @@ function ReleaseCheckVisual({ step }: WorkflowGlassVisualProps) {
   ];
 
   return (
-    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl bg-accent/50 p-4 py-1.5 shadow-lg backdrop-blur-xl sm:p-5">
+    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl bg-background p-4 py-1.5 shadow-lg backdrop-blur-xl sm:p-5">
       <div className="flex items-center gap-2.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <ShieldCheckIcon className="size-5 text-primary" aria-hidden />
@@ -240,7 +142,7 @@ function ReleaseCheckVisual({ step }: WorkflowGlassVisualProps) {
         {checks.map(({ Icon, messageKey }) => (
           <div
             key={messageKey}
-            className="flex items-center gap-2.5 rounded-xl border border-primary/20 bg-muted/60 px-3 py-2.5"
+            className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-muted px-2 py-2"
           >
             <Icon className="size-4 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0 flex-1 truncate text-xs text-foreground">
@@ -254,167 +156,25 @@ function ReleaseCheckVisual({ step }: WorkflowGlassVisualProps) {
   );
 }
 
-function WorkflowPreview({
-  index,
-  step,
-  expanded,
-}: {
-  index: number;
-  step: UseCaseWorkflowStep;
-  expanded: boolean;
-}) {
-  const Icon = stepIcons[index] ?? LightningIcon;
-
-  if (index === 2) return <AIDraftVisual step={step} expanded={expanded} />;
-  if (index === 3) return <HumanReviewVisual step={step} expanded={expanded} />;
-  if (index === 5) return <ReleaseCheckVisual step={step} expanded={expanded} />;
-
+function GithubPrVisual({ step, expanded }: WorkflowGlassVisualProps) {
   return (
-    <div className="absolute inset-x-5 top-[24%] flex flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-[0_12px_32px_rgba(0,0,0,0.13)] py-1.5">
+    <div className="absolute inset-x-[7%] top-[24%] overflow-hidden rounded-xl border border-border bg-background shadow-[0_12px_32px_rgba(0,0,0,0.13)]">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Icon className="size-4 text-foreground" aria-hidden />
-          </span>
-
+          <GitPullRequestIcon className="size-4 shrink-0 text-foreground" aria-hidden />
           <span className="truncate text-[0.72rem] font-semibold text-foreground">
             <Message messageKey={step.labelKey} />
           </span>
         </div>
-
-        <span
-          className={[
-            "size-2 shrink-0 rounded-full",
-            expanded ? "bg-pink-500" : "bg-green-600",
-          ].join(" ")}
-          aria-hidden
-        />
+        <span aria-hidden className="size-2 shrink-0 rounded-full bg-green-600" />
       </div>
-
-      <div className="min-h-0 flex-1 space-y-2 overflow-hidden p-3">
-        {index === 0 ? (
-          <>
-            <MockRow icon={GitPullRequestIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={CodeIcon}>
-              <Message messageKey="productLocalisationWorkflowStep0Description" />
-            </MockRow>
-
-            <div className="flex items-center gap-2 px-1 pt-1">
-              <span className="size-2 rounded-full bg-green-600" />
-
-              <span className="h-1.5 flex-1 rounded-full bg-green-500/50" />
-
-              <span className="size-2 rounded-full bg-pink-500" />
-            </div>
-          </>
-        ) : null}
-
-        {index === 1 ? (
-          <>
-            <MockRow icon={BookOpenIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={ShieldCheckIcon}>
-              <Message messageKey="productLocalisationCapability2Title" />
-            </MockRow>
-
-            <MockRow icon={GlobeIcon}>
-              <Message messageKey="productLocalisationWorkflowStep1Description" />
-            </MockRow>
-          </>
-        ) : null}
-
-        {index === 2 ? (
-          <>
-            <MockRow icon={TranslateIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={LightningIcon}>
-              <Message messageKey="productLocalisationWorkflowStep2Description" />
-            </MockRow>
-
-            <MockRow icon={ArrowRightIcon}>
-              <Message messageKey="productLocalisationWorkflowStep3Label" />
-            </MockRow>
-          </>
-        ) : null}
-
-        {index === 3 ? (
-          <>
-            <MockRow icon={UsersIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={CheckCircleIcon}>
-              <Message messageKey="productLocalisationWorkflowStep3Description" />
-            </MockRow>
-
-            <MockRow icon={ArrowRightIcon}>
-              <Message messageKey="productLocalisationWorkflowStep4Label" />
-            </MockRow>
-          </>
-        ) : null}
-
-        {index === 4 ? (
-          <>
-            <MockRow icon={CircleNotchIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={CheckCircleIcon}>
-              <Message messageKey="productLocalisationWorkflowStep4Description" />
-            </MockRow>
-
-            <div className="flex gap-1.5 px-1 pt-2">
-              {[0, 1, 2, 3, 4].map((item) => (
-                <span
-                  key={item}
-
-                  className={[
-                    "h-1.5 flex-1 rounded-full",
-
-                    item < 4 ? "bg-green-600" : "bg-pink-500",
-                  ].join(" ")}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {index === 5 ? (
-          <>
-            <MockRow icon={ShieldCheckIcon} selected>
-              <Message messageKey={step.labelKey} />
-            </MockRow>
-
-            <MockRow icon={GlobeIcon}>
-              <Message messageKey="productLocalisationWorkflowStep5Description" />
-            </MockRow>
-
-            <MockRow icon={CheckCircleIcon}>
-              <Message messageKey="productLocalisationWorkflowStep3Label" />
-            </MockRow>
-          </>
-        ) : null}
-      </div>
-
-      <div
-        className={[
-          "overflow-hidden border-t border-border bg-muted/60",
-          "transition-[max-height,opacity] duration-300 motion-reduce:transition-none",
-          expanded ? "max-h-40 opacity-100" : "max-h-0 border-t-0 opacity-0",
-        ].join(" ")}
-      >
-        {step.descriptionKey ? (
-          <p className="px-3 py-3 text-[0.73rem] leading-5 text-foreground">
-            <Message messageKey={step.descriptionKey} />
-          </p>
-        ) : null}
+      <div className="space-y-2 p-3">
+        <MockRow icon={GitPullRequestIcon} selected={expanded}>
+          <Message messageKey={step.labelKey} />
+        </MockRow>
+        <MockRow icon={CodeIcon}>
+          <Message messageKey="productLocalisationWorkflowStep0Description" />
+        </MockRow>
       </div>
     </div>
   );
@@ -438,7 +198,6 @@ function ProductContextVisual({
   expanded,
 }: {
   step: UseCaseWorkflowStep;
-
   expanded: boolean;
 }) {
   const locale = useAppLocale();
@@ -450,18 +209,17 @@ function ProductContextVisual({
     if (!element || paused || expanded) {
       return;
     }
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) {
       return;
     }
+
     let frame = 0;
     let previousTime = 0;
-
     const animate = (time: number) => {
       if (previousTime) {
         element.scrollTop += ((time - previousTime) / 1000) * 16;
-
         if (element.scrollTop + element.clientHeight >= element.scrollHeight - 2) {
           element.scrollTop = 0;
         }
@@ -472,7 +230,6 @@ function ProductContextVisual({
     };
 
     frame = requestAnimationFrame(animate);
-
     return () => cancelAnimationFrame(frame);
   }, [paused, expanded]);
 
@@ -502,7 +259,6 @@ function ProductContextVisual({
           const entry = getIntegrationCatalogEntry(slug);
           const resolved = resolveIntegrationBySlug(locale, slug);
           const name = resolved?.name ?? slug;
-
           return (
             <div
               key={slug}
@@ -522,7 +278,6 @@ function ProductContextVisual({
               <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
                 {name}
               </span>
-
               <span
                 aria-hidden
                 className={[
@@ -538,51 +293,69 @@ function ProductContextVisual({
   );
 }
 
+type Background = "mesh" | "muted";
+
 function WorkflowCard({
   step,
-  index,
+  visualIndex,
+  number,
+  background,
+  meshIndex,
   selected,
   onSelect,
 }: {
   step: UseCaseWorkflowStep;
-  index: number;
+  visualIndex: 0 | 1 | 2 | 5;
+  number: number;
+  background: Background;
+  meshIndex: number;
   selected: boolean;
   onSelect: () => void;
 }) {
+  const mesh = visualIndex === 0 ? meshSources[0] : meshSources[1];
+
   return (
     <article className="min-w-0">
       <button
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        className="group block w-full cursor-pointer rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="group block w-full cursor-pointer rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <div className="relative aspect-square overflow-hidden rounded-[1.5rem]">
-          <Image
-            src={meshSources[index % meshSources.length]}
-            alt=""
-            aria-hidden
-            fill
-            unoptimized
-            sizes="(min-width: 1280px) 30vw, (min-width: 768px) 50vw, 100vw"
-            className="object-cover"
-          />
-
-          <span className="absolute left-3 top-3 z-10 flex size-8 items-center justify-center rounded-xl bg-black/25 text-sm font-medium text-white backdrop-blur-sm">
-            {index + 1}
-          </span>
-          {index === 1 ? (
-            <ProductContextVisual step={step} expanded={selected} />
+        <div className="relative aspect-5/6 overflow-hidden rounded-[1rem] bg-[#F4F4F4]">
+          {background === "mesh" ? (
+            <Image
+              src={meshSources[meshIndex % meshSources.length]}
+              alt=""
+              fill
+              unoptimized
+              sizes="(min-width: 1280px) 25vw, (min-width: 768px) 50vw, 100vw"
+              className="object-cover opacity-50"
+              aria-hidden
+            />
           ) : (
-            <WorkflowPreview index={index} step={step} expanded={selected} />
+            <div className="absolute inset-0 bg-muted/45" aria-hidden="true" />
+          )}
+
+          <span className="absolute left-3 top-3 z-10 flex size-8 items-center justify-center rounded-xl bg-foreground/15 text-sm font-medium text-foreground backdrop-blur-sm">
+            {number}
+          </span>
+
+          {visualIndex === 0 ? (
+            <GithubPrVisual step={step} expanded={selected} />
+          ) : visualIndex === 1 ? (
+            <ProductContextVisual step={step} expanded={selected} />
+          ) : visualIndex === 2 ? (
+            <AIDraftVisual step={step} expanded={selected} />
+          ) : (
+            <ReleaseCheckVisual step={step} expanded={selected} />
           )}
         </div>
 
-        <div className="mt-5 space-y-3">
-          <TypographyH3 className="text-2xl leading-tight tracking-[-0.03em]">
+        <div className="mt-5 space-y-2">
+          <h3 className="text-base font-medium leading-tight text-foreground">
             <Message messageKey={step.labelKey} />
-          </TypographyH3>
-
+          </h3>
           {step.descriptionKey ? (
             <TypographyP className="max-w-md leading-relaxed" size="small" tone="subtle">
               <Message messageKey={step.descriptionKey} />
@@ -603,26 +376,32 @@ export function ProductLocalisationWorkflowSection({ content }: Props) {
         <TypographyP className="text-[0.95rem] tracking-[-0.02em]" tone="subtle">
           <Message messageKey={content.workflow.labelKey} />
         </TypographyP>
-
         <TypographyH2 className="mt-4 text-4xl leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-[3.25rem]">
           <Message messageKey={content.workflow.titleKey} />
         </TypographyH2>
-
         <TypographyP className="mx-auto mt-6 max-w-2xl" tone="subtle">
           <Message messageKey={content.workflow.descriptionKey} />
         </TypographyP>
       </div>
 
-      <div className="mt-14 grid gap-x-6 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
-        {content.workflow.steps.map((step, index) => (
-          <WorkflowCard
-            key={step.labelKey}
-            step={step}
-            index={index}
-            selected={selectedIndex === index}
-            onSelect={() => setSelectedIndex((current) => (current === index ? null : index))}
-          />
-        ))}
+      <div className="mt-14 grid gap-x-4 gap-y-10 md:grid-cols-2 xl:grid-cols-4">
+        {visibleStepIndices.map((visualIndex, index) => {
+          const step = content.workflow.steps[visualIndex];
+          if (!step) return null;
+
+          return (
+            <WorkflowCard
+              key={step.labelKey}
+              step={step}
+              visualIndex={visualIndex}
+              number={index + 1}
+              meshIndex={index}
+              background={index === 0 || index === 2 || index === 3 ? "mesh" : "muted"}
+              selected={selectedIndex === index}
+              onSelect={() => setSelectedIndex((current) => (current === index ? null : index))}
+            />
+          );
+        })}
       </div>
     </section>
   );
