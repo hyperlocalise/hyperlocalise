@@ -3,7 +3,7 @@ import type { FigmaSegment } from "./plugin-messages";
 export const FIGMA_SEGMENT_PLUGIN_NAMESPACE = "hyperlocalise:segment:v1";
 export const FIGMA_SEGMENT_KEY_PREFIX = "figma.k.";
 
-function fillRandomBytes(bytes: Uint8Array) {
+function fillRandomBytes(bytes: Uint8Array<ArrayBuffer>) {
   const webCrypto = globalThis.crypto;
   if (webCrypto && typeof webCrypto.getRandomValues === "function") {
     webCrypto.getRandomValues(bytes);
@@ -17,7 +17,7 @@ function fillRandomBytes(bytes: Uint8Array) {
 function randomSegmentUlid(): string {
   const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
   let id = "";
-  const bytes = new Uint8Array(16);
+  const bytes = new Uint8Array(new ArrayBuffer(16));
   fillRandomBytes(bytes);
   for (let i = 0; i < 26; i += 1) {
     id += alphabet[bytes[i % bytes.length]! % 32];

@@ -11,7 +11,8 @@ import {
   serializePageJobBinding,
   type FigmaPageJobBinding,
 } from "./page-binding";
-import { createFigmaSegment } from "./segment-file";
+import { buildFigmaApplyTextIndex, resolveFigmaApplyTarget } from "./apply-translations";
+import { createFigmaSegment, readStampedSegmentKey } from "./segment-file";
 import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
 import { hadLegacyFigmaSession, mergeSettings } from "./settings";
 
@@ -98,8 +99,8 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
 
     if (msg.type === "apply") {
       const page = await requirePage(msg.pageId);
-      const textNodes = collectTextNodes(page);
-      const count = await applyTranslations(textNodes, msg.translations);
+      const textNodes = collectAllTextNodesOnPage(page);
+      const count = await applyTranslations(textNodes, msg.translations, msg.sourceByKey);
       postToUi({ type: "applied", count });
     }
   } catch (error) {
@@ -210,6 +211,10 @@ function collectTextNodes(page: PageNode): TextNode[] {
     return selected;
   }
 
+  return collectAllTextNodesOnPage(page);
+}
+
+function collectAllTextNodesOnPage(page: PageNode): TextNode[] {
   return page.findAll((node) => node.type === "TEXT") as TextNode[];
 }
 
@@ -233,25 +238,30 @@ function extractSegments(nodes: TextNode[]) {
   return segments;
 }
 
-async function applyTranslations(nodes: TextNode[], translations: Record<string, string>) {
+async function applyTranslations(
+  nodes: TextNode[],
+  translations: Record<string, string>,
+  sourceByKey: Record<string, string>,
+) {
   let applied = 0;
+  const textIndex = buildFigmaApplyTextIndex({ sourceByKey, translations });
 
   for (const node of nodes) {
     if (!node.characters.trim()) {
       continue;
     }
 
-    await loadFontsForNode(node);
-
-    const segment = createFigmaSegment({
-      node,
-      regionIndex: 0,
-      text: node.characters,
+    const nextText = resolveFigmaApplyTarget({
+      nodeText: node.characters,
+      stampedKey: readStampedSegmentKey(node),
+      translations,
+      textIndex,
     });
-    const nextText = translations[segment.key];
     if (!nextText || nextText === node.characters) {
       continue;
     }
+
+    await loadFontsForNode(node);
     node.characters = nextText;
     applied += 1;
   }

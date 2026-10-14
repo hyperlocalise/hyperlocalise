@@ -13,16 +13,33 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildFigmaPageFileName,
+  buildFigmaPageSourcePath,
   buildFigmaSourcePath,
   figmaSourceFileNeedsReupload,
   parseTranslationFile,
+  sanitizeFigmaId,
   segmentsToTranslationFile,
 } from "./segment-file";
+import { slugifyFigmaName } from "./names";
 
 describe("figma segment file", () => {
-  it("builds source paths", () => {
+  it("builds legacy and per-page source paths", () => {
     expect(buildFigmaSourcePath("abc123", "12:34")).toBe("figma/files/abc123/pages/12:34.json");
     expect(buildFigmaSourcePath("../oops", "page/a")).toBe("figma/files/oops/pages/page_a.json");
+    expect(sanitizeFigmaId("12:34")).toBe("12-34");
+    expect(slugifyFigmaName("Marketing Site", "abc")).toBe("marketing-site");
+    expect(buildFigmaPageFileName({ pageName: "Home", pageId: "12:34" })).toBe(
+      "page-home-12-34.json",
+    );
+    expect(
+      buildFigmaPageSourcePath({
+        fileName: "Marketing",
+        fileKey: "abc123",
+        pageName: "Home",
+        pageId: "12:34",
+      }),
+    ).toBe("figma/files/marketing-abc123/page-home-12-34.json");
   });
 
   it("round-trips stamped keys and skips empty or legacy keys", () => {

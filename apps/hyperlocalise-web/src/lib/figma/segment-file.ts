@@ -12,6 +12,8 @@
  */
 import type { FigmaDesignSegment } from "./types";
 
+import { slugifyFigmaName } from "./names";
+
 export const FIGMA_SEGMENT_KEY_PREFIX = "figma.k.";
 export const FIGMA_LEGACY_SEGMENT_KEY_PREFIX = "figma.segment.";
 
@@ -69,6 +71,39 @@ function sanitizeFigmaPathSegment(value: string): string {
   return sanitized.slice(0, 128) || "unknown";
 }
 
+/** Filesystem-safe Figma node id (`12:34` → `12-34`). */
+export function sanitizeFigmaId(pageId: string): string {
+  return (
+    pageId
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 128) || "page"
+  );
+}
+
+export function buildFigmaPageFileName(input: { pageName?: string; pageId: string }): string {
+  const pageSlug = slugifyFigmaName(input.pageName, "page");
+  const idPart = sanitizeFigmaId(input.pageId);
+  return `page-${pageSlug}-${idPart}.json`;
+}
+
+export function buildFigmaPageSourcePath(input: {
+  fileName?: string;
+  fileKey: string;
+  pageName?: string;
+  pageId: string;
+}): string {
+  const fileSlug = slugifyFigmaName(input.fileName, input.fileKey);
+  const fileKeyPart = sanitizeFigmaPathSegment(input.fileKey);
+  const pageFile = buildFigmaPageFileName({
+    pageName: input.pageName,
+    pageId: input.pageId,
+  });
+  return `figma/files/${fileSlug}-${fileKeyPart}/${pageFile}`;
+}
+
+/** Legacy path shape; kept for jobs created before per-page filenames. */
 export function buildFigmaSourcePath(fileKey: string, pageId: string): string {
   return `figma/files/${sanitizeFigmaPathSegment(fileKey)}/pages/${sanitizeFigmaPathSegment(pageId)}.json`;
 }

@@ -12,7 +12,14 @@
  */
 import { z } from "zod";
 
-import { isSourceTextKey, parseTranslationFile } from "@/lib/canva/segment-file";
+import {
+  isSourceTextKey,
+  parseTranslationFile as parseCanvaTranslationFile,
+} from "@/lib/canva/segment-file";
+import {
+  isFigmaStampSegmentKey,
+  parseTranslationFile as parseFigmaTranslationFile,
+} from "@/lib/figma/segment-file";
 
 export const fileTranslationReportSchema = z.object({
   deferredByLimit: z.number().int().nonnegative(),
@@ -121,6 +128,27 @@ function usesCanvaSourceTextKeys(sourceEntries: Record<string, string>): boolean
   return Object.keys(sourceEntries).some(isSourceTextKey);
 }
 
+function usesFigmaStampSourceKeys(sourceEntries: Record<string, string>): boolean {
+  return Object.keys(sourceEntries).some(isFigmaStampSegmentKey);
+}
+
+function usesIntegrationJsonSourceTextKeys(sourceEntries: Record<string, string>): boolean {
+  return usesCanvaSourceTextKeys(sourceEntries) || usesFigmaStampSourceKeys(sourceEntries);
+}
+
+function parseIntegrationJsonTranslationFile(
+  content: Record<string, unknown>,
+  sourceEntries: Record<string, string>,
+): Record<string, string> {
+  if (usesFigmaStampSourceKeys(sourceEntries)) {
+    return parseFigmaTranslationFile(content);
+  }
+  if (usesCanvaSourceTextKeys(sourceEntries)) {
+    return parseCanvaTranslationFile(content);
+  }
+  return {};
+}
+
 /** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
  * lock and a re-extracted target file never share keys. Collect only path keys
  * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
@@ -172,7 +200,7 @@ export async function collectFileTranslationPageStep(input: {
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
   const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
-  const canvaJsonCollect = usesCanvaSourceTextKeys(input.sourceEntries);
+  const integrationJsonCollect = usesIntegrationJsonSourceTextKeys(input.sourceEntries);
   const lock: unknown = JSON.parse(
     utf8FromStoredFileContent(
       await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
@@ -216,11 +244,14 @@ export async function collectFileTranslationPageStep(input: {
     if (!extracted.ok) throw new Error("failed to extract completed translations");
     const hlExtracted = hlEntriesPayloadToStringMap(extracted.entries);
     let extractedForCollect = hlExtracted;
-    if (canvaJsonCollect && filename.endsWith(".json")) {
+    if (integrationJsonCollect && filename.endsWith(".json")) {
       const targetRaw = utf8FromStoredFileContent(
         await readTranslatedFile(input.sandboxId, filename),
       );
-      const fileExtracted = parseTranslationFile(JSON.parse(targetRaw) as Record<string, unknown>);
+      const fileExtracted = parseIntegrationJsonTranslationFile(
+        JSON.parse(targetRaw) as Record<string, unknown>,
+        input.sourceEntries,
+      );
       extractedForCollect = mergeCanvaJsonExtractedEntries({
         keys,
         sourceEntries: input.sourceEntries,

@@ -24,6 +24,7 @@ import {
   getStoredFileContent,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
+import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { isErr } from "@/lib/primitives/result/results";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
@@ -34,7 +35,10 @@ import {
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
+  buildFigmaPageFileName,
+  buildFigmaPageSourcePath,
   buildFigmaSourcePath,
+  isFigmaStampSegmentKey,
   parseTranslationFile,
   segmentsToTranslationFile,
 } from "./segment-file";
@@ -124,6 +128,125 @@ async function loadTranslationsByLocale(input: {
   }
 
   return translationsByLocale;
+}
+
+/** Job output fills missing editor rows; Content Editor text still wins. */
+export function mergeFigmaPullTranslations(
+  editorTranslations: Record<string, string>,
+  jobTranslations: Record<string, string>,
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries(jobTranslations)) {
+    if (value.trim().length > 0) {
+      merged[key] = value;
+    }
+  }
+  for (const [key, value] of Object.entries(editorTranslations)) {
+    if (value.trim().length > 0) {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+function localeKey(locale: string): string {
+  return locale.trim().toLowerCase();
+}
+
+export function pickTranslationsForLocale(
+  translationsByLocale: Record<string, Record<string, string>>,
+  locale: string,
+): Record<string, string> | undefined {
+  const trimmed = locale.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (translationsByLocale[trimmed]) {
+    return translationsByLocale[trimmed];
+  }
+  const canonical = canonicalizeLocale(trimmed);
+  if (canonical && translationsByLocale[canonical]) {
+    return translationsByLocale[canonical];
+  }
+  const targetKey = localeKey(trimmed);
+  const match = Object.entries(translationsByLocale).find(
+    ([entryLocale]) => localeKey(entryLocale) === targetKey,
+  );
+  return match?.[1];
+}
+
+function countNonEmptyTranslations(translations: Record<string, string>): number {
+  return Object.values(translations).filter((value) => value.trim().length > 0).length;
+}
+
+async function loadFigmaEditorTranslationsBySourcePath(input: {
+  organizationId: string;
+  projectId: string;
+  locale: string;
+  sourcePath: string;
+}): Promise<Record<string, string>> {
+  const rows = await db
+    .select({
+      key: schema.projectTranslationKeys.key,
+      text: schema.projectTranslations.text,
+    })
+    .from(schema.projectTranslations)
+    .innerJoin(
+      schema.projectTranslationKeys,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslations.organizationId, input.organizationId),
+        eq(schema.projectTranslations.projectId, input.projectId),
+        eq(schema.projectTranslations.targetLocale, input.locale),
+        eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+      ),
+    );
+
+  const segments: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.text.trim().length === 0 || !isFigmaStampSegmentKey(row.key)) {
+      continue;
+    }
+    segments[row.key] = row.text;
+  }
+  return segments;
+}
+
+async function mergeFigmaTranslationsWithEditor(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  jobTranslations: Record<string, Record<string, string>>;
+  targetLocales: string[];
+}): Promise<Record<string, Record<string, string>>> {
+  const localeSet = new Set<string>([
+    ...Object.keys(input.jobTranslations),
+    ...input.targetLocales.map((locale) => locale.trim()).filter(Boolean),
+  ]);
+  const mergedByLocale: Record<string, Record<string, string>> = {};
+
+  await Promise.all(
+    [...localeSet].map(async (locale) => {
+      const editor = await loadFigmaEditorTranslationsBySourcePath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        locale,
+        sourcePath: input.sourcePath,
+      });
+      const merged = mergeFigmaPullTranslations(editor, input.jobTranslations[locale] ?? {});
+      if (countNonEmptyTranslations(merged) > 0) {
+        mergedByLocale[locale] = merged;
+      }
+    }),
+  );
+
+  return mergedByLocale;
 }
 
 function readMetadataString(inputPayload: unknown, key: string): string | null {
@@ -238,15 +361,24 @@ async function toFigmaPageJob(input: {
     );
 
   let translationsByLocale: Record<string, Record<string, string>> = {};
+  const targetLocales = readJobTargetLocales(input.job.inputPayload);
   if (figmaJobHasPullableTranslations(status)) {
     const outputFiles = publicJobOutputFiles(input.job) ?? [];
-    if (outputFiles.length > 0) {
-      translationsByLocale = await loadTranslationsByLocale({
-        organizationId: input.organizationId,
-        projectId,
-        outputFiles,
-      });
-    }
+    const jobTranslations =
+      outputFiles.length > 0
+        ? await loadTranslationsByLocale({
+            organizationId: input.organizationId,
+            projectId,
+            outputFiles,
+          })
+        : {};
+    translationsByLocale = await mergeFigmaTranslationsWithEditor({
+      organizationId: input.organizationId,
+      projectId,
+      sourcePath,
+      jobTranslations,
+      targetLocales,
+    });
   }
 
   return {
@@ -288,6 +420,7 @@ export async function startFigmaLocalization(input: {
   fileKey: string;
   pageId: string;
   fileName?: string;
+  pageName?: string;
   sourceLocale: string;
   targetLocales: string[];
   segments: FigmaDesignSegment[];
@@ -309,7 +442,12 @@ export async function startFigmaLocalization(input: {
   }
 
   const organizationId = input.auth.organization.localOrganizationId;
-  const sourcePath = buildFigmaSourcePath(input.fileKey, input.pageId);
+  const sourcePath = buildFigmaPageSourcePath({
+    fileName: input.fileName,
+    fileKey: input.fileKey,
+    pageName: input.pageName,
+    pageId: input.pageId,
+  });
   const translationFile = segmentsToTranslationFile(input.segments);
   if (Object.keys(translationFile).length === 0) {
     throw new Error("figma_no_text_segments");
@@ -318,7 +456,10 @@ export async function startFigmaLocalization(input: {
   const fileBody = JSON.stringify(translationFile, null, 2);
   const sourceHash = createHash("sha256").update(fileBody).digest("hex");
   const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
-  const filename = `${input.fileName?.trim() || input.fileKey}.json`;
+  const filename = buildFigmaPageFileName({
+    pageName: input.pageName,
+    pageId: input.pageId,
+  });
 
   const storedFile = await createStoredFile({
     organizationId,

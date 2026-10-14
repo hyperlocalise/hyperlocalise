@@ -13,11 +13,12 @@ describe("figma plugin segment keys", () => {
   });
 
   it("reuses an existing stamp on the text node", () => {
+    const setPluginData = vi.fn();
     const node = {
       getPluginData: vi
         .fn()
         .mockReturnValue(JSON.stringify({ key: "figma.k.EXISTINGSTAMP0000001" })),
-      setPluginData: vi.fn(),
+      setPluginData,
       id: "12:34",
     } as unknown as TextNode;
 
@@ -28,14 +29,15 @@ describe("figma plugin segment keys", () => {
     });
 
     expect(segment.key).toBe("figma.k.EXISTINGSTAMP0000001");
-    expect(node.setPluginData).not.toHaveBeenCalled();
+    expect(setPluginData).not.toHaveBeenCalled();
     expect(readStampedSegmentKey(node)).toBe("figma.k.EXISTINGSTAMP0000001");
   });
 
   it("writes a new stamp when the node has none", () => {
+    const setPluginData = vi.fn();
     const node = {
       getPluginData: vi.fn().mockReturnValue(""),
-      setPluginData: vi.fn(),
+      setPluginData,
       id: "12:34",
     } as unknown as TextNode;
 
@@ -46,6 +48,6 @@ describe("figma plugin segment keys", () => {
     });
 
     expect(segment.key.startsWith(FIGMA_SEGMENT_KEY_PREFIX)).toBe(true);
-    expect(node.setPluginData).toHaveBeenCalled();
+    expect(setPluginData).toHaveBeenCalled();
   });
 });

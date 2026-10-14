@@ -156,6 +156,7 @@ export async function createFigmaJob(input: {
   fileKey: string;
   pageId: string;
   fileName?: string;
+  pageName?: string;
   sourceLocale: string;
   targetLocales: string[];
   segments: FigmaSegment[];
@@ -169,6 +170,7 @@ export async function createFigmaJob(input: {
       fileKey: input.fileKey,
       pageId: input.pageId,
       fileName: input.fileName,
+      pageName: input.pageName,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       segments: input.segments.map((segment) => ({

@@ -44,6 +44,7 @@ export const createFigmaJobBodySchema = z.object({
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
   fileName: z.string().min(1).max(256).optional(),
+  pageName: z.string().min(1).max(256).optional(),
   sourceLocale: z.string().min(2).max(32).optional(),
   targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50).optional(),
   generate: z.boolean().optional().default(true),

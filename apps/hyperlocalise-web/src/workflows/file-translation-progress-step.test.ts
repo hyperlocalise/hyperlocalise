@@ -88,6 +88,40 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", "page.fr.html");
   });
 
+  it("reconciles Figma JSON from the target file when hl entries lag source fallbacks", async () => {
+    const key = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const sourceEntries = { [key]: "Hello" };
+    const outputFilename = "page-home-12-34-vi-VN.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor(outputFilename, [key]));
+      }
+      if (path === outputFilename) {
+        return JSON.stringify({ [key]: "Xin chào" });
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { [key]: "Hello" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_figma",
+        inputFilename: "page-home-12-34.json",
+        outputFilenames: { "vi-VN": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+        hlRunFingerprint: "0:1:6:0:0",
+      }),
+    ).resolves.toEqual({
+      "vi-VN": { [key]: "Xin chào" },
+    });
+  });
+
   it("reconciles Canva JSON from the target file when hl entries lag source fallbacks", async () => {
     const key = "canva.t.2b52fdaa63b8822c";
     const sourceEntries = { [key]: "Describe a Cat" };

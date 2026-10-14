@@ -58,6 +58,7 @@ export type UiToSandboxMessage =
       type: "apply";
       pageId: string;
       translations: Record<string, string>;
+      sourceByKey: Record<string, string>;
       preserveFormatting: boolean;
     }
   | { type: "binding-read"; pageId: string }

@@ -42,7 +42,7 @@ vp run build
 1. **Connect** — paste a personal access token. The plugin sends it only as `x-api-key`.
 2. **Choose a project** — extracted text uploads to this Hyperlocalise project in the token's organization.
 3. **Extract text** — reads the current selection, or the whole page if nothing is selected.
-4. **Create job** — uploads extracted segments as `figma/files/{fileKey}/pages/{pageId}.json`.
+4. **Create job** — uploads extracted segments as `figma/files/{fileSlug}-{fileKey}/page-{pageSlug}-{pageId}.json` (one file per page).
 5. **Generate** — enqueues the translation job. The plugin shows a page job card and polls while the job is queued or running; Close and the rest of the panel stay usable.
 6. **Pull** — applies the selected locale back onto matching text nodes. Jobs that need review are pullable when output files exist.
 

@@ -114,11 +114,7 @@ export async function fetchFigmaLocaleStatuses(input: {
         if (!job) {
           return { pageId, status: "missing" as const };
         }
-        const hasTranslations = Boolean(job.translationsByLocale[trimmed]);
-        if (
-          hasTranslations &&
-          (job.status === "succeeded" || job.status === "waiting_for_review")
-        ) {
+        if (job.status === "succeeded" || job.status === "waiting_for_review") {
           return { pageId, status: job.status };
         }
         if (job.targetLocales.includes(trimmed) && isInFlightJobStatus(job.status)) {

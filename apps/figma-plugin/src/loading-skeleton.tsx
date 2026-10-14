@@ -17,7 +17,11 @@ function SkeletonBlock({
   );
 }
 
-export function WorkflowSkeleton({ includeFooterAction = false }: { includeFooterAction?: boolean }) {
+export function WorkflowSkeleton({
+  includeFooterAction = false,
+}: {
+  includeFooterAction?: boolean;
+}) {
   return (
     <Container space="small">
       <div className="workflowTop">

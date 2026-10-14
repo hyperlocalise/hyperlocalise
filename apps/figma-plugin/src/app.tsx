@@ -35,7 +35,6 @@ import type {
   FigmaFileInfo,
   FigmaPageJob,
   FigmaPageOption,
-  FigmaSegment,
   PluginSettings,
   SandboxToUiMessage,
   UiToSandboxMessage,
@@ -43,17 +42,14 @@ import type {
 import { FormField } from "./form-field";
 import { PageMultiSelect } from "./page-multi-select";
 import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
-import {
-  isInFlightJobStatus,
-  jobPollingStepProgress,
-  pageJobFromCreate,
-} from "./page-job-ui";
+import { isInFlightJobStatus, jobPollingStepProgress, pageJobFromCreate } from "./page-job-ui";
 import {
   canApplySelectedPages,
   fetchFigmaLocaleStatuses,
   selectedPagesCollected,
   type FigmaLocaleStatus,
 } from "./figma-locale-status";
+import { pickTranslationsForLocale } from "./locale-map";
 import {
   DEFAULT_APP_URL,
   DEFAULT_SETTINGS,
@@ -149,7 +145,6 @@ export function App() {
   const [file, setFile] = useState<FigmaFileInfo | null>(null);
   const [pages, setPages] = useState<FigmaPageOption[]>([]);
   const [projects, setProjects] = useState<FigmaSessionProject[]>([]);
-  const [segments, setSegments] = useState<FigmaSegment[]>([]);
   const [pageBinding, setPageBinding] = useState<FigmaPageJobBinding | null>(null);
   const [pageJob, setPageJob] = useState<FigmaPageJob | null>(null);
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -157,6 +152,7 @@ export function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [booted, setBooted] = useState(false);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [projectsReloading, setProjectsReloading] = useState(false);
   const [pagesLoading, setPagesLoading] = useState(true);
   const [localesLoading, setLocalesLoading] = useState(false);
   const [applyStatusLoading, setApplyStatusLoading] = useState(false);
@@ -171,6 +167,7 @@ export function App() {
   const [jobPollPulse, setJobPollPulse] = useState(0);
   const pageIdRef = useRef<string | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const hasReceivedReadyRef = useRef(false);
 
   const showToast = (message: string, tone: AppToast["tone"] = "positive") => {
     setToast({ message, tone });
@@ -209,8 +206,7 @@ export function App() {
   const translateToOptions = translateToOptionsForProject(selectedProject);
   const showConnectScreen = booted && !connected;
   const showProjectScreen = booted && connected && (pickingProject || !settings.projectId);
-  const showWorkflowScreen =
-    booted && connected && Boolean(settings.projectId) && !pickingProject;
+  const showWorkflowScreen = booted && connected && Boolean(settings.projectId) && !pickingProject;
   const workflowHydrating =
     workspaceLoading || (pagesLoading && pages.length === 0 && Boolean(settings.projectId));
 
@@ -223,6 +219,9 @@ export function App() {
     workflowHydrating ? "1" : "0",
     busy ?? "",
     uploadPreviewLoading ? "1" : "0",
+    projectsReloading ? "1" : "0",
+    localesLoading ? "1" : "0",
+    pagesLoading ? "1" : "0",
     toast?.message ?? "",
     statusMessage ?? "",
     errorMessage ?? "",
@@ -330,7 +329,6 @@ export function App() {
 
   const updatePageSelection = (nextIds: string[]) => {
     persistSettings({ ...settings, selectedPageIds: nextIds });
-    setSegments([]);
     setPageJob(null);
     setStatusMessage(null);
     setErrorMessage(null);
@@ -443,9 +441,11 @@ export function App() {
         setPages(pageList);
         pageIdRef.current = selectedPageIds[0] ?? payload.file.pageId;
         setPageBinding(selectedPageIds.length === 1 ? payload.binding : null);
+        const isInitialReady = !hasReceivedReadyRef.current;
+        hasReceivedReadyRef.current = true;
         setBooted(true);
         setPagesLoading(false);
-        if (resourceAuthFromSettings(nextSettings)) {
+        if (isInitialReady && resourceAuthFromSettings(nextSettings)) {
           setWorkspaceLoading(true);
         }
       }
@@ -463,7 +463,6 @@ export function App() {
         });
         setPageBinding(null);
         setPageJob(null);
-        setSegments([]);
         setStatusMessage(null);
       }
     };
@@ -595,6 +594,7 @@ export function App() {
       !settings.selectedLocale ||
       projects.length === 0
     ) {
+      setApplyStatusLoading(false);
       return;
     }
 
@@ -618,6 +618,7 @@ export function App() {
     void refreshApplyEligibility();
     return () => {
       cancelled = true;
+      setApplyStatusLoading(false);
     };
   }, [
     settings.projectId,
@@ -909,7 +910,6 @@ export function App() {
       },
       "extracted",
     );
-    setSegments(result.segments);
     setFile(result.file);
     pageIdRef.current = pageId;
     return result;
@@ -972,15 +972,32 @@ export function App() {
     if (pageIdRef.current !== originatedPageId) {
       return 0;
     }
-    if (!translationsByLocale[locale]) {
+    const localeTranslations = pickTranslationsForLocale(translationsByLocale, locale);
+    if (!localeTranslations) {
       throw new Error("No translations for the selected language.");
     }
+
+    const extracted = await requestFromSandbox(
+      {
+        type: "extract",
+        pageId: originatedPageId,
+        preserveFormatting: settings.preserveFormatting,
+      },
+      "extracted",
+    );
+    if (pageIdRef.current !== originatedPageId) {
+      return 0;
+    }
+    const sourceByKey = Object.fromEntries(
+      extracted.segments.map((segment) => [segment.key, segment.text]),
+    );
 
     const applied = await requestFromSandbox(
       {
         type: "apply",
         pageId: originatedPageId,
-        translations: translationsByLocale[locale],
+        translations: localeTranslations,
+        sourceByKey,
         preserveFormatting: settings.preserveFormatting,
       },
       "applied",
@@ -1022,6 +1039,7 @@ export function App() {
       fileKey: extracted.file.fileKey,
       pageId: originatedPageId,
       fileName: extracted.file.fileName,
+      pageName: extracted.file.pageName,
       sourceLocale,
       targetLocales: jobTargetLocales,
       generate,
@@ -1178,6 +1196,7 @@ export function App() {
 
         const pageCount = selectedPageIds.length;
         let segmentTotal = 0;
+        const appliedPageIds: string[] = [];
         let jobIndex = 0;
 
         if (!pagesUploaded) {
@@ -1218,17 +1237,26 @@ export function App() {
           }
 
           setStep("Applying to your design...", 88);
-          segmentTotal += await applyTranslationsForLocale(originatedPageId, locale);
+          const count = await applyTranslationsForLocale(originatedPageId, locale);
           if (pageIdRef.current !== originatedPageId) {
             return;
           }
+          if (count > 0) {
+            appliedPageIds.push(originatedPageId);
+          }
+          segmentTotal += count;
+        }
+
+        const outcome = applyOutcomeMessage(locale, pageCount, segmentTotal, localeLabel);
+        if (outcome.tone === "critical") {
+          throw new Error(outcome.message);
         }
 
         persistSettings({
           ...settings,
           appliedLocaleByPage: recordAppliedLocales(
             settings.appliedLocaleByPage,
-            selectedPageIds,
+            appliedPageIds.length > 0 ? appliedPageIds : selectedPageIds,
             locale,
           ),
           lastJobId: settings.lastJobId,
@@ -1239,19 +1267,14 @@ export function App() {
         } catch {
           // Stale status must not fail a completed translate.
         }
-        showToast(
-          `Translated ${localeLabel(locale)} and applied to ${pageCount} page${pageCount === 1 ? "" : "s"}.`,
-        );
+        showToast(outcome.message);
       } finally {
         setTranslateProgress(null);
       }
     });
 
   const pageJobPollingProgress =
-    pageJob &&
-    selectedPageIds.length === 1 &&
-    busy == null &&
-    isInFlightJobStatus(pageJob.status)
+    pageJob && selectedPageIds.length === 1 && busy == null && isInFlightJobStatus(pageJob.status)
       ? jobPollingStepProgress(pageJob.status, jobPollPulse)
       : null;
   const translateFooterProgress = busy === "translate" ? translateProgress : null;
@@ -1289,10 +1312,7 @@ export function App() {
   ) : null;
 
   return (
-    <div
-      className={`appShell${showUploadScreen ? " appShellFill" : ""}`}
-      ref={shellRef}
-    >
+    <div className={`appShell${showUploadScreen ? " appShellFill" : ""}`} ref={shellRef}>
       {!booted ? (
         <div className="body">
           <WorkflowSkeleton />
@@ -1344,29 +1364,38 @@ export function App() {
             <FormField label="Project">
               <div className="pageFieldRow">
                 <div className="pageFieldSelect">
-                  <Dropdown
-                    value={projectDropdownValue}
-                    options={projectDropdownOptions}
-                    placeholder={busy === "bind" ? "Connecting..." : "Select a project"}
-                    disabled={busy === "bind" || projects.length === 0}
-                    onValueChange={(value) => void handleProjectChange(value)}
-                  />
+                  {projectsReloading ? (
+                    <FieldSkeleton />
+                  ) : (
+                    <Dropdown
+                      value={projectDropdownValue}
+                      options={projectDropdownOptions}
+                      placeholder={busy === "bind" ? "Connecting..." : "Select a project"}
+                      disabled={busy === "bind" || projects.length === 0}
+                      onValueChange={(value) => void handleProjectChange(value)}
+                    />
+                  )}
                 </div>
                 <IconButton
-                  disabled={busy === "bind"}
+                  disabled={busy === "bind" || projectsReloading}
                   onClick={() => {
-                    if (auth) {
-                      void fetchFigmaSession({ appUrl: settings.appUrl, auth })
-                        .then((session) => {
-                          setProjects(session.projects);
-                        })
-                        .catch((error) => {
-                          showToast(
-                            error instanceof Error ? error.message : "Unable to reload projects.",
-                            "warn",
-                          );
-                        });
+                    if (!auth || projectsReloading) {
+                      return;
                     }
+                    setProjectsReloading(true);
+                    void fetchFigmaSession({ appUrl: settings.appUrl, auth })
+                      .then((session) => {
+                        setProjects(session.projects);
+                      })
+                      .catch((error) => {
+                        showToast(
+                          error instanceof Error ? error.message : "Unable to reload projects.",
+                          "warn",
+                        );
+                      })
+                      .finally(() => {
+                        setProjectsReloading(false);
+                      });
                   }}
                 >
                   <IconRefresh16 />
@@ -1441,11 +1470,7 @@ export function App() {
                 >
                   Upload pages
                 </Button>
-                <Button
-                  secondary
-                  onClick={() => setUploadPreview(null)}
-                  disabled={busy != null}
-                >
+                <Button secondary onClick={() => setUploadPreview(null)} disabled={busy != null}>
                   Cancel
                 </Button>
               </div>
@@ -1460,174 +1485,174 @@ export function App() {
             {workflowHydrating ? (
               <WorkflowSkeleton />
             ) : (
-            <Container space="small">
-              <div className="workflowTop">
-                {selectedProject ? (
-                  <div className="workflowProjectLine">
-                    <Text>
-                      <Muted>Project: {selectedProject.name}</Muted>
-                      {" · "}
+              <Container space="small">
+                <div className="workflowTop">
+                  {selectedProject ? (
+                    <div className="workflowProjectLine">
+                      <Text>
+                        <Muted>Project: {selectedProject.name}</Muted>
+                        {" · "}
+                        <Link
+                          href="#"
+                          onClick={(event) => {
+                            preventLinkNavigation(event);
+                            if (busy == null) {
+                              setPickingProject(true);
+                            }
+                          }}
+                        >
+                          Change
+                        </Link>
+                        {" · "}
+                        <Link
+                          href="#"
+                          onClick={(event) => {
+                            preventLinkNavigation(event);
+                            if (busy == null) {
+                              handleDisconnect();
+                            }
+                          }}
+                        >
+                          Switch Account
+                        </Link>
+                      </Text>
+                    </div>
+                  ) : null}
+
+                  <VerticalSpace space="medium" />
+
+                  <FormField label="Translate to">
+                    <div className="pageFieldRow">
+                      <div className="pageFieldSelect">
+                        {localesLoading ? (
+                          <FieldSkeleton />
+                        ) : (
+                          <Dropdown
+                            value={translateDropdownValue}
+                            options={translateToOptions.map((locale) => ({
+                              value: locale.value,
+                              text: locale.label,
+                            }))}
+                            placeholder={translateDropdownPlaceholder}
+                            disabled={busy != null || !selectedProject}
+                            onValueChange={(value) =>
+                              persistSettings({ ...settings, selectedLocale: value })
+                            }
+                          />
+                        )}
+                      </div>
+                      <IconButton
+                        disabled={localesLoading || !selectedProject || busy != null}
+                        onClick={() => void reloadLocaleOptions()}
+                      >
+                        <IconRefresh16 />
+                      </IconButton>
+                    </div>
+                  </FormField>
+                  {selectedProject ? (
+                    <div className="fieldDescription">
+                      <Text>
+                        <Muted>Source language {localeLabel(selectedProject.sourceLocale)}</Muted>
+                      </Text>
+                    </div>
+                  ) : null}
+
+                  <VerticalSpace space="medium" />
+                  <Divider />
+                  <VerticalSpace space="medium" />
+
+                  <FormField label="Pages to translate">
+                    <div className="pageFieldRow">
+                      <div className="pageFieldSelect">
+                        {pagesLoading ? (
+                          <FieldSkeleton />
+                        ) : (
+                          <PageMultiSelect
+                            pages={pages}
+                            selectedPageIds={selectedPageIds}
+                            disabled={busy != null || pagesLoading}
+                            placeholder="Select pages"
+                            onChange={(pageIds) => updatePageSelection(pageIds)}
+                          />
+                        )}
+                      </div>
+                      <IconButton disabled={pagesLoading || busy != null} onClick={reloadPages}>
+                        <IconRefresh16 />
+                      </IconButton>
+                    </div>
+                    <div className="pageMenuActions">
                       <Link
                         href="#"
                         onClick={(event) => {
                           preventLinkNavigation(event);
-                          if (busy == null) {
-                            setPickingProject(true);
+                          if (busy == null && !pagesLoading && !allPagesSelected) {
+                            updatePageSelection(allPageIds(pages));
                           }
                         }}
                       >
-                        Change
+                        Select all
                       </Link>
-                      {" · "}
                       <Link
                         href="#"
                         onClick={(event) => {
                           preventLinkNavigation(event);
-                          if (busy == null) {
-                            handleDisconnect();
+                          if (busy == null && !pagesLoading && selectedPageIds.length > 0) {
+                            updatePageSelection([]);
                           }
                         }}
                       >
-                        Switch Account
+                        Clear all
                       </Link>
-                    </Text>
-                  </div>
-                ) : null}
-
-                <VerticalSpace space="medium" />
-
-                <FormField label="Translate to">
-                  <div className="pageFieldRow">
-                    <div className="pageFieldSelect">
-                      {localesLoading ? (
-                        <FieldSkeleton />
-                      ) : (
-                      <Dropdown
-                        value={translateDropdownValue}
-                        options={translateToOptions.map((locale) => ({
-                          value: locale.value,
-                          text: locale.label,
-                        }))}
-                        placeholder={translateDropdownPlaceholder}
-                        disabled={busy != null || !selectedProject}
-                        onValueChange={(value) =>
-                          persistSettings({ ...settings, selectedLocale: value })
-                        }
-                      />
-                      )}
                     </div>
-                    <IconButton
-                      disabled={localesLoading || !selectedProject || busy != null}
-                      onClick={() => void reloadLocaleOptions()}
-                    >
-                      <IconRefresh16 />
-                    </IconButton>
-                  </div>
-                </FormField>
-                {selectedProject ? (
-                  <div className="fieldDescription">
+                  </FormField>
+                </div>
+
+                {pageJobPollingProgress ? (
+                  <div className="stepProgress" aria-label="Translation progress">
                     <Text>
-                      <Muted>Source language {localeLabel(selectedProject.sourceLocale)}</Muted>
+                      <Muted>{pageJobPollingProgress.label}</Muted>
                     </Text>
+                    <progress
+                      className="progressBar"
+                      max={100}
+                      value={pageJobPollingProgress.value}
+                    />
                   </div>
                 ) : null}
 
-                <VerticalSpace space="medium" />
-                <Divider />
-                <VerticalSpace space="medium" />
-
-                <FormField label="Pages to translate">
-                  <div className="pageFieldRow">
-                    <div className="pageFieldSelect">
-                      {pagesLoading ? (
-                        <FieldSkeleton />
-                      ) : (
-                        <PageMultiSelect
-                          pages={pages}
-                          selectedPageIds={selectedPageIds}
-                          disabled={busy != null || pagesLoading}
-                          placeholder="Select pages"
-                          onChange={(pageIds) => updatePageSelection(pageIds)}
-                        />
-                      )}
-                    </div>
-                    <IconButton disabled={pagesLoading || busy != null} onClick={reloadPages}>
-                      <IconRefresh16 />
-                    </IconButton>
+                <VerticalSpace space="small" />
+                <Columns space="extraSmall">
+                  <Button
+                    fullWidth
+                    secondary
+                    title={uploadTooltip}
+                    onClick={() => void openUploadPreview()}
+                    disabled={!canUpload || uploadPreviewLoading}
+                    loading={uploadPreviewLoading}
+                  >
+                    Upload
+                  </Button>
+                  <Button
+                    fullWidth
+                    secondary
+                    title={applyTooltip}
+                    onClick={() => void handleApply()}
+                    disabled={applyButtonDisabled}
+                    loading={applyButtonLoading}
+                  >
+                    Apply
+                  </Button>
+                </Columns>
+                {busy === "apply" && applyProgress ? (
+                  <div className="stepProgress">
+                    <Text>
+                      <Muted>{applyProgress.label}</Muted>
+                    </Text>
+                    <progress className="progressBar" max={100} value={applyProgress.value} />
                   </div>
-                  <div className="pageMenuActions">
-                    <Link
-                      href="#"
-                      onClick={(event) => {
-                        preventLinkNavigation(event);
-                        if (busy == null && !pagesLoading && !allPagesSelected) {
-                          updatePageSelection(allPageIds(pages));
-                        }
-                      }}
-                    >
-                      Select all
-                    </Link>
-                    <Link
-                      href="#"
-                      onClick={(event) => {
-                        preventLinkNavigation(event);
-                        if (busy == null && !pagesLoading && selectedPageIds.length > 0) {
-                          updatePageSelection([]);
-                        }
-                      }}
-                    >
-                      Clear all
-                    </Link>
-                  </div>
-                </FormField>
-              </div>
-
-              {pageJobPollingProgress ? (
-                <div className="stepProgress" aria-label="Translation progress">
-                  <Text>
-                    <Muted>{pageJobPollingProgress.label}</Muted>
-                  </Text>
-                  <progress
-                    className="progressBar"
-                    max={100}
-                    value={pageJobPollingProgress.value}
-                  />
-                </div>
-              ) : null}
-
-              <VerticalSpace space="small" />
-              <Columns space="extraSmall">
-                <Button
-                  fullWidth
-                  secondary
-                  title={uploadTooltip}
-                  onClick={() => void openUploadPreview()}
-                  disabled={!canUpload || uploadPreviewLoading}
-                  loading={uploadPreviewLoading}
-                >
-                  Upload
-                </Button>
-                <Button
-                  fullWidth
-                  secondary
-                  title={applyTooltip}
-                  onClick={() => void handleApply()}
-                  disabled={applyButtonDisabled}
-                  loading={applyButtonLoading}
-                >
-                  Apply
-                </Button>
-              </Columns>
-              {busy === "apply" && applyProgress ? (
-                <div className="stepProgress">
-                  <Text>
-                    <Muted>{applyProgress.label}</Muted>
-                  </Text>
-                  <progress className="progressBar" max={100} value={applyProgress.value} />
-                </div>
-              ) : null}
-              {toastMarkup}
-            </Container>
+                ) : null}
+                {toastMarkup}
+              </Container>
             )}
           </div>
           <div className="footer">
@@ -1636,29 +1661,25 @@ export function App() {
                 <Text>
                   <Muted>{translateFooterProgress.label}</Muted>
                 </Text>
-                <progress
-                  className="progressBar"
-                  max={100}
-                  value={translateFooterProgress.value}
-                />
+                <progress className="progressBar" max={100} value={translateFooterProgress.value} />
               </div>
             ) : null}
             <div className="footerPrimaryAction">
               {workflowHydrating ? (
                 <FieldSkeleton />
               ) : (
-              <Button
-                fullWidth
-                title={translateTooltip}
-                onClick={() => void handleTranslate()}
-                disabled={!canTranslate && busy !== "translate"}
-                loading={busy === "translate" && !translateFooterProgress}
-              >
-                <span className="translateButtonInner">
-                  <IconWand16 />
-                  Translate
-                </span>
-              </Button>
+                <Button
+                  fullWidth
+                  title={translateTooltip}
+                  onClick={() => void handleTranslate()}
+                  disabled={!canTranslate && busy !== "translate"}
+                  loading={busy === "translate" && !translateFooterProgress}
+                >
+                  <span className="translateButtonInner">
+                    <IconWand16 />
+                    Translate
+                  </span>
+                </Button>
               )}
             </div>
           </div>

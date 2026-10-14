@@ -16,9 +16,35 @@ import {
   figmaJobHasPullableTranslations,
   figmaJobMatchesPage,
   isFigmaIntegrationJob,
+  mergeFigmaPullTranslations,
+  pickTranslationsForLocale,
   publicFigmaJobStatus,
   publicJobOutputFiles,
 } from "./localize-file";
+
+describe("mergeFigmaPullTranslations", () => {
+  it("fills missing editor rows from job output and prefers editor text", () => {
+    expect(
+      mergeFigmaPullTranslations(
+        { "figma.k.a": "Hola (editor)" },
+        { "figma.k.a": "Hola (job)", "figma.k.b": "Mundo" },
+      ),
+    ).toEqual({
+      "figma.k.a": "Hola (editor)",
+      "figma.k.b": "Mundo",
+    });
+    expect(mergeFigmaPullTranslations({}, { "figma.k.a": "Hola" })).toEqual({
+      "figma.k.a": "Hola",
+    });
+  });
+});
+
+describe("pickTranslationsForLocale", () => {
+  it("matches locale tags case-insensitively", () => {
+    const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
+    expect(pickTranslationsForLocale(map, "vi-vn")).toEqual({ "figma.k.a": "Xin chào" });
+  });
+});
 
 describe("publicJobOutputFiles", () => {
   it("returns null for non file_result outcomes", () => {

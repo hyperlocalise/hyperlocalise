@@ -228,6 +228,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
           fileKey: payload.fileKey,
           pageId: payload.pageId,
           fileName: payload.fileName,
+          pageName: payload.pageName,
           sourceLocale,
           targetLocales,
           segments: payload.segments,
