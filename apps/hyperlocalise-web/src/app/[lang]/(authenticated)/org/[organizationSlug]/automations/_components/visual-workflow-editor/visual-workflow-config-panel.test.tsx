@@ -861,19 +861,37 @@ describe("VisualWorkflowConfigPanel", () => {
       );
     });
 
-    it("shows a stored binding as the setting's source, with a way to remove it", async () => {
+    it("turns a fixed value stored by an older version into the setting's own text", async () => {
       const user = userEvent.setup();
       const onChangeContract = vi.fn();
+      const onChangeConfig = vi.fn();
       const slack = slackNode();
       slack.data.inputs = { channelId: { kind: "literal", value: "C123" } };
-      renderPanel(panel(slack, { onChangeContract }));
+      renderPanel(panel(slack, { onChangeContract, onChangeConfig }));
 
       expect(screen.getByText("Fixed value")).toBeInTheDocument();
       expect(screen.getByText('› "C123"')).toBeInTheDocument();
       expect(screen.queryByRole("textbox", { name: "Slack channel ID" })).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: "Remove" }));
+      await user.click(screen.getByRole("button", { name: "Edit as text" }));
+      expect(onChangeConfig).toHaveBeenCalledWith(expect.objectContaining({ channelId: "C123" }));
       expect(onChangeContract).toHaveBeenCalledWith({ inputs: {} });
+    });
+
+    it("says so when a step has no settings", () => {
+      const tryCatch: VisualWorkflowRfNode = {
+        id: "tc",
+        type: "logic.try_catch",
+        position: { x: 0, y: 0 },
+        data: {
+          catalogType: "logic.try_catch",
+          config: createDefaultConfig("logic.try_catch"),
+          runStatus: "idle",
+        },
+      };
+      renderPanel(panel(tryCatch));
+
+      expect(screen.getByText("This step has no settings.")).toBeInTheDocument();
     });
 
     it("keeps what happens on failure under its own heading", async () => {

@@ -84,8 +84,18 @@ import {
   redactWorkflowSnapshot,
   collectWorkflowSecrets,
 } from "@/lib/visual-workflows/runtime/snapshots";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldLabel } from "@/components/ui/field";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { VisualWorkflowConfigPanel, type StepSettingsTab } from "./visual-workflow-config-panel";
 import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
@@ -959,34 +969,6 @@ export function VisualWorkflowEditor({
         onDelete={onDelete}
         isDeleting={isDeleting}
       />
-      {activeTab === "editor" && organizationSlug ? (
-        <details className="border-b border-border px-4 py-2">
-          <summary className="cursor-pointer text-sm">
-            {intl.formatMessage({
-              description: "Visual workflow editor control",
-              id: "iF8OgIZ53W",
-              defaultMessage: "Test settings · mock by default",
-            })}
-          </summary>
-          <div className="grid gap-3 py-3">
-            <p className="text-sm text-muted-foreground">
-              {intl.formatMessage(messages.testSettingsHint)}
-            </p>
-            <FieldLabel>
-              <Checkbox
-                checked={liveTest}
-                onCheckedChange={(value) => setLiveTest(Boolean(value))}
-              />
-              {intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "RnDCfBW6QI",
-                defaultMessage:
-                  "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
-              })}
-            </FieldLabel>
-          </div>
-        </details>
-      ) : null}
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel
           organizationSlug={organizationSlug}
@@ -1033,6 +1015,45 @@ export function VisualWorkflowEditor({
                 setMobilePanelOpen(false);
               }}
               onTestWorkflow={onTestWorkflowClick}
+              testSettings={
+                organizationSlug ? (
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          aria-label={intl.formatMessage(messages.testSettings)}
+                          title={intl.formatMessage(messages.testSettings)}
+                        />
+                      }
+                    >
+                      <SlidersHorizontalIcon />
+                    </PopoverTrigger>
+                    <PopoverContent align="center" side="top" className="w-80">
+                      <PopoverHeader>
+                        <PopoverTitle>{intl.formatMessage(messages.testSettings)}</PopoverTitle>
+                        <PopoverDescription>
+                          {intl.formatMessage(messages.testSettingsHint)}
+                        </PopoverDescription>
+                      </PopoverHeader>
+                      <FieldLabel className="mt-3 items-start gap-2 text-sm">
+                        <Checkbox
+                          checked={liveTest}
+                          onCheckedChange={(value) => setLiveTest(Boolean(value))}
+                        />
+                        {intl.formatMessage({
+                          description: "Visual workflow editor control",
+                          id: "RnDCfBW6QI",
+                          defaultMessage:
+                            "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
+                        })}
+                      </FieldLabel>
+                    </PopoverContent>
+                  </Popover>
+                ) : null
+              }
             />
             <div data-testid="visual-workflow-graph-edges" hidden>
               {edges.map((edge) => (

@@ -19,6 +19,7 @@ import { WorkflowDataPanel } from "./workflow-data-panel";
 import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
 import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import type {
+  WorkflowBinding,
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
@@ -190,6 +191,21 @@ export function VisualWorkflowConfigPanel({
     delete inputs[portId];
     onChangeContract?.({ inputs });
   };
+  /** Puts a fixed value or template stored by an older version into the setting's own box. */
+  const adoptBinding = (portId: string, binding: WorkflowBinding) => {
+    const text =
+      binding.kind === "template"
+        ? binding.template
+        : binding.kind === "literal"
+          ? typeof binding.value === "string" || typeof binding.value === "number"
+            ? binding.value
+            : JSON.stringify(binding.value)
+          : undefined;
+    if (text !== undefined) {
+      onChangeConfig({ ...config, [portId]: text } as VisualNodeConfig);
+    }
+    removeBinding(portId);
+  };
   /** A setting's port and what feeds it: a wire on the canvas, or a binding stored earlier. */
   const portFor = (portId: string): BoundPort => {
     const field = inputFields.find((entry) => entry.name === portId);
@@ -222,8 +238,17 @@ export function VisualWorkflowConfigPanel({
                   : binding.kind === "template"
                     ? binding.template
                     : undefined,
-            removeLabel: intl.formatMessage(messages.removeBinding),
-            onRemove: onChangeContract ? () => removeBinding(portId) : undefined,
+            // A fixed value or template is typed into the box since this version of the panel.
+            ...((binding.kind === "literal" || binding.kind === "template") &&
+            !portId.startsWith("value.")
+              ? {
+                  removeLabel: intl.formatMessage(messages.editBindingAsText),
+                  onRemove: onChangeContract ? () => adoptBinding(portId, binding) : undefined,
+                }
+              : {
+                  removeLabel: intl.formatMessage(messages.removeBinding),
+                  onRemove: onChangeContract ? () => removeBinding(portId) : undefined,
+                }),
           }
         : undefined;
     return {
@@ -1555,9 +1580,11 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
-        {config.kind === "trigger.manual" ? (
+        {config.kind === "trigger.manual" || config.kind === "logic.try_catch" ? (
           <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.noConfig} />
+            <FormattedMessage
+              {...(config.kind === "trigger.manual" ? messages.noConfig : messages.noSettings)}
+            />
           </TypographyP>
         ) : null}
         {wireOnlyInputs.map((field) => (

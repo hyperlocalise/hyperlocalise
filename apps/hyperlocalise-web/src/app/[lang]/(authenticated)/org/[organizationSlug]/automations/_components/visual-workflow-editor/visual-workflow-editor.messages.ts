@@ -508,8 +508,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   testSettingsHint: {
     defaultMessage:
       "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses.",
-    id: "HZMm0ZutTU",
-    description: "In the test settings bar of the workflow editor, where test values are set",
+    id: "0pyGkDDDgZ",
+    description: "In the test settings popover of the workflow editor, where test values are set",
   },
   useRunAsTestData: {
     defaultMessage: "Use as test data",
@@ -1138,9 +1138,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Hint under disabled AI agent configuration slots",
   },
   noConfig: {
-    defaultMessage: "Provide sample event data in Test settings.",
-    id: "HrEbvbWkeA",
-    description: "Config panel empty copy for nodes without fields",
+    defaultMessage: "This step has no settings. Its sample event is set on the Test tab.",
+    id: "LCXCbyngkd",
+    description: "Config panel empty copy for a manual trigger, which has no fields",
+  },
+  noSettings: {
+    defaultMessage: "This step has no settings.",
+    id: "XD/J+Q8CFt",
+    description: "Config panel empty copy for a step without fields",
+  },
+  editBindingAsText: {
+    defaultMessage: "Edit as text",
+    id: "X+6eLCg8p5",
+    description:
+      "Button that turns a stored fixed value or template of a workflow step's setting into the setting's own text",
+  },
+  testSettings: {
+    defaultMessage: "Test settings",
+    id: "mhtqPj5f5v",
+    description:
+      "Name of the button and popover beside Test workflow that holds the live test switch",
   },
   testWorkflow: {
     defaultMessage: "Test workflow",
