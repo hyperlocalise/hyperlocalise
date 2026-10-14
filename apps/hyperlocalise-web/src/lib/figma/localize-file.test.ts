@@ -18,6 +18,7 @@ import {
   figmaJobMatchesPage,
   figmaSourceIngestIsSettled,
   isFigmaIntegrationJob,
+  figmaLocalesMatch,
   isProjectSourceLocale,
   mergeFigmaPullTranslations,
   pickTranslationsForLocale,
@@ -69,6 +70,13 @@ describe("isProjectSourceLocale", () => {
   it("matches source locale tags case-insensitively", () => {
     expect(isProjectSourceLocale("en-US", "en-us")).toBe(true);
     expect(isProjectSourceLocale("en-US", "fr-FR")).toBe(false);
+  });
+});
+
+describe("figmaLocalesMatch", () => {
+  it("matches language subtags when regions differ", () => {
+    expect(figmaLocalesMatch("vi-VN", "vi")).toBe(true);
+    expect(figmaLocalesMatch("zh-CN", "zh-TW")).toBe(false);
   });
 });
 

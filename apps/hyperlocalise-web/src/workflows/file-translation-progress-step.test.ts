@@ -122,6 +122,49 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     });
   });
 
+  it("reconciles Figma JSON from hash-only target file when hl entries lag", async () => {
+    const { createHash } = await import("node:crypto");
+    const source = "Welcome back";
+    const hash = createHash("sha256").update(source, "utf8").digest("hex").slice(0, 16);
+    const key = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const sourceEntries = { [key]: source };
+    const outputFilename = "page-home-12-34-vi-VN.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify({
+          run_completed: {
+            [outputFilename]: {
+              [`json.${hash}`]: { s: "deadbeef", t: "cafebabe" },
+            },
+          },
+        });
+      }
+      if (path === outputFilename) {
+        return JSON.stringify({ [`json.${hash}`]: "Chào mừng trở lại" });
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { [`json.${hash}`]: source },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_figma_hash_only",
+        inputFilename: "page-home-12-34.json",
+        outputFilenames: { "vi-VN": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+        hlRunFingerprint: "0:1:1:0:0",
+      }),
+    ).resolves.toEqual({
+      "vi-VN": { [key]: "Chào mừng trở lại" },
+    });
+  });
+
   it("maps a hashed lock key onto Figma stamp keys from the target file", async () => {
     const { createHash } = await import("node:crypto");
     const source = "Project title";

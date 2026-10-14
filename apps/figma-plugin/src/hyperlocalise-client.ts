@@ -427,12 +427,17 @@ export async function pullFigmaTranslations(input: {
   projectId: string;
   fileKey: string;
   pageId: string;
+  locale?: string;
 }): Promise<FigmaPullTranslationsPayload> {
   const params = new URLSearchParams({
     projectId: input.projectId,
     fileKey: input.fileKey,
     pageId: input.pageId,
   });
+  const locale = input.locale?.trim();
+  if (locale) {
+    params.set("locale", locale);
+  }
   const response = await fetch(
     apiUrl(input.appUrl, `/api/integrations/figma/translations?${params.toString()}`),
     { headers: buildRequestHeaders(input.appUrl, input.auth) },

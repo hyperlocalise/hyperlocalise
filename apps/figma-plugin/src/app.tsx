@@ -1036,6 +1036,7 @@ export function App() {
         projectId,
         fileKey: file.fileKey,
         pageId: originatedPageId,
+        locale,
       });
       let translationsByLocale: Record<string, Record<string, string>>;
       if (isFigmaPageJobPayload(pulled)) {

@@ -1432,6 +1432,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           retryFeedback: locales.length === 1 ? retryFeedbackByLocale[locales[0]!] : undefined,
         });
         cliTokenUsage = addCliTokenUsage(cliTokenUsage, result.tokenUsage);
+        const hlRunFingerprint = `${page}:${attempt}:${result.succeeded}:${result.failed}:${result.exitCode ?? "na"}`;
         const delta = await collectFileTranslationPageStep({
           sandboxId,
           inputFilename,
@@ -1444,7 +1445,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceEntries,
           prefills: prefilledByLocale,
           confirmed: confirmedByLocale,
-          hlRunFingerprint: `${page}:${attempt}:${result.succeeded}:${result.failed}:${result.exitCode ?? "na"}`,
+          hlRunFingerprint,
+        });
+        console.info("[file-translation] page", {
+          jobId: claim.job.id,
+          page,
+          attempt,
+          hlRunFingerprint,
+          deltaLocales: Object.keys(delta).length,
         });
         let acceptedCount = 0;
         let leftoverCount = 0;

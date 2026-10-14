@@ -38,6 +38,7 @@ import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
 } from "@/lib/projects/jobs/enqueue-file-translation-job";
+import { parseIntegrationJsonFileExtracted } from "@/workflows/file-translation-progress";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
@@ -120,8 +121,11 @@ async function loadTranslationsByLocale(input: {
   organizationId: string;
   projectId: string;
   outputFiles: PublicJobOutputFile[];
+  sourceByKey?: Record<string, string>;
 }) {
   const translationsByLocale: Record<string, Record<string, string>> = {};
+  const integrationSource =
+    input.sourceByKey && Object.keys(input.sourceByKey).some(isFigmaStampSegmentKey);
 
   for (const outputFile of input.outputFiles) {
     const { content } = await getStoredFileContent({
@@ -137,7 +141,12 @@ async function loadTranslationsByLocale(input: {
       throw new Error("translation_output_parse_failed");
     }
 
-    translationsByLocale[outputFile.locale] = parseTranslationFile(parsed);
+    const stampOnly = parseTranslationFile(parsed);
+    const entries =
+      integrationSource && input.sourceByKey
+        ? parseIntegrationJsonFileExtracted(parsed, input.sourceByKey)
+        : stampOnly;
+    translationsByLocale[outputFile.locale] = entries;
   }
 
   return translationsByLocale;
@@ -175,21 +184,64 @@ function localeKey(locale: string): string {
   return locale.trim().toLowerCase();
 }
 
-export function isProjectSourceLocale(projectSourceLocale: string, locale: string): boolean {
-  const trimmed = locale.trim();
-  if (!trimmed) {
+function languageSubtag(locale: string): string | null {
+  const canonical = canonicalizeLocale(locale);
+  if (!canonical) {
+    return null;
+  }
+  try {
+    return new Intl.Locale(canonical).language;
+  } catch {
+    return null;
+  }
+}
+
+function localeRegion(locale: string): string | null {
+  const canonical = canonicalizeLocale(locale);
+  if (!canonical) {
+    return null;
+  }
+  try {
+    const region = new Intl.Locale(canonical).region;
+    return region ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when two locale tags refer to the same language choice in plugin/API flows. */
+export function figmaLocalesMatch(a: string, b: string): boolean {
+  const trimmedA = a.trim();
+  const trimmedB = b.trim();
+  if (!trimmedA || !trimmedB) {
     return false;
   }
-  const projectTrimmed = projectSourceLocale.trim();
-  if (trimmed === projectTrimmed) {
+  if (trimmedA === trimmedB) {
     return true;
   }
-  const canonical = canonicalizeLocale(trimmed);
-  const projectCanonical = canonicalizeLocale(projectTrimmed);
-  if (canonical && projectCanonical && canonical === projectCanonical) {
+  if (localeKey(trimmedA) === localeKey(trimmedB)) {
     return true;
   }
-  return localeKey(trimmed) === localeKey(projectTrimmed);
+  const canonicalA = canonicalizeLocale(trimmedA);
+  const canonicalB = canonicalizeLocale(trimmedB);
+  if (canonicalA && canonicalB && canonicalA === canonicalB) {
+    return true;
+  }
+  const langA = languageSubtag(trimmedA);
+  const langB = languageSubtag(trimmedB);
+  if (!langA || !langB || langA !== langB) {
+    return false;
+  }
+  const regionA = localeRegion(trimmedA);
+  const regionB = localeRegion(trimmedB);
+  if (!regionA || !regionB) {
+    return true;
+  }
+  return regionA === regionB;
+}
+
+export function isProjectSourceLocale(projectSourceLocale: string, locale: string): boolean {
+  return figmaLocalesMatch(projectSourceLocale, locale);
 }
 
 export function pickTranslationsForLocale(
@@ -560,6 +612,7 @@ async function toFigmaPageJob(input: {
             organizationId: input.organizationId,
             projectId,
             outputFiles,
+            sourceByKey,
           })
         : {};
     translationsByLocale = await mergeFigmaTranslationsWithEditor({
@@ -873,7 +926,10 @@ export async function listFigmaPageLocaleStatuses(input: {
           figmaJobMatchesPage(candidate.inputPayload, {
             fileKey: input.fileKey,
             pageId,
-          }) && readJobTargetLocales(candidate.inputPayload).includes(trimmed),
+          }) &&
+          readJobTargetLocales(candidate.inputPayload).some((target) =>
+            figmaLocalesMatch(target, trimmed),
+          ),
       );
 
       if (job) {
@@ -1389,33 +1445,138 @@ export async function pullFigmaPageLocaleContent(input: {
 
   return {
     kind: "job",
-    translations: await pullLatestFigmaTranslations(input),
+    translations: await pullFigmaTranslationsForPage(input),
   };
 }
 
-export async function pullLatestFigmaTranslations(input: {
+function readJobTargetLocalesIncludes(inputPayload: unknown, locale: string): boolean {
+  return readJobTargetLocales(inputPayload).some((target) => figmaLocalesMatch(target, locale));
+}
+
+async function findLatestFigmaPageJobForLocale(input: {
+  auth: ApiAuthContext;
+  fileKey: string;
+  pageId: string;
+  projectId: string;
+  locale: string;
+}): Promise<FigmaJobSnapshot | null> {
+  const jobs = await listFigmaFileJobs({
+    auth: input.auth,
+    projectId: input.projectId,
+    fileKey: input.fileKey,
+  });
+  return (
+    jobs.find(
+      (job) =>
+        figmaJobMatchesPage(job.inputPayload, {
+          fileKey: input.fileKey,
+          pageId: input.pageId,
+        }) && readJobTargetLocalesIncludes(job.inputPayload, input.locale),
+    ) ?? null
+  );
+}
+
+export async function pullFigmaTranslationsForPage(input: {
   auth: ApiAuthContext;
   projectId: string;
   fileKey: string;
   pageId: string;
+  locale?: string;
 }): Promise<{ jobId: null; status: "not_found" } | FigmaPageJob> {
   const project = await getAccessibleFigmaProject(input.auth, input.projectId);
   if (!project) {
     throw new Error("figma_project_not_found");
   }
 
-  const job = await findLatestFigmaPageJob({
+  const organizationId = input.auth.organization.localOrganizationId;
+  const requestedLocale = input.locale?.trim();
+
+  if (!requestedLocale) {
+    const job = await findLatestFigmaPageJob({
+      auth: input.auth,
+      fileKey: input.fileKey,
+      pageId: input.pageId,
+      projectId: project.id,
+    });
+    if (!job) {
+      return { jobId: null, status: "not_found" };
+    }
+    return toFigmaPageJob({ job, organizationId });
+  }
+
+  const job = await findLatestFigmaPageJobForLocale({
+    auth: input.auth,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    projectId: project.id,
+    locale: requestedLocale,
+  });
+  if (job) {
+    const pageJob = await toFigmaPageJob({ job, organizationId });
+    if (pickTranslationsForLocale(pageJob.translationsByLocale, requestedLocale)) {
+      return pageJob;
+    }
+  }
+
+  const collected = await findLatestFigmaCollectedPage({
     auth: input.auth,
     fileKey: input.fileKey,
     pageId: input.pageId,
     projectId: project.id,
   });
-  if (!job) {
+  if (!collected) {
     return { jobId: null, status: "not_found" };
   }
 
-  return toFigmaPageJob({
-    job,
-    organizationId: input.auth.organization.localOrganizationId,
+  let sourceByKey: Record<string, string> = {};
+  try {
+    const { content } = await getStoredFileContent({
+      organizationId,
+      projectId: project.id,
+      fileId: collected.sourceFileId,
+    });
+    const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+    const sourceFile = parseTranslationFile(parsed);
+    for (const [key, value] of Object.entries(sourceFile)) {
+      if (isFigmaStampSegmentKey(key) && value.trim().length > 0) {
+        sourceByKey[key] = value;
+      }
+    }
+  } catch {
+    return { jobId: null, status: "not_found" };
+  }
+
+  const editor = await loadFigmaEditorTranslationsBySourcePath({
+    organizationId,
+    projectId: project.id,
+    locale: requestedLocale,
+    sourcePath: collected.sourcePath,
   });
+  const merged = propagateFigmaTranslationsBySharedSource(
+    sourceByKey,
+    mergeFigmaPullTranslations(editor, {}, sourceByKey),
+  );
+  if (countNonEmptyTranslations(merged) === 0) {
+    return { jobId: null, status: "not_found" };
+  }
+
+  return {
+    jobId: job?.id ?? "",
+    status: job ? publicFigmaJobStatus(job.status) : "waiting_for_review",
+    projectId: project.id,
+    sourcePath: collected.sourcePath,
+    targetLocales: job ? readJobTargetLocales(job.inputPayload) : [requestedLocale],
+    lastError: job?.lastError ?? null,
+    translationsByLocale: { [requestedLocale]: merged },
+  };
+}
+
+/** @deprecated Use pullFigmaTranslationsForPage */
+export async function pullLatestFigmaTranslations(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+}): Promise<{ jobId: null; status: "not_found" } | FigmaPageJob> {
+  return pullFigmaTranslationsForPage(input);
 }

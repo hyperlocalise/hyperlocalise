@@ -22,7 +22,6 @@ import {
   parseTranslationFile as parseFigmaTranslationFile,
   propagateFigmaTranslationsBySharedSource,
 } from "@/lib/figma/segment-file";
-
 export const fileTranslationReportSchema = z.object({
   deferredByLimit: z.number().int().nonnegative(),
   succeeded: z.number().int().nonnegative(),
@@ -186,6 +185,28 @@ function parseIntegrationJsonTranslationFile(
     return parseCanvaTranslationFile(content);
   }
   return {};
+}
+
+function stringEntriesFromJsonObject(content: Record<string, unknown>): Record<string, string> {
+  const entries: Record<string, string> = {};
+  for (const [key, value] of Object.entries(content)) {
+    if (typeof value === "string") {
+      entries[key] = value;
+    }
+  }
+  return entries;
+}
+
+/** Stamp/canva keys from the file plus CLI hash keys mapped onto source keys. */
+export function parseIntegrationJsonFileExtracted(
+  content: Record<string, unknown>,
+  sourceEntries: Record<string, string>,
+): Record<string, string> {
+  const stampParsed = parseIntegrationJsonTranslationFile(content, sourceEntries);
+  return {
+    ...applyHashedEntriesOntoSourceKeys(sourceEntries, stringEntriesFromJsonObject(content)),
+    ...stampParsed,
+  };
 }
 
 /** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
@@ -378,7 +399,7 @@ export async function collectFileTranslationPageStep(input: {
       const targetRaw = utf8FromStoredFileContent(
         await readTranslatedFile(input.sandboxId, filename),
       );
-      const fileExtracted = parseIntegrationJsonTranslationFile(
+      const fileExtracted = parseIntegrationJsonFileExtracted(
         JSON.parse(targetRaw) as Record<string, unknown>,
         input.sourceEntries,
       );
@@ -403,6 +424,23 @@ export async function collectFileTranslationPageStep(input: {
     if (figmaJsonCollect) {
       collected = propagateFigmaTranslationsBySharedSource(input.sourceEntries, collected);
     }
+    let sameAsSource = 0;
+    for (const key of keys) {
+      const source = input.sourceEntries[key]?.trim() ?? "";
+      const value = collected[key]?.trim() ?? "";
+      if (source && value === source) {
+        sameAsSource += 1;
+      }
+    }
+    console.info("[file-translation] collect", {
+      sandboxId: input.sandboxId,
+      locale,
+      outputFilename: filename,
+      hlRunFingerprint: input.hlRunFingerprint,
+      keys: keys.length,
+      delta: Object.keys(collected).length,
+      sameAsSource,
+    });
     if (Object.keys(collected).length > 0) {
       delta[locale] = collected;
     }
