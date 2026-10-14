@@ -24907,6 +24907,10 @@
     "defaultMessage": "All",
     "description": "Projects cell when a workspace translation memory is available to every project"
   },
+  "9QhSK5fRvd": {
+    "defaultMessage": "No projects assigned",
+    "description": "Projects cell when a workspace translation memory has no project attachments"
+  },
   "i1PMbnhRAE": {
     "defaultMessage": "Language review",
     "description": "Status heading in the language review mock"

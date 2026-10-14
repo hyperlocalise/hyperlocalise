@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -10,6 +11,51 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/testenv"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDeleteProjectDefaultMemoryEntryStats(t *testing.T) {
+	testenv.Require(t)
+	scope := testenv.Seed(t, testenv.Options{Role: "admin"})
+	projAPI := &projectAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+	memAPI := &memoryAPI{pool: scope.Pool, membership: scope.Membership("admin")}
+
+	create := projectMutationRequest(projAPI, scope, http.MethodPost, scope.OrgPath("/projects"), map[string]any{
+		"name":          "Canva Demo",
+		"sourceLocale":  "en-US",
+		"targetLocales": []string{"vi-VN"},
+	})
+	require.Equal(t, http.StatusCreated, create.Code, create.Body.String())
+
+	var created projectResponseBody
+	require.NoError(t, json.Unmarshal(create.Body.Bytes(), &created))
+
+	var memoryID string
+	require.NoError(t, scope.Pool.QueryRow(t.Context(), `
+		select pm.memory_id from project_memories pm
+		join memories m on m.id = pm.memory_id
+		where pm.project_id = $1 and m.source = 'native'`,
+		created.Project.ID).Scan(&memoryID))
+	mustMemoryEntry(t, scope, memoryID, "en-US", "vi-VN", "Hello", "Xin chào")
+
+	del := projectMutationRequest(projAPI, scope, http.MethodDelete, scope.OrgPath("/projects/"+created.Project.ID), nil)
+	require.Equal(t, http.StatusNoContent, del.Code, del.Body.String())
+
+	list := memoryRequest(memAPI, scope, "GET", scope.OrgPath("/translation-memories")+"?source=native", "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	var body struct {
+		Memories []struct {
+			ID             string   `json:"id"`
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+			ProjectCount   int      `json:"projectCount"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Memories, 1)
+	require.Equal(t, memoryID, body.Memories[0].ID)
+	require.Equal(t, 1, body.Memories[0].SegmentCount)
+	require.ElementsMatch(t, []string{"en-US", "vi-VN"}, body.Memories[0].LocaleCoverage)
+	require.Equal(t, 0, body.Memories[0].ProjectCount)
+}
 
 func TestDeleteProjectHappyPath(t *testing.T) {
 	testenv.Require(t)
