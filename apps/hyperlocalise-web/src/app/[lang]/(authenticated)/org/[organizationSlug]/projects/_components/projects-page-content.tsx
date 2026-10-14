@@ -267,10 +267,13 @@ export const ProjectsPageContent = observer(function ProjectsPageContent({
     pageStore.projectDialogMode === "edit"
       ? intl.formatMessage(projectsPageContentMessages.editProjectDescription)
       : intl.formatMessage(projectsPageContentMessages.createProjectDescription);
-  const initialProjectValues =
-    pageStore.projectDialogMode === "edit" && pageStore.editingProject
-      ? createProjectFormFromRow(pageStore.editingProject)
-      : createEmptyProjectForm();
+  const initialProjectValues = useMemo(
+    () =>
+      pageStore.projectDialogMode === "edit" && pageStore.editingProject
+        ? createProjectFormFromRow(pageStore.editingProject)
+        : createEmptyProjectForm(),
+    [pageStore.editingProject, pageStore.projectDialogMode],
+  );
 
   const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
   const isTmsProjectsLoading = tmsProjectsQuery.isLoading || tmsProjectsQuery.isFetching;
