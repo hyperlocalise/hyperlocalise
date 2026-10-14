@@ -421,9 +421,9 @@ export function ProductLocalisationScenario({ content }: Props) {
           {isRunning ? (
             <Message messageKey="productLocalisationScenarioFlowStatusRunning" />
           ) : isComplete ? (
-            <FormattedMessage id="WH1v1EAZBw" defaultMessage="Rerun simulation" />
+            <Message messageKey="productLocalisationScenarioRerun" />
           ) : (
-            <FormattedMessage id="XU9BoL2bTc" defaultMessage="Run simulation" />
+            <Message messageKey="productLocalisationScenarioFlowRun" />
           )}
         </button>
 

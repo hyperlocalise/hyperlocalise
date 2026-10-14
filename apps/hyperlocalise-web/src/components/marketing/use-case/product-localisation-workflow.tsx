@@ -39,7 +39,6 @@ import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typogra
 import type { UseCasePageContent, UseCaseWorkflowStep } from "./use-case-page-content";
 import { useCasePageMessages, type UseCaseMessageKey } from "./use-case-page-content.messages";
 import { useEffect, useRef } from "react";
-import { useIntl } from "react-intl";
 import { IntegrationLogoMark } from "@/components/marketing/integrations/integration-logo-mark";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 import { getIntegrationCatalogEntry } from "@/lib/integrations/integration-catalog";
@@ -219,7 +218,7 @@ function HumanReviewVisual({ step, expanded }: WorkflowGlassVisualProps) {
   );
 }
 
-function ReleaseCheckVisual({ step, expanded }: WorkflowGlassVisualProps) {
+function ReleaseCheckVisual({ step }: WorkflowGlassVisualProps) {
   const checks = [
     { Icon: BookOpenIcon, messageKey: "productLocalisationCapability2Title" as const },
     { Icon: UsersIcon, messageKey: "productLocalisationWorkflowStep3Label" as const },
@@ -443,7 +442,6 @@ function ProductContextVisual({
   expanded: boolean;
 }) {
   const locale = useAppLocale();
-  const intl = useIntl();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = React.useState(false);
 
