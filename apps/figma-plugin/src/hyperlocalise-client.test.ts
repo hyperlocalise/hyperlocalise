@@ -26,7 +26,7 @@ const pageJob: FigmaPageJob = {
   jobId: "job_figma",
   status: "waiting_for_review",
   projectId: "proj_1",
-  sourcePath: "figma/files/file-1/pages/page-1.json",
+  sourcePath: "figma/files/file-1/page-1.json",
   targetLocales: ["es"],
   lastError: null,
   translationsByLocale: { es: { "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hola" } },

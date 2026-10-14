@@ -39,6 +39,37 @@ const stampedSegmentKeySchema = z
     message: "segment key must be a figma.k.* stamp",
   });
 
+export const collectFigmaPageBodySchema = z.object({
+  projectId: projectIdSchema.optional(),
+  fileKey: z.string().min(1).max(128),
+  pageId: z.string().min(1).max(128),
+  fileName: z.string().min(1).max(256).optional(),
+  pageName: z.string().min(1).max(256).optional(),
+  segments: z
+    .array(
+      figmaSegmentSchema.extend({
+        key: stampedSegmentKeySchema,
+      }),
+    )
+    .min(1)
+    .max(5_000),
+});
+
+export const figmaLocalesQuerySchema = z.object({
+  projectId: optionalProjectIdSchema,
+  fileKey: z.string().min(1).max(128),
+  pageIds: z
+    .string()
+    .min(1)
+    .transform((value) =>
+      value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().min(1).max(128)).min(1).max(50)),
+});
+
 export const createFigmaJobBodySchema = z.object({
   projectId: projectIdSchema.optional(),
   fileKey: z.string().min(1).max(128),
@@ -54,8 +85,8 @@ export const createFigmaJobBodySchema = z.object({
         key: stampedSegmentKeySchema,
       }),
     )
-    .min(1)
-    .max(5_000),
+    .max(5_000)
+    .optional(),
 });
 
 export const figmaJobIdParamSchema = z.object({

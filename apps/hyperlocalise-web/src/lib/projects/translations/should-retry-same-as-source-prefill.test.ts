@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   isSameAsSourceMemoryPrefill,
   mergeTranslationPrefills,
+  partitionCollectedFileTranslations,
   shouldRetrySameAsSourcePrefill,
 } from "./should-retry-same-as-source-prefill";
 
@@ -106,6 +107,33 @@ describe("shouldRetrySameAsSourcePrefill", () => {
         status: "needs_review",
       }),
     ).toBe(true);
+  });
+});
+
+describe("partitionCollectedFileTranslations", () => {
+  it("holds back multi-word source copies so the job can retry them", () => {
+    expect(
+      partitionCollectedFileTranslations({
+        sourceEntries: {
+          brand: "Boost Your Brand",
+          marketing: "Digital Marketing.",
+          index: "02",
+        },
+        collected: {
+          brand: "提升您的品牌",
+          marketing: "Digital Marketing.",
+          index: "02",
+        },
+      }),
+    ).toEqual({
+      accepted: {
+        brand: "提升您的品牌",
+        index: "02",
+      },
+      leftovers: {
+        marketing: "Digital Marketing.",
+      },
+    });
   });
 });
 

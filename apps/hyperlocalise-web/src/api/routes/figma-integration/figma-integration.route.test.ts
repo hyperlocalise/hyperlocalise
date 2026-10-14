@@ -17,10 +17,13 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
+  collectFigmaPageMock: vi.fn(),
+  listFigmaPageLocaleStatusesMock: vi.fn(),
   startFigmaLocalizationMock: vi.fn(),
   getFigmaLocalizationStatusMock: vi.fn(),
   getCurrentFigmaPageJobMock: vi.fn(),
   generateFigmaLocalizationMock: vi.fn(),
+  generateFigmaLocaleJobsMock: vi.fn(),
   pullFigmaPageLocaleContentMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -32,10 +35,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/figma/localize-file", () => ({
+  collectFigmaPage: mocks.collectFigmaPageMock,
+  listFigmaPageLocaleStatuses: mocks.listFigmaPageLocaleStatusesMock,
   startFigmaLocalization: mocks.startFigmaLocalizationMock,
   getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
   getCurrentFigmaPageJob: mocks.getCurrentFigmaPageJobMock,
   generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
+  generateFigmaLocaleJobs: mocks.generateFigmaLocaleJobsMock,
   pullFigmaPageLocaleContent: mocks.pullFigmaPageLocaleContentMock,
 }));
 
@@ -228,6 +234,131 @@ describe("figmaIntegrationRoutes", () => {
     expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
   });
 
+  it("collects a page file without creating a job", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma collect key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma collect",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.collectFigmaPageMock.mockResolvedValue({
+      projectId: projectBody.project.id,
+      sourceFileId: "file_collected",
+      sourcePath: "figma/files/file-key/page-id.json",
+      segmentCount: 3,
+    });
+
+    const response = await client.api.integrations.figma.collect.$post(
+      {
+        json: {
+          fileKey: "file-key",
+          pageId: "page-id",
+          segments: [sampleSegment],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      projectId: projectBody.project.id,
+      sourceFileId: "file_collected",
+      sourcePath: "figma/files/file-key/page-id.json",
+      segmentCount: 3,
+    });
+    expect(mocks.collectFigmaPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKeyId: apiKey.id,
+        fileKey: "file-key",
+        pageId: "page-id",
+      }),
+    );
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+  });
+
+  it("lists locale status from collected pages and jobs", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma locales key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma locales",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.listFigmaPageLocaleStatusesMock.mockResolvedValue({
+      locales: [
+        {
+          locale: "en",
+          isSource: true,
+          pages: [{ pageId: "page-id", status: "succeeded" }],
+        },
+      ],
+      pages: [
+        {
+          pageId: "page-id",
+          sourcePath: "figma/files/file-key/page-id.json",
+          sourceFileId: "file_collected",
+          segmentCount: 3,
+        },
+      ],
+    });
+
+    const response = await client.api.integrations.figma.locales.$get(
+      {
+        query: {
+          fileKey: "file-key",
+          pageIds: "page-id",
+          projectId: projectBody.project.id,
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      locales: expect.any(Array),
+      pages: expect.any(Array),
+    });
+    expect(mocks.listFigmaPageLocaleStatusesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileKey: "file-key",
+        pageIds: ["page-id"],
+      }),
+    );
+  });
+
   it("creates a job when the connection token is valid and a project is bound", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
@@ -286,6 +417,69 @@ describe("figmaIntegrationRoutes", () => {
         projectId: projectBody.project.id,
         fileKey: "file-key",
         pageId: "page-id",
+      }),
+    );
+  });
+
+  it("generates a new-locale job from the collected page when segments are omitted", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma generate key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma generate",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.generateFigmaLocaleJobsMock.mockResolvedValue({
+      jobId: "job_generated",
+      generated: true,
+      projectId: projectBody.project.id,
+      sourcePath: "figma/files/file-key/page-id.json",
+    });
+
+    const response = await client.api.integrations.figma.jobs.$post(
+      {
+        json: {
+          fileKey: "file-key",
+          pageId: "page-id",
+          targetLocales: ["vi"],
+          generate: true,
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      job: {
+        jobId: "job_generated",
+        generated: true,
+        projectId: projectBody.project.id,
+        sourcePath: "figma/files/file-key/page-id.json",
+      },
+    });
+    expect(mocks.startFigmaLocalizationMock).not.toHaveBeenCalled();
+    expect(mocks.generateFigmaLocaleJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: projectBody.project.id,
+        fileKey: "file-key",
+        pageId: "page-id",
+        targetLocales: ["vi"],
       }),
     );
   });
@@ -405,7 +599,7 @@ describe("figmaIntegrationRoutes", () => {
       kind: "source",
       sourcePage: {
         locale: "en-US",
-        sourcePath: "figma/files/file-key/pages/page-1.json",
+        sourcePath: "figma/files/file-key/page-1.json",
         needsReupload: false,
         entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
       },
@@ -431,7 +625,7 @@ describe("figmaIntegrationRoutes", () => {
     await expect(response.json()).resolves.toEqual({
       sourcePage: {
         locale: "en-US",
-        sourcePath: "figma/files/file-key/pages/page-1.json",
+        sourcePath: "figma/files/file-key/page-1.json",
         needsReupload: false,
         entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
       },

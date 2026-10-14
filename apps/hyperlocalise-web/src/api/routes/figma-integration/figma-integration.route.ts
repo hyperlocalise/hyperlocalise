@@ -26,9 +26,12 @@ import {
   touchFigmaConnectionUsage,
 } from "@/lib/figma/connections";
 import {
+  collectFigmaPage,
+  generateFigmaLocaleJobs,
   generateFigmaLocalization,
   getCurrentFigmaPageJob,
   getFigmaLocalizationStatus,
+  listFigmaPageLocaleStatuses,
   pullFigmaPageLocaleContent,
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
@@ -38,11 +41,39 @@ import { env } from "@/lib/env";
 
 import { bindFigmaProjectBodySchema } from "../figma-connection/figma-connection.schema";
 import {
+  collectFigmaPageBodySchema,
   createFigmaJobBodySchema,
   currentFigmaJobQuerySchema,
   figmaJobIdParamSchema,
+  figmaLocalesQuerySchema,
   pullFigmaTranslationsQuerySchema,
 } from "./figma-integration.schema";
+
+const validateCollectBody = validator("json", (value, c) => {
+  const parsed = collectFigmaPageBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_collect_payload",
+      "Figma collect payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateLocalesQuery = validator("query", (value, c) => {
+  const parsed = figmaLocalesQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_figma_locales_query",
+      "Figma locales query is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
 
 const validateCreateJobBody = validator("json", (value, c) => {
   const parsed = createFigmaJobBodySchema.safeParse(value);
@@ -123,6 +154,8 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
 
   const badRequestCodes = new Set([
     "figma_no_text_segments",
+    "figma_page_not_collected",
+    "figma_source_ingest_timeout",
     "job_not_enqueueable",
     "job_already_running",
     "file_translation_job_required",
@@ -207,6 +240,48 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         return localizeErrorResponse(c, error);
       }
     })
+    .post("/collect", figmaConnectionAuthMiddleware, validateCollectBody, async (c) => {
+      const payload = c.req.valid("json");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const projectId = payload.projectId ?? requireBoundProject(connection);
+        const result = await collectFigmaPage({
+          auth,
+          apiKeyId: connection.apiKeyId,
+          projectId,
+          fileKey: payload.fileKey,
+          pageId: payload.pageId,
+          fileName: payload.fileName,
+          pageName: payload.pageName,
+          segments: payload.segments,
+          fileStorageAdapter: options.fileStorageAdapter,
+        });
+        return c.json(result, 201);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
+    .get("/locales", figmaConnectionAuthMiddleware, validateLocalesQuery, async (c) => {
+      const query = c.req.valid("query");
+      const connection = c.var.figmaConnection;
+      await touchFigmaConnectionUsage(connection.id);
+
+      try {
+        const auth = await resolveConnectionAuth(connection);
+        const result = await listFigmaPageLocaleStatuses({
+          auth,
+          projectId: query.projectId ?? requireBoundProject(connection),
+          fileKey: query.fileKey,
+          pageIds: query.pageIds,
+        });
+        return c.json(result, 200);
+      } catch (error) {
+        return localizeErrorResponse(c, error);
+      }
+    })
     .post("/jobs", figmaConnectionAuthMiddleware, validateCreateJobBody, async (c) => {
       if (!options.jobQueue) {
         return c.json({ error: "translation_job_queue_unavailable" }, 503);
@@ -222,19 +297,33 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         const sourceLocale = payload.sourceLocale ?? connection.sourceLocale;
         const targetLocales = payload.targetLocales ?? connection.targetLocales;
 
-        const result = await startFigmaLocalization({
+        if (payload.segments && payload.segments.length > 0) {
+          const result = await startFigmaLocalization({
+            auth,
+            apiKeyId: connection.apiKeyId,
+            projectId,
+            fileKey: payload.fileKey,
+            pageId: payload.pageId,
+            fileName: payload.fileName,
+            pageName: payload.pageName,
+            sourceLocale,
+            targetLocales,
+            segments: payload.segments,
+            generate: payload.generate,
+            jobQueue: options.jobQueue,
+            fileStorageAdapter: options.fileStorageAdapter,
+          });
+          return c.json({ job: result }, 201);
+        }
+
+        const result = await generateFigmaLocaleJobs({
           auth,
           projectId,
           fileKey: payload.fileKey,
           pageId: payload.pageId,
-          fileName: payload.fileName,
-          pageName: payload.pageName,
           sourceLocale,
           targetLocales,
-          segments: payload.segments,
-          generate: payload.generate,
           jobQueue: options.jobQueue,
-          fileStorageAdapter: options.fileStorageAdapter,
         });
         return c.json({ job: result }, 201);
       } catch (error) {

@@ -20,7 +20,7 @@ const succeededJob: FigmaPageJob = {
   jobId: "job_figma",
   status: "succeeded",
   projectId: "proj_1",
-  sourcePath: "figma/files/file-1/pages/page-1.json",
+  sourcePath: "figma/files/file-1/page-1.json",
   targetLocales: ["es"],
   lastError: null,
   translationsByLocale: { es: { "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Hola" } },
@@ -74,6 +74,91 @@ function workspaceResponse(input: RequestInfo | URL) {
     return jsonResponse({ session: sessionFixture });
   }
   return null;
+}
+
+function localeStatusesResponse(input?: {
+  pageIds?: string[];
+  sourceCollected?: boolean;
+  targetStatus?: FigmaPageJob["status"] | "missing";
+}) {
+  const pageIds = input?.pageIds ?? ["page-1"];
+  const sourceCollected = input?.sourceCollected ?? false;
+  const targetStatus = input?.targetStatus ?? "succeeded";
+  return jsonResponse({
+    locales: [
+      {
+        locale: "en",
+        isSource: true,
+        pages: pageIds.map((pageId) => ({
+          pageId,
+          status: sourceCollected ? "succeeded" : "missing",
+        })),
+      },
+      {
+        locale: "es",
+        isSource: false,
+        pages: pageIds.map((pageId) => ({
+          pageId,
+          status: targetStatus,
+        })),
+      },
+    ],
+    pages: [],
+  });
+}
+
+function figmaFetchHandler(
+  input: RequestInfo | URL,
+  overrides?: {
+    currentJob?: FigmaPageJob | null;
+    localeStatuses?: ReturnType<typeof localeStatusesResponse>;
+    collect?: Promise<Response> | Response;
+    jobsPost?: Promise<Response> | Response;
+    translations?: Promise<Response> | Response;
+  },
+) {
+  const url = requestUrl(input);
+  const workspace = workspaceResponse(input);
+  if (workspace) {
+    return workspace;
+  }
+  if (url.includes("/api/integrations/figma/locales")) {
+    return overrides?.localeStatuses ?? localeStatusesResponse({ targetStatus: "succeeded" });
+  }
+  if (url.includes("/api/integrations/figma/jobs/current")) {
+    if (url.includes("pageId=page-2")) {
+      return jsonResponse({ job: null });
+    }
+    return jsonResponse({ job: overrides?.currentJob ?? null });
+  }
+  if (url.includes("/api/integrations/figma/collect")) {
+    const collect = overrides?.collect;
+    return collect instanceof Promise
+      ? collect
+      : (collect ??
+          jsonResponse(
+            {
+              projectId: "proj_1",
+              sourceFileId: "file_collected",
+              sourcePath: "figma/files/file-1/page-1.json",
+              segmentCount: 1,
+            },
+            201,
+          ));
+  }
+  if (url.endsWith("/api/integrations/figma/jobs")) {
+    const jobsPost = overrides?.jobsPost;
+    return jobsPost instanceof Promise
+      ? jobsPost
+      : (jobsPost ?? jsonResponse({ error: "not_found" }, 404));
+  }
+  if (url.includes("/api/integrations/figma/translations")) {
+    const translations = overrides?.translations;
+    return translations instanceof Promise
+      ? translations
+      : (translations ?? jsonResponse({ error: "not_found" }, 404));
+  }
+  return jsonResponse({ error: "not_found" }, 404);
 }
 
 function postToUi(message: SandboxToUiMessage) {
@@ -174,17 +259,9 @@ describe("Figma plugin UI", () => {
   });
 
   it("hydrates the page job without showing job details", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (url.includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({ job: succeededJob });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, { currentJob: succeededJob }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -192,7 +269,7 @@ describe("Figma plugin UI", () => {
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
@@ -220,30 +297,24 @@ describe("Figma plugin UI", () => {
   });
 
   it("disables Apply for a failed page job", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (requestUrl(input).includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({
-          job: {
-            ...succeededJob,
-            status: "failed",
-            lastError: "provider_timeout",
-            translationsByLocale: {},
-          },
-        });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: {
+          ...succeededJob,
+          status: "failed",
+          lastError: "provider_timeout",
+          translationsByLocale: {},
+        },
+        localeStatuses: localeStatusesResponse({ targetStatus: "failed" }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = render(<App />);
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
@@ -258,23 +329,19 @@ describe("Figma plugin UI", () => {
   });
 
   it("hides job progress when the server has no job for the page", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (requestUrl(input).includes("/api/integrations/figma/jobs/current")) {
-        return jsonResponse({ job: null });
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: null,
+        localeStatuses: localeStatusesResponse({ targetStatus: "missing" }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = render(<App />);
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
@@ -287,16 +354,16 @@ describe("Figma plugin UI", () => {
   });
 
   it("disables Apply while another action is running", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      return workspaceResponse(input) ?? jsonResponse({ job: succeededJob });
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, { currentJob: succeededJob }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = render(<App />);
     readyMessage({
       projectId: "proj_1",
       jobId: "job_stale",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
@@ -349,23 +416,12 @@ describe("Figma plugin UI", () => {
     const pullResponse = new Promise<Response>((resolve) => {
       resolvePull = resolve;
     });
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (url.includes("/jobs/current")) {
-        if (url.includes("pageId=page-2")) {
-          return jsonResponse({ job: null });
-        }
-        return jsonResponse({ job: succeededJob });
-      }
-      if (url.includes("/translations")) {
-        return pullResponse;
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: succeededJob,
+        translations: pullResponse,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -373,7 +429,7 @@ describe("Figma plugin UI", () => {
     readyMessage({
       projectId: "proj_1",
       jobId: "job_figma",
-      sourcePath: "figma/files/file-1/pages/page-1.json",
+      sourcePath: "figma/files/file-1/page-1.json",
     });
 
     await waitFor(() => {
@@ -437,25 +493,18 @@ describe("Figma plugin UI", () => {
     });
   });
 
-  it("keeps a created job on the originating page after a page change", async () => {
-    let resolveCreate: ((value: Response) => void) | undefined;
-    const createResponse = new Promise<Response>((resolve) => {
-      resolveCreate = resolve;
+  it("finishes collect on the originating page after a page change", async () => {
+    let resolveCollect: ((value: Response) => void) | undefined;
+    const collectResponse = new Promise<Response>((resolve) => {
+      resolveCollect = resolve;
     });
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = requestUrl(input);
-      const workspace = workspaceResponse(input);
-      if (workspace) {
-        return workspace;
-      }
-      if (url.includes("/jobs/current")) {
-        return jsonResponse({ job: null });
-      }
-      if (url.endsWith("/api/integrations/figma/jobs")) {
-        return createResponse;
-      }
-      return jsonResponse({ error: "not_found" }, 404);
-    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      figmaFetchHandler(input, {
+        currentJob: null,
+        collect: collectResponse,
+        localeStatuses: localeStatusesResponse({ sourceCollected: true }),
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const postMessage = vi.spyOn(window.parent, "postMessage");
 
@@ -511,26 +560,20 @@ describe("Figma plugin UI", () => {
       binding: null,
     });
 
-    resolveCreate!(
-      await jsonResponse({
-        job: {
-          jobId: "job_created",
-          generated: false,
+    resolveCollect!(
+      await jsonResponse(
+        {
           projectId: "proj_1",
-          sourcePath: "figma/files/file-1/pages/page-1.json",
+          sourceFileId: "file_collected",
+          sourcePath: "figma/files/file-1/page-1.json",
+          segmentCount: 1,
         },
-      }),
+        201,
+      ),
     );
 
     await waitFor(() => {
-      expect(
-        pluginMessages(postMessage).some(
-          (message) =>
-            message?.type === "binding-set" &&
-            message.pageId === "page-1" &&
-            message.binding?.jobId === "job_created",
-        ),
-      ).toBe(true);
+      expect(result.getByText(/Uploaded 1 page file/)).toBeTruthy();
     });
 
     expect(
@@ -538,11 +581,11 @@ describe("Figma plugin UI", () => {
         (message) =>
           message?.type === "binding-set" &&
           message.pageId === "page-2" &&
-          message.binding?.jobId === "job_created",
+          message.binding?.jobId != null,
       ),
     ).toBe(false);
     await waitFor(() => {
-      expect(result.queryByText("job_created")).toBeNull();
+      expect(result.queryByText("file_collected")).toBeNull();
     });
   });
 });

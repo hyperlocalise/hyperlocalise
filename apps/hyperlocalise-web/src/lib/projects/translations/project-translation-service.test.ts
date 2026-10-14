@@ -147,6 +147,53 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(selectMock).toHaveBeenCalledTimes(3);
   });
 
+  it("copies stored translations onto current extract keys that share source text", async () => {
+    repoLimitMock.mockResolvedValueOnce([
+      { id: "repo_file_1", sourcePath: "figma/files/abc/page.json" },
+    ]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "json.deadbeefcafebabe", sourceText: "Project title" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "プロジェクトタイトル",
+            status: "approved",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "figma/files/abc/page.json",
+      targetLocale: "ja-JP",
+      sourceEntries: {
+        "figma.k.a": "Project title",
+        "figma.k.b": "Project title",
+      },
+    });
+
+    expect(result.prefilled).toEqual({
+      "json.deadbeefcafebabe": "プロジェクトタイトル",
+      "figma.k.a": "プロジェクトタイトル",
+      "figma.k.b": "プロジェクトタイトル",
+    });
+    expect(result.translatedKeyCount).toBe(1);
+  });
+
   it("omits needs-review copies of multi-word source text so translate-with-agent can retry", async () => {
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
     offsetMock.mockResolvedValueOnce([

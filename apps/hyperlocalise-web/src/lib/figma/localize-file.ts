@@ -12,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleJobsWhere, buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -20,6 +20,7 @@ import { db, schema } from "@/lib/database/client";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import {
+  createRepositorySourceFileVersion,
   createStoredFile,
   getStoredFileContent,
   normalizeSourcePath,
@@ -28,6 +29,10 @@ import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { isErr } from "@/lib/primitives/result/results";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import {
+  isSourceFileIngestInProgress,
+  type SourceFileIngestState,
+} from "@/lib/projects/files/source-file-ingest-state";
 import { getJobInputPayloadString } from "@/lib/projects/jobs/native-job-source-file-display";
 import {
   createFileTranslationJob,
@@ -41,12 +46,17 @@ import {
   buildFigmaSourcePath,
   isFigmaStampSegmentKey,
   parseTranslationFile,
+  propagateFigmaTranslationsBySharedSource,
   segmentsToTranslationFile,
 } from "./segment-file";
 import type {
+  CollectedFigmaPage,
+  CollectFigmaPageResult,
   FigmaCurrentJobResult,
   FigmaDesignSegment,
   FigmaJobStatusName,
+  FigmaLocalePageStatus,
+  FigmaLocaleStatusesResult,
   FigmaLocalizationStatus,
   FigmaPageJob,
   FigmaSourcePullEntry,
@@ -133,10 +143,12 @@ async function loadTranslationsByLocale(input: {
   return translationsByLocale;
 }
 
-/** Job output fills missing editor rows; Content Editor text still wins. */
+/** Job output fills missing editor rows; Content Editor text still wins
+ * unless the editor row is only the source fallback. */
 export function mergeFigmaPullTranslations(
   editorTranslations: Record<string, string>,
   jobTranslations: Record<string, string>,
+  sourceByKey: Record<string, string> = {},
 ): Record<string, string> {
   const merged: Record<string, string> = {};
   for (const [key, value] of Object.entries(jobTranslations)) {
@@ -145,9 +157,16 @@ export function mergeFigmaPullTranslations(
     }
   }
   for (const [key, value] of Object.entries(editorTranslations)) {
-    if (value.trim().length > 0) {
-      merged[key] = value;
+    const editor = value.trim();
+    if (!editor) {
+      continue;
     }
+    const source = (sourceByKey[key] ?? "").trim();
+    const job = (merged[key] ?? "").trim();
+    if (source && editor === source && job && job !== source) {
+      continue;
+    }
+    merged[key] = value;
   }
   return merged;
 }
@@ -280,6 +299,7 @@ async function mergeFigmaTranslationsWithEditor(input: {
   sourcePath: string;
   jobTranslations: Record<string, Record<string, string>>;
   targetLocales: string[];
+  sourceByKey?: Record<string, string>;
 }): Promise<Record<string, Record<string, string>>> {
   const localeSet = new Set<string>([
     ...Object.keys(input.jobTranslations),
@@ -295,7 +315,14 @@ async function mergeFigmaTranslationsWithEditor(input: {
         locale,
         sourcePath: input.sourcePath,
       });
-      const merged = mergeFigmaPullTranslations(editor, input.jobTranslations[locale] ?? {});
+      let merged = mergeFigmaPullTranslations(
+        editor,
+        input.jobTranslations[locale] ?? {},
+        input.sourceByKey,
+      );
+      if (input.sourceByKey && countNonEmptyTranslations(input.sourceByKey) > 0) {
+        merged = propagateFigmaTranslationsBySharedSource(input.sourceByKey, merged);
+      }
       if (countNonEmptyTranslations(merged) > 0) {
         mergedByLocale[locale] = merged;
       }
@@ -360,6 +387,83 @@ export function publicFigmaJobStatus(status: string): FigmaJobStatusName {
 
 export function figmaJobHasPullableTranslations(status: FigmaJobStatusName) {
   return status === "succeeded" || status === "waiting_for_review";
+}
+
+export const FIGMA_SOURCE_INGEST_WAIT_TIMEOUT_MS = 20_000;
+export const FIGMA_SOURCE_INGEST_WAIT_INTERVAL_MS = 500;
+
+export function figmaSourceIngestIsSettled(state: string | null | undefined) {
+  return state != null && !isSourceFileIngestInProgress(state as SourceFileIngestState);
+}
+
+async function loadFigmaSourceIngestStates(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+}): Promise<Array<string | null>> {
+  if (input.sourcePaths.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      sourcePath: schema.repositorySourceFileVersions.sourcePath,
+      ingestState: schema.repositorySourceFileVersions.ingestState,
+    })
+    .from(schema.repositorySourceFileVersions)
+    .where(
+      and(
+        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+        eq(schema.repositorySourceFileVersions.projectId, input.projectId),
+        inArray(schema.repositorySourceFileVersions.sourcePath, input.sourcePaths),
+      ),
+    )
+    .orderBy(desc(schema.repositorySourceFileVersions.createdAt));
+
+  const latest = new Map<string, string>();
+  for (const row of rows) {
+    if (!latest.has(row.sourcePath)) {
+      latest.set(row.sourcePath, row.ingestState);
+    }
+  }
+  return input.sourcePaths.map((sourcePath) => latest.get(sourcePath) ?? null);
+}
+
+export async function waitForFigmaSourceIngest(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+  timeoutMs?: number;
+  intervalMs?: number;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  loadStates?: () => Promise<Array<string | null>>;
+}): Promise<boolean> {
+  if (input.sourcePaths.length === 0) {
+    return true;
+  }
+
+  const timeoutMs = input.timeoutMs ?? FIGMA_SOURCE_INGEST_WAIT_TIMEOUT_MS;
+  const intervalMs = input.intervalMs ?? FIGMA_SOURCE_INGEST_WAIT_INTERVAL_MS;
+  const now = input.now ?? Date.now;
+  const sleep =
+    input.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const loadStates = input.loadStates ?? (() => loadFigmaSourceIngestStates(input));
+  const startedAt = now();
+
+  while (true) {
+    const states = await loadStates();
+    if (
+      states.length === input.sourcePaths.length &&
+      states.every((state) => figmaSourceIngestIsSettled(state))
+    ) {
+      return true;
+    }
+    if (now() - startedAt >= timeoutMs) {
+      return false;
+    }
+    await sleep(intervalMs);
+  }
 }
 
 function readJobSourceLocale(inputPayload: unknown): string | null {
@@ -427,6 +531,28 @@ async function toFigmaPageJob(input: {
   let translationsByLocale: Record<string, Record<string, string>> = {};
   const targetLocales = readJobTargetLocales(input.job.inputPayload);
   if (figmaJobHasPullableTranslations(status)) {
+    const jobSourceLocale = readJobSourceLocale(input.job.inputPayload);
+    const sourceFileId = getJobInputPayloadString(input.job.inputPayload, "sourceFileId");
+    let sourceByKey: Record<string, string> = {};
+    if (sourceFileId) {
+      try {
+        const { content } = await getStoredFileContent({
+          organizationId: input.organizationId,
+          projectId,
+          fileId: sourceFileId,
+        });
+        const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+        const sourceFile = parseTranslationFile(parsed);
+        for (const [key, value] of Object.entries(sourceFile)) {
+          if (isFigmaStampSegmentKey(key) && value.trim().length > 0) {
+            sourceByKey[key] = value;
+          }
+        }
+      } catch {
+        sourceByKey = {};
+      }
+    }
+
     const outputFiles = publicJobOutputFiles(input.job) ?? [];
     const jobTranslations =
       outputFiles.length > 0
@@ -442,37 +568,19 @@ async function toFigmaPageJob(input: {
       sourcePath,
       jobTranslations,
       targetLocales,
+      sourceByKey,
     });
 
-    const jobSourceLocale = readJobSourceLocale(input.job.inputPayload);
-    const sourceFileId = getJobInputPayloadString(input.job.inputPayload, "sourceFileId");
-    if (jobSourceLocale && sourceFileId) {
-      try {
-        const { content } = await getStoredFileContent({
-          organizationId: input.organizationId,
-          projectId,
-          fileId: sourceFileId,
-        });
-        const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
-        const sourceFile = parseTranslationFile(parsed);
-        const sourceSegments: Record<string, string> = {};
-        for (const [key, value] of Object.entries(sourceFile)) {
-          if (isFigmaStampSegmentKey(key) && value.trim().length > 0) {
-            sourceSegments[key] = value;
-          }
-        }
-        const editorSource = await loadFigmaEditorTranslationsBySourcePath({
-          organizationId: input.organizationId,
-          projectId,
-          locale: jobSourceLocale,
-          sourcePath,
-        });
-        const mergedSource = mergeFigmaPullTranslations(editorSource, sourceSegments);
-        if (countNonEmptyTranslations(mergedSource) > 0) {
-          translationsByLocale[jobSourceLocale] = mergedSource;
-        }
-      } catch {
-        // Source file missing or unreadable; target pulls still work.
+    if (jobSourceLocale && countNonEmptyTranslations(sourceByKey) > 0) {
+      const editorSource = await loadFigmaEditorTranslationsBySourcePath({
+        organizationId: input.organizationId,
+        projectId,
+        locale: jobSourceLocale,
+        sourcePath,
+      });
+      const mergedSource = mergeFigmaPullTranslations(editorSource, sourceByKey);
+      if (countNonEmptyTranslations(mergedSource) > 0) {
+        translationsByLocale[jobSourceLocale] = mergedSource;
       }
     }
   }
@@ -510,31 +618,38 @@ export async function getAccessibleFigmaProject(auth: ApiAuthContext, projectId:
   return project ?? null;
 }
 
-export async function startFigmaLocalization(input: {
+function readStoredFileMetadataString(
+  metadata: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function countFigmaTranslatedKeys(translations: Record<string, string>, total: number) {
+  let translated = 0;
+  for (const value of Object.values(translations)) {
+    if (value.trim().length > 0) {
+      translated += 1;
+    }
+  }
+  return Math.min(translated, total);
+}
+
+export async function collectFigmaPage(input: {
   auth: ApiAuthContext;
+  apiKeyId: string;
   projectId: string;
   fileKey: string;
   pageId: string;
   fileName?: string;
   pageName?: string;
-  sourceLocale: string;
-  targetLocales: string[];
   segments: FigmaDesignSegment[];
-  generate: boolean;
-  jobQueue: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
-}): Promise<StartFigmaLocalizationResult> {
+}): Promise<CollectFigmaPageResult> {
   const project = await getAccessibleFigmaProject(input.auth, input.projectId);
   if (!project) {
     throw new Error("figma_project_not_found");
-  }
-
-  const localeValidation = validateJobLocalesAgainstProject(project, {
-    sourceLocale: input.sourceLocale,
-    targetLocales: input.targetLocales,
-  });
-  if (isErr(localeValidation)) {
-    throw new Error(localeValidation.error.code);
   }
 
   const organizationId = input.auth.organization.localOrganizationId;
@@ -545,7 +660,8 @@ export async function startFigmaLocalization(input: {
     pageId: input.pageId,
   });
   const translationFile = segmentsToTranslationFile(input.segments);
-  if (Object.keys(translationFile).length === 0) {
+  const segmentCount = Object.keys(translationFile).length;
+  if (segmentCount === 0) {
     throw new Error("figma_no_text_segments");
   }
 
@@ -573,43 +689,291 @@ export async function startFigmaLocalization(input: {
       integration: "figma-plugin",
       figmaFileKey: input.fileKey,
       figmaPageId: input.pageId,
+      segmentCount,
     },
     adapter,
   });
 
-  const jobInput = {
+  const version = await createRepositorySourceFileVersion({
+    storedFile,
+    sourcePath,
+    sourceHash,
+    uploadedByApiKeyId: input.apiKeyId,
+    uploadedByUserId: input.auth.user.localUserId,
+    uploadSurface: "figma_plugin",
+  });
+
+  void enqueueSourceFileIngestAfterUpload({
+    organizationId,
+    projectId: project.id,
+    storedFileId: storedFile.id,
+    sourceFileVersionId: version.id,
+    sourcePath,
+    sourceHash,
+  }).catch(() => {});
+
+  return {
+    projectId: project.id,
+    sourceFileId: storedFile.id,
+    sourcePath,
+    segmentCount,
+  };
+}
+
+export async function listCollectedFigmaPages(input: {
+  organizationId: string;
+  projectId: string;
+  fileKey: string;
+  pageIds: string[];
+}): Promise<CollectedFigmaPage[]> {
+  const uniquePageIds = [...new Set(input.pageIds.filter((pageId) => pageId.trim().length > 0))];
+  if (uniquePageIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      id: schema.storedFiles.id,
+      metadata: schema.storedFiles.metadata,
+      createdAt: schema.storedFiles.createdAt,
+    })
+    .from(schema.storedFiles)
+    .where(
+      and(
+        eq(schema.storedFiles.organizationId, input.organizationId),
+        eq(schema.storedFiles.projectId, input.projectId),
+        eq(schema.storedFiles.role, "source"),
+        sql`${schema.storedFiles.metadata}->>'integration' = 'figma-plugin'`,
+        sql`${schema.storedFiles.metadata}->>'figmaFileKey' = ${input.fileKey}`,
+        or(
+          ...uniquePageIds.map(
+            (pageId) => sql`${schema.storedFiles.metadata}->>'figmaPageId' = ${pageId}`,
+          ),
+        ),
+      ),
+    )
+    .orderBy(desc(schema.storedFiles.createdAt));
+
+  const latestByPageId = new Map<string, CollectedFigmaPage>();
+  for (const row of rows) {
+    const metadata =
+      row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : {};
+    const pageId = readStoredFileMetadataString(metadata, "figmaPageId");
+    const sourcePath = readStoredFileMetadataString(metadata, "sourcePath");
+    if (!pageId || !sourcePath || latestByPageId.has(pageId)) {
+      continue;
+    }
+    const segmentCount =
+      typeof metadata.segmentCount === "number" && Number.isFinite(metadata.segmentCount)
+        ? metadata.segmentCount
+        : 0;
+    latestByPageId.set(pageId, {
+      pageId,
+      sourcePath,
+      sourceFileId: row.id,
+      segmentCount,
+    });
+  }
+
+  return uniquePageIds
+    .map((pageId) => latestByPageId.get(pageId))
+    .filter((page): page is CollectedFigmaPage => page != null);
+}
+
+async function listFigmaFileJobs(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+}): Promise<FigmaJobSnapshot[]> {
+  const organizationId = input.auth.organization.localOrganizationId;
+  const accessibleJobsWhere = await buildAccessibleJobsWhere(input.auth);
+  const rows = await db
+    .select(figmaJobSelectFields())
+    .from(schema.jobs)
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .where(
+      and(
+        eq(schema.jobs.organizationId, organizationId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.projectId, input.projectId),
+        accessibleJobsWhere,
+        sql`${schema.jobs.inputPayload}->'metadata'->>'integration' = 'figma-plugin'`,
+        sql`${schema.jobs.inputPayload}->'metadata'->>'figmaFileKey' = ${input.fileKey}`,
+      ),
+    )
+    .orderBy(desc(schema.jobs.createdAt));
+
+  return rows.filter(
+    (job) =>
+      isFigmaIntegrationJob(job.inputPayload) &&
+      readMetadataString(job.inputPayload, "figmaFileKey") === input.fileKey,
+  );
+}
+
+export async function listFigmaPageLocaleStatuses(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+  pageIds: string[];
+}): Promise<FigmaLocaleStatusesResult> {
+  const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("figma_project_not_found");
+  }
+
+  const organizationId = input.auth.organization.localOrganizationId;
+  const pageIds = [...new Set(input.pageIds.filter((pageId) => pageId.trim().length > 0))];
+  const pages = await listCollectedFigmaPages({
+    organizationId,
+    projectId: project.id,
+    fileKey: input.fileKey,
+    pageIds,
+  });
+  const collectedByPageId = new Map(pages.map((page) => [page.pageId, page]));
+  const jobs = await listFigmaFileJobs({
+    auth: input.auth,
+    projectId: project.id,
+    fileKey: input.fileKey,
+  });
+
+  const sourceLocale = project.sourceLocale?.trim() || "en";
+  const targetLocales = project.targetLocales ?? [];
+
+  const sourcePages: FigmaLocalePageStatus[] = pageIds.map((pageId) => ({
+    pageId,
+    status: collectedByPageId.has(pageId) ? "succeeded" : "missing",
+  }));
+
+  const locales: FigmaLocaleStatusesResult["locales"] = [
+    {
+      locale: sourceLocale,
+      isSource: true,
+      pages: sourcePages,
+    },
+  ];
+
+  for (const locale of targetLocales) {
+    const trimmed = locale.trim();
+    if (!trimmed || trimmed === sourceLocale) {
+      continue;
+    }
+
+    const localePages: FigmaLocalePageStatus[] = [];
+    for (const pageId of pageIds) {
+      const collected = collectedByPageId.get(pageId);
+      if (!collected) {
+        localePages.push({ pageId, status: "missing" });
+        continue;
+      }
+
+      const job = jobs.find(
+        (candidate) =>
+          figmaJobMatchesPage(candidate.inputPayload, {
+            fileKey: input.fileKey,
+            pageId,
+          }) && readJobTargetLocales(candidate.inputPayload).includes(trimmed),
+      );
+
+      if (job) {
+        localePages.push({ pageId, status: publicFigmaJobStatus(job.status) });
+        continue;
+      }
+
+      const editorSegments = await loadFigmaEditorTranslationsBySourcePath({
+        organizationId,
+        projectId: project.id,
+        locale: trimmed,
+        sourcePath: collected.sourcePath,
+      });
+      const editorTranslated = countFigmaTranslatedKeys(editorSegments, collected.segmentCount);
+      if (editorTranslated > 0) {
+        localePages.push({ pageId, status: "waiting_for_review" });
+      } else {
+        localePages.push({ pageId, status: "missing" });
+      }
+    }
+
+    locales.push({
+      locale: trimmed,
+      isSource: false,
+      pages: localePages,
+    });
+  }
+
+  return { locales, pages };
+}
+
+export async function startFigmaLocalization(input: {
+  auth: ApiAuthContext;
+  apiKeyId: string;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  fileName?: string;
+  pageName?: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  segments: FigmaDesignSegment[];
+  generate: boolean;
+  jobQueue: JobQueue<TranslationJobEventData>;
+  fileStorageAdapter?: FileStorageAdapter;
+}): Promise<StartFigmaLocalizationResult> {
+  const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("figma_project_not_found");
+  }
+
+  const localeValidation = validateJobLocalesAgainstProject(project, {
+    sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
+  });
+  if (isErr(localeValidation)) {
+    throw new Error(localeValidation.error.code);
+  }
+
+  const organizationId = input.auth.organization.localOrganizationId;
+  const collected = await collectFigmaPage({
+    auth: input.auth,
+    apiKeyId: input.apiKeyId,
+    projectId: project.id,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    fileName: input.fileName,
+    pageName: input.pageName,
+    segments: input.segments,
+    fileStorageAdapter: input.fileStorageAdapter,
+  });
+
+  const created = await createFileTranslationJob({
     organizationId,
     projectId: project.id,
     createdByUserId: input.auth.user.localUserId,
     ownerUserId: input.auth.user.localUserId,
-    sourceFileId: storedFile.id,
+    sourceFileId: collected.sourceFileId,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
     metadata: {
       integration: "figma-plugin",
       figmaFileKey: input.fileKey,
       figmaPageId: input.pageId,
-      sourcePath,
+      sourcePath: collected.sourcePath,
     },
-  };
-
-  const created = await createFileTranslationJob(jobInput);
+  });
   if (!created.ok) {
     throw new Error(created.code);
   }
 
-  if (created.sourceFileVersionId) {
-    void enqueueSourceFileIngestAfterUpload({
+  if (input.generate) {
+    const ingestReady = await waitForFigmaSourceIngest({
       organizationId,
       projectId: project.id,
-      storedFileId: storedFile.id,
-      sourceFileVersionId: created.sourceFileVersionId,
-      sourcePath,
-      sourceHash,
-    }).catch(() => {});
-  }
-
-  if (input.generate) {
+      sourcePaths: [collected.sourcePath],
+    });
+    if (!ingestReady) {
+      throw new Error("figma_source_ingest_timeout");
+    }
     const generated = await enqueueExistingFileTranslationJob({
       organizationId,
       jobId: created.jobId,
@@ -624,7 +988,7 @@ export async function startFigmaLocalization(input: {
     jobId: created.jobId,
     generated: input.generate,
     projectId: project.id,
-    sourcePath,
+    sourcePath: collected.sourcePath,
   };
 }
 
@@ -650,6 +1014,105 @@ export async function generateFigmaLocalization(input: {
   }
 
   return { jobId: generated.jobId };
+}
+
+export async function generateFigmaLocaleJobs(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  sourceLocale?: string;
+  targetLocales: string[];
+  jobQueue: JobQueue<TranslationJobEventData>;
+}): Promise<StartFigmaLocalizationResult> {
+  const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("figma_project_not_found");
+  }
+
+  const sourceLocale = input.sourceLocale?.trim() || project.sourceLocale?.trim() || "";
+  const localeValidation = validateJobLocalesAgainstProject(project, {
+    sourceLocale,
+    targetLocales: input.targetLocales,
+  });
+  if (isErr(localeValidation)) {
+    throw new Error(localeValidation.error.code);
+  }
+
+  const collected = await findLatestFigmaCollectedPage({
+    auth: input.auth,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    projectId: project.id,
+  });
+  if (!collected) {
+    throw new Error("figma_page_not_collected");
+  }
+
+  const organizationId = input.auth.organization.localOrganizationId;
+  const ingestReady = await waitForFigmaSourceIngest({
+    organizationId,
+    projectId: project.id,
+    sourcePaths: [collected.sourcePath],
+  });
+  if (!ingestReady) {
+    throw new Error("figma_source_ingest_timeout");
+  }
+
+  const created = await createFileTranslationJob({
+    organizationId,
+    projectId: project.id,
+    createdByUserId: input.auth.user.localUserId,
+    ownerUserId: input.auth.user.localUserId,
+    sourceFileId: collected.sourceFileId,
+    sourceLocale,
+    targetLocales: input.targetLocales,
+    metadata: {
+      integration: "figma-plugin",
+      figmaFileKey: input.fileKey,
+      figmaPageId: input.pageId,
+      sourcePath: collected.sourcePath,
+    },
+  });
+  if (!created.ok) {
+    throw new Error(created.code);
+  }
+
+  const generated = await enqueueExistingFileTranslationJob({
+    organizationId,
+    jobId: created.jobId,
+    jobQueue: input.jobQueue,
+  });
+  if (!generated.ok) {
+    throw new Error(generated.code);
+  }
+
+  return {
+    jobId: created.jobId,
+    generated: true,
+    projectId: project.id,
+    sourcePath: collected.sourcePath,
+  };
+}
+
+async function findLatestFigmaCollectedPage(input: {
+  auth: ApiAuthContext;
+  fileKey: string;
+  pageId: string;
+  projectId: string;
+}): Promise<{ sourceFileId: string; sourcePath: string } | null> {
+  const organizationId = input.auth.organization.localOrganizationId;
+  const pages = await listCollectedFigmaPages({
+    organizationId,
+    projectId: input.projectId,
+    fileKey: input.fileKey,
+    pageIds: [input.pageId],
+  });
+  const page = pages[0];
+  if (!page) {
+    return null;
+  }
+  return { sourceFileId: page.sourceFileId, sourcePath: page.sourcePath };
 }
 
 async function getFigmaTranslationJobSnapshot(input: {
@@ -845,14 +1308,14 @@ export async function pullFigmaSourcePageForUpload(input: {
     pageId: input.pageId,
   });
 
-  const job = await findLatestFigmaPageJob({
+  const collected = await findLatestFigmaCollectedPage({
     auth: input.auth,
     fileKey: input.fileKey,
     pageId: input.pageId,
     projectId: project.id,
   });
 
-  if (!job) {
+  if (!collected) {
     return {
       locale: projectSourceLocale,
       sourcePath: sourcePathDefault,
@@ -861,16 +1324,8 @@ export async function pullFigmaSourcePageForUpload(input: {
     };
   }
 
-  const sourcePath = readMetadataString(job.inputPayload, "sourcePath") ?? sourcePathDefault;
-  const sourceFileId = getJobInputPayloadString(job.inputPayload, "sourceFileId");
-  if (!sourceFileId) {
-    return {
-      locale: projectSourceLocale,
-      sourcePath,
-      needsReupload: true,
-      entries: [],
-    };
-  }
+  const sourcePath = collected.sourcePath;
+  const sourceFileId = collected.sourceFileId;
 
   let sourceFile: Record<string, string> = {};
   try {

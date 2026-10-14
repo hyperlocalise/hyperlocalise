@@ -149,6 +149,58 @@ export async function bindFigmaProject(input: {
   return payload.session;
 }
 
+export async function collectFigmaPage(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  fileName?: string;
+  pageName?: string;
+  segments: FigmaSegment[];
+}): Promise<{
+  projectId: string;
+  sourceFileId: string;
+  sourcePath: string;
+  segmentCount: number;
+}> {
+  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/collect"), {
+    method: "POST",
+    headers: buildRequestHeaders(input.appUrl, input.auth),
+    body: JSON.stringify({
+      projectId: input.projectId,
+      fileKey: input.fileKey,
+      pageId: input.pageId,
+      fileName: input.fileName,
+      pageName: input.pageName,
+      segments: input.segments.map((segment) => ({
+        key: segment.key,
+        nodeId: segment.nodeId,
+        regionIndex: segment.regionIndex,
+        text: segment.text,
+      })),
+    }),
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | ({
+        projectId?: string;
+        sourceFileId?: string;
+        sourcePath?: string;
+        segmentCount?: number;
+      } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_collect_failed", "Unable to upload page text.");
+  if (!payload?.projectId || !payload.sourceFileId || !payload.sourcePath) {
+    throw new HyperlocaliseClientError("figma_collect_failed", "Unable to upload page text.");
+  }
+  return {
+    projectId: payload.projectId,
+    sourceFileId: payload.sourceFileId,
+    sourcePath: payload.sourcePath,
+    segmentCount: payload.segmentCount ?? 0,
+  };
+}
+
 export async function createFigmaJob(input: {
   appUrl: string;
   auth: string | FigmaResourceAuth;
@@ -159,7 +211,7 @@ export async function createFigmaJob(input: {
   pageName?: string;
   sourceLocale: string;
   targetLocales: string[];
-  segments: FigmaSegment[];
+  segments?: FigmaSegment[];
   generate: boolean;
 }): Promise<{ jobId: string; generated: boolean; projectId: string; sourcePath: string }> {
   const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/jobs"), {
@@ -173,7 +225,7 @@ export async function createFigmaJob(input: {
       pageName: input.pageName,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
-      segments: input.segments.map((segment) => ({
+      segments: input.segments?.map((segment) => ({
         key: segment.key,
         nodeId: segment.nodeId,
         regionIndex: segment.regionIndex,
@@ -192,6 +244,43 @@ export async function createFigmaJob(input: {
     throw new HyperlocaliseClientError("figma_job_create_failed", "Unable to start translation.");
   }
   return payload.job;
+}
+
+export type FigmaLocalePageStatusResponse = {
+  pageId: string;
+  status: FigmaPageJob["status"] | "missing" | "idle";
+};
+
+export type FigmaLocaleStatusResponse = {
+  locale: string;
+  isSource: boolean;
+  pages: FigmaLocalePageStatusResponse[];
+};
+
+export async function fetchFigmaLocaleStatusesFromApi(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  fileKey: string;
+  pageIds: string[];
+}): Promise<{ locales: FigmaLocaleStatusResponse[]; pages: unknown[] }> {
+  const params = new URLSearchParams({
+    fileKey: input.fileKey,
+    pageIds: input.pageIds.join(","),
+    projectId: input.projectId,
+  });
+  const response = await fetch(
+    apiUrl(input.appUrl, `/api/integrations/figma/locales?${params.toString()}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ locales?: FigmaLocaleStatusResponse[]; pages?: unknown[] } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_locales_failed", "Unable to load locale status.");
+  if (!payload?.locales) {
+    throw new HyperlocaliseClientError("figma_locales_failed", "Unable to load locale status.");
+  }
+  return { locales: payload.locales, pages: payload.pages ?? [] };
 }
 
 export async function fetchCurrentFigmaJob(input: {
@@ -237,6 +326,21 @@ export async function getFigmaJob(input: {
     throw new HyperlocaliseClientError("figma_job_fetch_failed", "Unable to load the job.");
   }
   return payload.job;
+}
+
+export async function generateFigmaLocaleJob(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+}): Promise<{ jobId: string; generated: boolean; projectId: string; sourcePath: string }> {
+  return createFigmaJob({
+    ...input,
+    generate: true,
+  });
 }
 
 export async function generateFigmaJob(input: {

@@ -22,15 +22,16 @@ export function jobStatusLabel(status: FigmaPageJob["status"]) {
   }
 }
 
+export function isTranslatingJobStatus(status: FigmaPageJob["status"]) {
+  return status === "running";
+}
+
 export function jobPollingStepProgress(
   status: FigmaPageJob["status"],
   pulse: number,
 ): StepProgress | null {
-  if (!isInFlightJobStatus(status)) {
+  if (!isTranslatingJobStatus(status)) {
     return null;
-  }
-  if (status === "queued") {
-    return { label: "Waiting to translate…", value: 18 };
   }
   return { label: "Translating…", value: 35 + (pulse % 45) };
 }

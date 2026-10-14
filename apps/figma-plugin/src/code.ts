@@ -12,6 +12,7 @@ import {
   type FigmaPageJobBinding,
 } from "./page-binding";
 import { buildFigmaApplyTextIndex, resolveFigmaApplyTarget } from "./apply-translations";
+import { loadFontsForTextNodes } from "./load-text-node-fonts";
 import { createFigmaSegment, readStampedSegmentKey } from "./segment-file";
 import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
 import { hadLegacyFigmaSession, mergeSettings } from "./settings";
@@ -245,6 +246,7 @@ async function applyTranslations(
 ) {
   let applied = 0;
   const textIndex = buildFigmaApplyTextIndex({ sourceByKey, translations });
+  const updates: Array<{ node: TextNode; nextText: string }> = [];
 
   for (const node of nodes) {
     if (!node.characters.trim()) {
@@ -261,25 +263,19 @@ async function applyTranslations(
       continue;
     }
 
-    await loadFontsForNode(node);
+    updates.push({ node, nextText });
+  }
+
+  if (updates.length === 0) {
+    return 0;
+  }
+
+  await loadFontsForTextNodes(updates.map((entry) => entry.node));
+
+  for (const { node, nextText } of updates) {
     node.characters = nextText;
     applied += 1;
   }
 
   return applied;
-}
-
-async function loadFontsForNode(node: TextNode) {
-  if (node.fontName !== figma.mixed) {
-    await figma.loadFontAsync(node.fontName);
-    return;
-  }
-
-  const length = node.characters.length;
-  for (let index = 0; index < length; index += 1) {
-    const fontName = node.getRangeFontName(index, index + 1);
-    if (fontName !== figma.mixed) {
-      await figma.loadFontAsync(fontName);
-    }
-  }
 }

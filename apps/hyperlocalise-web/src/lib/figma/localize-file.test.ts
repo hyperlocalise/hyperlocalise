@@ -10,18 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   buildFigmaSourcePullEntries,
   figmaJobHasPullableTranslations,
   figmaJobMatchesPage,
+  figmaSourceIngestIsSettled,
   isFigmaIntegrationJob,
   isProjectSourceLocale,
   mergeFigmaPullTranslations,
   pickTranslationsForLocale,
   publicFigmaJobStatus,
   publicJobOutputFiles,
+  waitForFigmaSourceIngest,
 } from "./localize-file";
 
 describe("mergeFigmaPullTranslations", () => {
@@ -38,6 +40,16 @@ describe("mergeFigmaPullTranslations", () => {
     expect(mergeFigmaPullTranslations({}, { "figma.k.a": "Hola" })).toEqual({
       "figma.k.a": "Hola",
     });
+  });
+
+  it("keeps the job translation when the editor row is only the source fallback", () => {
+    expect(
+      mergeFigmaPullTranslations(
+        { "figma.k.a": "Project title" },
+        { "figma.k.a": "Tiêu đề dự án" },
+        { "figma.k.a": "Project title" },
+      ),
+    ).toEqual({ "figma.k.a": "Tiêu đề dự án" });
   });
 });
 
@@ -206,5 +218,29 @@ describe("isFigmaIntegrationJob", () => {
         fileInput: { metadata: { integration: "" } },
       }),
     ).toBe(false);
+  });
+});
+
+describe("waitForFigmaSourceIngest", () => {
+  it("treats ingested, skipped, and failed as settled", () => {
+    expect(figmaSourceIngestIsSettled("ingested")).toBe(true);
+    expect(figmaSourceIngestIsSettled("skipped")).toBe(true);
+    expect(figmaSourceIngestIsSettled("failed")).toBe(true);
+    expect(figmaSourceIngestIsSettled("pending")).toBe(false);
+    expect(figmaSourceIngestIsSettled("ingesting")).toBe(false);
+    expect(figmaSourceIngestIsSettled(null)).toBe(false);
+  });
+
+  it("returns immediately when the collected page has ingested", async () => {
+    const loadStates = vi.fn(async () => ["ingested"]);
+    await expect(
+      waitForFigmaSourceIngest({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourcePaths: ["figma/files/abc/12-34.json"],
+        loadStates,
+      }),
+    ).resolves.toBe(true);
+    expect(loadStates).toHaveBeenCalledTimes(1);
   });
 });

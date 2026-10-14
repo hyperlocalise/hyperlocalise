@@ -10,9 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { FigmaDesignSegment } from "./types";
-
 import { slugifyFigmaName } from "./names";
+import type { FigmaDesignSegment } from "./types";
 
 export const FIGMA_SEGMENT_KEY_PREFIX = "figma.k.";
 export const FIGMA_LEGACY_SEGMENT_KEY_PREFIX = "figma.segment.";
@@ -82,28 +81,100 @@ export function sanitizeFigmaId(pageId: string): string {
   );
 }
 
-export function buildFigmaPageFileName(input: { pageName?: string; pageId: string }): string {
-  const pageSlug = slugifyFigmaName(input.pageName, "page");
-  const idPart = sanitizeFigmaId(input.pageId);
-  return `page-${pageSlug}-${idPart}.json`;
+const FIGMA_PAGE_SLUG_MAX_LENGTH = 48;
+
+export function buildFigmaPageFileName(input: { pageId: string; pageName?: string }): string {
+  const pageSlug =
+    slugifyFigmaName(input.pageName, "page")
+      .slice(0, FIGMA_PAGE_SLUG_MAX_LENGTH)
+      .replace(/-+$/, "") || "page";
+  return `${pageSlug}-${sanitizeFigmaId(input.pageId)}.json`;
 }
 
 export function buildFigmaPageSourcePath(input: {
-  fileName?: string;
   fileKey: string;
-  pageName?: string;
   pageId: string;
+  fileName?: string;
+  pageName?: string;
 }): string {
-  const fileSlug = slugifyFigmaName(input.fileName, input.fileKey);
-  const fileKeyPart = sanitizeFigmaPathSegment(input.fileKey);
-  const pageFile = buildFigmaPageFileName({
+  return `figma/files/${sanitizeFigmaPathSegment(input.fileKey)}/${buildFigmaPageFileName({
     pageName: input.pageName,
     pageId: input.pageId,
-  });
-  return `figma/files/${fileSlug}-${fileKeyPart}/${pageFile}`;
+  })}`;
 }
 
-/** Legacy path shape; kept for jobs created before per-page filenames. */
-export function buildFigmaSourcePath(fileKey: string, pageId: string): string {
-  return `figma/files/${sanitizeFigmaPathSegment(fileKey)}/pages/${sanitizeFigmaPathSegment(pageId)}.json`;
+export function buildFigmaSourcePath(fileKey: string, pageId: string, pageName?: string): string {
+  return buildFigmaPageSourcePath({ fileKey, pageId, pageName });
+}
+
+/** Include every stamp key that shares source text with a lock-completed key. */
+export function expandFigmaLockKeysBySharedSource(
+  keys: readonly string[],
+  sourceEntries: Record<string, string>,
+): string[] {
+  const expanded = new Set(keys);
+  const completedSources = new Set<string>();
+  for (const key of keys) {
+    if (!isFigmaStampSegmentKey(key)) {
+      continue;
+    }
+    const source = sourceEntries[key]?.trim();
+    if (source) {
+      completedSources.add(source);
+    }
+  }
+  if (completedSources.size === 0) {
+    return [...expanded];
+  }
+  for (const [key, source] of Object.entries(sourceEntries)) {
+    if (!isFigmaStampSegmentKey(key)) {
+      continue;
+    }
+    const normalized = source.trim();
+    if (normalized && completedSources.has(normalized)) {
+      expanded.add(key);
+    }
+  }
+  return [...expanded];
+}
+
+/** When duplicate text nodes share source copy, one translated stamp key applies to the rest. */
+export function propagateFigmaTranslationsBySharedSource(
+  sourceByKey: Record<string, string>,
+  translations: Record<string, string>,
+): Record<string, string> {
+  const bestTranslationBySource = new Map<string, string>();
+  for (const [key, translation] of Object.entries(translations)) {
+    if (!isFigmaStampSegmentKey(key)) {
+      continue;
+    }
+    const source = sourceByKey[key]?.trim() ?? "";
+    const value = translation.trim();
+    if (!source || !value || value === source) {
+      continue;
+    }
+    if (!bestTranslationBySource.has(source)) {
+      bestTranslationBySource.set(source, translation);
+    }
+  }
+
+  const output = { ...translations };
+  for (const [key, source] of Object.entries(sourceByKey)) {
+    if (!isFigmaStampSegmentKey(key)) {
+      continue;
+    }
+    const normalizedSource = source.trim();
+    if (!normalizedSource) {
+      continue;
+    }
+    const best = bestTranslationBySource.get(normalizedSource);
+    if (!best) {
+      continue;
+    }
+    const current = output[key]?.trim() ?? "";
+    if (!current || current === normalizedSource) {
+      output[key] = best;
+    }
+  }
+  return output;
 }

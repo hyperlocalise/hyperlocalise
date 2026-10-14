@@ -104,3 +104,35 @@ export type FigmaSourcePullPage = {
   needsReupload: boolean;
   entries: FigmaSourcePullEntry[];
 };
+
+export type CollectedFigmaPage = {
+  pageId: string;
+  sourcePath: string;
+  sourceFileId: string;
+  segmentCount: number;
+};
+
+export type CollectFigmaPageResult = {
+  projectId: string;
+  sourceFileId: string;
+  sourcePath: string;
+  segmentCount: number;
+};
+
+export type FigmaLocalePageStatusName = FigmaJobStatusName | "missing" | "idle";
+
+export type FigmaLocalePageStatus = {
+  pageId: string;
+  status: FigmaLocalePageStatusName;
+};
+
+export type FigmaLocaleStatus = {
+  locale: string;
+  isSource: boolean;
+  pages: FigmaLocalePageStatus[];
+};
+
+export type FigmaLocaleStatusesResult = {
+  locales: FigmaLocaleStatus[];
+  pages: CollectedFigmaPage[];
+};

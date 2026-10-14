@@ -19,7 +19,9 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import {
   bindFigmaProject,
+  collectFigmaPage,
   createFigmaJob,
+  generateFigmaLocaleJob,
   fetchCurrentFigmaJob,
   fetchFigmaSession,
   FIGMA_JOB_POLL_INTERVAL_MS,
@@ -45,7 +47,12 @@ import { FormField } from "./form-field";
 import { TooltipButton, TooltipWrap } from "./tooltip-wrap";
 import { PageMultiSelect } from "./page-multi-select";
 import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
-import { isInFlightJobStatus, jobPollingStepProgress, pageJobFromCreate } from "./page-job-ui";
+import {
+  isInFlightJobStatus,
+  isTranslatingJobStatus,
+  jobPollingStepProgress,
+  pageJobFromCreate,
+} from "./page-job-ui";
 import {
   canApplySelectedPages,
   fetchFigmaLocaleStatuses,
@@ -551,7 +558,7 @@ export function App() {
 
   useEffect(() => {
     if (
-      !booted ||
+      !showWorkflowScreen ||
       !auth ||
       !file ||
       !settings.projectId ||
@@ -578,7 +585,7 @@ export function App() {
       cancelled = true;
     };
   }, [
-    booted,
+    showWorkflowScreen,
     settings.accessToken,
     settings.connectionToken,
     settings.projectId,
@@ -590,6 +597,7 @@ export function App() {
 
   useEffect(() => {
     if (
+      !showWorkflowScreen ||
       !auth ||
       !file ||
       !settings.projectId ||
@@ -624,6 +632,7 @@ export function App() {
       setApplyStatusLoading(false);
     };
   }, [
+    showWorkflowScreen,
     settings.projectId,
     settings.selectedLocale,
     selectedPageIds.join(","),
@@ -634,11 +643,11 @@ export function App() {
   ]);
 
   useEffect(() => {
-    if (!booted || !auth || !file || selectedPageIds.length !== 1) {
+    if (!showWorkflowScreen || !auth || !file || selectedPageIds.length !== 1) {
       return;
     }
 
-    const projectId = pageBinding?.projectId || settings.projectId;
+    const projectId = settings.projectId.trim();
     if (!projectId) {
       return;
     }
@@ -678,7 +687,11 @@ export function App() {
         }
         setPageJob(null);
       } catch (error) {
-        if (pageBinding?.jobId) {
+        if (
+          pageBinding?.jobId &&
+          pageBinding.projectId === projectId &&
+          pageBinding.jobId.trim().length > 0
+        ) {
           try {
             const job = await getFigmaJob({
               appUrl: settings.appUrl,
@@ -702,17 +715,25 @@ export function App() {
       cancelled = true;
     };
   }, [
-    booted,
+    showWorkflowScreen,
     settings.accessToken,
     settings.connectionToken,
     settings.projectId,
     file?.fileKey,
     selectedPageIds.join(","),
+    pageBinding?.jobId,
     pageBinding?.projectId,
   ]);
 
   useEffect(() => {
-    if (!pageJob || !isInFlightJobStatus(pageJob.status) || !auth) {
+    if (!showProjectScreen) {
+      return;
+    }
+    setErrorMessage(null);
+  }, [showProjectScreen]);
+
+  useEffect(() => {
+    if (!showWorkflowScreen || !pageJob || !isTranslatingJobStatus(pageJob.status) || !auth) {
       return;
     }
 
@@ -743,9 +764,7 @@ export function App() {
         }
         setPageJob(job);
         if (!isInFlightJobStatus(job.status)) {
-          if (job.status === "succeeded") {
-            showToast("Translations are ready. Choose a language and apply.", "positive");
-          } else if (job.status === "waiting_for_review") {
+          if (job.status === "waiting_for_review") {
             showToast("Needs review. You can still pull the current translations.", "info");
           } else if (job.status === "failed") {
             showToast(job.lastError || "Translation failed.", "critical");
@@ -768,7 +787,13 @@ export function App() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [pageJob?.jobId, pageJob?.status, settings.accessToken, settings.connectionToken]);
+  }, [
+    showWorkflowScreen,
+    pageJob?.jobId,
+    pageJob?.status,
+    settings.accessToken,
+    settings.connectionToken,
+  ]);
 
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
@@ -1110,6 +1135,32 @@ export function App() {
     return { created, extracted, locale, originatedPageId };
   };
 
+  const generateJobForPage = async (pageId: string) => {
+    if (!auth || !settings.projectId || !file) {
+      throw new Error("Connect and choose a project first.");
+    }
+    const locale = settings.selectedLocale;
+    if (!locale || locale === sourceLocale) {
+      throw new Error("Choose a target language to translate.");
+    }
+
+    pageIdRef.current = pageId;
+    const created = await generateFigmaLocaleJob({
+      appUrl: settings.appUrl,
+      auth,
+      projectId: settings.projectId,
+      fileKey: file.fileKey,
+      pageId,
+      sourceLocale,
+      targetLocales: [locale],
+    });
+    rememberCreatedJob(created, pageId, {
+      showInFlightUi: true,
+      targetLocales: [locale],
+    });
+    return { created, locale, originatedPageId: pageId };
+  };
+
   const extractSelectedSourcePages = async (): Promise<FigmaUploadPreview> => {
     const segmentsByPage: FigmaUploadPreview["segmentsByPage"] = [];
     for (const pageId of selectedPageIds) {
@@ -1154,16 +1205,27 @@ export function App() {
 
   const confirmUpload = () =>
     runAction("upload", async () => {
-      if (!uploadPreview) {
+      if (!uploadPreview || !auth || !settings.projectId) {
         return;
       }
       const preview = uploadPreview;
       setUploadPreview(null);
-      for (const { pageId } of preview.segmentsByPage) {
-        const { originatedPageId } = await createJobForPage(pageId, false);
-        if (pageIdRef.current !== originatedPageId) {
+      for (const { pageId, segments } of preview.segmentsByPage) {
+        pageIdRef.current = pageId;
+        const extracted = await ensureExtractedForPage(pageId);
+        if (pageIdRef.current !== pageId) {
           return;
         }
+        await collectFigmaPage({
+          appUrl: settings.appUrl,
+          auth,
+          projectId: settings.projectId,
+          fileKey: extracted.file.fileKey,
+          pageId,
+          fileName: extracted.file.fileName,
+          pageName: extracted.file.pageName,
+          segments,
+        });
       }
       await refreshLocaleStatuses();
       showToast(
@@ -1249,22 +1311,19 @@ export function App() {
         const appliedPageIds: string[] = [];
         let jobIndex = 0;
 
-        if (!pagesUploaded) {
-          if (!canUploadSource) {
-            throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
-          }
-          setStep("Uploading source text...", 6);
-          const preview = await extractSelectedSourcePages();
-          for (const { pageId } of preview.segmentsByPage) {
-            await createJobForPage(pageId, false);
-          }
-          await refreshLocaleStatuses();
+        if (!pagesUploaded && !canUploadSource) {
+          throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
         }
 
         for (const pageId of selectedPageIds) {
           jobIndex += 1;
+          if (!pagesUploaded) {
+            setStep("Uploading source text...", 6);
+          }
           setStep("Starting translation...", 12);
-          const { created, originatedPageId } = await createJobForPage(pageId, true);
+          const { created, originatedPageId } = pagesUploaded
+            ? await generateJobForPage(pageId)
+            : await createJobForPage(pageId, true);
 
           setStep("Translating with AI...", 42);
           const job = await waitForJobCompletion(created.jobId, originatedPageId, (completed) => {
@@ -1324,7 +1383,10 @@ export function App() {
     });
 
   const pageJobPollingProgress =
-    pageJob && selectedPageIds.length === 1 && busy == null && isInFlightJobStatus(pageJob.status)
+    pageJob &&
+    selectedPageIds.length === 1 &&
+    busy == null &&
+    isTranslatingJobStatus(pageJob.status)
       ? jobPollingStepProgress(pageJob.status, jobPollPulse)
       : null;
   const translateFooterProgress = busy === "translate" ? translateProgress : null;
@@ -1409,7 +1471,7 @@ export function App() {
       ) : null}
 
       {showProjectScreen ? (
-        <div className="body">
+        <div className="body projectScreenTop">
           <Container space="small">
             <FormField label="Project">
               <div className="pageFieldRow">

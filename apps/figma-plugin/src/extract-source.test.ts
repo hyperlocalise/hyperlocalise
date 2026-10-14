@@ -5,7 +5,7 @@ import { remapExtractedSegmentsToSource } from "./extract-source";
 
 const pullPage = {
   locale: "en",
-  sourcePath: "figma/files/a/pages/page-1.json",
+  sourcePath: "figma/files/a/page-1.json",
   needsReupload: false,
   entries: [
     {

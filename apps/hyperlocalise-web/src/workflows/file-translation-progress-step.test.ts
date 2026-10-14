@@ -122,6 +122,94 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     });
   });
 
+  it("maps a hashed lock key onto Figma stamp keys from the target file", async () => {
+    const { createHash } = await import("node:crypto");
+    const source = "Project title";
+    const hash = createHash("sha256").update(source, "utf8").digest("hex").slice(0, 16);
+    const first = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const sibling = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAW";
+    const sourceEntries = { [first]: source, [sibling]: source };
+    const outputFilename = "12-34-ja-JP.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify({
+          run_completed: {
+            [`./${outputFilename}`]: {
+              [`json.${hash}`]: { s: "deadbeef", t: "cafebabe" },
+            },
+          },
+        });
+      }
+      if (path === outputFilename) {
+        return JSON.stringify({ [first]: "プロジェクトタイトル", [sibling]: source });
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { [`json.${hash}`]: source },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_figma_hash",
+        inputFilename: "12-34.json",
+        outputFilenames: { "ja-JP": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+        hlRunFingerprint: "0:1:1:0:0",
+      }),
+    ).resolves.toEqual({
+      "ja-JP": {
+        [first]: "プロジェクトタイトル",
+        [sibling]: "プロジェクトタイトル",
+      },
+    });
+  });
+
+  it("copies a Figma translation onto stamp keys that share source text", async () => {
+    const translated = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const sibling = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAW";
+    const sourceEntries = {
+      [translated]: "Project title",
+      [sibling]: "Project title",
+    };
+    const outputFilename = "12-34-ja-JP.json";
+
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path === ".hyperlocalise.lock.json") {
+        return JSON.stringify(lockFor(outputFilename, [translated]));
+      }
+      if (path === outputFilename) {
+        return JSON.stringify({ [translated]: "プロジェクトタイトル", [sibling]: "Project title" });
+      }
+      throw new Error(`unexpected sandbox read: ${path}`);
+    });
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { [translated]: "Project title" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_figma",
+        inputFilename: "12-34.json",
+        outputFilenames: { "ja-JP": outputFilename },
+        sourceEntries,
+        prefills: {},
+        confirmed: {},
+        hlRunFingerprint: "0:1:1:0:0",
+      }),
+    ).resolves.toEqual({
+      "ja-JP": {
+        [translated]: "プロジェクトタイトル",
+        [sibling]: "プロジェクトタイトル",
+      },
+    });
+  });
+
   it("reconciles Canva JSON from the target file when hl entries lag source fallbacks", async () => {
     const key = "canva.t.2b52fdaa63b8822c";
     const sourceEntries = { [key]: "Describe a Cat" };

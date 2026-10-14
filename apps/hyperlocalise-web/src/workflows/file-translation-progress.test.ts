@@ -12,13 +12,17 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { createHash } from "node:crypto";
+
 import {
   collectCompletedTranslationPageEntries,
   collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
   mergeCanvaJsonExtractedEntries,
+  remapPrefillsOntoSourceKeys,
   resolveCollectedTranslationEntryValue,
+  sourceKeysForLockCompletions,
 } from "./file-translation-progress";
 
 describe("resolveCollectedTranslationEntryValue", () => {
@@ -68,14 +72,17 @@ describe("collectCompletedTranslationPageEntries", () => {
     ).toEqual({ greeting: "Bonjour" });
   });
 
-  it("skips prefill-only keys that are missing from the output", () => {
+  it("keeps prefill-only keys that are missing from the output", () => {
     expect(
       collectCompletedTranslationPageEntries({
         keys: ["greeting", "workspace"],
         extracted: { greeting: "Bonjour" },
-        prefills: { workspace: "Enable workspace knowledge" },
+        prefills: { workspace: "Activer l'espace de travail" },
       }),
-    ).toEqual({ greeting: "Bonjour" });
+    ).toEqual({
+      greeting: "Bonjour",
+      workspace: "Activer l'espace de travail",
+    });
   });
 
   it("throws when a lockfile-completed key is missing from the output", () => {
@@ -273,6 +280,21 @@ describe("completedFileTranslationKeys", () => {
     ).toEqual(["greeting", "farewell"]);
   });
 
+  it("matches a basename when the lock stores a relative sandbox path", () => {
+    expect(
+      completedFileTranslationKeys(
+        {
+          run_completed: {
+            "./locales/de.json": {
+              greeting: { s: "Hello", t: "Hallo" },
+            },
+          },
+        },
+        "de.json",
+      ),
+    ).toEqual(["greeting"]);
+  });
+
   it("matches a nested sandbox path by filename suffix", () => {
     expect(
       completedFileTranslationKeys(
@@ -304,5 +326,51 @@ describe("completedFileTranslationKeys", () => {
         "fr.json",
       ),
     ).toThrow();
+  });
+});
+
+describe("sourceKeysForLockCompletions", () => {
+  it("keeps matching keys and every stamp that shares their source text", () => {
+    expect(
+      sourceKeysForLockCompletions(
+        {
+          "figma.k.a": "Project title",
+          "figma.k.b": "Project title",
+          "figma.k.c": "Other",
+        },
+        ["figma.k.b"],
+      ).sort(),
+    ).toEqual(["figma.k.a", "figma.k.b"]);
+  });
+
+  it("maps a content-hash lock key onto Figma stamp keys", () => {
+    const source = "Project title";
+    const hash = createHash("sha256").update(source, "utf8").digest("hex").slice(0, 16);
+    expect(
+      sourceKeysForLockCompletions(
+        {
+          "figma.k.a": source,
+          "figma.k.b": source,
+        },
+        [`json.${hash}`],
+      ).sort(),
+    ).toEqual(["figma.k.a", "figma.k.b"]);
+  });
+});
+
+describe("remapPrefillsOntoSourceKeys", () => {
+  it("copies a translation onto stamp keys that share source text", () => {
+    expect(
+      remapPrefillsOntoSourceKeys(
+        {
+          "figma.k.a": "Project title",
+          "figma.k.b": "Project title",
+        },
+        { "figma.k.b": "プロジェクトタイトル" },
+      ),
+    ).toEqual({
+      "figma.k.a": "プロジェクトタイトル",
+      "figma.k.b": "プロジェクトタイトル",
+    });
   });
 });

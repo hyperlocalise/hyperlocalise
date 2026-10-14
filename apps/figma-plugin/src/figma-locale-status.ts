@@ -1,10 +1,9 @@
-import { fetchCurrentFigmaJob, type FigmaResourceAuth } from "./hyperlocalise-client";
+import { fetchFigmaLocaleStatusesFromApi, type FigmaResourceAuth } from "./hyperlocalise-client";
 import type { FigmaPageJob } from "./plugin-messages";
-import { isInFlightJobStatus } from "./page-job-ui";
 
 export type FigmaLocalePageStatus = {
   pageId: string;
-  status: FigmaPageJob["status"] | "missing";
+  status: FigmaPageJob["status"] | "missing" | "idle";
 };
 
 export type FigmaLocaleStatus = {
@@ -59,71 +58,14 @@ export async function fetchFigmaLocaleStatuses(input: {
   sourceLocale: string;
   targetLocales: string[];
 }): Promise<FigmaLocaleStatus[]> {
-  const pageIds = [...new Set(input.pageIds)];
-  const jobs = await Promise.all(
-    pageIds.map(async (pageId) => {
-      try {
-        const { job } = await fetchCurrentFigmaJob({
-          appUrl: input.appUrl,
-          auth: input.auth,
-          fileKey: input.fileKey,
-          pageId,
-          projectId: input.projectId,
-        });
-        return { pageId, job };
-      } catch {
-        return { pageId, job: null as FigmaPageJob | null };
-      }
-    }),
-  );
-
-  const jobByPageId = new Map(jobs.map((entry) => [entry.pageId, entry.job]));
-
-  const sourcePages: FigmaLocalePageStatus[] = pageIds.map((pageId) => {
-    const job = jobByPageId.get(pageId);
-    if (!job) {
-      return { pageId, status: "missing" };
-    }
-    if (job.status === "failed" || job.status === "cancelled") {
-      return { pageId, status: job.status };
-    }
-    if (isInFlightJobStatus(job.status)) {
-      return { pageId, status: job.status };
-    }
-    return { pageId, status: job.status };
+  void input.sourceLocale;
+  void input.targetLocales;
+  const result = await fetchFigmaLocaleStatusesFromApi({
+    appUrl: input.appUrl,
+    auth: input.auth,
+    projectId: input.projectId,
+    fileKey: input.fileKey,
+    pageIds: input.pageIds,
   });
-
-  const locales: FigmaLocaleStatus[] = [
-    {
-      locale: input.sourceLocale,
-      isSource: true,
-      pages: sourcePages,
-    },
-  ];
-
-  for (const locale of input.targetLocales) {
-    const trimmed = locale.trim();
-    if (!trimmed || trimmed === input.sourceLocale) {
-      continue;
-    }
-    locales.push({
-      locale: trimmed,
-      isSource: false,
-      pages: pageIds.map((pageId) => {
-        const job = jobByPageId.get(pageId);
-        if (!job) {
-          return { pageId, status: "missing" as const };
-        }
-        if (job.status === "succeeded" || job.status === "waiting_for_review") {
-          return { pageId, status: job.status };
-        }
-        if (job.targetLocales.includes(trimmed) && isInFlightJobStatus(job.status)) {
-          return { pageId, status: job.status };
-        }
-        return { pageId, status: "missing" as const };
-      }),
-    });
-  }
-
-  return locales;
+  return result.locales;
 }

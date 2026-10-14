@@ -16,30 +16,28 @@ import {
   buildFigmaPageFileName,
   buildFigmaPageSourcePath,
   buildFigmaSourcePath,
+  expandFigmaLockKeysBySharedSource,
   figmaSourceFileNeedsReupload,
   parseTranslationFile,
+  propagateFigmaTranslationsBySharedSource,
   sanitizeFigmaId,
   segmentsToTranslationFile,
 } from "./segment-file";
-import { slugifyFigmaName } from "./names";
 
 describe("figma segment file", () => {
-  it("builds legacy and per-page source paths", () => {
-    expect(buildFigmaSourcePath("abc123", "12:34")).toBe("figma/files/abc123/pages/12:34.json");
-    expect(buildFigmaSourcePath("../oops", "page/a")).toBe("figma/files/oops/pages/page_a.json");
+  it("builds file-key plus slugged page title paths", () => {
+    expect(buildFigmaSourcePath("abc123", "12:34")).toBe("figma/files/abc123/page-12-34.json");
+    expect(buildFigmaSourcePath("../oops", "page/a")).toBe("figma/files/oops/page-page-a.json");
     expect(sanitizeFigmaId("12:34")).toBe("12-34");
-    expect(slugifyFigmaName("Marketing Site", "abc")).toBe("marketing-site");
-    expect(buildFigmaPageFileName({ pageName: "Home", pageId: "12:34" })).toBe(
-      "page-home-12-34.json",
-    );
+    expect(buildFigmaPageFileName({ pageName: "Cover", pageId: "12:34" })).toBe("cover-12-34.json");
     expect(
       buildFigmaPageSourcePath({
-        fileName: "Marketing",
+        fileName: "Portfolio Template Edit Portfolio Export",
         fileKey: "abc123",
         pageName: "Home",
         pageId: "12:34",
       }),
-    ).toBe("figma/files/marketing-abc123/page-home-12-34.json");
+    ).toBe("figma/files/abc123/home-12-34.json");
   });
 
   it("round-trips stamped keys and skips empty or legacy keys", () => {
@@ -77,5 +75,33 @@ describe("figma segment file", () => {
   it("flags legacy source files for reupload", () => {
     expect(figmaSourceFileNeedsReupload({ "figma.k.abc": "Hi" })).toBe(false);
     expect(figmaSourceFileNeedsReupload({ "figma.segment.1:1.0": "Hi" })).toBe(true);
+  });
+
+  it("expands lock keys to every stamp key with the same source text", () => {
+    const sourceEntries = {
+      "figma.k.a": "Project title",
+      "figma.k.b": "Project title",
+      "figma.k.c": "Other",
+    };
+    expect(expandFigmaLockKeysBySharedSource(["figma.k.b"], sourceEntries).sort()).toEqual([
+      "figma.k.a",
+      "figma.k.b",
+    ]);
+  });
+
+  it("propagates a translation to duplicate source stamp keys", () => {
+    const sourceByKey = {
+      "figma.k.a": "Project title",
+      "figma.k.b": "Project title",
+    };
+    expect(
+      propagateFigmaTranslationsBySharedSource(sourceByKey, {
+        "figma.k.a": "Project title",
+        "figma.k.b": "Tiêu đề dự án",
+      }),
+    ).toEqual({
+      "figma.k.a": "Tiêu đề dự án",
+      "figma.k.b": "Tiêu đề dự án",
+    });
   });
 });
