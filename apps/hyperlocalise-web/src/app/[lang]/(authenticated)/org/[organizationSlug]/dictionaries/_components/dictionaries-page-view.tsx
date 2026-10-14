@@ -29,14 +29,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import type { DictionaryCreateForm } from "../store/dictionaries-page-store";
 import type { DictionaryListRow } from "./dictionary-list";
 import { DictionariesTable } from "./dictionaries-table";
 import { dictionariesPageViewMessages } from "./dictionaries-page-view.messages";
 
-export type DictionaryCreateForm = {
-  name: string;
-  description: string;
-};
+export type { DictionaryCreateForm };
 
 export function DictionariesPageView({
   organizationSlug,
