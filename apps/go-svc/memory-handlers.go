@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -423,60 +422,56 @@ func (api *memoryAPI) attachNativeMemoryEntryStats(ctx context.Context, records 
 	}
 
 	countByMemory := make(map[string]int, len(nativeIDs))
-	localeSets := make(map[string]map[string]struct{}, len(nativeIDs))
+	localeCoverageByMemory := make(map[string][]string, len(nativeIDs))
 	for _, id := range nativeIDs {
 		countByMemory[id] = 0
-		localeSets[id] = map[string]struct{}{}
+		localeCoverageByMemory[id] = []string{}
 	}
 
-	countRows, err := api.pool.Query(ctx, `
-		select memory_id, count(*)::int
-		from memory_entries
-		where memory_id = any($1::uuid[])
-		group by memory_id`, nativeIDs)
+	rows, err := api.pool.Query(ctx, `
+		with locale_union as (
+			select memory_id, source_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and source_locale <> ''
+			union
+			select memory_id, target_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and target_locale <> ''
+		),
+		locale_agg as (
+			select memory_id, array_agg(distinct locale order by locale) as locale_coverage
+			from locale_union
+			group by memory_id
+		),
+		count_agg as (
+			select memory_id, count(*)::int as segment_count
+			from memory_entries
+			where memory_id = any($1::uuid[])
+			group by memory_id
+		)
+		select c.memory_id, c.segment_count, coalesce(l.locale_coverage, '{}'::text[])
+		from count_agg c
+		left join locale_agg l using (memory_id)`, nativeIDs)
 	if err != nil {
 		return err
 	}
-	for countRows.Next() {
+	defer rows.Close()
+	for rows.Next() {
 		var memoryID string
 		var count int
-		if scanErr := countRows.Scan(&memoryID, &count); scanErr != nil {
-			countRows.Close()
+		var localeCoverage []string
+		if scanErr := rows.Scan(&memoryID, &count, &localeCoverage); scanErr != nil {
 			return scanErr
 		}
 		countByMemory[memoryID] = count
+		if localeCoverage == nil {
+			localeCoverage = []string{}
+		}
+		localeCoverageByMemory[memoryID] = localeCoverage
 	}
-	if err := countRows.Err(); err != nil {
-		countRows.Close()
+	if err := rows.Err(); err != nil {
 		return err
 	}
-	countRows.Close()
-
-	localeRows, err := api.pool.Query(ctx, `
-		select memory_id, source_locale, target_locale
-		from memory_entries
-		where memory_id = any($1::uuid[])`, nativeIDs)
-	if err != nil {
-		return err
-	}
-	for localeRows.Next() {
-		var memoryID, sourceLocale, targetLocale string
-		if scanErr := localeRows.Scan(&memoryID, &sourceLocale, &targetLocale); scanErr != nil {
-			localeRows.Close()
-			return scanErr
-		}
-		if sourceLocale != "" {
-			localeSets[memoryID][sourceLocale] = struct{}{}
-		}
-		if targetLocale != "" {
-			localeSets[memoryID][targetLocale] = struct{}{}
-		}
-	}
-	if err := localeRows.Err(); err != nil {
-		localeRows.Close()
-		return err
-	}
-	localeRows.Close()
 
 	for i := range records {
 		if records[i].Source != "native" {
@@ -484,12 +479,7 @@ func (api *memoryAPI) attachNativeMemoryEntryStats(ctx context.Context, records 
 		}
 		count := countByMemory[records[i].ID]
 		records[i].SegmentCount = &count
-		locales := make([]string, 0, len(localeSets[records[i].ID]))
-		for locale := range localeSets[records[i].ID] {
-			locales = append(locales, locale)
-		}
-		sort.Strings(locales)
-		records[i].LocaleCoverage = locales
+		records[i].LocaleCoverage = localeCoverageByMemory[records[i].ID]
 	}
 	return nil
 }
