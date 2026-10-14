@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
 import { WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
@@ -263,12 +264,25 @@ const DATA_PORT_EDGE_CLASS = { input: "-left-3!", output: "-right-3!" };
 const EXECUTION_LABEL_CLASS =
   "pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium text-muted-foreground";
 
+const PORT_VALUE_PREVIEW_LENGTH = 80;
+
+/** A value as the pin's tooltip shows it: JSON, cut short. */
+function previewPortValue(value: unknown): string {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > PORT_VALUE_PREVIEW_LENGTH
+    ? `${text.slice(0, PORT_VALUE_PREVIEW_LENGTH - 1)}…`
+    : text;
+}
+
 function DataPortLabel({
   port,
   direction,
+  value,
 }: {
   port: VisualWorkflowDataPort;
   direction: "input" | "output";
+  /** What passed through the pin in the last run, if it ran. */
+  value?: unknown;
 }) {
   const connected = port.connectionCount > 0;
 
@@ -278,7 +292,9 @@ function DataPortLabel({
         "relative flex min-h-6 items-center gap-1.5 text-[10px]",
         direction === "output" ? "justify-end text-right" : null,
       )}
-      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}`}
+      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}${
+        value === undefined ? "" : ` = ${previewPortValue(value)}`
+      }`}
     >
       {direction === "input" ? (
         <DataHandle
@@ -639,7 +655,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
             <div className="space-y-0.5">
               {dataPorts.inputs.map((port) => (
-                <DataPortLabel key={`data-input-${port.id}`} port={port} direction="input" />
+                <DataPortLabel
+                  key={`data-input-${port.id}`}
+                  port={port}
+                  direction="input"
+                  value={readWorkflowPath(data.lastInput?.config, port.id.split("."))}
+                />
               ))}
             </div>
           </div>
@@ -655,7 +676,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
             <div className="space-y-0.5">
               {dataPorts.outputs.map((port) => (
-                <DataPortLabel key={`data-output-${port.id}`} port={port} direction="output" />
+                <DataPortLabel
+                  key={`data-output-${port.id}`}
+                  port={port}
+                  direction="output"
+                  value={readWorkflowPath(data.lastOutput, port.id.split("."))}
+                />
               ))}
             </div>
           </div>
