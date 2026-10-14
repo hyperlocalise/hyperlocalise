@@ -24904,6 +24904,10 @@
     "description": "Document editor: translation memory match score"
   },
   "i1K5RtvMOq": {
+    "defaultMessage": "All",
+    "description": "Projects cell when a workspace translation memory is available to every project"
+  },
+  "9QhSK5fRvd": {
     "defaultMessage": "No projects assigned",
     "description": "Projects cell when a workspace translation memory has no project attachments"
   },
