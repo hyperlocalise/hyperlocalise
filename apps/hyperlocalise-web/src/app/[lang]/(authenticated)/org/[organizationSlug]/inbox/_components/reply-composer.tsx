@@ -78,11 +78,15 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
 type ReplyComposerViewProps = {
   disabled: boolean;
   draft?: string;
+  draftProjectId?: string;
+  draftRepositoryKey?: string;
   initialProjectId?: string | null;
   isStreaming: boolean;
   lockedProjectId?: string | null;
   lockedProjectName?: string | null;
   onDraftChange?: (draft: string) => void;
+  onDraftProjectChange?: (projectId: string) => void;
+  onDraftRepositoryChange?: (repositoryKey: string) => void;
   onSend: (text: string, files: File[], options?: ChatComposerSendOptions) => void | Promise<void>;
   placeholder?: string;
   projects: ChatProjectOption[];
@@ -96,11 +100,15 @@ type ReplyComposerViewProps = {
 export function ReplyComposerView({
   disabled,
   draft = "",
+  draftProjectId,
+  draftRepositoryKey,
   initialProjectId = null,
   isStreaming,
   lockedProjectId = null,
   lockedProjectName = null,
   onDraftChange,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   onSend,
   placeholder,
   projects,
@@ -112,8 +120,8 @@ export function ReplyComposerView({
 }: ReplyComposerViewProps) {
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
-  const [selectedRepositoryKey, setSelectedRepositoryKey] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedRepositoryKey, setSelectedRepositoryKey] = useState(draftRepositoryKey ?? "");
+  const [selectedProjectId, setSelectedProjectId] = useState(draftProjectId ?? "");
   const promptInputController = usePromptInputController();
   // Stable across keystrokes; the controller object itself is recreated whenever
   // textInput changes, so it must not be an effect dependency.
@@ -130,19 +138,41 @@ export function ReplyComposerView({
   }, [draft, setInput]);
 
   useEffect(() => {
+    if (draftRepositoryKey === undefined) {
+      return;
+    }
+    setSelectedRepositoryKey(draftRepositoryKey);
+  }, [draftRepositoryKey]);
+
+  useEffect(() => {
+    if (draftProjectId === undefined) {
+      return;
+    }
+    setSelectedProjectId(draftProjectId);
+  }, [draftProjectId]);
+
+  useEffect(() => {
+    if (repositoriesIsLoading) {
+      return;
+    }
     if (
       selectedRepositoryKey &&
       !repositories.some((repository) => repository.selectionKey === selectedRepositoryKey)
     ) {
       setSelectedRepositoryKey("");
+      onDraftRepositoryChange?.("");
     }
-  }, [repositories, selectedRepositoryKey]);
+  }, [onDraftRepositoryChange, repositories, repositoriesIsLoading, selectedRepositoryKey]);
 
   useEffect(() => {
+    if (projectsIsLoading) {
+      return;
+    }
     if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
       setSelectedProjectId("");
+      onDraftProjectChange?.("");
     }
-  }, [projects, selectedProjectId]);
+  }, [onDraftProjectChange, projects, projectsIsLoading, selectedProjectId]);
 
   const resolvedRepository: ChatRepository | undefined =
     repositories.find((repository) => repository.selectionKey === selectedRepositoryKey) ??
@@ -241,7 +271,10 @@ export function ReplyComposerView({
                 selectedProjectId={resolvedProjectId}
                 locked={projectLocked}
                 lockedProjectName={lockedProjectName}
-                onSelectProject={setSelectedProjectId}
+                onSelectProject={(projectId) => {
+                  setSelectedProjectId(projectId);
+                  onDraftProjectChange?.(projectId);
+                }}
                 triggerStyle="prompt-input"
               />
               <RepositorySelector
@@ -249,9 +282,10 @@ export function ReplyComposerView({
                 repositoriesIsError={repositoriesIsError}
                 repositoriesIsLoading={repositoriesIsLoading}
                 selectedRepositoryKey={resolvedRepository?.selectionKey ?? ""}
-                onSelectRepository={(repository) =>
-                  setSelectedRepositoryKey(repository.selectionKey)
-                }
+                onSelectRepository={(repository) => {
+                  setSelectedRepositoryKey(repository.selectionKey);
+                  onDraftRepositoryChange?.(repository.selectionKey);
+                }}
                 triggerStyle="prompt-input"
               />
               <PromptInputSubmit
@@ -292,6 +326,10 @@ export const ReplyComposer = memo(function ReplyComposer({
   organizationSlug,
   inboxApi: injectedInboxApi = inboxApi,
   draft,
+  draftProjectId,
+  draftRepositoryKey,
+  onDraftProjectChange,
+  onDraftRepositoryChange,
   ...viewProps
 }: ReplyComposerProps) {
   const { client: goSvcClient } = useGoSvcClient();
@@ -323,6 +361,10 @@ export const ReplyComposer = memo(function ReplyComposer({
       <ReplyComposerView
         {...viewProps}
         draft={draft}
+        draftProjectId={draftProjectId}
+        draftRepositoryKey={draftRepositoryKey}
+        onDraftProjectChange={onDraftProjectChange}
+        onDraftRepositoryChange={onDraftRepositoryChange}
         projects={projects}
         projectsIsError={projectsIsError}
         projectsIsLoading={projectsIsLoading}

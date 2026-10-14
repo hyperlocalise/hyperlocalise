@@ -12,17 +12,34 @@
  */
 // @vitest-environment happy-dom
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { observer } from "mobx-react-lite";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+import { InboxPageStore } from "../store/inbox-page-store";
 import { repositoriesFixture } from "./inbox.fixture";
 import { ReplyComposerView } from "./reply-composer";
+
+const projectOptions = [
+  {
+    id: "proj_website",
+    name: "Hyperlocalise Website Localisation",
+    source: "native" as const,
+    externalProviderKind: null,
+  },
+  {
+    id: "proj_mobile",
+    name: "Mobile app",
+    source: "native" as const,
+    externalProviderKind: null,
+  },
+];
 
 function DraftBackedComposer({
   initialDraft = "",
@@ -215,5 +232,125 @@ describe("ReplyComposerView draft sync", () => {
     await waitFor(() => {
       expect(screen.getByRole("textbox")).toHaveValue("Suggested prompt");
     });
+  });
+
+  it("restores repository and project from a stored reply draft", () => {
+    renderComposer(
+      <PromptInputProvider initialInput="Follow up on checkout">
+        <ReplyComposerView
+          disabled={false}
+          draft="Follow up on checkout"
+          draftProjectId="proj_mobile"
+          draftRepositoryKey={repositoriesFixture[1]!.selectionKey}
+          isStreaming={false}
+          onSend={vi.fn()}
+          projects={projectOptions}
+          projectsIsError={false}
+          projectsIsLoading={false}
+          repositories={repositoriesFixture}
+          repositoriesIsError={false}
+          repositoriesIsLoading={false}
+        />
+      </PromptInputProvider>,
+    );
+
+    expect(screen.getByRole("textbox")).toHaveValue("Follow up on checkout");
+    expect(screen.getByText("hyperlocalise/mobile-app")).toBeInTheDocument();
+    expect(screen.getByText("Mobile app")).toBeInTheDocument();
+  });
+
+  it("does not clear a stored repository while repositories are still loading", () => {
+    const onDraftRepositoryChange = vi.fn();
+
+    renderComposer(
+      <PromptInputProvider>
+        <ReplyComposerView
+          disabled={false}
+          draftRepositoryKey={repositoriesFixture[1]!.selectionKey}
+          isStreaming={false}
+          onDraftRepositoryChange={onDraftRepositoryChange}
+          onSend={vi.fn()}
+          projects={[]}
+          projectsIsError={false}
+          projectsIsLoading={false}
+          repositories={[]}
+          repositoriesIsError={false}
+          repositoriesIsLoading
+        />
+      </PromptInputProvider>,
+    );
+
+    expect(onDraftRepositoryChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps separate reply drafts when switching conversations", async () => {
+    const user = userEvent.setup();
+    const firstConversationId = "c-1";
+    const secondConversationId = "c-2";
+
+    const StoreBackedComposer = observer(function StoreBackedComposer({
+      conversationId,
+      store,
+    }: {
+      conversationId: string;
+      store: InboxPageStore;
+    }) {
+      const draft = store.getReplyDraft(conversationId);
+      return (
+        <PromptInputProvider key={conversationId} initialInput={draft.text}>
+          <ReplyComposerView
+            disabled={false}
+            draft={draft.text}
+            draftProjectId={draft.projectId}
+            draftRepositoryKey={draft.repositoryKey}
+            isStreaming={false}
+            onDraftChange={(text) => store.setReplyDraft(conversationId, { text })}
+            onDraftProjectChange={(projectId) => store.setReplyDraft(conversationId, { projectId })}
+            onDraftRepositoryChange={(repositoryKey) =>
+              store.setReplyDraft(conversationId, { repositoryKey })
+            }
+            onSend={vi.fn()}
+            projects={projectOptions}
+            projectsIsError={false}
+            projectsIsLoading={false}
+            repositories={repositoriesFixture}
+            repositoriesIsError={false}
+            repositoriesIsLoading={false}
+          />
+        </PromptInputProvider>
+      );
+    });
+
+    function Harness() {
+      const store = useMemo(() => new InboxPageStore("acme"), []);
+      const [conversationId, setConversationId] = useState(firstConversationId);
+
+      return (
+        <>
+          <button type="button" onClick={() => setConversationId(firstConversationId)}>
+            Thread 1
+          </button>
+          <button type="button" onClick={() => setConversationId(secondConversationId)}>
+            Thread 2
+          </button>
+          <StoreBackedComposer conversationId={conversationId} store={store} />
+        </>
+      );
+    }
+
+    renderComposer(<Harness />);
+
+    const textarea = screen.getByRole("textbox");
+    await user.type(textarea, "French follow-up");
+    await user.click(screen.getByRole("button", { name: /repository/i }));
+    await user.click(await screen.findByText("hyperlocalise/mobile-app"));
+
+    await user.click(screen.getByRole("button", { name: "Thread 2" }));
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByText("hyperlocalise/mobile-app")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Thread 1" }));
+    expect(screen.getByRole("textbox")).toHaveValue("French follow-up");
+    expect(screen.getByText("hyperlocalise/mobile-app")).toBeInTheDocument();
   });
 });
