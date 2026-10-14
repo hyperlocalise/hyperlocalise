@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
 import { observer } from "mobx-react-lite";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -206,7 +205,6 @@ export const JobsPageContent = observer(function JobsPageContent({
   const { client: goSvcClient } = useGoSvcClient();
   const pageStore = useJobsListUrlState(projectId);
   const statusFilter = pageStore.statusFilter;
-  const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
@@ -302,7 +300,7 @@ export const JobsPageContent = observer(function JobsPageContent({
         }
         headerActions={
           canCreateJob ? (
-            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+            <Button type="button" size="sm" onClick={() => pageStore.setCreateJobOpen(true)}>
               <PlusIcon />
               <FormattedMessage {...jobsPageContentMessages.createJob} />
             </Button>
@@ -324,8 +322,8 @@ export const JobsPageContent = observer(function JobsPageContent({
       />
       {projectId ? (
         <CreateJobDialog
-          open={createJobOpen}
-          onOpenChange={setCreateJobOpen}
+          open={pageStore.createJobOpen}
+          onOpenChange={(open) => pageStore.setCreateJobOpen(open)}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourceLocale={sourceLocale}
