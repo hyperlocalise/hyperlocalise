@@ -103,7 +103,7 @@ const sampleLocales = ["FR", "DE", "JA"] as const;
 
 function AIDraftVisual({ step, expanded }: WorkflowGlassVisualProps) {
   return (
-    <div className="absolute inset-x-[8%] top-[20%] flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/65 p-4 shadow-lg backdrop-blur-xl sm:p-5">
+    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl border border-border/60 bg-background/65 p-4 shadow-lg backdrop-blur-xl sm:p-5">
       <div className="flex items-center gap-2.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <TranslateIcon className="size-5 text-primary" aria-hidden />
@@ -174,7 +174,6 @@ function HumanReviewVisual({ step, expanded }: WorkflowGlassVisualProps) {
         <span aria-hidden className="size-1.5 rounded-full bg-primary" />
       </div>
 
-      {/* Glass review queue */}
       <div className="overflow-hidden rounded-xl border border-border/20 bg-accent/50 px-2 py-1.5 shadow-lg backdrop-blur-xl">
         {reviewItems.map(({ locale, languageKey, statusKey, Icon }, index) => {
           const highlighted = expanded && index === 1;
@@ -188,12 +187,10 @@ function HumanReviewVisual({ step, expanded }: WorkflowGlassVisualProps) {
                 highlighted ? "bg-primary/25" : "hover:bg-background/10",
               ].join(" ")}
             >
-              {/* Locale */}
               <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-background/15 text-[0.65rem] font-semibold text-foreground">
                 {locale}
               </span>
 
-              {/* Language and status */}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-[0.7rem] font-medium leading-4 text-foreground">
                   <Message messageKey={languageKey} />
@@ -204,7 +201,6 @@ function HumanReviewVisual({ step, expanded }: WorkflowGlassVisualProps) {
                 </span>
               </div>
 
-              {/* Status */}
               <span
                 className={[
                   "flex size-7 shrink-0 items-center justify-center rounded-md",
@@ -231,7 +227,7 @@ function ReleaseCheckVisual({ step, expanded }: WorkflowGlassVisualProps) {
   ];
 
   return (
-    <div className="absolute inset-x-[8%] top-[16%] flex flex-col overflow-hidden rounded-xl bg-accent/50 p-4 py-1.5 shadow-lg backdrop-blur-xl sm:p-5">
+    <div className="absolute inset-x-[8%] top-[24%] flex flex-col overflow-hidden rounded-xl bg-accent/50 p-4 py-1.5 shadow-lg backdrop-blur-xl sm:p-5">
       <div className="flex items-center gap-2.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <ShieldCheckIcon className="size-5 text-primary" aria-hidden />
@@ -275,7 +271,7 @@ function WorkflowPreview({
   if (index === 5) return <ReleaseCheckVisual step={step} expanded={expanded} />;
 
   return (
-    <div className="absolute inset-x-5 top-14 flex flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-[0_12px_32px_rgba(0,0,0,0.13)] py-1.5">
+    <div className="absolute inset-x-5 top-[24%] flex flex-col overflow-hidden rounded-xl border border-border bg-background/95 shadow-[0_12px_32px_rgba(0,0,0,0.13)] py-1.5">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -483,7 +479,7 @@ function ProductContextVisual({
   }, [paused, expanded]);
 
   return (
-    <div className="absolute inset-x-[10%] bottom-[-1rem] top-[17%] overflow-hidden rounded-t-xl border border-border bg-background/95 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
+    <div className="absolute inset-x-[10%] bottom-[-1rem] top-[24%] overflow-hidden rounded-t-xl border border-border bg-background/95 shadow-[0_12px_30px_rgba(0,0,0,0.08)]">
       <div className="border-b border-border px-4 py-4 sm:px-5">
         <p className="text-[0.8rem] font-semibold text-foreground">
           <Message messageKey={step.labelKey} />
@@ -563,7 +559,7 @@ function WorkflowCard({
         aria-pressed={selected}
         className="group block w-full cursor-pointer rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
+        <div className="relative aspect-square overflow-hidden rounded-[1.5rem]">
           <Image
             src={meshSources[index % meshSources.length]}
             alt=""

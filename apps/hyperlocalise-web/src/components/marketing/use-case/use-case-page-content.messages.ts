@@ -1848,6 +1848,26 @@ export const useCasePageMessages = defineMessages({
     id: "PWmi9y/09y",
     description: "Translation awaiting human review",
   },
+  productLocalisationScenarioRerun: {
+    defaultMessage: "Rerun simulation",
+    id: "z9KREJ0Z0T",
+    description: "Button to restart the completed scenario simulation",
+  },
+  productLocalisationScenarioProductManager: {
+    defaultMessage: "Product Manager",
+    id: "idTbYl9EWw",
+    description: "Product manager role shown in the scenario trigger card",
+  },
+  productLocalisationScenarioProductTeam: {
+    defaultMessage: "Product team",
+    id: "dSlzdXr2tO",
+    description: "Team label shown under the product manager in the scenario card",
+  },
+  productLocalisationScenarioCreatePR: {
+    defaultMessage: "Create PR",
+    id: "t1KHg7fLsI",
+    description: "GitHub pull request action label in the scenario card",
+  },
 });
 
 export type UseCaseMessageKey = keyof typeof useCasePageMessages;
