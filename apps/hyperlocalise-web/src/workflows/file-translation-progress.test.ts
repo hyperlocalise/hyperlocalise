@@ -17,7 +17,45 @@ import {
   collectHtmlTranslationPageEntries,
   completedFileTranslationKeys,
   isFileTranslationCliHardFailure,
+  mergeCanvaJsonExtractedEntries,
+  resolveCollectedTranslationEntryValue,
 } from "./file-translation-progress";
+
+describe("resolveCollectedTranslationEntryValue", () => {
+  const source = "Describe a Cat";
+
+  it("prefers on-disk translation when hl entries still show source text", () => {
+    expect(
+      resolveCollectedTranslationEntryValue(source, "Mô tả một con mèo", "Describe a Cat"),
+    ).toBe("Mô tả một con mèo");
+  });
+
+  it("keeps hl translation when the target file still contains source fallbacks", () => {
+    expect(resolveCollectedTranslationEntryValue(source, "Describe a Cat", "描述一只猫")).toBe(
+      "描述一只猫",
+    );
+  });
+
+  it("prefers on-disk text when both sources disagree and only the file differs from source", () => {
+    expect(resolveCollectedTranslationEntryValue(source, "Mô tả một con mèo", "Mô tả khác")).toBe(
+      "Mô tả một con mèo",
+    );
+  });
+});
+
+describe("mergeCanvaJsonExtractedEntries", () => {
+  it("merges per lock key using file vs hl reconciliation", () => {
+    const key = "canva.t.2b52fdaa63b8822c";
+    expect(
+      mergeCanvaJsonExtractedEntries({
+        keys: [key],
+        sourceEntries: { [key]: "Describe a Cat" },
+        fileExtracted: { [key]: "Mô tả một con mèo" },
+        hlExtracted: { [key]: "Describe a Cat" },
+      }),
+    ).toEqual({ [key]: "Mô tả một con mèo" });
+  });
+});
 
 describe("collectCompletedTranslationPageEntries", () => {
   it("keeps completed translations from the extracted output", () => {

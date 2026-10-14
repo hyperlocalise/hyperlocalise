@@ -500,7 +500,8 @@ async function runTranslationStep(
     );
     const { readTranslatedFile } = await import("@/lib/translation/sandbox");
     const report = (await readTranslatedFile(sandboxId, reportPath)).toString("utf8");
-    const progress = fileTranslationReportSchema.parse(JSON.parse(report));
+    const reportPayload = JSON.parse(report) as unknown;
+    const progress = fileTranslationReportSchema.parse(reportPayload);
     if (options?.reportsEnabled && options.organizationId && options.projectId && options.jobId) {
       try {
         const { captureSandboxUsage } = await import("@/lib/reporting/sandbox-usage");
@@ -1363,6 +1364,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           sourceEntries,
           prefills: prefilledByLocale,
           confirmed: confirmedByLocale,
+          hlRunFingerprint: `${page}:${attempt}:${result.succeeded}:${result.failed}:${result.exitCode ?? "na"}`,
         });
         let acceptedCount = 0;
         let invalidCount = 0;

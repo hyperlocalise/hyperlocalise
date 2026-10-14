@@ -93,6 +93,7 @@ export type CanvaJobStatusName =
 
 export type StartCanvaLocalizationResult = {
   jobId: string;
+  jobIds: string[];
   generated: boolean;
   projectId: string;
   sourcePath: string;

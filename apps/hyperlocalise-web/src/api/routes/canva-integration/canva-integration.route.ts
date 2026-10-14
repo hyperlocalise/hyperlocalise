@@ -194,6 +194,7 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
   const badRequestCodes = new Set([
     "canva_no_text_segments",
     "canva_design_not_collected",
+    "canva_source_ingest_timeout",
     "job_not_enqueueable",
     "job_already_running",
     "file_translation_job_required",

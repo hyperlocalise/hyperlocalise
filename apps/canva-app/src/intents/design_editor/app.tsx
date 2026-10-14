@@ -34,6 +34,7 @@ import {
   deauthorizeHyperlocalise,
   fetchCanvaLocaleStatuses,
   fetchCanvaSession,
+  collectAndGenerateCanvaLocaleJobs,
   generateCanvaLocaleJob,
   getHyperlocaliseAccessToken,
   waitForCanvaJobs,
@@ -874,9 +875,6 @@ export const App = () => {
     });
   };
 
-  const uploadSelectedSourcePages = async () =>
-    collectSegments((await extractSelectedSourcePages()).segments);
-
   const openUploadPreview = () =>
     runAction("upload", async () => {
       if (selectedPageIndices.length === 0) {
@@ -962,23 +960,35 @@ export const App = () => {
         if (selectedPageIndices.length === 0) {
           throw new Error("Select at least one editable page.");
         }
+
+        const { token } = await getDesignToken();
+        const auth = await resolveAuth();
+        const metadata = await getDesignMetadata();
+
+        let generated: { locale: string; projectId: string; jobIds: string[] };
         if (!pagesUploaded) {
           if (!canUploadSource) {
             throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
           }
           setStep("Uploading source text...", 6);
-          await uploadSelectedSourcePages();
+          const extracted = await extractSelectedSourcePages();
+          setStep("Starting translation...", 12);
+          generated = await collectAndGenerateCanvaLocaleJobs({
+            auth,
+            designToken: token,
+            designTitle: metadata.title,
+            locale: settings.selectedLocale,
+            segments: extracted.segments,
+          });
+          await refreshLocaleStatuses();
+        } else {
+          setStep("Starting translation...", 12);
+          generated = await generateCanvaLocaleJob({
+            auth,
+            designToken: token,
+            locale: settings.selectedLocale,
+          });
         }
-
-        const { token } = await getDesignToken();
-        const auth = await resolveAuth();
-
-        setStep("Starting translation...", 12);
-        const generated = await generateCanvaLocaleJob({
-          auth,
-          designToken: token,
-          locale: settings.selectedLocale,
-        });
         persistSettings({
           ...settings,
           lastJobId: generated.jobIds[0] ?? settings.lastJobId,
