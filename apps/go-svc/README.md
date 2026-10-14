@@ -407,6 +407,7 @@ Session-authenticated job reads under `/v1/orgs/{organizationSlug}/...` (also `/
 | GET | `/projects/{projectId}/jobs/{jobId}/status` | Get job status |
 | GET | `/jobs` | List organization jobs |
 | GET | `/jobs/{jobId}` | Get native job details |
+| GET | `/jobs/{jobId}/events` | List a job's progress events, oldest first (newest 500) |
 
 **Access:** Admins and localization managers can read all organization jobs. Other roles are restricted to accessible project teams, with unassigned projects belonging to the default team. `relationship=assigned` allows organization-wide discovery of assigned jobs.
 

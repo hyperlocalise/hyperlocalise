@@ -14,6 +14,7 @@ import type { AiFeaturesError } from "@/lib/billing/ai-features";
 import type { StringTranslationJobResult } from "@/lib/translation/domain";
 import type { CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
+import type { RecordJobEventsInput } from "@/lib/job-events/job-events-writer";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -71,7 +72,29 @@ export async function failTranslationJobStep(input: {
 }) {
   "use step";
   const { failTranslationJob } = await import("@/lib/translation/jobs");
-  return failTranslationJob(input);
+  const failedJob = await failTranslationJob(input);
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_failed",
+        payload: {
+          code: input.code,
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
+  return failedJob;
+}
+
+export async function recordJobEventsStep(input: RecordJobEventsInput) {
+  "use step";
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents(input);
 }
 
 export async function markEmailTranslationJobRunning(input: {
@@ -571,6 +594,22 @@ export async function completeFileTranslationJobStep(input: {
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
+
+  const { recordJobEvents } = await import("@/lib/job-events/job-events-writer");
+  await recordJobEvents({
+    jobId: input.jobId,
+    workflowRunId: input.workflowRunId,
+    events: [
+      {
+        type: "job_succeeded",
+        payload: {
+          completedLocales: input.outputFiles.map((file) => file.locale),
+          failedLocales: input.failedLocales ?? [],
+          followUpJobId: input.followUpJobId ?? null,
+        },
+      },
+    ],
+  });
 
   const { captureJobStatus } = await import("@/lib/reporting/capture");
   await captureJobStatus({
