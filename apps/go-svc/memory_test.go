@@ -78,6 +78,60 @@ func mustAttachMemory(t *testing.T, scope *testenv.Scope, projectID, memoryID st
 	require.NoError(t, err)
 }
 
+func TestNativeMemoryListEntryDerivedStats(t *testing.T) {
+	api, scope := memoryTestAPI(t, "admin")
+	emptyID := scope.MustMemory(t, "", "Empty TM")
+	withEntriesID := scope.MustMemory(t, "", "Filled TM")
+	mustMemoryEntry(t, scope, withEntriesID, "en-US", "fr-FR", "Hello", "Bonjour")
+	mustMemoryEntry(t, scope, withEntriesID, "en-US", "de-DE", "World", "Welt")
+
+	_, err := scope.Pool.Exec(t.Context(), `
+		update memories
+		set segment_count = 999, locale_coverage = '["ja-JP"]'::jsonb
+		where id = $1`, withEntriesID)
+	require.NoError(t, err)
+
+	rec := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories")+"?source=native", "")
+	require.Equal(t, 200, rec.Code, rec.Body.String())
+	var body struct {
+		Memories []struct {
+			ID             string   `json:"id"`
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+
+	byID := map[string]struct {
+		SegmentCount   int
+		LocaleCoverage []string
+	}{}
+	for _, memory := range body.Memories {
+		byID[memory.ID] = struct {
+			SegmentCount   int
+			LocaleCoverage []string
+		}{memory.SegmentCount, memory.LocaleCoverage}
+	}
+
+	require.Equal(t, 0, byID[emptyID].SegmentCount)
+	require.Empty(t, byID[emptyID].LocaleCoverage)
+	require.Equal(t, 2, byID[withEntriesID].SegmentCount)
+	require.ElementsMatch(t, []string{"de-DE", "en-US", "fr-FR"}, byID[withEntriesID].LocaleCoverage)
+
+	get := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+withEntriesID), "")
+	require.Equal(t, 200, get.Code, get.Body.String())
+	var detail struct {
+		Memory struct {
+			SegmentCount   int      `json:"segmentCount"`
+			LocaleCoverage []string `json:"localeCoverage"`
+			ProjectCount   int      `json:"projectCount"`
+		} `json:"memory"`
+	}
+	require.NoError(t, json.Unmarshal(get.Body.Bytes(), &detail))
+	require.Equal(t, 2, detail.Memory.SegmentCount)
+	require.ElementsMatch(t, []string{"de-DE", "en-US", "fr-FR"}, detail.Memory.LocaleCoverage)
+}
+
 func TestMemoryUnavailableWithoutPool(t *testing.T) {
 	rec := memoryRequestForTest(&memoryAPI{}, http.MethodGet, testMemoryBase, "")
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
