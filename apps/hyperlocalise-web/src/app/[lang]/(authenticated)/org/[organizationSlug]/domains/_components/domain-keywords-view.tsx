@@ -111,18 +111,27 @@ const KeywordScreen = observer(function KeywordScreen({
       toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
     }
-    store.setSeedPending(true);
+    const request = store.beginSeedRequest();
     try {
-      const body = await goSvcClient.domains.expandKeywords(organizationSlug, linkedDomainId, {
-        seedKeyword: seed,
-        marketId,
-      });
-      store.applySeedResults({
+      const body = await goSvcClient.domains.expandKeywords(
+        organizationSlug,
+        linkedDomainId,
+        {
+          seedKeyword: seed,
+          marketId,
+        },
+        { signal: request.signal },
+      );
+      const applied = store.applySeedResults({
         ideas: body.ideas,
         marketId,
         seedKeyword: seed,
         capturedAt: body.capturedAt,
+        generation: request.generation,
       });
+      if (!applied) {
+        return false;
+      }
       const nextActive = body.ideas[0] ?? null;
       if (nextActive) {
         void inspectSerp(nextActive, marketId);
@@ -130,31 +139,34 @@ const KeywordScreen = observer(function KeywordScreen({
       toast.success(intl.formatMessage(shared.seedSuccess));
       return true;
     } catch (error) {
+      if (request.signal.aborted) {
+        return false;
+      }
       toast.error(goSvcErrorMessage(error, intl.formatMessage(shared.seedError)));
       return false;
     } finally {
-      store.setSeedPending(false);
+      store.finishSeedRequest(request.generation);
     }
   }
 
   async function inspectSerp(keyword: KeywordIdea, marketId = market) {
     const cached = catalog.serpByKeywordId[keyword.id];
     if (cached?.length) {
-      store.applySerp(keyword.id, cached);
+      store.applySerp(keyword.id, cached, marketId);
       return;
     }
     if (!organizationSlug || !live) {
-      store.applySerp(keyword.id, null);
+      store.applySerp(keyword.id, null, marketId);
       return;
     }
-    store.applySerp(keyword.id, null);
+    store.applySerp(keyword.id, null, marketId);
     store.setSerpPending(true);
     try {
       const body = await goSvcClient.domains.inspectSerp(organizationSlug, linkedDomainId, {
         keyword: keyword.keyword,
         marketId,
       });
-      store.applySerp(keyword.id, body.results);
+      store.applySerp(keyword.id, body.results, marketId);
       await queryClient.invalidateQueries({
         queryKey: liveDomainResearchQueryKey(organizationSlug, linkedDomainId),
       });

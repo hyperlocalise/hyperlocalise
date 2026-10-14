@@ -85,6 +85,124 @@ describe("DomainKeywordsUiStore", () => {
     expect(store.activeId).toBe("other-keyword");
     expect(store.marketId).toBe("germany-de");
   });
+
+  it("ignores stale seed results after a market change", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainKeywordsUiStore();
+    store.syncMarket(catalog.market.id, catalog.keywords[0]?.id ?? null);
+
+    const first = store.beginSeedRequest();
+    const staleIdea = {
+      ...catalog.keywords[0]!,
+      id: "stale-idea",
+      keyword: "stale keyword",
+    };
+
+    store.syncMarket("germany-de", "other-keyword");
+    expect(first.signal.aborted).toBe(true);
+    expect(store.seedPending).toBe(false);
+
+    expect(
+      store.applySeedResults({
+        ideas: [staleIdea],
+        marketId: catalog.market.id,
+        seedKeyword: "stale",
+        capturedAt: "2026-01-01T00:00:00.000Z",
+        generation: first.generation,
+      }),
+    ).toBe(false);
+    expect(store.ideas).toBeNull();
+    expect(store.expandedMarketId).toBeNull();
+
+    const second = store.beginSeedRequest();
+    const freshIdea = {
+      ...catalog.keywords[0]!,
+      id: "fresh-idea",
+      keyword: "fresh keyword",
+    };
+    expect(
+      store.applySeedResults({
+        ideas: [freshIdea],
+        marketId: "germany-de",
+        seedKeyword: "fresh",
+        capturedAt: "2026-01-02T00:00:00.000Z",
+        generation: second.generation,
+      }),
+    ).toBe(true);
+
+    expect(
+      store.applySeedResults({
+        ideas: [staleIdea],
+        marketId: catalog.market.id,
+        seedKeyword: "stale",
+        capturedAt: "2026-01-01T00:00:00.000Z",
+        generation: first.generation,
+      }),
+    ).toBe(false);
+    expect(store.ideas).toEqual([freshIdea]);
+    expect(store.expandedMarketId).toBe("germany-de");
+
+    store.finishSeedRequest(first.generation);
+    expect(store.seedPending).toBe(true);
+    store.finishSeedRequest(second.generation);
+    expect(store.seedPending).toBe(false);
+  });
+
+  it("ignores a superseded seed response after returning to the original market", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainKeywordsUiStore();
+    store.syncMarket(catalog.market.id, catalog.keywords[0]?.id ?? null);
+
+    const first = store.beginSeedRequest();
+    store.syncMarket("germany-de", "other-keyword");
+    store.syncMarket(catalog.market.id, catalog.keywords[0]?.id ?? null);
+
+    const second = store.beginSeedRequest();
+    const currentIdea = {
+      ...catalog.keywords[0]!,
+      id: "current-idea",
+      keyword: "current keyword",
+    };
+    const staleIdea = {
+      ...catalog.keywords[0]!,
+      id: "stale-idea",
+      keyword: "stale keyword",
+    };
+
+    expect(
+      store.applySeedResults({
+        ideas: [currentIdea],
+        marketId: catalog.market.id,
+        seedKeyword: "current",
+        capturedAt: "2026-01-02T00:00:00.000Z",
+        generation: second.generation,
+      }),
+    ).toBe(true);
+    expect(
+      store.applySeedResults({
+        ideas: [staleIdea],
+        marketId: catalog.market.id,
+        seedKeyword: "stale",
+        capturedAt: "2026-01-01T00:00:00.000Z",
+        generation: first.generation,
+      }),
+    ).toBe(false);
+    expect(store.ideas).toEqual([currentIdea]);
+    expect(store.activeId).toBe("current-idea");
+  });
+
+  it("does not apply SERP results from a previous market", () => {
+    const catalog = getResearchPrototypeCatalog("hyperlocalise-com")!;
+    const store = new DomainKeywordsUiStore();
+    store.syncMarket(catalog.market.id, catalog.keywords[0]?.id ?? null);
+    store.syncMarket("germany-de", "other-keyword");
+
+    expect(store.applySerp("stale-keyword", [], catalog.market.id)).toBe(false);
+    expect(store.serpKeywordId).toBeNull();
+    expect(store.liveSerpResults).toBeNull();
+    expect(store.applySerp("other-keyword", [], "germany-de")).toBe(true);
+    expect(store.serpKeywordId).toBe("other-keyword");
+  });
 });
 
 describe("DomainSearchConsoleUiStore", () => {

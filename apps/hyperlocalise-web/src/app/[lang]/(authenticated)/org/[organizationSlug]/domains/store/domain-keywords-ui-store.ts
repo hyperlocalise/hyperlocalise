@@ -44,6 +44,8 @@ export class DomainKeywordsUiStore {
   serpKeywordId: string | null = null;
   serpPending = false;
   marketId: string | null = null;
+  seedRequestGeneration = 0;
+  #seedAbort: AbortController | null = null;
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -160,8 +162,15 @@ export class DomainKeywordsUiStore {
       null;
   }
 
-  setSeedPending(pending: boolean) {
-    this.seedPending = pending;
+  beginSeedRequest() {
+    this.abortSeedRequest();
+    this.#seedAbort = new AbortController();
+    this.seedRequestGeneration += 1;
+    this.seedPending = true;
+    return {
+      generation: this.seedRequestGeneration,
+      signal: this.#seedAbort.signal,
+    };
   }
 
   applySeedResults(input: {
@@ -169,7 +178,11 @@ export class DomainKeywordsUiStore {
     marketId: string;
     seedKeyword: string;
     capturedAt: string | undefined;
+    generation?: number;
   }) {
+    if (!this.isCurrentSeedRequest(input.marketId, input.generation)) {
+      return false;
+    }
     this.ideas = input.ideas;
     this.expandedMarketId = input.marketId;
     this.seedKeyword = input.seedKeyword;
@@ -177,6 +190,14 @@ export class DomainKeywordsUiStore {
     this.search = "";
     this.selected = [];
     this.activeId = input.ideas[0]?.id ?? null;
+    return true;
+  }
+
+  finishSeedRequest(generation?: number) {
+    if (generation != null && generation !== this.seedRequestGeneration) {
+      return;
+    }
+    this.seedPending = false;
   }
 
   setPersistPending(pending: boolean) {
@@ -195,17 +216,35 @@ export class DomainKeywordsUiStore {
     this.serpPending = pending;
   }
 
-  applySerp(keywordId: string, results: SerpResult[] | null) {
+  applySerp(keywordId: string, results: SerpResult[] | null, marketId?: string) {
+    if (marketId != null && marketId !== this.marketId) {
+      return false;
+    }
     this.activeId = keywordId;
     this.serpKeywordId = keywordId;
     this.liveSerpResults = results;
+    return true;
   }
 
   reset(catalog: DomainResearchCatalog) {
     this.resetForMarket(catalog.market.id, catalog.keywords[0]?.id ?? null);
   }
 
+  private isCurrentSeedRequest(marketId: string, generation?: number) {
+    if (this.marketId !== marketId) {
+      return false;
+    }
+    return generation == null || generation === this.seedRequestGeneration;
+  }
+
+  private abortSeedRequest() {
+    this.#seedAbort?.abort();
+    this.#seedAbort = null;
+  }
+
   private resetForMarket(marketId: string, fallbackActiveId: string | null) {
+    this.abortSeedRequest();
+    this.seedRequestGeneration += 1;
     this.marketId = marketId;
     this.query = "";
     this.search = "";
