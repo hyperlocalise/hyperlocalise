@@ -152,7 +152,7 @@ export function ReplyComposerView({
   }, [draftProjectId]);
 
   useEffect(() => {
-    if (repositoriesIsLoading) {
+    if (repositoriesIsLoading || repositoriesIsError) {
       return;
     }
     if (
@@ -162,17 +162,23 @@ export function ReplyComposerView({
       setSelectedRepositoryKey("");
       onDraftRepositoryChange?.("");
     }
-  }, [onDraftRepositoryChange, repositories, repositoriesIsLoading, selectedRepositoryKey]);
+  }, [
+    onDraftRepositoryChange,
+    repositories,
+    repositoriesIsError,
+    repositoriesIsLoading,
+    selectedRepositoryKey,
+  ]);
 
   useEffect(() => {
-    if (projectsIsLoading) {
+    if (projectsIsLoading || projectsIsError) {
       return;
     }
     if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
       setSelectedProjectId("");
       onDraftProjectChange?.("");
     }
-  }, [onDraftProjectChange, projects, projectsIsLoading, selectedProjectId]);
+  }, [onDraftProjectChange, projects, projectsIsError, projectsIsLoading, selectedProjectId]);
 
   const resolvedRepository: ChatRepository | undefined =
     repositories.find((repository) => repository.selectionKey === selectedRepositoryKey) ??

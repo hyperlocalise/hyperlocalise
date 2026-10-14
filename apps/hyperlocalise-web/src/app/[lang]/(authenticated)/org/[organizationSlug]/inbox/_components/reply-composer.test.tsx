@@ -283,6 +283,81 @@ describe("ReplyComposerView draft sync", () => {
     expect(onDraftRepositoryChange).not.toHaveBeenCalled();
   });
 
+  it("does not clear stored repository or project selections when option queries fail", () => {
+    const onDraftRepositoryChange = vi.fn();
+    const onDraftProjectChange = vi.fn();
+
+    renderComposer(
+      <PromptInputProvider>
+        <ReplyComposerView
+          disabled={false}
+          draftProjectId="proj_mobile"
+          draftRepositoryKey={repositoriesFixture[1]!.selectionKey}
+          isStreaming={false}
+          onDraftProjectChange={onDraftProjectChange}
+          onDraftRepositoryChange={onDraftRepositoryChange}
+          onSend={vi.fn()}
+          projects={[]}
+          projectsIsError
+          projectsIsLoading={false}
+          repositories={[]}
+          repositoriesIsError
+          repositoriesIsLoading={false}
+        />
+      </PromptInputProvider>,
+    );
+
+    expect(onDraftRepositoryChange).not.toHaveBeenCalled();
+    expect(onDraftProjectChange).not.toHaveBeenCalled();
+  });
+
+  it("restores stored selections after option queries recover from an error", async () => {
+    const user = userEvent.setup();
+    const onDraftRepositoryChange = vi.fn();
+    const onDraftProjectChange = vi.fn();
+    const storedRepositoryKey = repositoriesFixture[1]!.selectionKey;
+
+    function Harness() {
+      const [failed, setFailed] = useState(true);
+
+      return (
+        <>
+          <button type="button" onClick={() => setFailed(false)}>
+            Recover
+          </button>
+          <PromptInputProvider>
+            <ReplyComposerView
+              disabled={false}
+              draftProjectId="proj_mobile"
+              draftRepositoryKey={storedRepositoryKey}
+              isStreaming={false}
+              onDraftProjectChange={onDraftProjectChange}
+              onDraftRepositoryChange={onDraftRepositoryChange}
+              onSend={vi.fn()}
+              projects={failed ? [] : projectOptions}
+              projectsIsError={failed}
+              projectsIsLoading={false}
+              repositories={failed ? [] : repositoriesFixture}
+              repositoriesIsError={failed}
+              repositoriesIsLoading={false}
+            />
+          </PromptInputProvider>
+        </>
+      );
+    }
+
+    renderComposer(<Harness />);
+    expect(onDraftRepositoryChange).not.toHaveBeenCalled();
+    expect(onDraftProjectChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Recover" }));
+
+    expect(onDraftRepositoryChange).not.toHaveBeenCalled();
+    expect(onDraftProjectChange).not.toHaveBeenCalled();
+    expect(screen.getByText("hyperlocalise/mobile-app")).toBeInTheDocument();
+    expect(screen.getByText("Mobile app")).toBeInTheDocument();
+  });
+
   it("keeps separate reply drafts when switching conversations", async () => {
     const user = userEvent.setup();
     const firstConversationId = "c-1";
