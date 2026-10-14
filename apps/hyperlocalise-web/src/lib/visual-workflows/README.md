@@ -14,6 +14,8 @@ Saving changes a draft and increments its revision. Save and publish API request
 
 ## Adding a node
 
+How a step's settings panel and its test data are meant to work: [docs/adr/2026-10-15-visual-workflow-step-settings-and-test-data-design.md](../../../../../docs/adr/2026-10-15-visual-workflow-step-settings-and-test-data-design.md).
+
 Editor files are in `src/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/visual-workflow-editor/`. Other paths are relative to this folder.
 
 Every node:
