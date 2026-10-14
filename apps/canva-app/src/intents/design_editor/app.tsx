@@ -963,7 +963,6 @@ export const App = () => {
 
         const { token } = await getDesignToken();
         const auth = await resolveAuth();
-        const metadata = await getDesignMetadata();
 
         let generated: { locale: string; projectId: string; jobIds: string[] };
         if (!pagesUploaded) {
@@ -972,6 +971,7 @@ export const App = () => {
           }
           setStep("Uploading source text...", 6);
           const extracted = await extractSelectedSourcePages();
+          const metadata = await getDesignMetadata();
           setStep("Starting translation...", 12);
           generated = await collectAndGenerateCanvaLocaleJobs({
             auth,
@@ -980,7 +980,6 @@ export const App = () => {
             locale: settings.selectedLocale,
             segments: extracted.segments,
           });
-          await refreshLocaleStatuses();
         } else {
           setStep("Starting translation...", 12);
           generated = await generateCanvaLocaleJob({
@@ -1027,7 +1026,11 @@ export const App = () => {
           lastJobId: generated.jobIds[0] ?? settings.lastJobId,
         });
         setStep("Finishing up...", 96);
-        await refreshLocaleStatuses();
+        try {
+          await refreshLocaleStatuses();
+        } catch {
+          // Jobs may already be running; a stale status panel must not fail a completed translate.
+        }
         const skippedNote =
           applied.skipped > 0
             ? ` ${applied.skipped} text box${applied.skipped === 1 ? "" : "es"} changed since upload — Upload again to include them.`
