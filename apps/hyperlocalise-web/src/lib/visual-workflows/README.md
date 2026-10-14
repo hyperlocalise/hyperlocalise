@@ -36,6 +36,9 @@ On the card:
 
 - Do not transition `transform`, `scale`, `opacity`, or `filter`. In Chromium the rest of the canvas jumps for a frame. Animate `width` and `height` instead.
 - A class on a React Flow handle needs `!` wherever React Flow's stylesheet sets the same property.
+- The card marks a selected step, a step with an issue and a step that changed unseen with a band along its edge (`STEP_BAND_TONE_CLASS`). Do not give a node its own ring, border or shadow for a state.
+- Under the pointer, change a color, never a size.
+- Keep an output's label short. It is drawn inside the card, and the title and subtitle give up their width to it.
 
 Undo and marks on the canvas:
 
