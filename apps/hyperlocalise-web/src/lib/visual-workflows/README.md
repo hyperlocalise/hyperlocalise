@@ -20,9 +20,9 @@ Every node:
 
 - **Type and config:** `schema/types.ts`, `schema/definition-schema.ts`, `schema/serializers.ts`.
 - **Catalog:** the entry, default config, card size, and subtitle in `catalog/node-catalog.ts`.
-- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the Inputs panel are drawn from this.
+- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the settings panel's Inputs tab are drawn from this.
 - **Runtime:** `runtime/execute-node.ts` for an action; `runtime/execute-logic-node.ts` and `runtime/interpreter.ts` for control flow. An action with outside effects also belongs in `validation/retry-idempotency.ts`.
-- **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`.
+- **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`, which is the panel's Configuration tab.
 
 A node with one execution output needs nothing else on the card. A node with several:
 

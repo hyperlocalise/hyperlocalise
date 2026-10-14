@@ -10,8 +10,8 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
 2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, or Retry nodes.
 3. Connect execution order on the canvas.
-4. Open a node's **Inputs** section. Select a typed literal, an upstream field, or a text template. Use **Configuration** for provider and action settings.
-5. Review **Outputs** for expected fields. Test results show actual redacted values.
+4. Select a node. Its settings open on the **Configuration** tab, which holds provider and action settings. On the **Inputs** tab, select a typed literal, an upstream field, or a text template.
+5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
 
 Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
 
