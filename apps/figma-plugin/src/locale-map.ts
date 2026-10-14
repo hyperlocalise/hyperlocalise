@@ -30,6 +30,18 @@ function languageSubtag(locale: string): string | null {
   }
 }
 
+function localeRegion(locale: string): string | null {
+  const canonical = canonicalizeLocale(locale);
+  if (!canonical) {
+    return null;
+  }
+  try {
+    return new Intl.Locale(canonical).region ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function hasNonEmptyTranslations(translations: Record<string, string>): boolean {
   return Object.values(translations).some((value) => value.trim().length > 0);
 }
@@ -53,7 +65,15 @@ export function localesMatchForPick(requested: string, candidate: string): boole
   }
   const langA = languageSubtag(a);
   const langB = languageSubtag(b);
-  return Boolean(langA && langB && langA === langB);
+  if (!langA || !langB || langA !== langB) {
+    return false;
+  }
+  const regionA = localeRegion(a);
+  const regionB = localeRegion(b);
+  if (!regionA || !regionB) {
+    return true;
+  }
+  return regionA === regionB;
 }
 
 export function pickTranslationsForLocale(
@@ -92,7 +112,7 @@ export function pickTranslationsForLocale(
       if (!hasNonEmptyTranslations(translations)) {
         return false;
       }
-      return languageSubtag(entryLocale) === requestedLanguage;
+      return localesMatchForPick(trimmed, entryLocale);
     },
   );
   if (languageMatches.length === 1) {

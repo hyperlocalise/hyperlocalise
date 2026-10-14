@@ -424,23 +424,6 @@ export async function collectFileTranslationPageStep(input: {
     if (figmaJsonCollect) {
       collected = propagateFigmaTranslationsBySharedSource(input.sourceEntries, collected);
     }
-    let sameAsSource = 0;
-    for (const key of keys) {
-      const source = input.sourceEntries[key]?.trim() ?? "";
-      const value = collected[key]?.trim() ?? "";
-      if (source && value === source) {
-        sameAsSource += 1;
-      }
-    }
-    console.info("[file-translation] collect", {
-      sandboxId: input.sandboxId,
-      locale,
-      outputFilename: filename,
-      hlRunFingerprint: input.hlRunFingerprint,
-      keys: keys.length,
-      delta: Object.keys(collected).length,
-      sameAsSource,
-    });
     if (Object.keys(collected).length > 0) {
       delta[locale] = collected;
     }

@@ -1447,13 +1447,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           confirmed: confirmedByLocale,
           hlRunFingerprint,
         });
-        console.info("[file-translation] page", {
-          jobId: claim.job.id,
-          page,
-          attempt,
-          hlRunFingerprint,
-          deltaLocales: Object.keys(delta).length,
-        });
         let acceptedCount = 0;
         let leftoverCount = 0;
         let invalidCount = 0;
@@ -1539,23 +1532,12 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           if (page === 0) {
             continue;
           }
-          for (const [targetLocale, leftovers] of Object.entries(leftoversByLocale)) {
-            await persistAcceptedEntries(targetLocale, leftovers, { persistMemory: false });
-          }
           return true;
         }
         throw new FileTranslationWorkflowError(
           "translation_pagination_failed",
           "translation pagination made no progress",
         );
-      }
-      for (const [targetLocale, leftovers] of Object.entries(leftoversByLocale)) {
-        const pending = Object.fromEntries(
-          Object.entries(leftovers).filter(
-            ([key]) => !prefilledByLocale[targetLocale]?.[key]?.trim(),
-          ),
-        );
-        await persistAcceptedEntries(targetLocale, pending, { persistMemory: false });
       }
       if (locales.some((locale) => Object.keys(confirmedByLocale[locale] ?? {}).length > 0)) {
         return true;

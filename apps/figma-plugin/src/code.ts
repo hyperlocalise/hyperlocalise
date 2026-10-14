@@ -12,6 +12,7 @@ import {
   type FigmaPageJobBinding,
 } from "./page-binding";
 import { buildFigmaApplyTextIndex, resolveFigmaApplyTarget } from "./apply-translations";
+import { normalizeSegmentText } from "./segment-normalize";
 import { loadFontsForTextNodes } from "./load-text-node-fonts";
 import { createFigmaSegment, readStampedSegmentKey } from "./segment-file";
 import { clampPluginUiHeight, PLUGIN_UI_WIDTH } from "./plugin-ui-size";
@@ -231,7 +232,7 @@ function extractSegments(nodes: TextNode[]) {
       createFigmaSegment({
         node,
         regionIndex: 0,
-        text: node.characters,
+        text: normalizeSegmentText(node.characters),
       }),
     );
   }
@@ -258,6 +259,7 @@ async function applyTranslations(
       stampedKey: readStampedSegmentKey(node),
       translations,
       textIndex,
+      sourceByKey,
     });
     if (!nextText || nextText === node.characters) {
       continue;

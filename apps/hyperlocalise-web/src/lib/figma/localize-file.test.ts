@@ -52,6 +52,16 @@ describe("mergeFigmaPullTranslations", () => {
       ),
     ).toEqual({ "figma.k.a": "Tiêu đề dự án" });
   });
+
+  it("ignores multi-word job text that copies the source", () => {
+    expect(
+      mergeFigmaPullTranslations(
+        {},
+        { "figma.k.a": "Print Marketing." },
+        { "figma.k.a": "Print Marketing." },
+      ),
+    ).toEqual({});
+  });
 });
 
 describe("pickTranslationsForLocale", () => {
@@ -63,6 +73,15 @@ describe("pickTranslationsForLocale", () => {
   it("matches by language subtag when the region tag differs", () => {
     const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
     expect(pickTranslationsForLocale(map, "vi")).toEqual({ "figma.k.a": "Xin chào" });
+  });
+
+  it("returns only the requested locale when the job map has two targets", () => {
+    const map = {
+      "ja-JP": { "figma.k.a": "こんにちは" },
+      "zh-CN": { "figma.k.a": "你好" },
+    };
+    expect(pickTranslationsForLocale(map, "zh-CN")).toEqual({ "figma.k.a": "你好" });
+    expect(pickTranslationsForLocale(map, "ja-JP")).toEqual({ "figma.k.a": "こんにちは" });
   });
 });
 

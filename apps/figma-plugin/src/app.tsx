@@ -42,6 +42,7 @@ import type {
   SandboxToUiMessage,
   UiToSandboxMessage,
 } from "./plugin-messages";
+import { buildApplySourceByKey } from "./apply-translations";
 import { remapExtractedSegmentsToSource } from "./extract-source";
 import { FormField } from "./form-field";
 import { TooltipButton, TooltipWrap } from "./tooltip-wrap";
@@ -947,14 +948,15 @@ export function App() {
     pageId: string,
     extracted: Awaited<ReturnType<typeof ensureExtractedForPage>>,
   ) => {
-    if (!auth || !settings.projectId) {
+    const projectId = pageJob?.projectId || settings.projectId;
+    if (!auth || !projectId) {
       return extracted.segments;
     }
     try {
       const sourcePage = await pullFigmaSourcePage({
         appUrl: settings.appUrl,
         auth,
-        projectId: settings.projectId,
+        projectId,
         fileKey: extracted.file.fileKey,
         pageId,
         locale: sourceLocale,
@@ -1069,9 +1071,8 @@ export function App() {
     if (pageIdRef.current !== originatedPageId) {
       return 0;
     }
-    const sourceByKey = Object.fromEntries(
-      extracted.segments.map((segment) => [segment.key, segment.text]),
-    );
+    const remapped = await resolveSourceSegmentsForPage(originatedPageId, extracted);
+    const sourceByKey = buildApplySourceByKey(remapped);
 
     const applied = await requestFromSandbox(
       {

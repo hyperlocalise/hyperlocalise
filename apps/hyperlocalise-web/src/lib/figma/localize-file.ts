@@ -38,6 +38,7 @@ import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
 } from "@/lib/projects/jobs/enqueue-file-translation-job";
+import { omitMultiWordSameAsSourceTranslations } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { parseIntegrationJsonFileExtracted } from "@/workflows/file-translation-progress";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -160,7 +161,11 @@ export function mergeFigmaPullTranslations(
   sourceByKey: Record<string, string> = {},
 ): Record<string, string> {
   const merged: Record<string, string> = {};
-  for (const [key, value] of Object.entries(jobTranslations)) {
+  const jobEntries =
+    Object.keys(sourceByKey).length > 0
+      ? omitMultiWordSameAsSourceTranslations(sourceByKey, jobTranslations)
+      : jobTranslations;
+  for (const [key, value] of Object.entries(jobEntries)) {
     if (value.trim().length > 0) {
       merged[key] = value;
     }
@@ -244,6 +249,18 @@ export function isProjectSourceLocale(projectSourceLocale: string, locale: strin
   return figmaLocalesMatch(projectSourceLocale, locale);
 }
 
+function sliceFigmaPageJobForLocale(job: FigmaPageJob, locale: string): FigmaPageJob {
+  const picked = pickTranslationsForLocale(job.translationsByLocale, locale);
+  if (!picked) {
+    return job;
+  }
+  return {
+    ...job,
+    translationsByLocale: { [locale.trim()]: picked },
+    targetLocales: [locale.trim()],
+  };
+}
+
 export function pickTranslationsForLocale(
   translationsByLocale: Record<string, Record<string, string>>,
   locale: string,
@@ -267,32 +284,12 @@ export function pickTranslationsForLocale(
     return match[1];
   }
 
-  let requestedLanguage: string | null = null;
-  try {
-    const canonicalRequested = canonicalizeLocale(trimmed);
-    if (canonicalRequested) {
-      requestedLanguage = new Intl.Locale(canonicalRequested).language;
-    }
-  } catch {
-    requestedLanguage = null;
-  }
-  if (!requestedLanguage) {
-    return undefined;
-  }
   const languageMatches = Object.entries(translationsByLocale).filter(
     ([entryLocale, translations]) => {
       if (countNonEmptyTranslations(translations) === 0) {
         return false;
       }
-      try {
-        const canonicalEntry = canonicalizeLocale(entryLocale);
-        if (!canonicalEntry) {
-          return false;
-        }
-        return new Intl.Locale(canonicalEntry).language === requestedLanguage;
-      } catch {
-        return false;
-      }
+      return figmaLocalesMatch(trimmed, entryLocale);
     },
   );
   if (languageMatches.length === 1) {
@@ -1514,7 +1511,7 @@ export async function pullFigmaTranslationsForPage(input: {
   if (job) {
     const pageJob = await toFigmaPageJob({ job, organizationId });
     if (pickTranslationsForLocale(pageJob.translationsByLocale, requestedLocale)) {
-      return pageJob;
+      return sliceFigmaPageJobForLocale(pageJob, requestedLocale);
     }
   }
 

@@ -2,6 +2,31 @@ export function normalizeSegmentText(text: string): string {
   return text.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
+const MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE = 2;
+
+export function isMultiWordSameAsSource(sourceText: string, targetText: string): boolean {
+  const source = sourceText.trim();
+  const target = targetText.trim();
+  if (!source || source !== target) {
+    return false;
+  }
+  return source.split(/\s+/).length >= MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE;
+}
+
+export function buildApplySourceByKey(
+  segments: ReadonlyArray<{ key: string; text: string }>,
+): Record<string, string> {
+  const sourceByKey: Record<string, string> = {};
+  for (const segment of segments) {
+    const text = segment.text.trim();
+    if (!segment.key || !text) {
+      continue;
+    }
+    sourceByKey[segment.key] = segment.text;
+  }
+  return sourceByKey;
+}
+
 export type FigmaApplyIndexEntry = {
   key: string;
   target: string;
@@ -20,35 +45,17 @@ export function buildFigmaApplyTextIndex(input: {
       continue;
     }
     const sourceNorm = normalizeSegmentText(source);
-    if (sourceNorm) {
-      index.set(sourceNorm, { key, target });
-    }
-  }
-
-  for (const [key, targetRaw] of Object.entries(input.translations)) {
-    const target = targetRaw.trim();
-    if (!target) {
+    if (!sourceNorm || ambiguous.has(sourceNorm)) {
       continue;
     }
-    const extras = [target];
-    const source = input.sourceByKey[key];
-    if (source) {
-      extras.push(source);
+    const existing = index.get(sourceNorm);
+    if (existing && existing.key !== key) {
+      index.delete(sourceNorm);
+      ambiguous.add(sourceNorm);
+      continue;
     }
-    for (const text of extras) {
-      const norm = normalizeSegmentText(text);
-      if (!norm || ambiguous.has(norm)) {
-        continue;
-      }
-      const existing = index.get(norm);
-      if (existing && existing.key !== key) {
-        index.delete(norm);
-        ambiguous.add(norm);
-        continue;
-      }
-      if (!existing) {
-        index.set(norm, { key, target });
-      }
+    if (!existing) {
+      index.set(sourceNorm, { key, target });
     }
   }
 
@@ -60,12 +67,23 @@ export function resolveFigmaApplyTarget(input: {
   stampedKey: string | null;
   translations: Record<string, string>;
   textIndex: Map<string, FigmaApplyIndexEntry>;
+  sourceByKey?: Record<string, string>;
 }): string | null {
   if (input.stampedKey) {
+    const source = input.sourceByKey?.[input.stampedKey] ?? "";
     const byKey = input.translations[input.stampedKey]?.trim();
-    if (byKey) {
+    if (byKey && !isMultiWordSameAsSource(source, byKey)) {
       return byKey;
     }
+    const sourceNorm = source ? normalizeSegmentText(source) : "";
+    if (sourceNorm) {
+      const viaSource = input.textIndex.get(sourceNorm)?.target;
+      if (viaSource && !isMultiWordSameAsSource(source, viaSource)) {
+        return viaSource;
+      }
+    }
+    const storedSource = source.trim();
+    return storedSource || byKey || null;
   }
   const norm = normalizeSegmentText(input.nodeText);
   if (!norm) {

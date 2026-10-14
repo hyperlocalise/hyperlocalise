@@ -33,17 +33,23 @@ export function figmaSourceFileNeedsReupload(sourceFile: Record<string, unknown>
   return false;
 }
 
+/** Collapse Figma line breaks and odd spaces so CLI hashes and Apply indexes stay stable. */
+export function normalizeFigmaSegmentText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
 export function segmentsToTranslationFile(segments: FigmaDesignSegment[]): Record<string, string> {
   const entries: Record<string, string> = {};
 
   for (const segment of segments) {
-    if (segment.text.trim().length === 0) {
+    const normalized = normalizeFigmaSegmentText(segment.text);
+    if (normalized.length === 0) {
       continue;
     }
     if (!isFigmaStampSegmentKey(segment.key)) {
       continue;
     }
-    entries[segment.key] = segment.text;
+    entries[segment.key] = normalized;
   }
 
   return entries;

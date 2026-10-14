@@ -18,6 +18,7 @@ import {
   buildFigmaSourcePath,
   expandFigmaLockKeysBySharedSource,
   figmaSourceFileNeedsReupload,
+  normalizeFigmaSegmentText,
   parseTranslationFile,
   propagateFigmaTranslationsBySharedSource,
   sanitizeFigmaId,
@@ -38,6 +39,22 @@ describe("figma segment file", () => {
         pageId: "12:34",
       }),
     ).toBe("figma/files/abc123/home-12-34.json");
+  });
+
+  it("normalizes line-separator whitespace in stored segment text", () => {
+    expect(normalizeFigmaSegmentText("Print\u2028Marketing.")).toBe("Print Marketing.");
+    expect(
+      segmentsToTranslationFile([
+        {
+          key: "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV",
+          nodeId: "1:2",
+          regionIndex: 0,
+          text: "Design &\u2028Brand\u2028Culture.",
+        },
+      ]),
+    ).toEqual({
+      "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV": "Design & Brand Culture.",
+    });
   });
 
   it("round-trips stamped keys and skips empty or legacy keys", () => {
