@@ -18,7 +18,7 @@ import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
-import { presentVisualWorkflowEdges } from "./visual-workflow-canvas";
+import { presentVisualWorkflowEdges, visualWorkflowViewCenter } from "./visual-workflow-canvas";
 
 function node(id: string, type: VisualWorkflowRfNode["data"]["catalogType"]): VisualWorkflowRfNode {
   return {
@@ -154,6 +154,22 @@ describe("presentVisualWorkflowEdges", () => {
       stroke: "var(--muted-foreground)",
       strokeWidth: 2,
     });
+
+    // The way the workflow runs is read from the handles, so execution edges carry no arrowhead.
+    expect(presented.every((edge) => edge.markerEnd === undefined)).toBe(true);
+  });
+
+  it("outlines a label's letters in the canvas colour instead of boxing them", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("branch", "logic.if"), node("slack", "action.notify_slack")],
+      [{ ...executionEdge("branch-slack", "branch", "slack", "false"), label: "false" }],
+    );
+
+    expect(presented[0]).toMatchObject({
+      label: "false",
+      labelShowBg: false,
+      labelStyle: { paintOrder: "stroke", stroke: "var(--sidebar)" },
+    });
   });
 
   it("keeps data edges visually distinct from loop execution regions", () => {
@@ -178,9 +194,35 @@ describe("presentVisualWorkflowEdges", () => {
 
     expect(data).toMatchObject({
       label: "item → value",
+      labelShowBg: false,
       style: {
         strokeDasharray: "5 4",
       },
+      markerEnd: { type: "arrowclosed" },
     });
+  });
+});
+
+describe("visualWorkflowViewCenter", () => {
+  const reactFlow = {
+    // A view panned by 100 and 50 at half zoom.
+    screenToFlowPosition: ({ x, y }: { x: number; y: number }) => ({
+      x: (x - 100) / 0.5,
+      y: (y - 50) / 0.5,
+    }),
+  };
+
+  it("gives the canvas position under the middle of the canvas's box", () => {
+    expect(
+      visualWorkflowViewCenter(reactFlow, { left: 300, top: 150, width: 800, height: 400 }),
+    ).toEqual({ x: 1200, y: 600 });
+  });
+
+  it("gives nothing before the canvas is ready or while it has no size", () => {
+    expect(visualWorkflowViewCenter(null, { left: 0, top: 0, width: 800, height: 400 })).toBeNull();
+    expect(visualWorkflowViewCenter(reactFlow, undefined)).toBeNull();
+    expect(
+      visualWorkflowViewCenter(reactFlow, { left: 0, top: 0, width: 0, height: 0 }),
+    ).toBeNull();
   });
 });

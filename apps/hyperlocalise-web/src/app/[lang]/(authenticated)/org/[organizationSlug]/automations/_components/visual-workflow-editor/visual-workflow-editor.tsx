@@ -38,6 +38,7 @@ import {
   replaceVisualWorkflowNodeType,
   reconnectVisualWorkflowGraphConnection,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
 import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
@@ -64,7 +65,10 @@ import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
-import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
+import {
+  VisualWorkflowCanvas,
+  type VisualWorkflowViewCenterReader,
+} from "./visual-workflow-canvas";
 import {
   VisualWorkflowCanvasActionsProvider,
   type VisualWorkflowAddFrom,
@@ -101,6 +105,8 @@ export function VisualWorkflowEditor({
   sampleDraft,
   onSave,
   isSaving = false,
+  savedDefinition,
+  onUnsavedChangesChange,
   organizationSlug,
   visualWorkflowId,
   visualWorkflowsApi,
@@ -118,6 +124,9 @@ export function VisualWorkflowEditor({
   sampleDraft?: VisualWorkflowEditorState;
   onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
   isSaving?: boolean;
+  /** The workflow as last saved. With it, the editor reports whether its graph differs from it. */
+  savedDefinition?: VisualWorkflowV3Definition;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   organizationSlug?: string;
   visualWorkflowId?: string;
   visualWorkflowsApi?: VisualWorkflowsApi;
@@ -155,6 +164,7 @@ export function VisualWorkflowEditor({
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
+  const viewCenterRef = useRef<VisualWorkflowViewCenterReader | null>(null);
   // The graph as of the latest change, so changes made in one event build on each other before
   // the next render.
   const graphRef = useRef(history.form);
@@ -310,16 +320,29 @@ export function VisualWorkflowEditor({
   });
 
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
-  const issues = useMemo(
-    () => validateVisualWorkflowV3Definition(toVisualWorkflowV3Definition({ name, nodes, edges })),
+  const definition = useMemo(
+    () => toVisualWorkflowV3Definition({ name, nodes, edges }),
     [edges, name, nodes],
   );
+  const issues = useMemo(() => validateVisualWorkflowV3Definition(definition), [definition]);
+  const hasUnsavedChanges = useMemo(
+    () =>
+      savedDefinition !== undefined && !visualWorkflowDefinitionsEqual(savedDefinition, definition),
+    [definition, savedDefinition],
+  );
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
   const issueNodeIds = useMemo(
     () => new Set(issues.flatMap((issue) => (issue.nodeId ? [issue.nodeId] : []))),
     [issues],
   );
   const hasTrigger = nodes.some((node) => isTriggerType(node.data.catalogType));
   const showConfig = panelMode === "config" && selectedNode !== null;
+  // What the side panel shows, for the canvas's selection handler, which is told of a change of
+  // selection after the render that caused it.
+  const showConfigRef = useRef(showConfig);
+  showConfigRef.current = showConfig;
   const saveDisabled = issues.length > 0;
   const isActive = workflowStatus === "active";
 
@@ -458,8 +481,21 @@ export function VisualWorkflowEditor({
       setMobilePanelOpen(true);
       return;
     }
-    setMobilePanelOpen(false);
+    // A click on the canvas put the step's settings away. When the panel had already moved on to
+    // the picker, it stays open.
+    if (showConfigRef.current) {
+      setMobilePanelOpen(false);
+    }
   }, []);
+
+  /** Takes the selection off the canvas, so a click on the same step selects it again. */
+  const deselectNodes = useCallback(() => {
+    setNodes((current) =>
+      current.some((node) => node.selected)
+        ? current.map((node) => (node.selected ? { ...node, selected: false } : node))
+        : current,
+    );
+  }, [setNodes]);
 
   /** Selects a step from outside the canvas, as a click on it would. */
   const selectNode = useCallback((nodeId: string) => {
@@ -493,16 +529,21 @@ export function VisualWorkflowEditor({
     setSelectedNodeId(null);
     setPanelMode("picker");
     setAddFrom(null);
-  }, []);
+    deselectNodes();
+  }, [deselectNodes]);
 
-  const openPicker = useCallback((from: VisualWorkflowAddFrom | null = null) => {
-    setAddFrom(from);
-    setPanelMode("picker");
-    setMobilePanelOpen(true);
-    if (from) {
-      setSelectedNodeId(null);
-    }
-  }, []);
+  const openPicker = useCallback(
+    (from: VisualWorkflowAddFrom | null = null) => {
+      setAddFrom(from);
+      setPanelMode("picker");
+      setMobilePanelOpen(true);
+      if (from) {
+        setSelectedNodeId(null);
+        deselectNodes();
+      }
+    },
+    [deselectNodes],
+  );
 
   const addNode = useCallback(
     (type: VisualCatalogType) => {
@@ -513,20 +554,23 @@ export function VisualWorkflowEditor({
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
+      const config = createDefaultConfig(type);
+      const size = getVisualNodeDimensions(type, config);
       const position = placeNewVisualWorkflowNode({
         nodes: currentNodes,
         source,
         handleId: addFrom?.handleId,
+        viewCenter: viewCenterRef.current?.() ?? null,
+        size,
       });
 
-      const config = createDefaultConfig(type);
       // The new step is selected, as a click on it would leave it.
       const nextNode: VisualWorkflowRfNode = {
         id,
         type,
         position,
         selected: true,
-        ...getVisualNodeDimensions(type, config),
+        ...size,
         data: {
           catalogType: type,
           config,
@@ -696,8 +740,6 @@ export function VisualWorkflowEditor({
       "quiet",
     );
 
-    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
-
     try {
       if (organizationSlug && visualWorkflowId && visualWorkflowsApi) {
         const idempotencyKey = `manual-${visualWorkflowId}-${Date.now()}`;
@@ -764,6 +806,7 @@ export function VisualWorkflowEditor({
     testPayload,
     mockOutputs,
     liveTest,
+    definition,
     edges,
     intl,
     name,
@@ -777,10 +820,11 @@ export function VisualWorkflowEditor({
     visualWorkflowsApi,
   ]);
 
-  const draftJson = useCallback(() => {
-    const definition = toVisualWorkflowV3Definition({ name, nodes, edges });
-    return `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`;
-  }, [edges, name, nodes]);
+  const draftJson = useCallback(
+    () =>
+      `${JSON.stringify(redactWorkflowSnapshot(definition, collectWorkflowSecrets(definition)), null, 2)}\n`,
+    [definition],
+  );
 
   const onExport = useCallback(() => {
     const blob = new Blob([draftJson()], { type: "application/json" });
@@ -802,18 +846,18 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(toVisualWorkflowV3Definition({ name, nodes, edges }));
+    void onSave(definition);
     setFreshNodeIds(NO_FRESH_STEPS);
-  }, [edges, name, nodes, onSave, saveDisabled]);
+  }, [definition, onSave]);
 
   const handleStatusChange = useCallback(
     async (active: boolean) => {
       if (!onStatusChange || (active && saveDisabled)) {
         return;
       }
-      await onStatusChange(active, toVisualWorkflowV3Definition({ name, nodes, edges }));
+      await onStatusChange(active, definition);
     },
-    [edges, name, nodes, onStatusChange, saveDisabled],
+    [definition, onStatusChange, saveDisabled],
   );
 
   return (
@@ -923,6 +967,7 @@ export function VisualWorkflowEditor({
               onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
               focusNode={focusNode}
+              viewCenterRef={viewCenterRef}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
                 const draft = sampleDraft ?? visualWorkflowDemoDraft;
@@ -969,6 +1014,7 @@ export function VisualWorkflowEditor({
                 onBack={() => {
                   setPanelMode("picker");
                   setSelectedNodeId(null);
+                  deselectNodes();
                 }}
                 onChangeConfig={onChangeConfig}
                 onChangeNodeType={onChangeNodeType}

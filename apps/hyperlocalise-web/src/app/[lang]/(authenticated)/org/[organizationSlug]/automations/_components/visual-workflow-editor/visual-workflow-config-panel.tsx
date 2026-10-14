@@ -153,10 +153,14 @@ export function VisualWorkflowConfigPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeftIcon className="size-4" />
           <FormattedMessage {...messages.backToPicker} />
+        </Button>
+        <Button type="button" variant="destructive" size="sm" onClick={onDeleteNode}>
+          <TrashIcon className="size-4" />
+          <FormattedMessage {...messages.deleteStep} />
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
@@ -1426,12 +1430,6 @@ export function VisualWorkflowConfigPanel({
             </pre>
           </div>
         ) : null}
-      </div>
-      <div className="border-t border-border px-4 py-3">
-        <Button type="button" variant="outline" className="w-full" onClick={onDeleteNode}>
-          <TrashIcon className="size-4" />
-          <FormattedMessage {...messages.deleteStep} />
-        </Button>
       </div>
       <VisualWorkflowIssueList
         issues={issues}

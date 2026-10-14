@@ -19,8 +19,9 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
+  type XYPosition,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -46,6 +47,19 @@ export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
     VisualWorkflowCompactNode,
   ]),
 ) as Record<VisualCatalogType, typeof VisualWorkflowCompactNode>;
+
+// A label's letters get an outline in the canvas colour, which hides the line and the dots right
+// behind them and nothing else. React Flow's own box behind a label is white, and shows.
+const EDGE_LABEL_PROPS = {
+  labelShowBg: false,
+  labelStyle: {
+    fill: "var(--muted-foreground)",
+    paintOrder: "stroke",
+    stroke: "var(--sidebar)",
+    strokeWidth: 4,
+    strokeLinejoin: "round",
+  },
+} satisfies Partial<VisualWorkflowRfEdge>;
 
 type ForEachPresentedRegion = {
   loopId: string;
@@ -73,11 +87,13 @@ export function presentVisualWorkflowEdges(
     if (edge.data?.kind === "data") {
       return {
         ...edge,
+        ...EDGE_LABEL_PROPS,
         label: `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`,
         style: {
           ...edge.style,
           strokeDasharray: "5 4",
         },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       };
     }
 
@@ -94,12 +110,6 @@ export function presentVisualWorkflowEdges(
           ...edge.style,
           stroke: "var(--primary)",
           strokeWidth: 2,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: "var(--primary)",
         },
       };
     }
@@ -118,16 +128,27 @@ export function presentVisualWorkflowEdges(
           stroke: "var(--muted-foreground)",
           strokeWidth: 2,
         },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: "var(--muted-foreground)",
-        },
       };
     }
 
-    return edge;
+    return edge.label === undefined ? edge : { ...edge, ...EDGE_LABEL_PROPS };
+  });
+}
+
+/** Reads the canvas position at the middle of the view, or null while the canvas is not shown. */
+export type VisualWorkflowViewCenterReader = () => XYPosition | null;
+
+/** The canvas position under the middle of the canvas's box on screen. */
+export function visualWorkflowViewCenter(
+  reactFlow: { screenToFlowPosition: (position: XYPosition) => XYPosition } | null,
+  bounds: { left: number; top: number; width: number; height: number } | undefined,
+): XYPosition | null {
+  if (!reactFlow || !bounds || bounds.width === 0 || bounds.height === 0) {
+    return null;
+  }
+  return reactFlow.screenToFlowPosition({
+    x: bounds.left + bounds.width / 2,
+    y: bounds.top + bounds.height / 2,
   });
 }
 
@@ -142,6 +163,7 @@ export function VisualWorkflowCanvas({
   onReconnect,
   onSelectionChange,
   focusNode,
+  viewCenterRef,
   onAddFirstStep,
   onLoadSample,
   onTestWorkflow,
@@ -161,6 +183,8 @@ export function VisualWorkflowCanvas({
   onSelectionChange: (params: OnSelectionChangeParams) => void;
   /** The step to bring to the middle of the canvas. A new object asks again, for the same step too. */
   focusNode?: { nodeId: string } | null;
+  /** Filled with a reader of the middle of the view while the canvas is shown. */
+  viewCenterRef?: RefObject<VisualWorkflowViewCenterReader | null>;
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
@@ -168,8 +192,19 @@ export function VisualWorkflowCanvas({
   const reactFlowRef = useRef<ReactFlowInstance<VisualWorkflowRfNode, VisualWorkflowRfEdge> | null>(
     null,
   );
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const reconnectingEdgeIdRef = useRef<string | null>(null);
   const lastConnectionErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!viewCenterRef) {
+      return;
+    }
+    viewCenterRef.current = () =>
+      visualWorkflowViewCenter(reactFlowRef.current, containerRef.current?.getBoundingClientRect());
+    return () => {
+      viewCenterRef.current = null;
+    };
+  }, [viewCenterRef]);
   const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowRfEdge) => {
@@ -209,7 +244,7 @@ export function VisualWorkflowCanvas({
   }, [focusNode]);
 
   return (
-    <div className="relative min-h-0 min-w-0 flex-1">
+    <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
       <Canvas
         className="h-full"
         nodes={nodes}
@@ -255,9 +290,9 @@ export function VisualWorkflowCanvas({
         panOnDrag
         selectionOnDrag={false}
         fitView
-        defaultEdgeOptions={{
-          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-        }}
+        // A click on a handle would otherwise start a connection that waits for a click on another
+        // handle, and the handle stays marked as its start until then.
+        connectOnClick={false}
         onInit={(reactFlow) => {
           reactFlowRef.current = reactFlow;
           void reactFlow.fitView({ padding: 0.2 });

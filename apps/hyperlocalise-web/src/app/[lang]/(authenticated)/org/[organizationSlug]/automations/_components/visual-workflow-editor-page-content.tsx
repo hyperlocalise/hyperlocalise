@@ -20,11 +20,14 @@ import { toast } from "sonner";
 
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
-import { useOrgRouter } from "@/lib/navigation/use-org-router";
-import { fromVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+import {
+  fromVisualWorkflowV3Definition,
+  toVisualWorkflowV3Definition,
+} from "@/lib/visual-workflows/schema/serializers";
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
+import { useUnsavedChangesLeaveGuard } from "../../_components/unsaved-changes-leave-guard";
 import { VisualWorkflowDeleteDialog } from "./visual-workflow-delete-dialog";
 import {
   publishWorkflowVersion,
@@ -48,7 +51,6 @@ export function VisualWorkflowEditorPageContent({
 }) {
   const router = useRouter();
   const revision = useRef(workflow.revision);
-  const orgRouter = useOrgRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // The breadcrumb shows the name as last saved, so a rename appears there once it is saved.
   const [savedName, setSavedName] = useState(workflow.name);
@@ -63,6 +65,12 @@ export function VisualWorkflowEditorPageContent({
     ...workflow.definition,
     name: workflow.name,
   });
+  // The workflow as the editor writes it, so that an untouched graph compares as saved.
+  const [savedDefinition, setSavedDefinition] = useState(() =>
+    toVisualWorkflowV3Definition(editorState),
+  );
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   const persistMutation = useMutation({
     mutationFn: (input: {
@@ -79,6 +87,7 @@ export function VisualWorkflowEditorPageContent({
         .then((record) => {
           revision.current = record.revision;
           setSavedName(record.name);
+          setSavedDefinition(input.definition);
           return record;
         }),
   });
@@ -106,7 +115,8 @@ export function VisualWorkflowEditorPageContent({
     mutationFn: () => injectedApi.deleteVisualWorkflow(organizationSlug, workflow.id),
     onSuccess: () => {
       toast.success(<FormattedMessage {...visualWorkflowsPageMessages.deleteSuccess} />);
-      orgRouter.push(`/org/${organizationSlug}/automations/visual-workflows`);
+      // The workflow is gone, so its unsaved changes are not asked about.
+      leaveTo(`/org/${organizationSlug}/automations/visual-workflows`);
     },
     onError: () => {
       toast.error(<FormattedMessage {...visualWorkflowsPageMessages.deleteFailed} />);
@@ -148,6 +158,8 @@ export function VisualWorkflowEditorPageContent({
         initialEdges={editorState.edges}
         onSave={(definition) => saveMutation.mutate(definition)}
         isSaving={saveMutation.isPending}
+        savedDefinition={savedDefinition}
+        onUnsavedChangesChange={setHasUnsavedChanges}
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}
         visualWorkflowsApi={injectedApi}
@@ -174,6 +186,7 @@ export function VisualWorkflowEditorPageContent({
           deleteMutation.mutate();
         }}
       />
+      {leaveGuardDialog}
     </div>
   );
 }

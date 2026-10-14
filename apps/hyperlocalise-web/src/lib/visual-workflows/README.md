@@ -27,17 +27,18 @@ Every node:
 A node with one execution output needs nothing else on the card. A node with several:
 
 - **List its outputs** in `getAllowedExecutionSourceHandles` and its main one in `getPrimaryExecutionSourceHandle` (`validation/execution-handles.ts`). Validation rejects a connection from an unlisted handle. The card does not read this list, so keep the two in step by hand.
-- **Draw each output** with `ExecutionHandle`, not React Flow's `Handle`. Place it with `style={executionTop(fraction)}` and set its tone with a text color such as `text-destructive`.
-- **Label the outputs** in a block positioned with `absolute top-0 h-(--execution-zone)`.
-- **Count a variable number of outputs** in `spreadExecutionDotCount`, so the top of the card grows to fit them.
-- **Exclude the type** from `hasSingleExecutionOutput` and give it a `primaryHandleLabel`.
+- **Describe each output** in the `outputs` list of `VisualWorkflowCompactNode`: its handle id, the label drawn inside the card beside the handle, its row (`executionTop(fraction)` or `spreadTop(index, count)`) and a text color such as `text-destructive` for its tone. The card draws the handle, its label and its "+" button from this.
+- **Count a variable number of outputs** in `spreadExecutionHandleCount`, so the top of the card grows to fit them.
 
-`executionTop` fractions are of the card's top part, which stays above the data ports. Execution handles and data ports must not share a spot on the card's edge.
+`executionTop` fractions are of the card's top part, which stays above the data ports; the rows start below the marks in the card's corners. Execution handles and data ports must not share a spot on the card's edge. A handle's glyph is hollow until a wire is attached (`isExecutionHandleConnected` in `editor/visual-workflow-execution-ports.ts` for execution handles, `connectionCount` for data ports).
 
 On the card:
 
 - Do not transition `transform`, `scale`, `opacity`, or `filter`. In Chromium the rest of the canvas jumps for a frame. Animate `width` and `height` instead.
 - A class on a React Flow handle needs `!` wherever React Flow's stylesheet sets the same property.
+- The card marks a selected step, a step with an issue and a step that changed unseen with a band along its edge (`STEP_BAND_TONE_CLASS`). Do not give a node its own ring, border or shadow for a state.
+- Under the pointer, change a color, never a size.
+- Keep an output's label short. It is drawn inside the card, and the title and subtitle give up their width to it.
 
 Undo and marks on the canvas:
 

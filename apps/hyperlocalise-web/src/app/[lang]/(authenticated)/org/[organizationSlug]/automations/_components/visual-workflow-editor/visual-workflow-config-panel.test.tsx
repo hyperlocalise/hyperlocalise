@@ -212,7 +212,11 @@ describe("VisualWorkflowConfigPanel", () => {
     await user.click(await screen.findByRole("option", { name: "GitHub" }));
     expect(onChangeNodeType).toHaveBeenCalledWith("trigger.github");
 
-    await user.click(screen.getByRole("button", { name: "Delete step" }));
+    // Delete sits in the panel's header beside Back, in the destructive style.
+    const deleteStep = screen.getByRole("button", { name: "Delete step" });
+    expect(deleteStep.parentElement).toContainElement(screen.getByRole("button", { name: "Back" }));
+    expect(deleteStep).toHaveClass("text-destructive");
+    await user.click(deleteStep);
     expect(onDeleteNode).toHaveBeenCalledOnce();
   });
 
