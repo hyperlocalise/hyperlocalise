@@ -19,8 +19,9 @@ import {
   type NodeChange,
   type OnSelectionChangeParams,
   type ReactFlowInstance,
+  type XYPosition,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -134,6 +135,23 @@ export function presentVisualWorkflowEdges(
   });
 }
 
+/** Reads the canvas position at the middle of the view, or null while the canvas is not shown. */
+export type VisualWorkflowViewCenterReader = () => XYPosition | null;
+
+/** The canvas position under the middle of the canvas's box on screen. */
+export function visualWorkflowViewCenter(
+  reactFlow: { screenToFlowPosition: (position: XYPosition) => XYPosition } | null,
+  bounds: { left: number; top: number; width: number; height: number } | undefined,
+): XYPosition | null {
+  if (!reactFlow || !bounds || bounds.width === 0 || bounds.height === 0) {
+    return null;
+  }
+  return reactFlow.screenToFlowPosition({
+    x: bounds.left + bounds.width / 2,
+    y: bounds.top + bounds.height / 2,
+  });
+}
+
 export function VisualWorkflowCanvas({
   nodes,
   edges,
@@ -145,6 +163,7 @@ export function VisualWorkflowCanvas({
   onReconnect,
   onSelectionChange,
   focusNode,
+  viewCenterRef,
   onAddFirstStep,
   onLoadSample,
   onTestWorkflow,
@@ -164,6 +183,8 @@ export function VisualWorkflowCanvas({
   onSelectionChange: (params: OnSelectionChangeParams) => void;
   /** The step to bring to the middle of the canvas. A new object asks again, for the same step too. */
   focusNode?: { nodeId: string } | null;
+  /** Filled with a reader of the middle of the view while the canvas is shown. */
+  viewCenterRef?: RefObject<VisualWorkflowViewCenterReader | null>;
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
@@ -171,8 +192,19 @@ export function VisualWorkflowCanvas({
   const reactFlowRef = useRef<ReactFlowInstance<VisualWorkflowRfNode, VisualWorkflowRfEdge> | null>(
     null,
   );
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const reconnectingEdgeIdRef = useRef<string | null>(null);
   const lastConnectionErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!viewCenterRef) {
+      return;
+    }
+    viewCenterRef.current = () =>
+      visualWorkflowViewCenter(reactFlowRef.current, containerRef.current?.getBoundingClientRect());
+    return () => {
+      viewCenterRef.current = null;
+    };
+  }, [viewCenterRef]);
   const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
   const isValidConnection = useCallback(
     (connection: Connection | VisualWorkflowRfEdge) => {
@@ -212,7 +244,7 @@ export function VisualWorkflowCanvas({
   }, [focusNode]);
 
   return (
-    <div className="relative min-h-0 min-w-0 flex-1">
+    <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
       <Canvas
         className="h-full"
         nodes={nodes}

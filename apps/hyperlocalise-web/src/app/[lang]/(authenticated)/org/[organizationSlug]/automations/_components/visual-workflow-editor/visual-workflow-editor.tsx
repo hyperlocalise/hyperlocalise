@@ -65,7 +65,10 @@ import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
-import { VisualWorkflowCanvas } from "./visual-workflow-canvas";
+import {
+  VisualWorkflowCanvas,
+  type VisualWorkflowViewCenterReader,
+} from "./visual-workflow-canvas";
 import {
   VisualWorkflowCanvasActionsProvider,
   type VisualWorkflowAddFrom,
@@ -161,6 +164,7 @@ export function VisualWorkflowEditor({
   const [copied, setCopied] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const runAbortRef = useRef<AbortController | null>(null);
+  const viewCenterRef = useRef<VisualWorkflowViewCenterReader | null>(null);
   // The graph as of the latest change, so changes made in one event build on each other before
   // the next render.
   const graphRef = useRef(history.form);
@@ -550,20 +554,23 @@ export function VisualWorkflowEditor({
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
+      const config = createDefaultConfig(type);
+      const size = getVisualNodeDimensions(type, config);
       const position = placeNewVisualWorkflowNode({
         nodes: currentNodes,
         source,
         handleId: addFrom?.handleId,
+        viewCenter: viewCenterRef.current?.() ?? null,
+        size,
       });
 
-      const config = createDefaultConfig(type);
       // The new step is selected, as a click on it would leave it.
       const nextNode: VisualWorkflowRfNode = {
         id,
         type,
         position,
         selected: true,
-        ...getVisualNodeDimensions(type, config),
+        ...size,
         data: {
           catalogType: type,
           config,
@@ -960,6 +967,7 @@ export function VisualWorkflowEditor({
               onReconnect={onReconnect}
               onSelectionChange={onSelectionChange}
               focusNode={focusNode}
+              viewCenterRef={viewCenterRef}
               onAddFirstStep={() => openPicker(null)}
               onLoadSample={() => {
                 const draft = sampleDraft ?? visualWorkflowDemoDraft;

@@ -202,6 +202,60 @@ export const QuickAddBranches: Story = {
   },
 };
 
+export const AddAtViewCenter: Story = {
+  name: "Add a step in the middle of the view",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A step picked without a "+" on another step lands in the middle of what the canvas shows, wherever the view has been moved to. A second one is set a little off the first, so both can be seen.',
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const pick = async () => {
+      const button = await canvas.findByRole(
+        "button",
+        { name: /Assign values into the workflow context/ },
+        { timeout: 10_000 },
+      );
+      button.click();
+    };
+    const selectedStep = () =>
+      canvasElement.querySelector<HTMLElement>(".react-flow__node.selected");
+    const middle = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    };
+    const view = canvasElement.querySelector(".react-flow") as HTMLElement;
+
+    await pick();
+    await waitFor(() => expect(selectedStep()).not.toBeNull());
+    const first = selectedStep()!;
+    // The step's real height can differ from the size it was placed by, so the middle of the view
+    // is only required to fall inside it from top to bottom.
+    await waitFor(() => expect(Math.abs(middle(first).x - middle(view).x)).toBeLessThan(2));
+    const box = first.getBoundingClientRect();
+    await expect(box.top).toBeLessThan(middle(view).y);
+    await expect(box.bottom).toBeGreaterThan(middle(view).y);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await pick();
+    await waitFor(() => expect(selectedStep()).not.toBe(first));
+    await waitFor(() => expect(selectedStep()).not.toBeNull());
+    const second = selectedStep()!;
+    await expect(second.getBoundingClientRect().left).toBeGreaterThan(box.left);
+    await expect(second.getBoundingClientRect().top).toBeGreaterThan(box.top);
+  },
+};
+
 export const UndoRedo: Story = {
   name: "Undo and redo an added node",
   parameters: {
