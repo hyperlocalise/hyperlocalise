@@ -13,9 +13,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildFigmaSourcePullEntries,
   figmaJobHasPullableTranslations,
   figmaJobMatchesPage,
   isFigmaIntegrationJob,
+  isProjectSourceLocale,
   mergeFigmaPullTranslations,
   pickTranslationsForLocale,
   publicFigmaJobStatus,
@@ -43,6 +45,34 @@ describe("pickTranslationsForLocale", () => {
   it("matches locale tags case-insensitively", () => {
     const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
     expect(pickTranslationsForLocale(map, "vi-vn")).toEqual({ "figma.k.a": "Xin chào" });
+  });
+});
+
+describe("isProjectSourceLocale", () => {
+  it("matches source locale tags case-insensitively", () => {
+    expect(isProjectSourceLocale("en-US", "en-us")).toBe(true);
+    expect(isProjectSourceLocale("en-US", "fr-FR")).toBe(false);
+  });
+});
+
+describe("buildFigmaSourcePullEntries", () => {
+  it("builds entries from stamp keys and drops duplicate known text", () => {
+    expect(
+      buildFigmaSourcePullEntries({
+        sourceFile: {
+          "figma.k.a": "Hello",
+          "figma.segment.legacy": "Legacy",
+          other: "Skip",
+        },
+        knownTextsByKey: new Map([["figma.k.a", ["Hello", "Hola"]]]),
+      }),
+    ).toEqual([
+      {
+        key: "figma.k.a",
+        source: "Hello",
+        knownTexts: ["Hola"],
+      },
+    ]);
   });
 });
 

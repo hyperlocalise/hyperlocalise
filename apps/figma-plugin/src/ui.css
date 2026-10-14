@@ -355,3 +355,70 @@ body {
 .toast {
   margin-top: 8px;
 }
+
+.tooltipWrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.tooltipWrapFullWidth {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.tooltipWrapFullWidth > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tooltipWrap[data-tooltip]::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--figma-color-bg-inverse, #2c2c2c);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.tooltipWrap[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  z-index: 2;
+  box-sizing: border-box;
+  max-width: min(240px, 90vw);
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--figma-color-bg-inverse, #2c2c2c);
+  color: var(--figma-color-text-oninverse, #fff);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  white-space: normal;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.tooltipWrap:hover::before,
+.tooltipWrap:hover::after,
+.tooltipWrap:focus-within::before,
+.tooltipWrap:focus-within::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltipWrap[data-tooltip]::before,
+  .tooltipWrap[data-tooltip]::after {
+    transition: none;
+  }
+}

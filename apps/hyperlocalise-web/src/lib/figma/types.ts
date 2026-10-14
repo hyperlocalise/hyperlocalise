@@ -90,3 +90,17 @@ export type FigmaLocalizationStatus = FigmaPageJob;
 export type FigmaCurrentJobResult = {
   job: FigmaPageJob | null;
 };
+
+/** One source segment plus alternate canvas texts (applied targets) for upload remapping. */
+export type FigmaSourcePullEntry = {
+  key: string;
+  source: string;
+  knownTexts: string[];
+};
+
+export type FigmaSourcePullPage = {
+  locale: string;
+  sourcePath: string;
+  needsReupload: boolean;
+  entries: FigmaSourcePullEntry[];
+};

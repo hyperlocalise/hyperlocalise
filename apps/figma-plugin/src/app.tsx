@@ -26,6 +26,7 @@ import {
   getFigmaJob,
   HyperlocaliseClientError,
   isFigmaPageJobPayload,
+  pullFigmaSourcePage,
   pullFigmaTranslations,
   resourceAuthFromSettings,
   type FigmaSessionProject,
@@ -39,7 +40,9 @@ import type {
   SandboxToUiMessage,
   UiToSandboxMessage,
 } from "./plugin-messages";
+import { remapExtractedSegmentsToSource } from "./extract-source";
 import { FormField } from "./form-field";
+import { TooltipButton, TooltipWrap } from "./tooltip-wrap";
 import { PageMultiSelect } from "./page-multi-select";
 import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
 import { isInFlightJobStatus, jobPollingStepProgress, pageJobFromCreate } from "./page-job-ui";
@@ -915,6 +918,28 @@ export function App() {
     return result;
   };
 
+  const resolveSourceSegmentsForPage = async (
+    pageId: string,
+    extracted: Awaited<ReturnType<typeof ensureExtractedForPage>>,
+  ) => {
+    if (!auth || !settings.projectId) {
+      return extracted.segments;
+    }
+    try {
+      const sourcePage = await pullFigmaSourcePage({
+        appUrl: settings.appUrl,
+        auth,
+        projectId: settings.projectId,
+        fileKey: extracted.file.fileKey,
+        pageId,
+        locale: sourceLocale,
+      });
+      return remapExtractedSegmentsToSource(extracted.segments, sourcePage);
+    } catch {
+      return extracted.segments;
+    }
+  };
+
   const waitForJobCompletion = async (
     jobId: string,
     originatedPageId: string,
@@ -1019,7 +1044,8 @@ export function App() {
 
     pageIdRef.current = pageId;
     const extracted = await ensureExtractedForPage(pageId);
-    if (extracted.segments.length === 0) {
+    const segments = await resolveSourceSegmentsForPage(pageId, extracted);
+    if (segments.length === 0) {
       throw new Error("No text found on the selected page.");
     }
 
@@ -1043,7 +1069,7 @@ export function App() {
       sourceLocale,
       targetLocales: jobTargetLocales,
       generate,
-      segments: extracted.segments,
+      segments,
     });
 
     rememberCreatedJob(created, originatedPageId, {
@@ -1054,18 +1080,12 @@ export function App() {
     return { created, extracted, locale, originatedPageId };
   };
 
-  const extractSelectedPages = async (): Promise<FigmaUploadPreview> => {
+  const extractSelectedSourcePages = async (): Promise<FigmaUploadPreview> => {
     const segmentsByPage: FigmaUploadPreview["segmentsByPage"] = [];
     for (const pageId of selectedPageIds) {
-      const extracted = await requestFromSandbox(
-        {
-          type: "extract",
-          pageId,
-          preserveFormatting: settings.preserveFormatting,
-        },
-        "extracted",
-      );
-      segmentsByPage.push({ pageId, segments: extracted.segments });
+      const extracted = await ensureExtractedForPage(pageId);
+      const segments = await resolveSourceSegmentsForPage(pageId, extracted);
+      segmentsByPage.push({ pageId, segments });
     }
     const segmentTotal = segmentsByPage.reduce((sum, entry) => sum + entry.segments.length, 0);
     if (segmentTotal === 0) {
@@ -1089,7 +1109,7 @@ export function App() {
     setUploadPreviewLoading(true);
     setErrorMessage(null);
     try {
-      setUploadPreview(await extractSelectedPages());
+      setUploadPreview(await extractSelectedSourcePages());
     } catch (error) {
       if (isReconnectError(error)) {
         persistSettings(clearConnection(settings));
@@ -1204,7 +1224,7 @@ export function App() {
             throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
           }
           setStep("Uploading source text...", 6);
-          const preview = await extractSelectedPages();
+          const preview = await extractSelectedSourcePages();
           for (const { pageId } of preview.segmentsByPage) {
             await createJobForPage(pageId, false);
           }
@@ -1376,30 +1396,33 @@ export function App() {
                     />
                   )}
                 </div>
-                <IconButton
-                  disabled={busy === "bind" || projectsReloading}
-                  onClick={() => {
-                    if (!auth || projectsReloading) {
-                      return;
-                    }
-                    setProjectsReloading(true);
-                    void fetchFigmaSession({ appUrl: settings.appUrl, auth })
-                      .then((session) => {
-                        setProjects(session.projects);
-                      })
-                      .catch((error) => {
-                        showToast(
-                          error instanceof Error ? error.message : "Unable to reload projects.",
-                          "warn",
-                        );
-                      })
-                      .finally(() => {
-                        setProjectsReloading(false);
-                      });
-                  }}
-                >
-                  <IconRefresh16 />
-                </IconButton>
+                <TooltipWrap label="Reload projects">
+                  <IconButton
+                    aria-label="Reload projects"
+                    disabled={busy === "bind" || projectsReloading}
+                    onClick={() => {
+                      if (!auth || projectsReloading) {
+                        return;
+                      }
+                      setProjectsReloading(true);
+                      void fetchFigmaSession({ appUrl: settings.appUrl, auth })
+                        .then((session) => {
+                          setProjects(session.projects);
+                        })
+                        .catch((error) => {
+                          showToast(
+                            error instanceof Error ? error.message : "Unable to reload projects.",
+                            "warn",
+                          );
+                        })
+                        .finally(() => {
+                          setProjectsReloading(false);
+                        });
+                    }}
+                  >
+                    <IconRefresh16 />
+                  </IconButton>
+                </TooltipWrap>
               </div>
             </FormField>
             {busy === "bind" && bindProgress ? (
@@ -1541,12 +1564,15 @@ export function App() {
                           />
                         )}
                       </div>
-                      <IconButton
-                        disabled={localesLoading || !selectedProject || busy != null}
-                        onClick={() => void reloadLocaleOptions()}
-                      >
-                        <IconRefresh16 />
-                      </IconButton>
+                      <TooltipWrap label="Reload languages">
+                        <IconButton
+                          aria-label="Reload languages"
+                          disabled={localesLoading || !selectedProject || busy != null}
+                          onClick={() => void reloadLocaleOptions()}
+                        >
+                          <IconRefresh16 />
+                        </IconButton>
+                      </TooltipWrap>
                     </div>
                   </FormField>
                   {selectedProject ? (
@@ -1576,9 +1602,15 @@ export function App() {
                           />
                         )}
                       </div>
-                      <IconButton disabled={pagesLoading || busy != null} onClick={reloadPages}>
-                        <IconRefresh16 />
-                      </IconButton>
+                      <TooltipWrap label="Reload pages">
+                        <IconButton
+                          aria-label="Reload pages"
+                          disabled={pagesLoading || busy != null}
+                          onClick={reloadPages}
+                        >
+                          <IconRefresh16 />
+                        </IconButton>
+                      </TooltipWrap>
                     </div>
                     <div className="pageMenuActions">
                       <Link
@@ -1622,26 +1654,26 @@ export function App() {
 
                 <VerticalSpace space="small" />
                 <Columns space="extraSmall">
-                  <Button
+                  <TooltipButton
                     fullWidth
                     secondary
-                    title={uploadTooltip}
+                    tooltipLabel={uploadTooltip}
                     onClick={() => void openUploadPreview()}
                     disabled={!canUpload || uploadPreviewLoading}
                     loading={uploadPreviewLoading}
                   >
                     Upload
-                  </Button>
-                  <Button
+                  </TooltipButton>
+                  <TooltipButton
                     fullWidth
                     secondary
-                    title={applyTooltip}
+                    tooltipLabel={applyTooltip}
                     onClick={() => void handleApply()}
                     disabled={applyButtonDisabled}
                     loading={applyButtonLoading}
                   >
                     Apply
-                  </Button>
+                  </TooltipButton>
                 </Columns>
                 {busy === "apply" && applyProgress ? (
                   <div className="stepProgress">
@@ -1668,9 +1700,9 @@ export function App() {
               {workflowHydrating ? (
                 <FieldSkeleton />
               ) : (
-                <Button
+                <TooltipButton
                   fullWidth
-                  title={translateTooltip}
+                  tooltipLabel={translateTooltip}
                   onClick={() => void handleTranslate()}
                   disabled={!canTranslate && busy !== "translate"}
                   loading={busy === "translate" && !translateFooterProgress}
@@ -1679,7 +1711,7 @@ export function App() {
                     <IconWand16 />
                     Translate
                   </span>
-                </Button>
+                </TooltipButton>
               )}
             </div>
           </div>

@@ -12,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleJobsWhere, buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -28,6 +28,7 @@ import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { isErr } from "@/lib/primitives/result/results";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import { getJobInputPayloadString } from "@/lib/projects/jobs/native-job-source-file-display";
 import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
@@ -48,6 +49,8 @@ import type {
   FigmaJobStatusName,
   FigmaLocalizationStatus,
   FigmaPageJob,
+  FigmaSourcePullEntry,
+  FigmaSourcePullPage,
   StartFigmaLocalizationResult,
 } from "./types";
 
@@ -151,6 +154,23 @@ export function mergeFigmaPullTranslations(
 
 function localeKey(locale: string): string {
   return locale.trim().toLowerCase();
+}
+
+export function isProjectSourceLocale(projectSourceLocale: string, locale: string): boolean {
+  const trimmed = locale.trim();
+  if (!trimmed) {
+    return false;
+  }
+  const projectTrimmed = projectSourceLocale.trim();
+  if (trimmed === projectTrimmed) {
+    return true;
+  }
+  const canonical = canonicalizeLocale(trimmed);
+  const projectCanonical = canonicalizeLocale(projectTrimmed);
+  if (canonical && projectCanonical && canonical === projectCanonical) {
+    return true;
+  }
+  return localeKey(trimmed) === localeKey(projectTrimmed);
 }
 
 export function pickTranslationsForLocale(
@@ -657,6 +677,188 @@ export async function getCurrentFigmaPageJob(input: {
       job,
       organizationId: input.auth.organization.localOrganizationId,
     }),
+  };
+}
+
+async function loadFigmaKnownTextsBySourcePath(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePaths: string[];
+}): Promise<Map<string, string[]>> {
+  const byKey = new Map<string, string[]>();
+  if (input.sourcePaths.length === 0) {
+    return byKey;
+  }
+
+  const rows = await db
+    .select({
+      key: schema.projectTranslationKeys.key,
+      text: schema.projectTranslations.text,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
+    })
+    .from(schema.projectTranslations)
+    .innerJoin(
+      schema.projectTranslationKeys,
+      eq(schema.projectTranslations.translationKeyId, schema.projectTranslationKeys.id),
+    )
+    .innerJoin(
+      schema.repositorySourceFiles,
+      eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+    )
+    .where(
+      and(
+        eq(schema.projectTranslations.organizationId, input.organizationId),
+        eq(schema.projectTranslations.projectId, input.projectId),
+        inArray(schema.repositorySourceFiles.sourcePath, input.sourcePaths),
+      ),
+    );
+
+  for (const row of rows) {
+    if (row.text.trim().length === 0 || !row.sourcePath || !isFigmaStampSegmentKey(row.key)) {
+      continue;
+    }
+    const texts = byKey.get(row.key) ?? [];
+    if (!texts.includes(row.text)) {
+      texts.push(row.text);
+    }
+    byKey.set(row.key, texts);
+  }
+
+  return byKey;
+}
+
+export function buildFigmaSourcePullEntries(input: {
+  sourceFile: Record<string, string>;
+  knownTextsByKey: Map<string, string[]>;
+}): FigmaSourcePullEntry[] {
+  const entries: FigmaSourcePullEntry[] = [];
+  for (const [key, sourceRaw] of Object.entries(input.sourceFile)) {
+    if (!isFigmaStampSegmentKey(key)) {
+      continue;
+    }
+    const source = sourceRaw.trim();
+    if (!source) {
+      continue;
+    }
+    const knownTexts = (input.knownTextsByKey.get(key) ?? []).filter(
+      (text) => text.trim().length > 0 && text.trim() !== source,
+    );
+    entries.push({ key, source, knownTexts });
+  }
+  return entries;
+}
+
+export async function pullFigmaSourcePageForUpload(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+}): Promise<FigmaSourcePullPage> {
+  const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("figma_project_not_found");
+  }
+  const projectSourceLocale = project.sourceLocale?.trim();
+  if (!projectSourceLocale) {
+    throw new Error("figma_project_source_locale_missing");
+  }
+
+  const organizationId = input.auth.organization.localOrganizationId;
+  const sourcePathDefault = buildFigmaPageSourcePath({
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+  });
+
+  const job = await findLatestFigmaPageJob({
+    auth: input.auth,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    projectId: project.id,
+  });
+
+  if (!job) {
+    return {
+      locale: projectSourceLocale,
+      sourcePath: sourcePathDefault,
+      needsReupload: true,
+      entries: [],
+    };
+  }
+
+  const sourcePath = readMetadataString(job.inputPayload, "sourcePath") ?? sourcePathDefault;
+  const sourceFileId = getJobInputPayloadString(job.inputPayload, "sourceFileId");
+  if (!sourceFileId) {
+    return {
+      locale: projectSourceLocale,
+      sourcePath,
+      needsReupload: true,
+      entries: [],
+    };
+  }
+
+  let sourceFile: Record<string, string> = {};
+  try {
+    const { content } = await getStoredFileContent({
+      organizationId,
+      projectId: project.id,
+      fileId: sourceFileId,
+    });
+    const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+    sourceFile = parseTranslationFile(parsed);
+  } catch {
+    return {
+      locale: projectSourceLocale,
+      sourcePath,
+      needsReupload: true,
+      entries: [],
+    };
+  }
+
+  const knownTextsByKey = await loadFigmaKnownTextsBySourcePath({
+    organizationId,
+    projectId: project.id,
+    sourcePaths: [sourcePath],
+  });
+  const entries = buildFigmaSourcePullEntries({ sourceFile, knownTextsByKey });
+
+  return {
+    locale: projectSourceLocale,
+    sourcePath,
+    needsReupload: entries.length === 0,
+    entries,
+  };
+}
+
+export async function pullFigmaPageLocaleContent(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  locale?: string;
+}): Promise<
+  | { kind: "source"; sourcePage: FigmaSourcePullPage }
+  | { kind: "job"; translations: { jobId: null; status: "not_found" } | FigmaPageJob }
+> {
+  const project = await getAccessibleFigmaProject(input.auth, input.projectId);
+  if (!project) {
+    throw new Error("figma_project_not_found");
+  }
+  const projectSourceLocale = project.sourceLocale?.trim();
+  if (!projectSourceLocale) {
+    throw new Error("figma_project_source_locale_missing");
+  }
+
+  const requestedLocale = input.locale?.trim();
+  if (requestedLocale && isProjectSourceLocale(projectSourceLocale, requestedLocale)) {
+    return {
+      kind: "source",
+      sourcePage: await pullFigmaSourcePageForUpload(input),
+    };
+  }
+
+  return {
+    kind: "job",
+    translations: await pullLatestFigmaTranslations(input),
   };
 }
 

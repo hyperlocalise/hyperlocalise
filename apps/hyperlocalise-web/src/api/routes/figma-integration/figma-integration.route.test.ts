@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   getFigmaLocalizationStatusMock: vi.fn(),
   getCurrentFigmaPageJobMock: vi.fn(),
   generateFigmaLocalizationMock: vi.fn(),
-  pullLatestFigmaTranslationsMock: vi.fn(),
+  pullFigmaPageLocaleContentMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -36,7 +36,7 @@ vi.mock("@/lib/figma/localize-file", () => ({
   getFigmaLocalizationStatus: mocks.getFigmaLocalizationStatusMock,
   getCurrentFigmaPageJob: mocks.getCurrentFigmaPageJobMock,
   generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
-  pullLatestFigmaTranslations: mocks.pullLatestFigmaTranslationsMock,
+  pullFigmaPageLocaleContent: mocks.pullFigmaPageLocaleContentMock,
 }));
 
 vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
@@ -347,10 +347,13 @@ describe("figmaIntegrationRoutes", () => {
       projectId: projectBody.project.id,
     });
 
-    mocks.pullLatestFigmaTranslationsMock.mockResolvedValue({
-      jobId: "job_pull",
-      status: "completed",
-      translationsByLocale: { "fr-FR": { [sampleSegment.key]: "Bonjour" } },
+    mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
+      kind: "job",
+      translations: {
+        jobId: "job_pull",
+        status: "completed",
+        translationsByLocale: { "fr-FR": { [sampleSegment.key]: "Bonjour" } },
+      },
     });
 
     const response = await client.api.integrations.figma.translations.$get(
@@ -374,6 +377,63 @@ describe("figmaIntegrationRoutes", () => {
         jobId: "job_pull",
         status: "completed",
         translationsByLocale: { "fr-FR": { [sampleSegment.key]: "Bonjour" } },
+      },
+    });
+  });
+
+  it("pulls source page content when locale matches project source", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma source pull key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma source pull",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
+      kind: "source",
+      sourcePage: {
+        locale: "en-US",
+        sourcePath: "figma/files/file-key/pages/page-1.json",
+        needsReupload: false,
+        entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
+      },
+    });
+
+    const response = await client.api.integrations.figma.translations.$get(
+      {
+        query: {
+          projectId: projectBody.project.id,
+          fileKey: "file-key",
+          pageId: "page-id",
+          locale: "en-US",
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      sourcePage: {
+        locale: "en-US",
+        sourcePath: "figma/files/file-key/pages/page-1.json",
+        needsReupload: false,
+        entries: [{ key: sampleSegment.key, source: "Hello", knownTexts: ["Hola"] }],
       },
     });
   });

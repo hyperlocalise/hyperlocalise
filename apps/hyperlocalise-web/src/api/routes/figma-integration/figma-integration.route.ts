@@ -29,7 +29,7 @@ import {
   generateFigmaLocalization,
   getCurrentFigmaPageJob,
   getFigmaLocalizationStatus,
-  pullLatestFigmaTranslations,
+  pullFigmaPageLocaleContent,
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
@@ -308,13 +308,17 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
 
       try {
         const auth = await resolveConnectionAuth(connection);
-        const translations = await pullLatestFigmaTranslations({
+        const pullResult = await pullFigmaPageLocaleContent({
           auth,
           projectId: query.projectId ?? requireBoundProject(connection),
           fileKey: query.fileKey,
           pageId: query.pageId,
+          locale: query.locale,
         });
-        return c.json({ translations }, 200);
+        if (pullResult.kind === "source") {
+          return c.json({ sourcePage: pullResult.sourcePage }, 200);
+        }
+        return c.json({ translations: pullResult.translations }, 200);
       } catch (error) {
         return localizeErrorResponse(c, error);
       }

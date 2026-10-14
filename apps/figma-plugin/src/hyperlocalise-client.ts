@@ -282,6 +282,41 @@ function isLocaleTranslationMap(value: unknown): value is Record<string, Record<
   );
 }
 
+export type FigmaSourcePullPagePayload = {
+  locale: string;
+  sourcePath: string;
+  needsReupload: boolean;
+  entries: Array<{ key: string; source: string; knownTexts: string[] }>;
+};
+
+export async function pullFigmaSourcePage(input: {
+  appUrl: string;
+  auth: string | FigmaResourceAuth;
+  projectId: string;
+  fileKey: string;
+  pageId: string;
+  locale: string;
+}): Promise<FigmaSourcePullPagePayload> {
+  const params = new URLSearchParams({
+    projectId: input.projectId,
+    fileKey: input.fileKey,
+    pageId: input.pageId,
+    locale: input.locale,
+  });
+  const response = await fetch(
+    apiUrl(input.appUrl, `/api/integrations/figma/translations?${params.toString()}`),
+    { headers: buildRequestHeaders(input.appUrl, input.auth) },
+  );
+  const payload = (await response.json().catch(() => null)) as
+    | ({ sourcePage?: FigmaSourcePullPagePayload } & ErrorPayload)
+    | null;
+  throwIfFailed(response, payload, "figma_source_pull_failed", "Unable to load source text.");
+  if (!payload?.sourcePage) {
+    throw new Error("Unable to load source text.");
+  }
+  return payload.sourcePage;
+}
+
 export async function pullFigmaTranslations(input: {
   appUrl: string;
   auth: string | FigmaResourceAuth;

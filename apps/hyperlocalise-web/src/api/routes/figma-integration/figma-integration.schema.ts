@@ -72,6 +72,7 @@ export const pullFigmaTranslationsQuerySchema = z.object({
   projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
+  locale: z.string().min(1).max(32).optional(),
 });
 
 export type CreateFigmaJobBody = z.infer<typeof createFigmaJobBodySchema>;
