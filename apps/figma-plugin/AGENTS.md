@@ -24,6 +24,14 @@ Figma bundling uses two Vite builds:
 - `vite.config.ts` — Preact UI inlined into `dist/ui.html` via `vite-plugin-singlefile`
 - `vite.code.config.ts` — plugin sandbox logic bundled to `dist/code.js`
 
+## Workflow invariants
+
+- **Upload** is collect-only (`POST /api/integrations/figma/collect`). Do not enqueue a translation job from Upload.
+- **Apply** remaps to the stored source file (`pullFigmaSourcePage` + `remapExtractedSegmentsToSource`) before writing. Do not use live canvas text as `sourceByKey`.
+- Stamped nodes get the requested locale or reset to stored source. They must not keep a previous target locale when the new locale has no real translation.
+
+End-user steps: [Localize Figma](../../docs/platform/connections/figma.mdx). Plugin overview: [README.md](./README.md).
+
 ## Before Finalizing
 
 Run `vp check --fix` and `vp test` in `apps/figma-plugin`.
