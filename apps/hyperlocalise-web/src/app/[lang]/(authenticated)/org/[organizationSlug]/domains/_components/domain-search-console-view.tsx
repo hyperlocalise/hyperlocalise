@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useState, type FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -33,12 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
-import {
-  GSC_DATE_RANGES,
-  GSC_DEFAULT_DATE_RANGE,
-  isGscDateRange,
-  type GscDateRange,
-} from "@/lib/gsc/constants";
+import { GSC_DATE_RANGES, isGscDateRange, type GscDateRange } from "@/lib/gsc/constants";
 import type {
   GscInspection,
   GscPageRow,
@@ -90,13 +85,9 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
   const intl = useIntl();
   const { client: goSvcClient } = useGoSvcClient();
   const store = useDomainResearchShellStore();
+  const searchConsoleUi = store.searchConsole;
   const dateRangeId = useId();
   const inspectId = useId();
-  const [dateRange, setDateRange] = useState<GscDateRange>(GSC_DEFAULT_DATE_RANGE);
-  const [tab, setTab] = useState<"queries" | "pages">("queries");
-  const [inspectUrl, setInspectUrl] = useState("");
-  const [inspecting, setInspecting] = useState(false);
-  const [inspection, setInspection] = useState<GscInspection | null>(null);
 
   const domain = store.domain;
   const localeId = store.localeId;
@@ -105,7 +96,7 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
     linkedDomainId,
     domainKey: domain?.domainKey ?? null,
     localeId,
-    dateRange,
+    dateRange: searchConsoleUi.dateRange,
   });
 
   if (!domain) {
@@ -120,18 +111,17 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
     if (!canMutate || snapshot?.status !== "ready") {
       return;
     }
-    setInspecting(true);
+    searchConsoleUi.beginInspect();
     try {
       const body = await goSvcClient.domains.inspectSearchConsole(
         organizationSlug,
         linkedDomainId,
-        { url: inspectUrl },
+        { url: searchConsoleUi.inspectUrl },
       );
-      setInspection(body.inspection);
+      searchConsoleUi.finishInspect(body.inspection);
     } catch (error) {
+      searchConsoleUi.failInspect();
       toast.error(goSvcErrorMessage(error, intl.formatMessage(messages.inspectError)));
-    } finally {
-      setInspecting(false);
     }
   }
 
@@ -216,11 +206,11 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
             <FormattedMessage {...messages.dateRangeLabel} />
           </FieldLabel>
           <Select
-            value={dateRange}
+            value={searchConsoleUi.dateRange}
             items={dateRangeItems}
             onValueChange={(value) => {
               if (value && isGscDateRange(value)) {
-                setDateRange(value);
+                searchConsoleUi.setDateRange(value);
               }
             }}
           >
@@ -284,7 +274,11 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
         )}
       </TypographyP>
 
-      <SearchConsoleTables snapshot={snapshot} tab={tab} onTabChange={setTab} />
+      <SearchConsoleTables
+        snapshot={snapshot}
+        tab={searchConsoleUi.tab}
+        onTabChange={(tab) => searchConsoleUi.setTab(tab)}
+      />
 
       {snapshot.status === "ready" ? (
         <section className="grid gap-3">
@@ -306,17 +300,23 @@ export const DomainSearchConsoleView = observer(function DomainSearchConsoleView
                 id={inspectId}
                 type="url"
                 required
-                value={inspectUrl}
+                value={searchConsoleUi.inspectUrl}
                 placeholder={`https://${domain.domainKey}/`}
-                onChange={(event) => setInspectUrl(event.currentTarget.value)}
+                onChange={(event) => searchConsoleUi.setInspectUrl(event.currentTarget.value)}
               />
             </Field>
-            <Button size="sm" type="submit" disabled={inspecting || inspectUrl.trim() === ""}>
-              {inspecting ? <Spinner className="size-3.5" /> : null}
+            <Button
+              size="sm"
+              type="submit"
+              disabled={searchConsoleUi.inspecting || searchConsoleUi.inspectUrl.trim() === ""}
+            >
+              {searchConsoleUi.inspecting ? <Spinner className="size-3.5" /> : null}
               <FormattedMessage {...messages.inspectCta} />
             </Button>
           </form>
-          {inspection ? <InspectionResult inspection={inspection} /> : null}
+          {searchConsoleUi.inspection ? (
+            <InspectionResult inspection={searchConsoleUi.inspection} />
+          ) : null}
         </section>
       ) : null}
     </div>
