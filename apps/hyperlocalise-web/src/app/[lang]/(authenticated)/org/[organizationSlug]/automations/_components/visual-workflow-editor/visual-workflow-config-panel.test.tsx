@@ -796,6 +796,40 @@ describe("VisualWorkflowConfigPanel", () => {
       expect(screen.queryByText("Find upstream fields")).not.toBeInTheDocument();
     });
 
+    it("offers the fields in an earlier step's test data as source fields before any run", async () => {
+      const user = userEvent.setup();
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      // The message already takes its value from the HTTP step, so its source can be changed.
+      const slack = slackNode();
+      slack.data.inputs = { message: { kind: "reference", nodeId: "http", path: ["json"] } };
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          allTestData: { http: { json: { reviewers: "ana@acme.dev" } } },
+        }),
+      );
+
+      await user.click(screen.getByRole("tab", { name: "Inputs" }));
+      await user.click(screen.getByRole("combobox", { name: "Source field" }));
+
+      expect(
+        await screen.findByRole("option", {
+          name: 'http · json.reviewers (string, observed only) · "ana@acme.dev"',
+        }),
+      ).toBeInTheDocument();
+    });
+
     it("says that inputs are wired on the canvas for a step whose inputs are only ports", async () => {
       const user = userEvent.setup();
       const call: VisualWorkflowRfNode = {

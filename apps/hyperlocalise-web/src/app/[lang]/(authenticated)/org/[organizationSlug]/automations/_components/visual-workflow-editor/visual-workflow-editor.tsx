@@ -1058,6 +1058,7 @@ export function VisualWorkflowEditor({
                 onChangeNodeType={onChangeNodeType}
                 onDeleteNode={onDeleteNode}
                 testData={testData[selectedNode.id]}
+                allTestData={testData}
                 missingTestValues={missingTestValues.filter(
                   (entry) => entry.nodeId === selectedNode.id,
                 )}

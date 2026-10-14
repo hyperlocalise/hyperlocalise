@@ -82,6 +82,7 @@ import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/
 import {
   takesTestData,
   type MissingTestValue,
+  type VisualWorkflowTestData,
 } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
@@ -137,6 +138,7 @@ export function VisualWorkflowConfigPanel({
   onChangeNodeType,
   onDeleteNode,
   testData,
+  allTestData,
   missingTestValues = [],
   onChangeTestData,
   requestedTab,
@@ -157,6 +159,8 @@ export function VisualWorkflowConfigPanel({
   onDeleteNode: () => void;
   /** The step's test data, shown on its Test tab with `onChangeTestData`. */
   testData?: Record<string, unknown>;
+  /** Every step's test data, so a source field of an earlier step can be picked before a run. */
+  allTestData?: VisualWorkflowTestData;
   /** The values of this step a test run needs and does not have. */
   missingTestValues?: readonly MissingTestValue[];
   onChangeTestData?: (value: Record<string, unknown>) => void;
@@ -277,6 +281,7 @@ export function VisualWorkflowConfigPanel({
               edges={edges}
               organizationSlug={organizationSlug}
               invalidFields={invalidFields}
+              testData={allTestData}
               onChange={onChangeContract}
             />
           </TabsContent>
@@ -299,6 +304,7 @@ export function VisualWorkflowConfigPanel({
               edges={edges}
               organizationSlug={organizationSlug}
               invalidFields={invalidFields}
+              testData={allTestData}
               onChange={onChangeContract}
             />
           </TabsContent>

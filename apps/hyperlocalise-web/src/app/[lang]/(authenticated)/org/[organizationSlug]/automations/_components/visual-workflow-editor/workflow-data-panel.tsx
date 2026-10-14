@@ -41,6 +41,7 @@ import type {
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import { computeForEachBodyNodeIds } from "@/lib/visual-workflows/editor/for-each-body-membership";
+import type { VisualWorkflowTestData } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 
 import { visualWorkflowEditorMessages } from "./visual-workflow-editor.messages";
 
@@ -80,9 +81,12 @@ export function WorkflowDataPanel({
   organizationSlug,
   invalidFields,
   section,
+  testData,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
+  /** Every step's test data by step id; what a step has not yet returned in a run it has here. */
+  testData?: VisualWorkflowTestData;
   /** Shows that part alone, without its heading, for a caller that names it itself. */
   section?: "inputs" | "outputs";
   /** The inputs of this step that a validation issue names. */
@@ -115,7 +119,7 @@ export function WorkflowDataPanel({
           inputs: candidate.data.inputs,
           outputFields: candidate.data.outputFields,
         }).map((field) => ({ ...field, observed: false })),
-        ...observedOutputFields(candidate.data.lastOutput).filter(
+        ...observedOutputFields(candidate.data.lastOutput ?? testData?.[candidate.id]).filter(
           (field) =>
             !getWorkflowOutputFields({
               id: candidate.id,
@@ -152,7 +156,10 @@ export function WorkflowDataPanel({
             .split(".")
             .map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment)),
           label: `${candidate.id} · ${field.path} (${field.type}${field.observed ? ", observed only" : field.optional ? ", optional" : ""})`,
-          sample: readWorkflowPath(candidate.data.lastOutput, field.path.split(".")),
+          sample: readWorkflowPath(
+            candidate.data.lastOutput ?? testData?.[candidate.id],
+            field.path.split("."),
+          ),
         })),
     );
   const contract = NODE_CONTRACTS[node.data.catalogType];
