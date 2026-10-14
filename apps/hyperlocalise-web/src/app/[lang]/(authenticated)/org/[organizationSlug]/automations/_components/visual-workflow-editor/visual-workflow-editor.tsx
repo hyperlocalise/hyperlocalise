@@ -40,6 +40,7 @@ import {
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
 import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
+import { nextVisualWorkflowNodeId } from "@/lib/visual-workflows/editor/visual-workflow-node-id";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
   isVisualWorkflowGraphEqual,
@@ -586,12 +587,9 @@ export function VisualWorkflowEditor({
 
   const addNode = useCallback(
     (type: VisualCatalogType) => {
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? `vw_${crypto.randomUUID().slice(0, 8)}`
-          : `vw_${Date.now()}`;
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
+      const id = nextVisualWorkflowNodeId(type, currentNodes);
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
       const config = createDefaultConfig(type);
       const size = getVisualNodeDimensions(type, config);

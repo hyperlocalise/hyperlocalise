@@ -37,7 +37,7 @@ Every trigger, and every step that calls out (HTTP, Content sync, Slack, email, 
 ## Consequences
 
 - A value appears once, and its source is visible: in the box, as pills, or as a wire or chip.
-- Users never see the four binding modes or step ids while using the Insert menu; they do see `{{ nodes.<id>.<path> }}` while editing a setting's text.
+- Users never see the four binding modes. While editing a setting's text they see `{{ nodes.<id>.<path> }}`, so a new step's id is its kind, such as `notify_slack`, numbered when the workflow already has one, rather than a random string.
 - Lists and objects inserted into text come out as JSON, as before.
 - A mock run cannot fail a step or choose an exit, so error branches, Try / Catch and Retry need a live run to be tried.
 - Test data is lost on reload, and a mock run's request shape is unchanged, so nothing on the server or in saved workflows moves.
@@ -48,7 +48,7 @@ Every trigger, and every step that calls out (HTTP, Content sync, Slack, email, 
 - **Keep the Inputs section and only reorder or tab it.** Tried first as tabs. It does not remove the duplication or explain the modes.
 - **A per-field mode toggle, as in n8n.** Rejected: our wires already carry a reference, so a mode is a second way to do one thing.
 - **A wire that carries a path inside an output and a fallback,** replacing the reference binding's remaining extras. Mocked up, not built; it changes the edge model.
-- **A token editor where each field is one object in the text.** Evaluated: the right long-term answer, about a week with an editor library such as Lexical, and its own undo to reconcile. Deferred; readable step ids would be a cheaper improvement first.
+- **A token editor where each field is one object in the text.** Evaluated: the right long-term answer, about a week with an editor library such as Lexical, and its own undo to reconcile. Deferred; readable step ids were done first, and TipTap, which the app already has, would be the base.
 - **Keep the single mock map and add a UI over it.** Rejected: ids are internal, and invented values would remain.
 - **A failure outcome per step mock, as in Workato.** Deferred to a server-side stage, with saving test data alongside the draft.
 
