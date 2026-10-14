@@ -638,6 +638,180 @@ describe("canvaIntegrationRoutes", () => {
     );
   });
 
+  it("returns jobIds when translate-first collect+generate starts jobs", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva generate jobs key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva generate jobs",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.startCanvaLocalizationMock.mockResolvedValue({
+      jobId: "job_page_1",
+      jobIds: ["job_page_1", "job_page_2"],
+      generated: true,
+      projectId: projectBody.project.id,
+      sourcePath: "canva/designs/design-id/page-1.json",
+    });
+
+    const response = await client.api.integrations.canva.jobs.$post(
+      {
+        json: {
+          designToken: "design-token",
+          generate: true,
+          targetLocales: ["es"],
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      job: {
+        jobId: "job_page_1",
+        jobIds: ["job_page_1", "job_page_2"],
+        generated: true,
+        projectId: projectBody.project.id,
+        sourcePath: "canva/designs/design-id/page-1.json",
+      },
+    });
+    expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generate: true,
+        targetLocales: ["es"],
+      }),
+    );
+    expect(mocks.generateCanvaLocaleJobsMock).not.toHaveBeenCalled();
+  });
+
+  it("generates jobs for already collected pages without segments", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva collected jobs key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva collected jobs",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.generateCanvaLocaleJobsMock.mockResolvedValue({
+      locale: "es",
+      projectId: projectBody.project.id,
+      jobIds: ["job_es_1"],
+    });
+
+    const response = await client.api.integrations.canva.jobs.$post(
+      {
+        json: {
+          designToken: "design-token",
+          generate: true,
+          targetLocales: ["es"],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      jobs: {
+        locale: "es",
+        projectId: projectBody.project.id,
+        jobIds: ["job_es_1"],
+      },
+    });
+    expect(mocks.generateCanvaLocaleJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        apiKeyId: apiKey.id,
+        projectId: projectBody.project.id,
+        targetLocales: ["es"],
+      }),
+    );
+    expect(mocks.startCanvaLocalizationMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a source ingest timeout to a 400 so translate-first does not start jobs", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Canva ingest timeout key",
+    });
+    const projectResponse = await projectFixture.createProjectViaApi(identity);
+    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva ingest timeout",
+      apiKeyId: apiKey.id,
+      projectId: projectBody.project.id,
+    });
+
+    mocks.generateCanvaLocaleJobsMock.mockRejectedValue(new Error("canva_source_ingest_timeout"));
+
+    const response = await client.api.integrations.canva.jobs.$post(
+      {
+        json: {
+          designToken: "design-token",
+          generate: true,
+          targetLocales: ["es"],
+        },
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+          Authorization: "Bearer canva-user-jwt",
+        },
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({ error: "canva_source_ingest_timeout" }),
+    );
+  });
+
   it("returns an unbound session and lists org projects", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);

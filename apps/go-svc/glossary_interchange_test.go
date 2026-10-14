@@ -66,6 +66,51 @@ func TestParseGlossaryCSVQuotedMultilineField(t *testing.T) {
 	require.Equal(t, definition, concepts[0].Definition)
 }
 
+func TestParseGlossaryCSVEmptyAndBOMOnly(t *testing.T) {
+	concepts, diagnostics := parseGlossaryCSV("")
+	require.Nil(t, concepts)
+	require.Empty(t, diagnostics)
+
+	concepts, diagnostics = parseGlossaryCSV("\ufeff")
+	require.Nil(t, concepts)
+	require.Empty(t, diagnostics)
+}
+
+func TestParseGlossaryCSVHeaderless(t *testing.T) {
+	content := "c1,en-US,Checkout\nc1,fr-FR,Paiement\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 1)
+	require.Equal(t, "Checkout", concepts[0].PrimaryTerm)
+	require.Len(t, concepts[0].Terms, 2)
+	require.Equal(t, "fr-FR", concepts[0].Terms[1].Locale)
+	require.Equal(t, "Paiement", concepts[0].Terms[1].Term)
+}
+
+func TestParseGlossaryCSVMalformedQuotedField(t *testing.T) {
+	concepts, diagnostics := parseGlossaryCSV("conceptId,locale,term\nc1,en-US,\"Checkout\n")
+	require.Nil(t, concepts)
+	require.NotEmpty(t, diagnostics)
+	require.Equal(t, "invalid_csv", diagnostics[0].Code)
+}
+
+func TestParseGlossaryCSVReuseRecordKeepsDistinctRows(t *testing.T) {
+	content := "conceptId,locale,term\nc1,en-US,Alpha\nc2,fr-FR,Beta\nc3,de-DE,Gamma\n"
+	concepts, diagnostics := parseGlossaryCSV(content)
+	require.Empty(t, diagnostics)
+	require.Len(t, concepts, 3)
+	require.Equal(t, []string{"Alpha", "Beta", "Gamma"}, []string{
+		concepts[0].Terms[0].Term,
+		concepts[1].Terms[0].Term,
+		concepts[2].Terms[0].Term,
+	})
+	require.Equal(t, []string{"en-US", "fr-FR", "de-DE"}, []string{
+		concepts[0].Terms[0].Locale,
+		concepts[1].Terms[0].Locale,
+		concepts[2].Terms[0].Locale,
+	})
+}
+
 func TestParseGlossaryTBX(t *testing.T) {
 	content := `<?xml version="1.0"?><tbx><text><body>
 <conceptEntry id="c-abc">

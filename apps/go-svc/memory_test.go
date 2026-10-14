@@ -311,6 +311,52 @@ func TestMemoryListCountsAccessibleProjects(t *testing.T) {
 	require.Equal(t, accessibleProject, projects.Projects[0].ProjectID)
 }
 
+func TestMemoryListCountsUnassignedProjectsViaDefaultTeam(t *testing.T) {
+	api, scope := memoryTestAPI(t, "member")
+	_ = scope.MustTeam(t, "default", "Default", "member")
+	restrictedTeam := scope.MustTeam(t, "restricted", "Restricted", "")
+	unassignedProject := scope.MustProject(t, uniqueProjectID("punassign"), "Unassigned")
+	restrictedProject := scope.MustProject(t, uniqueProjectID("prestrict2"), "Restricted")
+	_, err := scope.Pool.Exec(t.Context(), `
+		update projects set team_id = $2
+		where id = $1`,
+		restrictedProject, restrictedTeam)
+	require.NoError(t, err)
+
+	var unassignedTeamID *string
+	err = scope.Pool.QueryRow(t.Context(), `select team_id from projects where id=$1`, unassignedProject).Scan(&unassignedTeamID)
+	require.NoError(t, err)
+	require.Nil(t, unassignedTeamID)
+
+	memoryID := scope.MustMemory(t, "", "Unassigned TM")
+	mustAttachMemory(t, scope, unassignedProject, memoryID)
+	mustAttachMemory(t, scope, restrictedProject, memoryID)
+
+	list := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories"), "")
+	require.Equal(t, 200, list.Code, list.Body.String())
+	var body struct {
+		Memories []struct {
+			ID           string `json:"id"`
+			ProjectCount int    `json:"projectCount"`
+		} `json:"memories"`
+	}
+	require.NoError(t, json.Unmarshal(list.Body.Bytes(), &body))
+	require.Len(t, body.Memories, 1)
+	require.Equal(t, memoryID, body.Memories[0].ID)
+	require.Equal(t, 1, body.Memories[0].ProjectCount)
+
+	detail := memoryRequest(api, scope, "GET", scope.OrgPath("/translation-memories/"+memoryID+"/projects"), "")
+	require.Equal(t, 200, detail.Code, detail.Body.String())
+	var projects struct {
+		Projects []struct {
+			ProjectID string `json:"projectId"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal(detail.Body.Bytes(), &projects))
+	require.Len(t, projects.Projects, 1)
+	require.Equal(t, unassignedProject, projects.Projects[0].ProjectID)
+}
+
 func TestMemoryRequestLogPath(t *testing.T) {
 	path := "/v1/orgs/acme/translation-memories/" + testMemoryID + "/entries"
 	require.Equal(t, "/v1/orgs/{organizationSlug}/translation-memories/{resource}", requestLogPath(path))
