@@ -15,13 +15,6 @@
 
 import * as React from "react";
 import Image from "next/image";
-import {
-  GithubLogoIcon,
-  SlackLogoIcon,
-  NotionLogoIcon,
-  FigmaLogoIcon,
-} from "@phosphor-icons/react";
-
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import type { UseCasePageContent } from "./use-case-page-content";
