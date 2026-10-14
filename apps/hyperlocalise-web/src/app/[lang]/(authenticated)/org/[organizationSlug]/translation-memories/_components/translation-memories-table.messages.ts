@@ -100,10 +100,10 @@ export const translationMemoriesTableMessages = defineMessages({
     id: "5Y+QcRLqFA",
     description: "Column header for translation memory projects",
   },
-  allProjects: {
-    defaultMessage: "All",
-    id: "i1K5RtvMOq",
-    description: "Projects cell when a workspace translation memory is available to every project",
+  noProjectsAssigned: {
+    defaultMessage: "No projects assigned",
+    id: "9QhSK5fRvd",
+    description: "Projects cell when a workspace translation memory has no project attachments",
   },
   usedInProjects: {
     defaultMessage: "{count, plural, one {# project} other {# projects}}",

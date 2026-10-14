@@ -29,6 +29,20 @@ export type KeywordSort = {
   direction: "asc" | "desc";
 };
 
+export const EMPTY_KEYWORD_FILTERS: KeywordFilters = {
+  include: "",
+  exclude: "",
+  minVolume: "",
+  maxVolume: "",
+  minKd: "",
+  maxKd: "",
+  minCpc: "",
+  maxCpc: "",
+  intent: "all",
+};
+
+export const DEFAULT_KEYWORD_SORT: KeywordSort = { field: "volume", direction: "desc" };
+
 export function filterKeywordIdeas(
   rows: KeywordIdea[],
   query: string,

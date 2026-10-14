@@ -94,7 +94,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Phrase")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
-    await expect(canvas.getByText("All")).toBeInTheDocument();
+    await expect(canvas.getByText("No projects assigned")).toBeInTheDocument();
     await expect(canvas.getByText("Phrase TM")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Memory")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Import TMX or CSV" })).toBeInTheDocument();

@@ -74,7 +74,14 @@ func memoryPage(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
 }
 
 func (api *memoryAPI) getMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	return map[string]any{"memory": m}, 200, nil
+	records := []memoryRecord{m}
+	if err := api.attachNativeMemoryEntryStats(r.Context(), records); err != nil {
+		return nil, 0, err
+	}
+	if err := api.attachMemoryProjectCounts(r.Context(), actor, records); err != nil {
+		return nil, 0, err
+	}
+	return map[string]any{"memory": records[0]}, 200, nil
 }
 
 func (api *memoryAPI) patchMemoryHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
@@ -128,6 +135,9 @@ func (api *memoryAPI) listMemories(r *http.Request, actor memoryActor) (any, int
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if err := api.attachNativeMemoryEntryStats(r.Context(), records); err != nil {
 		return nil, 0, err
 	}
 	if err := api.attachMemoryProjectCounts(r.Context(), actor, records); err != nil {
@@ -398,6 +408,80 @@ func (api *memoryAPI) rejectMemoryAction(ctx context.Context, actor memoryActor,
 		TargetKind: "translation_memory",
 	})
 	return err
+}
+
+func (api *memoryAPI) attachNativeMemoryEntryStats(ctx context.Context, records []memoryRecord) error {
+	nativeIDs := make([]string, 0, len(records))
+	for _, record := range records {
+		if record.Source == "native" {
+			nativeIDs = append(nativeIDs, record.ID)
+		}
+	}
+	if len(nativeIDs) == 0 {
+		return nil
+	}
+
+	countByMemory := make(map[string]int, len(nativeIDs))
+	localeCoverageByMemory := make(map[string][]string, len(nativeIDs))
+	for _, id := range nativeIDs {
+		countByMemory[id] = 0
+		localeCoverageByMemory[id] = []string{}
+	}
+
+	rows, err := api.pool.Query(ctx, `
+		with locale_union as (
+			select memory_id, source_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and source_locale <> ''
+			union
+			select memory_id, target_locale as locale
+			from memory_entries
+			where memory_id = any($1::uuid[]) and target_locale <> ''
+		),
+		locale_agg as (
+			select memory_id, array_agg(distinct locale order by locale) as locale_coverage
+			from locale_union
+			group by memory_id
+		),
+		count_agg as (
+			select memory_id, count(*)::int as segment_count
+			from memory_entries
+			where memory_id = any($1::uuid[])
+			group by memory_id
+		)
+		select c.memory_id, c.segment_count, coalesce(l.locale_coverage, '{}'::text[])
+		from count_agg c
+		left join locale_agg l using (memory_id)`, nativeIDs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var memoryID string
+		var count int
+		var localeCoverage []string
+		if scanErr := rows.Scan(&memoryID, &count, &localeCoverage); scanErr != nil {
+			return scanErr
+		}
+		countByMemory[memoryID] = count
+		if localeCoverage == nil {
+			localeCoverage = []string{}
+		}
+		localeCoverageByMemory[memoryID] = localeCoverage
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i := range records {
+		if records[i].Source != "native" {
+			continue
+		}
+		count := countByMemory[records[i].ID]
+		records[i].SegmentCount = &count
+		records[i].LocaleCoverage = localeCoverageByMemory[records[i].ID]
+	}
+	return nil
 }
 
 func (api *memoryAPI) attachMemoryProjectCounts(ctx context.Context, actor memoryActor, records []memoryRecord) error {

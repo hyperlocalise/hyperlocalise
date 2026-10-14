@@ -67,7 +67,7 @@ function MemoryProjectsCell({
   const label =
     memory.source === "native"
       ? (memory.projectCount ?? 0) === 0
-        ? intl.formatMessage(translationMemoriesTableMessages.allProjects)
+        ? intl.formatMessage(translationMemoriesTableMessages.noProjectsAssigned)
         : intl.formatMessage(translationMemoriesTableMessages.usedInProjects, {
             count: memory.projectCount ?? 0,
           })

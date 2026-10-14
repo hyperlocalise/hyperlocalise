@@ -978,11 +978,14 @@ async function createJobsForCollectedPages(input: {
   jobQueue?: JobQueue<TranslationJobEventData>;
   createdByUserId: string | null;
 }): Promise<string[]> {
-  await waitForCanvaSourceIngest({
+  const ingestReady = await waitForCanvaSourceIngest({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePaths: input.pages.map((page) => page.sourcePath),
   });
+  if (!ingestReady) {
+    throw new Error("canva_source_ingest_timeout");
+  }
 
   const jobIds: string[] = [];
 
@@ -1544,6 +1547,7 @@ export async function startCanvaLocalization(input: {
 
   return {
     jobId: firstJobId,
+    jobIds,
     generated: generate,
     projectId: project.id,
     sourcePath: firstPage.sourcePath,

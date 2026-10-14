@@ -34,6 +34,7 @@ import {
   deauthorizeHyperlocalise,
   fetchCanvaLocaleStatuses,
   fetchCanvaSession,
+  collectAndGenerateCanvaLocaleJobs,
   generateCanvaLocaleJob,
   getHyperlocaliseAccessToken,
   waitForCanvaJobs,
@@ -874,9 +875,6 @@ export const App = () => {
     });
   };
 
-  const uploadSelectedSourcePages = async () =>
-    collectSegments((await extractSelectedSourcePages()).segments);
-
   const openUploadPreview = () =>
     runAction("upload", async () => {
       if (selectedPageIndices.length === 0) {
@@ -962,23 +960,34 @@ export const App = () => {
         if (selectedPageIndices.length === 0) {
           throw new Error("Select at least one editable page.");
         }
+
+        const { token } = await getDesignToken();
+        const auth = await resolveAuth();
+
+        let generated: { locale: string; projectId: string; jobIds: string[] };
         if (!pagesUploaded) {
           if (!canUploadSource) {
             throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
           }
           setStep("Uploading source text...", 6);
-          await uploadSelectedSourcePages();
+          const extracted = await extractSelectedSourcePages();
+          const metadata = await getDesignMetadata();
+          setStep("Starting translation...", 12);
+          generated = await collectAndGenerateCanvaLocaleJobs({
+            auth,
+            designToken: token,
+            designTitle: metadata.title,
+            locale: settings.selectedLocale,
+            segments: extracted.segments,
+          });
+        } else {
+          setStep("Starting translation...", 12);
+          generated = await generateCanvaLocaleJob({
+            auth,
+            designToken: token,
+            locale: settings.selectedLocale,
+          });
         }
-
-        const { token } = await getDesignToken();
-        const auth = await resolveAuth();
-
-        setStep("Starting translation...", 12);
-        const generated = await generateCanvaLocaleJob({
-          auth,
-          designToken: token,
-          locale: settings.selectedLocale,
-        });
         persistSettings({
           ...settings,
           lastJobId: generated.jobIds[0] ?? settings.lastJobId,
@@ -1017,7 +1026,11 @@ export const App = () => {
           lastJobId: generated.jobIds[0] ?? settings.lastJobId,
         });
         setStep("Finishing up...", 96);
-        await refreshLocaleStatuses();
+        try {
+          await refreshLocaleStatuses();
+        } catch {
+          // Jobs may already be running; a stale status panel must not fail a completed translate.
+        }
         const skippedNote =
           applied.skipped > 0
             ? ` ${applied.skipped} text box${applied.skipped === 1 ? "" : "es"} changed since upload — Upload again to include them.`
