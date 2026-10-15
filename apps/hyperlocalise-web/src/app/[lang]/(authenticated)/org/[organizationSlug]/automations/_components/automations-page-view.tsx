@@ -54,6 +54,7 @@ import {
 } from "../../_components/workspace-resource-shared";
 import { AutomationAssistantPrompt } from "./automation-assistant-prompt";
 import { AutomationIconTile } from "./automation-icon-tile";
+import { AutomationToolIcon } from "./automation-tool-icon";
 import {
   AutomationTemplateCard,
   defaultRenderAutomationLink,
@@ -188,8 +189,9 @@ function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomatio
   return (
     <div className="flex flex-wrap gap-1">
       {tools.map((tool) => (
-        <Badge key={tool} variant="outline">
-          {tool}
+        <Badge key={tool.id} variant="outline">
+          <AutomationToolIcon toolId={tool.id} />
+          {tool.label}
         </Badge>
       ))}
     </div>

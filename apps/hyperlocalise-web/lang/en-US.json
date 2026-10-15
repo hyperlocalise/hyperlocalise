@@ -2983,6 +2983,10 @@
     "defaultMessage": "Yes. Hyperlocalise agents live in integrations such as Slack, Teams, and GitHub, so teams can ask for work where they already collaborate. Available actions depend on the integration and workspace configuration.",
     "description": "Homepage FAQ answer about platform topic 7"
   },
+  "3UVVqU60g6": {
+    "defaultMessage": "Ahrefs",
+    "description": "Tool badge when an automation uses Ahrefs"
+  },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue",
     "description": "Continue button label"
@@ -15679,6 +15683,10 @@
     "defaultMessage": "Layers saved",
     "description": "Image viewer: saved"
   },
+  "Qw/ZLtBjN0": {
+    "defaultMessage": "Crowdin",
+    "description": "Tool badge when an automation uses Crowdin"
+  },
   "Qw3AuwhQJ4": {
     "defaultMessage": "String Hidden",
     "description": "Activity log event type label for hiding strings"
@@ -24579,6 +24587,10 @@
     "defaultMessage": "Gather string changes, PR descriptions, Slack threads, and launch briefs so translators see why copy changed — not just the diff.",
     "description": "Capability 1 description for the product-localisation use case"
   },
+  "h0hMmM+3k4": {
+    "defaultMessage": "Braze",
+    "description": "Tool badge when an automation uses Braze"
+  },
   "h11M7dgCU3": {
     "defaultMessage": "Team",
     "description": "Teams table column header for team name"
@@ -25542,6 +25554,10 @@
   "ihy++kxglc": {
     "defaultMessage": "Choose a language",
     "description": "Title for the locale picker used when adding a concept term"
+  },
+  "ijeBZJPxQs": {
+    "defaultMessage": "Semrush",
+    "description": "Tool badge when an automation uses Semrush"
   },
   "il32pCskAo": {
     "defaultMessage": "Domains",
@@ -30995,6 +31011,10 @@
     "defaultMessage": "Editor",
     "description": "Top chrome tab for the visual workflow canvas"
   },
+  "sHLZ/8LZoH": {
+    "defaultMessage": "Web search",
+    "description": "Tool badge when an automation uses web search"
+  },
   "sHVjRcdIVt": {
     "defaultMessage": "Extracting segments…",
     "description": "Hint on a selected file while source-file ingest is still extracting keys"
@@ -34970,6 +34990,10 @@
   "zPtX/ng4pa": {
     "defaultMessage": "Agents in your tools",
     "description": "Marketing homepage agentsEyebrow"
+  },
+  "zQBuwK1cWP": {
+    "defaultMessage": "Zernio",
+    "description": "Tool badge when an automation uses Zernio"
   },
   "zQR9HH34IW": {
     "defaultMessage": "No translation memories yet",

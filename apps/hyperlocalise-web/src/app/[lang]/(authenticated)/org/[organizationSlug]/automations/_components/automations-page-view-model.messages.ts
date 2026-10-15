@@ -95,6 +95,36 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "RLPdxshxAq",
     description: "Tool badge when an automation uses an MCP server",
   },
+  toolBraze: {
+    defaultMessage: "Braze",
+    id: "h0hMmM+3k4",
+    description: "Tool badge when an automation uses Braze",
+  },
+  toolCrowdin: {
+    defaultMessage: "Crowdin",
+    id: "Qw/ZLtBjN0",
+    description: "Tool badge when an automation uses Crowdin",
+  },
+  toolWebSearch: {
+    defaultMessage: "Web search",
+    id: "sHLZ/8LZoH",
+    description: "Tool badge when an automation uses web search",
+  },
+  toolSemrush: {
+    defaultMessage: "Semrush",
+    id: "ijeBZJPxQs",
+    description: "Tool badge when an automation uses Semrush",
+  },
+  toolZernio: {
+    defaultMessage: "Zernio",
+    id: "zQBuwK1cWP",
+    description: "Tool badge when an automation uses Zernio",
+  },
+  toolAhrefs: {
+    defaultMessage: "Ahrefs",
+    id: "3UVVqU60g6",
+    description: "Tool badge when an automation uses Ahrefs",
+  },
   unknownCreator: {
     defaultMessage: "Unknown",
     id: "O+ldw8Aj3z",

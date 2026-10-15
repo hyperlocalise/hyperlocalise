@@ -68,6 +68,10 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: "Configure" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
+    await expect(canvas.getAllByText("GitHub").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByText("Slack").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("Publish Contentful locales")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Contentful").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
     await expect(canvas.getByText("Grace Hopper")).toBeInTheDocument();
@@ -122,8 +126,8 @@ export const ActiveAndPaused: Story = {
     automations: automationsFixture,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("3")).toBeInTheDocument();
-    await expect(canvas.getAllByText("active")).toHaveLength(2);
+    await expect(canvas.getByText("4")).toBeInTheDocument();
+    await expect(canvas.getAllByText("active")).toHaveLength(3);
     await expect(canvas.getByText("paused")).toBeInTheDocument();
   },
 };
