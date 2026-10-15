@@ -96,6 +96,15 @@ function describeTrigger(intl: IntlShape, trigger: WorkspaceAutomationTriggerSum
   }
 }
 
+const REJECTED_LINE_MESSAGES = {
+  add_node: messages.toolLineRejectedAdd,
+  remove_node: messages.toolLineRejectedRemove,
+  connect: messages.toolLineRejectedConnect,
+  disconnect: messages.toolLineRejectedDisconnect,
+  configure_node: messages.toolLineRejectedConfigure,
+  rename_workflow: messages.toolLineRejectedRename,
+} as const;
+
 /** A step by its type's title, or by its id where an older line has no type. */
 function stepName(intl: IntlShape, id: string, type: VisualCatalogType | undefined): string {
   return type ? intl.formatMessage(visualWorkflowNodeTitleMessage(type)) : id;
@@ -174,7 +183,7 @@ function describeLine(intl: IntlShape, line: AutomationAssistantChangeLine): str
     case "workflow_renamed":
       return intl.formatMessage(messages.toolLineWorkflowRenamed, { name: line.name });
     case "rejected":
-      return intl.formatMessage(messages.toolLineRejected, { op: line.op });
+      return intl.formatMessage(REJECTED_LINE_MESSAGES[line.op]);
     default:
       return assertNever(line);
   }

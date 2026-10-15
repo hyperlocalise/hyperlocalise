@@ -48,12 +48,12 @@ export const automationAssistantMessages = defineMessages({
   },
   emptyWorkflow: {
     defaultMessage: "Describe what this workflow should do, or ask for a change.",
-    id: "emptyWorkflow",
+    id: "jSZ5KDgjs6",
     description: "Empty state of the assistant panel beside a visual workflow, before any message",
   },
   composerPlaceholderWorkflow: {
     defaultMessage: "Ask for a change, or say what this workflow should do.",
-    id: "composerPlaceholderWorkflow",
+    id: "JEi80S8Q14",
     description:
       "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed",
   },
@@ -332,22 +332,48 @@ export const automationAssistantMessages = defineMessages({
     id: "NOPoUyz/8O",
     description: "Line in the assistant's change list: the workflow was given a new name",
   },
-  toolLineRejected: {
-    defaultMessage:
-      "{op, select, add_node {Could not add a step} remove_node {Could not remove a step} connect {Could not connect two steps} disconnect {Could not disconnect two steps} configure_node {Could not change a step's settings} other {Could not rename the workflow}}",
-    id: "toolLineRejected",
+  toolLineRejectedAdd: {
+    defaultMessage: "Could not add a step",
+    id: "2WCxnj9DvK",
+    description: "Line in the assistant's change list: adding a step to the workflow was refused",
+  },
+  toolLineRejectedRemove: {
+    defaultMessage: "Could not remove a step",
+    id: "qByVEBzLzv",
     description:
-      "Line in the assistant's change list: a change to the workflow was refused; {op} is the kind of change. The reply says why",
+      "Line in the assistant's change list: removing a step from the workflow was refused",
+  },
+  toolLineRejectedConnect: {
+    defaultMessage: "Could not connect two steps",
+    id: "/QBr3H7p9k",
+    description: "Line in the assistant's change list: connecting two workflow steps was refused",
+  },
+  toolLineRejectedDisconnect: {
+    defaultMessage: "Could not disconnect two steps",
+    id: "fX43+IisLH",
+    description:
+      "Line in the assistant's change list: disconnecting two workflow steps was refused",
+  },
+  toolLineRejectedConfigure: {
+    defaultMessage: "Could not change a step's settings",
+    id: "e5EIKdt4+j",
+    description:
+      "Line in the assistant's change list: changing a workflow step's settings was refused",
+  },
+  toolLineRejectedRename: {
+    defaultMessage: "Could not rename the workflow",
+    id: "OSdBlPpXbz",
+    description: "Line in the assistant's change list: renaming the workflow was refused",
   },
   toolLineNodeConfiguredSettings: {
     defaultMessage: "Changed the settings of the {node} step",
-    id: "toolLineNodeConfiguredSettings",
+    id: "JC/7r38rMk",
     description:
       "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title",
   },
   toolLineOtherSettings: {
     defaultMessage: "{count, plural, one {one other setting} other {# other settings}}",
-    id: "toolLineOtherSettings",
+    id: "091kJoAeYj",
     description:
       "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'",
   },

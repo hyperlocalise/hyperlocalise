@@ -236,7 +236,9 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           {assistant.messages.length === 0 && assistant.status === "idle" ? (
             <TypographyMuted className="text-sm">
               <FormattedMessage
-                {...(assistant.mode === "visual_workflow" ? messages.emptyWorkflow : messages.empty)}
+                {...(assistant.mode === "visual_workflow"
+                  ? messages.emptyWorkflow
+                  : messages.empty)}
               />
             </TypographyMuted>
           ) : null}

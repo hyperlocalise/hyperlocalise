@@ -128,12 +128,10 @@ export const AddsAStep: Story = {
     await waitFor(() => expect(step()).not.toBeNull());
     // A step the assistant added is marked until it is selected, and brought into view.
     await expect(step()!.querySelector('[data-slot="step-band"]')).not.toBeNull();
-    await waitFor(() => {
+    await waitFor(async () => {
       const box = step()!.getBoundingClientRect();
-      const view = canvasElement
-        .querySelector<HTMLElement>(".react-flow")!
-        .getBoundingClientRect();
-      expect(box.left >= view.left && box.left < view.right).toBe(true);
+      const view = canvasElement.querySelector<HTMLElement>(".react-flow")!.getBoundingClientRect();
+      await expect(box.left >= view.left && box.left < view.right).toBe(true);
     });
 
     await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
