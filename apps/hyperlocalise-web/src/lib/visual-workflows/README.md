@@ -57,6 +57,15 @@ Validation issues:
 - A settings control shows the invalid state when it uses `connectedInputProps(portId)` or passes `invalid`.
 - Wording for a new issue code goes in `issueMessage` in `visual-workflow-issue-list.tsx`. A code without wording shows the general step-configuration message.
 
+Settings and test data:
+
+- Draw a setting that is an input in the contract with `WorkflowBoundField` and `connectedInputProps(name)`. That gives it its port mark, the Insert menu, pills for the fields it reads and, when wired, its source with Disconnect. A plain input gets none of these.
+- Name an input that only a wire can feed `value.<name>` in the contract. The form lists it as a row that asks for a wire, so it needs no form field.
+- A node with nothing to set up goes in the empty-settings check of the Configuration tab in `visual-workflow-config-panel.tsx`, beside `trigger.manual` and `logic.try_catch`.
+- A step that calls out to something goes in `TEST_OUTPUT_TYPES` in `editor/visual-workflow-test-data.ts`. It then gets a Test tab with a box per declared output, Fill with examples starts from its contract `mock`, and a mock run returns exactly its test data. A trigger gets a Test tab without this.
+- A step that a mock run works out exactly as a live run does goes in `COMPUTED_TYPES` in the same file. An action in neither list gets no Test tab, and a mock run falls back to its contract `mock`.
+- A new step's id is its type after the dot (`notify_slack`, then `notify_slack_2`; `editor/visual-workflow-node-id.ts`), and references to it read `{{ nodes.notify_slack.sent }}`. Pick a type name that reads well there.
+
 ## Execution and recovery
 
 A run and dispatch outbox row are inserted transactionally. The scheduler reconciles undispatched and abandoned work. Expiring run claims use a token to fence stale workers. Each durable step reconstructs execution from encrypted completed results and executes at most one new external action. Node history is keyed by run, node, iteration, and attempt. Loop items run sequentially in isolated contexts.
