@@ -70,7 +70,16 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
       blocks.push({ kind: "tool", summary });
     }
   }
-  return blocks;
+  // The text after the last call says what was done. Text before a call announced it, which the
+  // instructions forbid and which can promise what the call then refused, or narrated a call
+  // that was tried again; once the reply has text after its last call, that text is left out.
+  const lastCall = blocks.findLastIndex((block) => block.kind === "tool");
+  const answered = blocks
+    .slice(lastCall + 1)
+    .some((block) => block.kind === "text" && block.text.trim() !== "");
+  return lastCall >= 0 && answered
+    ? blocks.filter((block, index) => block.kind === "tool" || index > lastCall)
+    : blocks;
 }
 
 const FIELD_REFERENCE = /`?(\{\{[^{}]*\}\})`?/g;

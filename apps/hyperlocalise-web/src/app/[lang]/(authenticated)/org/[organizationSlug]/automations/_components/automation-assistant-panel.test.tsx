@@ -227,6 +227,40 @@ describe("what the panel says a turn did", () => {
     expect(screen.queryByText("No changes made to the setup")).toBeNull();
   });
 
+  it("leaves out what the reply wrote before its last call once it says what was done", () => {
+    show(
+      assistant({
+        messages: [
+          reply([
+            { type: "text", text: "I'll name it and save it." },
+            {
+              type: TOOL,
+              toolCallId: "call_1",
+              state: "output-available",
+              input: {},
+              output: { applied: true, changes: [{ kind: "name", name: "Weekly digest" }] },
+            },
+            { type: "text", text: "Named it." },
+          ] as UIMessage["parts"]),
+          reply([
+            { type: "text", text: "Here is what I will change." },
+            {
+              type: TOOL,
+              toolCallId: "call_2",
+              state: "output-available",
+              input: {},
+              output: { applied: true, changes: [{ kind: "name", name: "Weekly digest" }] },
+            },
+          ] as UIMessage["parts"]),
+        ],
+      }),
+    );
+
+    expect(screen.queryByText("I'll name it and save it.")).toBeNull();
+    expect(screen.getByText("Named it.")).toBeTruthy();
+    expect(screen.getByText("Here is what I will change.")).toBeTruthy();
+  });
+
   it("says above the person's message what they changed on the page before sending it", () => {
     show(
       assistant({
