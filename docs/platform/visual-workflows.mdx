@@ -59,11 +59,18 @@ Undo and redo change the draft on the canvas only. Nothing is saved or published
 
 ## Test, save, and publish
 
-Tests default to **mock** mode. Mock execution follows the same bindings, branches, and loops without calling external services. Set the values a test uses on the **Test** tab of the trigger and of each step that calls out: HTTP, AI, Slack, email, content sync, and Call workflow. The trigger's values are its sample event. A step's values are what it returns in place of doing its work. Other steps compute their own results.
+Tests use test data unless you choose otherwise. A test follows the same bindings, branches, and loops as a real run. Set the values a test uses on the **Test** tab of the trigger and of each step that calls out: HTTP, AI, Slack, email, content sync, and Call workflow. The trigger's values are its sample event. A step's values are what it returns in place of doing its work. Other steps, such as If, Set fields, Wait, and Merge, work out their own results from their inputs.
 
-Nothing is made up. A test does not start while a value it needs is empty, and it names the first one and opens its **Test** tab. **Fill with examples** writes example values that you can see and change, and **Use last run** copies the step's output from the last test. In the run history, **Use as test data** copies a past run's values into every step. Test values stay in the editor and are lost when you reload the page. After a test, hover over a pin to see the value that passed through it.
+Nothing is made up. A test does not start while a value it needs is empty, and it names the first one and opens its **Test** tab. **Fill with examples** writes example values that you can see and change, and **Use last run** copies the step's output from the last test. In the run history, **Use as test data** copies a past run's values into every step. After a test, hover over a pin to see the value that passed through it.
 
-Select **live** explicitly to test real integrations. Live testing can send notifications and change external systems. It never publishes your draft.
+On a step's **Test** tab you can also choose:
+
+- **In a test run: Run for real.** The step calls out for real when you test: requests are sent, content is generated, and messages are delivered. A lightning mark on the step shows it on the canvas. Its test data is kept for when you switch back to **Use test data**.
+- **Outcome: Fails.** The step fails with the error code and message you give instead of returning its test data. What follows depends on its **On error** setting: the test stops, goes on, or takes the step's error path.
+
+Before a test in which any step runs for real, the editor lists those steps and asks you to confirm. It also names any of them that use test data from a mocked step, because such a step acts for real on test values. In **Test settings** beside **Test workflow**, you can see how many steps run for real and set all of them to use test data or to run for real at once. When every step runs for real, the test is a live run, in which Wait steps really wait. A test never publishes your draft.
+
+Test data and these choices are saved with the draft when you select **Save**. They are never published.
 
 **Save** updates the draft. **Publish** validates and activates an immutable version. Active workflows continue using the published version while you edit or test. Concurrent changes return a conflict rather than overwrite another editor's work. Pause prevents new automatic runs; it does not cancel existing runs.
 
@@ -73,7 +80,7 @@ Create or select an organization credential for HTTP authentication. Sensitive h
 
 ## Inspect and recover runs
 
-Open a historical run to see its executed graph, version, mock/live mode, and node details independently of the current draft. Details include redacted inputs and outputs, errors, iterations, and attempts. Skipped, blocked, cancelled, handled-error, and needs-attention states remain visible.
+Open a historical run to see its executed graph, version, mock/live mode, and node details independently of the current draft. In a test run, the steps that ran for real are marked. Details include redacted inputs and outputs, errors, iterations, and attempts. Skipped, blocked, cancelled, handled-error, and needs-attention states remain visible.
 
 Cancel stops further steps and supported requests. An external action may already have completed. If a run needs attention, inspect the provider before retrying: retry requires acknowledgement that an uncertain action might be duplicated. Successful completed actions are retained during recovery.
 
