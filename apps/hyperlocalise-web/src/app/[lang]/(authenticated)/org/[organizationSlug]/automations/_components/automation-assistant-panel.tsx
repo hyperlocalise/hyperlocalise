@@ -231,7 +231,9 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
         <div ref={contentRef} className="flex flex-col gap-5">
           {assistant.messages.length === 0 && !assistant.streaming ? (
             <TypographyMuted className="text-sm">
-              <FormattedMessage {...messages.empty} />
+              <FormattedMessage
+                {...(assistant.mode === "visual_workflow" ? messages.emptyWorkflow : messages.empty)}
+              />
             </TypographyMuted>
           ) : null}
           {assistant.messages.map((message) =>
@@ -283,7 +285,11 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           organizationSlug={assistant.organizationSlug}
           pending={assistant.status !== "idle"}
           label={intl.formatMessage(messages.composerLabel)}
-          placeholder={intl.formatMessage(messages.composerPlaceholder)}
+          placeholder={intl.formatMessage(
+            assistant.mode === "visual_workflow"
+              ? messages.composerPlaceholderWorkflow
+              : messages.composerPlaceholder,
+          )}
           submitLabel={intl.formatMessage(messages.composerSend)}
           compact
         />

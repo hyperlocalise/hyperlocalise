@@ -46,6 +46,17 @@ export const automationAssistantMessages = defineMessages({
     id: "fnD091ugod",
     description: "Placeholder of the box in the assistant panel where a follow-up request is typed",
   },
+  emptyWorkflow: {
+    defaultMessage: "Describe what this workflow should do, or ask for a change.",
+    id: "emptyWorkflow",
+    description: "Empty state of the assistant panel beside a visual workflow, before any message",
+  },
+  composerPlaceholderWorkflow: {
+    defaultMessage: "Ask for a change, or say what this workflow should do.",
+    id: "composerPlaceholderWorkflow",
+    description:
+      "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed",
+  },
   composerLabel: {
     defaultMessage: "Message the automation assistant",
     id: "K4EZaisMM5",
