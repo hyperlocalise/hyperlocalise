@@ -252,6 +252,83 @@ describe("Figma plugin UI", () => {
     expect(result.queryByRole("button", { name: "Upload and translate" })).toBeNull();
   });
 
+  it("refreshes an expired OAuth session instead of clearing stored tokens", async () => {
+    let sessionCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (url.includes("/api/integrations/figma/session")) {
+        sessionCalls += 1;
+        if (sessionCalls === 1) {
+          return jsonResponse({ error: "figma_access_token_invalid" }, 401);
+        }
+        return jsonResponse({ session: sessionFixture });
+      }
+      if (url.includes("/api/integrations/figma/health")) {
+        return jsonResponse({
+          ok: true,
+          figmaOauthConfigured: true,
+          figmaOauthClientId: "figma-plugin",
+        });
+      }
+      if (url.includes("/api/oauth/figma/token")) {
+        return jsonResponse({
+          access_token: "hl_figma_at_new",
+          refresh_token: "hl_figma_rt_new",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "figma",
+        });
+      }
+      return figmaFetchHandler(input);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const postMessage = vi.spyOn(window.parent, "postMessage");
+
+    const result = render(<App />);
+    postToUi({
+      type: "ready",
+      settings: {
+        ...signedInSettings,
+        connectionToken: null,
+        accessToken: "hl_figma_at_expired",
+        refreshToken: "hl_figma_rt_old",
+      },
+      file: {
+        fileKey: "file-1",
+        fileName: "Marketing",
+        pageId: "page-1",
+        pageName: "Home",
+      },
+      pages: filePages,
+      binding: null,
+    });
+
+    await waitFor(() => {
+      expect(result.getByRole("button", { name: "Upload" })).toBeTruthy();
+    });
+    expect(result.queryByRole("button", { name: "Connect Hyperlocalise" })).toBeNull();
+    expect(
+      postMessage.mock.calls.some(([payload]) => {
+        if (!payload || typeof payload !== "object" || !("pluginMessage" in payload)) {
+          return false;
+        }
+        const message = (
+          payload as {
+            pluginMessage: {
+              type?: string;
+              settings?: { accessToken?: string; refreshToken?: string };
+            };
+          }
+        ).pluginMessage;
+        return (
+          message.type === "storage-set" &&
+          message.settings?.accessToken === "hl_figma_at_new" &&
+          message.settings.refreshToken === "hl_figma_rt_new"
+        );
+      }),
+    ).toBe(true);
+  });
+
   it("clears a legacy sealed session and prompts to reconnect", async () => {
     const result = render(<App />);
     postToUi({

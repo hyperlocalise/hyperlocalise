@@ -96,4 +96,6 @@ jobs:
 
       - name: Build figma-plugin
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+        env:
+          HYPERLOCALISE_APP_URL: https://app.hyperlocalise.com
         run: vp run build

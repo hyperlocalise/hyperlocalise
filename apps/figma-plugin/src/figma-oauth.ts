@@ -155,6 +155,32 @@ export async function exchangeFigmaAuthorizationCode(input: {
   return payload;
 }
 
+export async function refreshFigmaOAuthSession(input: {
+  appUrl: string;
+  refreshToken: string | null | undefined;
+}): Promise<FigmaOauthTokenResponse | null> {
+  const refreshToken = input.refreshToken?.trim();
+  if (!refreshToken) {
+    return null;
+  }
+
+  const health = await fetchFigmaIntegrationHealth(input.appUrl);
+  const clientId = health.figmaOauthClientId?.trim();
+  if (!clientId) {
+    return null;
+  }
+
+  try {
+    return await refreshFigmaAccessToken({
+      appUrl: input.appUrl,
+      clientId,
+      refreshToken,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function refreshFigmaAccessToken(input: {
   appUrl: string;
   clientId: string;

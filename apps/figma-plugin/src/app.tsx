@@ -30,6 +30,7 @@ import {
   pullFigmaSourcePage,
   pullFigmaTranslations,
   resourceAuthFromSettings,
+  type FigmaSession,
   type FigmaSessionProject,
 } from "./hyperlocalise-client";
 import type { FigmaPageJobBinding } from "./page-binding";
@@ -68,7 +69,7 @@ import {
   fetchFigmaIntegrationHealth,
   figmaOAuthRedirectUri,
   pollFigmaOauthHandoff,
-  refreshFigmaAccessToken,
+  refreshFigmaOAuthSession,
 } from "./figma-oauth";
 import { isLocalAppUrl } from "./local-development";
 import { pickTranslationsForLocale, projectLocalesMatch } from "./locale-map";
@@ -343,6 +344,20 @@ export function App() {
     postPluginMessage({ type: "storage-set", settings: settingsToStore });
   };
 
+  const applyLoadedSession = (session: FigmaSession, current: PluginSettings) => {
+    setProjects(session.projects);
+    const nextProjectId = resolvePersistedProjectId(current.projectId, session.projects);
+    const nextProject = session.projects.find((project) => project.id === nextProjectId);
+    persistSettings({
+      ...current,
+      userEmail: null,
+      organizationSlug: session.organization.slug ?? "",
+      organizationName: session.organization.name,
+      projectId: nextProjectId,
+      selectedLocale: defaultSelectedLocale(nextProject ?? null, current.selectedLocale),
+    });
+  };
+
   const loadPageBinding = (pageId: string) => {
     void (async () => {
       try {
@@ -513,25 +528,49 @@ export function App() {
     async function loadWorkspace() {
       setWorkspaceLoading(true);
       try {
+        let sessionAuth = auth!;
+        let nextSettings = settings;
+        try {
+          const session = await fetchFigmaSession({
+            appUrl: settings.appUrl,
+            auth: sessionAuth,
+          });
+          if (cancelled) {
+            return;
+          }
+          applyLoadedSession(session, nextSettings);
+          return;
+        } catch (error) {
+          if (
+            !(error instanceof HyperlocaliseClientError) ||
+            error.code !== "figma_access_token_invalid"
+          ) {
+            throw error;
+          }
+          const tokens = await refreshFigmaOAuthSession({
+            appUrl: settings.appUrl,
+            refreshToken: settings.refreshToken,
+          });
+          if (!tokens) {
+            throw error;
+          }
+          nextSettings = {
+            ...settings,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            connectionToken: null,
+          };
+          sessionAuth = { accessToken: tokens.access_token };
+        }
+
         const session = await fetchFigmaSession({
           appUrl: settings.appUrl,
-          auth: auth!,
+          auth: sessionAuth,
         });
         if (cancelled) {
           return;
         }
-
-        setProjects(session.projects);
-        const nextProjectId = resolvePersistedProjectId(settings.projectId, session.projects);
-        const nextProject = session.projects.find((project) => project.id === nextProjectId);
-        persistSettings({
-          ...settings,
-          userEmail: null,
-          organizationSlug: session.organization.slug ?? "",
-          organizationName: session.organization.name,
-          projectId: nextProjectId,
-          selectedLocale: defaultSelectedLocale(nextProject ?? null, settings.selectedLocale),
-        });
+        applyLoadedSession(session, nextSettings);
       } catch (error) {
         if (cancelled) {
           return;
@@ -825,29 +864,21 @@ export function App() {
     } catch (error) {
       if (
         error instanceof HyperlocaliseClientError &&
-        error.code === "figma_access_token_invalid" &&
-        settings.refreshToken?.trim()
+        error.code === "figma_access_token_invalid"
       ) {
-        try {
-          const health = await fetchFigmaIntegrationHealth(settings.appUrl);
-          const clientId = health.figmaOauthClientId?.trim();
-          if (clientId) {
-            const tokens = await refreshFigmaAccessToken({
-              appUrl: settings.appUrl,
-              clientId,
-              refreshToken: settings.refreshToken.trim(),
-            });
-            persistSettings({
-              ...settings,
-              accessToken: tokens.access_token,
-              refreshToken: tokens.refresh_token,
-              connectionToken: null,
-            });
-            showToast("Session refreshed. Try again.", "warn");
-            return;
-          }
-        } catch {
-          // Fall through to reconnect handling.
+        const tokens = await refreshFigmaOAuthSession({
+          appUrl: settings.appUrl,
+          refreshToken: settings.refreshToken,
+        });
+        if (tokens) {
+          persistSettings({
+            ...settings,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            connectionToken: null,
+          });
+          showToast("Session refreshed. Try again.", "warn");
+          return;
         }
       }
       if (isReconnectError(error)) {
@@ -886,6 +917,25 @@ export function App() {
         project: nextProject ?? null,
       });
     } catch (error) {
+      if (
+        error instanceof HyperlocaliseClientError &&
+        error.code === "figma_access_token_invalid"
+      ) {
+        const tokens = await refreshFigmaOAuthSession({
+          appUrl: settings.appUrl,
+          refreshToken: settings.refreshToken,
+        });
+        if (tokens) {
+          persistSettings({
+            ...settings,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            connectionToken: null,
+          });
+          showToast("Session refreshed. Try again.", "warn");
+          return;
+        }
+      }
       if (isReconnectError(error)) {
         persistSettings(clearConnection(settings));
         showToast("Reconnect Hyperlocalise to continue.", "critical");

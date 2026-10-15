@@ -5,7 +5,7 @@ declare const HYPERLOCALISE_APP_URL: string | undefined;
 export const DEFAULT_APP_URL =
   typeof HYPERLOCALISE_APP_URL === "string" && HYPERLOCALISE_APP_URL.length > 0
     ? HYPERLOCALISE_APP_URL
-    : "http://localhost:3000";
+    : "https://app.hyperlocalise.com";
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   appUrl: DEFAULT_APP_URL,
