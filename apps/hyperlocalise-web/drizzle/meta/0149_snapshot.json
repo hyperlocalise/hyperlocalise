@@ -1,5 +1,5 @@
 {
-  "id": "cbb06a0f-f182-4636-9dc1-c48ebe6bc1b5",
+  "id": "ffc1022d-afd6-40b0-9ba3-b2b0fd3d4479",
   "prevId": "6d319780-f495-40b8-aa93-ab3e844880f7",
   "version": "7",
   "dialect": "postgresql",
@@ -14824,12 +14824,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
@@ -14847,20 +14841,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "source_locale": {
-          "name": "source_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'en'"
-        },
-        "target_locales": {
-          "name": "target_locales",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[\"es\",\"fr\",\"de\"]'::jsonb"
         },
         "connection_token_hash": {
           "name": "connection_token_hash",
@@ -14947,21 +14927,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_figma_connections_project": {
-          "name": "idx_figma_connections_project",
-          "columns": [
-            {
-              "expression": "project_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -14989,19 +14954,6 @@
             "id"
           ],
           "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "figma_connections_project_id_projects_id_fk": {
-          "name": "figma_connections_project_id_projects_id_fk",
-          "tableFrom": "figma_connections",
-          "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "figma_connections_created_by_user_id_users_id_fk": {
@@ -15205,6 +15157,127 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.figma_oauth_handoffs": {
+      "name": "figma_oauth_handoffs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "read_key_hash": {
+          "name": "read_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "write_key_hash": {
+          "name": "write_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_description": {
+          "name": "error_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "figma_oauth_handoffs_read_key_hash_key": {
+          "name": "figma_oauth_handoffs_read_key_hash_key",
+          "columns": [
+            {
+              "expression": "read_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "figma_oauth_handoffs_write_key_hash_key": {
+          "name": "figma_oauth_handoffs_write_key_hash_key",
+          "columns": [
+            {
+              "expression": "write_key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_figma_oauth_handoffs_expires": {
+          "name": "idx_figma_oauth_handoffs_expires",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
