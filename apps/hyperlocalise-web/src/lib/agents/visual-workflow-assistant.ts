@@ -1038,7 +1038,7 @@ function describePageEdit(edit: VisualWorkflowPageEdit): string {
   switch (edit.kind) {
     case "workflow_renamed":
       return edit.name
-        ? `the workflow is now called "${edit.name}"`
+        ? `the workflow is now called ${JSON.stringify(edit.name)}`
         : "the workflow's name was cleared";
     case "node_added":
       return `a ${title(edit.type)} node [${edit.nodeId}] was added`;
@@ -1185,13 +1185,13 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
   const ports = getVisualWorkflowDataPorts({ node, edges });
   const lines = [
     `- id: ${node.id}`,
-    `  what: ${VISUAL_NODE_DESCRIPTIONS[node.data.catalogType].title} (${node.data.catalogType}), "${resolveNodeSubtitle(node.data.config)}"`,
+    `  what: ${VISUAL_NODE_DESCRIPTIONS[node.data.catalogType].title} (${node.data.catalogType}), ${JSON.stringify(resolveNodeSubtitle(node.data.config))}`,
     `  settings: ${compactJson(node.data.config)}`,
     `  execution outputs: ${describeHandles(node)}`,
   ];
   if (node.data.config.kind === "logic.merge") {
     lines.push(
-      `  merge inputs (execution, by id): ${node.data.config.inputs.map((input) => `${input.id} "${input.name}"`).join(", ")}`,
+      `  merge inputs (execution, by id): ${node.data.config.inputs.map((input) => `${input.id} ${JSON.stringify(input.name)}`).join(", ")}`,
     );
   }
   if (ports.inputs.length > 0) {
@@ -1224,8 +1224,7 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
   const brokenReferences = describeReferenceProblems(state);
   const onCanvas = new Set(nodes.map((node) => node.id));
   const reservedNodeIds = (context.reservedNodeIds ?? []).filter((id) => !onCanvas.has(id));
-  return [
-    "<visual_workflow_page>",
+  const body = [
     "## Visual workflow page",
     "",
     "Written by the page for this turn, not typed by the person. It is the workflow as the canvas",
@@ -1267,6 +1266,11 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
           `Nodes with these ids were removed, and a new node cannot take one: ${reservedNodeIds.join(", ")}`,
         ]
       : []),
+  ].join("\n");
+  // Nothing from the page can end the block early: its only `<` are the block's own tags.
+  return [
+    "<visual_workflow_page>",
+    body.replaceAll("<", "\\u003c"),
     "</visual_workflow_page>",
   ].join("\n");
 }
