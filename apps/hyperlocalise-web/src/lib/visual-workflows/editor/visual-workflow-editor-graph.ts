@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { addEdge, type Connection } from "@xyflow/react";
+import type { Connection } from "@xyflow/react";
 
 import {
   createDefaultConfig,
@@ -271,6 +271,37 @@ export function applyNodeConfigUpdate(
     };
   }
   return { nodes: nextNodes, edges: [...edges] };
+}
+
+/**
+ * Adds an edge for a connection unless the same one is there, as React Flow's `addEdge` does and
+ * with the same id. Kept here because `@xyflow/react` is a client module: the assistant applies
+ * connections on the server with this file.
+ */
+function addEdge(
+  connection: Connection & Omit<Partial<VisualWorkflowRfEdge>, keyof Connection>,
+  edges: VisualWorkflowRfEdge[],
+): VisualWorkflowRfEdge[] {
+  const exists = edges.some(
+    (edge) =>
+      edge.source === connection.source &&
+      edge.target === connection.target &&
+      (edge.sourceHandle === connection.sourceHandle ||
+        (!edge.sourceHandle && !connection.sourceHandle)) &&
+      (edge.targetHandle === connection.targetHandle ||
+        (!edge.targetHandle && !connection.targetHandle)),
+  );
+  if (exists) {
+    return edges;
+  }
+  const { sourceHandle, targetHandle, ...rest } = connection;
+  const edge = {
+    ...rest,
+    id: `xy-edge__${connection.source}${sourceHandle || ""}-${connection.target}${targetHandle || ""}`,
+    ...(sourceHandle === null ? {} : { sourceHandle }),
+    ...(targetHandle === null ? {} : { targetHandle }),
+  } as VisualWorkflowRfEdge;
+  return [...edges, edge];
 }
 
 export function applyVisualWorkflowGraphConnection(
