@@ -499,12 +499,15 @@ export const PortCompatibility: Story = {
     await expect(requestNode).not.toBeNull();
     await userEvent.click(requestNode!);
 
-    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
-    await expect(
-      canvas.getAllByText(
-        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-      ).length,
-    ).toBeGreaterThan(0);
+    // A wired setting names the output that feeds it, in place of a box to type in.
+    const urlLabel = await canvas.findByText("URL", { selector: "label" });
+    const urlField = urlLabel.closest<HTMLElement>('[data-slot="bound-field"]');
+    await expect(urlField).not.toBeNull();
+    await expect(within(urlField!).queryByRole("textbox")).not.toBeInTheDocument();
+    await expect(urlField!.querySelector('[data-slot="bound-source"]')).toHaveTextContent(
+      "triggeredAt",
+    );
+    await expect(within(urlField!).getByRole("button", { name: "Disconnect" })).toBeEnabled();
   },
 };
 
