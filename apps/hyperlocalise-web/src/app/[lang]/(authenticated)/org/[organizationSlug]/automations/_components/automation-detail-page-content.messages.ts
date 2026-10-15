@@ -156,14 +156,19 @@ export const automationDetailPageContentMessages = defineMessages({
     description: "Save button label while the automation update request is pending",
   },
   saveChanges: {
-    defaultMessage: "Save changes",
-    id: "F6jskX12It",
+    defaultMessage: "Save",
+    id: "bsLwr0ECfl",
     description: "Button to save automation detail changes",
   },
   discardChanges: {
-    defaultMessage: "Discard changes",
-    id: "bYsksXFrGX",
+    defaultMessage: "Discard",
+    id: "xC6Oep4Mv6",
     description: "Button that throws away the unsaved changes to an automation",
+  },
+  moreActions: {
+    defaultMessage: "More actions",
+    id: "M0Sc0iJFfe",
+    description: "Accessible label for the automation detail overflow menu",
   },
   discardTitle: {
     defaultMessage: "Discard changes?",

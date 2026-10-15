@@ -16,6 +16,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { automationTemplatesFixture, createAutomationSummary } from "./automations.fixture";
 import {
   resolveAutomationCreatorName,
+  resolveAutomationTools,
   resolveSortedAutomationTemplates,
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
@@ -83,6 +84,66 @@ describe("resolveSortedAutomationTemplates", () => {
     expect(popular.map((template) => template.name)).toEqual(
       popular.map((template) => template.name).toSorted((left, right) => left.localeCompare(right)),
     );
+  });
+});
+
+describe("resolveAutomationTools", () => {
+  it("returns GitHub and Slack with stable ids for the list badges", () => {
+    expect(resolveAutomationTools(intl, createAutomationSummary())).toEqual([
+      { id: "github", label: "GitHub" },
+      { id: "slack", label: "Slack" },
+    ]);
+  });
+
+  it("shows Contentful when that workflow is enabled", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            contentful: { ...base.toolConfig.contentful!, enabled: true },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "contentful", label: "Contentful" }]);
+  });
+
+  it("collapses Braze templates and campaigns into one badge", () => {
+    const base = createAutomationSummary();
+
+    expect(
+      resolveAutomationTools(
+        intl,
+        createAutomationSummary({
+          toolConfig: {
+            ...base.toolConfig,
+            github: { ...base.toolConfig.github!, enabled: false },
+            slack: { enabled: false },
+            braze: {
+              enabled: true,
+              sourceLocale: "en",
+              templateIds: [],
+              contentBlockIds: [],
+              existingTranslationPolicy: "seed_empty",
+              overwriteWhenRemoteNewer: true,
+            },
+            brazeCampaigns: {
+              enabled: true,
+              sourceLocale: "en",
+              campaignIds: [],
+              canvasIds: [],
+              existingTranslationPolicy: "seed_empty",
+              overwriteWhenRemoteNewer: true,
+            },
+          },
+        }),
+      ),
+    ).toEqual([{ id: "braze", label: "Braze" }]);
   });
 });
 
