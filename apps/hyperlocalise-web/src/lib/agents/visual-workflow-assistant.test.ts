@@ -358,6 +358,46 @@ describe("applyVisualWorkflowEdits", () => {
     ]);
   });
 
+  it("refuses a setting that holds a secret as the model was shown it, and applies the rest", () => {
+    const headers = [{ key: "Authorization", value: "Bearer sk-live-typed" }];
+    const http = node("http", "action.http", {
+      data: {
+        catalogType: "action.http",
+        runStatus: "idle",
+        config: { ...createDefaultConfig("action.http"), headers } as VisualNodeConfig,
+      },
+    });
+    const { state, results } = applyVisualWorkflowEdits({
+      state: { ...base, nodes: [...base.nodes, http] },
+      operations: [
+        {
+          op: "configure_node",
+          nodeId: "http",
+          config: {
+            url: "https://api.example.com/v2",
+            headers: [
+              { key: "Authorization", value: "[redacted]" },
+              { key: "Accept", value: "application/json" },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(results).toMatchObject([
+      { status: "applied", op: { config: { url: "https://api.example.com/v2" } } },
+      {
+        status: "rejected",
+        code: "hidden_secret",
+        message: expect.stringContaining("headers on HTTP Request holds a secret"),
+      },
+    ]);
+    expect(state.nodes.find((entry) => entry.id === "http")?.data.config).toMatchObject({
+      url: "https://api.example.com/v2",
+      headers,
+    });
+  });
+
   it("refuses to empty a setting the person chose, but leaves one that is empty", () => {
     const chosen = node("notify_slack", "action.notify_slack", {
       data: {

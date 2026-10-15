@@ -158,6 +158,7 @@ export type VisualWorkflowEditRejection =
   | "node_id_taken"
   | "node_id_reserved"
   | "set_by_person"
+  | "hidden_secret"
   | "trigger_exists"
   | "unknown_edge"
   | "invalid_config"
@@ -294,6 +295,20 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
   },
 };
 
+/** How a secret is shown to the model, as `redactWorkflowSnapshot` writes it. */
+const REDACTED = "[redacted]";
+
+/**
+ * Whether a value holds a secret as the model was shown it. Written back, it would replace the
+ * secret the person typed, so a setting holding one is refused.
+ */
+function holdsRedactedSecret(value: unknown): boolean {
+  if (typeof value === "string") return value.includes(REDACTED);
+  if (Array.isArray(value)) return value.some(holdsRedactedSecret);
+  if (value && typeof value === "object") return Object.values(value).some(holdsRedactedSecret);
+  return false;
+}
+
 function personOnlySettingsOf(type: VisualCatalogType | undefined): readonly string[] {
   return type ? Object.keys(PERSON_ONLY_SETTINGS[type] ?? {}) : [];
 }
@@ -367,6 +382,13 @@ function mergeConfig(
   const personOnly = given.filter((key) => personOnlySettingsOf(type).includes(key));
   if (personOnly.length > 0) {
     return { error: describePersonOnly(type, personOnly), code: "set_by_person" };
+  }
+  const hidden = given.filter((key) => holdsRedactedSecret(patch[key]));
+  if (hidden.length > 0) {
+    return {
+      error: `${hidden.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} holds a secret the assistant is shown only as ${REDACTED}, so it cannot change it without losing the secret; the person changes it on the step's Configuration tab.`,
+      code: "hidden_secret",
+    };
   }
   // Each given setting is held to its own rule. A rule across settings, such as a Wait's
   // duration being needed in duration mode, is left to the workflow's issues, as for a step that
@@ -730,10 +752,11 @@ function splitPersonOnlySettings(
   const bound = new Set(Object.keys(node.data.inputs ?? {}));
   const entries = Object.entries(op.config);
   // An empty value leaves the setting for the person, so it is not theirs to refuse, unless
-  // they have chosen it already.
+  // they have chosen it already. A value holding a hidden secret is refused too.
   const isTheirs = ([key, value]: [string, unknown]) =>
-    personOnlySettingsOf(type).includes(key) &&
-    (value !== "" || isChosenByPerson(type, node.data.config, bound, key));
+    (personOnlySettingsOf(type).includes(key) &&
+      (value !== "" || isChosenByPerson(type, node.data.config, bound, key))) ||
+    holdsRedactedSecret(value);
   const theirs = entries.filter(isTheirs);
   if (theirs.length === 0 || theirs.length === entries.length) {
     return [op];
