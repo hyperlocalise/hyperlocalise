@@ -161,6 +161,50 @@ describe("applyVisualWorkflowEdits", () => {
     });
   });
 
+  it("adds a Merge with inputs it names and connects two paths into them, as its instructions say", () => {
+    const { state, results } = applyVisualWorkflowEdits({
+      state: {
+        ...base,
+        nodes: [...base.nodes, node("if", "logic.if", { position: { x: 680, y: 0 } })],
+        edges: [...base.edges, edge("set", "if")],
+      },
+      operations: [
+        {
+          op: "add_node",
+          id: "merge",
+          type: "logic.merge",
+          config: {
+            inputs: [
+              { id: "input_1", name: "From True" },
+              { id: "input_2", name: "From False" },
+            ],
+          },
+        },
+        {
+          op: "connect",
+          source: "if",
+          sourceHandle: "true",
+          target: "merge",
+          targetHandle: "input_1",
+        },
+        {
+          op: "connect",
+          source: "if",
+          sourceHandle: "false",
+          target: "merge",
+          targetHandle: "input_2",
+        },
+      ],
+    });
+
+    expect(results.map((result) => result.status)).toEqual(["applied", "applied", "applied"]);
+    expect(
+      state.edges
+        .filter((entry) => entry.target === "merge")
+        .map((entry) => `${entry.sourceHandle}>${entry.targetHandle}`),
+    ).toEqual(["true>input_1", "false>input_2"]);
+  });
+
   it("sets a Wait step, whose type has a rule across its settings", () => {
     const { state, results } = applyVisualWorkflowEdits({
       state: base,
