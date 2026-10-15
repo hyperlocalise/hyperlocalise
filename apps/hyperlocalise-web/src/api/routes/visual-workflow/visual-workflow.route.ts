@@ -53,7 +53,6 @@ import {
   listVisualWorkflowRuns,
 } from "@/lib/visual-workflows/visual-workflow-runs";
 import type { VisualWorkflowValidationError } from "@/lib/visual-workflows/visual-workflow-types";
-import { saveVisualWorkflowTestSetup } from "@/lib/visual-workflows/visual-workflow-test-setup";
 
 import {
   workflowTestSchema,
@@ -378,6 +377,7 @@ export function createVisualWorkflowRoutes() {
         definition: body.definition,
         status: body.status,
         projectId: body.projectId,
+        testSetup: body.testSetup,
       });
 
       if (isErr(result)) {
@@ -388,16 +388,6 @@ export function createVisualWorkflowRoutes() {
           return notFoundResponse(c, result.error.code);
         }
         return mapVisualWorkflowValidationError(c, result.error);
-      }
-
-      // Test data is saved with the draft it belongs to, and only once the draft is.
-      if (body.testSetup) {
-        await saveVisualWorkflowTestSetup({
-          organizationId,
-          visualWorkflowId,
-          setup: body.testSetup,
-          nodeIds: result.value.definition.nodes.map((node) => node.id),
-        });
       }
 
       if (

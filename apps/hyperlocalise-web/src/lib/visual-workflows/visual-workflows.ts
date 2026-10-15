@@ -33,6 +33,8 @@ import {
 import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import { validateVisualWorkflowDefinition } from "./validation/validate-workflow";
 import { stampEmailNodePipesUsersOnDefinition } from "./stamp-email-node-pipes-users";
+import type { VisualWorkflowTestSetup } from "./editor/visual-workflow-test-data";
+import { encryptVisualWorkflowTestSetup } from "./visual-workflow-test-setup";
 import type {
   VisualWorkflowRecord,
   VisualWorkflowStatus,
@@ -395,6 +397,8 @@ export async function updateVisualWorkflow(input: {
   definition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   status?: VisualWorkflowStatus;
   projectId?: string | null;
+  /** The editor's test data and test run choices, saved in the same write as the draft. */
+  testSetup?: VisualWorkflowTestSetup;
   dbClient?: DatabaseClient;
 }): Promise<
   Result<
@@ -491,10 +495,17 @@ export async function updateVisualWorkflow(input: {
   const resolvedTriggerFingerprint = schedulingChanged
     ? scheduling.triggerFingerprint
     : existing.triggerFingerprint;
+  const encryptedTestSetup = input.testSetup
+    ? encryptVisualWorkflowTestSetup(
+        input.testSetup,
+        validated.value.nodes.map((node) => node.id),
+      )
+    : undefined;
 
   const [row] = await dbClient
     .update(schema.visualWorkflows)
     .set({
+      ...(encryptedTestSetup ? { encryptedTestSetup } : {}),
       name: validated.value.name,
       revision: existing.revision + 1,
       definition: validated.value,
