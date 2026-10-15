@@ -31,6 +31,14 @@ import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-ide
 import { z } from "zod";
 
 import { registerZernioMcpTools } from "@/api/routes/mcp/zernio-tools";
+import { registerTranslatorMcpTools } from "@/api/routes/mcp/translator-tools";
+import { registerProjectManagerMcpTools } from "@/api/routes/mcp/project-manager-tools";
+import {
+  MCP_CREATE_TOOL,
+  MCP_READ_ONLY_TOOL,
+  MCP_UPDATE_TOOL,
+  mcpToolError,
+} from "@/api/routes/mcp/mcp-tool-result";
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
 import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -784,9 +792,14 @@ const mcpQueryGlossaryInputSchema = z.object({
 const catTranslationShape = projectFileCatTranslationBodySchema.shape;
 
 const mcpUpdateTranslationInputSchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .describe("ID of the accessible Hyperlocalise project."),
 
-  translationKeyId: z.uuid(),
+  translationKeyId: z.uuid().describe("UUID returned as id by list_translations."),
 
   targetLocale: catTranslationShape.targetLocale.describe(
     "Target locale whose translation should be updated.",
@@ -973,18 +986,6 @@ function mcpCreateIssueFingerprint(
   return createHash("sha256").update(JSON.stringify(canonicalPayload)).digest("hex");
 }
 
-function mcpToolError(code: string, message: string, details?: Record<string, unknown>) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify({ error: code, message, ...details }),
-      },
-    ],
-    isError: true,
-  };
-}
-
 const QUERIES_BOARD_UNAVAILABLE_MESSAGE = "Queries is not included in your current plan.";
 
 async function requireMcpQueriesBoard(apiAuth: ApiAuthContext) {
@@ -1083,6 +1084,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_projects",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "List Hyperlocalise projects for the authenticated organization.",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(20),
@@ -1112,9 +1114,10 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_project",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get Hyperlocalise project details by ID.",
       inputSchema: z.object({
-        projectId: projectIdSchema,
+        projectId: projectIdSchema.describe("ID of the accessible Hyperlocalise project."),
       }),
     },
     async ({ projectId }) => {
@@ -1140,6 +1143,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_files",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List source files in an accessible Hyperlocalise project. Returns metadata only — use sourcePath values for upload, download, or run_workflow.",
       inputSchema: mcpListFilesInputSchema,
@@ -1216,6 +1220,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_translations",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List translation keys in an accessible Hyperlocalise project. Returns compact CAT queue rows (id, key, sourcePath, sourceText, targetLocale, targetText, status, maxLength, isHidden) with total and pagination. Filters match the Content Editor queue. Read-only roles may list. Results use the native key overlay; live TMS provider listing is out of scope.",
       inputSchema: mcpListTranslationsInputSchema,
@@ -1265,6 +1270,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_project_status",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Get locale coverage counts for an accessible Hyperlocalise project. Returns CAT queue totals per target locale without source or target text. Counts use the native key overlay (the same filters as the Content Editor). Live TMS provider statistics are out of scope.",
       inputSchema: z.object({
@@ -1310,6 +1316,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_issues",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List issues visible to the authenticated organization with filtering, sorting, and pagination.",
       inputSchema: mcpListIssuesInputSchema,
@@ -1350,6 +1357,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_issue_comments",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List comment threads for one accessible Hyperlocalise issue with cursor pagination. Root comments are ordered chronologically, with each root followed by its replies in chronological order.",
       inputSchema: mcpListIssueCommentsInputSchema,
@@ -1422,6 +1430,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "create_issue_comment",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create a Markdown comment or reply on an accessible Hyperlocalise issue.",
       inputSchema: mcpCreateIssueCommentInputSchema,
     },
@@ -1493,6 +1502,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_issue",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get the complete details of one accessible Hyperlocalise issue.",
       inputSchema: mcpGetIssueInputSchema,
     },
@@ -1539,6 +1549,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "update_issue",
     {
+      annotations: MCP_UPDATE_TOOL,
       description: "Update mutable fields on one accessible Hyperlocalise issue.",
       inputSchema: mcpUpdateIssueInputSchema,
     },
@@ -1631,6 +1642,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "create_issue",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create one issue in an accessible Hyperlocalise project.",
       inputSchema: mcpCreateIssueInputSchema,
     },
@@ -1799,6 +1811,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_glossaries",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "List glossaries for the authenticated organization.",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(20),
@@ -1828,6 +1841,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "list_jobs",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "List recent translation jobs visible to the caller. Use this to find a job id, then call get_job. Defaults to translation jobs. Optional sourcePath uses the latest-job-for-path lookup.",
       inputSchema: mcpListJobsInputSchema,
@@ -1871,6 +1885,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_job",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Get status and results for one accessible Hyperlocalise job. Poll after run_workflow until the job reaches a terminal status.",
       inputSchema: mcpGetJobInputSchema,
@@ -1898,6 +1913,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_glossary_entries",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Get glossary entries for a glossary in the authenticated organization.",
       inputSchema: z.object({
         glossaryId: z.string().uuid(),
@@ -1955,6 +1971,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "query_glossary",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Search concept-linked glossary terms for a source string and locale pair. Prefer this over get_glossary_entries when you need a hit while translating. Forbidden terms are marked so agents can avoid them.",
       inputSchema: mcpQueryGlossaryInputSchema,
@@ -1995,6 +2012,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "create_glossary_concept",
     {
+      annotations: MCP_CREATE_TOOL,
       description: "Create a source and target terminology concept in a native glossary.",
       inputSchema: mcpCreateGlossaryConceptInputSchema,
     },
@@ -2125,6 +2143,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "run_workflow",
     {
+      annotations: MCP_CREATE_TOOL,
       description:
         "Create and enqueue a string or file translation job in an accessible Hyperlocalise project.",
       inputSchema: mcpRunWorkflowInputSchema,
@@ -2296,7 +2315,9 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_translation",
     {
-      description: "Get complete CAT detail for one translation returned by list_translations.",
+      annotations: MCP_READ_ONLY_TOOL,
+      description:
+        "Get complete CAT detail for one translation returned by list_translations, including the placeholders and ICU plural/select blocks the target must preserve.",
       inputSchema: mcpGetTranslationInputSchema,
     },
     async ({ projectId, translationKeyId, targetLocale }) => {
@@ -2349,6 +2370,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "update_translation",
     {
+      annotations: MCP_UPDATE_TOOL,
       description:
         "Save and optionally approve a target translation in an accessible Hyperlocalise project.",
       inputSchema: mcpUpdateTranslationInputSchema,
@@ -2435,6 +2457,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "upload_sources",
     {
+      annotations: MCP_UPDATE_TOOL,
       description: "Upload one source file to an accessible Hyperlocalise project.",
       inputSchema: mcpUploadSourcesInputSchema,
     },
@@ -2599,6 +2622,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "download_translations",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Download a reconstructed target translation file from an accessible Hyperlocalise project. JSON-compatible sources return UTF-8 text; dotLottie sources return base64-encoded archive bytes in `content` with `contentEncoding` set to `base64`.",
       inputSchema: mcpDownloadTranslationsInputSchema,
@@ -2671,10 +2695,13 @@ async function createMcpServerForRequest(
   );
 
   registerZernioMcpTools(server, apiAuth);
+  registerTranslatorMcpTools(server, apiAuth);
+  registerProjectManagerMcpTools(server, apiAuth);
 
   server.registerTool(
     "query_translation_memory",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description: "Find exact and similar translation memory matches for a source segment.",
       inputSchema: mcpQueryTranslationMemoryInputSchema,
     },
@@ -2737,6 +2764,7 @@ async function createMcpServerForRequest(
   server.registerTool(
     "get_knowledge_memory",
     {
+      annotations: MCP_READ_ONLY_TOOL,
       description:
         "Read organization or project knowledge memory guidelines before translating or filing issues.",
       inputSchema: mcpGetKnowledgeMemoryInputSchema,
