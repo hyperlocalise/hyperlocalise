@@ -427,8 +427,8 @@ export const visualWorkflowEditorMessages = defineMessages({
   },
   testDataActionDescription: {
     defaultMessage:
-      "What this step returns when you test the workflow without Live test, in place of doing its work. Nothing is made up: a value left empty stops the test.",
-    id: "hwX7b8KKNn",
+      "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test.",
+    id: "kHvyGVv5TJ",
     description: "Explains the Test tab of a workflow step that calls out to another service",
   },
   testDataFillExamples: {
