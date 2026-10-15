@@ -553,21 +553,26 @@ export function App() {
     };
   }, [booted, settings.accessToken, settings.connectionToken]);
 
-  const refreshLocaleStatuses = async () => {
-    if (!auth || !file || !settings.projectId || selectedPageIds.length === 0) {
+  const refreshLocaleStatuses = async (options?: {
+    projectId?: string;
+    project?: FigmaSessionProject | null;
+  }) => {
+    const projectId = options?.projectId?.trim() || settings.projectId.trim();
+    if (!auth || !file || !projectId || selectedPageIds.length === 0) {
       setLocaleStatuses([]);
       return;
     }
     const projectForLocales =
-      projects.find((project) => project.id === settings.projectId) ?? selectedProject;
+      options?.project ?? projects.find((project) => project.id === projectId) ?? selectedProject;
     const targetLocales = projectForLocales?.targetLocales ?? [];
+    const resolvedSourceLocale = projectForLocales?.sourceLocale?.trim() || sourceLocale;
     const statuses = await fetchFigmaLocaleStatuses({
       appUrl: settings.appUrl,
       auth,
-      projectId: settings.projectId,
+      projectId,
       fileKey: file.fileKey,
       pageIds: selectedPageIds,
-      sourceLocale,
+      sourceLocale: resolvedSourceLocale,
       targetLocales,
     });
     setLocaleStatuses(statuses);
@@ -879,7 +884,10 @@ export function App() {
         projectId: nextProjectId,
         selectedLocale: defaultSelectedLocale(nextProject ?? null, settings.selectedLocale),
       });
-      await refreshLocaleStatuses();
+      await refreshLocaleStatuses({
+        projectId: nextProjectId,
+        project: nextProject ?? null,
+      });
     } catch (error) {
       if (isReconnectError(error)) {
         persistSettings(clearConnection(settings));
@@ -1021,7 +1029,10 @@ export function App() {
           appliedLocaleByPage: {},
         });
         setStep("Almost ready...", 90);
-        await refreshLocaleStatuses();
+        await refreshLocaleStatuses({
+          projectId,
+          project: boundProject ?? project ?? null,
+        });
         setPickingProject(false);
       } finally {
         setBindProgress(null);

@@ -54,6 +54,12 @@ export function formatActionError(error: unknown): string {
         return "Upload the selected pages first, then apply.";
       case "job_target_locale_not_in_project":
         return "That language is not in the project. Reload languages or update project settings.";
+      case "figma_project_not_found":
+        return "That project is no longer available. Choose another project.";
+      case "figma_api_key_unauthorized":
+        return "The API key for this Figma connection is invalid or missing permissions.";
+      case "figma_locales_failed":
+        return "Unable to load locale status.";
       default:
         return error.message;
     }
