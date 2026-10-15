@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LightningIcon } from "@phosphor-icons/react";
+import { BroadcastIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -205,7 +205,7 @@ export function VisualWorkflowExecutionsPanel({
                               className="ms-1.5 inline-flex text-warning"
                               title={intl.formatMessage(messages.executionRanForReal)}
                             >
-                              <LightningIcon weight="fill" className="size-3" />
+                              <BroadcastIcon weight="bold" className="size-3" />
                               <span className="sr-only">
                                 {intl.formatMessage(messages.executionRanForReal)}
                               </span>

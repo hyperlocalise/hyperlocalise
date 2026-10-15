@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LightningIcon } from "@phosphor-icons/react";
+import { BroadcastIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -56,7 +56,7 @@ export function VisualWorkflowRealTestDialog({
         <ul className="grid gap-2 text-sm" data-slot="real-test-steps">
           {steps.map((step) => (
             <li key={step.nodeId} className="flex items-start gap-2">
-              <LightningIcon weight="fill" className="mt-0.5 size-3.5 shrink-0 text-warning" />
+              <BroadcastIcon weight="bold" className="mt-0.5 size-3.5 shrink-0 text-warning" />
               <span className="grid gap-0.5">
                 <span>
                   <span className="font-medium">{step.title}</span>{" "}

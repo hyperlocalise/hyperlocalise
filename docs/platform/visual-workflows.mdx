@@ -65,7 +65,7 @@ Nothing is made up. A test does not start while a value it needs is empty, and i
 
 On a step's **Test** tab you can also choose:
 
-- **In a test run: Run for real.** The step calls out for real when you test: requests are sent, content is generated, and messages are delivered. A lightning mark on the step shows it on the canvas. Its test data is kept for when you switch back to **Use test data**.
+- **In a test run: Run for real.** The step calls out for real when you test: requests are sent, content is generated, and messages are delivered. A broadcast mark on the step shows it on the canvas. Its test data is kept for when you switch back to **Use test data**.
 - **Outcome: Fails.** The step fails with the error code and message you give instead of returning its test data. What follows depends on its **On error** setting: the test stops, goes on, or takes the step's error path.
 
 Before a test in which any step runs for real, the editor lists those steps and asks you to confirm. It also names any of them that use test data from a mocked step, because such a step acts for real on test values. In **Test settings** beside **Test workflow**, you can see how many steps run for real and set all of them to use test data or to run for real at once. When every step runs for real, the test is a live run, in which Wait steps really wait. A test never publishes your draft.

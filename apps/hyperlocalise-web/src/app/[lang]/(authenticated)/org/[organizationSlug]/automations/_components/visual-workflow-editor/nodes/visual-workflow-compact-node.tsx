@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
-import { LightningIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -560,7 +560,7 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           className="absolute top-2 left-2 text-warning"
           title={intl.formatMessage(messages.stepRunsForReal)}
         >
-          <LightningIcon weight="fill" className="size-3.5" />
+          <BroadcastIcon weight="bold" className="size-3.5" />
           <span className="sr-only">{intl.formatMessage(messages.stepRunsForReal)}</span>
         </span>
       ) : null}
