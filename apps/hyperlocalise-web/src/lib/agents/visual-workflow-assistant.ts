@@ -886,7 +886,7 @@ export type EditVisualWorkflowOutput =
         applied: string[];
         /** What could not be done, with the reason. */
         rejected: string[];
-        /** What the workflow still lacks before it can be activated. */
+        /** What the workflow still lacks before it can be published. */
         issues: string[];
         /** Field references in settings that the run could not read, which stop it there. */
         brokenReferences: string[];
@@ -1335,12 +1335,42 @@ export function redactVisualWorkflowSecrets(
   };
 }
 
+/**
+ * A node's settings and stored values as the model is shown them: a setting the person picks is
+ * shown only as chosen or empty, so the model has no value of theirs to repeat or reuse.
+ */
+function withPersonOnlyValuesHidden(node: VisualWorkflowRfNode): {
+  config: Record<string, unknown>;
+  inputs: Record<string, unknown> | undefined;
+} {
+  const type = node.data.catalogType;
+  const theirs = personOnlySettingsOf(type);
+  const bound = new Set(Object.keys(node.data.inputs ?? {}));
+  const config = { ...(node.data.config as unknown as Record<string, unknown>) };
+  for (const key of theirs) {
+    if (!(key in config) && !bound.has(key)) continue;
+    config[key] = isChosenByPerson(type, node.data.config, bound, key)
+      ? "(chosen by the person)"
+      : "(empty: the person chooses it)";
+  }
+  const inputs = node.data.inputs
+    ? Object.fromEntries(
+        Object.entries(node.data.inputs).map(([key, binding]) => [
+          key,
+          theirs.includes(key) ? "(chosen by the person)" : binding,
+        ]),
+      )
+    : undefined;
+  return { config, inputs };
+}
+
 function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflowRfEdge[]): string {
   const ports = getVisualWorkflowDataPorts({ node, edges });
+  const shown = withPersonOnlyValuesHidden(node);
   const lines = [
     `- id: ${node.id}`,
     `  what: ${VISUAL_NODE_DESCRIPTIONS[node.data.catalogType].title} (${node.data.catalogType}), ${JSON.stringify(resolveNodeSubtitle(node.data.config))}`,
-    `  settings: ${compactJson(node.data.config)}`,
+    `  settings: ${compactJson(shown.config)}`,
     `  execution outputs: ${describeHandles(node)}`,
   ];
   if (node.data.config.kind === "logic.merge") {
@@ -1361,7 +1391,7 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
   }
   if (node.data.inputs && Object.keys(node.data.inputs).length > 0) {
     lines.push(
-      `  older stored values (they override these settings at run time; setting one replaces it): ${compactJson(node.data.inputs)}`,
+      `  older stored values (they override these settings at run time; setting one replaces it): ${compactJson(shown.inputs)}`,
     );
   }
   return lines.join("\n");
@@ -1369,7 +1399,7 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
 
 /**
  * The workflow as it stands, to go at the start of the person's newest message: every node with
- * its id, settings and ports, every connection, and what still stops it from being activated.
+ * its id, settings and ports, every connection, and what still stops it from being published.
  */
 export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext): string {
   const state = redactVisualWorkflowSecrets(fromVisualWorkflowV3Definition(context.definition));
@@ -1403,7 +1433,7 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
           .join("\n")
       : "(none)",
     "",
-    "### What stops it from being activated",
+    "### What stops it from being published",
     "",
     issues.length > 0 ? issues.map((issue) => `- ${issue}`).join("\n") : "(nothing)",
     "",

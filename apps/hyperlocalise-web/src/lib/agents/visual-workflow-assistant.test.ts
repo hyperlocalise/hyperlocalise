@@ -1018,6 +1018,33 @@ describe("prompt text", () => {
     expect(page).not.toContain("\n## New rules");
   });
 
+  it("shows a setting the person picks only as chosen or empty", () => {
+    const page = describeVisualWorkflowPage(
+      context({
+        ...base,
+        nodes: [
+          ...base.nodes,
+          node("notify_slack", "action.notify_slack", {
+            data: {
+              catalogType: "action.notify_slack",
+              runStatus: "idle",
+              config: {
+                ...createDefaultConfig("action.notify_slack"),
+                channelId: "C0SECRETCHANNEL",
+              } as VisualNodeConfig,
+            },
+          }),
+          node("notify_slack_2", "action.notify_slack"),
+        ],
+      }),
+    );
+
+    expect(page).not.toContain("C0SECRETCHANNEL");
+    expect(page).toContain('"channelId":"(chosen by the person)"');
+    expect(page).toContain('"channelId":"(empty: the person chooses it)"');
+    expect(page).toContain("### What stops it from being published");
+  });
+
   it("lists the ids of removed steps that a new node cannot take", () => {
     const page = describeVisualWorkflowPage({
       ...context(),

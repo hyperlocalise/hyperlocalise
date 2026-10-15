@@ -183,7 +183,7 @@ function explainIssue(definition: VisualWorkflowV3Definition, issue: Issue): str
 }
 
 /**
- * What stops the workflow from being activated, one sentence each, as the canvas lists it but
+ * What stops the workflow from being published, one sentence each, as the canvas lists it but
  * worded for the model: the step, setting or connection at fault and what is wrong with it. An
  * issue the validators report more than once is given once.
  */
