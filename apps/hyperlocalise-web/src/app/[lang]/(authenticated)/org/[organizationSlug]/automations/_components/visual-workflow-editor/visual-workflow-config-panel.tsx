@@ -88,9 +88,11 @@ import { getWorkflowInputFields } from "@/lib/visual-workflows/catalog/node-cont
 import { cn } from "@/lib/primitives/cn";
 import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import {
-  takesTestData,
+  canRunForReal,
+  isMockable,
   type MissingTestValue,
   type VisualWorkflowTestData,
+  type VisualWorkflowTestFailure,
 } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
 import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
@@ -134,6 +136,10 @@ export function VisualWorkflowConfigPanel({
   allTestData,
   missingTestValues = [],
   onChangeTestData,
+  testRunsForReal,
+  onChangeTestRunsForReal,
+  testFailure,
+  onChangeTestFailure,
   requestedTab,
   onDisconnectInput,
   onPointStep,
@@ -159,6 +165,12 @@ export function VisualWorkflowConfigPanel({
   /** The values of this step a test run needs and does not have. */
   missingTestValues?: readonly MissingTestValue[];
   onChangeTestData?: (value: Record<string, unknown>) => void;
+  /** Whether test runs run this step for real; the choice is offered with its handler. */
+  testRunsForReal?: boolean;
+  onChangeTestRunsForReal?: (real: boolean) => void;
+  /** The error this step fails with in a test run, or undefined when it succeeds. */
+  testFailure?: VisualWorkflowTestFailure;
+  onChangeTestFailure?: (failure: VisualWorkflowTestFailure | undefined) => void;
   /** Opens a tab from outside the panel; a new `key` opens it again. */
   requestedTab?: { tab: StepSettingsTab; key: number };
   /** Removes the data wire that feeds one of this step's settings. */
@@ -284,7 +296,8 @@ export function VisualWorkflowConfigPanel({
   useEffect(() => {
     if (requestedTab) setTab(requestedTab.tab);
   }, [requestedTab]);
-  const hasTestTab = Boolean(onChangeTestData) && takesTestData(node.data.catalogType);
+  const hasTestTab = Boolean(onChangeTestData) && isMockable(node.data.catalogType);
+  const canRunStepForReal = canRunForReal(node.data.catalogType);
   // A step without a Test tab shows its own form while that tab is the chosen one.
   const shownTab = tab === "test" && !hasTestTab ? "configuration" : tab;
   /** Shows the step's own form, where its issues are marked, whichever tab was open. */
@@ -364,6 +377,10 @@ export function VisualWorkflowConfigPanel({
                 missing={missingTestValues}
                 projects={resources.projects}
                 onChange={onChangeTestData}
+                runsForReal={testRunsForReal}
+                onRunsForRealChange={canRunStepForReal ? onChangeTestRunsForReal : undefined}
+                failure={testFailure}
+                onFailureChange={canRunStepForReal ? onChangeTestFailure : undefined}
               />
             </TabsContent>
           ) : null}

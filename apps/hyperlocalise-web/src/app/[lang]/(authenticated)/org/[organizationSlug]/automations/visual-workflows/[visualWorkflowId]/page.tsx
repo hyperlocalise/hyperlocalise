@@ -22,6 +22,7 @@ import {
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
+import { getVisualWorkflowTestSetup } from "@/lib/visual-workflows/visual-workflow-test-setup";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -76,7 +77,16 @@ async function VisualWorkflowEditorPageLoader({
     notFound();
   }
 
+  const testSetup = await getVisualWorkflowTestSetup({
+    organizationId: auth.activeOrganization.localOrganizationId,
+    visualWorkflowId,
+  });
+
   return (
-    <VisualWorkflowEditorPageContent organizationSlug={organizationSlug} workflow={workflow} />
+    <VisualWorkflowEditorPageContent
+      organizationSlug={organizationSlug}
+      workflow={workflow}
+      testSetup={testSetup}
+    />
   );
 }

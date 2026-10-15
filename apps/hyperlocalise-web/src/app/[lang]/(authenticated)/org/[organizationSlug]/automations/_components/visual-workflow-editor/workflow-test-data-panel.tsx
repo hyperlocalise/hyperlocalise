@@ -31,8 +31,11 @@ import {
   testDataFromOutput,
   withTestValue,
   type MissingTestValue,
+  type VisualWorkflowTestFailure,
 } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+import { TEST_FAILURE_CODE } from "@/lib/visual-workflows/runtime/mock-executor";
+import { resolveNodeErrorBehavior } from "@/lib/visual-workflows/runtime/node-options";
 import type {
   VisualWorkflowRfNode,
   WorkflowOutputField,
@@ -211,9 +214,55 @@ function TestValueField({
   );
 }
 
+/** A choice between two values, shown as a labelled select. */
+function TestChoiceField<T extends string>({
+  id,
+  label,
+  value,
+  items,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: T;
+  items: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Select
+        value={value}
+        items={items as { value: T; label: string }[]}
+        onValueChange={(next) => {
+          if (next !== null) onChange(next as T);
+        }}
+      >
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value} label={item.label}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+
+const FAILURE_EFFECT_MESSAGE = {
+  stop: messages.testFailureStops,
+  continue: messages.testFailureContinues,
+  branch: messages.testFailureBranches,
+} as const;
+
 /**
  * A step's Test tab: the values it uses in a test run, one box per output pin. A trigger's values
- * are its sample event; an action step's are what it returns in place of doing its work.
+ * are its sample event; another step's are what it returns in place of doing its work. A step that
+ * calls out can instead run for real, and while it uses test data it can be set to fail.
  */
 export function WorkflowTestDataPanel({
   node,
@@ -221,6 +270,10 @@ export function WorkflowTestDataPanel({
   missing,
   projects,
   onChange,
+  runsForReal,
+  onRunsForRealChange,
+  failure,
+  onFailureChange,
 }: {
   node: VisualWorkflowRfNode;
   value: Record<string, unknown> | undefined;
@@ -228,6 +281,13 @@ export function WorkflowTestDataPanel({
   missing: readonly MissingTestValue[];
   projects: readonly { id: string; name: string }[];
   onChange: (value: Record<string, unknown>) => void;
+  /** Whether test runs run this step for real; the choice is offered with its handler. */
+  runsForReal?: boolean;
+  onRunsForRealChange?: (real: boolean) => void;
+  /** The error this step fails with in a test run, or undefined when it succeeds. */
+  failure?: VisualWorkflowTestFailure;
+  /** Offers the outcome choice; called with undefined when the step is set to succeed. */
+  onFailureChange?: (failure: VisualWorkflowTestFailure | undefined) => void;
 }) {
   const intl = useIntl();
   const data = value ?? {};
@@ -238,70 +298,140 @@ export function WorkflowTestDataPanel({
   const unlistedMissing = missing.filter(
     (entry) => !fields.some((field) => field.path === entry.path),
   );
+  const real = Boolean(onRunsForRealChange && runsForReal);
+  const fails = !real && Boolean(onFailureChange && failure);
 
   return (
     <FieldGroup className="gap-4">
-      <p className="text-sm text-muted-foreground">
-        <FormattedMessage
-          {...(isTriggerType(node.data.catalogType)
-            ? messages.testDataTriggerDescription
-            : messages.testDataActionDescription)}
+      {onRunsForRealChange ? (
+        <TestChoiceField
+          id={`vw-test-mode-${node.id}`}
+          label={intl.formatMessage(messages.testRunModeLabel)}
+          value={real ? "real" : "mocked"}
+          items={[
+            { value: "mocked", label: intl.formatMessage(messages.testRunModeMocked) },
+            { value: "real", label: intl.formatMessage(messages.testRunModeReal) },
+          ]}
+          onChange={(next) => onRunsForRealChange(next === "real")}
         />
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onChange(exampleTestData(node, data))}
-        >
-          <FormattedMessage {...messages.testDataFillExamples} />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!lastRun}
-          onClick={() => lastRun && onChange(lastRun)}
-        >
-          <FormattedMessage {...messages.testDataUseLastRun} />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={Object.keys(data).length === 0}
-          onClick={() => onChange({})}
-        >
-          <FormattedMessage {...messages.testDataClear} />
-        </Button>
-      </div>
-      {fields.map((field) => (
-        <TestValueField
-          key={field.path}
-          field={field}
-          value={readWorkflowPath(data, field.path.split("."))}
-          missing={missingByPath.get(field.path)}
-          projects={projects}
-          onChange={(next) => onChange(withTestValue(data, field.path, next))}
-        />
-      ))}
-      {unlistedMissing.map((entry) => (
-        <TestValueField
-          key={entry.path}
-          field={{ path: entry.path, type: "unknown", optional: true }}
-          value={undefined}
-          missing={entry.reason}
-          projects={projects}
-          onChange={(next) => onChange(withTestValue(data, entry.path, next))}
-        />
-      ))}
-      <WorkflowJsonField
-        label={intl.formatMessage(messages.testDataJson)}
-        value={data}
-        validate={(next) => Boolean(next) && typeof next === "object" && !Array.isArray(next)}
-        onChange={(next) => onChange(next as Record<string, unknown>)}
-      />
+      ) : null}
+      {real ? (
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...messages.testRunModeRealDescription} />
+        </p>
+      ) : (
+        <>
+          {onFailureChange ? (
+            <TestChoiceField
+              id={`vw-test-outcome-${node.id}`}
+              label={intl.formatMessage(messages.testOutcomeLabel)}
+              value={fails ? "fails" : "succeeds"}
+              items={[
+                { value: "succeeds", label: intl.formatMessage(messages.testOutcomeSucceeds) },
+                { value: "fails", label: intl.formatMessage(messages.testOutcomeFails) },
+              ]}
+              onChange={(next) => onFailureChange(next === "fails" ? (failure ?? {}) : undefined)}
+            />
+          ) : null}
+          {fails && onFailureChange ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                <FormattedMessage
+                  {...FAILURE_EFFECT_MESSAGE[resolveNodeErrorBehavior(node.data.config)]}
+                />
+              </p>
+              <Field>
+                <FieldLabel htmlFor={`vw-test-failure-code-${node.id}`}>
+                  <FormattedMessage {...messages.testFailureCode} />
+                </FieldLabel>
+                <Input
+                  id={`vw-test-failure-code-${node.id}`}
+                  value={failure?.code ?? ""}
+                  placeholder={TEST_FAILURE_CODE}
+                  className="font-mono text-xs"
+                  onChange={(event) => onFailureChange({ ...failure, code: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`vw-test-failure-message-${node.id}`}>
+                  <FormattedMessage {...messages.testFailureMessage} />
+                </FieldLabel>
+                <Input
+                  id={`vw-test-failure-message-${node.id}`}
+                  value={failure?.message ?? ""}
+                  onChange={(event) => onFailureChange({ ...failure, message: event.target.value })}
+                />
+              </Field>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                <FormattedMessage
+                  {...(isTriggerType(node.data.catalogType)
+                    ? messages.testDataTriggerDescription
+                    : messages.testDataActionDescription)}
+                />
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChange(exampleTestData(node, data))}
+                >
+                  <FormattedMessage {...messages.testDataFillExamples} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!lastRun}
+                  onClick={() => lastRun && onChange(lastRun)}
+                >
+                  <FormattedMessage {...messages.testDataUseLastRun} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={Object.keys(data).length === 0}
+                  onClick={() => onChange({})}
+                >
+                  <FormattedMessage {...messages.testDataClear} />
+                </Button>
+              </div>
+              {fields.map((field) => (
+                <TestValueField
+                  key={field.path}
+                  field={field}
+                  value={readWorkflowPath(data, field.path.split("."))}
+                  missing={missingByPath.get(field.path)}
+                  projects={projects}
+                  onChange={(next) => onChange(withTestValue(data, field.path, next))}
+                />
+              ))}
+              {unlistedMissing.map((entry) => (
+                <TestValueField
+                  key={entry.path}
+                  field={{ path: entry.path, type: "unknown", optional: true }}
+                  value={undefined}
+                  missing={entry.reason}
+                  projects={projects}
+                  onChange={(next) => onChange(withTestValue(data, entry.path, next))}
+                />
+              ))}
+              <WorkflowJsonField
+                label={intl.formatMessage(messages.testDataJson)}
+                value={data}
+                validate={(next) =>
+                  Boolean(next) && typeof next === "object" && !Array.isArray(next)
+                }
+                onChange={(next) => onChange(next as Record<string, unknown>)}
+              />
+            </>
+          )}
+        </>
+      )}
     </FieldGroup>
   );
 }

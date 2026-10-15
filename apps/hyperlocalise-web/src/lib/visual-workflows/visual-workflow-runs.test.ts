@@ -15,19 +15,29 @@ import "dotenv/config";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { enqueueVisualWorkflowRunStartedActivityMock } = vi.hoisted(() => ({
+const { enqueueVisualWorkflowRunStartedActivityMock, withPublicHttpFetchMock } = vi.hoisted(() => ({
   enqueueVisualWorkflowRunStartedActivityMock: vi.fn(),
+  withPublicHttpFetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/activity-log/visual-workflow-events", () => ({
   enqueueVisualWorkflowRunStartedActivity: enqueueVisualWorkflowRunStartedActivityMock,
 }));
 
+vi.mock("@/lib/security/public-http-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/security/public-http-fetch")>();
+  return {
+    ...actual,
+    withPublicHttpFetch: (...args: unknown[]) => withPublicHttpFetchMock(...args),
+  };
+});
+
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { createDefaultConfig } from "./catalog/node-catalog";
 import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
 import {
   createVisualWorkflowRun,
@@ -53,6 +63,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   enqueueVisualWorkflowRunStartedActivityMock.mockClear();
+  withPublicHttpFetchMock.mockReset();
   await fixture.cleanup();
 });
 
@@ -73,6 +84,46 @@ function scheduledWorkflowDefinition(name = "Run coverage"): VisualWorkflowDefin
     edges: [],
     editor: { positions: { t: { x: 0, y: 0 } } },
   };
+}
+
+/** A manual trigger, then two GET requests, `a` and then `b`. */
+function twoRequestWorkflowDefinition(): VisualWorkflowDefinition {
+  const request = (id: string) => ({
+    id,
+    type: "action.http" as const,
+    config: {
+      ...createDefaultConfig("action.http"),
+      method: "GET",
+      url: `https://example.com/${id}`,
+    } as VisualWorkflowDefinition["nodes"][number]["config"],
+  });
+  return {
+    schemaVersion: 2,
+    name: "Two requests",
+    nodes: [
+      { id: "t", type: "trigger.manual", config: { kind: "trigger.manual" } },
+      request("a"),
+      request("b"),
+    ],
+    edges: [
+      { id: "t-a", source: "t", target: "a", sourceHandle: null, targetHandle: null },
+      { id: "a-b", source: "a", target: "b", sourceHandle: null, targetHandle: null },
+    ],
+    editor: { positions: {} },
+  };
+}
+
+/** Runs a run's durable slices until it settles. */
+async function executeUntilSettled(input: {
+  runId: string;
+  organizationId: string;
+  visualWorkflowId: string;
+}) {
+  let run = await executeVisualWorkflowRun(input);
+  for (let slice = 0; slice < 5 && run && ["queued", "running"].includes(run.status); slice++) {
+    run = await executeVisualWorkflowRun(input);
+  }
+  return run;
 }
 
 function terminalWorkflowDefinition(
@@ -395,6 +446,88 @@ describe("visual workflow runs", () => {
     });
 
     expect(enqueueVisualWorkflowRunStartedActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("in a mock run, calls out only for the steps listed to run for real", async () => {
+    withPublicHttpFetchMock.mockResolvedValue({
+      status: 200,
+      statusText: "OK",
+      ok: true,
+      headers: {},
+      body: "real",
+      json: {},
+    });
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: twoRequestWorkflowDefinition(),
+      mockOutputs: { t: {}, a: { status: 200, ok: true, headers: {}, body: "mocked" } },
+      // A trigger and a step the workflow does not have cannot run for real.
+      realNodeIds: ["b", "t", "missing"],
+    });
+    expect(run.realNodeIds).toEqual(["b"]);
+
+    const settled = await executeUntilSettled({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(settled?.status).toBe("succeeded");
+    expect(withPublicHttpFetchMock).toHaveBeenCalledTimes(1);
+    expect(String(withPublicHttpFetchMock.mock.calls[0]?.[0])).toBe("https://example.com/b");
+    expect(settled?.outputSummary).toMatchObject({
+      nodeResults: { a: { body: "mocked" }, b: { body: "real" } },
+    });
+  });
+
+  it("fails a mocked step with the error it was given, without calling out", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "mock",
+      testDefinition: twoRequestWorkflowDefinition(),
+      mockOutputs: { t: {}, a: {}, b: {} },
+      mockFailures: { a: { code: "timeout", message: "Too slow" } },
+    });
+
+    const settled = await executeUntilSettled({
+      runId: run.id,
+      organizationId,
+      visualWorkflowId: workflow.id,
+    });
+    expect(settled?.status).toBe("failed");
+    expect(withPublicHttpFetchMock).not.toHaveBeenCalled();
+    const withNodes = await getVisualWorkflowRunById({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      runId: run.id,
+      includeNodeRuns: true,
+    });
+    expect(withNodes?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "a")?.error).toMatchObject({
+      code: "timeout",
+      message: "Too slow",
+    });
+    expect(withNodes?.nodeRuns?.find((nodeRun) => nodeRun.nodeId === "b")?.status).not.toBe(
+      "succeeded",
+    );
+  });
+
+  it("keeps no steps to run for real outside a mock run", async () => {
+    const { organizationId, workflow } = await seedWorkflow();
+    const run = await createVisualWorkflowRun({
+      organizationId,
+      visualWorkflowId: workflow.id,
+      triggerSource: "manual",
+      mode: "live",
+      testDefinition: twoRequestWorkflowDefinition(),
+      realNodeIds: ["a"],
+    });
+    expect(run.realNodeIds).toBeUndefined();
   });
 
   it("propagates cancellation from a parent run to child runs", async () => {

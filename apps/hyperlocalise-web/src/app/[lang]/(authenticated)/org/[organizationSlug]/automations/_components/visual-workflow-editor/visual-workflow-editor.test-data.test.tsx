@@ -12,12 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { VisualWorkflowTestSetup } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
 
 import type { StepSettingsTab } from "./visual-workflow-config-panel";
@@ -54,6 +55,12 @@ vi.mock("./visual-workflow-canvas", () => ({
       >
         Select http
       </button>
+      <button
+        type="button"
+        onClick={() => onSelectionChange({ nodes: [{ id: "slack" }], edges: [] })}
+      >
+        Select slack
+      </button>
       <button type="button" onClick={onTestWorkflow}>
         Test workflow
       </button>
@@ -67,12 +74,18 @@ vi.mock("./visual-workflow-config-panel", () => ({
     testData,
     missingTestValues,
     onChangeTestData,
+    onChangeTestRunsForReal,
+    testRunsForReal,
+    onChangeTestFailure,
     requestedTab,
   }: {
     node: VisualWorkflowRfNode;
     testData?: Record<string, unknown>;
     missingTestValues?: ReadonlyArray<{ path: string }>;
     onChangeTestData?: (value: Record<string, unknown>) => void;
+    onChangeTestRunsForReal?: (real: boolean) => void;
+    testRunsForReal?: boolean;
+    onChangeTestFailure?: (failure: { message?: string } | undefined) => void;
     requestedTab?: { tab: StepSettingsTab };
   }) => (
     <div>
@@ -91,6 +104,15 @@ vi.mock("./visual-workflow-config-panel", () => ({
         }
       >
         Set test data
+      </button>
+      <p>Runs for real: {testRunsForReal ? "yes" : "no"}</p>
+      {onChangeTestRunsForReal ? (
+        <button type="button" onClick={() => onChangeTestRunsForReal(true)}>
+          Run for real
+        </button>
+      ) : null}
+      <button type="button" onClick={() => onChangeTestFailure?.({ message: "Down" })}>
+        Set to fail
       </button>
     </div>
   ),
@@ -120,6 +142,55 @@ const nodes = [
     onError: "stop",
   } as VisualWorkflowRfNode["data"]["config"]),
 ];
+
+const nodesWithSlack = [
+  ...nodes,
+  step("slack", "action.notify_slack", {
+    kind: "action.notify_slack",
+    channelId: "C1",
+    message: "Got {{ nodes.http.body }}",
+  } as VisualWorkflowRfNode["data"]["config"]),
+];
+
+const edgesWithSlack = [
+  { id: "e", source: "trigger", target: "http", data: { kind: "execution" as const } },
+  { id: "f", source: "http", target: "slack", data: { kind: "execution" as const } },
+];
+
+function createApi() {
+  return {
+    createVisualWorkflowRun: vi.fn(async () => ({
+      run: { id: "run-1", status: "succeeded", nodeRuns: [] },
+      dispatch: { runId: "run-1", enqueued: true },
+    })),
+    getVisualWorkflowRun: vi.fn(),
+  };
+}
+
+function renderServerEditor(
+  api: ReturnType<typeof createApi>,
+  options: {
+    onSave?: (definition: unknown, testSetup: VisualWorkflowTestSetup) => void;
+    initialTestSetup?: VisualWorkflowTestSetup;
+  } = {},
+) {
+  return render(
+    <IntlProvider locale="en" messages={{}}>
+      <TooltipProvider>
+        <VisualWorkflowEditor
+          initialName="Test data"
+          initialNodes={nodesWithSlack}
+          initialEdges={edgesWithSlack}
+          organizationSlug="acme"
+          visualWorkflowId="wf-1"
+          visualWorkflowsApi={api as never}
+          onSave={options.onSave}
+          initialTestSetup={options.initialTestSetup}
+        />
+      </TooltipProvider>
+    </IntlProvider>,
+  );
+}
 
 function renderEditor() {
   return render(
@@ -188,5 +259,84 @@ describe("VisualWorkflowEditor test data", () => {
         mockOutputs: { trigger: {}, http: { status: 200, ok: true, headers: {}, body: "ok" } },
       }),
     );
+  });
+
+  it("asks before a test run in which a step runs for real, naming the test data it reads", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    renderServerEditor(api);
+
+    await user.click(screen.getByRole("button", { name: "Select trigger" }));
+    await user.click(screen.getByRole("button", { name: "Set test data" }));
+    await user.click(screen.getByRole("button", { name: "Select http" }));
+    await user.click(screen.getByRole("button", { name: "Set test data" }));
+    await user.click(screen.getByRole("button", { name: "Select slack" }));
+    await user.click(screen.getByRole("button", { name: "Run for real" }));
+    expect(screen.getByText("Runs for real: yes")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Test workflow" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Run 1 step for real?")).toBeInTheDocument();
+    expect(within(dialog).getByText("slack")).toBeInTheDocument();
+    expect(within(dialog).getByText(/^Uses test data from /)).toBeInTheDocument();
+    expect(api.createVisualWorkflowRun).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Run test" }));
+    expect(api.createVisualWorkflowRun).toHaveBeenCalledWith(
+      "acme",
+      "wf-1",
+      expect.objectContaining({
+        mode: "mock",
+        realNodeIds: ["slack"],
+        mockOutputs: expect.not.objectContaining({ slack: expect.anything() }),
+        mockFailures: {},
+      }),
+    );
+  });
+
+  it("sends a mocked step's failure, and needs no test data for it", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    renderServerEditor(api, {
+      initialTestSetup: {
+        data: {
+          trigger: { projectId: "p1", sourceFileId: "f1" },
+          slack: { sent: true, channelId: "C1" },
+        },
+        realNodeIds: [],
+        failures: {},
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Select http" }));
+    await user.click(screen.getByRole("button", { name: "Set to fail" }));
+    await user.click(screen.getByRole("button", { name: "Test workflow" }));
+
+    expect(mocks.toast.error).not.toHaveBeenCalled();
+    expect(api.createVisualWorkflowRun).toHaveBeenCalledWith(
+      "acme",
+      "wf-1",
+      expect.objectContaining({
+        mode: "mock",
+        realNodeIds: [],
+        mockFailures: { http: { message: "Down" } },
+      }),
+    );
+  });
+
+  it("saves the test setup with the draft", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    renderServerEditor(createApi(), { onSave });
+
+    await user.click(screen.getByRole("button", { name: "Select slack" }));
+    await user.click(screen.getByRole("button", { name: "Run for real" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: "Test data" }), {
+      data: {},
+      realNodeIds: ["slack"],
+      failures: {},
+    });
   });
 });

@@ -10,6 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type {
+  VisualWorkflowTestFailure,
+  VisualWorkflowTestSetup,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 import type { VisualWorkflowRunRecord } from "@/lib/visual-workflows/visual-workflow-run-types";
@@ -33,6 +37,7 @@ export type VisualWorkflowsApi = {
       name?: string;
       definition?: VisualWorkflowV3Definition;
       status?: VisualWorkflowRecord["status"];
+      testSetup?: VisualWorkflowTestSetup;
     },
   ): Promise<VisualWorkflowRecord>;
   deleteVisualWorkflow(organizationSlug: string, visualWorkflowId: string): Promise<void>;
@@ -45,6 +50,8 @@ export type VisualWorkflowsApi = {
       definition?: VisualWorkflowV3Definition;
       mode?: "mock" | "live";
       mockOutputs?: Record<string, Record<string, unknown>>;
+      realNodeIds?: string[];
+      mockFailures?: Record<string, VisualWorkflowTestFailure>;
     },
   ): Promise<{ run: VisualWorkflowRunRecord; dispatch: { runId: string; enqueued: boolean } }>;
   listVisualWorkflowRuns(

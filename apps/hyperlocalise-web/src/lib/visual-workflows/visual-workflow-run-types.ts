@@ -70,6 +70,8 @@ export type VisualWorkflowRunRecord = {
   organizationId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
   mode?: "mock" | "live";
+  /** In a mock run, the steps that ran for real instead of using their test data. */
+  realNodeIds?: string[];
   status: VisualWorkflowRunStatus;
   idempotencyKey: string | null;
   definitionVersion: number;

@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { LightningIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -159,6 +160,15 @@ export function VisualWorkflowExecutionsPanel({
               <span className="text-sm text-muted-foreground">
                 {selectedRunQuery.data.triggerSource} · {selectedRunQuery.data.mode ?? "live"} · v
                 {selectedRunQuery.data.definitionVersion}
+                {selectedRunQuery.data.realNodeIds?.length ? (
+                  <>
+                    {" · "}
+                    <FormattedMessage
+                      {...messages.executionRealStepCount}
+                      values={{ count: selectedRunQuery.data.realNodeIds.length }}
+                    />
+                  </>
+                ) : null}
               </span>
               {onUseRunAsTestData && (selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
                 <Button
@@ -188,7 +198,20 @@ export function VisualWorkflowExecutionsPanel({
                   <tbody>
                     {(selectedRunQuery.data.nodeRuns ?? []).map((nodeRun) => (
                       <tr key={nodeRun.id} className="border-t border-border">
-                        <td className="px-3 py-2 font-mono text-xs">{nodeRun.nodeId}</td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {nodeRun.nodeId}
+                          {selectedRunQuery.data.realNodeIds?.includes(nodeRun.nodeId) ? (
+                            <span
+                              className="ms-1.5 inline-flex text-warning"
+                              title={intl.formatMessage(messages.executionRanForReal)}
+                            >
+                              <LightningIcon weight="fill" className="size-3" />
+                              <span className="sr-only">
+                                {intl.formatMessage(messages.executionRanForReal)}
+                              </span>
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="px-3 py-2">
                           <Badge
                             variant={runStatusVariant(nodeRun.status)}
