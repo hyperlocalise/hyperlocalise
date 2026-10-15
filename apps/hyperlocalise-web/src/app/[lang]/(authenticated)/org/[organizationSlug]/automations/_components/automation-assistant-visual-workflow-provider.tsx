@@ -19,6 +19,7 @@ import { buildVisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-e
 import type { VisualWorkflowGraph } from "@/lib/visual-workflows/editor/visual-workflow-undo";
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 
+import type { AutomationAssistantApi } from "./automation-assistant-api";
 import { AutomationAssistantSessionProvider } from "./automation-assistant-session-provider";
 
 /**
@@ -27,6 +28,7 @@ import { AutomationAssistantSessionProvider } from "./automation-assistant-sessi
  * saved workflow, which exists before the editor opens, so it is never unbound.
  */
 export function AutomationAssistantVisualWorkflowProvider({
+  api,
   children,
   graph,
   hasUnsavedChanges = true,
@@ -36,6 +38,8 @@ export function AutomationAssistantVisualWorkflowProvider({
   projectName,
   visualWorkflowId,
 }: {
+  /** The calls for the session and its turns, in place of the server's. Must not change. */
+  api?: AutomationAssistantApi;
   children?: ReactNode;
   /** The workflow as the canvas holds it. */
   graph: VisualWorkflowGraph;
@@ -67,6 +71,7 @@ export function AutomationAssistantVisualWorkflowProvider({
 
   return (
     <AutomationAssistantSessionProvider
+      api={api}
       organizationSlug={organizationSlug}
       target={{
         editor: visualWorkflowEditor,

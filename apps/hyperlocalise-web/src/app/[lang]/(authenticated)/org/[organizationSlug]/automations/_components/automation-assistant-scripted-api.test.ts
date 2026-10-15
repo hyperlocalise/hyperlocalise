@@ -15,6 +15,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  collectVisualWorkflowEditChanges,
+  summarizeVisualWorkflowEditCall,
+} from "@/lib/agents/visual-workflow-assistant";
+import { buildVisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
+import {
   readAutomationSetupPageEdits,
   summarizeAutomationSetupCall,
 } from "@/lib/agents/workspace-automation-assistant";
@@ -23,6 +28,7 @@ import {
   createDefaultWorkspaceAutomationFormState,
   type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 
 import { AssistantTurnInProgressError } from "./automation-assistant-api";
 import {
@@ -30,6 +36,7 @@ import {
   createScriptedAutomationAssistantApi,
   SCRIPTED_ASSISTANT_PACES,
   scriptAssistantConversation,
+  VISUAL_WORKFLOW_ASSISTANT_SAMPLE_SCRIPTS,
 } from "./automation-assistant-scripted-api";
 
 const [SETUP, , DAILY] = AUTOMATION_ASSISTANT_SAMPLE_SCRIPTS.map((script) => script.request);
@@ -147,5 +154,52 @@ describe("createScriptedAutomationAssistantApi", () => {
     expect(found.messages).toHaveLength(4);
     expect(saved.form.name).toBe("Competitor news brief");
     expect(saved.form.scheduledCadence).toBe("daily");
+  });
+
+  it("edits a visual workflow's canvas with the real tool, in a session for that workflow", async () => {
+    const api = createScriptedAutomationAssistantApi({ pace: SCRIPTED_ASSISTANT_PACES.instant });
+    const session = await api.createAssistantSession("acme", { visualWorkflowId: "workflow-1" });
+    const pageContext = buildVisualWorkflowEditorContext({
+      editorSessionId: "editor-1",
+      visualWorkflowId: "workflow-1",
+      definition: toVisualWorkflowV3Definition({
+        name: "Nightly sync",
+        nodes: [
+          {
+            id: "trigger",
+            type: "trigger.manual",
+            position: { x: 0, y: 0 },
+            data: {
+              catalogType: "trigger.manual",
+              config: { kind: "trigger.manual" },
+              runStatus: "idle",
+            },
+          },
+        ],
+        edges: [],
+      }),
+    });
+
+    const replies = [];
+    for await (const reply of api.streamAssistantTurn({
+      organizationSlug: "acme",
+      sessionId: session.id,
+      text: VISUAL_WORKFLOW_ASSISTANT_SAMPLE_SCRIPTS[0]!.request,
+      pageContext,
+      lastTurnId: null,
+    })) {
+      replies.push(reply);
+    }
+
+    const last = replies.at(-1)!;
+    expect(last.parts.map(summarizeVisualWorkflowEditCall).find(Boolean)).toMatchObject({
+      state: "done",
+    });
+    const [change] = collectVisualWorkflowEditChanges(last.parts);
+    expect(change?.change.operations).toEqual([
+      expect.objectContaining({ op: "add_node", id: "notify_slack" }),
+    ]);
+    const found = await api.findAssistantSession("acme", { visualWorkflowId: "workflow-1" });
+    expect(found.session?.id).toBe(session.id);
   });
 });

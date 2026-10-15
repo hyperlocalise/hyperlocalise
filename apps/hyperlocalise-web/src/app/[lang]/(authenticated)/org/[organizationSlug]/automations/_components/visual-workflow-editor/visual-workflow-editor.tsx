@@ -109,6 +109,7 @@ import {
   VisualWorkflowUndoRedoButtons,
   type VisualWorkflowUndoStep,
 } from "./visual-workflow-undo-buttons";
+import type { AutomationAssistantApi } from "../automation-assistant-api";
 import { AutomationAssistantSidePanel } from "../automation-assistant-panel";
 import { useAssistantUndoSteps } from "../automation-assistant-undo-steps";
 import { AutomationAssistantVisualWorkflowProvider } from "../automation-assistant-visual-workflow-provider";
@@ -138,6 +139,7 @@ export function VisualWorkflowEditor({
   onDelete,
   isDeleting = false,
   assistantEnabled = false,
+  assistantApi,
   projectName = null,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
@@ -167,6 +169,8 @@ export function VisualWorkflowEditor({
   assistantEnabled?: boolean;
   /** Display name of the project the workflow is in, for the assistant. */
   projectName?: string | null;
+  /** The assistant's calls, in place of the server's, for stories. Must not change. */
+  assistantApi?: AutomationAssistantApi;
 }) {
   // Each step's own test data; kept out of the steps, so editing it is no undo step.
   const [testData, setTestData] = useState<VisualWorkflowTestData>({});
@@ -1166,6 +1170,7 @@ export function VisualWorkflowEditor({
   }
   return (
     <AutomationAssistantVisualWorkflowProvider
+      api={assistantApi}
       organizationSlug={organizationSlug}
       visualWorkflowId={visualWorkflowId}
       graph={history.form}

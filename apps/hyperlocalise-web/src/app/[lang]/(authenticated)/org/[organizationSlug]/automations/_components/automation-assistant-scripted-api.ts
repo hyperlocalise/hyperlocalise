@@ -13,6 +13,17 @@
 import type { UIMessage } from "ai";
 
 import {
+  EDIT_VISUAL_WORKFLOW_TOOL_NAME,
+  editVisualWorkflow,
+  type EditVisualWorkflowOutput,
+  type VisualWorkflowEditInput,
+} from "@/lib/agents/visual-workflow-assistant";
+import {
+  VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND,
+  type VisualWorkflowEditorContext,
+} from "@/lib/agents/visual-workflow-editor-context";
+
+import {
   AUTOMATION_ASSISTANT_TURN_PART,
   AUTOMATION_SETUP_PAGE_EDITS_PART,
   listAutomationSetupPageEdits,
@@ -46,6 +57,44 @@ export type AutomationAssistantScript = {
   /** The reply, in place of the one written from the tool's result. */
   reply?: string;
 };
+
+/** One request the scripted assistant answers on a visual workflow, and the edits it asks for. */
+export type VisualWorkflowAssistantScript = {
+  /** The request in a person's words, as a story types it and the fallback reply lists it. */
+  request: string;
+  /** Tells this request from the others, however it is worded. */
+  match: RegExp;
+  /** What the canvas tool is called with, or null for a reply that calls nothing. */
+  input: VisualWorkflowEditInput | null;
+  reply: string;
+};
+
+/** Requests for a workflow that starts with a Manual trigger whose id is `trigger`. */
+export const VISUAL_WORKFLOW_ASSISTANT_SAMPLE_SCRIPTS: VisualWorkflowAssistantScript[] = [
+  {
+    request: "Tell the team on Slack when it runs",
+    match: /slack/i,
+    input: {
+      operations: [
+        {
+          op: "add_node",
+          id: "notify_slack",
+          type: "action.notify_slack",
+          after: { nodeId: "trigger", handle: null },
+          config: { message: "The workflow ran at {{ trigger.triggeredAt }}" },
+        },
+      ],
+    },
+    reply:
+      "I added a Notify Slack step after the trigger, with a message that says when the workflow ran.\n\n**Still needed from you:** choose the Slack channel on the step's Configuration tab.",
+  },
+  {
+    request: "What does this workflow do?",
+    match: /what does/i,
+    input: null,
+    reply: "It starts when you run it by hand.",
+  },
+];
 
 /** How long each part of a turn takes, so a recording can be paced. */
 export type ScriptedAssistantPace = {
@@ -271,7 +320,7 @@ function writeSetupReply(result: SetupResult, firstSetup: boolean): string {
   return sections.join("\n\n");
 }
 
-function writeFallbackReply(scripts: readonly AutomationAssistantScript[]): string {
+function writeFallbackReply(scripts: ReadonlyArray<{ request: string }>): string {
   return `This is a demo with no model behind it, so I only know a few requests. Try one of these:\n\n${bullets(
     scripts.map((script) => script.request),
   )}`;
@@ -307,9 +356,29 @@ export function runScriptedAssistantTurn(input: {
   };
 }
 
-function toolPart(toolCallId: string, output: UpdateAutomationSetupOutput | null) {
+/** Answers one request on a visual workflow, with the real canvas tool's logic. */
+export function runScriptedVisualWorkflowTurn(input: {
+  scripts: readonly VisualWorkflowAssistantScript[];
+  context: VisualWorkflowEditorContext;
+  text: string;
+}): { output: EditVisualWorkflowOutput | null; reply: string } {
+  const script = input.scripts.find((candidate) => candidate.match.test(input.text));
+  if (!script) {
+    return { output: null, reply: writeFallbackReply(input.scripts) };
+  }
   return {
-    type: `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}`,
+    output: script.input ? editVisualWorkflow(input.context, script.input).output : null,
+    reply: script.reply,
+  };
+}
+
+function toolPart(
+  toolCallId: string,
+  output: UpdateAutomationSetupOutput | EditVisualWorkflowOutput | null,
+  toolName: string = UPDATE_AUTOMATION_SETUP_TOOL_NAME,
+) {
+  return {
+    type: `tool-${toolName}`,
     toolCallId,
     input: {},
     ...(output ? { state: "output-available", output } : { state: "input-available" }),
@@ -403,6 +472,8 @@ type StoredSession = {
 export function createScriptedAutomationAssistantApi(
   options: {
     scripts?: readonly AutomationAssistantScript[];
+    /** The requests it knows on a visual workflow's canvas. */
+    canvasScripts?: readonly VisualWorkflowAssistantScript[];
     pace?: ScriptedAssistantPace;
     hold?: ScriptedAssistantHold | null;
     failure?: ScriptedAssistantFailure | null;
@@ -411,16 +482,17 @@ export function createScriptedAutomationAssistantApi(
   } = {},
 ): AutomationAssistantApi {
   const scripts = options.scripts ?? AUTOMATION_ASSISTANT_SAMPLE_SCRIPTS;
+  const canvasScripts = options.canvasScripts ?? VISUAL_WORKFLOW_ASSISTANT_SAMPLE_SCRIPTS;
   const pace = options.pace ?? SCRIPTED_ASSISTANT_PACES.live;
   const sessions = new Map<string, StoredSession>();
 
-  const addSession = (automationId: string | null, messages: AssistantMessage[]) => {
+  const addSession = (key: AssistantSessionKey | null, messages: AssistantMessage[]) => {
     const now = new Date().toISOString();
     const stored: StoredSession = {
       session: {
         id: crypto.randomUUID(),
-        automationId,
-        visualWorkflowId: null,
+        automationId: key && "automationId" in key ? key.automationId : null,
+        visualWorkflowId: key && "visualWorkflowId" in key ? key.visualWorkflowId : null,
         title: "Automation assistant",
         turnInProgress: false,
         createdAt: now,
@@ -435,25 +507,25 @@ export function createScriptedAutomationAssistantApi(
   };
 
   if (options.saved) {
-    addSession(options.saved.automationId, options.saved.messages);
+    addSession({ automationId: options.saved.automationId }, options.saved.messages);
   }
 
-  // The scripts set up an automation's form, so only an automation has a session here.
-  const automationIdOf = (key: AssistantSessionKey | null) =>
-    key && "automationId" in key ? key.automationId : null;
-  const findByAutomation = (automationId: string | null) =>
-    automationId
-      ? [...sessions.values()].find((stored) => stored.session.automationId === automationId)
+  // A session for nothing saved yet is never found again, as on the server.
+  const findByKey = (key: AssistantSessionKey | null) =>
+    key
+      ? [...sessions.values()].find((stored) =>
+          "automationId" in key
+            ? stored.session.automationId === key.automationId
+            : stored.session.visualWorkflowId === key.visualWorkflowId,
+        )
       : undefined;
 
   return {
-    createAssistantSession: async (_organizationSlug, key) => {
-      const automationId = automationIdOf(key);
-      return findByAutomation(automationId)?.session ?? addSession(automationId, []).session;
-    },
+    createAssistantSession: async (_organizationSlug, key) =>
+      findByKey(key)?.session ?? addSession(key, []).session,
 
     findAssistantSession: async (_organizationSlug, key) => {
-      const stored = findByAutomation(automationIdOf(key));
+      const stored = findByKey(key);
       return { session: stored?.session ?? null, messages: stored?.messages ?? [] };
     },
 
@@ -471,9 +543,6 @@ export function createScriptedAutomationAssistantApi(
       if (!stored) {
         throw new Error("session_not_found");
       }
-      if (pageContext.kind !== "automation-editor") {
-        throw new Error("unsupported_editor");
-      }
       if (options.failure) {
         await wait(pace.thinkingMs, signal);
         if (options.failure === "turn_in_progress") {
@@ -486,9 +555,11 @@ export function createScriptedAutomationAssistantApi(
       }
 
       const turnId = crypto.randomUUID();
-      const edits = stored.formAfterLastTurn
-        ? listAutomationSetupPageEdits(stored.formAfterLastTurn, pageContext.form)
-        : [];
+      const onCanvas = pageContext.kind === VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND;
+      const edits =
+        !onCanvas && stored.formAfterLastTurn
+          ? listAutomationSetupPageEdits(stored.formAfterLastTurn, pageContext.form)
+          : [];
       const editsPart =
         edits.length > 0 ? [{ type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits } }] : [];
       const reply = (parts: unknown[]): UIMessage => ({
@@ -511,16 +582,25 @@ export function createScriptedAutomationAssistantApi(
       }
       await wait(pace.thinkingMs, signal);
 
-      const turn = runScriptedAssistantTurn({
-        scripts,
-        context: pageContext,
-        text,
-        firstSetup: !stored.hasSetup,
-      });
+      const turn = onCanvas
+        ? {
+            ...runScriptedVisualWorkflowTurn({ scripts: canvasScripts, context: pageContext, text }),
+            form: null,
+            toolName: EDIT_VISUAL_WORKFLOW_TOOL_NAME,
+          }
+        : {
+            ...runScriptedAssistantTurn({
+              scripts,
+              context: pageContext,
+              text,
+              firstSetup: !stored.hasSetup,
+            }),
+            toolName: UPDATE_AUTOMATION_SETUP_TOOL_NAME,
+          };
       const toolCallId = crypto.randomUUID();
-      const tool = turn.output ? [toolPart(toolCallId, turn.output)] : [];
+      const tool = turn.output ? [toolPart(toolCallId, turn.output, turn.toolName)] : [];
       if (turn.output) {
-        yield reply([toolPart(toolCallId, null)]);
+        yield reply([toolPart(toolCallId, null, turn.toolName)]);
         if (options.hold === "tool") {
           await hold(signal);
         }
