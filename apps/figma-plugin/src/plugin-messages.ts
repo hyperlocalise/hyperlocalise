@@ -54,7 +54,13 @@ export type UiToSandboxMessage =
   | { type: "storage-set"; settings: PluginSettings }
   | { type: "binding-set"; binding: FigmaPageJobBinding; pageId: string }
   | { type: "binding-clear"; pageId: string }
-  | { type: "extract"; pageId: string; preserveFormatting: boolean }
+  | {
+      type: "extract";
+      pageId: string;
+      preserveFormatting: boolean;
+      /** When true, ignore the canvas selection and read every text node on the page. */
+      wholePage?: boolean;
+    }
   | {
       type: "apply";
       pageId: string;

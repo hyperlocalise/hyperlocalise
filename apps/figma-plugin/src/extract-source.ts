@@ -72,7 +72,18 @@ export function remapExtractedSegmentsToSource(
   return segments.map((segment) => {
     const byStamp = byKey.get(segment.key);
     if (byStamp) {
-      return { ...segment, text: byStamp.source };
+      const canvasNorm = normalizeSegmentText(segment.text);
+      const sourceNorm = normalizeSegmentText(byStamp.source);
+      if (canvasNorm === sourceNorm) {
+        return { ...segment, text: byStamp.source };
+      }
+      const matchesKnownTarget = byStamp.knownTexts.some(
+        (text) => normalizeSegmentText(text) === canvasNorm,
+      );
+      if (matchesKnownTarget) {
+        return { ...segment, text: byStamp.source };
+      }
+      return segment;
     }
     const norm = normalizeSegmentText(segment.text);
     const matched = norm ? textIndex.get(norm) : undefined;

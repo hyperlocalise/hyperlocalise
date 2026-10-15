@@ -1226,6 +1226,7 @@ export function App() {
         type: "extract",
         pageId: originatedPageId,
         preserveFormatting: settings.preserveFormatting,
+        wholePage: true,
       },
       "extracted",
     );
@@ -1265,13 +1266,7 @@ export function App() {
 
     pageIdRef.current = pageId;
     const extracted = await ensureExtractedForPage(pageId);
-    const segments = await resolveSourceSegmentsForPage(pageId, extracted, {
-      remapToStoredSource: !selectedPagesShowSourceLocale(
-        settings.appliedLocaleByPage,
-        [pageId],
-        sourceLocale,
-      ),
-    });
+    const segments = extracted.segments;
     if (segments.length === 0) {
       throw new Error("No text found on the selected page.");
     }

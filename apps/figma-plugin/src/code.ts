@@ -93,7 +93,7 @@ figma.ui.onmessage = async (msg: UiToSandboxMessage) => {
 
     if (msg.type === "extract") {
       const page = await requirePage(msg.pageId);
-      const textNodes = collectTextNodes(page);
+      const textNodes = msg.wholePage ? collectAllTextNodesOnPage(page) : collectTextNodes(page);
       const segments = extractSegments(textNodes);
       postToUi({ type: "extracted", segments, file: fileInfoForPage(page) });
       return;

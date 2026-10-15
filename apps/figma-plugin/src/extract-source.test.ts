@@ -26,13 +26,20 @@ describe("remapExtractedSegmentsToSource", () => {
     ).toEqual(segments);
   });
 
-  it("remaps by stamp key to server source text", () => {
+  it("remaps by stamp key when canvas shows a known target variant", () => {
     const segments: FigmaSegment[] = [
       { key: "figma.k.HELLO", nodeId: "1:1", regionIndex: 0, text: "Hola" },
     ];
     expect(remapExtractedSegmentsToSource(segments, pullPage)).toEqual([
       { key: "figma.k.HELLO", nodeId: "1:1", regionIndex: 0, text: "Hello" },
     ]);
+  });
+
+  it("keeps edited source text on stamped nodes instead of substituting stored source", () => {
+    const segments: FigmaSegment[] = [
+      { key: "figma.k.HELLO", nodeId: "1:1", regionIndex: 0, text: "Hello team" },
+    ];
+    expect(remapExtractedSegmentsToSource(segments, pullPage)).toEqual(segments);
   });
 
   it("remaps by normalized canvas text via knownTexts", () => {
