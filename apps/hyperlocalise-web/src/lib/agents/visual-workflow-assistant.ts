@@ -138,7 +138,14 @@ export type VisualWorkflowEditInput = z.infer<typeof visualWorkflowEditInputSche
 
 /** An operation as it was applied: an added node carries where it was put. */
 const resolvedOperationSchema = z.discriminatedUnion("op", [
-  addNodeSchema.extend({ position: positionSchema }),
+  addNodeSchema.extend({
+    position: positionSchema,
+    /**
+     * The settings the node was made with, ids its type generates included, so the page makes the
+     * same node instead of generating its own. Calls recorded before it existed lack it.
+     */
+    startingConfig: z.record(z.string(), z.unknown()).optional(),
+  }),
   ...operationSchema.options.filter(
     (option): option is Exclude<typeof option, typeof addNodeSchema> => option !== addNodeSchema,
   ),
@@ -506,7 +513,10 @@ function applyOne(
           result: rejected(op, "unknown_node", `There is no node with the id ${op.after.nodeId}.`),
         };
       }
-      const merged = mergeConfig(op.type, createDefaultConfig(op.type), op.config);
+      const merged =
+        "startingConfig" in op && op.startingConfig?.kind === op.type
+          ? { config: op.startingConfig as unknown as VisualNodeConfig }
+          : mergeConfig(op.type, createDefaultConfig(op.type), op.config);
       if ("error" in merged) {
         return { state, result: rejected(op, merged.code, merged.error) };
       }
@@ -521,7 +531,11 @@ function applyOne(
         ...getVisualNodeDimensions(op.type, merged.config),
         data: { catalogType: op.type, config: merged.config, runStatus: "idle" },
       };
-      const resolved: VisualWorkflowResolvedOperation = { ...op, position };
+      const resolved: VisualWorkflowResolvedOperation = {
+        ...op,
+        position,
+        startingConfig: merged.config as unknown as Record<string, unknown>,
+      };
       if (!source || isTriggerType(op.type)) {
         return {
           state: withGraph({ nodes: [...nodes, node], edges }),

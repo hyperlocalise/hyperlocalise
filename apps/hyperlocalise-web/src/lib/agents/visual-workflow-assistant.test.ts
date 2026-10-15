@@ -515,6 +515,30 @@ describe("editVisualWorkflow", () => {
     expect(toVisualWorkflowV3Definition(state)).toEqual(after?.definition);
   });
 
+  it("makes a step whose type generates ids the same on the page as on the server", () => {
+    const { context: after, output } = editVisualWorkflow(context(), {
+      operations: [
+        { op: "add_node", id: "merge", type: "logic.merge" },
+        { op: "add_node", id: "sequence", type: "logic.sequence" },
+        { op: "add_node", id: "switch", type: "logic.switch" },
+      ],
+    });
+    if (!output.applied || !after) {
+      throw new Error("expected the call to apply");
+    }
+
+    const { state } = applyVisualWorkflowEditChanges({
+      state: base,
+      changes: [{ toolCallId: "call_1", change: output }],
+      editorSessionId: "editor-1",
+      appliedToolCallIds: new Set(),
+    });
+    expect(toVisualWorkflowV3Definition(state)).toEqual(after.definition);
+    expect(
+      visualWorkflowEditor.listPageEdits(visualWorkflowEditor.documentOf(after), state),
+    ).toEqual([]);
+  });
+
   it("skips a change made for another editor or already applied", () => {
     const { output } = editVisualWorkflow(context(), {
       operations: [{ op: "rename_workflow", name: "Other" }],
