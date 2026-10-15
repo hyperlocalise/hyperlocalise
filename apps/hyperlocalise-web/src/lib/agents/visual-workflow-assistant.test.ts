@@ -16,6 +16,7 @@ import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 import type {
   VisualCatalogType,
+  VisualNodeConfig,
   VisualWorkflowEditorState,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
@@ -741,6 +742,38 @@ describe("prompt text", () => {
     expect(page).toContain("### Connections\n\n(none)");
     expect(page).toContain("orphan_node on node [set]");
     expect(page).not.toContain("### Ids a new node cannot take");
+  });
+
+  it("shows the model no secret a step's settings hold, nor keeps one with the conversation", () => {
+    const http = node("http", "action.http", {
+      data: {
+        catalogType: "action.http",
+        runStatus: "idle",
+        config: {
+          ...createDefaultConfig("action.http"),
+          url: "https://api.example.com/check?key=sk-live-in-url",
+          headers: [
+            { key: "Authorization", value: "Bearer sk-live-header" },
+            { key: "Accept", value: "application/json" },
+          ],
+          queryParams: [{ key: "api_key", value: "sk-live-in-url" }],
+          body: '{"password":"hunter2-body","name":"ok"}',
+          auth: { type: "bearer", token: "sk-live-token" },
+        } as VisualNodeConfig,
+      },
+    });
+    const state = { ...base, nodes: [...base.nodes, http] };
+    const page = describeVisualWorkflowPage(context(state));
+    const kept = JSON.stringify(visualWorkflowEditor.snapshotData(state));
+
+    for (const text of [page, kept]) {
+      for (const secret of ["sk-live-header", "sk-live-in-url", "hunter2-body", "sk-live-token"]) {
+        expect(text).not.toContain(secret);
+      }
+      expect(text).toContain("application/json");
+    }
+    const snapshot = visualWorkflowEditor.readSnapshot(visualWorkflowEditor.snapshotData(state));
+    expect(snapshot && visualWorkflowEditor.listPageEdits(snapshot, state)).toEqual([]);
   });
 
   it("lists the ids of removed steps that a new node cannot take", () => {

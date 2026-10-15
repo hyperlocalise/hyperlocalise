@@ -48,9 +48,12 @@ import type {
   VisualWorkflowRfNode,
   VisualWorkflowV3Definition,
 } from "@/lib/visual-workflows/schema/types";
+import { isErr } from "@/lib/primitives/result/results";
+import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import {
   collectWorkflowSecrets,
   redactWorkflowSnapshot,
+  SENSITIVE_KEY,
 } from "@/lib/visual-workflows/runtime/snapshots";
 import { getAllowedExecutionSourceHandles } from "@/lib/visual-workflows/validation/execution-handles";
 import {
@@ -1122,7 +1125,60 @@ export function describeVisualWorkflowCatalogue(): string {
 }
 
 function compactJson(value: unknown): string {
-  return JSON.stringify(redactWorkflowSnapshot(value, collectWorkflowSecrets(value)));
+  return JSON.stringify(value);
+}
+
+/**
+ * Secret values in a step's settings that a setting's own name does not give away: a header or
+ * query row named like a secret (`{ key: "Authorization", value }`), and secrets inside a JSON
+ * body typed as text.
+ */
+function collectRowAndBodySecrets(value: unknown): string[] {
+  if (typeof value === "string") {
+    if (!/^\s*[[{]/.test(value)) return [];
+    const parsed = safeJsonParse(value);
+    return isErr(parsed)
+      ? []
+      : [...collectWorkflowSecrets(parsed.value), ...collectRowAndBodySecrets(parsed.value)];
+  }
+  if (Array.isArray(value)) return value.flatMap(collectRowAndBodySecrets);
+  if (!value || typeof value !== "object") return [];
+  const { key, value: entry } = value as Record<string, unknown>;
+  const row =
+    typeof key === "string" &&
+    typeof entry === "string" &&
+    entry !== "" &&
+    SENSITIVE_KEY.test(key) &&
+    !key.toLowerCase().endsWith("id")
+      ? [entry]
+      : [];
+  return [...row, ...Object.values(value).flatMap(collectRowAndBodySecrets)];
+}
+
+/**
+ * The workflow with each secret its steps' settings hold shown as "[redacted]", as Export shows
+ * it. The model is shown this, and it is what is kept with the conversation after a turn.
+ */
+export function redactVisualWorkflowSecrets(
+  state: VisualWorkflowEditorState,
+): VisualWorkflowEditorState {
+  return {
+    ...state,
+    nodes: state.nodes.map((node) => {
+      const held = Object.fromEntries(
+        Object.entries({
+          config: node.data.config,
+          inputs: node.data.inputs,
+          collect: node.data.collect,
+        }).filter(([, entry]) => entry !== undefined),
+      );
+      const secrets = [...collectWorkflowSecrets(held), ...collectRowAndBodySecrets(held)];
+      return {
+        ...node,
+        data: { ...node.data, ...(redactWorkflowSnapshot(held, secrets) as typeof held) },
+      };
+    }),
+  };
 }
 
 function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflowRfEdge[]): string {
@@ -1162,7 +1218,7 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
  * its id, settings and ports, every connection, and what still stops it from being activated.
  */
 export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext): string {
-  const state = fromVisualWorkflowV3Definition(context.definition);
+  const state = redactVisualWorkflowSecrets(fromVisualWorkflowV3Definition(context.definition));
   const { nodes, edges } = state;
   const issues = describeIssues(context.definition);
   const brokenReferences = describeReferenceProblems(state);
@@ -1222,14 +1278,22 @@ export const visualWorkflowEditor = {
   contextSchema: visualWorkflowEditorContextSchema,
   pageEditSchema: visualWorkflowPageEditSchema,
   documentOf: (context) => fromVisualWorkflowV3Definition(context.definition),
-  snapshotData: (state) => ({ definition: toVisualWorkflowV3Definition(state) }),
+  // Kept with the conversation, so without secrets; the page is redacted the same way before
+  // the two are compared, or every secret would count as the person's edit.
+  snapshotData: (state) => ({
+    definition: toVisualWorkflowV3Definition(redactVisualWorkflowSecrets(state)),
+  }),
   readSnapshot: (data) => {
     const parsed = z.object({ definition: visualWorkflowDraftDefinitionSchema }).safeParse(data);
     return parsed.success ? fromVisualWorkflowV3Definition(parsed.data.definition) : null;
   },
   describeCatalogue: describeVisualWorkflowCatalogue,
   describePage: describeVisualWorkflowPage,
-  listPageEdits: listVisualWorkflowPageEdits,
+  listPageEdits: (before, after) =>
+    listVisualWorkflowPageEdits(
+      redactVisualWorkflowSecrets(before),
+      redactVisualWorkflowSecrets(after),
+    ),
   describePageEdits: describeVisualWorkflowPageEdits,
   reduceHistoryOutput: reduceVisualWorkflowHistoryOutput,
   summarizeCall: summarizeVisualWorkflowEditCall,
