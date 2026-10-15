@@ -572,14 +572,43 @@ export function applyVisualWorkflowEdits(input: {
   let state = input.state;
   const results: VisualWorkflowEditResult[] = [];
   const reserved = new Set(input.reservedNodeIds);
-  for (const op of input.operations) {
-    for (const node of state.nodes) reserved.add(node.id);
-    const next = applyOne(state, op, reserved);
-    state = next.state;
-    results.push(next.result);
+  for (const requested of input.operations) {
+    for (const op of splitPersonOnlySettings(state, requested)) {
+      for (const node of state.nodes) reserved.add(node.id);
+      const next = applyOne(state, op, reserved);
+      state = next.state;
+      results.push(next.result);
+    }
   }
   for (const node of state.nodes) reserved.delete(node.id);
   return { state, results, reservedNodeIds: [...reserved].sort() };
+}
+
+/**
+ * A `configure_node` that gives settings the person picks along with others, as two: the others,
+ * which are applied, then the person's, which are refused. Refusing the whole operation would
+ * drop settings the model may set, such as a Slack message given with its channel.
+ */
+function splitPersonOnlySettings(
+  state: VisualWorkflowEditorState,
+  op: VisualWorkflowEditOperation | VisualWorkflowResolvedOperation,
+): Array<VisualWorkflowEditOperation | VisualWorkflowResolvedOperation> {
+  if (op.op !== "configure_node" || !op.config) {
+    return [op];
+  }
+  const type = state.nodes.find((node) => node.id === op.nodeId)?.data.catalogType;
+  const personOnly = (type && PERSON_ONLY_SETTINGS[type]) || [];
+  const entries = Object.entries(op.config);
+  // An empty value leaves the setting for the person, so it is not theirs to refuse.
+  const isTheirs = ([key, value]: [string, unknown]) => personOnly.includes(key) && value !== "";
+  const theirs = entries.filter(isTheirs);
+  if (theirs.length === 0 || theirs.length === entries.length) {
+    return [op];
+  }
+  return [
+    { ...op, config: Object.fromEntries(entries.filter((entry) => !isTheirs(entry))) },
+    { ...op, config: Object.fromEntries(theirs) },
+  ];
 }
 
 function nodeType(state: VisualWorkflowEditorState, nodeId: string): VisualCatalogType {

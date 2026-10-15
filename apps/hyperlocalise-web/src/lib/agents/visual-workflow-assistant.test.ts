@@ -128,6 +128,36 @@ describe("applyVisualWorkflowEdits", () => {
     expect(state).toBe(base);
   });
 
+  it("applies the settings it may set and refuses those the person picks, given together", () => {
+    const { state, results } = applyVisualWorkflowEdits({
+      state: {
+        ...base,
+        nodes: [...base.nodes, node("notify_slack", "action.notify_slack")],
+      },
+      operations: [
+        {
+          op: "configure_node",
+          nodeId: "notify_slack",
+          config: { message: "{{ nodes.set.total }}", channelId: "releases" },
+        },
+      ],
+    });
+
+    expect(results).toMatchObject([
+      { status: "applied", op: { config: { message: "{{ nodes.set.total }}" } } },
+      {
+        status: "rejected",
+        code: "invalid_config",
+        op: { config: { channelId: "releases" } },
+        message: "channelId on Notify Slack is chosen by the person on the step's panel.",
+      },
+    ]);
+    expect(state.nodes.find((entry) => entry.id === "notify_slack")?.data.config).toMatchObject({
+      message: "{{ nodes.set.total }}",
+      channelId: "",
+    });
+  });
+
   it("refuses a new node the id of a node removed earlier, there or in the same call", () => {
     const { state, results, reservedNodeIds } = applyVisualWorkflowEdits({
       state: base,
