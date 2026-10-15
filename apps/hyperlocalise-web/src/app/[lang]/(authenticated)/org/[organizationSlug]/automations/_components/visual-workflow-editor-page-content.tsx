@@ -43,12 +43,15 @@ const visualWorkflowsApi = createVisualWorkflowsApi();
 export function VisualWorkflowEditorPageContent({
   assistantEnabled = false,
   organizationSlug,
+  projectName = null,
   workflow,
   visualWorkflowsApi: injectedApi = visualWorkflowsApi,
 }: {
   /** Whether the person may use the automation assistant on this workflow. */
   assistantEnabled?: boolean;
   organizationSlug: string;
+  /** Name of the project the workflow belongs to, for the assistant. */
+  projectName?: string | null;
   workflow: VisualWorkflowRecord;
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
@@ -167,6 +170,7 @@ export function VisualWorkflowEditorPageContent({
         visualWorkflowId={workflow.id}
         visualWorkflowsApi={injectedApi}
         assistantEnabled={assistantEnabled}
+        projectName={projectName}
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
         statusUpdating={saveMutation.isPending}

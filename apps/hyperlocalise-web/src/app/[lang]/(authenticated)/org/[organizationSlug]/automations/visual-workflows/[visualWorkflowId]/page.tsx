@@ -22,7 +22,10 @@ import {
   getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
-import { getVisualWorkflowById } from "@/lib/visual-workflows/visual-workflows";
+import {
+  getVisualWorkflowById,
+  getVisualWorkflowProjectName,
+} from "@/lib/visual-workflows/visual-workflows";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -78,10 +81,19 @@ async function VisualWorkflowEditorPageLoader({
     notFound();
   }
 
+  const projectName =
+    assistantEnabled && workflow.projectId
+      ? await getVisualWorkflowProjectName({
+          organizationId: auth.activeOrganization.localOrganizationId,
+          projectId: workflow.projectId,
+        })
+      : null;
+
   return (
     <VisualWorkflowEditorPageContent
       assistantEnabled={assistantEnabled}
       organizationSlug={organizationSlug}
+      projectName={projectName}
       workflow={workflow}
     />
   );
