@@ -165,6 +165,9 @@ const edgeEndsSchema = z.object({
   sourceHandle: handleSchema,
   target: nodeIdSchema,
   targetHandle: handleSchema,
+  /** The connected steps' types, so the panel names them by title; absent in older sessions. */
+  sourceType: visualCatalogTypeSchema.optional(),
+  targetType: visualCatalogTypeSchema.optional(),
 });
 
 /**
@@ -290,6 +293,31 @@ function describeConnectionEnds(input: {
     sourceHandle: input.sourceHandle ?? null,
     target: input.target,
     targetHandle: input.targetHandle ?? null,
+  };
+}
+
+/** A connection's ends with the types of the steps at either end, where they are known. */
+function describeConnection(
+  input: Parameters<typeof describeConnectionEnds>[0],
+  typeOf: (nodeId: string) => VisualCatalogType | undefined,
+) {
+  const sourceType = typeOf(input.source);
+  const targetType = typeOf(input.target);
+  return {
+    ...describeConnectionEnds(input),
+    ...(sourceType ? { sourceType } : {}),
+    ...(targetType ? { targetType } : {}),
+  };
+}
+
+/** Looks a step's type up in the given states, the first that has the step. */
+function typeLookup(...states: VisualWorkflowEditorState[]) {
+  return (nodeId: string) => {
+    for (const state of states) {
+      const node = state.nodes.find((entry) => entry.id === nodeId);
+      if (node) return node.data.catalogType;
+    }
+    return undefined;
   };
 }
 
@@ -510,11 +538,16 @@ function nodeType(state: VisualWorkflowEditorState, nodeId: string): VisualCatal
   return state.nodes.find((node) => node.id === nodeId)?.data.catalogType ?? "action.http";
 }
 
-/** What a call did, in the order it did it, with what it could not do last. */
+/**
+ * What a call did, in the order it did it, with what it could not do last. Steps are typed from
+ * the workflow after the call, or before it for a step the call removed.
+ */
 export function toVisualWorkflowChangeLines(
   before: VisualWorkflowEditorState,
   results: readonly VisualWorkflowEditResult[],
+  after: VisualWorkflowEditorState = before,
 ): VisualWorkflowChangeLine[] {
+  const typeOf = typeLookup(after, before);
   const done: VisualWorkflowChangeLine[] = [];
   const leftOut: VisualWorkflowChangeLine[] = [];
   for (const result of results) {
@@ -529,12 +562,15 @@ export function toVisualWorkflowChangeLines(
         if (op.after && !isTriggerType(op.type)) {
           done.push({
             kind: "edge_added",
-            ...describeConnectionEnds({
-              source: op.after.nodeId,
-              sourceHandle: op.after.handle,
-              target: op.id,
-              targetHandle: null,
-            }),
+            ...describeConnection(
+              {
+                source: op.after.nodeId,
+                sourceHandle: op.after.handle,
+                target: op.id,
+                targetHandle: null,
+              },
+              typeOf,
+            ),
           });
         }
         break;
@@ -542,16 +578,16 @@ export function toVisualWorkflowChangeLines(
         done.push({ kind: "node_removed", nodeId: op.nodeId, type: nodeType(before, op.nodeId) });
         break;
       case "connect":
-        done.push({ kind: "edge_added", ...describeConnectionEnds(op) });
+        done.push({ kind: "edge_added", ...describeConnection(op, typeOf) });
         break;
       case "disconnect":
-        done.push({ kind: "edge_removed", ...describeConnectionEnds(op) });
+        done.push({ kind: "edge_removed", ...describeConnection(op, typeOf) });
         break;
       case "configure_node":
         done.push({
           kind: "node_configured",
           nodeId: op.nodeId,
-          type: nodeType(before, op.nodeId),
+          type: typeOf(op.nodeId) ?? nodeType(before, op.nodeId),
           fields: Object.keys(op.config ?? {}),
         });
         break;
@@ -679,7 +715,7 @@ export function editVisualWorkflow(
       applied: true,
       editorSessionId: context.editorSessionId,
       operations: applied.map((result) => result.op),
-      changes: toVisualWorkflowChangeLines(before, results),
+      changes: toVisualWorkflowChangeLines(before, results, state),
       result: {
         changed: applied.length > 0,
         applied: applied.map((result) => describeOperation(state, result.op)),
@@ -786,7 +822,7 @@ export function applyVisualWorkflowEditChanges(input: {
     // Counted as the panel lists them: a step added after another is a node and a connection.
     applied.push({
       toolCallId,
-      made: toVisualWorkflowChangeLines(before, result.results).filter(
+      made: toVisualWorkflowChangeLines(before, result.results, result.state).filter(
         (line) => line.kind !== "rejected",
       ).length,
     });
@@ -887,12 +923,12 @@ export function listVisualWorkflowPageEdits(
   const nextEdges = new Set(after.edges.map(edgeKey));
   for (const edge of after.edges) {
     if (!previousEdges.has(edgeKey(edge))) {
-      edits.push({ kind: "edge_added", ...describeConnectionEnds(edge) });
+      edits.push({ kind: "edge_added", ...describeConnection(edge, typeLookup(after, before)) });
     }
   }
   for (const edge of before.edges) {
     if (!nextEdges.has(edgeKey(edge))) {
-      edits.push({ kind: "edge_removed", ...describeConnectionEnds(edge) });
+      edits.push({ kind: "edge_removed", ...describeConnection(edge, typeLookup(before, after)) });
     }
   }
   return edits;

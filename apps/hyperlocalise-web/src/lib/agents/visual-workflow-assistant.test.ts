@@ -255,6 +255,8 @@ describe("editVisualWorkflow", () => {
         source: "set",
         sourceHandle: null,
         target: "slack",
+        sourceType: "logic.set",
+        targetType: "action.notify_slack",
         targetHandle: null,
       },
       { kind: "workflow_renamed", name: "Nightly sync and notify" },
@@ -379,6 +381,38 @@ describe("change lines and call parts", () => {
       { kind: "node_removed", nodeId: "set", type: "logic.set" },
     ]);
   });
+
+  it("types a step added and set up in the same call by the step it is", () => {
+    const { state, results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        { op: "add_node", id: "notify_slack", type: "action.notify_slack" },
+        { op: "configure_node", nodeId: "notify_slack", config: { message: "Done" } },
+        {
+          op: "connect",
+          source: "set",
+          sourceHandle: null,
+          target: "notify_slack",
+          targetHandle: null,
+        },
+      ],
+    });
+
+    expect(toVisualWorkflowChangeLines(base, results, state)).toEqual([
+      { kind: "node_added", nodeId: "notify_slack", type: "action.notify_slack" },
+      {
+        kind: "node_configured",
+        nodeId: "notify_slack",
+        type: "action.notify_slack",
+        fields: ["message"],
+      },
+      expect.objectContaining({
+        kind: "edge_added",
+        sourceType: "logic.set",
+        targetType: "action.notify_slack",
+      }),
+    ]);
+  });
 });
 
 describe("page edits", () => {
@@ -410,12 +444,16 @@ describe("page edits", () => {
         sourceHandle: "success",
         target: "slack",
         targetHandle: "input",
+        sourceType: "logic.set",
+        targetType: "action.notify_slack",
       },
       {
         kind: "edge_removed",
         source: "trigger",
         sourceHandle: "success",
         target: "set",
+        sourceType: "trigger.manual",
+        targetType: "logic.set",
         targetHandle: "input",
       },
     ]);

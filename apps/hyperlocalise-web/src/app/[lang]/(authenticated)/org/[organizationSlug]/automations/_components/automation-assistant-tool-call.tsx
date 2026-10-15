@@ -26,10 +26,12 @@ import type {
 } from "@/lib/agents/automation-assistant-editors";
 import type { WorkspaceAutomationTriggerSummary } from "@/lib/agents/workspace-automation-proposal-form";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import type { VisualCatalogType } from "@/lib/visual-workflows/schema/types";
 
 import { useAutomationAssistant } from "./automation-assistant-session-provider";
 import { AUTOMATION_ASSISTANT_INTEGRATION_LABELS } from "./automation-assistant-summary";
 import { visualWorkflowNodeTitleMessage } from "./visual-workflow-editor/visual-workflow-node-picker";
+import { visualWorkflowSettingLabelMessage } from "./visual-workflow-editor/visual-workflow-setting-labels";
 import { automationAssistantMessages as messages } from "./automation-assistant.messages";
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import { workspaceAutomationTriggerMessages } from "./workspace-automation-trigger-settings.messages";
@@ -94,6 +96,23 @@ function describeTrigger(intl: IntlShape, trigger: WorkspaceAutomationTriggerSum
   }
 }
 
+/** A step by its type's title, or by its id where an older line has no type. */
+function stepName(intl: IntlShape, id: string, type: VisualCatalogType | undefined): string {
+  return type ? intl.formatMessage(visualWorkflowNodeTitleMessage(type)) : id;
+}
+
+/** The changed settings of a step by their labels, with those that have none counted. */
+function settingNames(intl: IntlShape, type: VisualCatalogType, keys: readonly string[]) {
+  const labels = keys.flatMap((key) => {
+    const label = visualWorkflowSettingLabelMessage(type, key);
+    return label ? [intl.formatMessage(label)] : [];
+  });
+  const others = keys.length - labels.length;
+  return others > 0 && labels.length > 0
+    ? [...labels, intl.formatMessage(messages.toolLineOtherSettings, { count: others })]
+    : labels;
+}
+
 function describeLine(intl: IntlShape, line: AutomationAssistantChangeLine): string {
   switch (line.kind) {
     case "name":
@@ -132,25 +151,30 @@ function describeLine(intl: IntlShape, line: AutomationAssistantChangeLine): str
       return intl.formatMessage(messages.toolLineNodeRemoved, {
         node: intl.formatMessage(visualWorkflowNodeTitleMessage(line.type)),
       });
-    case "node_configured":
-      return intl.formatMessage(messages.toolLineNodeConfigured, {
-        node: intl.formatMessage(visualWorkflowNodeTitleMessage(line.type)),
-        fields: intl.formatList(line.fields, { type: "conjunction" }),
-      });
+    case "node_configured": {
+      const node = intl.formatMessage(visualWorkflowNodeTitleMessage(line.type));
+      const names = settingNames(intl, line.type, line.fields);
+      return names.length > 0
+        ? intl.formatMessage(messages.toolLineNodeConfigured, {
+            node,
+            fields: intl.formatList(names, { type: "conjunction" }),
+          })
+        : intl.formatMessage(messages.toolLineNodeConfiguredSettings, { node });
+    }
     case "edge_added":
       return intl.formatMessage(messages.toolLineEdgeAdded, {
-        source: line.source,
-        target: line.target,
+        source: stepName(intl, line.source, line.sourceType),
+        target: stepName(intl, line.target, line.targetType),
       });
     case "edge_removed":
       return intl.formatMessage(messages.toolLineEdgeRemoved, {
-        source: line.source,
-        target: line.target,
+        source: stepName(intl, line.source, line.sourceType),
+        target: stepName(intl, line.target, line.targetType),
       });
     case "workflow_renamed":
       return intl.formatMessage(messages.toolLineWorkflowRenamed, { name: line.name });
     case "rejected":
-      return intl.formatMessage(messages.toolLineRejected, { code: line.code });
+      return intl.formatMessage(messages.toolLineRejected, { op: line.op });
     default:
       return assertNever(line);
   }

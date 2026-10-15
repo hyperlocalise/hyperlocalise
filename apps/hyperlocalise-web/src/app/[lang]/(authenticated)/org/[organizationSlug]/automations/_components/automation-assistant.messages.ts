@@ -333,10 +333,23 @@ export const automationAssistantMessages = defineMessages({
     description: "Line in the assistant's change list: the workflow was given a new name",
   },
   toolLineRejected: {
-    defaultMessage: "Could not make one change ({code})",
-    id: "jSpg6W6q1g",
+    defaultMessage:
+      "{op, select, add_node {Could not add a step} remove_node {Could not remove a step} connect {Could not connect two steps} disconnect {Could not disconnect two steps} configure_node {Could not change a step's settings} other {Could not rename the workflow}}",
+    id: "toolLineRejected",
     description:
-      "Line in the assistant's change list: an operation on the workflow was refused; {code} is the machine reason",
+      "Line in the assistant's change list: a change to the workflow was refused; {op} is the kind of change. The reply says why",
+  },
+  toolLineNodeConfiguredSettings: {
+    defaultMessage: "Changed the settings of the {node} step",
+    id: "toolLineNodeConfiguredSettings",
+    description:
+      "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title",
+  },
+  toolLineOtherSettings: {
+    defaultMessage: "{count, plural, one {one other setting} other {# other settings}}",
+    id: "toolLineOtherSettings",
+    description:
+      "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'",
   },
   toolUpdatedWorkflow: {
     defaultMessage: "Updated the workflow",
