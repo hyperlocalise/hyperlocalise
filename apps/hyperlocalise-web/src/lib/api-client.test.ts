@@ -49,6 +49,7 @@ describe("createApiClient", () => {
     expect(typeof org.pipes[":provider"]["authorize-url"].$get).toBe("function");
     expect(typeof org["intercom-connections"].$get).toBe("function");
     expect(typeof org["canva-connections"].$get).toBe("function");
+    expect(typeof org["figma-connections"].$get).toBe("function");
     expect(typeof org["agent-email"].$get).toBe("function");
     expect(typeof org["agent-slack"].$get).toBe("function");
     expect(typeof org["slack-connect"].$get).toBe("function");

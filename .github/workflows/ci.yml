@@ -12,6 +12,8 @@ on:
       - .github/workflows/web.yml
       - apps/canva-app/**
       - .github/workflows/canva-app.yml
+      - apps/figma-plugin/**
+      - .github/workflows/figma-plugin.yml
 
 permissions:
   contents: read

@@ -9,16 +9,49 @@ export const DEFAULT_APP_URL =
 
 export const DEFAULT_SETTINGS: PluginSettings = {
   appUrl: DEFAULT_APP_URL,
+  accessToken: null,
+  refreshToken: null,
+  connectionToken: null,
   personalAccessToken: null,
   userEmail: null,
   organizationSlug: "",
   organizationName: null,
   projectId: "",
-  sourceLocale: "en",
-  targetLocales: ["es"],
+  selectedLocale: "es",
+  selectedPageIds: [],
   preserveFormatting: true,
   lastJobId: null,
+  appliedLocaleByPage: {},
 };
+
+export function selectedPagesShowSourceLocale(
+  appliedLocaleByPage: Record<string, string>,
+  selected: string[],
+  sourceLocale: string,
+) {
+  if (!sourceLocale || selected.length === 0) {
+    return false;
+  }
+  return selected.every((pageId) => {
+    const applied = appliedLocaleByPage[pageId] ?? "";
+    return !applied || applied === sourceLocale;
+  });
+}
+
+export function recordAppliedLocales(
+  appliedLocaleByPage: Record<string, string>,
+  pageIds: string[],
+  locale: string,
+): Record<string, string> {
+  if (pageIds.length === 0 || !locale) {
+    return appliedLocaleByPage;
+  }
+  const next = { ...appliedLocaleByPage };
+  for (const pageId of pageIds) {
+    next[pageId] = locale;
+  }
+  return next;
+}
 
 export function normalizeAppUrl(value: string): string {
   return value.trim().replace(/\/+$/, "") || DEFAULT_APP_URL;
@@ -62,22 +95,62 @@ export function mergeSettings(value: unknown): PluginSettings {
     return { ...DEFAULT_SETTINGS };
   }
 
-  const candidate = value as Partial<PluginSettings> & { sealedSession?: unknown };
+  const candidate = value as Partial<PluginSettings> & {
+    sealedSession?: unknown;
+    /** @deprecated Removed from plugin settings. */
+    sourceLocale?: unknown;
+    /** @deprecated Removed from plugin settings. */
+    targetLocales?: unknown;
+  };
+  const legacyPat = readPersonalAccessToken(candidate);
   return {
-    appUrl: normalizeAppUrl(candidate.appUrl ?? DEFAULT_SETTINGS.appUrl),
-    personalAccessToken: readPersonalAccessToken(candidate),
+    appUrl: DEFAULT_APP_URL,
+    accessToken:
+      typeof candidate.accessToken === "string" && candidate.accessToken.trim()
+        ? candidate.accessToken.trim()
+        : null,
+    refreshToken:
+      typeof candidate.refreshToken === "string" && candidate.refreshToken.trim()
+        ? candidate.refreshToken.trim()
+        : null,
+    connectionToken:
+      typeof candidate.connectionToken === "string" && candidate.connectionToken.trim()
+        ? candidate.connectionToken.trim()
+        : legacyPat,
+    personalAccessToken: legacyPat,
     userEmail: candidate.userEmail ?? null,
     organizationSlug: candidate.organizationSlug ?? DEFAULT_SETTINGS.organizationSlug,
     organizationName: candidate.organizationName ?? null,
     projectId: candidate.projectId ?? DEFAULT_SETTINGS.projectId,
-    sourceLocale: candidate.sourceLocale ?? DEFAULT_SETTINGS.sourceLocale,
-    targetLocales: Array.isArray(candidate.targetLocales)
-      ? candidate.targetLocales.filter((locale) => typeof locale === "string" && locale.trim())
-      : DEFAULT_SETTINGS.targetLocales,
+    selectedLocale:
+      typeof candidate.selectedLocale === "string" && candidate.selectedLocale.trim()
+        ? candidate.selectedLocale.trim()
+        : Array.isArray(candidate.targetLocales) &&
+            typeof candidate.targetLocales[0] === "string" &&
+            candidate.targetLocales[0].trim()
+          ? candidate.targetLocales[0].trim()
+          : DEFAULT_SETTINGS.selectedLocale,
+    selectedPageIds: Array.isArray(candidate.selectedPageIds)
+      ? candidate.selectedPageIds
+          .filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+          .map((id) => id.trim())
+      : DEFAULT_SETTINGS.selectedPageIds,
     preserveFormatting:
       typeof candidate.preserveFormatting === "boolean"
         ? candidate.preserveFormatting
         : DEFAULT_SETTINGS.preserveFormatting,
     lastJobId: candidate.lastJobId ?? null,
+    appliedLocaleByPage:
+      candidate.appliedLocaleByPage && typeof candidate.appliedLocaleByPage === "object"
+        ? Object.fromEntries(
+            Object.entries(candidate.appliedLocaleByPage).filter(
+              (entry): entry is [string, string] =>
+                typeof entry[0] === "string" &&
+                typeof entry[1] === "string" &&
+                entry[0].trim().length > 0 &&
+                entry[1].trim().length > 0,
+            ),
+          )
+        : DEFAULT_SETTINGS.appliedLocaleByPage,
   };
 }

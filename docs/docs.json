@@ -209,6 +209,7 @@
                       "platform/connections/intercom",
                       "platform/connections/braze",
                       "platform/connections/canva",
+                      "platform/connections/figma",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false
@@ -543,6 +544,7 @@
                       "contributing/docs-contributions",
                       "contributing/development",
                       "contributing/canva-app-oauth",
+                      "contributing/figma-plugin-oauth",
                       "contributing/lambda-deploy",
                       "contributing/release-maintenance"
                     ],

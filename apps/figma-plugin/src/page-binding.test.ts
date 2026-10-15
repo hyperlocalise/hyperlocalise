@@ -7,7 +7,7 @@ describe("page job binding", () => {
     const binding = {
       projectId: "proj_1",
       jobId: "job_1",
-      sourcePath: "figma/files/abc/pages/12:34.json",
+      sourcePath: "figma/files/abc/12-34.json",
     };
     expect(parsePageJobBinding(serializePageJobBinding(binding))).toEqual(binding);
   });
