@@ -118,12 +118,23 @@ export const AddsAStep: Story = {
     await userEvent.type(box, VISUAL_WORKFLOW_ASSISTANT_SAMPLE_SCRIPTS[0]!.request);
     await userEvent.click(panel.getByRole("button", { name: "Send" }));
 
-    await panel.findByText("Added a Notify Slack step", {}, { timeout: TURN_TIMEOUT_MS });
+    // The change lines are folded under the call's summary until it is opened.
+    await userEvent.click(
+      await panel.findByText("Updated the workflow · 2 changes", {}, { timeout: TURN_TIMEOUT_MS }),
+    );
+    await expect(await panel.findByText("Added a Notify Slack step")).toBeInTheDocument();
     const step = () =>
       canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="notify_slack"]');
     await waitFor(() => expect(step()).not.toBeNull());
-    // A step the assistant added is marked until it is selected.
+    // A step the assistant added is marked until it is selected, and brought into view.
     await expect(step()!.querySelector('[data-slot="step-band"]')).not.toBeNull();
+    await waitFor(() => {
+      const box = step()!.getBoundingClientRect();
+      const view = canvasElement
+        .querySelector<HTMLElement>(".react-flow")!
+        .getBoundingClientRect();
+      expect(box.left >= view.left && box.left < view.right).toBe(true);
+    });
 
     await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
     const dialog = within(await within(document.body).findByRole("alertdialog"));

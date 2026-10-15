@@ -362,6 +362,15 @@ export function VisualWorkflowEditor({
     undoNow,
   );
   undoActionsRef.current = { undo: runUndo, redo: runRedo };
+  /** Takes the assistant's change and brings the last step it added to the middle of the view. */
+  const takeAssistantChange = (next: VisualWorkflowGraph) => {
+    const before = new Set(graphRef.current.nodes.map((node) => node.id));
+    applyAssistantChange(next);
+    const added = next.nodes.filter((node) => !before.has(node.id)).at(-1);
+    if (added) {
+      setFocusNode({ nodeId: added.id });
+    }
+  };
   const { rootRef } = useUndoShortcuts({
     onUndo: runUndo,
     onRedo: runRedo,
@@ -1175,7 +1184,7 @@ export function VisualWorkflowEditor({
       visualWorkflowId={visualWorkflowId}
       graph={history.form}
       hasUnsavedChanges={hasUnsavedChanges}
-      onChange={applyAssistantChange}
+      onChange={takeAssistantChange}
       projectName={projectName}
     >
       {editor}
