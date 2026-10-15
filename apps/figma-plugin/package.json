@@ -12,7 +12,7 @@
   "dependencies": {
     "@create-figma-plugin/ui": "4.0.3",
     "@create-figma-plugin/utilities": "4.0.3",
-    "preact": "10.27.2"
+    "preact": "10.27.3"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.141.0",
