@@ -238,6 +238,25 @@ describe("visual workflow routes", () => {
       .where(eq(schema.visualWorkflows.id, visualWorkflowId));
     expect(JSON.stringify(row?.encryptedTestSetup)).not.toContain("Ada");
 
+    // A save from an out-of-date draft changes neither the draft nor its test setup.
+    const staleResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
+      ":visualWorkflowId"
+    ].$patch(
+      {
+        param: { organizationSlug, visualWorkflowId },
+        json: {
+          expectedRevision: 1,
+          definition,
+          testSetup: { data: { trigger: { secretName: "Stale" } }, realNodeIds: [], failures: {} },
+        },
+      },
+      { headers },
+    );
+    expect(staleResponse.status).toBe(409);
+    await expect(getVisualWorkflowTestSetup({ organizationId, visualWorkflowId })).resolves.toEqual(
+      { data: { trigger: { secretName: "Ada" } }, realNodeIds: [], failures: {} },
+    );
+
     const refusedResponse = await client.api.orgs[":organizationSlug"]["visual-workflows"][
       ":visualWorkflowId"
     ].$patch(

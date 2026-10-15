@@ -50,23 +50,13 @@ export async function getVisualWorkflowTestSetup(input: {
   return parsed.success ? parsed.data : EMPTY_VISUAL_WORKFLOW_TEST_SETUP;
 }
 
-/** Saves a workflow's test setup, without entries for steps its draft no longer has. */
-export async function saveVisualWorkflowTestSetup(input: {
-  organizationId: string;
-  visualWorkflowId: string;
-  setup: VisualWorkflowTestSetup;
-  nodeIds: Iterable<string>;
-  dbClient?: DatabaseClient;
-}): Promise<VisualWorkflowTestSetup> {
-  const setup = pruneTestSetup(input.setup, input.nodeIds);
-  await (input.dbClient ?? db)
-    .update(schema.visualWorkflows)
-    .set({ encryptedTestSetup: encryptWorkflowPayload(setup) })
-    .where(
-      and(
-        eq(schema.visualWorkflows.organizationId, input.organizationId),
-        eq(schema.visualWorkflows.id, input.visualWorkflowId),
-      ),
-    );
-  return setup;
+/**
+ * A test setup as it is stored: encrypted, without entries for steps the draft no longer has.
+ * The draft's update writes it, so the two are saved together under one revision check.
+ */
+export function encryptVisualWorkflowTestSetup(
+  setup: VisualWorkflowTestSetup,
+  nodeIds: Iterable<string>,
+): Record<string, unknown> {
+  return encryptWorkflowPayload(pruneTestSetup(setup, nodeIds));
 }
