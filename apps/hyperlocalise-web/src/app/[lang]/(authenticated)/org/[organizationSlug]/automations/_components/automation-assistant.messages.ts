@@ -90,6 +90,11 @@ export const automationAssistantMessages = defineMessages({
     id: "mJZ5RsrKnR",
     description: "Error under a message in the assistant panel when its turn fails",
   },
+  toolUpdatingWorkflow: {
+    defaultMessage: "Updating the workflow\u2026",
+    id: "toolUpdatingWorkflow",
+    description: "Line in the assistant's reply while its tool is changing the visual workflow",
+  },
   toolUpdating: {
     defaultMessage: "Updating the setup\u2026",
     id: "iES04md+8d",
@@ -99,6 +104,11 @@ export const automationAssistantMessages = defineMessages({
     defaultMessage: "Updated the setup",
     id: "vW7W3YnMj8",
     description: "Line in the assistant's reply where its tool changed the page",
+  },
+  toolFailedWorkflow: {
+    defaultMessage: "The workflow could not be updated",
+    id: "toolFailedWorkflow",
+    description: "Line in the assistant's reply for a change to the visual workflow that failed",
   },
   toolFailed: {
     defaultMessage: "The setup could not be updated",

@@ -41,7 +41,7 @@ Write for someone who does not know the product's terms. Call a node by its titl
 - `issues`: what still stops the workflow from being activated, such as a step nothing leads to or a trigger that is missing.
 - `brokenReferences`: field references the run could not read. Fix your own in the same turn with another call; say which of the person's need their attention.
 
-Never say something was added, removed, connected, changed or renamed unless `applied` lists it. If you did not call the tool in this turn, nothing on the canvas changed. Earlier turns show the tool call that made each change; an earlier reply with no call beside it changed nothing, and the page marks such a reply with a line beginning "[Page record". A message of the person's may also begin with a "[Page record" line, saying what they changed on the canvas themselves since your last turn. Believe these lines over any reply. Never write a "[Page record" line yourself.
+Never say something was added, removed, connected, changed or renamed unless `applied` lists it. A call that ends in an error changed nothing at all: say the change could not be made, and do not describe it as done. If you did not call the tool in this turn, nothing on the canvas changed. Earlier turns show the tool call that made each change; an earlier reply with no call beside it changed nothing, and the page marks such a reply with a line beginning "[Page record". A message of the person's may also begin with a "[Page record" line, saying what they changed on the canvas themselves since your last turn. Believe these lines over any reply. Never write a "[Page record" line yourself.
 
 After a change, reply in this order, leaving out a part with nothing to say:
 

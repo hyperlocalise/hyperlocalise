@@ -282,14 +282,16 @@ export function AutomationAssistantToolCall({
   if (summary.state === "running") {
     return (
       <Row icon={<Spinner className="size-3" />}>
-        <FormattedMessage {...messages.toolUpdating} />
+        <FormattedMessage
+          {...(onWorkflow ? messages.toolUpdatingWorkflow : messages.toolUpdating)}
+        />
       </Row>
     );
   }
   if (summary.state === "failed") {
     return (
       <Row icon={<WarningIcon className="size-3.5 shrink-0" />}>
-        <FormattedMessage {...messages.toolFailed} />
+        <FormattedMessage {...(onWorkflow ? messages.toolFailedWorkflow : messages.toolFailed)} />
       </Row>
     );
   }
