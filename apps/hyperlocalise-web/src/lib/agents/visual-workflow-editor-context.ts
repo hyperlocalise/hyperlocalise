@@ -12,7 +12,10 @@
  */
 import { z } from "zod";
 
-import { visualWorkflowV3DefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
+import {
+  visualCatalogTypeSchema,
+  visualWorkflowV3EdgeSchema,
+} from "@/lib/visual-workflows/schema/definition-schema";
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 
 export const VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND = "visual-workflow-editor";
@@ -20,6 +23,33 @@ export const VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND = "visual-workflow-editor";
 const MAX_ID_CHARS = 255;
 const MAX_NAME_CHARS = 500;
 const MAX_WORKFLOW_NAME_CHARS = 120;
+
+/**
+ * A workflow as the canvas holds it: the saved definition's shape, but a step's settings may be
+ * incomplete (a Slack step before its channel is chosen) and the name may be empty while it is
+ * typed. What the workflow lacks is reported by its validation, not refused here.
+ */
+export const visualWorkflowDraftDefinitionSchema = z
+  .object({
+    schemaVersion: z.literal(3),
+    name: z.string().max(MAX_WORKFLOW_NAME_CHARS),
+    nodes: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(128),
+            type: visualCatalogTypeSchema,
+            config: z.object({ kind: visualCatalogTypeSchema }).passthrough(),
+          })
+          .passthrough(),
+      )
+      .max(200),
+    edges: z.array(visualWorkflowV3EdgeSchema).max(400),
+    editor: z.object({
+      positions: z.record(z.string(), z.object({ x: z.number().finite(), y: z.number().finite() })),
+    }),
+  })
+  .transform((definition) => definition as unknown as VisualWorkflowV3Definition);
 
 /**
  * What an open visual workflow editor tells the assistant with each turn: the workflow as the
@@ -30,10 +60,7 @@ export const visualWorkflowEditorContextSchema = z.object({
   /** Names one mounted editor, so a change is applied only to the page it was made for. */
   editorSessionId: z.string().min(1).max(MAX_ID_CHARS),
   visualWorkflowId: z.string().min(1).max(MAX_ID_CHARS),
-  // The name may be empty while the person is typing one; the saved definition forbids that.
-  definition: visualWorkflowV3DefinitionSchema.extend({
-    name: z.string().max(MAX_WORKFLOW_NAME_CHARS),
-  }),
+  definition: visualWorkflowDraftDefinitionSchema,
   /** Display name of the project the workflow is in, when the page knows it. */
   projectName: z.string().min(1).max(MAX_NAME_CHARS).nullable().optional(),
 });

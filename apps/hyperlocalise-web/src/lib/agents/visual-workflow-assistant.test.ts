@@ -471,6 +471,29 @@ describe("page edits", () => {
   });
 });
 
+describe("the page the editor sends", () => {
+  it("takes a workflow with a step whose settings are still incomplete", () => {
+    const draft = context({
+      ...base,
+      name: "",
+      nodes: [
+        ...base.nodes,
+        node("notify_slack", "action.notify_slack", { position: { x: 680, y: 0 } }),
+      ],
+      edges: [...base.edges, edge("set", "notify_slack")],
+    });
+    const parsed = visualWorkflowEditor.contextSchema.safeParse(JSON.parse(JSON.stringify(draft)));
+
+    expect(parsed.success).toBe(true);
+    const snapshot = visualWorkflowEditor.snapshotData(
+      visualWorkflowEditor.documentOf(parsed.success ? parsed.data : draft),
+    );
+    expect(
+      visualWorkflowEditor.readSnapshot(JSON.parse(JSON.stringify(snapshot)))?.nodes,
+    ).toHaveLength(3);
+  });
+});
+
 describe("prompt text", () => {
   it("describes every node type with its outputs and settings", () => {
     const catalogue = describeVisualWorkflowCatalogue();

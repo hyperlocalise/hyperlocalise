@@ -35,7 +35,6 @@ import { fieldReference } from "@/lib/visual-workflows/editor/visual-workflow-up
 import {
   visualCatalogTypeSchema,
   visualNodeConfigSchema,
-  visualWorkflowV3DefinitionSchema,
 } from "@/lib/visual-workflows/schema/definition-schema";
 import {
   fromVisualWorkflowV3Definition,
@@ -67,6 +66,7 @@ import {
 } from "./automation-assistant-editor";
 import {
   VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND,
+  visualWorkflowDraftDefinitionSchema,
   visualWorkflowEditorContextSchema,
   type VisualWorkflowEditorContext,
 } from "./visual-workflow-editor-context";
@@ -1119,11 +1119,7 @@ export const visualWorkflowEditor = {
   snapshotData: (state) => ({ definition: toVisualWorkflowV3Definition(state) }),
   readSnapshot: (data) => {
     const parsed = z
-      .object({
-        definition: visualWorkflowV3DefinitionSchema.extend({
-          name: z.string().max(MAX_NAME_CHARS),
-        }),
-      })
+      .object({ definition: visualWorkflowDraftDefinitionSchema })
       .safeParse(data);
     return parsed.success ? fromVisualWorkflowV3Definition(parsed.data.definition) : null;
   },
