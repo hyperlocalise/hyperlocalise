@@ -340,11 +340,13 @@ describe("applyVisualWorkflowEdits", () => {
           ...base.nodes,
           node("http", "action.http"),
           node("content_sync", "action.content_sync"),
+          node("retry", "logic.retry"),
         ],
       },
       operations: [
         { op: "configure_node", nodeId: "http", config: { auth: { type: "bearer" } } },
         { op: "configure_node", nodeId: "content_sync", config: { provider: "github" } },
+        { op: "configure_node", nodeId: "retry", config: { acknowledgeDuplicateRisk: true } },
       ],
     });
 
@@ -355,6 +357,7 @@ describe("applyVisualWorkflowEdits", () => {
         message: expect.stringContaining("credentials"),
       },
       { status: "rejected", code: "set_by_person", message: expect.stringContaining("connected") },
+      { status: "rejected", code: "set_by_person", message: expect.stringContaining("twice") },
     ]);
   });
 

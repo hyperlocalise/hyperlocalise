@@ -287,6 +287,10 @@ const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<st
     recipients:
       "who receives the email is the person's decision, and the assistant would have to guess the addresses",
   },
+  "logic.retry": {
+    acknowledgeDuplicateRisk:
+      "it accepts that a retry may send or change something twice, which is the person's decision",
+  },
   "flow.call_workflow": {
     workflowId: CALLED_WORKFLOW_REASON,
     version: CALLED_WORKFLOW_REASON,
