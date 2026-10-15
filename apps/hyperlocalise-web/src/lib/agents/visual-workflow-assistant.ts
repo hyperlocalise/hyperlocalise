@@ -20,10 +20,7 @@ import {
   resolveNodeSubtitle,
   VISUAL_NODE_CATALOG,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-import {
-  getWorkflowInputFields,
-  NODE_CONTRACTS,
-} from "@/lib/visual-workflows/catalog/node-contracts";
+import { NODE_CONTRACTS } from "@/lib/visual-workflows/catalog/node-contracts";
 import { VISUAL_NODE_DESCRIPTIONS } from "@/lib/visual-workflows/catalog/node-descriptions";
 import { getVisualWorkflowDataPorts } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
 import {
@@ -32,12 +29,13 @@ import {
   reconcileFlowBodyMembership,
   removeVisualWorkflowNode,
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
+import { nextVisualWorkflowNodeId } from "@/lib/visual-workflows/editor/visual-workflow-node-id";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
+import { fieldReference } from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
 import {
   visualCatalogTypeSchema,
   visualNodeConfigSchema,
   visualWorkflowV3DefinitionSchema,
-  workflowBindingSchema,
 } from "@/lib/visual-workflows/schema/definition-schema";
 import {
   fromVisualWorkflowV3Definition,
@@ -50,7 +48,6 @@ import type {
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   VisualWorkflowV3Definition,
-  WorkflowBinding,
 } from "@/lib/visual-workflows/schema/types";
 import {
   collectWorkflowSecrets,
@@ -73,12 +70,16 @@ import {
   visualWorkflowEditorContextSchema,
   type VisualWorkflowEditorContext,
 } from "./visual-workflow-editor-context";
+import {
+  findVisualWorkflowReferenceProblems,
+  type VisualWorkflowReferenceProblem,
+} from "./visual-workflow-references";
 
 export const EDIT_VISUAL_WORKFLOW_TOOL_NAME = "edit_visual_workflow";
 
 const MAX_OPERATIONS = 50;
 const MAX_NAME_CHARS = 120;
-/** A node id the model chooses: short, readable, and unlike the editor's own `vw_` ids. */
+/** A node id the model chooses: short and readable, as the editor names a new step. */
 const newNodeIdSchema = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
 const nodeIdSchema = z.string().trim().min(1).max(128);
 const handleSchema = z.string().max(64).nullable();
@@ -116,8 +117,6 @@ const operationSchema = z.discriminatedUnion("op", [
     nodeId: nodeIdSchema,
     /** Settings merged into the node's; null for none. */
     config: z.record(z.string(), z.unknown()).nullable().optional(),
-    /** Bindings of the node's inputs to set, or null to clear one; null for none. */
-    inputs: z.record(z.string(), workflowBindingSchema.nullable()).nullable().optional(),
   }),
   z.object({
     op: z.literal("rename_workflow"),
@@ -149,9 +148,7 @@ export type VisualWorkflowEditRejection =
   | "node_id_taken"
   | "trigger_exists"
   | "unknown_edge"
-  | "unknown_input"
   | "invalid_config"
-  | "invalid_binding"
   | ConnectionValidationCode;
 
 export type VisualWorkflowEditResult =
@@ -235,6 +232,12 @@ function nodeConfigSchemaFor(type: VisualCatalogType): z.ZodObject<z.ZodRawShape
   return variant as z.ZodObject<z.ZodRawShape>;
 }
 
+/** Settings of a type that only the person sets, on the step's panel. */
+const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, readonly string[]>> = {
+  // The called workflow, its version and its fields come from a workflow the person picks.
+  "flow.call_workflow": ["workflowId", "version", "inputFields", "outputFields"],
+};
+
 function describeZodIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => `${issue.path.map(String).join(".") || "value"}: ${issue.message}`)
@@ -254,6 +257,12 @@ function mergeConfig(
   const keys = Object.keys(patch ?? {});
   if (!patch || keys.length === 0) {
     return { config: current };
+  }
+  const personOnly = keys.filter((key) => PERSON_ONLY_SETTINGS[type]?.includes(key));
+  if (personOnly.length > 0) {
+    return {
+      error: `${personOnly.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} is chosen by the person on the step's panel.`,
+    };
   }
   const variant = nodeConfigSchemaFor(type);
   const unknown = keys.filter((key) => key === "kind" || !(key in variant.shape));
@@ -292,6 +301,24 @@ function rejected(
   message: string,
 ): VisualWorkflowEditResult {
   return { status: "rejected", op, code, message };
+}
+
+/**
+ * The node without the stored bindings of the given settings, as the panel's "Edit as text"
+ * leaves it: a binding would override the value at run time.
+ */
+function withoutBindingsOf(node: VisualWorkflowRfNode, keys: readonly string[]) {
+  const bound = Object.keys(node.data.inputs ?? {});
+  const dropped = bound.filter((name) =>
+    keys.some((key) => name === key || name.startsWith(`${key}.`)),
+  );
+  if (dropped.length === 0) {
+    return node;
+  }
+  const inputs = Object.fromEntries(
+    Object.entries(node.data.inputs ?? {}).filter(([name]) => !dropped.includes(name)),
+  );
+  return { ...node, data: { ...node.data, inputs } };
 }
 
 function applyOne(
@@ -434,45 +461,24 @@ function applyOne(
           result: rejected(op, "unknown_node", `There is no node with the id ${op.nodeId}.`),
         };
       }
-      let graph: Graph = { nodes, edges };
-      if (op.config && Object.keys(op.config).length > 0) {
-        const merged = mergeConfig(node.data.catalogType, node.data.config, op.config);
-        if ("error" in merged) {
-          return { state, result: rejected(op, "invalid_config", merged.error) };
-        }
-        graph = applyNodeConfigUpdate(graph.nodes, graph.edges, node.id, merged.config);
+      const keys = Object.keys(op.config ?? {});
+      if (keys.length === 0) {
+        return { state, result: { status: "applied", op } };
       }
-      if (op.inputs && Object.keys(op.inputs).length > 0) {
-        const current = graph.nodes.find((entry) => entry.id === node.id)!;
-        const known = new Set(
-          getWorkflowInputFields({
-            id: current.id,
-            type: current.data.catalogType,
-            config: current.data.config,
-          }).map((field) => field.name),
-        );
-        const inputs: Record<string, WorkflowBinding> = { ...current.data.inputs };
-        for (const [name, binding] of Object.entries(op.inputs)) {
-          if (!known.has(name)) {
-            return {
-              state,
-              result: rejected(op, "unknown_input", `The node has no input called ${name}.`),
-            };
-          }
-          if (binding === null) {
-            delete inputs[name];
-          } else {
-            inputs[name] = binding;
-          }
-        }
-        graph = {
+      const merged = mergeConfig(node.data.catalogType, node.data.config, op.config);
+      if ("error" in merged) {
+        return { state, result: rejected(op, "invalid_config", merged.error) };
+      }
+      const graph = applyNodeConfigUpdate(nodes, edges, node.id, merged.config);
+      return {
+        state: withGraph({
           nodes: graph.nodes.map((entry) =>
-            entry.id === node.id ? { ...entry, data: { ...entry.data, inputs } } : entry,
+            entry.id === node.id ? withoutBindingsOf(entry, keys) : entry,
           ),
           edges: graph.edges,
-        };
-      }
-      return { state: withGraph(graph), result: { status: "applied", op } };
+        }),
+        result: { status: "applied", op },
+      };
     }
     case "rename_workflow":
       return { state: { ...state, name: op.name.trim() }, result: { status: "applied", op } };
@@ -546,7 +552,7 @@ export function toVisualWorkflowChangeLines(
           kind: "node_configured",
           nodeId: op.nodeId,
           type: nodeType(before, op.nodeId),
-          fields: [...Object.keys(op.config ?? {}), ...Object.keys(op.inputs ?? {})],
+          fields: Object.keys(op.config ?? {}),
         });
         break;
       case "rename_workflow":
@@ -584,7 +590,7 @@ function describeOperation(
     case "disconnect":
       return `disconnected ${label(op.source)} from ${label(op.target)}`;
     case "configure_node":
-      return `changed ${[...Object.keys(op.config ?? {}), ...Object.keys(op.inputs ?? {})].join(", ")} on ${label(op.nodeId)}`;
+      return `changed ${Object.keys(op.config ?? {}).join(", ")} on ${label(op.nodeId)}`;
     case "rename_workflow":
       return `renamed the workflow to "${op.name}"`;
     default:
@@ -606,9 +612,23 @@ export type EditVisualWorkflowOutput =
         rejected: string[];
         /** What the workflow still lacks before it can be activated. */
         issues: string[];
+        /** Field references in settings that the run could not read, which stop it there. */
+        brokenReferences: string[];
         saved: false;
       };
     });
+
+const REFERENCE_PROBLEMS: Record<VisualWorkflowReferenceProblem["reason"], string> = {
+  unknown_step: "reads a step that is not in the workflow",
+  not_earlier: "reads a step that does not run before it",
+  no_trigger: "reads the trigger, and the workflow has none",
+};
+
+function describeReferenceProblems(state: VisualWorkflowEditorState): string[] {
+  return findVisualWorkflowReferenceProblems(state).map(
+    (problem) => `${problem.reference} on node [${problem.nodeId}] ${REFERENCE_PROBLEMS[problem.reason]}`,
+  );
+}
 
 function describeIssues(definition: VisualWorkflowV3Definition): string[] {
   return validateVisualWorkflowV3Definition(definition).map((issue) => {
@@ -666,6 +686,7 @@ export function editVisualWorkflow(
           .filter((result) => result.status === "rejected")
           .map((result) => `${result.op.op}: ${result.message}`),
         issues: describeIssues(definition),
+        brokenReferences: describeReferenceProblems(state),
         saved: false,
       },
     },
@@ -924,10 +945,18 @@ export function describeVisualWorkflowCatalogue(): string {
     const handles = getAllowedExecutionSourceHandles({ type: item.type, config }).map(
       (handle) => handle ?? "success",
     );
-    const schema = z.toJSONSchema(nodeConfigSchemaFor(item.type), { unrepresentable: "any" });
+    const personOnly = PERSON_ONLY_SETTINGS[item.type] ?? [];
+    const variant = nodeConfigSchemaFor(item.type);
+    const schema = z.toJSONSchema(
+      personOnly.length > 0
+        ? variant.omit(Object.fromEntries(personOnly.map((key) => [key, true as const])))
+        : variant,
+      { unrepresentable: "any" },
+    );
     const { $schema: _schema, ...settings } = schema;
     return [
       `- type: ${item.type}`,
+      `  id when added: ${nextVisualWorkflowNodeId(item.type, [])}`,
       `  title: ${description.title}`,
       `  category: ${item.category}`,
       `  does: ${description.purpose}`,
@@ -935,6 +964,7 @@ export function describeVisualWorkflowCatalogue(): string {
       `  data inputs: ${contract.inputs.length > 0 ? contract.inputs.map((field) => `${field.name} (${field.type}${field.required ? "" : ", optional"})`).join(", ") : "(none)"}`,
       `  data outputs: ${contract.outputs.length > 0 ? contract.outputs.map((field) => `${field.path} (${field.type})`).join(", ") : "(none)"}`,
       `  settings: ${JSON.stringify(settings)}`,
+      ...(personOnly.length > 0 ? [`  set by the person only: ${personOnly.join(", ")}`] : []),
     ].join("\n");
   });
 
@@ -948,6 +978,9 @@ export function describeVisualWorkflowCatalogue(): string {
     "connection goes from a data output to a data input of the same type (targetHandle is the",
     "input's name). A Switch node's outputs are `default` and one per case id; a Sequence node's",
     "are its output ids; the page lists both.",
+    "",
+    "A text setting can read a field of a step that runs before it: `{{ nodes.<id>.<path> }}`, or",
+    "`{{ trigger.<path> }}` for the trigger's. The page lists each step's fields with that text.",
     "",
     "### Node types",
     "",
@@ -978,12 +1011,15 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
     );
   }
   if (ports.outputs.length > 0) {
+    const trigger = isTriggerType(node.data.catalogType);
     lines.push(
-      `  data outputs: ${ports.outputs.map((port) => `${port.id} (${port.type})`).join(", ")}`,
+      `  data outputs: ${ports.outputs.map((port) => `${port.id} (${port.type}, read as ${fieldReference({ nodeId: node.id, trigger, path: port.id })})`).join(", ")}`,
     );
   }
   if (node.data.inputs && Object.keys(node.data.inputs).length > 0) {
-    lines.push(`  bound inputs: ${compactJson(node.data.inputs)}`);
+    lines.push(
+      `  older stored values (they override these settings at run time; setting one replaces it): ${compactJson(node.data.inputs)}`,
+    );
   }
   return lines.join("\n");
 }
@@ -996,6 +1032,7 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
   const state = fromVisualWorkflowV3Definition(context.definition);
   const { nodes, edges } = state;
   const issues = describeIssues(context.definition);
+  const brokenReferences = describeReferenceProblems(state);
   return [
     "<visual_workflow_page>",
     "## Visual workflow page",
@@ -1025,6 +1062,12 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
     "### What stops it from being activated",
     "",
     issues.length > 0 ? issues.map((issue) => `- ${issue}`).join("\n") : "(nothing)",
+    "",
+    "### Field references the run could not read",
+    "",
+    brokenReferences.length > 0
+      ? brokenReferences.map((reference) => `- ${reference}`).join("\n")
+      : "(none)",
     "</visual_workflow_page>",
   ].join("\n");
 }

@@ -163,27 +163,68 @@ describe("applyVisualWorkflowEdits", () => {
     expect(results[0].status === "rejected" && results[0].message.length > 0).toBe(true);
   });
 
-  it("sets and clears a node's input bindings, and knows the inputs it has", () => {
-    const withHttp: VisualWorkflowEditorState = {
+  it("drops a setting's stored binding when the setting is given a value", () => {
+    const slackConfig = createDefaultConfig("action.notify_slack");
+    const withSlack: VisualWorkflowEditorState = {
       ...base,
-      nodes: [...base.nodes, node("call", "action.http", { position: { x: 680, y: 0 } })],
+      nodes: [
+        ...base.nodes,
+        node("notify_slack", "action.notify_slack", {
+          position: { x: 680, y: 0 },
+          data: {
+            catalogType: "action.notify_slack",
+            config: slackConfig,
+            runStatus: "idle",
+            inputs: {
+              message: { kind: "literal", value: "Old" },
+              channelId: { kind: "literal", value: "C1" },
+            },
+          },
+        }),
+      ],
     };
     const { state, results } = applyVisualWorkflowEdits({
-      state: withHttp,
+      state: withSlack,
       operations: [
         {
           op: "configure_node",
-          nodeId: "call",
-          inputs: { url: { kind: "literal", value: "https://example.com" } },
+          nodeId: "notify_slack",
+          config: { message: "Done: {{ trigger.ref }}" },
         },
-        { op: "configure_node", nodeId: "call", inputs: { nope: null } },
-        { op: "configure_node", nodeId: "call", inputs: { url: null } },
       ],
     });
 
-    expect(results.map((result) => result.status)).toEqual(["applied", "rejected", "applied"]);
-    expect(results[1]).toMatchObject({ code: "unknown_input" });
-    expect(state.nodes[2]?.data.inputs).toEqual({});
+    expect(results[0]).toMatchObject({ status: "applied" });
+    const slack = state.nodes.find((entry) => entry.id === "notify_slack");
+    expect(slack?.data.config).toMatchObject({ message: "Done: {{ trigger.ref }}" });
+    expect(slack?.data.inputs).toEqual({ channelId: { kind: "literal", value: "C1" } });
+  });
+
+  it("leaves the called workflow of a Call workflow step to the person", () => {
+    const { results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        {
+          op: "add_node",
+          id: "call_workflow",
+          type: "flow.call_workflow",
+          after: { nodeId: "set", handle: null },
+          config: { workflowId: "6f0c5a51-8c87-4d3e-9a52-2b7a3d0c8e11" },
+        },
+        {
+          op: "add_node",
+          id: "call_workflow",
+          type: "flow.call_workflow",
+          after: { nodeId: "set", handle: null },
+        },
+      ],
+    });
+
+    expect(results[0]).toMatchObject({ status: "rejected", code: "invalid_config" });
+    expect(results[0].status === "rejected" && results[0].message).toContain(
+      "chosen by the person",
+    );
+    expect(results[1]).toMatchObject({ status: "applied" });
   });
 });
 
@@ -259,6 +300,24 @@ describe("editVisualWorkflow", () => {
         appliedToolCallIds: new Set(["call_1"]),
       }).applied,
     ).toEqual([]);
+  });
+
+  it("lists field references the run could not read", () => {
+    const { output } = editVisualWorkflow(context(), {
+      operations: [
+        {
+          op: "add_node",
+          id: "notify_slack",
+          type: "action.notify_slack",
+          after: { nodeId: "set", handle: null },
+          config: { message: "{{ nodes.set.total }} and {{ nodes.missing.text }}" },
+        },
+      ],
+    });
+
+    expect(output.applied && output.result.brokenReferences).toEqual([
+      "{{ nodes.missing.text }} on node [notify_slack] reads a step that is not in the workflow",
+    ]);
   });
 
   it("says when no page is open", () => {
@@ -384,6 +443,29 @@ describe("prompt text", () => {
     expect(catalogue).toContain("execution outputs: (none: the workflow ends here)");
     expect(catalogue).toContain('"message"');
     expect(catalogue).not.toContain("$schema");
+    expect(catalogue).toContain("id when added: notify_slack");
+    expect(catalogue).toContain("{{ nodes.<id>.<path> }}");
+    const callWorkflow = catalogue.slice(catalogue.indexOf("type: flow.call_workflow"));
+    expect(callWorkflow).toContain(
+      "set by the person only: workflowId, version, inputFields, outputFields",
+    );
+    expect(callWorkflow.split("\n- type:")[0]).not.toContain('"workflowId"');
+  });
+
+  it("gives the text that reads each field of a step", () => {
+    const page = describeVisualWorkflowPage(
+      context({
+        ...base,
+        nodes: [
+          ...base.nodes,
+          node("notify_slack", "action.notify_slack", { position: { x: 680, y: 0 } }),
+        ],
+        edges: [...base.edges, edge("set", "notify_slack")],
+      }),
+    );
+
+    expect(page).toContain("sent (boolean, read as {{ nodes.notify_slack.sent }})");
+    expect(page).toContain("### Field references the run could not read\n\n(none)");
   });
 
   it("describes the page with its nodes, connections and what stops activation", () => {
