@@ -559,7 +559,7 @@ describe("figmaIntegrationRoutes", () => {
           pageId: "page-id",
           generate: true,
           segments: [sampleSegment],
-        },
+        } as never,
       },
       {
         headers: {
@@ -690,8 +690,7 @@ describe("figmaIntegrationRoutes", () => {
     const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Figma usage key",
     });
-    const projectResponse = await projectFixture.createProjectViaApi(identity);
-    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    await projectFixture.createProjectViaApi(identity);
 
     const created = await createFigmaConnection({
       organizationId,
@@ -729,8 +728,7 @@ describe("figmaIntegrationRoutes", () => {
     const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Figma disabled key",
     });
-    const projectResponse = await projectFixture.createProjectViaApi(identity);
-    const projectBody = (await projectResponse.json()) as { project: { id: string } };
+    await projectFixture.createProjectViaApi(identity);
 
     const created = await createFigmaConnection({
       organizationId,

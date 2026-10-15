@@ -386,7 +386,9 @@ describe("figmaOauthRoutes", () => {
       }),
     ]);
 
-    const statuses = [firstRefresh.status, secondRefresh.status].toSorted();
+    const statuses = [firstRefresh.status, secondRefresh.status].toSorted(
+      (left, right) => left - right,
+    );
     expect(statuses).toEqual([200, 400]);
   });
 

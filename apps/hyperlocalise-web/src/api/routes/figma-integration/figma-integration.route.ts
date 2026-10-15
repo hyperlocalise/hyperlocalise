@@ -18,11 +18,7 @@ import {
   type FigmaConnectionVariables,
 } from "@/api/auth/figma-connection";
 import { figmaCorsMiddleware } from "@/api/auth/figma-cors";
-import {
-  badRequestResponse,
-  forbiddenResponse,
-  notFoundResponse,
-} from "@/api/response.schema";
+import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   getFigmaConnectionSession,
   resolveTeamAccessForFigmaConnection,
@@ -276,8 +272,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         if (!project) {
           throw new Error("figma_project_not_found");
         }
-        const sourceLocale =
-          payload.sourceLocale?.trim() || project.sourceLocale?.trim() || "";
+        const sourceLocale = payload.sourceLocale?.trim() || project.sourceLocale?.trim() || "";
         const targetLocales = payload.targetLocales;
 
         if (payload.segments && payload.segments.length > 0) {

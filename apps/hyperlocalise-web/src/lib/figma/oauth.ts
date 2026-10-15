@@ -506,10 +506,7 @@ export async function readFigmaOauthHandoff(readKey: string): Promise<FigmaOauth
     .update(schema.figmaOauthHandoffs)
     .set({ consumedAt: new Date() })
     .where(
-      and(
-        eq(schema.figmaOauthHandoffs.id, row.id),
-        isNull(schema.figmaOauthHandoffs.consumedAt),
-      ),
+      and(eq(schema.figmaOauthHandoffs.id, row.id), isNull(schema.figmaOauthHandoffs.consumedAt)),
     )
     .returning({
       code: schema.figmaOauthHandoffs.code,
