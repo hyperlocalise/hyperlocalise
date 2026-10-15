@@ -88,7 +88,7 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(readTranslatedFileMock).toHaveBeenCalledWith("sbx_html", "page.fr.html");
   });
 
-  it("reconciles Canva JSON from the target file when hl entries lag source fallbacks", async () => {
+  it("collects Canva keys from hl entries only", async () => {
     const key = "canva.t.2b52fdaa63b8822c";
     const sourceEntries = { [key]: "Describe a Cat" };
     const outputFilename = "page-1-vi-VN.json";
@@ -97,14 +97,11 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
       if (path === ".hyperlocalise.lock.json") {
         return JSON.stringify(lockFor(outputFilename, [key]));
       }
-      if (path === outputFilename) {
-        return JSON.stringify({ [key]: "Mô tả một con mèo" });
-      }
       throw new Error(`unexpected sandbox read: ${path}`);
     });
     extractSandboxEntriesMock.mockResolvedValue({
       ok: true,
-      entries: { [key]: "Describe a Cat" },
+      entries: { [key]: "Mô tả một con mèo" },
     });
 
     await expect(
@@ -120,6 +117,7 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     ).resolves.toEqual({
       "vi-VN": { [key]: "Mô tả một con mèo" },
     });
+    expect(readTranslatedFileMock).not.toHaveBeenCalledWith("sbx_canva", outputFilename);
   });
 
   it("omits confirmed HTML path keys and locales that have nothing new", async () => {

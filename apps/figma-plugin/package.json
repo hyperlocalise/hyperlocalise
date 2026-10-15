@@ -10,17 +10,17 @@
     "dev": "concurrently -n ui,code \"vp build --watch\" \"vp build --config vite.code.config.ts --watch\""
   },
   "dependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "@create-figma-plugin/ui": "4.0.3",
+    "@create-figma-plugin/utilities": "4.0.3",
+    "preact": "10.27.3"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.141.0",
-    "@testing-library/react": "16.3.3",
+    "@preact/preset-vite": "^2.10.2",
+    "@testing-library/preact": "^3.2.4",
     "@types/node": "24.13.3",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
-    "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
+    "dotenv": "18.0.5",
     "jsdom": "^30.1.2",
     "tsx": "4.23.13",
     "typescript": "5.9.3",

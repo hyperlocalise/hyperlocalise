@@ -521,7 +521,7 @@ export const DetailDefault: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -529,7 +529,7 @@ export const DetailDefault: Story = {
     await expect(canvas.getByDisplayValue("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByRole("tab", { name: "Run History" })).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -545,7 +545,7 @@ export const DetailScheduled: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -553,7 +553,7 @@ export const DetailScheduled: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -569,7 +569,7 @@ export const DetailManual: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -577,7 +577,7 @@ export const DetailManual: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByDisplayValue("Manual release checklist")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 
@@ -591,7 +591,7 @@ export const DetailPaused: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -609,7 +609,7 @@ export const DetailRunHistory: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -644,7 +644,7 @@ export const DetailIntercomRunHistory: Story = {
         </Button>
         <Button type="button" disabled>
           <FloppyDiskIcon data-icon="inline-start" />
-          Save changes
+          Save
         </Button>
       </>
     ),
@@ -670,7 +670,7 @@ export const DetailRunHistoryEmpty: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
@@ -690,13 +690,13 @@ export const ReadOnly: Story = {
     actions: (
       <Button type="button" disabled>
         <FloppyDiskIcon data-icon="inline-start" />
-        Save changes
+        Save
       </Button>
     ),
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByPlaceholderText("Untitled automation")).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
   },
 };
 

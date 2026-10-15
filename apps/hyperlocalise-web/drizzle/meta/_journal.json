@@ -1055,8 +1055,15 @@
     {
       "idx": 150,
       "version": "7",
-      "when": 1792053924095,
-      "tag": "0150_automation_assistant_visual_workflow_sessions",
+      "when": 1792061256037,
+      "tag": "0150_classy_skin",
+      "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1792081533251,
+      "tag": "0151_automation_assistant_visual_workflow_sessions",
       "breakpoints": true
     }
   ]
