@@ -65,10 +65,12 @@ import {
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
+  fileTranslationRunPagesSucceeded,
   nextFileTranslationPageDecision,
 } from "./file-translation-pagination";
 
 import {
+  clearPendingTranslationLockAndTargetStep,
   collectFileTranslationPageStep,
   fileTranslationReportSchema,
   isFileTranslationCliHardFailure,
@@ -1426,6 +1428,22 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const runPages = async (locales: string[], attempt: 1 | 2) => {
       let retrySameAsSource = false;
       const leftoversByLocale: Record<string, Record<string, string>> = {};
+      if (attempt === 2) {
+        for (const locale of locales) {
+          const pendingKeys = Object.keys(sourceEntries).filter(
+            (key) => sourceEntries[key]?.trim() && !prefilledByLocale[locale]?.[key]?.trim(),
+          );
+          if (pendingKeys.length === 0) {
+            continue;
+          }
+          await clearPendingTranslationLockAndTargetStep({
+            sandboxId,
+            outputFilename: getSandboxOutputFilename(sourceFile.filename, locale),
+            sourceKeys: pendingKeys,
+            sourceEntries,
+          });
+        }
+      }
       for (let page = 0; page < translationMaxPages; page += 1) {
         const result = await runHlForLocales(locales, attempt, {
           force: page === 0 || retrySameAsSource,
@@ -1487,11 +1505,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           }
           if (Object.keys(leftovers).length > 0) {
             retrySameAsSource = true;
-            const leftoverSamples = Object.keys(leftovers)
-              .slice(0, 8)
+            const leftoverKeyList = Object.keys(leftovers);
+            const sampleLimit = locales.length === 1 ? leftoverKeyList.length : 8;
+            const leftoverSamples = leftoverKeyList
+              .slice(0, sampleLimit)
               .map((key) => sourceEntries[key])
               .filter((text): text is string => Boolean(text?.trim()));
             feedback.push(
+              `Target locale ${targetLocale}: output must be in the target language, not a copy of the source.`,
               "Do not copy the source text. Translate every remaining multi-word string.",
               ...leftoverSamples.map((text) => `Translate "${text}".`),
             );
@@ -1526,7 +1547,15 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           failedCount: result.failed,
         });
         if (pageDecision === "done") return true;
-        if (pageDecision === "continue") continue;
+        if (pageDecision === "continue") {
+          if (
+            page === translationMaxPages - 1 &&
+            countPendingFileTranslations(sourceEntries, locales, prefilledByLocale) > 0
+          ) {
+            break;
+          }
+          continue;
+        }
         if (!result.ok || invalidCount > 0) return false;
         if (leftoverCount > 0) {
           if (page === 0) {
@@ -1546,7 +1575,27 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           "translation pagination made no progress",
         );
       }
-      if (locales.some((locale) => Object.keys(confirmedByLocale[locale] ?? {}).length > 0)) {
+      const stillPending = countPendingFileTranslations(sourceEntries, locales, prefilledByLocale);
+      if (stillPending > 0) {
+        console.warn(
+          "[file-translation-workflow] translation pagination finished with pending keys",
+          {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            attempt,
+            stillPending,
+            targetLocales: locales,
+          },
+        );
+        return false;
+      }
+      if (
+        fileTranslationRunPagesSucceeded({
+          locales,
+          confirmedByLocale,
+          stillPending,
+        })
+      ) {
         return true;
       }
       throw new FileTranslationWorkflowError(

@@ -293,11 +293,8 @@ async function mergeFigmaTranslationsWithEditor(input: {
         locale,
         sourcePath: input.sourcePath,
       });
-      let merged = mergeFigmaPullTranslations(
-        editor,
-        input.jobTranslations[locale] ?? {},
-        input.sourceByKey,
-      );
+      const jobForLocale = input.jobTranslations[locale] ?? {};
+      let merged = mergeFigmaPullTranslations(editor, jobForLocale, input.sourceByKey);
       if (input.sourceByKey && countNonEmptyTranslations(input.sourceByKey) > 0) {
         merged = propagateFigmaTranslationsBySharedSource(input.sourceByKey, merged);
       }

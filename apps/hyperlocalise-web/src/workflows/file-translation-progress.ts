@@ -253,6 +253,23 @@ function hashedSourceLockAliases(sourceText: string): string[] {
   ];
 }
 
+/** Lock completion keys that correspond to the given source file keys. */
+export function lockCompletionKeysToClear(
+  sourceEntries: Record<string, string>,
+  lockKeys: readonly string[],
+  sourceKeysToClear: readonly string[],
+): string[] {
+  const clearSet = new Set(sourceKeysToClear);
+  const toRemove: string[] = [];
+  for (const lockKey of lockKeys) {
+    const mapped = sourceKeysForLockCompletions(sourceEntries, [lockKey]);
+    if (mapped.some((key) => clearSet.has(key))) {
+      toRemove.push(lockKey);
+    }
+  }
+  return toRemove;
+}
+
 /** Map CLI lock keys (JSON paths or content hashes) onto extract source keys. */
 export function sourceKeysForLockCompletions(
   sourceEntries: Record<string, string>,
@@ -320,6 +337,61 @@ export function completedFileTranslationKeys(lock: unknown, outputFilename: stri
     lockPathMatchesOutput(path, outputFilename),
   );
   return Object.keys(entries?.[1] ?? {});
+}
+
+/** Drop lock completions and on-disk target text so a retry can re-translate pending keys. */
+export async function clearPendingTranslationLockAndTargetStep(input: {
+  sandboxId: string;
+  outputFilename: string;
+  sourceKeys: readonly string[];
+  sourceEntries: Record<string, string>;
+}) {
+  "use step";
+  if (input.sourceKeys.length === 0) {
+    return;
+  }
+  const { readTranslatedFile, writeFileToSandbox } = await import("@/lib/translation/sandbox");
+  const { utf8FromStoredFileContent } = await import("@/lib/projects/files/html-ingest-entries");
+
+  const lockPath = ".hyperlocalise.lock.json";
+  const lockRaw = utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, lockPath));
+  const lock = JSON.parse(lockRaw) as Record<string, unknown>;
+  const parsed = lockSchema.parse(lock);
+  const runCompleted = parsed.run_completed ?? {};
+  for (const [path, completions] of Object.entries(runCompleted)) {
+    if (!lockPathMatchesOutput(path, input.outputFilename)) {
+      continue;
+    }
+    const lockKeys = Object.keys(completions);
+    for (const lockKey of lockCompletionKeysToClear(
+      input.sourceEntries,
+      lockKeys,
+      input.sourceKeys,
+    )) {
+      delete completions[lockKey];
+    }
+  }
+  await writeFileToSandbox(
+    input.sandboxId,
+    lockPath,
+    Buffer.from(JSON.stringify(lock, null, 2), "utf8"),
+  );
+
+  const targetRaw = utf8FromStoredFileContent(
+    await readTranslatedFile(input.sandboxId, input.outputFilename),
+  );
+  const content = JSON.parse(targetRaw) as Record<string, unknown>;
+  for (const key of input.sourceKeys) {
+    const source = input.sourceEntries[key];
+    if (source && key in content) {
+      content[key] = source;
+    }
+  }
+  await writeFileToSandbox(
+    input.sandboxId,
+    input.outputFilename,
+    Buffer.from(JSON.stringify(content, null, 2), "utf8"),
+  );
 }
 
 export async function collectFileTranslationPageStep(input: {

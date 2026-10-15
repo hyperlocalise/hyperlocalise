@@ -254,9 +254,10 @@ async function applyTranslations(
       continue;
     }
 
+    const stampedKey = readStampedSegmentKey(node);
     const nextText = resolveFigmaApplyTarget({
       nodeText: node.characters,
-      stampedKey: readStampedSegmentKey(node),
+      stampedKey,
       translations,
       textIndex,
       sourceByKey,
