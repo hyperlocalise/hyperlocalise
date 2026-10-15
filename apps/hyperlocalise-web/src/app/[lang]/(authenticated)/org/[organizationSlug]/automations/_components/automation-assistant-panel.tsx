@@ -14,8 +14,9 @@
  */
 import { ArrowCounterClockwiseIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
 import type { UIMessage } from "ai";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { defaultComponents, type Components } from "streamdown";
 
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Button } from "@/components/ui/button";
@@ -72,8 +73,49 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
   return blocks;
 }
 
+const FIELD_REFERENCE = /`?(\{\{[^{}]*\}\})`?/g;
+const WHOLE_REFERENCE = /^\{\{[^{}]*\}\}$/;
+
+/**
+ * Reply text and how to draw it on a page that reads fields as `{{ }}` references: each reference
+ * becomes a pill with the step's title and the field, as a setting shows it, whether the model
+ * wrote it bare or as code.
+ */
+function useFieldReferencePills(referenceLabel: ((reference: string) => string | null) | null): {
+  prepare: (text: string) => string;
+  components: Components | undefined;
+} {
+  return useMemo(() => {
+    if (!referenceLabel) {
+      return { prepare: (text: string) => text, components: undefined };
+    }
+    const DefaultCode = defaultComponents.code;
+    return {
+      prepare: (text: string) => text.replace(FIELD_REFERENCE, "`$1`"),
+      components: {
+        inlineCode: (props) => {
+          const text = typeof props.children === "string" ? props.children.trim() : "";
+          const label = WHOLE_REFERENCE.test(text) ? referenceLabel(text) : null;
+          return label ? (
+            <span
+              data-slot="field-pill"
+              className="inline-flex h-5.5 items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 align-baseline text-xs font-medium text-primary"
+            >
+              {label}
+            </span>
+          ) : (
+            <DefaultCode {...props} />
+          );
+        },
+      },
+    };
+  }, [referenceLabel]);
+}
+
 function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean }) {
-  const onWorkflow = useAutomationAssistant()?.mode === "visual_workflow";
+  const assistant = useAutomationAssistant();
+  const onWorkflow = assistant?.mode === "visual_workflow";
+  const pills = useFieldReferencePills(assistant?.referenceLabel ?? null);
   const blocks = toBlocks(parts);
   const last = blocks.at(-1);
   // A call that is still running says so itself; a second spinner under it would say it twice.
@@ -90,8 +132,9 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
           <MessageResponse
             key={index}
             className="[&_ol]:ps-5 [&_ul]:ps-5 [&>p:has(+ol)]:mb-1.5 [&>p:has(+ul)]:mb-1.5"
+            components={pills.components}
           >
-            {block.text}
+            {pills.prepare(block.text)}
           </MessageResponse>
         ) : (
           <AutomationAssistantToolCall key={index} summary={block.summary} />

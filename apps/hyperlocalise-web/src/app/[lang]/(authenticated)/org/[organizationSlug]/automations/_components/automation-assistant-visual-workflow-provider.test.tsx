@@ -13,6 +13,7 @@
  */
 import type { UIMessage } from "ai";
 import { useState } from "react";
+import { IntlProvider } from "react-intl";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -145,7 +146,11 @@ describe("AutomationAssistantVisualWorkflowProvider", () => {
       yield replyFor(input.pageContext);
     });
     api.loadAssistantSession.mockResolvedValue({ session, messages: [] });
-    render(<Harness />);
+    render(
+      <IntlProvider locale="en">
+        <Harness />
+      </IntlProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/mode:visual_workflow status:idle/)).toBeTruthy();

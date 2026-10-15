@@ -64,6 +64,7 @@ function assistant(overrides: Partial<AutomationAssistantValue> = {}): Automatio
     appliedCallCount: 0,
     appliedChangeCount: 0,
     steps: [],
+    referenceLabel: null,
     ...overrides,
   };
 }
@@ -174,6 +175,28 @@ describe("what the panel says a turn did", () => {
     expect(screen.getByText("I have removed the skills.")).toBeTruthy();
     expect(screen.getByText("No changes made to the setup")).toBeTruthy();
     expect(screen.queryByText(/changes are on the page/)).toBeNull();
+  });
+
+  it("shows a field reference in a reply as a pill with the step and field", () => {
+    show(
+      assistant({
+        mode: "visual_workflow",
+        referenceLabel: (reference) =>
+          reference === "{{ nodes.agent.text }}" ? "AI Agent › text" : null,
+        messages: [
+          reply([
+            {
+              type: "text",
+              text: "It could read `{{ nodes.agent.text }}`, or {{ nodes.agent.text }}, not {{ nodes.gone.x }}.",
+            },
+          ]),
+        ],
+      }),
+    );
+
+    expect(screen.getAllByText("AI Agent › text")).toHaveLength(2);
+    expect(screen.queryByText(/nodes\.agent\.text/)).toBeNull();
+    expect(screen.getByText("{{ nodes.gone.x }}")).toBeTruthy();
   });
 
   it("does not say so while the reply is still being written", () => {

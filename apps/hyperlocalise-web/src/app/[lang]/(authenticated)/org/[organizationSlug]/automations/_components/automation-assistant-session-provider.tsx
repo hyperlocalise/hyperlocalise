@@ -102,6 +102,11 @@ export type AutomationAssistantValue = {
   appliedChangeCount: number;
   /** What the setup still needs, on a page that lists such steps. */
   steps: readonly WorkspaceAutomationSetupStep[];
+  /**
+   * What a `{{ }}` field reference in a reply reads as, such as "AI Agent › text", on a page
+   * whose fields are read that way; null for one the page does not know.
+   */
+  referenceLabel: ((reference: string) => string | null) | null;
 };
 
 export const AutomationAssistantContext = createContext<AutomationAssistantValue | null>(null);
@@ -165,6 +170,8 @@ export type AutomationAssistantTarget<
   /** True once the page knows enough to run the handed-over request. */
   ready: boolean;
   steps?: readonly WorkspaceAutomationSetupStep[];
+  /** What a `{{ }}` field reference in a reply reads as on this page. */
+  referenceLabel?: (reference: string) => string | null;
   /** Called when the session for this page starts or ends, with its id. */
   onSessionChange?: (sessionId: string | null) => void;
   onWorkingChange?: (working: boolean) => void;
@@ -526,7 +533,7 @@ export function AutomationAssistantSessionProvider<
     }
   });
 
-  const { mode, title, hasUnsavedChanges, steps } = target;
+  const { mode, title, hasUnsavedChanges, steps, referenceLabel } = target;
   const value = useMemo<AutomationAssistantValue>(
     () => ({
       organizationSlug,
@@ -546,8 +553,10 @@ export function AutomationAssistantSessionProvider<
       appliedCallCount: hasUnsavedChanges ? appliedCallCount : 0,
       appliedChangeCount: hasUnsavedChanges ? appliedChangeCount : 0,
       steps: steps ?? [],
+      referenceLabel: referenceLabel ?? null,
     }),
     [
+      referenceLabel,
       appliedCallCount,
       appliedChangeCount,
       failure,

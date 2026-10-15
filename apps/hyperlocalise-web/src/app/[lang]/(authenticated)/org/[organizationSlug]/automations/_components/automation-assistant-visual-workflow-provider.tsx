@@ -12,15 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useIntl } from "react-intl";
 
 import { visualWorkflowEditor } from "@/lib/agents/visual-workflow-assistant";
 import { buildVisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
+import { isTriggerType } from "@/lib/visual-workflows/catalog/node-catalog";
+import { splitTemplate } from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
 import type { VisualWorkflowGraph } from "@/lib/visual-workflows/editor/visual-workflow-undo";
 import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 
 import type { AutomationAssistantApi } from "./automation-assistant-api";
 import { AutomationAssistantSessionProvider } from "./automation-assistant-session-provider";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-editor/visual-workflow-node-picker";
 
 /**
  * The assistant on a visual workflow's editor: the page is the workflow as the canvas holds it,
@@ -72,6 +76,21 @@ export function AutomationAssistantVisualWorkflowProvider({
     [editorSessionId, graph, projectName, reservedNodeIds, visualWorkflowId],
   );
   const sessionKey = useMemo(() => ({ visualWorkflowId }), [visualWorkflowId]);
+  const intl = useIntl();
+  // A reference in a reply reads as the step's title and the field, as a pill in a setting does.
+  const referenceLabel = useCallback(
+    (reference: string) => {
+      const segment = splitTemplate(reference.trim()).find((entry) => entry.kind === "reference");
+      if (!segment || segment.kind !== "reference") return null;
+      const node = segment.trigger
+        ? graph.nodes.find((entry) => isTriggerType(entry.data.catalogType))
+        : graph.nodes.find((entry) => entry.id === segment.nodeId);
+      if (!node) return null;
+      const title = intl.formatMessage(visualWorkflowNodeTitleMessage(node.data.catalogType));
+      return [title, ...segment.path].join(" › ");
+    },
+    [graph.nodes, intl],
+  );
 
   return (
     <AutomationAssistantSessionProvider
@@ -88,6 +107,7 @@ export function AutomationAssistantVisualWorkflowProvider({
         title: graph.name,
         hasUnsavedChanges,
         ready: true,
+        referenceLabel,
         onWorkingChange,
       }}
     >
