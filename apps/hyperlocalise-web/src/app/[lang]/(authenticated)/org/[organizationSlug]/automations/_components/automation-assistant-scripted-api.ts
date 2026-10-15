@@ -36,6 +36,7 @@ import type { WorkspaceAutomationProposalInput } from "@/lib/agents/workspace-au
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
 import {
+  AssistantSessionGoneError,
   AssistantSessionOutOfDateError,
   AssistantTurnInProgressError,
   type AssistantMessage,
@@ -541,7 +542,7 @@ export function createScriptedAutomationAssistantApi(
     async *streamAssistantTurn({ sessionId, text, pageContext, signal }) {
       const stored = sessions.get(sessionId);
       if (!stored) {
-        throw new Error("session_not_found");
+        throw new AssistantSessionGoneError();
       }
       if (options.failure) {
         await wait(pace.thinkingMs, signal);

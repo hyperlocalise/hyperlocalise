@@ -117,6 +117,14 @@ export class AssistantSessionOutOfDateError extends Error {
   }
 }
 
+/** Thrown when the session is gone, ended with Start over in another tab. */
+export class AssistantSessionGoneError extends Error {
+  constructor() {
+    super("session_not_found");
+    this.name = "AssistantSessionGoneError";
+  }
+}
+
 /**
  * Reads a refused turn before the chat transport turns it into a generic failure. Known codes
  * become the typed errors the panel already shows; anything else keeps the parsed envelope.
@@ -132,6 +140,9 @@ async function fetchAssistantTurn(input: RequestInfo | URL, init?: RequestInit):
   }
   if (isApiResponseErrorCode(error, "session_out_of_date")) {
     throw new AssistantSessionOutOfDateError();
+  }
+  if (isApiResponseErrorCode(error, "session_not_found")) {
+    throw new AssistantSessionGoneError();
   }
   throw error;
 }

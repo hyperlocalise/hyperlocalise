@@ -39,6 +39,7 @@ import {
 import type { WorkspaceAutomationSetupStep } from "@/lib/agents/workspace-automation-setup-steps";
 
 import {
+  AssistantSessionGoneError,
   AssistantSessionOutOfDateError,
   AssistantTurnInProgressError,
   createAssistantSession,
@@ -381,38 +382,60 @@ export function AutomationAssistantSessionProvider<
     const controller = new AbortController();
     abortRef.current = controller;
 
-    void (async () => {
-      try {
-        const active = await ensureSession();
+    const stream = async (active: AssistantSession) => {
+      for await (const reply of api.streamAssistantTurn({
+        organizationSlug,
+        sessionId: active.id,
+        text,
+        pageContext: current,
+        lastTurnId: lastTurnId.current,
+        signal: controller.signal,
+      })) {
         if (controller.signal.aborted) {
           return;
         }
-        for await (const reply of api.streamAssistantTurn({
-          organizationSlug,
-          sessionId: active.id,
-          text,
-          pageContext: current,
-          lastTurnId: lastTurnId.current,
-          signal: controller.signal,
-        })) {
+        lastTurnId.current = readAutomationAssistantTurnId(reply.parts) ?? lastTurnId.current;
+        // The turn says first what the person changed on the page since the last one. It
+        // goes above their message at once, as it will be when the saved turn is loaded.
+        const record = editsShown ? null : readAutomationAssistantPageEditsRecord(reply.parts);
+        if (record && record.edits.length > 0) {
+          editsShown = true;
+          const parts = [
+            { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: record },
+          ] as UIMessage["parts"];
+          setMessages((list) =>
+            list.map((message) => (message.id === local.id ? { ...message, parts } : message)),
+          );
+        }
+        setStreaming(reply);
+        applyStreamedChanges(reply);
+      }
+    };
+
+    void (async () => {
+      try {
+        let active = await ensureSession();
+        if (controller.signal.aborted) {
+          return;
+        }
+        try {
+          await stream(active);
+        } catch (caught) {
+          if (!(caught instanceof AssistantSessionGoneError) || controller.signal.aborted) {
+            throw caught;
+          }
+          // The session was ended with Start over in another tab; this message starts a new one.
+          notifySession(null);
+          lastTurnId.current = null;
+          setMessages([local]);
+          active = await ensureSession();
           if (controller.signal.aborted) {
             return;
           }
-          lastTurnId.current = readAutomationAssistantTurnId(reply.parts) ?? lastTurnId.current;
-          // The turn says first what the person changed on the page since the last one. It
-          // goes above their message at once, as it will be when the saved turn is loaded.
-          const record = editsShown ? null : readAutomationAssistantPageEditsRecord(reply.parts);
-          if (record && record.edits.length > 0) {
-            editsShown = true;
-            const parts = [
-              { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: record },
-            ] as UIMessage["parts"];
-            setMessages((list) =>
-              list.map((message) => (message.id === local.id ? { ...message, parts } : message)),
-            );
-          }
-          setStreaming(reply);
-          applyStreamedChanges(reply);
+          await stream(active);
+        }
+        if (controller.signal.aborted) {
+          return;
         }
         const saved = await api.loadAssistantSession(organizationSlug, active.id);
         if (!controller.signal.aborted && saved) {
