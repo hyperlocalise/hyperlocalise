@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
@@ -935,10 +935,12 @@ export function VisualWorkflowConfigPanel({
         ) : null}
         {config.kind === "logic.create_object" ? (
           <div className="grid gap-3">
-            <Label>Create object fields</Label>
+            <Label>
+              <FormattedMessage {...messages.createObjectFields} />
+            </Label>
             {config.fields.length === 0 ? (
               <TypographyP className="text-sm text-muted-foreground">
-                Add a named field to construct an object.
+                <FormattedMessage {...messages.createObjectFieldsEmpty} />
               </TypographyP>
             ) : null}
             {config.fields.map((field, index) => {
@@ -949,7 +951,9 @@ export function VisualWorkflowConfigPanel({
                 <div key={field.id} className="grid gap-2 rounded-md border border-border p-2">
                   <div className="grid grid-cols-[1fr_7rem] gap-2">
                     <Input
-                      aria-label={`Object field ${index + 1} name`}
+                      aria-label={intl.formatMessage(messages.createObjectFieldName, {
+                        index: index + 1,
+                      })}
                       value={field.name}
                       aria-invalid={invalidFields.has(portId) || undefined}
                       onChange={(event) =>
@@ -981,7 +985,11 @@ export function VisualWorkflowConfigPanel({
                         });
                       }}
                     >
-                      <SelectTrigger aria-label={`Object field ${index + 1} type`}>
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.createObjectFieldType, {
+                          index: index + 1,
+                        })}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1011,24 +1019,25 @@ export function VisualWorkflowConfigPanel({
                         })
                       }
                     />
-                    <Label htmlFor={`vw-object-default-${field.id}`}>Use inline default</Label>
+                    <Label htmlFor={`vw-object-default-${field.id}`}>
+                      <FormattedMessage {...messages.createObjectUseDefault} />
+                    </Label>
                   </div>
                   {hasDefault ? (
-                    <Input
-                      aria-label={`Object field ${index + 1} default`}
-                      value={formatObjectDefault(field.defaultValue, field.type)}
+                    <ObjectDefaultInput
+                      key={`${field.id}:${field.type}`}
+                      ariaLabel={intl.formatMessage(messages.createObjectFieldDefault, {
+                        index: index + 1,
+                      })}
+                      value={field.defaultValue}
+                      type={field.type}
                       disabled={connected.disabled}
-                      aria-invalid={invalidFields.has(portId) || undefined}
-                      onChange={(event) =>
+                      invalid={invalidFields.has(portId)}
+                      onChange={(defaultValue) =>
                         onChangeConfig({
                           ...config,
                           fields: config.fields.map((entry, fieldIndex) =>
-                            fieldIndex === index
-                              ? {
-                                  ...entry,
-                                  defaultValue: parseObjectDefault(event.target.value, entry.type),
-                                }
-                              : entry,
+                            fieldIndex === index ? { ...entry, defaultValue } : entry,
                           ),
                         })
                       }
@@ -1043,7 +1052,9 @@ export function VisualWorkflowConfigPanel({
                       variant="ghost"
                       size="icon-sm"
                       disabled={index === 0}
-                      aria-label={`Move object field ${index + 1} up`}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldUp, {
+                        index: index + 1,
+                      })}
                       onClick={() => {
                         const fields = [...config.fields];
                         [fields[index - 1], fields[index]] = [fields[index]!, fields[index - 1]!];
@@ -1057,7 +1068,9 @@ export function VisualWorkflowConfigPanel({
                       variant="ghost"
                       size="icon-sm"
                       disabled={index === config.fields.length - 1}
-                      aria-label={`Move object field ${index + 1} down`}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldDown, {
+                        index: index + 1,
+                      })}
                       onClick={() => {
                         const fields = [...config.fields];
                         [fields[index], fields[index + 1]] = [fields[index + 1]!, fields[index]!];
@@ -1070,7 +1083,9 @@ export function VisualWorkflowConfigPanel({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={`Remove object field ${index + 1}`}
+                      aria-label={intl.formatMessage(messages.removeCreateObjectField, {
+                        index: index + 1,
+                      })}
                       onClick={() =>
                         onChangeConfig({
                           ...config,
@@ -1103,7 +1118,8 @@ export function VisualWorkflowConfigPanel({
                 })
               }
             >
-              <PlusIcon className="size-4" /> Add object field
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addCreateObjectField} />
             </Button>
           </div>
         ) : null}
@@ -1111,12 +1127,21 @@ export function VisualWorkflowConfigPanel({
           <div className="grid gap-3">
             <SelectField
               id="vw-object-conflict-policy"
-              label="Conflict policy"
+              label={intl.formatMessage(messages.mergeObjectsConflictPolicy)}
               value={config.conflictPolicy}
               items={[
-                { value: "reject", label: "Reject conflicts" },
-                { value: "first_wins", label: "First object wins" },
-                { value: "last_wins", label: "Last object wins" },
+                {
+                  value: "reject",
+                  label: intl.formatMessage(messages.mergeObjectsConflictReject),
+                },
+                {
+                  value: "first_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictFirstWins),
+                },
+                {
+                  value: "last_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictLastWins),
+                },
               ]}
               onValueChange={(conflictPolicy) => {
                 if (
@@ -1127,11 +1152,15 @@ export function VisualWorkflowConfigPanel({
                   onChangeConfig({ ...config, conflictPolicy });
               }}
             />
-            <Label>Objects to merge</Label>
+            <Label>
+              <FormattedMessage {...messages.mergeObjectsInputs} />
+            </Label>
             {config.inputs.map((objectInput, index) => (
               <div key={objectInput.id} className="flex items-center gap-2">
                 <Input
-                  aria-label={`Merge object ${index + 1} name`}
+                  aria-label={intl.formatMessage(messages.mergeObjectsInputName, {
+                    index: index + 1,
+                  })}
                   value={objectInput.name}
                   aria-invalid={invalidFields.has(`value.${objectInput.id}`) || undefined}
                   onChange={(event) =>
@@ -1148,7 +1177,9 @@ export function VisualWorkflowConfigPanel({
                   variant="ghost"
                   size="icon-sm"
                   disabled={index === 0}
-                  aria-label={`Move merge object ${index + 1} up`}
+                  aria-label={intl.formatMessage(messages.moveMergeObjectsInputUp, {
+                    index: index + 1,
+                  })}
                   onClick={() => {
                     const inputs = [...config.inputs];
                     [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
@@ -1162,7 +1193,9 @@ export function VisualWorkflowConfigPanel({
                   variant="ghost"
                   size="icon-sm"
                   disabled={index === config.inputs.length - 1}
-                  aria-label={`Move merge object ${index + 1} down`}
+                  aria-label={intl.formatMessage(messages.moveMergeObjectsInputDown, {
+                    index: index + 1,
+                  })}
                   onClick={() => {
                     const inputs = [...config.inputs];
                     [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
@@ -1176,7 +1209,9 @@ export function VisualWorkflowConfigPanel({
                   variant="ghost"
                   size="icon-sm"
                   disabled={config.inputs.length <= 2}
-                  aria-label={`Remove merge object ${index + 1}`}
+                  aria-label={intl.formatMessage(messages.removeMergeObjectsInput, {
+                    index: index + 1,
+                  })}
                   onClick={() =>
                     onChangeConfig({
                       ...config,
@@ -1206,7 +1241,8 @@ export function VisualWorkflowConfigPanel({
                 })
               }
             >
-              <PlusIcon className="size-4" /> Add object input
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addMergeObjectsInput} />
             </Button>
           </div>
         ) : null}
@@ -2171,11 +2207,74 @@ function parseObjectDefault(value: string, type: WorkflowValueType): unknown {
   if (type === "string") return value;
   if (type === "number") return Number(value);
   if (type === "boolean") return value === "true";
+  return JSON.parse(value);
+}
+
+function usesJsonObjectDefault(type: WorkflowValueType): boolean {
+  return type === "object" || type === "array";
+}
+
+function tryParseJson(value: string): { ok: true; value: unknown } | { ok: false } {
   try {
-    return JSON.parse(value);
+    return { ok: true, value: JSON.parse(value) };
   } catch {
-    return value;
+    return { ok: false };
   }
+}
+
+function ObjectDefaultInput({
+  ariaLabel,
+  value,
+  type,
+  disabled,
+  invalid,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: unknown;
+  type: WorkflowValueType;
+  disabled?: boolean;
+  invalid?: boolean;
+  onChange: (value: unknown) => void;
+}) {
+  const formatted = formatObjectDefault(value, type);
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft ?? formatted;
+  const jsonDraftInvalid = usesJsonObjectDefault(type) && draft !== null && !tryParseJson(draft).ok;
+
+  return (
+    <Input
+      aria-label={ariaLabel}
+      value={display}
+      disabled={disabled}
+      aria-invalid={invalid || jsonDraftInvalid || undefined}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (!usesJsonObjectDefault(type)) {
+          setDraft(null);
+          onChange(parseObjectDefault(next, type));
+          return;
+        }
+
+        setDraft(next);
+        const parsed = tryParseJson(next);
+        if (parsed.ok) {
+          onChange(parsed.value);
+        }
+      }}
+      onBlur={() => {
+        if (!usesJsonObjectDefault(type)) {
+          return;
+        }
+
+        const parsed = tryParseJson(draft ?? formatted);
+        if (parsed.ok) {
+          onChange(parsed.value);
+          setDraft(null);
+        }
+      }}
+    />
+  );
 }
 
 function isHttpAuthType(value: string): value is HttpAuthType {

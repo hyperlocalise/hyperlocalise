@@ -187,6 +187,33 @@ function pruneSequenceOutputEdges(
   );
 }
 
+function collectRemovedObjectPortIds(
+  currentPorts: readonly { id: string }[],
+  nextPorts: readonly { id: string }[],
+): Set<string> {
+  const nextIds = new Set(nextPorts.map((port) => port.id));
+
+  return new Set(currentPorts.map((port) => port.id).filter((portId) => !nextIds.has(portId)));
+}
+
+function pruneObjectValuePortEdges(
+  edges: readonly VisualWorkflowRfEdge[],
+  nodeId: string,
+  removedPortIds: ReadonlySet<string>,
+): VisualWorkflowRfEdge[] {
+  if (removedPortIds.size === 0) {
+    return [...edges];
+  }
+
+  return edges.filter((edge) => {
+    if (edge.target !== nodeId || !edge.targetHandle?.startsWith("value.")) {
+      return true;
+    }
+
+    return !removedPortIds.has(edge.targetHandle.slice("value.".length));
+  });
+}
+
 export function reconcileForEachBodyMembership(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
@@ -268,6 +295,32 @@ export function applyNodeConfigUpdate(
     return {
       nodes: nextNodes,
       edges: pruneSequenceOutputEdges(edges, nodeId, removedOutputIds),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.create_object" &&
+    nextConfig.kind === "logic.create_object"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.fields, nextConfig.fields),
+      ),
+    };
+  }
+  if (
+    current?.data.config.kind === "logic.merge_objects" &&
+    nextConfig.kind === "logic.merge_objects"
+  ) {
+    return {
+      nodes: nextNodes,
+      edges: pruneObjectValuePortEdges(
+        edges,
+        nodeId,
+        collectRemovedObjectPortIds(current.data.config.inputs, nextConfig.inputs),
+      ),
     };
   }
   return { nodes: nextNodes, edges: [...edges] };

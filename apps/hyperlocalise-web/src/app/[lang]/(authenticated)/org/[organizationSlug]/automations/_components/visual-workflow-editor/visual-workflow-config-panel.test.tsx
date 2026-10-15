@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -23,7 +23,11 @@ import {
   createDefaultConfig,
   getVisualNodeDimensions,
 } from "@/lib/visual-workflows/catalog/node-catalog";
-import type { VisualWorkflowRfNode } from "@/lib/visual-workflows/schema/types";
+import type {
+  VisualNodeConfig,
+  VisualObjectField,
+  VisualWorkflowRfNode,
+} from "@/lib/visual-workflows/schema/types";
 
 import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
 
@@ -850,5 +854,68 @@ describe("VisualWorkflowConfigPanel", () => {
       }),
     );
     expect(screen.getByRole("button", { name: "Remove merge object 1" })).toBeDisabled();
+  });
+
+  it("keeps incomplete JSON object defaults while typing", () => {
+    const onChangeConfig = vi.fn();
+
+    function StatefulCreateObjectPanel() {
+      const [config, setConfig] = useState<
+        Extract<VisualNodeConfig, { kind: "logic.create_object" }>
+      >({
+        kind: "logic.create_object",
+        fields: [{ id: "metadata", name: "metadata", type: "object", defaultValue: {} }],
+      });
+      const node: VisualWorkflowRfNode = {
+        id: "create-object",
+        type: "logic.create_object",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("logic.create_object"),
+        data: {
+          catalogType: "logic.create_object",
+          config,
+          runStatus: "idle",
+        },
+      };
+
+      return (
+        <VisualWorkflowConfigPanel
+          node={node}
+          issues={[]}
+          onBack={vi.fn()}
+          onChangeConfig={(next) => {
+            onChangeConfig(next);
+            if (next.kind === "logic.create_object") {
+              setConfig(next);
+            }
+          }}
+          onChangeNodeType={vi.fn()}
+          onDeleteNode={vi.fn()}
+        />
+      );
+    }
+
+    renderPanel(<StatefulCreateObjectPanel />);
+
+    const defaultInput = screen.getByRole("textbox", { name: "Object field 1 default" });
+    expect(defaultInput).toHaveValue("{}");
+
+    fireEvent.change(defaultInput, { target: { value: "{" } });
+    expect(defaultInput).toHaveValue("{");
+    expect(
+      onChangeConfig.mock.calls.some(
+        ([next]) =>
+          next.kind === "logic.create_object" &&
+          (next.fields[0] as VisualObjectField | undefined)?.defaultValue === "{",
+      ),
+    ).toBe(false);
+
+    fireEvent.change(defaultInput, { target: { value: '{"locale":"en"}' } });
+    expect(defaultInput).toHaveValue('{"locale":"en"}');
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [expect.objectContaining({ defaultValue: { locale: "en" } })],
+      }),
+    );
   });
 });
