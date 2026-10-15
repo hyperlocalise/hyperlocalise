@@ -214,6 +214,38 @@ describe("figmaOauthRoutes", () => {
     expect(response.headers.get("set-cookie")).toContain(FIGMA_OAUTH_REQUEST_COOKIE);
   });
 
+  it("rejects authorization codes when the PKCE verifier does not match", async () => {
+    const { created } = await createConnectedWorkspace();
+
+    const consentResponse = await app.request("http://localhost/api/oauth/figma/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${FIGMA_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ connectionId: created.connection.id }).toString(),
+    });
+    const code = new URL(consentResponse.headers.get("location") ?? "").searchParams.get("code");
+    expect(code).toBeTruthy();
+
+    const response = await app.request("http://localhost/api/oauth/figma/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code ?? "",
+        redirect_uri: REDIRECT_URI,
+        code_verifier: `${VERIFIER.slice(0, -1)}x`,
+      }).toString(),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_grant" });
+  });
+
   it("issues, refreshes, and revokes Figma OAuth tokens", async () => {
     const { created } = await createConnectedWorkspace();
 

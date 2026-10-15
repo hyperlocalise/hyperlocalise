@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildApplySourceByKey,
   buildFigmaApplyTextIndex,
+  isMultiWordSameAsSource,
   normalizeSegmentText,
   resolveFigmaApplyTarget,
 } from "./apply-translations";
@@ -142,5 +143,45 @@ describe("buildFigmaApplyTextIndex", () => {
         sourceByKey,
       }),
     ).toBe("Social Media Campaigns.");
+  });
+});
+
+describe("isMultiWordSameAsSource", () => {
+  it("treats multi-word copies as source fallback, not translations", () => {
+    expect(isMultiWordSameAsSource("Print Marketing.", "Print Marketing.")).toBe(true);
+    expect(isMultiWordSameAsSource("Nike", "Nike")).toBe(false);
+    expect(isMultiWordSameAsSource("Print Marketing.", "In ấn tiếp thị.")).toBe(false);
+  });
+
+  it("resets a stamped node to stored source when the job only copied multi-word English", () => {
+    const key = "figma.k.01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const sourceByKey = { [key]: "Print Marketing." };
+    const translations = { [key]: "Print Marketing." };
+    const index = buildFigmaApplyTextIndex({ sourceByKey, translations });
+    expect(
+      resolveFigmaApplyTarget({
+        nodeText: "印刷マーケティング。",
+        stampedKey: key,
+        translations,
+        textIndex: index,
+        sourceByKey,
+      }),
+    ).toBe("Print Marketing.");
+  });
+
+  it("still applies a single-word brand that matches source", () => {
+    const key = "figma.k.brand";
+    const sourceByKey = { [key]: "Nike" };
+    const translations = { [key]: "Nike" };
+    const index = buildFigmaApplyTextIndex({ sourceByKey, translations });
+    expect(
+      resolveFigmaApplyTarget({
+        nodeText: "ナイキ",
+        stampedKey: key,
+        translations,
+        textIndex: index,
+        sourceByKey,
+      }),
+    ).toBe("Nike");
   });
 });

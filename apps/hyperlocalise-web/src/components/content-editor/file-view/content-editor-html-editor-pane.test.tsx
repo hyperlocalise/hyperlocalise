@@ -71,6 +71,31 @@ describe("ContentEditorHtmlEditorPane", () => {
     expect(target).toHaveAttribute("sandbox", "");
   });
 
+  it("keeps the target preview read-only when canEdit is false even with onSave", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-readonly:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          canEdit={false}
+          onSave={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    expect(screen.queryByRole("button", { name: "View code" })).toBeNull();
+  });
+
   it("keeps the target preview read-only without onSave", async () => {
     vi.stubGlobal(
       "fetch",
@@ -325,5 +350,42 @@ describe("ContentEditorHtmlEditorPane", () => {
       );
     });
     expect(screen.getByLabelText("Translated (fr)")).toHaveValue("<p>Saved and more</p>");
+  });
+
+  it("keeps unsaved edits when save fails", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+    const onSave = vi.fn().mockRejectedValue(new Error("upload failed"));
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-save-fail:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={onSave}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const editor = screen.getByLabelText("Translated (fr)");
+    await user.clear(editor);
+    await user.paste("<p>Draft</p>");
+    editor.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "s", metaKey: true, ctrlKey: true, bubbles: true }),
+    );
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalled();
+    });
+    expect(screen.getByLabelText("Translated (fr)")).toHaveValue("<p>Draft</p>");
   });
 });
