@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { BroadcastIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -42,12 +43,19 @@ export function VisualWorkflowExecutionsPanel({
   visualWorkflowsApi,
   selectedRunId,
   onSelectRun,
+  onUseRunAsTestData,
 }: {
   organizationSlug: string;
   visualWorkflowId: string;
   visualWorkflowsApi: VisualWorkflowsApi;
   selectedRunId: string | null;
   onSelectRun: (runId: string | null) => void;
+  /** Copies a run's recorded values into the steps' test data. */
+  onUseRunAsTestData?: (
+    nodeRuns: NonNullable<
+      Awaited<ReturnType<VisualWorkflowsApi["getVisualWorkflowRun"]>>["nodeRuns"]
+    >,
+  ) => void;
 }) {
   const intl = useIntl();
   const runsQuery = useQuery({
@@ -152,7 +160,27 @@ export function VisualWorkflowExecutionsPanel({
               <span className="text-sm text-muted-foreground">
                 {selectedRunQuery.data.triggerSource} · {selectedRunQuery.data.mode ?? "live"} · v
                 {selectedRunQuery.data.definitionVersion}
+                {selectedRunQuery.data.realNodeIds?.length ? (
+                  <>
+                    {" · "}
+                    <FormattedMessage
+                      {...messages.executionRealStepCount}
+                      values={{ count: selectedRunQuery.data.realNodeIds.length }}
+                    />
+                  </>
+                ) : null}
               </span>
+              {onUseRunAsTestData && (selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ms-auto"
+                  onClick={() => onUseRunAsTestData(selectedRunQuery.data.nodeRuns ?? [])}
+                >
+                  <FormattedMessage {...messages.useRunAsTestData} />
+                </Button>
+              ) : null}
             </div>
             {(selectedRunQuery.data.nodeRuns ?? []).length > 0 ? (
               <div className="overflow-hidden rounded-lg border border-border">
@@ -170,7 +198,20 @@ export function VisualWorkflowExecutionsPanel({
                   <tbody>
                     {(selectedRunQuery.data.nodeRuns ?? []).map((nodeRun) => (
                       <tr key={nodeRun.id} className="border-t border-border">
-                        <td className="px-3 py-2 font-mono text-xs">{nodeRun.nodeId}</td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {nodeRun.nodeId}
+                          {selectedRunQuery.data.realNodeIds?.includes(nodeRun.nodeId) ? (
+                            <span
+                              className="ms-1.5 inline-flex text-warning"
+                              title={intl.formatMessage(messages.executionRanForReal)}
+                            >
+                              <BroadcastIcon weight="bold" className="size-3" />
+                              <span className="sr-only">
+                                {intl.formatMessage(messages.executionRanForReal)}
+                              </span>
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="px-3 py-2">
                           <Badge
                             variant={runStatusVariant(nodeRun.status)}

@@ -32,7 +32,7 @@ require (
 	github.com/tidwall/jsonc v0.3.3
 	github.com/turbopuffer/turbopuffer-go/v2 v2.9.0
 	github.com/workos/workos-go/v10 v10.5.0
-	github.com/xuri/excelize/v2 v2.11.1-0.20260812075026-be7a16390fa6
+	github.com/xuri/excelize/v2 v2.11.1-0.20261011032807-402e3bdd9eae
 	github.com/yuin/goldmark/v2 v2.1.6
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.47.0

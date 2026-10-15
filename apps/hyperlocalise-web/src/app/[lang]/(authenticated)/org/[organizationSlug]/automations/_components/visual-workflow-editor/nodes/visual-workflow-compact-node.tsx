@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
+import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -194,9 +195,11 @@ const STEP_BAND_TONE_CLASS = {
   // A step that appeared or was changed and has not been selected since; the selection's band
   // takes its place once it is.
   fresh: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-violet-600,#7c3aed)_50%,transparent)]",
+  // The step a value under the pointer in the settings panel comes from.
+  pointed: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_25%,transparent)]",
 };
 
-const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
+export const DATA_TYPE_CLASS: Record<VisualWorkflowDataPort["type"], string> = {
   string: "text-blue-500",
   number: "text-amber-500",
   boolean: "text-violet-500",
@@ -263,12 +266,25 @@ const DATA_PORT_EDGE_CLASS = { input: "-left-3!", output: "-right-3!" };
 const EXECUTION_LABEL_CLASS =
   "pointer-events-none absolute flex -translate-y-1/2 items-center gap-1 text-[10px] font-medium text-muted-foreground";
 
+const PORT_VALUE_PREVIEW_LENGTH = 80;
+
+/** A value as the pin's tooltip shows it: JSON, cut short. */
+function previewPortValue(value: unknown): string {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > PORT_VALUE_PREVIEW_LENGTH
+    ? `${text.slice(0, PORT_VALUE_PREVIEW_LENGTH - 1)}…`
+    : text;
+}
+
 function DataPortLabel({
   port,
   direction,
+  value,
 }: {
   port: VisualWorkflowDataPort;
   direction: "input" | "output";
+  /** What passed through the pin in the last run, if it ran. */
+  value?: unknown;
 }) {
   const connected = port.connectionCount > 0;
 
@@ -278,7 +294,9 @@ function DataPortLabel({
         "relative flex min-h-6 items-center gap-1.5 text-[10px]",
         direction === "output" ? "justify-end text-right" : null,
       )}
-      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}`}
+      title={`${port.label}: ${port.type}${port.optional ? " (optional)" : ""}${
+        value === undefined ? "" : ` = ${previewPortValue(value)}`
+      }`}
     >
       {direction === "input" ? (
         <DataHandle
@@ -313,9 +331,12 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode, issueNodeIds, freshNodeIds } = useVisualWorkflowCanvasActions();
+  const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
+    useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
+  const runsForReal = realNodeIds.has(id);
   const isFresh = !selected && freshNodeIds.has(id);
+  const isPointed = !selected && pointedNodeId === id;
   const catalog = catalogItemByType(data.catalogType);
   const isTrigger = isTriggerType(data.catalogType);
   const isTerminal = ["flow.stop", "flow.return", "flow.fail"].includes(data.catalogType);
@@ -508,9 +529,9 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
         data.runStatus === "failed" ? "border-destructive/40 bg-destructive/5" : null,
       )}
     >
-      {/* A selected or fresh step shows that band alone; its issue mark still says it has a
-          problem. The band comes before the handles, which are drawn over it. */}
-      {selected || isFresh || hasIssue ? (
+      {/* A selected, pointed or fresh step shows that band alone; its issue mark still says it
+          has a problem. The band comes before the handles, which are drawn over it. */}
+      {selected || isPointed || isFresh || hasIssue ? (
         <span
           aria-hidden
           data-slot="step-band"
@@ -518,9 +539,11 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
             STEP_BAND_CLASS,
             selected
               ? STEP_BAND_TONE_CLASS.selected
-              : isFresh
-                ? STEP_BAND_TONE_CLASS.fresh
-                : STEP_BAND_TONE_CLASS.issue,
+              : isPointed
+                ? STEP_BAND_TONE_CLASS.pointed
+                : isFresh
+                  ? STEP_BAND_TONE_CLASS.fresh
+                  : STEP_BAND_TONE_CLASS.issue,
           )}
         />
       ) : null}
@@ -530,6 +553,15 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           title={intl.formatMessage(messages.stepHasIssue)}
         >
           <WarningCircleIcon className="size-3.5" />
+        </span>
+      ) : null}
+      {runsForReal ? (
+        <span
+          className="absolute top-2 left-2 text-warning"
+          title={intl.formatMessage(messages.stepRunsForReal)}
+        >
+          <BroadcastIcon weight="bold" className="size-3.5" />
+          <span className="sr-only">{intl.formatMessage(messages.stepRunsForReal)}</span>
         </span>
       ) : null}
       {isTrigger ? (
@@ -639,7 +671,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
             <div className="space-y-0.5">
               {dataPorts.inputs.map((port) => (
-                <DataPortLabel key={`data-input-${port.id}`} port={port} direction="input" />
+                <DataPortLabel
+                  key={`data-input-${port.id}`}
+                  port={port}
+                  direction="input"
+                  value={readWorkflowPath(data.lastInput?.config, port.id.split("."))}
+                />
               ))}
             </div>
           </div>
@@ -655,7 +692,12 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
 
             <div className="space-y-0.5">
               {dataPorts.outputs.map((port) => (
-                <DataPortLabel key={`data-output-${port.id}`} port={port} direction="output" />
+                <DataPortLabel
+                  key={`data-output-${port.id}`}
+                  port={port}
+                  direction="output"
+                  value={readWorkflowPath(data.lastOutput, port.id.split("."))}
+                />
               ))}
             </div>
           </div>

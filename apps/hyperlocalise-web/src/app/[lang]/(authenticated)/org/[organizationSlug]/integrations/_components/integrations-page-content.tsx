@@ -65,6 +65,7 @@ import {
   SourceControlIntegrationsSection,
 } from "./agent-integrations-section";
 import { CanvaConnectionPanel } from "./canva-connection-panel";
+import { FigmaConnectionPanel } from "./figma-connection-panel";
 import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
@@ -1063,6 +1064,7 @@ export function IntegrationsPageContent({
                 />
               </CollapsibleIntegrationRow>
               <CanvaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
+              <FigmaConnectionPanel organizationSlug={organizationSlug} disabled={!userIsAdmin} />
               {workspacePipesCmsSlugs.map((slug, index) => (
                 <PipesConnectionPanel
                   key={slug}

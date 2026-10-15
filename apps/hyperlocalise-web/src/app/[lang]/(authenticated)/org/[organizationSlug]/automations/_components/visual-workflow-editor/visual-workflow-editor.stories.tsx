@@ -500,12 +500,139 @@ export const PortCompatibility: Story = {
     await expect(requestNode).not.toBeNull();
     await userEvent.click(requestNode!);
 
-    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
+    // A wired setting names the output that feeds it, in place of a box to type in.
+    const urlLabel = await canvas.findByText("URL", { selector: "label" });
+    const urlField = urlLabel.closest<HTMLElement>('[data-slot="bound-field"]');
+    await expect(urlField).not.toBeNull();
+    await expect(within(urlField!).queryByRole("textbox")).not.toBeInTheDocument();
+    await expect(urlField!.querySelector('[data-slot="bound-source"]')).toHaveTextContent(
+      "triggeredAt",
+    );
+    await expect(within(urlField!).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  },
+};
+
+export const StepSettingsTabs: Story = {
+  name: "Step settings tabs",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step's settings open on its own form, where a setting that an earlier step can feed shows its port. Its outputs are on a tab of their own, in the header row beside Back and Delete step. The chosen tab stays when another step is selected, and picking an issue shows the tab the issue is marked on.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const stepTitled = async (title: string) => {
+      const titles = await canvas.findAllByText(title, {}, { timeout: 10_000 });
+      return titles
+        .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+        .find((candidate) => candidate !== null)!;
+    };
+    const expectSelectedTab = (name: string) =>
+      waitFor(() =>
+        expect(canvas.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true"),
+      );
+
+    await userEvent.click(await stepTitled("Notify Slack"));
+    await expectSelectedTab("Configuration");
+    await expect(canvas.getByLabelText("Slack channel ID")).toBeVisible();
+    await expect(canvas.queryByRole("tab", { name: "Inputs" })).not.toBeInTheDocument();
+
+    // The tabs share the header's one row with the two icon buttons, and none is cut short.
+    const tabs = canvas.getByRole("tablist", { name: "Step settings" });
+    const middle = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return box.top + box.height / 2;
+    };
+    for (const name of ["Back", "Delete step"]) {
+      await expect(
+        Math.abs(middle(canvas.getByRole("button", { name })) - middle(tabs)),
+      ).toBeLessThan(1);
+    }
+    for (const label of tabs.querySelectorAll("[role=tab] > span")) {
+      await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+    }
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Outputs" }));
     await expect(
-      canvas.getAllByText(
-        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-      ).length,
-    ).toBeGreaterThan(0);
+      await canvas.findByText("Output fields (path, type, optional)"),
+    ).toBeInTheDocument();
+
+    // Another step, picked on the canvas: the tab stays.
+    await userEvent.click(await stepTitled("Manual trigger"));
+    await expectSelectedTab("Outputs");
+
+    // The issue is about a setting of the Slack step's own form.
+    await userEvent.click(canvas.getByText("channelId is required."));
+    await expectSelectedTab("Configuration");
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  },
+};
+
+export const StepTestChoices: Story = {
+  name: "A step's test run choices",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step that calls out can use its test data or run for real in test runs, and while it uses test data it can be set to fail. A step that runs for real is marked on the canvas, and the test settings count such steps and set them all at once.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    organizationSlug: "acme",
+    visualWorkflowId: "workflow-1",
+    visualWorkflowsApi: {
+      createVisualWorkflowRun: fn(),
+      getVisualWorkflowRun: fn(),
+    } as never,
+  },
+  play: async ({ canvas }) => {
+    const titles = await canvas.findAllByText("Notify Slack", {}, { timeout: 10_000 });
+    const slackNode = titles
+      .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null)!;
+    await userEvent.click(slackNode);
+    await userEvent.click(await canvas.findByRole("tab", { name: "Test" }));
+
+    // A failure goes through the step's On error setting.
+    await userEvent.click(canvas.getByRole("combobox", { name: "Outcome" }));
+    await userEvent.click(await within(document.body).findByRole("option", { name: "Fails" }));
+    await expect(
+      await canvas.findByText("On error is set to Stop, so the test run stops at this step."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error message")).toBeVisible();
+
+    // Running for real replaces the test data, and the card says so.
+    await userEvent.click(canvas.getByRole("combobox", { name: "In a test run" }));
+    await userEvent.click(
+      await within(document.body).findByRole("option", { name: "Run for real" }),
+    );
+    await expect(canvas.queryByRole("combobox", { name: "Outcome" })).not.toBeInTheDocument();
+    await expect(within(slackNode).getByText("Runs for real in test runs")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Test settings" }));
+    const popover = within(document.body);
+    await expect(await popover.findByText("1 step runs for real.")).toBeInTheDocument();
+    await userEvent.click(popover.getByRole("button", { name: "Use test data everywhere" }));
+    await expect(await popover.findByText("Every step uses its test data.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(slackNode).queryByText("Runs for real in test runs")).not.toBeInTheDocument(),
+    );
   },
 };
 
@@ -533,7 +660,7 @@ export const LeaveStepSettings: Story = {
     await expect(requestNode).not.toBeNull();
     const openSettings = async () => {
       await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
-      await expect(await canvas.findByText("Find upstream fields")).toBeInTheDocument();
+      await expect(await canvas.findByRole("tab", { name: "Configuration" })).toBeInTheDocument();
       await expect(requestNode).toHaveClass("selected");
     };
     const expectPicker = async () => {

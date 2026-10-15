@@ -21,6 +21,7 @@ import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
 import { encryptWorkflowPayload, decryptWorkflowPayload } from "./workflow-credentials";
+import { canRunForReal } from "./editor/visual-workflow-test-data";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./runtime/snapshots";
 import { parseVisualWorkflowV3Definition } from "./schema/definition-migration";
 import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
@@ -537,6 +538,7 @@ function serializeRun(
     organizationId: row.organizationId,
     triggerSource: row.triggerSource,
     mode: row.mode as "live" | "mock",
+    ...(row.realNodeIds?.length ? { realNodeIds: row.realNodeIds } : {}),
     status: row.status,
     idempotencyKey: row.idempotencyKey,
     definitionVersion: row.definitionVersion,
@@ -751,6 +753,10 @@ export async function createVisualWorkflowRun(input: {
   testDefinition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   mode?: "mock" | "live";
   mockOutputs?: Record<string, Record<string, unknown>>;
+  /** In a mock run, the steps that run for real instead of using their test data. */
+  realNodeIds?: readonly string[];
+  /** In a mock run, mocked steps that fail with this error instead of returning test data. */
+  mockFailures?: Record<string, { code?: string; message?: string }>;
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowRunRecord> {
   if (!input.dbClient)
@@ -810,6 +816,13 @@ export async function createVisualWorkflowRun(input: {
   }
   const definition = parseVisualWorkflowV3Definition(definitionInput);
   const payload = buildRunInputSnapshot({ triggerInput: input.inputSnapshot, definition });
+  const mock = (input.mode ?? "live") === "mock";
+  // Only steps that can be mocked can be picked to run for real, and only in a mock run.
+  const realNodeIds = mock
+    ? definition.nodes
+        .filter((node) => input.realNodeIds?.includes(node.id) && canRunForReal(node.type))
+        .map((node) => node.id)
+    : [];
   const runId = randomUUID();
   const [row] = await dbClient
     .insert(schema.visualWorkflowRuns)
@@ -827,9 +840,11 @@ export async function createVisualWorkflowRun(input: {
         input.immutableDefinitionVersion ??
         (input.testDefinition ? workflow.definitionVersion : workflow.publishedVersion!),
       mode: input.mode ?? "live",
+      realNodeIds: mock ? realNodeIds : null,
       encryptedPayload: encryptWorkflowPayload({
         ...payload,
         mockOutputs: input.mockOutputs ?? {},
+        ...(mock ? { realNodeIds, mockFailures: input.mockFailures ?? {} } : {}),
       }),
       inputSnapshot: redactWorkflowSnapshot(payload, collectWorkflowSecrets(payload)) as Record<
         string,

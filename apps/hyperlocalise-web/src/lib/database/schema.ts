@@ -29,6 +29,7 @@ export * from "./schema/ahrefs";
 export * from "./schema/braze";
 export * from "./schema/intercom";
 export * from "./schema/canva";
+export * from "./schema/figma";
 export * from "./schema/crowdin-app";
 export * from "./schema/jobs";
 export * from "./schema/agents";

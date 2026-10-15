@@ -1,0 +1,61 @@
+---
+title: "Figma plugin OAuth"
+description: "Configure Hyperlocalise as the OAuth authorization server for the Figma plugin."
+---
+
+Hyperlocalise acts as the OAuth 2.0 authorization server. The Figma plugin uses PKCE as the client. Figma's developer settings supply the **client ID** you copy into `hyperlocalise-web` env vars. There is no client secret (public client).
+
+Implementation lives in `apps/hyperlocalise-web` (`/api/oauth/figma/*`) and the plugin UI in `apps/figma-plugin`. End-user workflow is in [Localize Figma](/platform/connections/figma).
+
+## Flow
+
+1. Designer connects from the Figma plugin (OAuth in production).
+2. The plugin opens `{ORIGIN}/api/oauth/figma/authorize` (PKCE, scope `figma`).
+3. Hyperlocalise signs the user in with WorkOS if needed, then shows consent at `/en/connect/figma/oauth` to pick a workspace **Figma connection**.
+4. The plugin exchanges the authorization code at `{ORIGIN}/api/oauth/figma/token` and stores `hl_figma_at_*` tokens.
+5. The plugin calls `/api/integrations/figma/*` with header `X-Hyperlocalise-Access-Token`.
+
+Create the Figma connection under workspace **Integrations** before consent can list any option.
+
+## Figma / plugin redirect URIs
+
+Replace `{ORIGIN}` with the public Hyperlocalise web origin (same as `HYPERLOCALISE_PUBLIC_APP_URL`, no trailing slash).
+
+| Setting | URL |
+| --- | --- |
+| Authorization server / authorize | `{ORIGIN}/api/oauth/figma/authorize` |
+| Token exchange | `{ORIGIN}/api/oauth/figma/token` |
+
+Production example (adjust host to your deployment):
+
+- `https://www.hyperlocalise.com/api/oauth/figma/authorize`
+- `https://www.hyperlocalise.com/api/oauth/figma/token`
+
+Optional endpoints:
+
+- Discovery: `{ORIGIN}/api/oauth/figma/.well-known/oauth-authorization-server`
+- Revocation: `{ORIGIN}/api/oauth/figma/revoke`
+
+Default redirect allowlist includes `https://www.figma.com/apps/oauth/authorized` when `FIGMA_OAUTH_REDIRECT_URI` is unset. Local development also allows `http://localhost:3000/connect/figma/oauth/callback` and `figma://oauth/callback`.
+
+Verify metadata before saving Figma settings:
+
+```bash
+curl -s "https://www.hyperlocalise.com/api/oauth/figma/.well-known/oauth-authorization-server" | jq .
+```
+
+## Environment variables
+
+### `apps/hyperlocalise-web`
+
+| Variable | Purpose |
+| --- | --- |
+| `FIGMA_OAUTH_CLIENT_ID` | OAuth client id registered for the plugin |
+| `FIGMA_OAUTH_REDIRECT_URI` | Optional comma-separated extra redirect URIs |
+| `FIGMA_CORS_ORIGINS` | Optional comma-separated plugin origins beyond the default Figma hosts |
+
+Local `.env` can omit `FIGMA_OAUTH_CLIENT_ID`; integration health reports `figmaOauthConfigured: false` until it is set.
+
+### `apps/figma-plugin`
+
+Point the plugin at your Hyperlocalise API origin in plugin settings (connection token flow for localhost; OAuth when configured).

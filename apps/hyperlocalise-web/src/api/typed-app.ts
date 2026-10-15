@@ -18,6 +18,7 @@ import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
 import { createCanvaOauthRoutes } from "./routes/canva-oauth/canva-oauth.route";
+import { createFigmaOauthRoutes } from "./routes/figma-oauth/figma-oauth.route";
 import { createFigmaIntegrationRoutes } from "./routes/figma-integration/figma-integration.route";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
@@ -100,7 +101,8 @@ export function createTypedApp(options: CreateAppOptions = {}) {
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/integrations/figma", createFigmaIntegrationRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options))
-    .route("/oauth/canva", createCanvaOauthRoutes());
+    .route("/oauth/canva", createCanvaOauthRoutes())
+    .route("/oauth/figma", createFigmaOauthRoutes());
 }
 
 export type AppType = ReturnType<typeof createTypedApp>;

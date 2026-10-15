@@ -309,6 +309,8 @@ export function createVisualWorkflowRoutes() {
           testDefinition: definition,
           mode: body.mode,
           mockOutputs: body.mockOutputs,
+          realNodeIds: body.realNodeIds,
+          mockFailures: body.mockFailures,
           inputSnapshot: body.inputSnapshot,
           idempotencyKey: `test:${body.idempotencyKey}`,
         });
@@ -375,6 +377,7 @@ export function createVisualWorkflowRoutes() {
         definition: body.definition,
         status: body.status,
         projectId: body.projectId,
+        testSetup: body.testSetup,
       });
 
       if (isErr(result)) {

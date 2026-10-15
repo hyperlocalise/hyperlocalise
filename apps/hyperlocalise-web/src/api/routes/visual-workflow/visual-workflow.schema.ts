@@ -13,6 +13,11 @@
 import { z } from "zod";
 
 import { visualWorkflowV3DefinitionSchema } from "@/lib/visual-workflows/schema/definition-schema";
+import {
+  visualWorkflowTestFailuresSchema,
+  visualWorkflowTestSetupSchema,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
+import { WORKFLOW_LIMITS } from "@/lib/visual-workflows/runtime/limits";
 import { visualWorkflowStatusSchema } from "@/lib/visual-workflows/visual-workflow-types";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
@@ -43,6 +48,7 @@ export const updateVisualWorkflowBodySchema = z
     projectId: optionalProjectIdSchema.nullable().optional(),
     status: visualWorkflowStatusSchema.optional(),
     definition: visualWorkflowV3DefinitionSchema.optional(),
+    testSetup: visualWorkflowTestSetupSchema.optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
@@ -72,6 +78,8 @@ export const workflowTestSchema = z
     mode: z.enum(["mock", "live"]).default("mock"),
     inputSnapshot: z.record(z.string(), z.unknown()).default({}),
     mockOutputs: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+    realNodeIds: z.array(z.string().min(1).max(128)).max(WORKFLOW_LIMITS.nodes).default([]),
+    mockFailures: visualWorkflowTestFailuresSchema.default({}),
   })
   .strict();
 export const workflowPublishSchema = z
