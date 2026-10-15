@@ -308,7 +308,7 @@ export const automationAssistantMessages = defineMessages({
     description: "Cancel button of the dialog shown before undoing a turn of the assistant",
   },
   toolLineNodeAdded: {
-    defaultMessage: "Added a {node} step",
+    defaultMessage: "Added the {node} step",
     id: "7u3f5h9bJH",
     description:
       "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title",

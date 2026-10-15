@@ -122,7 +122,7 @@ export const AddsAStep: Story = {
     await userEvent.click(
       await panel.findByText("Updated the workflow · 2 changes", {}, { timeout: TURN_TIMEOUT_MS }),
     );
-    await expect(await panel.findByText("Added a Notify Slack step")).toBeInTheDocument();
+    await expect(await panel.findByText("Added the Notify Slack step")).toBeInTheDocument();
     const step = () =>
       canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="notify_slack"]');
     await waitFor(() => expect(step()).not.toBeNull());
