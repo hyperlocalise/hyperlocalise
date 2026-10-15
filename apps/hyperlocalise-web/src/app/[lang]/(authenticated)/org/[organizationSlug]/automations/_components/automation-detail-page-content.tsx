@@ -16,6 +16,7 @@ import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   ArrowCounterClockwiseIcon,
+  DotsThreeIcon,
   TrashIcon,
   PlayIcon,
   FloppyDiskIcon,
@@ -37,6 +38,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -520,19 +527,6 @@ export function AutomationDetailPageContent({
   // Loose, not in a row of their own, so the editor's action row can wrap them on a narrow screen.
   const editorActions = (
     <>
-      <Button
-        variant="destructive"
-        onClick={() => {
-          if (writeInFlight) {
-            return;
-          }
-          setDeleteDialogOpen(true);
-        }}
-        disabled={writeInFlight}
-      >
-        <TrashIcon data-icon="inline-start" />
-        <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
-      </Button>
       {form.triggerMode === "web_chat" ? (
         <>
           <div className="hidden min-w-0 max-w-xs md:block">
@@ -620,6 +614,36 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
         )}
       </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={intl.formatMessage(automationDetailPageContentMessages.moreActions)}
+              disabled={writeInFlight}
+            />
+          }
+        >
+          <DotsThreeIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-40">
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={writeInFlight}
+            onClick={() => {
+              if (writeInFlight) {
+                return;
+              }
+              setDeleteDialogOpen(true);
+            }}
+          >
+            <TrashIcon />
+            <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 
