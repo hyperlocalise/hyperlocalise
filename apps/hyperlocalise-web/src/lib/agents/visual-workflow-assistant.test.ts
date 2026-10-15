@@ -875,6 +875,8 @@ describe("prompt text", () => {
     );
     expect(callWorkflow).toContain("why: workflowId on Call workflow is set by the person");
     expect(catalogue).toContain("channelId (string, set by the person only)");
+    const loop = catalogue.slice(catalogue.indexOf("type: logic.for_each")).split("\n- type:")[0];
+    expect(loop).toContain("  rules: At least one step must be connected to Each item.");
     expect(callWorkflow.split("\n- type:")[0]).not.toContain('"workflowId"');
   });
 
@@ -902,7 +904,7 @@ describe("prompt text", () => {
     expect(page).toContain("- id: set");
     expect(page).toContain("what: Set fields (logic.set)");
     expect(page).toContain("### Connections\n\n(none)");
-    expect(page).toContain("orphan_node on node [set]");
+    expect(page).toContain("- Set fields [set] cannot be reached from the trigger");
     expect(page).not.toContain("### Ids a new node cannot take");
   });
 

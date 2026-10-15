@@ -60,7 +60,6 @@ import {
   validateVisualWorkflowConnection,
   type ConnectionValidationCode,
 } from "@/lib/visual-workflows/validation/validate-connection";
-import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
 import {
   isAssistantToolPart,
@@ -73,6 +72,7 @@ import {
   visualWorkflowEditorContextSchema,
   type VisualWorkflowEditorContext,
 } from "./visual-workflow-editor-context";
+import { describeVisualWorkflowIssues, VISUAL_WORKFLOW_STEP_RULES } from "./visual-workflow-issues";
 import {
   findVisualWorkflowReferenceProblems,
   type VisualWorkflowReferenceProblem,
@@ -904,15 +904,7 @@ function describeReferenceProblems(state: VisualWorkflowEditorState): string[] {
 }
 
 function describeIssues(definition: VisualWorkflowV3Definition): string[] {
-  return validateVisualWorkflowV3Definition(definition).map((issue) => {
-    const where =
-      "nodeId" in issue && issue.nodeId
-        ? ` on node [${issue.nodeId}]`
-        : "edgeId" in issue && issue.edgeId
-          ? ` on edge ${issue.edgeId}`
-          : "";
-    return `${issue.code}${where}`;
-  });
+  return describeVisualWorkflowIssues(definition);
 }
 
 /**
@@ -1250,6 +1242,9 @@ export function describeVisualWorkflowCatalogue(): string {
       `  data inputs: ${contract.inputs.length > 0 ? contract.inputs.map((field) => `${field.name} (${field.type}${field.required ? "" : ", optional"}${personOnly.includes(field.name) ? ", set by the person only" : ""})`).join(", ") : "(none)"}`,
       `  data outputs: ${contract.outputs.length > 0 ? contract.outputs.map((field) => `${field.path} (${field.type})`).join(", ") : "(none)"}`,
       `  settings: ${JSON.stringify(settings)}`,
+      ...(VISUAL_WORKFLOW_STEP_RULES[item.type]
+        ? [`  rules: ${VISUAL_WORKFLOW_STEP_RULES[item.type]}`]
+        : []),
       ...(personOnly.length > 0
         ? [
             `  set by the person only: ${personOnly.join(", ")}`,

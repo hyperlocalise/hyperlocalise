@@ -21,7 +21,7 @@ The automation assistant has its own agent, sessions and panel on the automation
 - `configure_node`, with settings only
 - `rename_workflow`
 
-Each operation is applied or refused on its own, with the reason the canvas' own validator gives, and the rest go on. The tool returns the operations it applied, with positions filled in. The page applies those with the same functions, rather than taking a whole definition from the server, which would overwrite what the person changed while the turn ran. The result also lists what stops the workflow from being activated, and every field reference in a step's settings that the run could not read.
+Each operation is applied or refused on its own, with the reason the canvas' own validator gives, and the rest go on. The tool returns the operations it applied, with positions filled in. The page applies those with the same functions, rather than taking a whole definition from the server, which would overwrite what the person changed while the turn ran. The result also lists what stops the workflow from being activated, and every field reference in a step's settings that the run could not read. The issues are the canvas validator's, given once each as a sentence that names the step, setting or connection and what is wrong (`visual-workflow-issues.ts`); a code with no wording there is named as such, so the model says only that it exists. The catalogue gives the rules a type has about the steps around it, such as a Loop needing a step on Each item, which its settings do not show. The canvas's own wording is translated client text that server code cannot use, so the two are kept apart.
 
 ### Values, ids and references
 
