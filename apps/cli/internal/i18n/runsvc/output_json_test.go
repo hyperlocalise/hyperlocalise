@@ -162,6 +162,40 @@ func TestMarshalJSONTargetUpdatesFlatDottedKeysInPlace(t *testing.T) {
 	}
 }
 
+func TestSetExistingLiteralKeyPrefersFlatLiteralOverNestedCollision(t *testing.T) {
+	payload := map[string]any{
+		"home.title": "flat",
+		"home": map[string]any{
+			"title": "nested",
+		},
+	}
+	setNestedValue(payload, "home.title", "updated")
+	if got := payload["home.title"]; got != "updated" {
+		t.Fatalf("literal home.title mismatch: %v", got)
+	}
+	home := payload["home"].(map[string]any)
+	if got := home["title"]; got != "nested" {
+		t.Fatalf("nested home.title should stay unchanged, got %v", got)
+	}
+}
+
+func TestSetExistingLiteralKeySkipsNonStringLiteralThenUpdatesNested(t *testing.T) {
+	payload := map[string]any{
+		"home.title": 12,
+		"home": map[string]any{
+			"title": "nested",
+		},
+	}
+	setNestedValue(payload, "home.title", "updated")
+	if got := payload["home.title"]; got != 12 {
+		t.Fatalf("non-string literal should stay, got %v", got)
+	}
+	home := payload["home"].(map[string]any)
+	if got := home["title"]; got != "updated" {
+		t.Fatalf("nested home.title mismatch: %v", got)
+	}
+}
+
 func TestSetExistingLiteralKeyUpdatesMixedDottedKeys(t *testing.T) {
 	payload := map[string]any{
 		"figma": map[string]any{
