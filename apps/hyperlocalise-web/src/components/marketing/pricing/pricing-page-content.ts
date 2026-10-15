@@ -30,6 +30,8 @@ export type PricingPlanCta = {
 export type PricingPlan = {
   id: PricingPlanId;
   name: string;
+  /** Accessible plan title for card heading (for example "Starter: $20 per month"). */
+  cardHeading: string;
   /** Optional badge beside the plan name (for example Auto-enable on Free). */
   badge: string | null;
   price: string;
@@ -85,25 +87,77 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     id: "clr4hixI6B",
     description: "Monthly price suffix on pricing cards",
   });
+  const formatCardHeading = (planName: string, priceLabel: string) =>
+    intl.formatMessage(
+      {
+        defaultMessage: "{planName}: {priceLabel}",
+        id: "gSGjmPxLZ8",
+        description: "Accessible pricing card heading combining plan name and price",
+      },
+      { planName, priceLabel },
+    );
+  const formatMonthlyCardHeading = (planName: string, priceLabel: string) =>
+    intl.formatMessage(
+      {
+        defaultMessage: "{planName}: {priceLabel} per month",
+        id: "jP0mfL7DgW",
+        description: "Accessible pricing card heading for a monthly paid plan",
+      },
+      { planName, priceLabel },
+    );
+
+  const freePlanName = intl.formatMessage({
+    defaultMessage: "Free Plan",
+    id: "71I+YToKV7",
+    description: "Free plan name on the pricing page",
+  });
+  const freePlanPrice = intl.formatMessage({
+    defaultMessage: "Free",
+    id: "UL0g2ZIWhm",
+    description: "Free plan price on the pricing page",
+  });
+  const starterPlanName = intl.formatMessage({
+    defaultMessage: "Starter",
+    id: "dBWJx9vBQt",
+    description: "Starter plan name on the pricing page",
+  });
+  const starterPlanPrice = intl.formatMessage({
+    defaultMessage: "$20",
+    id: "cTTX9n9kbk",
+    description: "Starter plan price on the pricing page",
+  });
+  const growthPlanName = intl.formatMessage({
+    defaultMessage: "Growth Plan",
+    id: "0x5bWok1f2",
+    description: "Growth plan name on the pricing page",
+  });
+  const growthPlanPrice = intl.formatMessage({
+    defaultMessage: "$2,000",
+    id: "y9blutdtEE",
+    description: "Growth plan price on the pricing page",
+  });
+  const enterprisePlanName = intl.formatMessage({
+    defaultMessage: "Enterprise",
+    id: "Bgy156rCP9",
+    description: "Enterprise plan name on the pricing page",
+  });
+  const enterprisePlanPrice = intl.formatMessage({
+    defaultMessage: "Custom",
+    id: "fMyeM5BW3s",
+    description: "Enterprise plan price label on the pricing page",
+  });
 
   return [
     {
       id: "free",
-      name: intl.formatMessage({
-        defaultMessage: "Free Plan",
-        id: "71I+YToKV7",
-        description: "Free plan name on the pricing page",
-      }),
+      name: freePlanName,
+      cardHeading: formatCardHeading(freePlanName, freePlanPrice),
       badge: intl.formatMessage({
         defaultMessage: "Auto-enable",
         id: "/a2VqYlgh4",
         description: "Badge on the Free pricing plan indicating automatic provisioning",
       }),
-      price: intl.formatMessage({
-        defaultMessage: "Free",
-        id: "UL0g2ZIWhm",
-        description: "Free plan price on the pricing page",
-      }),
+      price: freePlanPrice,
       priceSuffix: null,
       description: intl.formatMessage({
         defaultMessage: "Evaluate Hyperlocalise with a single-seat workspace.",
@@ -128,17 +182,10 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     },
     {
       id: "starter",
-      name: intl.formatMessage({
-        defaultMessage: "Starter",
-        id: "dBWJx9vBQt",
-        description: "Starter plan name on the pricing page",
-      }),
+      name: starterPlanName,
+      cardHeading: formatMonthlyCardHeading(starterPlanName, starterPlanPrice),
       badge: null,
-      price: intl.formatMessage({
-        defaultMessage: "$20",
-        id: "cTTX9n9kbk",
-        description: "Starter plan price on the pricing page",
-      }),
+      price: starterPlanPrice,
       priceSuffix: perMonth,
       description: intl.formatMessage({
         defaultMessage: "For small teams that need more seats and projects.",
@@ -187,17 +234,10 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     },
     {
       id: "growth",
-      name: intl.formatMessage({
-        defaultMessage: "Growth Plan",
-        id: "0x5bWok1f2",
-        description: "Growth plan name on the pricing page",
-      }),
+      name: growthPlanName,
+      cardHeading: formatMonthlyCardHeading(growthPlanName, growthPlanPrice),
       badge: null,
-      price: intl.formatMessage({
-        defaultMessage: "$2,000",
-        id: "y9blutdtEE",
-        description: "Growth plan price on the pricing page",
-      }),
+      price: growthPlanPrice,
       priceSuffix: perMonth,
       description: intl.formatMessage({
         defaultMessage: "For teams running localisation in production every week.",
@@ -266,17 +306,10 @@ export function getPricingPlans(locale: string): PricingPlan[] {
     },
     {
       id: "enterprise",
-      name: intl.formatMessage({
-        defaultMessage: "Enterprise",
-        id: "Bgy156rCP9",
-        description: "Enterprise plan name on the pricing page",
-      }),
+      name: enterprisePlanName,
+      cardHeading: formatCardHeading(enterprisePlanName, enterprisePlanPrice),
       badge: null,
-      price: intl.formatMessage({
-        defaultMessage: "Custom",
-        id: "fMyeM5BW3s",
-        description: "Enterprise plan price label on the pricing page",
-      }),
+      price: enterprisePlanPrice,
       priceSuffix: null,
       description: intl.formatMessage({
         defaultMessage: "For organizations that need custom limits and support.",

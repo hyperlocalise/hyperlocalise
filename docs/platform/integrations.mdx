@@ -9,7 +9,9 @@ Connect the systems that hold your content or provide tools for your workflows. 
 | --- | --- |
 | GitHub repositories and events | [Connect GitHub](/platform/connections/github) |
 | Intercom Help Center articles | [Localize Intercom Help Center articles](/platform/connections/intercom) |
-| Canva and Figma translation | [Design tools](/platform/connections/design-tools) |
+| Braze | [Localize Braze](/platform/connections/braze) (Email Templates or Campaigns & Canvas) |
+| Canva | [Localize Canva](/platform/connections/canva) |
+| Figma | [Localize Figma](/platform/connections/figma) |
 | Repository files through CI | [Connect the CLI](/platform/cli) |
 | An AI agent working with Platform | [Hosted MCP server](/platform/mcp) |
 | Custom file and job integrations | [Public API](/platform/api) |
@@ -20,11 +22,11 @@ Connect the GitHub App, enable the repositories you need, then configure [conten
 
 ## Canva
 
-Create a Canva connection with a personal token, default project, and locales. Copy the one-time connection token into the app. Follow the [design-tools guide](/platform/connections/design-tools).
+Create a Canva connection with a personal token. Designers pick the native project in the Canva app. Jobs use that project's source and target languages. There is no separate Canva locale list. Follow [Localize Canva](/platform/connections/canva) to collect page files and apply existing translations.
 
 ## Figma
 
-The Figma plugin uses a personal token to extract text, create translation jobs, and pull completed locales. See [design tools](/platform/connections/design-tools) for access requirements and availability.
+Create a Figma connection with a personal token. Designers pick the native project in the Figma plugin. Jobs use that project's source and target languages. Follow [Localize Figma](/platform/connections/figma) to upload source pages (collect only), translate, and apply one locale at a time.
 
 ## GitLab
 
@@ -35,6 +37,10 @@ Use **Use GitLab repo** in a manual or scheduled automation for repository analy
 ## Intercom
 
 Connect Intercom from **Integrations**, then create a scheduled or manual automation with the **Translate Intercom Help Center articles** skill. Import writes markdown source files into a native project. **Push to Intercom** writes Intercom drafts. It does not publish. See [Localize Intercom Help Center articles](/platform/connections/intercom).
+
+## Braze
+
+Connect Braze from **Integrations** with a REST API key and REST cluster. Two workflows share that connection. Apply **Translate Braze Email Templates** or **Translate Braze Campaigns & Canvas** from Popular or Marketing. Do not attach both on one automation. Email Templates imports HTML and **Push to Braze** writes locale-suffixed library copies. Campaigns & Canvas imports tagged draft JSON maps and writes approved locales through the Translation API. Neither action publishes. See [Localize Braze](/platform/connections/braze).
 
 ## Other external services
 

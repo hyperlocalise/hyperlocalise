@@ -56,6 +56,7 @@ import {
 import { TmEntryLocaleField } from "./tm-entry-locale-field";
 import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
+import { tmEntryReviewSummaryQueryKey } from "./tm-entry-review";
 
 type EntryForm = {
   sourceLocale: string;
@@ -251,9 +252,14 @@ export function TmEntryDetailSheet({
       if (entryId) {
         queryClient.setQueryData(tmEntryDetailQueryKey(organizationSlug, memoryId, entryId), body);
       }
-      await queryClient.invalidateQueries({
-        queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
+        }),
+      ]);
       setIsEditing(false);
       setStaleConflict(false);
       toast.success(intl.formatMessage(messages.saved));

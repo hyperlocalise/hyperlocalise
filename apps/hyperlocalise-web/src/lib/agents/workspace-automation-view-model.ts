@@ -116,6 +116,15 @@ export type WorkspaceAutomationFormState = {
   zernioConnectionId: string;
   ahrefsEnabled: boolean;
   intercomEnabled: boolean;
+  brazeEnabled: boolean;
+  brazeCampaignsEnabled: boolean;
+  brazeSourceLocale: string;
+  brazeTemplateIds: string[];
+  brazeContentBlockIds: string[];
+  brazeCampaignIds: string[];
+  brazeCanvasIds: string[];
+  brazeExistingTranslationPolicy: "seed_empty" | "refresh_imported" | "overwrite_all";
+  brazeOverwriteWhenRemoteNewer: boolean;
   intercomRestEndpoint: "us" | "eu" | "au";
   intercomHelpCenterId: string;
   intercomHelpCenterLocales: string[];
@@ -138,7 +147,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.contentfulEnabled) {
     return true;
   }
-  if (form.intercomEnabled) {
+  if (form.intercomEnabled || form.brazeEnabled || form.brazeCampaignsEnabled) {
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
@@ -175,6 +184,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "intercom"
     | "intercomHelpCenterId"
     | "intercomSourceLocale"
+    | "braze"
+    | "brazeSourceLocale"
     | "crowdinProjectId"
     | "scheduledTimezone"
     | "skills"
@@ -209,7 +220,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+    "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
   intercom_not_connected: "Connect Intercom in Integrations before using it.",
   intercom_pipes_needs_reauthorization: "Reconnect Intercom in Integrations, then try again.",
   intercom_pipes_unavailable: "Intercom is unavailable until WorkOS Pipes is configured.",
@@ -220,6 +231,14 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "The source locale does not match an Intercom Help Center locale.",
   intercom_source_locale_mismatch:
     "The Intercom source locale must be the same language as the project source locale.",
+  braze_not_connected: "Connect Braze in Integrations before using it.",
+  braze_pipes_needs_reauthorization: "Reconnect Braze in Integrations, then try again.",
+  braze_pipes_unavailable: "Braze is unavailable until WorkOS Pipes is configured.",
+  braze_endpoint_missing: "Save a Braze REST cluster in Integrations before using it.",
+  braze_source_locale_mismatch:
+    "The Braze source locale must be the same language as the project source locale.",
+  braze_skills_exclusive:
+    "Choose either Braze Email Templates or Braze Campaigns & Canvas, not both.",
   invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
@@ -343,6 +362,15 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     zernioConnectionId: "",
     ahrefsEnabled: false,
     intercomEnabled: false,
+    brazeEnabled: false,
+    brazeCampaignsEnabled: false,
+    brazeSourceLocale: "en",
+    brazeTemplateIds: [],
+    brazeContentBlockIds: [],
+    brazeCampaignIds: [],
+    brazeCanvasIds: [],
+    brazeExistingTranslationPolicy: "seed_empty",
+    brazeOverwriteWhenRemoteNewer: true,
     intercomRestEndpoint: "us",
     intercomHelpCenterId: "",
     intercomHelpCenterLocales: [],
@@ -378,6 +406,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const zernio = automation.toolConfig.zernio;
   const ahrefs = automation.toolConfig.ahrefs;
   const intercom = automation.toolConfig.intercom;
+  const braze = automation.toolConfig.braze;
+  const brazeCampaigns = automation.toolConfig.brazeCampaigns;
   const crowdin = automation.toolConfig.crowdin;
   const webSearch = automation.toolConfig.webSearch;
 
@@ -464,6 +494,24 @@ export function createWorkspaceAutomationFormStateFromRecord(
     zernioConnectionId: zernio?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     intercomEnabled: Boolean(intercom?.enabled),
+    brazeEnabled: Boolean(braze?.enabled),
+    brazeCampaignsEnabled: Boolean(brazeCampaigns?.enabled),
+    brazeSourceLocale: brazeCampaigns?.sourceLocale ?? braze?.sourceLocale ?? "en",
+    brazeTemplateIds: braze?.templateIds ? [...braze.templateIds] : [],
+    brazeContentBlockIds: braze?.contentBlockIds ? [...braze.contentBlockIds] : [],
+    brazeCampaignIds: brazeCampaigns?.campaignIds ? [...brazeCampaigns.campaignIds] : [],
+    brazeCanvasIds: brazeCampaigns?.canvasIds ? [...brazeCampaigns.canvasIds] : [],
+    brazeExistingTranslationPolicy:
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "refresh_imported" ||
+      (brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) ===
+        "overwrite_all"
+        ? ((brazeCampaigns?.existingTranslationPolicy ?? braze?.existingTranslationPolicy) as
+            | "refresh_imported"
+            | "overwrite_all")
+        : "seed_empty",
+    brazeOverwriteWhenRemoteNewer:
+      (brazeCampaigns?.overwriteWhenRemoteNewer ?? braze?.overwriteWhenRemoteNewer) !== false,
     intercomRestEndpoint: intercom?.restEndpoint ?? "us",
     intercomHelpCenterId: intercom?.helpCenterId ?? "",
     intercomHelpCenterLocales: intercom?.helpCenterLocales ? [...intercom.helpCenterLocales] : [],
@@ -661,7 +709,10 @@ export function formStateToWorkspaceAutomationPayload(
       ? {
           slack: {
             enabled: true,
-            channelId: form.slackChannelId.trim() || undefined,
+            // A pasted channel link or mention is stored as the ID it names.
+            channelId:
+              parseSlackConversationId(form.slackChannelId) ??
+              (form.slackChannelId.trim() || undefined),
           },
         }
       : {}),
@@ -695,6 +746,30 @@ export function formStateToWorkspaceAutomationPayload(
             overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
             runQa: form.contentfulRunQa,
             writeDrafts: form.contentfulWriteDrafts,
+          },
+        }
+      : {}),
+    ...(form.brazeEnabled
+      ? {
+          braze: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            templateIds: form.brazeTemplateIds,
+            contentBlockIds: form.brazeContentBlockIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
+          },
+        }
+      : {}),
+    ...(form.brazeCampaignsEnabled
+      ? {
+          brazeCampaigns: {
+            enabled: true,
+            sourceLocale: form.brazeSourceLocale.trim() || "en",
+            campaignIds: form.brazeCampaignIds,
+            canvasIds: form.brazeCanvasIds,
+            existingTranslationPolicy: form.brazeExistingTranslationPolicy,
+            overwriteWhenRemoteNewer: form.brazeOverwriteWhenRemoteNewer,
           },
         }
       : {}),
@@ -998,6 +1073,27 @@ export function validateWorkspaceAutomationFormState(
   return errors;
 }
 
+/**
+ * The errors still worth showing once the form has changed: those the form's own checks still
+ * find. One the server reported, or one for a field since put right, goes. Returns the same
+ * object when nothing goes, so the caller's state does not change.
+ */
+export function pruneWorkspaceAutomationFieldErrors(
+  errors: Record<string, string | undefined>,
+  form: WorkspaceAutomationFormState,
+): Record<string, string | undefined> {
+  const shown = Object.keys(errors).filter((key) => errors[key]);
+  if (shown.length === 0) {
+    return errors;
+  }
+  const current: Record<string, string | undefined> = validateWorkspaceAutomationFormState(form);
+  const kept = shown.filter((key) => current[key]);
+  if (kept.length === shown.length) {
+    return errors;
+  }
+  return Object.fromEntries(kept.map((key) => [key, errors[key]]));
+}
+
 export function mapWorkspaceAutomationApiErrorToFieldErrors(
   errorCode: string,
 ): WorkspaceAutomationFieldErrors {
@@ -1089,6 +1185,14 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "intercom_source_locale_unmapped":
     case "intercom_source_locale_mismatch":
       return { intercomSourceLocale: message };
+    case "braze_not_connected":
+    case "braze_pipes_needs_reauthorization":
+    case "braze_pipes_unavailable":
+    case "braze_endpoint_missing":
+    case "braze_skills_exclusive":
+      return { braze: message };
+    case "braze_source_locale_mismatch":
+      return { brazeSourceLocale: message };
     case "crowdin_project_required":
     case "crowdin_project_not_found":
     case "crowdin_project_not_linked":
@@ -1114,11 +1218,28 @@ export function workspaceAutomationFormSupportsOnDemandRun(
   return triggerMode === "manual" || triggerMode === "scheduled";
 }
 
+/** The form as a save would store it, where that differs from what was typed. */
+function storedWorkspaceAutomationForm(
+  form: WorkspaceAutomationFormState,
+): WorkspaceAutomationFormState {
+  const slackChannelId = parseSlackConversationId(form.slackChannelId);
+  return slackChannelId && slackChannelId !== form.slackChannelId
+    ? { ...form, slackChannelId }
+    : form;
+}
+
+/**
+ * A pasted Slack channel link and the ID it is saved as count as the same value, so a form left
+ * holding the link is not unsaved once the ID has been stored.
+ */
 export function workspaceAutomationFormHasChanges(
   current: WorkspaceAutomationFormState,
   saved: WorkspaceAutomationFormState,
 ) {
-  return JSON.stringify(current) !== JSON.stringify(saved);
+  return (
+    JSON.stringify(storedWorkspaceAutomationForm(current)) !==
+    JSON.stringify(storedWorkspaceAutomationForm(saved))
+  );
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
@@ -1140,6 +1261,8 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.intercomEnabled ||
+    form.brazeEnabled ||
+    form.brazeCampaignsEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
     form.listIssuesEnabled ||

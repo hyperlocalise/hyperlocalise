@@ -1,0 +1,228 @@
+---
+title: "i18next and interpolation placeholders"
+description: "Keep i18next JSON catalogs in git, protect {{name}} interpolations in Platform, and load approved locales at runtime."
+---
+
+This tutorial connects an app that uses [i18next](https://www.i18next.com/) to Hyperlocalise Platform. You keep nested JSON catalogs in the repository, review interpolations such as `{{name}}` in Platform, and load the approved files at runtime.
+
+The same placeholder rules apply to other libraries that interpolate with double braces instead of ICU, including mustache, Handlebars, and many Polyglot-style catalogs that already use `%{name}`.
+
+`hl extract` scans React Intl descriptors in `.ts` and `.tsx` files. It does not scan `t('key')` calls. Treat the locale JSON as the source of truth, and fail the pull request when components introduce keys that are missing from `locales/en-US.json`.
+
+## Prerequisites
+
+You need:
+
+- an app using i18next or a compatible interpolation library;
+- the [Hyperlocalise CLI](/cli/getting-started/install);
+- a Platform project with `en-US` as source and `fr-FR` and `de-DE` as targets; and
+- `HYPERLOCALISE_API_KEY` and `HYPERLOCALISE_PROJECT_ID` in your environment.
+
+The example uses:
+
+```text
+.
+├── src/saved-filters.ts
+├── locales/
+│   ├── en-US.json
+│   ├── fr-FR.json
+│   └── de-DE.json
+└── i18n.yml
+```
+
+## 1. Keep copy in locale JSON
+
+Write nested JSON with stable keys. i18next resolves dotted paths such as `filters.saved.title`.
+
+`locales/en-US.json`:
+
+```json
+{
+  "filters": {
+    "saved": {
+      "title": "Saved filters",
+      "confirmation": "Saved {{name}}",
+      "count_one": "{{count}} saved filter",
+      "count_other": "{{count}} saved filters",
+      "help": "See $t(filters.saved.title)"
+    }
+  }
+}
+```
+
+Use those keys in the app:
+
+```ts
+import i18next from "i18next";
+
+export function savedFilterCopy(name: string, count: number) {
+  return {
+    title: i18next.t("filters.saved.title"),
+    confirmation: i18next.t("filters.saved.confirmation", { name }),
+    count: i18next.t("filters.saved.count", { count }),
+  };
+}
+```
+
+Keep interpolations in the catalog, not in concatenated strings. Translators may change the prose and move `{{name}}`, but they must keep the placeholder name, any format (`{{val, number}}`), unescape prefixes (`{{- html}}`), and `$t(...)` nesting calls.
+
+<Note>
+i18next plurals are sibling keys (`count_one`, `count_other`), not one ICU `{count, plural, ...}` message. Cover `0`, `1`, and several items in tests. `hl check` reports placeholder mismatches on each key; it does not apply `icu_shape_mismatch` to these suffixes.
+</Note>
+
+## 2. Load catalogs in the app
+
+```ts
+import i18next from "i18next";
+import deDE from "../locales/de-DE.json";
+import enUS from "../locales/en-US.json";
+import frFR from "../locales/fr-FR.json";
+
+await i18next.init({
+  lng: "en-US",
+  fallbackLng: "en-US",
+  interpolation: { escapeValue: false },
+  resources: {
+    "en-US": { translation: enUS },
+    "fr-FR": { translation: frFR },
+    "de-DE": { translation: deDE },
+  },
+});
+```
+
+## 3. Map the catalogs
+
+Create `i18n.yml`:
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - de-DE
+
+buckets:
+  web:
+    files:
+      - from: locales/{{source}}.json
+        to: locales/{{target}}.json
+
+hyperlocalise:
+  project_id_env: HYPERLOCALISE_PROJECT_ID
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+```
+
+Hyperlocalise treats nested JSON as dotted keys such as `filters.saved.title`. It rewrites string leaves and keeps object structure.
+
+If you prefer TypeScript locale modules instead of JSON, map `.ts` files as described in [i18n configuration](/cli/configuration/i18n-config#js-ts-locale-module-patterns).
+
+## 4. Catch missing keys in the source pull request
+
+Install `i18next` ESLint rules or `eslint-plugin-i18next` and fail CI when a component calls a key that is missing from the English catalog:
+
+```js
+// eslint.config.js
+import i18next from "eslint-plugin-i18next";
+
+export default [
+  {
+    plugins: { i18next },
+    rules: {
+      "i18next/no-literal-string": "error",
+    },
+  },
+];
+```
+
+Then preview the Platform upload:
+
+```yaml
+- name: Check i18next keys
+  run: npx eslint .
+
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+
+- name: Preview source upload
+  run: hl sync push --dry-run
+  env:
+    HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+    HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+```
+
+Commit `locales/en-US.json` with the component change.
+
+## 5. Push and review
+
+After the source pull request merges:
+
+```bash
+hl sync push
+```
+
+Start generation through a **Source upload** automation or **New Request**. In **Content Editor**, review:
+
+- interpolations such as `{{name}}`, `{{count}}`, and `{{val, number}}`;
+- unescape prefixes such as `{{- html}}`;
+- nesting calls such as `$t(filters.saved.title)`;
+- plural sibling keys for `one` and `other`; and
+- labels that must fit compact layouts.
+
+Approve the translations before pulling them back.
+
+## 6. Pull and validate translations
+
+Run:
+
+```bash
+hl sync pull
+hl check --bucket web --quiet
+```
+
+`hl check` reports missing target keys and placeholder mismatches. Interpolation libraries do not use ICU plural blocks, so cover `_one` / `_other` branches in tests instead of expecting `icu_shape_mismatch`.
+
+```ts
+import i18next from "i18next";
+import frFR from "../locales/fr-FR.json";
+
+await i18next.init({
+  lng: "fr-FR",
+  resources: { "fr-FR": { translation: frFR } },
+});
+
+expect(i18next.t("filters.saved.confirmation", { name: "Inbox" })).toBe(
+  "Filtre Inbox enregistré",
+);
+expect(i18next.t("filters.saved.count", { count: 1 })).toMatch(/1/);
+expect(i18next.t("filters.saved.count", { count: 5 })).toMatch(/5/);
+```
+
+Open a translation pull request containing the pulled JSON. Run unit, build, and visual tests before merging it.
+
+## Troubleshooting
+
+### A component shows the key instead of copy
+
+Confirm `locales/en-US.json` contains the nested path, `i18next.init` loads that file, and the `t()` call uses the same dotted key.
+
+### Content Editor flags `{{name}}` as invalid ICU
+
+Hyperlocalise treats mustache and i18next interpolations as placeholders. If a string also contains real ICU (`{count, plural, ...}`), keep that ICU valid. Do not rewrite `{{name}}` to `{name}`; the runtime looks up `name` through interpolation, not ICU.
+
+### Nested `$t(...)` disappeared after translation
+
+Restore the exact `$t(key)` call from the source. Nesting is a runtime lookup, not text to translate.
+
+### Pull writes FormatJS-shaped JSON
+
+That happens when the source catalog is strict FormatJS (`defaultMessage` per id). i18next expects nested string leaves. Keep source JSON in the nested shape shown above.
+
+## Next
+
+- [GitHub localisation workflow](/platform/tutorials/github-localisation-workflow)
+- [Vue and vue-i18n](/platform/tutorials/vue-i18n)
+- [React Intl and ICU](/platform/tutorials/react-intl-icu)
+- [i18n configuration](/cli/configuration/i18n-config)
+- [`check` reference](/cli/commands/check)

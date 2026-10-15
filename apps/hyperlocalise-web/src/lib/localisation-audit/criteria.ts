@@ -17,11 +17,14 @@ import type {
   LocalisationAuditFinding,
 } from "./types";
 
-/** Lighthouse-style binary outcome for a scored credit. */
-export type LocalisationAuditCriterionStatus = "pass" | "fail" | "na";
+/** Lighthouse-style outcome for a scored credit. `watch` is close to passing, not broken. */
+export type LocalisationAuditCriterionStatus = "pass" | "watch" | "fail" | "na";
 
 /** Pass threshold matches the Excellent score band (90–100). */
 export const LOCALISATION_AUDIT_CRITERION_PASS_SCORE = 90;
+
+/** Scores from here up to the pass threshold read as "worth a look" rather than failures. */
+export const LOCALISATION_AUDIT_CRITERION_WATCH_SCORE = 75;
 
 export type LocalisationAuditCriterion = {
   id: string;
@@ -42,6 +45,9 @@ export function creditCriterionStatus(
   }
   if (credit.score >= LOCALISATION_AUDIT_CRITERION_PASS_SCORE) {
     return "pass";
+  }
+  if (credit.score >= LOCALISATION_AUDIT_CRITERION_WATCH_SCORE) {
+    return "watch";
   }
   return "fail";
 }
@@ -88,12 +94,15 @@ export function buildLocalisationAuditCriteria(
 
 export function groupLocalisationAuditCriteria(criteria: LocalisationAuditCriterion[]) {
   const passed: LocalisationAuditCriterion[] = [];
+  const watch: LocalisationAuditCriterion[] = [];
   const failed: LocalisationAuditCriterion[] = [];
   const notApplicable: LocalisationAuditCriterion[] = [];
 
   for (const criterion of criteria) {
     if (criterion.status === "pass") {
       passed.push(criterion);
+    } else if (criterion.status === "watch") {
+      watch.push(criterion);
     } else if (criterion.status === "fail") {
       failed.push(criterion);
     } else {
@@ -101,5 +110,5 @@ export function groupLocalisationAuditCriteria(criteria: LocalisationAuditCriter
     }
   }
 
-  return { passed, failed, notApplicable };
+  return { passed, watch, failed, notApplicable };
 }

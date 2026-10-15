@@ -15,6 +15,11 @@
 import { defineMessages } from "react-intl";
 
 export const visualWorkflowEditorMessages = defineMessages({
+  executionChildRuns: {
+    defaultMessage: "Child workflow executions",
+    id: "TIDKg7QM0N",
+    description: "Heading for child workflow runs launched by the selected parent run",
+  },
   untitledName: {
     defaultMessage: "Untitled workflow",
     id: "dfVzkj5hWL",
@@ -95,11 +100,6 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "86k8CEUaJ5",
     description: "Column header for node status in execution detail",
   },
-  share: {
-    defaultMessage: "Share",
-    id: "LwRsugxcAC",
-    description: "Disabled share button in visual workflow chrome",
-  },
   save: {
     defaultMessage: "Save",
     id: "U87kn4cxmh",
@@ -109,6 +109,11 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Saving…",
     id: "4JSF3BIeDZ",
     description: "Save button label while a visual workflow is being saved",
+  },
+  exportMenu: {
+    defaultMessage: "Export",
+    id: "besNXCgM6P",
+    description: "Button that opens the menu for copying or downloading the workflow JSON",
   },
   exportJson: {
     defaultMessage: "Export JSON",
@@ -329,6 +334,193 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Configure step",
     id: "t4mVRTnKLW",
     description: "Right panel heading when a node is selected",
+  },
+  stepSettingsTabs: {
+    defaultMessage: "Step settings",
+    id: "kzH21n29Rp",
+    description:
+      "Accessible name of the tabs that switch between the parts of a workflow step's settings",
+  },
+  ifStepFails: {
+    defaultMessage: "If this step fails",
+    id: "wBBk0AbwLo",
+    description:
+      "Heading of the collapsed part of a workflow step's settings that holds its error behaviour",
+  },
+  insertField: {
+    defaultMessage: "Insert a field into {label}",
+    id: "7zsudhIRfP",
+    description:
+      "Accessible name of the button that puts a field of an earlier workflow step into a setting's text; {label} is the setting",
+  },
+  insertFieldTitle: {
+    defaultMessage: "Insert a field from an earlier step",
+    id: "it+CxLEVkH",
+    description:
+      "Tooltip of the button that puts a field of an earlier workflow step into a setting's text",
+  },
+  insertFieldSearch: {
+    defaultMessage: "Find a field",
+    id: "V2whWmooom",
+    description: "Search box of the menu that lists the fields of earlier workflow steps",
+  },
+  insertFieldEmpty: {
+    defaultMessage: "No fields from earlier steps.",
+    id: "u9Qg5J09WM",
+    description: "Shown when the menu of fields from earlier workflow steps has nothing to list",
+  },
+  connectOnCanvas: {
+    defaultMessage: "Connect this on the canvas.",
+    id: "hLqs+EeEG8",
+    description:
+      "Shown in place of the editor of a workflow step setting that only a data wire can feed",
+  },
+  disconnectInput: {
+    defaultMessage: "Disconnect",
+    id: "kEhYEqOX8G",
+    description: "Button that removes the data wire feeding a workflow step's setting",
+  },
+  removeBinding: {
+    defaultMessage: "Remove",
+    id: "cRhF5oMlHA",
+    description: "Button that removes the stored binding feeding a workflow step's setting",
+  },
+  fixedValueSource: {
+    defaultMessage: "Fixed value",
+    id: "Dhw0m5NXT1",
+    description:
+      "Name of a stored literal binding shown as the source of a workflow step's setting",
+  },
+  templateSource: {
+    defaultMessage: "Template",
+    id: "2+el5hYSzQ",
+    description:
+      "Name of a stored template binding shown as the source of a workflow step's setting",
+  },
+  credentialSource: {
+    defaultMessage: "Saved credential",
+    id: "FWjftu2kiI",
+    description:
+      "Name of a stored credential binding shown as the source of a workflow step's setting",
+  },
+  configurationTab: {
+    defaultMessage: "Configuration",
+    id: "GxutMPC4gp",
+    description: "Tab of a workflow step's settings that holds the step's own form",
+  },
+  outputsTab: {
+    defaultMessage: "Outputs",
+    id: "mqq6dTwRZM",
+    description: "Visual workflow editor control",
+  },
+  testTab: {
+    defaultMessage: "Test",
+    id: "VjG0Zt9Hr8",
+    description:
+      "Tab of a workflow step's settings that holds the values the step uses in a test run",
+  },
+  testDataTriggerDescription: {
+    defaultMessage:
+      "The event this trigger passes on when you test the workflow. Real runs use the real event.",
+    id: "kC1soSUZq7",
+    description: "Explains the Test tab of a workflow trigger",
+  },
+  testDataActionDescription: {
+    defaultMessage:
+      "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test.",
+    id: "kHvyGVv5TJ",
+    description: "Explains the Test tab of a workflow step that calls out to another service",
+  },
+  testDataFillExamples: {
+    defaultMessage: "Fill with examples",
+    id: "kN6qwzFh/5",
+    description:
+      "Button on a workflow step's Test tab that writes example values into its empty fields",
+  },
+  testDataUseLastRun: {
+    defaultMessage: "Use last run",
+    id: "JVogogkuBP",
+    description:
+      "Button on a workflow step's Test tab that copies the step's output from the last run",
+  },
+  testDataClear: {
+    defaultMessage: "Clear",
+    id: "1U9PZ5VcN2",
+    description: "Button on a workflow step's Test tab that removes all its test values",
+  },
+  testDataOptional: {
+    defaultMessage: "optional",
+    id: "Bb2iyK74xB",
+    description: "Marks a test value a workflow step can do without",
+  },
+  testDataNeeded: {
+    defaultMessage: "Needed for a test run.",
+    id: "zRCtWtCl4W",
+    description: "Under an empty required test value of a workflow step",
+  },
+  testDataReadByStep: {
+    defaultMessage: "Another step reads this, so a test run needs it.",
+    id: "NbAZVkN3TH",
+    description: "Under an empty optional test value that another workflow step uses",
+  },
+  testDataNotSet: {
+    defaultMessage: "Not set",
+    id: "wQGnFQYS2q",
+    description: "Placeholder of a true or false test value that has no value yet",
+  },
+  testDataChooseProject: {
+    defaultMessage: "Choose a project",
+    id: "zDoKlB01Q1",
+    description: "Placeholder of the project picker on a workflow trigger's Test tab",
+  },
+  testDataJson: {
+    defaultMessage: "All test data (JSON)",
+    id: "T17lvAfQL0",
+    description: "Label of the box that shows all of a workflow step's test values as JSON",
+  },
+  testDataInvalidJson: {
+    defaultMessage: "Enter valid JSON.",
+    id: "JQuMZXhBtU",
+    description: "Under a test value of a workflow step whose JSON cannot be read",
+  },
+  testRunMissingData: {
+    defaultMessage:
+      "{count, plural, one {A test value is missing} other {# test values are missing}}",
+    id: "c43lsobCtO",
+    description: "Toast when a workflow test run is not started because test values are not set",
+  },
+  testRunMissingDataFirst: {
+    defaultMessage: "Set {path} on the Test tab of {step}.",
+    id: "ch9gwSSThi",
+    description:
+      "Under the missing test values toast: the first one to set. {path} is a field name, {step} a step's name",
+  },
+  testRunMissingDataShow: {
+    defaultMessage: "Show",
+    id: "mqYq/LYRBZ",
+    description: "Action of the missing test values toast that opens the step's Test tab",
+  },
+  testRunCouldNotStart: {
+    defaultMessage: "The test run could not start.",
+    id: "94INRlGgGA",
+    description: "Toast when the request that starts a workflow test run fails",
+  },
+  testSettingsHint: {
+    defaultMessage:
+      "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses.",
+    id: "0pyGkDDDgZ",
+    description: "In the test settings popover of the workflow editor, where test values are set",
+  },
+  useRunAsTestData: {
+    defaultMessage: "Use as test data",
+    id: "CQU1/0C8er",
+    description: "Button on a past workflow run that copies its values into the steps' test data",
+  },
+  usedRunAsTestData: {
+    defaultMessage:
+      "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
+    id: "1Dpcm8IxPm",
+    description: "Toast after a past workflow run's values were copied into the steps' test data",
   },
   triggerType: {
     defaultMessage: "Trigger",
@@ -599,6 +791,16 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Handle failures from a bounded execution region",
     id: "X5HXzEgA4e",
     description: "Visual workflow Try / Catch node picker hint",
+  },
+  nodeCallWorkflow: {
+    defaultMessage: "Call workflow",
+    id: "AX4bE25lbf",
+    description: "Visual workflow Call Workflow node title",
+  },
+  nodeCallWorkflowHint: {
+    defaultMessage: "Run a pinned version of a reusable workflow.",
+    id: "EIF7eE+7GJ",
+    description: "Visual workflow Call Workflow node picker hint",
   },
   sequenceOutputs: {
     defaultMessage: "Execution outputs",
@@ -936,9 +1138,27 @@ export const visualWorkflowEditorMessages = defineMessages({
     description: "Hint under disabled AI agent configuration slots",
   },
   noConfig: {
-    defaultMessage: "Provide sample event data in Test settings.",
-    id: "HrEbvbWkeA",
-    description: "Config panel empty copy for nodes without fields",
+    defaultMessage:
+      "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab.",
+    id: "iUENcP8UXx",
+    description: "Config panel empty copy for a manual trigger, which has no fields",
+  },
+  noSettings: {
+    defaultMessage: "This step has nothing to set up. Its outputs are on the Outputs tab.",
+    id: "KbaeWqdfEa",
+    description: "Config panel empty copy for a step without fields",
+  },
+  editBindingAsText: {
+    defaultMessage: "Edit as text",
+    id: "X+6eLCg8p5",
+    description:
+      "Button that turns a stored fixed value or template of a workflow step's setting into the setting's own text",
+  },
+  testSettings: {
+    defaultMessage: "Test settings",
+    id: "mhtqPj5f5v",
+    description:
+      "Name of the button and popover beside Test workflow that holds the live test switch",
   },
   testWorkflow: {
     defaultMessage: "Test workflow",
@@ -989,6 +1209,52 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Fix the step configuration before saving this workflow.",
     id: "2963Vncu1b",
     description: "Validation message when a non-trigger node config is invalid",
+  },
+  issueFieldRequired: {
+    defaultMessage: "{field} is required.",
+    id: "5PqiPGaWW/",
+    description:
+      "Validation message when a setting or input of a step is empty. {field} is the setting's key, such as channelId",
+  },
+  issueFieldInvalid: {
+    defaultMessage: "{field} is not valid.",
+    id: "q6TvmN/FEl",
+    description:
+      "Validation message when a setting or input of a step has a value that cannot be used. {field} is the setting's key, such as timezone",
+  },
+  issuePosition: {
+    defaultMessage: "Issue {current} of {total}",
+    id: "2fPK5TW6va",
+    description:
+      "Which of the workflow's validation issues is shown, above the issue. {current} and {total} are numbers",
+  },
+  previousIssue: {
+    defaultMessage: "Previous issue",
+    id: "GSFsE42qE6",
+    description: "Button that shows the previous validation issue of a visual workflow",
+  },
+  nextIssue: {
+    defaultMessage: "Next issue",
+    id: "We3SJU9IT4",
+    description: "Button that shows the next validation issue of a visual workflow",
+  },
+  stepHasIssue: {
+    defaultMessage: "This step has a problem",
+    id: "22szuz+pVL",
+    description: "Label of the warning mark on a canvas step that a validation issue is about",
+  },
+  showStepOnCanvas: {
+    defaultMessage: "Show on canvas",
+    id: "1oDvFz2774",
+    description:
+      "Button beside a validation issue that selects its step and moves the canvas to it",
+  },
+  issueLiteralCredential: {
+    defaultMessage:
+      "Use a saved credential for secret values instead of typing them into the step.",
+    id: "mCqI44HE9m",
+    description:
+      "Validation message when an HTTP step holds a token or secret header as plain text",
   },
   trueHandle: {
     defaultMessage: "true",
@@ -1259,5 +1525,218 @@ export const visualWorkflowEditorMessages = defineMessages({
     defaultMessage: "Trigger",
     id: "vwVyosrRNf",
     description: "Accessible label for the lightning badge on trigger nodes",
+  },
+  undoTooltip: {
+    defaultMessage: "Undo {action}",
+    id: "h9hqEywbg6",
+    description:
+      "Tooltip of the visual editor's undo button; {action} is what the step did, such as 'adding a step'",
+  },
+  redoTooltip: {
+    defaultMessage: "Redo {action}",
+    id: "zfWAg4fbJG",
+    description:
+      "Tooltip of the visual editor's redo button; {action} is what the step did, such as 'adding a step'",
+  },
+  undoNothing: {
+    defaultMessage: "Nothing to undo",
+    id: "bwvCqV1CkU",
+    description: "Tooltip of the visual editor's undo button when there is no step to take back",
+  },
+  redoNothing: {
+    defaultMessage: "Nothing to redo",
+    id: "2Gc1+aVeLn",
+    description: "Tooltip of the visual editor's redo button when there is no step to put back",
+  },
+  undoActionAdd: {
+    defaultMessage: "{count, plural, one {adding a step} other {adding # steps}}",
+    id: "+HijiNTvvx",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were added to the workflow",
+  },
+  undoActionRemove: {
+    defaultMessage: "{count, plural, one {removing a step} other {removing # steps}}",
+    id: "mcpumDgw0v",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': nodes were removed from the workflow",
+  },
+  undoActionConnect: {
+    defaultMessage: "connecting steps",
+    id: "Fm7MxbuOiN",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was added",
+  },
+  undoActionDisconnect: {
+    defaultMessage: "disconnecting steps",
+    id: "t5xBIlTLwl",
+    description: "What an undo step did, after 'Undo' or 'Redo': an edge was removed",
+  },
+  undoActionMove: {
+    defaultMessage: "{count, plural, one {moving a step} other {moving # steps}}",
+    id: "ZZerbQkD+z",
+    description: "What an undo step did, after 'Undo' or 'Redo': nodes were moved on the canvas",
+  },
+  undoActionConfigure: {
+    defaultMessage: "changing a step's settings",
+    id: "gl6BIyGKNo",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node's settings were changed",
+  },
+  undoActionRetype: {
+    defaultMessage: "changing a step's type",
+    id: "enQcoq4887",
+    description: "What an undo step did, after 'Undo' or 'Redo': a node was given another type",
+  },
+  undoActionRename: {
+    defaultMessage: "renaming the workflow",
+    id: "WdGY58H2dj",
+    description: "What an undo step did, after 'Undo' or 'Redo': the workflow's name was changed",
+  },
+  undoActionEdit: {
+    defaultMessage: "the last change",
+    id: "8MkwvIyeaM",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo', when it changed several things at once",
+  },
+  undoActionAssistant: {
+    defaultMessage: "the assistant's changes",
+    id: "5dSB/hCLGx",
+    description:
+      "What an undo step did, after 'Undo' or 'Redo': the assistant changed the workflow",
+  },
+  stepRunsForReal: {
+    defaultMessage: "Runs for real in test runs",
+    id: "YkGSzDTzNH",
+    description:
+      "Label of the mark on a canvas step that a test run runs for real, not on its test data",
+  },
+  testRunModeLabel: {
+    defaultMessage: "In a test run",
+    id: "u0c5HG4JX/",
+    description:
+      "Label of the choice on a workflow step's Test tab between its test data and running it for real",
+  },
+  testRunModeMocked: {
+    defaultMessage: "Use test data",
+    id: "CkFkjy7fQ+",
+    description: "Choice on a workflow step's Test tab: a test run uses the step's test data",
+  },
+  testRunModeReal: {
+    defaultMessage: "Run for real",
+    id: "xsPz0jjx3+",
+    description:
+      "Choice on a workflow step's Test tab: a test run calls out for real for this step",
+  },
+  testRunModeRealDescription: {
+    defaultMessage:
+      "Test runs call out for real for this step: requests are sent, content is generated and messages are delivered. Its test data is kept for when it uses test data again.",
+    id: "iUhV4+Yq09",
+    description: "On a workflow step's Test tab, when a test run runs the step for real",
+  },
+  testOutcomeLabel: {
+    defaultMessage: "Outcome",
+    id: "ElvzqUrelV",
+    description:
+      "Label of the choice on a workflow step's Test tab of whether the step succeeds or fails in a test run",
+  },
+  testOutcomeSucceeds: {
+    defaultMessage: "Succeeds",
+    id: "JuzH9vR7ay",
+    description: "Outcome on a workflow step's Test tab: the step returns its test data",
+  },
+  testOutcomeFails: {
+    defaultMessage: "Fails",
+    id: "qo0d24Hw+8",
+    description:
+      "Outcome on a workflow step's Test tab: the step fails with an error in a test run",
+  },
+  testFailureCode: {
+    defaultMessage: "Error code",
+    id: "Q7NvaWMPza",
+    description: "Box on a workflow step's Test tab for the code of the error the step fails with",
+  },
+  testFailureMessage: {
+    defaultMessage: "Error message",
+    id: "MK78Fh8i76",
+    description:
+      "Box on a workflow step's Test tab for the message of the error the step fails with",
+  },
+  testFailureStops: {
+    defaultMessage: "On error is set to Stop, so the test run stops at this step.",
+    id: "M9MtJAsUOq",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Stop",
+  },
+  testFailureContinues: {
+    defaultMessage: "On error is set to Continue, so the test run goes on past this step.",
+    id: "HtVUcSTMS/",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue",
+  },
+  testFailureBranches: {
+    defaultMessage: "On error is set to Branch, so the test run takes this step's error path.",
+    id: "OiJHVksWWK",
+    description:
+      "On a workflow step's Test tab, what a failure does when the step's On error setting is Branch",
+  },
+  testSettingsRealCount: {
+    defaultMessage:
+      "{count, plural, =0 {Every step uses its test data.} one {# step runs for real.} other {# steps run for real.}}",
+    id: "FhxuAfxzUP",
+    description:
+      "In the test settings popover, how many steps a test run runs for real instead of using test data",
+  },
+  testSettingsUseTestDataEverywhere: {
+    defaultMessage: "Use test data everywhere",
+    id: "we+P5cHH+C",
+    description:
+      "Button in the test settings popover that sets every step to use its test data in test runs",
+  },
+  testSettingsRunEverythingForReal: {
+    defaultMessage: "Run every step for real",
+    id: "0dFZxKMyvL",
+    description:
+      "Button in the test settings popover that sets every step that calls out to run for real in test runs",
+  },
+  testSettingsAllRealNote: {
+    defaultMessage:
+      "When every step runs for real, a test run is a live run: Wait steps really wait. It never publishes.",
+    id: "m3elLgug6H",
+    description: "In the test settings popover, what a test run does when every step runs for real",
+  },
+  confirmRealTestTitle: {
+    defaultMessage: "Run {count, plural, one {# step} other {# steps}} for real?",
+    id: "VElAUDjdAE",
+    description: "Title of the dialog before a test run in which some steps call out for real",
+  },
+  confirmRealTestDescription: {
+    defaultMessage:
+      "These steps call out for real in this test run. What they do happens and cannot be undone.",
+    id: "HmXZYnVvj0",
+    description: "In the dialog before a test run with steps that run for real",
+  },
+  confirmRealTestFedBy: {
+    defaultMessage: "Uses test data from {steps}",
+    id: "XZ5ZBfMizx",
+    description:
+      "In the dialog before a test run, under a step that runs for real: the mocked steps whose test data it reads",
+  },
+  confirmRealTestRun: {
+    defaultMessage: "Run test",
+    id: "GcIOfZ18Z9",
+    description: "Button that starts a test run in which some steps call out for real",
+  },
+  confirmRealTestCancel: {
+    defaultMessage: "Cancel",
+    id: "4fBLqa8Qde",
+    description:
+      "Button that closes the dialog before a test run with steps that run for real, without running",
+  },
+  executionRealStepCount: {
+    defaultMessage: "{count, plural, one {# step ran for real} other {# steps ran for real}}",
+    id: "HVa66T0BGY",
+    description: "In a workflow's run history, how many steps of a test run called out for real",
+  },
+  executionRanForReal: {
+    defaultMessage: "Ran for real",
+    id: "r/zdhHnzwh",
+    description: "Mark beside a step in a test run's step list: the step called out for real",
   },
 });

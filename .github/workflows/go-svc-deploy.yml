@@ -3,21 +3,7 @@ name: Go Service Deploy
 on:
   push:
     branches:
-      - main
-    paths:
-      - .dockerignore
-      - Dockerfile.vercel
-      - go.mod
-      - go.sum
-      - orchestrion.tool.go
-      - third_party/**
-      - internal/**
-      - apps/go-svc/**
-      - .github/actions/aws-auth/**
-      - .github/actions/ssm-deployment-params/**
-      - .github/actions/ecr-build-push/**
-      - .github/actions/ecs-deploy/**
-      - .github/workflows/go-svc-deploy.yml
+      - prod
   workflow_dispatch:
 
 permissions:
@@ -40,7 +26,7 @@ env:
 jobs:
   build-and-push:
     name: Build and push go-svc image
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 
@@ -82,7 +68,7 @@ jobs:
   deploy:
     name: Deploy go-svc image to ECS
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/prod'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
 

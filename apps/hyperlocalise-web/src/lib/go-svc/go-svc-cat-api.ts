@@ -44,6 +44,16 @@ import type {
   ProjectFileContentEditorTranslationResponse,
   ProjectFileContentEditorTreatAsImageBody,
   ProjectFileContentEditorTreatAsVideoBody,
+  ProjectFileContentEditorVisualContextBindBody,
+  ProjectFileContentEditorVisualContextBindResponse,
+  ProjectFileContentEditorVisualContextBody,
+  ProjectFileContentEditorVisualContextFinalizeBody,
+  ProjectFileContentEditorVisualContextFinalizeResponse,
+  ProjectFileContentEditorVisualContextMatchBody,
+  ProjectFileContentEditorVisualContextMatchResponse,
+  ProjectFileContentEditorVisualContextResponse,
+  ProjectFileContentEditorVisualContextUploadBody,
+  ProjectFileContentEditorVisualContextUploadResponse,
   ProjectFileStringContextBody,
   ProjectFileStringContextResponse,
 } from "@/api/routes/project/project.schema";
@@ -184,6 +194,128 @@ export class GoSvcCatApi {
     return this.request.json<ProjectFileContentEditorConcordanceResponse>(
       catPath(organizationSlug, projectId, "concordance"),
       { method: "POST", body, ...options },
+    );
+  }
+
+  visualContext(
+    organizationSlug: string,
+    projectId: string,
+    body: ProjectFileContentEditorVisualContextBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextResponse>(
+      catPath(organizationSlug, projectId, "visual-context"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  createVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    body: ProjectFileContentEditorVisualContextUploadBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextUploadResponse>(
+      catPath(organizationSlug, projectId, "visual-context", "screenshots"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  finalizeVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    body: ProjectFileContentEditorVisualContextFinalizeBody = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextFinalizeResponse>(
+      catPath(
+        organizationSlug,
+        projectId,
+        "visual-context",
+        "screenshots",
+        screenshotId,
+        "finalize",
+      ),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  matchVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    body: ProjectFileContentEditorVisualContextMatchBody = {},
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextMatchResponse>(
+      catPath(organizationSlug, projectId, "visual-context", "screenshots", screenshotId, "match"),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  visualContextMatchProcess(
+    organizationSlug: string,
+    projectId: string,
+    processId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextMatchResponse>(
+      catPath(organizationSlug, projectId, "visual-context", "processes", processId),
+      options,
+    );
+  }
+
+  bindVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    body: ProjectFileContentEditorVisualContextBindBody,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<ProjectFileContentEditorVisualContextBindResponse>(
+      catPath(
+        organizationSlug,
+        projectId,
+        "visual-context",
+        "screenshots",
+        screenshotId,
+        "bindings",
+      ),
+      { method: "POST", body, ...options },
+    );
+  }
+
+  unbindVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    bindingId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<void>(
+      catPath(
+        organizationSlug,
+        projectId,
+        "visual-context",
+        "screenshots",
+        screenshotId,
+        "bindings",
+        bindingId,
+      ),
+      { method: "DELETE", ...options },
+    );
+  }
+
+  deleteVisualContextScreenshot(
+    organizationSlug: string,
+    projectId: string,
+    screenshotId: string,
+    options: GoSvcRequestOptions = {},
+  ) {
+    return this.request.json<void>(
+      catPath(organizationSlug, projectId, "visual-context", "screenshots", screenshotId),
+      { method: "DELETE", ...options },
     );
   }
 

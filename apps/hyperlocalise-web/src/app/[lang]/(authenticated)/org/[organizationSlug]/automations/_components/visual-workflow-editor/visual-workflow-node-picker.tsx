@@ -181,6 +181,8 @@ function titleFor(type: VisualCatalogType) {
       return messages.nodeSequence;
     case "logic.try_catch":
       return messages.nodeTryCatch;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflow;
   }
 }
 
@@ -228,6 +230,8 @@ function hintFor(type: VisualCatalogType) {
       return messages.nodeSequenceHint;
     case "logic.try_catch":
       return messages.nodeTryCatchHint;
+    case "flow.call_workflow":
+      return messages.nodeCallWorkflowHint;
   }
 }
 
@@ -245,3 +249,6 @@ function categoryMessage(category: VisualCatalogCategory) {
       return messages.categoryFlow;
   }
 }
+
+/** The catalogue title of a node type, for places that name nodes outside the picker. */
+export { titleFor as visualWorkflowNodeTitleMessage };

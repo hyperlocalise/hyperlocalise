@@ -53,16 +53,9 @@ function createOrgSlugClient(origin: string) {
   const workspace = hc<OrgWorkspaceRpcAppType>(origin).api.orgs[":organizationSlug"];
 
   return {
-    ...pickClientPaths(inbox, [
-      "issues",
-      "issue-sheet",
-      "notifications",
-      "notification-preferences",
-      "mentions",
-      "conversations",
-    ]),
+    ...pickClientPaths(inbox, ["conversations"]),
     ...pickClientPaths(knowledge, ["glossaries", "knowledge-memory", "translation-memories"]),
-    ...pickClientPaths(projects, ["projects", "jobs", "files", "workspace-files", "automations"]),
+    ...pickClientPaths(projects, ["projects", "jobs", "files", "automations"]),
     ...pickClientPaths(tms, [
       "external-tms-provider-credential",
       "tms-provider",
@@ -77,8 +70,10 @@ function createOrgSlugClient(origin: string) {
       "zernio-connections",
       "ahrefs-connections",
       "pipes",
+      "braze",
       "intercom-connections",
       "canva-connections",
+      "figma-connections",
     ]),
     ...pickClientPaths(agents, [
       "agent-email",

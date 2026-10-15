@@ -207,6 +207,9 @@
                       "platform/tms",
                       "platform/connections/github",
                       "platform/connections/intercom",
+                      "platform/connections/braze",
+                      "platform/connections/canva",
+                      "platform/connections/figma",
                       "platform/connections/design-tools"
                     ],
                     "expanded": false
@@ -227,6 +230,7 @@
                           "platform/tutorials/github-localisation-workflow",
                           "platform/tutorials/react-intl-icu",
                           "platform/tutorials/vue-i18n",
+                          "platform/tutorials/i18next",
                           "platform/tutorials/ios-strings",
                           "platform/tutorials/android-string-resources",
                           "platform/tutorials/gettext-pot-po",
@@ -539,6 +543,8 @@
                     "pages": [
                       "contributing/docs-contributions",
                       "contributing/development",
+                      "contributing/canva-app-oauth",
+                      "contributing/figma-plugin-oauth",
                       "contributing/lambda-deploy",
                       "contributing/release-maintenance"
                     ],

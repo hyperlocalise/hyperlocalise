@@ -20,9 +20,15 @@ export type AppLocaleRegionGroup = (typeof APP_LOCALE_REGION_GROUPS)[number];
 const APP_LOCALE_REGIONS = {
   en: { group: "americas", countryCode: "US" },
   "zh-CN": { group: "asia-pacific", countryCode: "CN" },
-  "vi-VN": { group: "asia-pacific", countryCode: "VN" },
-  "de-DE": { group: "europe", countryCode: "DE" },
+  "da-DK": { group: "europe", countryCode: "DK" },
+  "nl-NL": { group: "europe", countryCode: "NL" },
+  "fil-PH": { group: "asia-pacific", countryCode: "PH" },
   "fr-FR": { group: "europe", countryCode: "FR" },
+  "de-DE": { group: "europe", countryCode: "DE" },
+  "ja-JP": { group: "asia-pacific", countryCode: "JP" },
+  "ko-KR": { group: "asia-pacific", countryCode: "KR" },
+  "th-TH": { group: "asia-pacific", countryCode: "TH" },
+  "vi-VN": { group: "asia-pacific", countryCode: "VN" },
 } as const satisfies Record<AppLocale, { group: AppLocaleRegionGroup; countryCode: string }>;
 
 export type LocalePickerEntry = {

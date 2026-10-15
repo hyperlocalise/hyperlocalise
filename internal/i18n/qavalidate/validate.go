@@ -51,6 +51,8 @@ type Segment struct {
 	SourcePath   string `json:"sourcePath,omitempty"`
 	TargetLocale string `json:"targetLocale"`
 	MaxLength    int    `json:"maxLength,omitempty"`
+	// MessageFormat is auto, icu, or i18next. Empty means auto.
+	MessageFormat string `json:"messageFormat,omitempty"`
 }
 
 type Finding struct {
@@ -148,6 +150,7 @@ func ValidateBatch(ctx context.Context, segments []Segment, policy Policy) (Repo
 			SourceText: segment.SourceText, TargetText: segment.TargetText,
 			SourcePath: segment.SourcePath, TargetLocale: segment.TargetLocale,
 			MaxLength: segment.MaxLength, Modes: modes,
+			MessageFormat: segmentvalidate.ParseMessageFormat(segment.MessageFormat),
 		})
 		result := Result{ID: segment.ID, Checks: []Finding{}}
 		for _, check := range checks {

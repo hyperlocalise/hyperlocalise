@@ -19,12 +19,13 @@ func (h *handler) composeSegmentValidation(
 	spellingRequested bool,
 ) ([]segmentvalidate.Check, []string, error) {
 	checks := h.validate(segmentvalidate.Request{
-		SourceText:   req.SourceText,
-		TargetText:   req.TargetText,
-		SourcePath:   req.SourcePath,
-		MaxLength:    req.MaxLength,
-		TargetLocale: req.TargetLocale,
-		Modes:        req.Modes,
+		SourceText:    req.SourceText,
+		TargetText:    req.TargetText,
+		SourcePath:    req.SourcePath,
+		MaxLength:     req.MaxLength,
+		TargetLocale:  req.TargetLocale,
+		MessageFormat: segmentvalidate.ParseMessageFormat(req.MessageFormat),
+		Modes:         req.Modes,
 	})
 
 	if !spellingRequested {

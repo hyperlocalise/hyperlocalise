@@ -35,6 +35,8 @@ Select a row in **Queue** or click a string in the preview. The Content Editor l
 
 On a native project, **Approve** saves the current target text. On a TMS-backed project, **Save to provider** (or **Approve**) writes the target back to the provider.
 
+When a [Braze](/platform/connections/braze) or [Intercom](/platform/connections/intercom) automation is attached to the project, the editor header can show **Ingest** next to **Push to Braze** or **Push to Intercom**. **Ingest** queues the same import as Automations **Run now**. Push writes copies or drafts to the connected service. Those actions do not publish. **Push to Braze** writes locale-suffixed email-template copies or campaign/Canvas translation maps, depending on the automation that owns the open file.
+
 Translators can prepare drafts; approval requires a reviewer, localization manager, or administrator with project access. See [Roles and permissions](/platform/workspace/roles).
 
 Format checks on the segment include **Placeholders & ICU** and **Length**. Fix those before you approve. Unreal Engine tags in gettext `.po` files appear as chips such as **UE#0**; keep them and translate the words around them. See [Unreal Engine rich text in gettext PO](/cli/reference/formats/gettext#unreal-engine-rich-text).

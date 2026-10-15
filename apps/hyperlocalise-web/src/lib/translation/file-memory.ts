@@ -267,6 +267,7 @@ export class FileTranslationMemoryStore {
             normalizedSourceText: normalized,
             targetText: unit.targetText,
             provenance: "file_job",
+            reviewStatus: "pending",
             externalKey: `${input.jobId}:${input.targetLocale}:${unit.key}`,
             metadata: {
               projectId: input.projectId,
@@ -292,9 +293,13 @@ export class FileTranslationMemoryStore {
           schema.memoryEntries.targetLocale,
           schema.memoryEntries.normalizedSourceText,
         ],
+        // Approved gold stays live. A later job may refresh drafts and rejected
+        // suggestions, but it must not overwrite a human-approved entry.
+        setWhere: sql`${schema.memoryEntries.reviewStatus} <> 'approved'`,
         set: {
           targetText: sql`excluded.target_text`,
           provenance: sql`excluded.provenance`,
+          reviewStatus: sql`excluded.review_status`,
           externalKey: sql`excluded.external_key`,
           metadata: sql`excluded.metadata`,
           version: incrementMemoryEntryVersionSql(),

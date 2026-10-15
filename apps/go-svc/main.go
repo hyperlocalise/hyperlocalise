@@ -93,20 +93,29 @@ func main() {
 		log.Printf("configure memory interchange publisher: %v", memoryInterchangeErr)
 	}
 	h.spellChecker = spellChecker
-	h.dictionaries = &dictionaryAPI{}
+	h.dictionaries = &dictionaryAPI{activityLog: activityLogPublisher}
 	h.glossaries = &glossaryAPI{activityLog: activityLogPublisher, interchange: interchangePublisher}
-	h.memories = &memoryAPI{interchange: memoryInterchangePublisher}
-	h.qaReports = &qaReportAPI{}
+	h.memories = &memoryAPI{
+		activityLog: activityLogPublisher,
+		interchange: memoryInterchangePublisher,
+		analytics:   newGAProductUsageTrackerFromEnv(),
+	}
+	h.qaReports = &qaReportAPI{activityLog: activityLogPublisher}
 	h.teams = &teamAPI{}
 	h.members = &memberAPI{
 		seats:     fallbackMemberSeats{limit: localSeatFallbackLimit},
 		analytics: newGAProductUsageTrackerFromEnv(),
 	}
 	h.apiKeys = &apiKeyAPI{activityLog: activityLogPublisher}
-	h.issueSheets = &issueSheetAPI{}
+	h.issueSheets = &issueSheetAPI{activityLog: activityLogPublisher}
 	h.notifications = &notificationsAPI{}
 	h.activityLogs = &activityLogAPI{}
-	h.contentEditor = &editorCatAPI{}
+	h.billing = &billingAPI{}
+	visualContextMatchPublisher, visualContextMatchErr := newVisualContextMatchPublisher(context.Background())
+	if visualContextMatchErr != nil {
+		log.Printf("configure visual context match publisher: %v", visualContextMatchErr)
+	}
+	h.contentEditor = &editorCatAPI{matchPublisher: visualContextMatchPublisher}
 	h.projects = &projectAPI{activityLog: activityLogPublisher}
 	h.conversations = &conversationAPI{}
 	h.overview = &overviewAPI{}
@@ -120,6 +129,7 @@ func main() {
 			h.issueSheets.autumn = autumnClientChecker{client: client}
 			h.members.seats = autumnMemberSeats{client: client}
 			h.projects.autumn = client
+			h.billing.autumn = client
 		}
 	}
 	var membershipLookup organizationMembershipLookup
@@ -131,7 +141,7 @@ func main() {
 		}
 		h.members.workos = newLiveMemberWorkos(key, workosAPIBaseURL())
 	}
-	h.workspace = &workspaceAPI{membership: membershipLookup}
+	h.workspace = &workspaceAPI{membership: membershipLookup, activityLog: activityLogPublisher}
 	h.knowledgeMemories = &knowledgeMemoryAPI{workspace: h.workspace}
 	if workosClient != nil {
 		h.workspace.flags = workosWorkspaceFlags{client: workosClient}
@@ -165,6 +175,7 @@ func main() {
 		h.members.pool = traced
 		h.apiKeys.pool = traced
 		h.activityLogs.pool = traced
+		h.billing.pool = traced
 		h.contentEditor.pool = traced
 		h.projects.pool = traced
 		h.conversations.pool = traced
@@ -187,6 +198,7 @@ func main() {
 	}
 	h.glossaries.objects = h.objects
 	h.memories.objects = h.objects
+	h.contentEditor.objects = h.objects
 
 	guidelinesCtx, cancelGuidelines := context.WithTimeout(context.Background(), 15*time.Second)
 	guidelineSearch, closeGuidelines, err := configureGuidelineSearch(guidelinesCtx)
@@ -222,6 +234,7 @@ func main() {
 	h.issueSheets.membership = membershipLookup
 	h.notifications.membership = membershipLookup
 	h.activityLogs.membership = membershipLookup
+	h.billing.membership = membershipLookup
 	h.contentEditor.membership = membershipLookup
 	h.projects.membership = membershipLookup
 	h.conversations.membership = membershipLookup

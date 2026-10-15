@@ -19,6 +19,7 @@ import {
   mergeCompanyProfiles,
 } from "@/lib/localisation-audit/company-profile";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
+import { hasLocalisationAuditSuccessfulPage } from "@/lib/localisation-audit/report-coverage";
 import {
   aggregateLocalisationAuditCredits,
   pickHeadlineFindings,
@@ -151,12 +152,15 @@ export async function analyzeLocalisationAuditStep(input: {
     return { ok: false as const, code: "localisation_audit_blocked" as const };
   }
 
-  if (input.pages.length === 0) {
+  if (!hasLocalisationAuditSuccessfulPage(input.pages)) {
     await failLocalisationAudit({
       auditId: input.auditId,
       attemptNumber: input.attemptNumber,
       errorCode: "crawl_failed",
-      errorMessage: "No pages could be crawled for this domain.",
+      errorMessage:
+        input.pages.length === 0
+          ? "No pages could be crawled for this domain."
+          : "None of the sampled pages loaded successfully, so we could not score this domain.",
     });
     serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.failed, {
       status: "failed",

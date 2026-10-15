@@ -48,6 +48,17 @@ WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
 AUTUMN_API_KEY=am_sk_test_placeholder
 ```
 
+Optional Canva integration and OAuth (see [Canva app OAuth](../../docs/contributing/canva-app-oauth.mdx)):
+
+```bash
+HYPERLOCALISE_PUBLIC_APP_URL=http://localhost:3000
+CANVA_APP_ID=
+CANVA_APP_ORIGIN=http://localhost:8080
+CANVA_OAUTH_CLIENT_ID=
+CANVA_OAUTH_CLIENT_SECRET=
+CANVA_OAUTH_REDIRECT_URI=https://www.canva.com/apps/oauth/authorized
+```
+
 Production SQS publishing uses Vercel OIDC credentials. Configure the role to
 allow only `sqs:SendMessage` on the activity-log queue and restrict its trust
 policy to this Vercel project's production environment. Set `AWS_ROLE_ARN`,

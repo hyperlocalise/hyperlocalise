@@ -19,19 +19,20 @@ describe("createApiClient", () => {
   const org = client.api.orgs[":organizationSlug"];
 
   it("exposes org, v1, and auth RPC paths as callable methods", () => {
-    expect(typeof org.issues.$get).toBe("function");
-    expect(typeof org["issue-sheet"].search.$get).toBe("function");
-    expect(typeof org.notifications.$get).toBe("function");
-    expect(typeof org["notification-preferences"].$get).toBe("function");
-    expect(typeof org.mentions.$get).toBe("function");
-    expect(typeof org.conversations.$get).toBe("function");
+    expect(typeof org.projects[":projectId"]["issue-sheet"].import.$post).toBe("function");
+    expect("issues" in org).toBe(false);
+    expect("issue-sheet" in org).toBe(false);
+    expect("notifications" in org).toBe(false);
+    expect("notification-preferences" in org).toBe(false);
+    expect("mentions" in org).toBe(false);
+    expect(typeof org.conversations.$post).toBe("function");
     expect(typeof org.glossaries.$get).toBe("function");
     expect(typeof org["knowledge-memory"].$get).toBe("function");
     expect(typeof org["translation-memories"].$get).toBe("function");
     expect(typeof org.projects.$get).toBe("function");
-    expect(typeof org.jobs.$get).toBe("function");
+    expect("$get" in org.jobs).toBe(false);
     expect(typeof org.files.$post).toBe("function");
-    expect(typeof org["workspace-files"].$get).toBe("function");
+    expect("workspace-files" in org).toBe(false);
     expect(typeof org.automations.$get).toBe("function");
     expect(typeof org["external-tms-provider-credential"].$get).toBe("function");
     expect(typeof org["tms-provider"].connection.$get).toBe("function");
@@ -48,6 +49,7 @@ describe("createApiClient", () => {
     expect(typeof org.pipes[":provider"]["authorize-url"].$get).toBe("function");
     expect(typeof org["intercom-connections"].$get).toBe("function");
     expect(typeof org["canva-connections"].$get).toBe("function");
+    expect(typeof org["figma-connections"].$get).toBe("function");
     expect(typeof org["agent-email"].$get).toBe("function");
     expect(typeof org["agent-slack"].$get).toBe("function");
     expect(typeof org["slack-connect"].$get).toBe("function");

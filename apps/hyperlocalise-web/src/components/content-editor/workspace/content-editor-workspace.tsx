@@ -181,6 +181,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
   const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const [isIssuePanelOpen, setIsIssuePanelOpen] = useState(false);
+  const [uploadingVisualContextSegmentIds, setUploadingVisualContextSegmentIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
@@ -412,6 +415,25 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
     : null;
   const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
   const isNativeProject = isNativeContentEditorProviderKind(shell.fileContext.providerKind);
+  const canUploadVisualContext =
+    isNativeProject &&
+    Boolean(editing.onUploadVisualContext) &&
+    shell.fileContext.canEditTranslations !== false;
+  const onUploadVisualContext = editing.onUploadVisualContext;
+  const uploadVisualContext = onUploadVisualContext
+    ? async (segmentId: string, file: File) => {
+        setUploadingVisualContextSegmentIds((current) => new Set(current).add(segmentId));
+        try {
+          await onUploadVisualContext(segmentId, file);
+        } finally {
+          setUploadingVisualContextSegmentIds((current) => {
+            const next = new Set(current);
+            next.delete(segmentId);
+            return next;
+          });
+        }
+      }
+    : undefined;
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
   const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
   const editorTranslationKeyId = showNativeIssues
@@ -501,6 +523,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
             revealedAgentContextSegmentIds?.has(intelligenceSegmentId) ?? showAgentContext
           }
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext}
+          isUploadingVisualContext={uploadingVisualContextSegmentIds.has(intelligenceSegmentId)}
+          onUploadVisualContext={uploadVisualContext}
           canLookupFreshContext={canLookupContext}
           search={queueSearch}
           queueFilter={queueFilter}
@@ -907,6 +932,13 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
+          canUploadVisualContext={canUploadVisualContext && !editorSegment.isLocked}
+          isUploadingVisualContext={uploadingVisualContextSegmentIds.has(editorSegment.id)}
+          onUploadVisualContext={
+            uploadVisualContext
+              ? (file: File) => uploadVisualContext(editorSegment.id, file)
+              : undefined
+          }
           showMaxLengthEditor={isNativeProject}
           isMaxLengthSaving={isMaxLengthSaving}
           canEditTranslations={shell.fileContext.canEditTranslations !== false}

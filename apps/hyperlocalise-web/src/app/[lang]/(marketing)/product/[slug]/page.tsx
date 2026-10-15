@@ -13,6 +13,10 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import {
+  getAgentsAutomationFaqItems,
+  getAgentsAutomationFaqSectionCopy,
+} from "@/components/marketing/product/agents-automation-faq-content";
 import { ProductPage } from "@/components/marketing/product/product-page";
 import { DomainsPage } from "@/components/marketing/product/domains-page";
 import { GuidelinesPage } from "@/components/marketing/product/guidelines-page";
@@ -21,6 +25,7 @@ import { MultilingualContentStudioPage } from "@/components/marketing/product/mu
 import {
   productPagesBySlug,
   productSlugs,
+  type ProductPageSlug,
 } from "@/components/marketing/product/product-page-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
@@ -28,9 +33,13 @@ import {
   normalizeAppLocale,
   SUPPORTED_APP_LOCALES,
 } from "@/lib/app-i18n/locales";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getLocalizedAlternates, localizedOpenGraph } from "@/lib/seo/localized-alternates";
 
+import { buildProductJsonLd } from "./build-product-json-ld";
 import { getProductRouteMetadata } from "./product-route-metadata";
+
+const productJsonLdSlugs = new Set<string>(productSlugs);
 
 type ProductRouteParams = {
   lang: string;
@@ -80,17 +89,7 @@ export async function generateMetadata({ params }: ProductRouteProps): Promise<M
   };
 }
 
-export default async function ProductRoutePage({ params }: ProductRouteProps) {
-  const { lang, slug } = await params;
-
-  if (slug === "next-gen-cat-tool") {
-    permanentRedirect(`/${lang}/product/multilingual-content-studio`);
-  }
-
-  if (slug === "self-evolving-knowledge") {
-    permanentRedirect(`/${lang}/product/guidelines`);
-  }
-
+function renderProductPage(slug: string, locale: string) {
   if (slug === "multilingual-content-studio") {
     return <MultilingualContentStudioPage />;
   }
@@ -113,5 +112,42 @@ export default async function ProductRoutePage({ params }: ProductRouteProps) {
     notFound();
   }
 
+  if (slug === "agents-automation") {
+    const faqCopy = getAgentsAutomationFaqSectionCopy(locale);
+    return (
+      <ProductPage
+        content={content}
+        faqItems={getAgentsAutomationFaqItems(locale)}
+        faqHeading={faqCopy.heading}
+        faqSubheading={faqCopy.subheading}
+      />
+    );
+  }
+
   return <ProductPage content={content} />;
+}
+
+export default async function ProductRoutePage({ params }: ProductRouteProps) {
+  const { lang, slug } = await params;
+
+  if (slug === "next-gen-cat-tool") {
+    permanentRedirect(`/${lang}/product/multilingual-content-studio`);
+  }
+
+  if (slug === "self-evolving-knowledge") {
+    permanentRedirect(`/${lang}/product/guidelines`);
+  }
+
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const page = renderProductPage(slug, locale);
+  const jsonLd = productJsonLdSlugs.has(slug)
+    ? buildProductJsonLd(slug as ProductPageSlug, locale)
+    : null;
+
+  return (
+    <>
+      {jsonLd ? <JsonLd data={jsonLd} /> : null}
+      {page}
+    </>
+  );
 }

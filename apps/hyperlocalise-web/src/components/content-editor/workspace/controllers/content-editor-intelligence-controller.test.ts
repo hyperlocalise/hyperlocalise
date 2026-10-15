@@ -517,8 +517,9 @@ describe("ContentEditorIntelligenceController", () => {
       expect(workspace.isLoadingVisualContext).toBe(false);
     });
 
-    it("skips visual context lookup for native providers", async () => {
-      const lookupSegmentVisualContext = vi.fn();
+    it("loads visual context for native providers", async () => {
+      const visualContext = { screenshots: [] };
+      const lookupSegmentVisualContext = vi.fn().mockResolvedValue(visualContext);
       const workspace = createTestWorkspace({
         fileContext: {
           sourcePath: "app/page.tsx",
@@ -536,9 +537,36 @@ describe("ContentEditorIntelligenceController", () => {
       });
 
       controller.panelVisible("seg-02");
-      await Promise.resolve();
+      await vi.waitFor(() =>
+        expect(workspace.segmentIntelligence["seg-02"]?.visualContext).toEqual(visualContext),
+      );
+      expect(lookupSegmentVisualContext).toHaveBeenCalledOnce();
+    });
 
-      expect(lookupSegmentVisualContext).not.toHaveBeenCalled();
+    it("loads visual context when providerKind is null", async () => {
+      const visualContext = { screenshots: [] };
+      const lookupSegmentVisualContext = vi.fn().mockResolvedValue(visualContext);
+      const workspace = createTestWorkspace({
+        fileContext: {
+          sourcePath: "app/page.tsx",
+          filename: "page.tsx",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          providerKind: null,
+          canEditTranslations: true,
+          canAddComments: true,
+        },
+      });
+      const { controller } = createController(workspace, {
+        intl,
+        services: { lookupSegmentVisualContext },
+      });
+
+      controller.panelVisible("seg-02");
+      await vi.waitFor(() =>
+        expect(workspace.segmentIntelligence["seg-02"]?.visualContext).toEqual(visualContext),
+      );
+      expect(lookupSegmentVisualContext).toHaveBeenCalledOnce();
     });
 
     it("records visual context failures as warn checks", async () => {

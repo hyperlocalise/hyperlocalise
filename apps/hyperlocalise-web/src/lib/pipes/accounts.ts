@@ -111,6 +111,57 @@ export async function getPipesAccountStatus(input: {
   }
 }
 
+export async function upsertPipesApiKey(input: {
+  provider: PipesProviderSlug;
+  localOrganizationId: string;
+  workosUserId: string;
+  secret: string;
+}): Promise<Result<PipesConnectionStatus, PipesCredentialError>> {
+  const secret = input.secret.trim();
+  if (!secret) {
+    return err(PIPES_NOT_CONNECTED);
+  }
+
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return err(PIPES_UNAVAILABLE);
+  }
+
+  const organizationIdResult = await loadWorkosOrganizationId(input.localOrganizationId);
+  if (isErr(organizationIdResult)) {
+    return organizationIdResult;
+  }
+
+  try {
+    const account = await workos.pipes.updateDataIntegrationApiKey({
+      slug: input.provider,
+      userId: input.workosUserId,
+      organizationId: organizationIdResult.value,
+      secret,
+    });
+
+    if (account.state === "needs_reauthorization") {
+      return err(PIPES_NEEDS_REAUTHORIZATION);
+    }
+
+    if (account.state !== "connected") {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return ok({
+      connected: true,
+      needsReauthorization: false,
+      apiKeyLast4: account.apiKeyLast4 ?? null,
+    });
+  } catch (error) {
+    if (isNotFound(error)) {
+      return err(PIPES_NOT_CONNECTED);
+    }
+
+    return err(PIPES_UNAVAILABLE);
+  }
+}
+
 export async function loadPipesApiKey(input: {
   provider: PipesProviderSlug;
   localOrganizationId: string;

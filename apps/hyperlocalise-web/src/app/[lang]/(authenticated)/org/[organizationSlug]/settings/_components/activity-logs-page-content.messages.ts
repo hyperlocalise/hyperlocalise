@@ -80,6 +80,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "e/c1fGj/DO",
     description: "Activity log event type label for resent member invitations",
   },
+  memberInviteRevokedEventType: {
+    defaultMessage: "Member Invite Revoked",
+    id: "ewyaR7flkI",
+    description: "Activity log event type label for revoked member invitations",
+  },
+  memberJoinedEventType: {
+    defaultMessage: "Member Joined",
+    id: "YWltwemH+8",
+    description: "Activity log event type label for members joining the workspace",
+  },
   memberRoleChangedEventType: {
     defaultMessage: "Member Role Changed",
     id: "E0iZCqdGpv",
@@ -95,6 +105,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "Q3Ax2I3isM",
     description: "Activity log event type label for workspace updates",
   },
+  workspaceArchivedEventType: {
+    defaultMessage: "Workspace Archived",
+    id: "JgUJ2cfTOt",
+    description: "Activity log event type label for archived workspaces",
+  },
   personalAccessTokenCreatedEventType: {
     defaultMessage: "Personal Access Token Created",
     id: "nrNj6bYo1e",
@@ -105,6 +120,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "OD2Mw78kw/",
     description: "Activity log event type label for personal access token revocation",
   },
+  organizationApiKeyCreatedEventType: {
+    defaultMessage: "API Key Created",
+    id: "JrA+jNfHXy",
+    description: "Activity log event type label for creating an organization API key",
+  },
+  organizationApiKeyRevokedEventType: {
+    defaultMessage: "API Key Revoked",
+    id: "v5xbuERHHQ",
+    description: "Activity log event type label for revoking an organization API key",
+  },
   integrationConnectedEventType: {
     defaultMessage: "Integration Connected",
     id: "qsKNiCPt7J",
@@ -114,6 +139,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Integration Disconnected",
     id: "mVt29nZn4/",
     description: "Activity log event type label for disconnected integrations",
+  },
+  integrationCredentialRevealedEventType: {
+    defaultMessage: "Integration Credential Revealed",
+    id: "7tupY+pWK7",
+    description: "Activity log event type label for revealed integration credentials",
+  },
+  integrationCredentialRotatedEventType: {
+    defaultMessage: "Integration Credential Rotated",
+    id: "fxhMfbdDxC",
+    description: "Activity log event type label for rotated integration credentials",
   },
   projectCreatedEventType: {
     defaultMessage: "Project Created",
@@ -225,6 +260,61 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "uIkNdFV4AX",
     description: "Activity log event type label for disabling automations",
   },
+  automationCreatedEventType: {
+    defaultMessage: "Automation Created",
+    id: "8jiuCoyVpa",
+    description: "Activity log event type label for creating automations",
+  },
+  automationDeletedEventType: {
+    defaultMessage: "Automation Deleted",
+    id: "ZdtDJMNEWA",
+    description: "Activity log event type label for deleting automations",
+  },
+  visualWorkflowCreatedEventType: {
+    defaultMessage: "Visual Workflow Created",
+    id: "+RFsBEni8d",
+    description: "Activity log event type label for creating visual workflows",
+  },
+  visualWorkflowDeletedEventType: {
+    defaultMessage: "Visual Workflow Deleted",
+    id: "/SBxHj0JY1",
+    description: "Activity log event type label for deleting visual workflows",
+  },
+  visualWorkflowPublishedEventType: {
+    defaultMessage: "Visual Workflow Published",
+    id: "5ZRJIF2YEf",
+    description: "Activity log event type label for publishing visual workflows",
+  },
+  visualWorkflowEnabledEventType: {
+    defaultMessage: "Visual Workflow Enabled",
+    id: "lkRSWA3RCX",
+    description: "Activity log event type label for enabling visual workflows",
+  },
+  visualWorkflowDisabledEventType: {
+    defaultMessage: "Visual Workflow Disabled",
+    id: "s2nhkcZKAr",
+    description: "Activity log event type label for disabling visual workflows",
+  },
+  visualWorkflowRunStartedEventType: {
+    defaultMessage: "Visual Workflow Run Started",
+    id: "/jSn20wHsp",
+    description: "Activity log event type label for visual workflow runs",
+  },
+  queryCreatedEventType: {
+    defaultMessage: "Query Created",
+    id: "Ds+zJSK1Kp",
+    description: "Activity log event type label for creating a Query",
+  },
+  queryDeletedEventType: {
+    defaultMessage: "Query Deleted",
+    id: "VSw3JkkdYk",
+    description: "Activity log event type label for deleting a Query",
+  },
+  queryImportedEventType: {
+    defaultMessage: "Queries Imported",
+    id: "HsTC/VyFCY",
+    description: "Activity log event type label for importing Queries",
+  },
   fileUploadedEventType: {
     defaultMessage: "File Uploaded",
     id: "b0hzgbcjSl",
@@ -320,6 +410,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "JA+rxr35jC",
     description: "Activity log event type group for automations",
   },
+  visualWorkflowEventGroup: {
+    defaultMessage: "Visual workflows",
+    id: "aV3ehfeMLX",
+    description: "Activity log event type group for visual workflows",
+  },
+  queryEventGroup: {
+    defaultMessage: "Queries",
+    id: "c2AEweY0yB",
+    description: "Activity log event type group for Queries",
+  },
   fileEventGroup: {
     defaultMessage: "Files",
     id: "gWW0AlUbAk",
@@ -329,6 +429,56 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "Strings",
     id: "HAcQZdyjXj",
     description: "Activity log event type group for string segments",
+  },
+  dictionaryEventGroup: {
+    defaultMessage: "Dictionaries",
+    id: "TWTIbFfjVV",
+    description: "Activity log event type group for spellcheck dictionaries",
+  },
+  linkedDomainEventGroup: {
+    defaultMessage: "Linked domains",
+    id: "scjKnowuFr",
+    description: "Activity log event type group for linked domains",
+  },
+  dictionaryCreatedEventType: {
+    defaultMessage: "Dictionary Created",
+    id: "vlJmij48Pk",
+    description: "Activity log event type label for dictionary creation",
+  },
+  dictionaryDeletedEventType: {
+    defaultMessage: "Dictionary Deleted",
+    id: "s6NLAIiQ6o",
+    description: "Activity log event type label for dictionary deletion",
+  },
+  dictionaryImportedEventType: {
+    defaultMessage: "Dictionary Imported",
+    id: "vdeP2Xo4gi",
+    description: "Activity log event type label for dictionary word imports",
+  },
+  dictionaryProjectAttachedEventType: {
+    defaultMessage: "Dictionary Project Attached",
+    id: "M20HVGjx7C",
+    description: "Activity log event type label for attaching a dictionary to a project",
+  },
+  linkedDomainCreatedEventType: {
+    defaultMessage: "Linked Domain Created",
+    id: "/rZ4ZyulJi",
+    description: "Activity log event type label for creating a linked domain",
+  },
+  linkedDomainVerifiedEventType: {
+    defaultMessage: "Linked Domain Verified",
+    id: "x/ixOXudXh",
+    description: "Activity log event type label for verifying a linked domain",
+  },
+  linkedDomainCancelledEventType: {
+    defaultMessage: "Linked Domain Cancelled",
+    id: "qBpW7LbE1Z",
+    description: "Activity log event type label for cancelling a linked domain claim",
+  },
+  linkedDomainMarketsChangedEventType: {
+    defaultMessage: "Linked Domain Markets Changed",
+    id: "R/hnP/HG+W",
+    description: "Activity log event type label for changing linked domain markets",
   },
   actorLabel: {
     defaultMessage: "Actor",
@@ -540,6 +690,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "C2s1+2PcGk",
     description: "Action for a resent member invitation activity",
   },
+  memberInviteRevokedAction: {
+    defaultMessage: "revoked a member invitation",
+    id: "QpVjJkSa/W",
+    description: "Action for a revoked member invitation activity",
+  },
+  memberJoinedAction: {
+    defaultMessage: "joined the workspace",
+    id: "TjhkeaKNqh",
+    description: "Action for a member joined activity",
+  },
   memberRoleChangedAction: {
     defaultMessage: "changed a member's role",
     id: "ZJldmeEodt",
@@ -555,6 +715,11 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "QJD09qoHFD",
     description: "Action for a workspace settings activity",
   },
+  workspaceArchivedAction: {
+    defaultMessage: "archived the workspace",
+    id: "MAb2UWyPPS",
+    description: "Action for a workspace archived activity",
+  },
   personalAccessTokenCreatedAction: {
     defaultMessage: "created a personal access token",
     id: "rkBJkeQXS6",
@@ -565,6 +730,16 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "KUk2sS3WzB",
     description: "Action for a personal access token revocation activity",
   },
+  organizationApiKeyCreatedAction: {
+    defaultMessage: "created an API key",
+    id: "G03HnOcSA7",
+    description: "Action for an organization API key creation activity",
+  },
+  organizationApiKeyRevokedAction: {
+    defaultMessage: "revoked an API key",
+    id: "0iCmLfILOO",
+    description: "Action for an organization API key revocation activity",
+  },
   integrationConnectedAction: {
     defaultMessage: "connected an integration",
     id: "GMqTpOh8aZ",
@@ -574,6 +749,16 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "disconnected an integration",
     id: "d7IQwgk/dt",
     description: "Action for an integration disconnection activity",
+  },
+  integrationCredentialRevealedAction: {
+    defaultMessage: "revealed an integration credential",
+    id: "+S1jk6jfe8",
+    description: "Action for an integration credential reveal activity",
+  },
+  integrationCredentialRotatedAction: {
+    defaultMessage: "rotated an integration credential",
+    id: "5oTR8PfQti",
+    description: "Action for an integration credential rotation activity",
   },
   projectCreatedAction: {
     defaultMessage: "created a project",
@@ -685,6 +870,61 @@ export const activityLogsPageContentMessages = defineMessages({
     id: "MmRAbYJJub",
     description: "Action for disabling an automation",
   },
+  automationCreatedAction: {
+    defaultMessage: "created an automation",
+    id: "9Cs6CzvjiC",
+    description: "Action for creating an automation",
+  },
+  automationDeletedAction: {
+    defaultMessage: "deleted an automation",
+    id: "Gl+LobSOlL",
+    description: "Action for deleting an automation",
+  },
+  visualWorkflowCreatedAction: {
+    defaultMessage: "created a visual workflow",
+    id: "vwjPgomhSV",
+    description: "Action for creating a visual workflow",
+  },
+  visualWorkflowDeletedAction: {
+    defaultMessage: "deleted a visual workflow",
+    id: "XOFGS0/TGY",
+    description: "Action for deleting a visual workflow",
+  },
+  visualWorkflowPublishedAction: {
+    defaultMessage: "published a visual workflow",
+    id: "qF8Df1EKi9",
+    description: "Action for publishing a visual workflow",
+  },
+  visualWorkflowEnabledAction: {
+    defaultMessage: "enabled a visual workflow",
+    id: "Cz30wjZvqz",
+    description: "Action for enabling a visual workflow",
+  },
+  visualWorkflowDisabledAction: {
+    defaultMessage: "disabled a visual workflow",
+    id: "du6Z5VSDjw",
+    description: "Action for disabling a visual workflow",
+  },
+  visualWorkflowRunStartedAction: {
+    defaultMessage: "started a visual workflow run",
+    id: "5lw2B8GGrH",
+    description: "Action for starting a visual workflow run",
+  },
+  queryCreatedAction: {
+    defaultMessage: "created a query",
+    id: "BAB3xRzd3f",
+    description: "Action for creating a Query",
+  },
+  queryDeletedAction: {
+    defaultMessage: "deleted a query",
+    id: "eD/DPyafBd",
+    description: "Action for deleting a Query",
+  },
+  queryImportedAction: {
+    defaultMessage: "imported queries",
+    id: "DuGUFMT/N4",
+    description: "Action for importing Queries",
+  },
   fileUploadedAction: {
     defaultMessage: "uploaded a file",
     id: "qICJFGMBSv",
@@ -734,5 +974,45 @@ export const activityLogsPageContentMessages = defineMessages({
     defaultMessage: "commented on a string",
     id: "UKiNYTCKL8",
     description: "Action for a string comment activity",
+  },
+  dictionaryCreatedAction: {
+    defaultMessage: "created a dictionary",
+    id: "p+l9yp3+PH",
+    description: "Action for a spellcheck dictionary creation activity",
+  },
+  dictionaryDeletedAction: {
+    defaultMessage: "deleted a dictionary",
+    id: "ids+317avp",
+    description: "Action for a spellcheck dictionary deletion activity",
+  },
+  dictionaryImportedAction: {
+    defaultMessage: "imported dictionary words",
+    id: "Cz3dpIMRmN",
+    description: "Action for a spellcheck dictionary word import activity",
+  },
+  dictionaryProjectAttachedAction: {
+    defaultMessage: "attached a dictionary to a project",
+    id: "lV7c6rxgZX",
+    description: "Action for attaching a spellcheck dictionary to a project",
+  },
+  linkedDomainCreatedAction: {
+    defaultMessage: "created a linked domain",
+    id: "lEmnokrrS2",
+    description: "Action for a linked domain creation activity",
+  },
+  linkedDomainVerifiedAction: {
+    defaultMessage: "verified a linked domain",
+    id: "7K7+VuCgvb",
+    description: "Action for a linked domain verification activity",
+  },
+  linkedDomainCancelledAction: {
+    defaultMessage: "cancelled a linked domain claim",
+    id: "PyDhCP5QIy",
+    description: "Action for a linked domain cancellation activity",
+  },
+  linkedDomainMarketsChangedAction: {
+    defaultMessage: "changed linked domain markets",
+    id: "HzMhwpgFt2",
+    description: "Action for a linked domain market change activity",
   },
 });

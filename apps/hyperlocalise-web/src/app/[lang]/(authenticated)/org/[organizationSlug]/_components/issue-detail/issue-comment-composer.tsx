@@ -26,7 +26,7 @@ import {
 import { markdownEditorMessages } from "@/components/markdown-editor/markdown-editor.messages";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import { cn } from "@/lib/primitives/cn";
 
 import { issueCommentMessages as messages } from "./issue-comment.messages";
@@ -73,6 +73,7 @@ export function IssueCommentComposer({
   onSubmit,
 }: IssueCommentComposerProps) {
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const { user } = useAuth();
   const navigateGuarded = useIssueDetailGuardedNavigate();
   const detailScope = useIssueDetailLinkScope();
@@ -109,14 +110,17 @@ export function IssueCommentComposer({
       usersSectionLabel: intl.formatMessage(markdownEditorMessages.mentionUsersSection),
       issuesSectionLabel: intl.formatMessage(markdownEditorMessages.mentionIssuesSection),
       search: async (query) => {
-        const response = await apiClient.api.orgs[":organizationSlug"].mentions.$get({
-          param: { organizationSlug },
-          query: { q: query, projectId, issueId, limit: "5" },
-        } as never);
-        if (response.status !== 200) {
+        const body = await goSvcClient.inbox
+          .mentions(organizationSlug, {
+            q: query,
+            projectId,
+            issueId,
+            limit: 5,
+          })
+          .catch(() => null);
+        if (!body) {
           return { users: [], issues: [] };
         }
-        const body = await response.json();
         return {
           users: body.mentionSuggestions.users.map((entry) => ({
             kind: "user" as const,
@@ -139,7 +143,7 @@ export function IssueCommentComposer({
         };
       },
     }),
-    [intl, issueId, organizationSlug, projectId],
+    [goSvcClient, intl, issueId, organizationSlug, projectId],
   );
 
   const handleSubmit = useCallback(async () => {

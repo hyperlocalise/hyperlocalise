@@ -27,6 +27,7 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
+  pruneWorkspaceAutomationFieldErrors,
   selectableAutomationRepositories,
   type WorkspaceAutomationFormState,
   validateWorkspaceAutomationFormState,
@@ -269,6 +270,50 @@ describe("workspace automation view model", () => {
         intercomHelpCenterLocales: ["en", "de"],
       }),
     ).toBe(true);
+  });
+
+  it("prefills the Braze email templates template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-email-templates",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze email templates",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeEnabled: true,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-email-templates"]);
+    expect(form?.brazeExistingTranslationPolicy).toBe("seed_empty");
+    expect(form?.brazeOverwriteWhenRemoteNewer).toBe(true);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+  });
+
+  it("prefills the Braze campaigns template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-braze-campaigns",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Translate Braze campaigns and Canvas",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      brazeCampaignsEnabled: true,
+      brazeEnabled: false,
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.skillIds).toEqual(["translate-braze-campaigns"]);
+    expect(workspaceAutomationFormCanActivate(form!)).toBe(true);
+    expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.brazeCampaigns).toMatchObject({
+      enabled: true,
+      campaignIds: [],
+      canvasIds: [],
+    });
   });
 
   it("persists the Intercom existing-translation policy on the automation payload", () => {
@@ -690,7 +735,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(deliveryOnly)).toEqual({
       trigger:
-        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Queries, Web Search, or Crowdin workflow tool.",
+        "Scheduled automations require at least one GitHub, GitLab, Contentful, Intercom, Braze, Queries, Web Search, or Crowdin workflow tool.",
     });
     expect(
       validateWorkspaceAutomationFormState({ ...deliveryOnly, webSearchEnabled: true }),
@@ -897,5 +942,70 @@ describe("workspace automation view model", () => {
     );
     expect(viewModelSource).not.toMatch(/from ["']\.\/workspace-automations["']/);
     expect(formSource).not.toMatch(/from ["']@\/lib\/agents\/workspace-automations["']/);
+  });
+});
+
+describe("Slack channel in the saved configuration", () => {
+  it("stores a pasted channel link as the channel ID it names", () => {
+    const payload = formStateToWorkspaceAutomationPayload({
+      ...createDefaultWorkspaceAutomationFormState(),
+      slackEnabled: true,
+      slackChannelId: "https://acme.slack.com/archives/C01234567",
+    });
+
+    expect(payload.toolConfig.slack).toEqual({ enabled: true, channelId: "C01234567" });
+  });
+});
+
+describe("workspaceAutomationFormHasChanges with a Slack channel link", () => {
+  const saved: WorkspaceAutomationFormState = {
+    ...createDefaultWorkspaceAutomationFormState(),
+    slackEnabled: true,
+    slackChannelId: "C01234567",
+  };
+
+  it("takes a link for the channel ID it is saved as", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C01234567" },
+        saved,
+      ),
+    ).toBe(false);
+  });
+
+  it("still sees a link to another channel as a change", () => {
+    expect(
+      workspaceAutomationFormHasChanges(
+        { ...saved, slackChannelId: "https://acme.slack.com/archives/C07654321" },
+        saved,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("pruneWorkspaceAutomationFieldErrors", () => {
+  const invalidForm: WorkspaceAutomationFormState = {
+    ...createDefaultWorkspaceAutomationFormState(),
+    name: "",
+    slackEnabled: true,
+    slackChannelId: "general",
+  };
+
+  it("keeps the errors the form still earns and drops the rest", () => {
+    const errors = {
+      name: "Name is required.",
+      slackChannelId: "Enter a valid Slack channel ID.",
+      githubRepository: "This repository is archived.",
+    };
+
+    expect(
+      pruneWorkspaceAutomationFieldErrors(errors, { ...invalidForm, slackChannelId: "C01234567" }),
+    ).toEqual({ name: "Name is required." });
+  });
+
+  it("returns the same object when nothing is dropped", () => {
+    const errors = { name: "Name is required.", slackChannelId: "Enter a valid Slack channel ID." };
+
+    expect(pruneWorkspaceAutomationFieldErrors(errors, invalidForm)).toBe(errors);
   });
 });

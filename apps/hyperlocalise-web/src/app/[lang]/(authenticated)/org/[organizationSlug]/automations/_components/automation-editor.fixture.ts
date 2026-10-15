@@ -212,6 +212,56 @@ export const createManualAutomationFormFixture = () =>
     }),
   );
 
+export const createBrazeAutomationRecord = () =>
+  createAutomationSummary({
+    id: "88888888-8888-4888-8888-888888888888",
+    skillIds: ["translate-braze-email-templates"],
+    name: "Translate Braze email templates",
+    instructions:
+      "Import Braze email templates into the native project each week. Open native jobs for mapped locales. Push approved copies only when requested.",
+    projectId: "project_website",
+    triggerConfig: {
+      mode: "scheduled",
+      schedule: {
+        cadence: "weekly",
+        hourUtc: 6,
+        dayOfWeek: 1,
+        timezone: "UTC",
+      },
+    },
+    repositoryTarget: { kind: "none" },
+    toolConfig: {
+      github: {
+        enabled: false,
+        mode: "sync",
+        pushSource: false,
+        pullTranslations: false,
+        validation: false,
+      },
+      slack: { enabled: false },
+      email: { enabled: false, provider: "resend" },
+      contentful: {
+        enabled: false,
+        sourceLocale: "en",
+        contentTypeIds: [],
+        targetLocales: [],
+        fieldMode: "auto",
+        overwriteDraftLocales: false,
+        runQa: true,
+        writeDrafts: true,
+      },
+      braze: {
+        enabled: true,
+        sourceLocale: "en",
+        templateIds: [],
+        contentBlockIds: [],
+        existingTranslationPolicy: "seed_empty",
+        overwriteWhenRemoteNewer: true,
+        workosUserId: "user_001",
+      },
+    },
+  });
+
 export const createIntercomAutomationRecord = () =>
   createAutomationSummary({
     id: "66666666-6666-4666-8666-666666666666",

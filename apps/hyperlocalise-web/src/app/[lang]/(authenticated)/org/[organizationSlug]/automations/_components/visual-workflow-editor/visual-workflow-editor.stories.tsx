@@ -11,7 +11,9 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
 
 import {
   visualWorkflowDemoDraft,
@@ -24,6 +26,7 @@ import {
   visualWorkflowSequenceDraft,
   visualWorkflowTerminalNodesDraft,
   visualWorkflowTryCatchDraft,
+  visualWorkflowCallWorkflowDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -77,6 +80,38 @@ const edgeKindsDraft = {
       sourceHandle: "triggeredAt",
       targetHandle: "url",
       data: { kind: "data" as const },
+    },
+  ],
+};
+
+const invalidStepDraft = {
+  name: "A step with an empty setting",
+  nodes: [
+    edgeKindsDraft.nodes[0]!,
+    {
+      id: "notify",
+      type: "action.notify_slack" as const,
+      position: { x: 420, y: 180 },
+      data: {
+        catalogType: "action.notify_slack" as const,
+        config: {
+          kind: "action.notify_slack" as const,
+          channelId: "",
+          message: "Deployed",
+          onError: "stop" as const,
+        },
+        runStatus: "idle" as const,
+      },
+    },
+  ],
+  edges: [
+    {
+      id: "execution-edge",
+      source: "trigger",
+      target: "notify",
+      sourceHandle: "success",
+      targetHandle: "input",
+      data: { kind: "execution" as const },
     },
   ],
 };
@@ -167,6 +202,192 @@ export const QuickAddBranches: Story = {
   },
 };
 
+export const AddAtViewCenter: Story = {
+  name: "Add a step in the middle of the view",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A step picked without a "+" on another step lands in the middle of what the canvas shows, wherever the view has been moved to. A second one is set a little off the first, so both can be seen.',
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const pick = async () => {
+      const button = await canvas.findByRole(
+        "button",
+        { name: /Assign values into the workflow context/ },
+        { timeout: 10_000 },
+      );
+      button.click();
+    };
+    const selectedStep = () =>
+      canvasElement.querySelector<HTMLElement>(".react-flow__node.selected");
+    const middle = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    };
+    const view = canvasElement.querySelector(".react-flow") as HTMLElement;
+
+    await pick();
+    await waitFor(() => expect(selectedStep()).not.toBeNull());
+    const first = selectedStep()!;
+    // The step's real height can differ from the size it was placed by, so the middle of the view
+    // is only required to fall inside it from top to bottom.
+    await waitFor(() => expect(Math.abs(middle(first).x - middle(view).x)).toBeLessThan(2));
+    const box = first.getBoundingClientRect();
+    await expect(box.top).toBeLessThan(middle(view).y);
+    await expect(box.bottom).toBeGreaterThan(middle(view).y);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await pick();
+    await waitFor(() => expect(selectedStep()).not.toBe(first));
+    await waitFor(() => expect(selectedStep()).not.toBeNull());
+    const second = selectedStep()!;
+    await expect(second.getBoundingClientRect().left).toBeGreaterThan(box.left);
+    await expect(second.getBoundingClientRect().top).toBeGreaterThan(box.top);
+  },
+};
+
+export const UndoRedo: Story = {
+  name: "Undo and redo an added node",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Every change to the graph is a step on one undo stack: adding a node from a handle is taken back by Undo, with its edge, and put back by Redo. The step Redo puts back has a violet band until it is selected.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const click = async (name: string | RegExp) => {
+      const button = await canvas.findByRole("button", { name }, { timeout: 10_000 });
+      button.click();
+    };
+    const edge = /visual-workflow-edge-switch-.+-case-ready$/;
+
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await click("Add node from Case 2");
+    await click(/Assign values into the workflow context/);
+    await expect(await canvas.findByTestId(edge)).toBeInTheDocument();
+
+    await click("Undo");
+    await waitFor(async () => {
+      await expect(canvas.queryByTestId(edge)).not.toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    await click("Redo");
+    const restored = await canvas.findByTestId(edge);
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeDisabled();
+
+    const stepId = /^visual-workflow-edge-switch-(.+)-case-ready$/.exec(
+      restored.dataset.testid ?? "",
+    )?.[1];
+    const step = canvasElement.querySelector(
+      `.react-flow__node[data-id="${stepId}"] [data-slot="card"]`,
+    ) as HTMLElement;
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "fresh")));
+    await userEvent.click(step);
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "--ring")));
+  },
+};
+
+export const UndoMove: Story = {
+  name: "Undo a moved node",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Moving a node by hand is a step on the same stack as every other change, so Undo puts it back where it was.",
+      },
+    },
+  },
+  args: {
+    initialName: visualWorkflowQuickAddDraft.name,
+    initialNodes: visualWorkflowQuickAddDraft.nodes,
+    initialEdges: visualWorkflowQuickAddDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    // The picker lists a "Switch" row too; the node is the one on the canvas.
+    const titles = await canvas.findAllByText("Switch", {}, { timeout: 10_000 });
+    const node = titles
+      .map((title) => title.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null);
+    await expect(node).not.toBeUndefined();
+    const before = node!.style.transform;
+
+    // A focused node moves with the arrow keys; each press is one step.
+    await userEvent.click(node!);
+    await userEvent.keyboard("{ArrowRight}");
+    await waitFor(async () => {
+      await expect(node!.style.transform).not.toBe(before);
+    });
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await waitFor(async () => {
+      await expect(node!.style.transform).toBe(before);
+    });
+  },
+};
+
+export const UndoNoticeDismissedOnEdit: Story = {
+  name: "Dismiss the undo notice after a new edit",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A notice for a settings change taken back while its panel is closed goes away once another edit is recorded, so its Redo no longer offers a cleared stack.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas, canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const titles = await canvas.findAllByText("Notify Slack", {}, { timeout: 10_000 });
+    const node = titles
+      .map((title) => title.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null);
+    await expect(node).not.toBeUndefined();
+    await userEvent.click(node!);
+
+    const channel = await canvas.findByLabelText("Slack channel ID");
+    await userEvent.type(channel, "#deploys");
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+
+    await userEvent.click(canvas.getByRole("button", { name: "Undo" }));
+    await expect(await page.findByText("Undo changing a step's settings")).toBeInTheDocument();
+
+    await userEvent.type(canvas.getByRole("textbox", { name: "Workflow name" }), "!");
+    await waitFor(async () => {
+      await expect(page.queryByText("Undo changing a step's settings")).not.toBeInTheDocument();
+    });
+    await expect(canvas.getByRole("button", { name: "Redo" })).toBeDisabled();
+  },
+};
+
 export const SwitchCaseDelete: Story = {
   name: "Deleting a Switch case keeps other branches",
   args: {
@@ -247,11 +468,30 @@ export const PortCompatibility: Story = {
       await expect(canvas.getAllByText(type).length).toBeGreaterThan(0);
     }
 
-    await expect(dataInput.className).toContain("ring-2");
-    await expect(dataOutput.className).toContain("ring-2");
+    // A handle's glyph is hollow until a wire is attached, then filled.
+    await expect(dataInput).toHaveAttribute("data-connected");
+    await expect(dataOutput).toHaveAttribute("data-connected");
+    await expect(optionalInput).not.toHaveAttribute("data-connected");
+    await expect(dataInput.querySelector("svg")).toHaveAttribute("fill", "currentColor");
+    await expect(optionalInput.querySelector("svg")).toHaveAttribute("fill", "var(--card)");
+    await expect(executionInput[0]).toHaveAttribute("data-connected");
 
-    await expect(dataInput.className).toContain("[&.connecting.valid]:bg-emerald-500");
-    await expect(dataInput.className).toContain("[&.connecting]:opacity-30");
+    await expect(dataInput.className).toContain("[&.connectingto.valid]:text-emerald-500");
+    await expect(dataInput.querySelector("svg")?.getAttribute("class")).toContain(
+      "group-[.connectingto]/handle:opacity-30",
+    );
+
+    // A port's dot takes its type's colour and sits on the card's edge, clear of the port's name.
+    await expect(getComputedStyle(dataInput).color).not.toBe(getComputedStyle(optionalInput).color);
+    const urlName = within(canvas.getByTitle("url: string")).getByText("url");
+    await expect(dataInput.getBoundingClientRect().right).toBeLessThanOrEqual(
+      urlName.getBoundingClientRect().left,
+    );
+
+    // An execution handle is an arrow, a data port a round dot.
+    const executionIcon = executionInput[0]!.querySelector("svg");
+    await expect(executionIcon).not.toBeNull();
+    await expect(executionIcon!.innerHTML).not.toBe(dataInput.querySelector("svg")?.innerHTML);
 
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
 
@@ -259,12 +499,294 @@ export const PortCompatibility: Story = {
     await expect(requestNode).not.toBeNull();
     await userEvent.click(requestNode!);
 
-    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
+    // A wired setting names the output that feeds it, in place of a box to type in.
+    const urlLabel = await canvas.findByText("URL", { selector: "label" });
+    const urlField = urlLabel.closest<HTMLElement>('[data-slot="bound-field"]');
+    await expect(urlField).not.toBeNull();
+    await expect(within(urlField!).queryByRole("textbox")).not.toBeInTheDocument();
+    await expect(urlField!.querySelector('[data-slot="bound-source"]')).toHaveTextContent(
+      "triggeredAt",
+    );
+    await expect(within(urlField!).getByRole("button", { name: "Disconnect" })).toBeEnabled();
+  },
+};
+
+export const StepSettingsTabs: Story = {
+  name: "Step settings tabs",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step's settings open on its own form, where a setting that an earlier step can feed shows its port. Its outputs are on a tab of their own, in the header row beside Back and Delete step. The chosen tab stays when another step is selected, and picking an issue shows the tab the issue is marked on.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const stepTitled = async (title: string) => {
+      const titles = await canvas.findAllByText(title, {}, { timeout: 10_000 });
+      return titles
+        .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+        .find((candidate) => candidate !== null)!;
+    };
+    const expectSelectedTab = (name: string) =>
+      waitFor(() =>
+        expect(canvas.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true"),
+      );
+
+    await userEvent.click(await stepTitled("Notify Slack"));
+    await expectSelectedTab("Configuration");
+    await expect(canvas.getByLabelText("Slack channel ID")).toBeVisible();
+    await expect(canvas.queryByRole("tab", { name: "Inputs" })).not.toBeInTheDocument();
+
+    // The tabs share the header's one row with the two icon buttons, and none is cut short.
+    const tabs = canvas.getByRole("tablist", { name: "Step settings" });
+    const middle = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return box.top + box.height / 2;
+    };
+    for (const name of ["Back", "Delete step"]) {
+      await expect(
+        Math.abs(middle(canvas.getByRole("button", { name })) - middle(tabs)),
+      ).toBeLessThan(1);
+    }
+    for (const label of tabs.querySelectorAll("[role=tab] > span")) {
+      await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+    }
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Outputs" }));
     await expect(
-      canvas.getAllByText(
-        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-      ).length,
-    ).toBeGreaterThan(0);
+      await canvas.findByText("Output fields (path, type, optional)"),
+    ).toBeInTheDocument();
+
+    // Another step, picked on the canvas: the tab stays.
+    await userEvent.click(await stepTitled("Manual trigger"));
+    await expectSelectedTab("Outputs");
+
+    // The issue is about a setting of the Slack step's own form.
+    await userEvent.click(canvas.getByText("channelId is required."));
+    await expectSelectedTab("Configuration");
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  },
+};
+
+export const StepTestChoices: Story = {
+  name: "A step's test run choices",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step that calls out can use its test data or run for real in test runs, and while it uses test data it can be set to fail. A step that runs for real is marked on the canvas, and the test settings count such steps and set them all at once.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    organizationSlug: "acme",
+    visualWorkflowId: "workflow-1",
+    visualWorkflowsApi: {
+      createVisualWorkflowRun: fn(),
+      getVisualWorkflowRun: fn(),
+    } as never,
+  },
+  play: async ({ canvas }) => {
+    const titles = await canvas.findAllByText("Notify Slack", {}, { timeout: 10_000 });
+    const slackNode = titles
+      .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null)!;
+    await userEvent.click(slackNode);
+    await userEvent.click(await canvas.findByRole("tab", { name: "Test" }));
+
+    // A failure goes through the step's On error setting.
+    await userEvent.click(canvas.getByRole("combobox", { name: "Outcome" }));
+    await userEvent.click(await within(document.body).findByRole("option", { name: "Fails" }));
+    await expect(
+      await canvas.findByText("On error is set to Stop, so the test run stops at this step."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error message")).toBeVisible();
+
+    // Running for real replaces the test data, and the card says so.
+    await userEvent.click(canvas.getByRole("combobox", { name: "In a test run" }));
+    await userEvent.click(
+      await within(document.body).findByRole("option", { name: "Run for real" }),
+    );
+    await expect(canvas.queryByRole("combobox", { name: "Outcome" })).not.toBeInTheDocument();
+    await expect(within(slackNode).getByText("Runs for real in test runs")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Test settings" }));
+    const popover = within(document.body);
+    await expect(await popover.findByText("1 step runs for real.")).toBeInTheDocument();
+    await userEvent.click(popover.getByRole("button", { name: "Use test data everywhere" }));
+    await expect(await popover.findByText("Every step uses its test data.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(slackNode).queryByText("Runs for real in test runs")).not.toBeInTheDocument(),
+    );
+  },
+};
+
+export const LeaveStepSettings: Story = {
+  name: "Leave a step's settings",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Back and the add button put a step's settings away and take the selection off the canvas, so a click on the same step opens its settings again.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const requestNode = (await canvas.findByTitle("url: string", {}, { timeout: 10_000 })).closest(
+      ".react-flow__node",
+    );
+    await expect(requestNode).not.toBeNull();
+    const openSettings = async () => {
+      await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
+      await expect(await canvas.findByRole("tab", { name: "Configuration" })).toBeInTheDocument();
+      await expect(requestNode).toHaveClass("selected");
+    };
+    const expectPicker = async () => {
+      await expect(await canvas.findByText("What happens next?")).toBeInTheDocument();
+      await waitFor(() => expect(requestNode).not.toHaveClass("selected"));
+    };
+
+    await openSettings();
+    // The step is deleted from the same row that leads back to the picker.
+    const back = canvas.getByRole("button", { name: "Back" });
+    await expect(
+      within(back.parentElement as HTMLElement).getByRole("button", { name: "Delete step" }),
+    ).toHaveClass("text-destructive");
+
+    await userEvent.click(back);
+    await expectPicker();
+
+    await openSettings();
+    await userEvent.click(
+      within(requestNode as HTMLElement).getByRole("button", { name: "Add node" }),
+    );
+    await expectPicker();
+
+    await openSettings();
+  },
+};
+
+export const UnsavedChanges: Story = {
+  name: "Unsaved changes",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The editor reports whether its graph differs from the workflow as last saved. A change that is taken back, and a step that is only selected, leave nothing to save.",
+      },
+    },
+  },
+  args: {
+    initialName: edgeKindsDraft.name,
+    initialNodes: edgeKindsDraft.nodes,
+    initialEdges: edgeKindsDraft.edges,
+    savedDefinition: toVisualWorkflowV3Definition(edgeKindsDraft),
+    onUnsavedChangesChange: fn(),
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ args, canvas }) => {
+    const expectUnsaved = (unsaved: boolean) =>
+      waitFor(() => expect(args.onUnsavedChangesChange).toHaveBeenLastCalledWith(unsaved));
+    const name = await canvas.findByRole("textbox", { name: "Workflow name" });
+    const requestNode = (await canvas.findByTitle("url: string", {}, { timeout: 10_000 })).closest(
+      ".react-flow__node",
+    );
+    await expectUnsaved(false);
+
+    await userEvent.type(name, "!");
+    await expectUnsaved(true);
+    await userEvent.type(name, "{Backspace}");
+    await expectUnsaved(false);
+
+    await userEvent.click(within(requestNode as HTMLElement).getByText("HTTP Request"));
+    await expectUnsaved(false);
+    await userEvent.click(await canvas.findByRole("combobox", { name: "Method" }));
+    await userEvent.click(await within(document.body).findByRole("option", { name: "POST" }));
+    await expectUnsaved(true);
+  },
+};
+
+// The shadow that draws a step's band, as the browser writes it in a computed style.
+function stepBandShadow(step: Element) {
+  const band = step.querySelector('[data-slot="step-band"]');
+  return band ? getComputedStyle(band).boxShadow : "";
+}
+
+// The colour of a step's band, as the browser writes it in a computed style.
+function stepBandColour(step: Element, token: "--destructive" | "--ring" | "fresh") {
+  const source = token === "fresh" ? "var(--color-violet-600, #7c3aed)" : `var(${token})`;
+  const probe = document.createElement("span");
+  probe.style.color = `color-mix(in srgb, ${source} 50%, transparent)`;
+  step.appendChild(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour;
+}
+
+export const InvalidStep: Story = {
+  name: "Invalid step",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step with an empty required setting is marked on the canvas and gets a band in the destructive colour. The issue names the step and the setting, and its buttons select the step and bring it into view. Selected, the step shows the selection's band alone and keeps its mark. The band runs along the step's edge, under the handles.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    const step = (await canvas.findByTitle("This step has a problem")).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    await expect(stepBandShadow(step)).toContain(stepBandColour(step, "--destructive"));
+    await expect(canvas.getByText("channelId is required.")).toBeInTheDocument();
+    // One broken step needs no arrows.
+    await expect(canvas.queryByRole("button", { name: "Next issue" })).not.toBeInTheDocument();
+
+    // Half of the band is inside the step's edge and half outside, so the handles sit on its
+    // middle.
+    const band = step.querySelector('[data-slot="step-band"]') as HTMLElement;
+    await expect(getComputedStyle(band).top).toBe("1.5px");
+    await expect(stepBandShadow(step)).toMatch(/ 0px 0px 0px 3px$/);
+
+    await userEvent.click(canvas.getByRole("button", { name: "Show on canvas" }));
+
+    await waitFor(() => expect(stepBandShadow(step)).toContain(stepBandColour(step, "--ring")));
+    await expect(stepBandShadow(step)).not.toContain(stepBandColour(step, "--destructive"));
+    await expect(canvas.getByTitle("This step has a problem")).toBeInTheDocument();
+
+    await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
   },
 };
 
@@ -549,6 +1071,16 @@ export const TryCatchNode: Story = {
     await expect(
       canvas.getByLabelText("Data output: attempt, object, optional"),
     ).toBeInTheDocument();
+
+    // Execution handles keep to the step's top part, so none shares a spot with a data port.
+    const firstDataPort = canvas
+      .getByLabelText("Data output: errorCode, string, optional")
+      .getBoundingClientRect();
+    for (const label of ["Try", "Success", "Catch", "Finally"]) {
+      await expect(canvas.getByLabelText(label).getBoundingClientRect().bottom).toBeLessThan(
+        firstDataPort.top,
+      );
+    }
     await expect(canvas.queryByTestId("visual-workflow-validation-issues")).not.toBeInTheDocument();
   },
 };
@@ -576,4 +1108,67 @@ export const TryCatchEditorNarrow: Story = {
     await expect(canvas.getByRole("button", { name: "Add node from Catch" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Add node from Finally" })).toBeEnabled();
   },
+};
+
+const callWorkflowNodesWithStatus = (status: "idle" | "running" | "succeeded" | "failed") =>
+  visualWorkflowCallWorkflowDraft.nodes.map((node) =>
+    node.id === "call" ? { ...node, data: { ...node.data, runStatus: status } } : node,
+  );
+
+export const CallWorkflowConfigured: Story = {
+  name: "Call Workflow — configured",
+  args: {
+    initialName: visualWorkflowCallWorkflowDraft.name,
+    initialNodes: callWorkflowNodesWithStatus("idle"),
+    initialEdges: visualWorkflowCallWorkflowDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findAllByText("Call workflow", {}, { timeout: 10_000 }),
+    ).not.toHaveLength(0);
+    await expect(canvas.getByLabelText("Data input: value.customerId, string")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data output: value.result, object")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Data output: value.warnings, array, optional"),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CallWorkflowInvalid: Story = {
+  name: "Call Workflow — invalid",
+  args: {
+    ...CallWorkflowConfigured.args,
+    initialNodes: visualWorkflowCallWorkflowDraft.nodes.map((node) =>
+      node.id === "call" && node.data.config.kind === "flow.call_workflow"
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              config: { ...node.data.config, workflowId: "", inputFields: [], outputFields: [] },
+            },
+          }
+        : node,
+    ),
+    initialEdges: visualWorkflowCallWorkflowDraft.edges.filter(
+      (edge) => edge.data?.kind !== "data",
+    ),
+  },
+};
+
+export const CallWorkflowRunning: Story = {
+  name: "Call Workflow — running",
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("running") },
+};
+
+export const CallWorkflowSucceeded: Story = {
+  name: "Call Workflow — succeeded",
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("succeeded") },
+};
+
+export const CallWorkflowFailedNarrow: Story = {
+  name: "Call Workflow — failed, narrow",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("failed") },
 };

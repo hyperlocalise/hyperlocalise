@@ -14,8 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
+import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 export type IssueSubscriber = {
   userId: string;
@@ -42,20 +42,24 @@ export function useIssueSubscribersQuery({
   issueId: string;
   enabled?: boolean;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+
   return useQuery({
     queryKey: issueSubscribersQueryKey(organizationSlug, projectId, issueId),
     enabled,
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
-        "issue-sheet"
-      ][":issueId"].subscriptions.$get({
-        param: { organizationSlug, projectId, issueId },
-      } as never);
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load issue subscribers");
+      try {
+        const body = (await goSvcClient.issueSheet.subscriptions(
+          organizationSlug,
+          projectId,
+          issueId,
+        )) as { subscribers: IssueSubscriber[] };
+        return body.subscribers;
+      } catch (error) {
+        throw new Error(goSvcErrorMessage(error, "Failed to load issue subscribers"), {
+          cause: error,
+        });
       }
-      const body = await response.json();
-      return body.subscribers;
     },
   });
 }

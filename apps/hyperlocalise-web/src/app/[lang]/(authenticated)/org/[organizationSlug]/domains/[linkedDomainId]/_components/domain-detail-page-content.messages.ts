@@ -111,8 +111,8 @@ export const domainDetailPageContentMessages = defineMessages({
     description: "Empty state for linked domain research markets",
   },
   verifyPending: {
-    defaultMessage: "Verify this domain to unlock the full localisation audit report.",
-    id: "0uC+32o+7p",
+    defaultMessage: "Verify this domain to show its localisation audit report here.",
+    id: "n5irxoq5SU",
     description: "Message when domain detail cannot show the report until verification succeeds",
   },
   reportHeading: {

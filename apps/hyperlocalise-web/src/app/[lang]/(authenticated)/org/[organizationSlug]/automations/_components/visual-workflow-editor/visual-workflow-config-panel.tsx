@@ -12,11 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { WorkflowCredentialField } from "./workflow-credential-field";
 import { WorkflowDataPanel } from "./workflow-data-panel";
+import { WorkflowBoundField, type BoundPort } from "./workflow-bound-field";
+import { WorkflowTestDataPanel } from "./workflow-test-data-panel";
 import type {
+  WorkflowBinding,
   WorkflowNodeContract,
   VisualWorkflowRfEdge,
 } from "@/lib/visual-workflows/schema/types";
@@ -26,6 +29,7 @@ import {
   CaretUpIcon,
   TrashIcon,
   PlusIcon,
+  CaretRightIcon,
 } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -40,7 +44,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyP } from "@/components/ui/typography";
 import {
   createMergeInputId,
@@ -60,6 +67,7 @@ import type {
   VisualKeyValuePair,
   VisualNodeConfig,
   VisualNodeErrorBehavior,
+  VisualSubworkflowField,
   VisualWorkflowGithubTriggerEvent,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
@@ -73,8 +81,21 @@ import {
 } from "@/lib/agents/content-sync/content-sync-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
+import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
+import { listUpstreamFields } from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
+import { getWorkflowInputFields } from "@/lib/visual-workflows/catalog/node-contracts";
+import { cn } from "@/lib/primitives/cn";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
+import {
+  canRunForReal,
+  isMockable,
+  type MissingTestValue,
+  type VisualWorkflowTestData,
+  type VisualWorkflowTestFailure,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { useVisualWorkflowResourceOptions } from "./visual-workflow-resource-options";
+import { deriveReusableWorkflowContract } from "@/lib/visual-workflows/validation/subworkflow-validation";
 
 const ANY_PROJECT_VALUE = "__any_project__";
 const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = [
@@ -89,6 +110,15 @@ const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"
 const GITHUB_EVENTS: VisualWorkflowGithubTriggerEvent[] = ["push", "pull_request"];
 const TIMEZONES = ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"];
 
+/** The parts of a step's settings, one shown at a time. */
+export type StepSettingsTab = "configuration" | "outputs" | "test";
+
+const STEP_SETTINGS_TABS = [
+  { value: "configuration", message: messages.configurationTab },
+  { value: "outputs", message: messages.outputsTab },
+  { value: "test", message: messages.testTab },
+] as const;
+
 export function VisualWorkflowConfigPanel({
   node,
   nodes = [],
@@ -96,10 +126,23 @@ export function VisualWorkflowConfigPanel({
   onChangeContract,
   organizationSlug,
   issues,
+  onSelectNode,
+  onShowNode,
   onBack,
   onChangeConfig,
   onChangeNodeType,
   onDeleteNode,
+  testData,
+  allTestData,
+  missingTestValues = [],
+  onChangeTestData,
+  testRunsForReal,
+  onChangeTestRunsForReal,
+  testFailure,
+  onChangeTestFailure,
+  requestedTab,
+  onDisconnectInput,
+  onPointStep,
 }: {
   node: VisualWorkflowRfNode;
   organizationSlug?: string;
@@ -107,57 +150,262 @@ export function VisualWorkflowConfigPanel({
   edges?: readonly VisualWorkflowRfEdge[];
   onChangeContract?: (patch: WorkflowNodeContract) => void;
   issues: readonly (VisualWorkflowValidationIssue | VisualWorkflowV3ValidationIssue)[];
+  /** Called with the step an issue is about when its line is clicked. */
+  onSelectNode?: (nodeId: string) => void;
+  /** Called with the step an issue is about when it is asked to be shown on the canvas. */
+  onShowNode?: (nodeId: string) => void;
   onBack: () => void;
   onChangeConfig: (config: VisualNodeConfig) => void;
   onChangeNodeType: (type: VisualCatalogType) => void;
   onDeleteNode: () => void;
+  /** The step's test data, shown on its Test tab with `onChangeTestData`. */
+  testData?: Record<string, unknown>;
+  /** Every step's test data, so a source field of an earlier step can be picked before a run. */
+  allTestData?: VisualWorkflowTestData;
+  /** The values of this step a test run needs and does not have. */
+  missingTestValues?: readonly MissingTestValue[];
+  onChangeTestData?: (value: Record<string, unknown>) => void;
+  /** Whether test runs run this step for real; the choice is offered with its handler. */
+  testRunsForReal?: boolean;
+  onChangeTestRunsForReal?: (real: boolean) => void;
+  /** The error this step fails with in a test run, or undefined when it succeeds. */
+  testFailure?: VisualWorkflowTestFailure;
+  onChangeTestFailure?: (failure: VisualWorkflowTestFailure | undefined) => void;
+  /** Opens a tab from outside the panel; a new `key` opens it again. */
+  requestedTab?: { tab: StepSettingsTab; key: number };
+  /** Removes the data wire that feeds one of this step's settings. */
+  onDisconnectInput?: (portId: string) => void;
+  /** Called with the step a value under the pointer comes from, and with null when it leaves. */
+  onPointStep?: (nodeId: string | null) => void;
 }) {
   const intl = useIntl();
   const { config } = node.data;
   const resources = useVisualWorkflowResourceOptions(organizationSlug);
   const isTrigger = isTriggerType(node.data.catalogType);
-  const isInputConnected = (portId: string) =>
-    getVisualWorkflowDataEdgeBinding({
-      nodeId: node.id,
-      portId,
-      edges,
-    }) !== undefined;
-
-  const connectedInputDescription = intl.formatMessage({
-    id: "uwi6wLAbuv",
-    defaultMessage:
-      "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-    description: "Description for an inline workflow value overridden by a data connection",
+  // The settings and inputs of this step that an issue names.
+  const invalidFields = new Set(
+    issues.flatMap((issue) => (issue.nodeId === node.id && issue.field ? [issue.field] : [])),
+  );
+  const inputFields = getWorkflowInputFields({
+    id: node.id,
+    type: node.data.catalogType,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputFields: node.data.outputFields,
   });
-  const connectedInputProps = (portId: string) => {
-    const disabled = isInputConnected(portId);
+  const upstreamFields = listUpstreamFields({ node, nodes, edges, testData: allTestData });
+  const triggerId = nodes.find((step) => isTriggerType(step.data.catalogType))?.id;
+  const stepTitle = (nodeId: string) => {
+    const step = nodes.find((entry) => entry.id === nodeId);
+    return step
+      ? intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType))
+      : nodeId;
+  };
+  const removeBinding = (portId: string) => {
+    const inputs = { ...node.data.inputs };
+    delete inputs[portId];
+    onChangeContract?.({ inputs });
+  };
+  /** Puts a fixed value or template stored by an older version into the setting's own box. */
+  const adoptBinding = (portId: string, binding: WorkflowBinding) => {
+    const text =
+      binding.kind === "template"
+        ? binding.template
+        : binding.kind === "literal"
+          ? typeof binding.value === "string" || typeof binding.value === "number"
+            ? binding.value
+            : JSON.stringify(binding.value)
+          : undefined;
+    if (text !== undefined) {
+      onChangeConfig({ ...config, [portId]: text } as VisualNodeConfig);
+    }
+    removeBinding(portId);
+  };
+  /** A setting's port and what feeds it: a wire on the canvas, or a binding stored earlier. */
+  const portFor = (portId: string): BoundPort => {
+    const field = inputFields.find((entry) => entry.name === portId);
+    const wired = getVisualWorkflowDataEdgeBinding({ nodeId: node.id, portId, edges });
+    const binding = node.data.inputs?.[portId];
+    const source = wired
+      ? {
+          nodeId: wired.nodeId,
+          label: stepTitle(wired.nodeId),
+          detail: wired.path.join(" › "),
+          removeLabel: intl.formatMessage(messages.disconnectInput),
+          onRemove: onDisconnectInput ? () => onDisconnectInput(portId) : undefined,
+        }
+      : binding
+        ? {
+            nodeId:
+              binding.kind === "reference"
+                ? binding.nodeId === "$trigger"
+                  ? triggerId
+                  : binding.nodeId
+                : undefined,
+            label:
+              binding.kind === "reference"
+                ? stepTitle(
+                    binding.nodeId === "$trigger" ? (triggerId ?? binding.nodeId) : binding.nodeId,
+                  )
+                : binding.kind === "literal"
+                  ? intl.formatMessage(messages.fixedValueSource)
+                  : binding.kind === "template"
+                    ? intl.formatMessage(messages.templateSource)
+                    : intl.formatMessage(messages.credentialSource),
+            detail:
+              binding.kind === "reference"
+                ? binding.path.join(" › ")
+                : binding.kind === "literal"
+                  ? JSON.stringify(binding.value)
+                  : binding.kind === "template"
+                    ? binding.template
+                    : undefined,
+            // A fixed value or template is typed into the box since this version of the panel.
+            ...((binding.kind === "literal" || binding.kind === "template") &&
+            !portId.startsWith("value.")
+              ? {
+                  removeLabel: intl.formatMessage(messages.editBindingAsText),
+                  onRemove: onChangeContract ? () => adoptBinding(portId, binding) : undefined,
+                }
+              : {
+                  removeLabel: intl.formatMessage(messages.removeBinding),
+                  onRemove: onChangeContract ? () => removeBinding(portId) : undefined,
+                }),
+          }
+        : undefined;
     return {
-      disabled,
-      description: disabled ? connectedInputDescription : undefined,
+      id: portId,
+      type: field?.type ?? "string",
+      required: field?.required ?? false,
+      source,
+      fields: upstreamFields,
+      stepTitle,
+      triggerId,
+      onPoint: onPointStep,
     };
   };
+  const connectedInputProps = (portId: string) => ({
+    port: portFor(portId),
+    invalid: invalidFields.has(portId),
+  });
+  // Inputs that only a wire can feed, such as a Call workflow's or a Return's values.
+  const wireOnlyInputs = inputFields.filter((field) => field.name.startsWith("value."));
+
+  // The tab stays as chosen from step to step, and starts over when the panel is opened again.
+  const [tab, setTab] = useState<StepSettingsTab>("configuration");
+  useEffect(() => {
+    if (requestedTab) setTab(requestedTab.tab);
+  }, [requestedTab]);
+  const hasTestTab = Boolean(onChangeTestData) && isMockable(node.data.catalogType);
+  const canRunStepForReal = canRunForReal(node.data.catalogType);
+  // A step without a Test tab shows its own form while that tab is the chosen one.
+  const shownTab = tab === "test" && !hasTestTab ? "configuration" : tab;
+  /** Shows the step's own form, where its issues are marked, whichever tab was open. */
+  const showIssueTab = () => setTab("configuration");
+  const [failOpen, setFailOpen] = useState(false);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <Tabs
+      value={shownTab}
+      onValueChange={(value) => setTab(value as StepSettingsTab)}
+      className="h-full min-h-0 gap-0"
+    >
+      {/* Back and Delete step are icons, so the tabs fit beside them in the panel's one header row. */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeftIcon className="size-4" />
-          <FormattedMessage {...messages.backToPicker} />
-        </Button>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {onChangeContract ? (
-          <WorkflowDataPanel
-            node={node}
-            nodes={nodes}
-            edges={edges}
-            organizationSlug={organizationSlug}
-            onChange={onChangeContract}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={intl.formatMessage(messages.backToPicker)}
+                onClick={onBack}
+              >
+                <ArrowLeftIcon />
+              </Button>
+            }
           />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.backToPicker} />
+          </TooltipContent>
+        </Tooltip>
+        {onChangeContract ? (
+          <TabsList
+            aria-label={intl.formatMessage(messages.stepSettingsTabs)}
+            className="min-w-0 flex-1 group-data-horizontal/tabs:h-8"
+          >
+            {STEP_SETTINGS_TABS.filter((entry) => entry.value !== "test" || hasTestTab).map(
+              (entry) => (
+                // A tab is as wide as its name and gives way only when the row runs out of room.
+                <TabsTrigger key={entry.value} value={entry.value} className="min-w-0 flex-auto">
+                  <span className="truncate">
+                    <FormattedMessage {...entry.message} />
+                  </span>
+                </TabsTrigger>
+              ),
+            )}
+          </TabsList>
         ) : null}
-        <h2 className="text-sm font-medium">
-          <FormattedMessage {...messages.configTitle} />
-        </h2>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon-sm"
+                className="ms-auto"
+                aria-label={intl.formatMessage(messages.deleteStep)}
+                onClick={onDeleteNode}
+              >
+                <TrashIcon />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            <FormattedMessage {...messages.deleteStep} />
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      {onChangeContract ? (
+        <>
+          {hasTestTab && onChangeTestData ? (
+            <TabsContent value="test" className="min-h-0 overflow-y-auto p-4">
+              <WorkflowTestDataPanel
+                node={node}
+                value={testData}
+                missing={missingTestValues}
+                projects={resources.projects}
+                onChange={onChangeTestData}
+                runsForReal={testRunsForReal}
+                onRunsForRealChange={canRunStepForReal ? onChangeTestRunsForReal : undefined}
+                failure={testFailure}
+                onFailureChange={canRunStepForReal ? onChangeTestFailure : undefined}
+              />
+            </TabsContent>
+          ) : null}
+          <TabsContent value="outputs" className="min-h-0 overflow-y-auto p-4">
+            <WorkflowDataPanel
+              section="outputs"
+              node={node}
+              nodes={nodes}
+              edges={edges}
+              organizationSlug={organizationSlug}
+              onChange={onChangeContract}
+            />
+          </TabsContent>
+        </>
+      ) : null}
+      <TabsContent
+        value="configuration"
+        className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4"
+      >
+        {/* Without the tabs nothing else names this part. */}
+        {onChangeContract ? null : (
+          <h2 className="text-sm font-medium">
+            <FormattedMessage {...messages.configTitle} />
+          </h2>
+        )}
         {isTrigger ? (
           <SelectField
             id="vw-trigger-type"
@@ -308,18 +556,6 @@ export function VisualWorkflowConfigPanel({
               onCheckedChange={(checked) =>
                 onChangeConfig({ ...config, parseJsonBody: checked === true })
               }
-            />
-            <CheckboxField
-              id="vw-http-fail-on-error"
-              label={intl.formatMessage(messages.httpFailOnError)}
-              checked={config.failOnHttpError ?? true}
-              onCheckedChange={(checked) =>
-                onChangeConfig({ ...config, failOnHttpError: checked === true })
-              }
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -707,6 +943,76 @@ export function VisualWorkflowConfigPanel({
             />
           </>
         ) : null}
+        {config.kind === "flow.call_workflow" ? (
+          <div className="grid gap-4">
+            <SelectField
+              id="vw-call-workflow"
+              label={intl.formatMessage({
+                defaultMessage: "Published workflow",
+                id: "zMLRlSi4TO",
+                description: "Workflow selected by a Call Workflow node",
+              })}
+              value={config.workflowId}
+              placeholder={intl.formatMessage({
+                defaultMessage: "Select a reusable workflow",
+                id: "UbCGk5WHRG",
+                description: "Placeholder for selecting a reusable workflow",
+              })}
+              items={resources.workflows
+                .filter(
+                  (workflow) =>
+                    workflow.publishedDefinition !== null &&
+                    deriveReusableWorkflowContract(workflow.publishedDefinition) !== null,
+                )
+                .map((workflow) => ({
+                  value: workflow.id,
+                  label: `${workflow.name} · v${workflow.publishedVersion}`,
+                }))}
+              onValueChange={(workflowId) => {
+                const workflow = resources.workflows.find((entry) => entry.id === workflowId);
+                if (!workflow?.publishedDefinition || workflow.publishedVersion === null) return;
+                const contract = deriveReusableWorkflowContract(workflow.publishedDefinition);
+                if (!contract) return;
+                onChangeConfig({
+                  ...config,
+                  workflowId: workflow.id,
+                  version: workflow.publishedVersion,
+                  inputFields: contract.inputs,
+                  outputFields: contract.outputs,
+                });
+              }}
+            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="vw-call-version">
+                {intl.formatMessage({
+                  defaultMessage: "Immutable version",
+                  id: "6NfqQj4VJh",
+                  description: "Pinned immutable workflow version",
+                })}
+              </Label>
+              <Input
+                id="vw-call-version"
+                type="number"
+                min={1}
+                value={config.version}
+                onChange={(event) =>
+                  onChangeConfig({
+                    ...config,
+                    version: Math.max(1, Number.parseInt(event.target.value, 10) || 1),
+                  })
+                }
+              />
+            </div>
+            <ContractFieldList
+              label={intl.formatMessage({
+                defaultMessage: "Outputs",
+                id: "xhGJ7UWFLE",
+                description: "Snapshotted Call Workflow outputs",
+              })}
+              fields={config.outputFields}
+            />
+          </div>
+        ) : null}
         {config.kind === "flow.return" ? (
           <div className="grid gap-2">
             <Label>
@@ -1043,10 +1349,6 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
         {config.kind === "action.notify_email" ? (
@@ -1110,10 +1412,6 @@ export function VisualWorkflowConfigPanel({
               value={config.message}
               {...connectedInputProps("message")}
               onChange={(value) => onChangeConfig({ ...config, message: value })}
-            />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
             />
           </>
         ) : null}
@@ -1308,16 +1606,78 @@ export function VisualWorkflowConfigPanel({
               {...connectedInputProps("prompt")}
               onChange={(value) => onChangeConfig({ ...config, prompt: value })}
             />
-            <ErrorBehaviorField
-              value={config.onError ?? "stop"}
-              onChange={(onError) => onChangeConfig({ ...config, onError })}
-            />
           </>
         ) : null}
-        {config.kind === "trigger.manual" ? (
-          <TypographyP size="small" tone="subtle">
-            <FormattedMessage {...messages.noConfig} />
+        {config.kind === "trigger.manual" || config.kind === "logic.try_catch" ? (
+          <TypographyP size="small" tone="subtle" className="py-6 text-center text-balance">
+            <FormattedMessage
+              {...(config.kind === "trigger.manual" ? messages.noConfig : messages.noSettings)}
+            />
           </TypographyP>
+        ) : null}
+        {wireOnlyInputs.map((field) => (
+          <WorkflowBoundField
+            key={field.name}
+            id={`vw-port-${field.name}`}
+            label={field.name.slice("value.".length)}
+            value=""
+            onChange={() => {}}
+            editable={false}
+            invalid={invalidFields.has(field.name)}
+            port={portFor(field.name)}
+          />
+        ))}
+        {onChangeContract ? (
+          <WorkflowDataPanel
+            section="settings"
+            node={node}
+            nodes={nodes}
+            edges={edges}
+            organizationSlug={organizationSlug}
+            onChange={onChangeContract}
+          />
+        ) : null}
+        {"onError" in config ? (
+          <Collapsible
+            open={failOpen}
+            onOpenChange={setFailOpen}
+            className="border-t border-border pt-2"
+          >
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between px-1"
+                />
+              }
+            >
+              <span className="flex items-center gap-1.5">
+                <CaretRightIcon className={cn("size-3.5", failOpen && "rotate-90")} />
+                <FormattedMessage {...messages.ifStepFails} />
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {intl.formatMessage(errorBehaviorMessage(config.onError ?? "stop"))}
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="grid gap-4 pt-3">
+              <ErrorBehaviorField
+                value={config.onError ?? "stop"}
+                onChange={(onError) => onChangeConfig({ ...config, onError })}
+              />
+              {config.kind === "action.http" ? (
+                <CheckboxField
+                  id="vw-http-fail-on-error"
+                  label={intl.formatMessage(messages.httpFailOnError)}
+                  checked={config.failOnHttpError ?? true}
+                  onCheckedChange={(checked) =>
+                    onChangeConfig({ ...config, failOnHttpError: checked === true })
+                  }
+                />
+              ) : null}
+            </CollapsibleContent>
+          </Collapsible>
         ) : null}
         {node.data.lastOutput || node.data.lastError ? (
           <div className="grid gap-1.5 border-t border-border pt-4">
@@ -1329,26 +1689,29 @@ export function VisualWorkflowConfigPanel({
             </pre>
           </div>
         ) : null}
-      </div>
-      <div className="border-t border-border px-4 py-3">
-        <Button type="button" variant="outline" className="w-full" onClick={onDeleteNode}>
-          <TrashIcon className="size-4" />
-          <FormattedMessage {...messages.deleteStep} />
-        </Button>
-      </div>
-      {issues.length > 0 ? (
-        <div
-          data-testid="visual-workflow-validation-issues"
-          className="border-t border-border px-4 py-3 text-sm text-destructive"
-        >
-          {issues.map((issue) => (
-            <p key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "all"}`}>
-              {intl.formatMessage(issueMessage(issue.code))}
-            </p>
-          ))}
-        </div>
-      ) : null}
-    </div>
+      </TabsContent>
+      <VisualWorkflowIssueList
+        issues={issues}
+        nodes={nodes}
+        selectedNodeId={node.id}
+        onSelectNode={
+          onSelectNode
+            ? (nodeId) => {
+                showIssueTab();
+                onSelectNode(nodeId);
+              }
+            : undefined
+        }
+        onShowNode={
+          onShowNode
+            ? (nodeId) => {
+                showIssueTab();
+                onShowNode(nodeId);
+              }
+            : undefined
+        }
+      />
+    </Tabs>
   );
 }
 
@@ -1598,10 +1961,6 @@ function ContentSyncConfigFields({
         value={config.projectFolder}
         onChange={(value) => onChangeConfig({ ...config, projectFolder: value })}
       />
-      <ErrorBehaviorField
-        value={config.onError ?? "stop"}
-        onChange={(onError) => onChangeConfig({ ...config, onError })}
-      />
     </>
   );
 }
@@ -1641,6 +2000,35 @@ function SelectField({
   );
 }
 
+function ContractFieldList({
+  label,
+  fields,
+}: {
+  label: string;
+  fields: readonly VisualSubworkflowField[];
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label>{label}</Label>
+      {fields.length === 0 ? (
+        <p className="text-xs text-muted-foreground">None</p>
+      ) : (
+        <ul className="grid gap-1 rounded-md border border-border p-2 text-xs">
+          {fields.map((field) => (
+            <li key={field.id ?? field.name} className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono">{field.name}</span>
+              <span className="text-muted-foreground">
+                {field.type}
+                {field.required === false ? " · optional" : " · required"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function TextField({
   id,
   label,
@@ -1649,6 +2037,8 @@ function TextField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1657,7 +2047,24 @@ function TextField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -1665,6 +2072,7 @@ function TextField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1681,6 +2089,8 @@ function TextAreaField({
   placeholder,
   disabled = false,
   description,
+  invalid = false,
+  port,
 }: {
   id: string;
   label: string;
@@ -1689,7 +2099,25 @@ function TextAreaField({
   placeholder?: string;
   disabled?: boolean;
   description?: string;
+  invalid?: boolean;
+  /** Set for a setting that a wire or an earlier step's field can feed. */
+  port?: BoundPort;
 }) {
+  if (port) {
+    return (
+      <WorkflowBoundField
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        invalid={invalid}
+        description={description}
+        multiline
+        port={port}
+      />
+    );
+  }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -1697,6 +2125,7 @@ function TextAreaField({
         id={id}
         value={value}
         disabled={disabled}
+        aria-invalid={invalid || undefined}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
       />
@@ -1780,42 +2209,5 @@ function titleForTrigger(type: VisualCatalogType) {
       return messages.nodeSourceUploadTrigger;
     default:
       return messages.triggerType;
-  }
-}
-
-function issueMessage(
-  code: VisualWorkflowValidationIssue["code"] | VisualWorkflowV3ValidationIssue["code"],
-) {
-  switch (code) {
-    case "missing_trigger":
-      return messages.missingTrigger;
-    case "multiple_triggers":
-      return messages.multipleTriggers;
-    case "orphan_node":
-      return messages.orphanNode;
-    case "invalid_edge":
-      return messages.invalidEdge;
-    case "invalid_trigger_config":
-      return messages.invalidTriggerConfig;
-    case "invalid_node_config":
-      return messages.invalidNodeConfig;
-    case "nested_for_each":
-      return messages.nestedForEach;
-    case "nested_retry":
-      return messages.nestedRetry;
-    case "invalid_retry":
-      return messages.invalidRetry;
-    case "retry_foreach_nesting":
-      return messages.retryForEachNesting;
-    case "non_idempotent_retry":
-      return messages.nonIdempotentRetry;
-    case "invalid_retry_policy":
-      return messages.invalidRetryPolicy;
-    case "invalid_try_catch_region":
-      return messages.invalidTryCatchRegion;
-    case "overlapping_try_catch_region":
-      return messages.overlappingTryCatchRegion;
-    default:
-      return messages.invalidNodeConfig;
   }
 }

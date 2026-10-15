@@ -360,7 +360,16 @@ func (api *memberAPI) deleteMember(ctx context.Context, actor memberActor, worko
 			return 0, memberFailure(500, "member_sync_failed", "Failed to sync member removal with identity provider")
 		}
 	} else if isPendingInvite && api.workos != nil {
+		// Hides the row from the invitation.revoked webhook so this removal is not
+		// also logged as a WorkOS-side revocation.
+		marked, err := api.markPendingMembershipReplacingInvitation(ctx, member.membershipID)
+		if err != nil {
+			return 0, err
+		}
 		if err := api.revokePendingWorkosInvitation(ctx, actor.workosOrganizationID, member.email); err != nil {
+			if marked {
+				_ = api.clearPendingMembershipReplacingInvitation(context.WithoutCancel(ctx), member.membershipID)
+			}
 			slog.ErrorContext(ctx, "workspace pending invitation revoke failed",
 				"organization_id", actor.organizationID,
 				"membership_id", member.membershipID,

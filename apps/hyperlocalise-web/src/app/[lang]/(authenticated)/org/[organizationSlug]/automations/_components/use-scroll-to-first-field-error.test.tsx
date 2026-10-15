@@ -79,6 +79,21 @@ describe("useScrollToFirstFieldError", () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
   });
 
+  it("stays put when errors only go away", () => {
+    const { rerender } = render(
+      <Harness errors={{ name: "Name is required.", slackChannelId: "Enter a valid ID." }} />,
+    );
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    rerender(<Harness errors={{ slackChannelId: "Enter a valid ID." }} />);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Harness errors={{ slackChannelId: "Enter a valid ID.", name: "Name is required." }} />,
+    );
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
   it("returns to the settings tab before scrolling", () => {
     render(<Harness errors={{ name: "Name is required." }} initialTab="history" />);
 

@@ -66,8 +66,11 @@ export function composeSegmentView(input: {
       ? intelligence.maxLength
       : undefined;
 
+  const messageFormat = meta.messageFormat ?? fileContext.messageFormat;
+
   return {
     ...meta,
+    ...(messageFormat ? { messageFormat } : {}),
     sourceLocale: fileContext.sourceLocale,
     targetLocale: fileContext.targetLocale,
     targetText: draft?.targetText ?? "",
@@ -86,6 +89,7 @@ export function toQueueSegment(
     | "key"
     | "sourceText"
     | "sourcePath"
+    | "messageFormat"
     | "contentKind"
     | "sourceAssetUrl"
     | "targetAssetUrl"
@@ -105,6 +109,7 @@ export function toQueueSegment(
     key: segment.key,
     sourceText: segment.sourceText,
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.messageFormat ? { messageFormat: segment.messageFormat } : {}),
     ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
     ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
     ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),

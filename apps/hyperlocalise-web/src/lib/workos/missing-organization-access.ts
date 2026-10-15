@@ -17,7 +17,7 @@ import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-
 import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { isReplacingWorkosMembershipSql } from "@/lib/workos/constants";
 
 const logger = createLogger("missing-organization-access");
 
@@ -25,7 +25,7 @@ const pendingMembershipConditions = [
   eq(schema.organizations.lifecycleStatus, "active"),
   or(
     isNull(schema.organizationMemberships.workosMembershipId),
-    eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+    isReplacingWorkosMembershipSql(schema.organizationMemberships.workosMembershipId),
   ),
 ];
 

@@ -25,7 +25,6 @@ import {
   GlobeIcon,
   EnvelopeIcon,
   MagnifyingGlassIcon,
-  SlackLogoIcon,
   SparkleIcon,
   CheckSquareIcon,
   UploadSimpleIcon,
@@ -106,6 +105,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import { AHREFS_PIPES_SLUG } from "@/lib/ahrefs/constants";
+import { BRAZE_PIPES_SLUG } from "@/lib/braze/constants";
 import { INTERCOM_PIPES_SLUG } from "@/lib/intercom/constants";
 import type { WorkspaceAutomationEditorTab } from "@/lib/navigation/workspace-automation-editor-tab";
 import { GITLAB_PIPES_SLUG } from "@/lib/gitlab/constants";
@@ -168,6 +168,11 @@ import {
 import type { AutomationAssistantApi } from "./automation-assistant-api";
 import { AutomationAssistantProvider } from "./automation-assistant-provider";
 import { AutomationAssistantSummary } from "./automation-assistant-summary";
+import {
+  AUTOMATION_ICON_GLYPH_TONES,
+  AutomationIconTile,
+  type AutomationIconTone,
+} from "./automation-icon-tile";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 import {
   formatRepositoryOptionLabel,
@@ -175,6 +180,8 @@ import {
   TriggerSettings,
   type GithubRepositoryOption,
 } from "./workspace-automation-trigger-settings";
+import { WorkspaceAutomationBrazeCampaignsSettings } from "./workspace-automation-braze-campaigns-settings";
+import { WorkspaceAutomationBrazeSettings } from "./workspace-automation-braze-settings";
 import { WorkspaceAutomationIntercomSettings } from "./workspace-automation-intercom-settings";
 import { useScrollToFirstFieldError } from "./use-scroll-to-first-field-error";
 
@@ -262,13 +269,37 @@ const AUTOMATION_MODEL_MESSAGES = {
   "google/gemini-3.1-pro-preview": workspaceAutomationFormMessages.modelGemini31ProPreview,
 } as const;
 
+/** Brand marks keep their colour, except in a disabled menu item, where they go grey. */
+const BRAND_ICON_CLASS = "size-4 in-data-disabled:grayscale";
+
+const BUILT_IN_MENU_ICON_CLASS = cn("size-4", AUTOMATION_ICON_GLYPH_TONES.builtIn);
+
 function ZernioToolIcon() {
-  return <IntegrationLogo src="/images/zernio-logo.svg" className="size-4" />;
+  return <IntegrationLogo src="/images/zernio-logo.svg" className={BRAND_ICON_CLASS} />;
 }
 
-function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
+function BrazeToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/braze-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function SlackToolIcon({ className }: { className?: string }) {
+  return (
+    <IntegrationLogo src="/images/slack-logo.svg" className={cn(BRAND_ICON_CLASS, className)} />
+  );
+}
+
+function AutomationToolMenuIcon({
+  colored = true,
+  icon,
+}: {
+  /** Off for a tool that cannot be used yet. */
+  colored?: boolean;
+  icon?: SimpleIcon;
+}) {
   if (icon) {
-    return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
+    return <SimpleBrandIcon icon={icon} colored={colored} className={BRAND_ICON_CLASS} />;
   }
 
   return <MagnifyingGlassIcon className="size-4" />;
@@ -357,8 +388,11 @@ function EditorRow({
   children,
   action,
   className,
+  tone,
 }: {
   icon: ReactNode;
+  /** What the icon's colour says about the row; left out, the icon stays grey. */
+  tone?: AutomationIconTone;
   title: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
@@ -373,9 +407,7 @@ function EditorRow({
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3 md:items-center">
-        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted-foreground md:mt-0">
-          {icon}
-        </span>
+        <AutomationIconTile tone={tone}>{icon}</AutomationIconTile>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
             {title}
@@ -435,7 +467,7 @@ function DeleteToolButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+      className="size-8 rounded-lg text-muted-foreground hover:text-destructive"
     >
       <TrashIcon className="size-4" />
     </Button>
@@ -910,6 +942,7 @@ function AddToolMenu({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  brazeConnected,
   semrushConnected,
   zernioConnected,
   slackConnected,
@@ -929,6 +962,7 @@ function AddToolMenu({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  brazeConnected: boolean;
   semrushConnected: boolean;
   zernioConnected: boolean;
   slackConnected: boolean;
@@ -964,7 +998,7 @@ function AddToolMenu({
               disabled={form.knowledgeEnabled || !knowledgeAvailable}
               onClick={() => onChange({ ...form, knowledgeEnabled: true })}
             >
-              <BrainIcon className="size-4" />
+              <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.memories} />
               {form.knowledgeEnabled ? (
                 <DropdownMenuHint>
@@ -982,7 +1016,7 @@ function AddToolMenu({
               disabled={form.knowledgeFilesEnabled}
               onClick={() => onChange({ ...form, knowledgeFilesEnabled: true })}
             >
-              <FoldersIcon className="size-4" />
+              <FoldersIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
               {form.knowledgeFilesEnabled ? (
                 <DropdownMenuHint>
@@ -1137,7 +1171,7 @@ function AddToolMenu({
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
             >
-              <SlackLogoIcon className="size-4" />
+              <SlackToolIcon />
               <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
                 <DropdownMenuHint>
@@ -1153,7 +1187,7 @@ function AddToolMenu({
               disabled={form.emailEnabled || !emailConnected}
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
-              <EnvelopeIcon className="size-4" />
+              <EnvelopeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
                 <DropdownMenuHint>
@@ -1177,7 +1211,7 @@ function AddToolMenu({
                 })
               }
             >
-              <MagnifyingGlassIcon className="size-4" />
+              <AutomationToolMenuIcon icon={siContentful} />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
                 <DropdownMenuHint>
@@ -1206,6 +1240,46 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
+              disabled={form.brazeEnabled || form.brazeCampaignsEnabled || !brazeConnected}
+              onClick={() =>
+                onChange({ ...form, brazeEnabled: true, brazeCampaignsEnabled: false })
+              }
+            >
+              <BrazeToolIcon />
+              Braze Email Templates
+              {form.brazeEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.brazeCampaignsEnabled || form.brazeEnabled || !brazeConnected}
+              onClick={() =>
+                onChange({ ...form, brazeCampaignsEnabled: true, brazeEnabled: false })
+              }
+            >
+              <BrazeToolIcon />
+              Braze Campaigns & Canvas
+              {form.brazeCampaignsEnabled ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuHint>
+              ) : !brazeConnected ? (
+                <DropdownMenuHint>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuHint>
+              ) : form.brazeEnabled ? (
+                <DropdownMenuHint>Use a separate automation</DropdownMenuHint>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
               disabled={form.crowdinEnabled || !crowdinConnected}
               onClick={() =>
                 onChange({
@@ -1229,7 +1303,7 @@ function AddToolMenu({
             </DropdownMenuItem>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <UploadSimpleIcon className="size-4" />
+                <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.jobsToolsMenu} />
                 </span>
@@ -1247,7 +1321,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <UploadSimpleIcon className="size-4" />
+                  <UploadSimpleIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
                   {form.createNativeTmsJobEnabled ? (
                     <DropdownMenuHint>
@@ -1270,7 +1344,7 @@ function AddToolMenu({
                     })
                   }
                 >
-                  <BrainIcon className="size-4" />
+                  <BrainIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
                   {form.assignTranslateWithAgentEnabled ? (
                     <DropdownMenuHint>
@@ -1282,7 +1356,7 @@ function AddToolMenu({
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <CheckSquareIcon className="size-4" />
+                <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                 <span className="min-w-0 flex-1">
                   <FormattedMessage {...workspaceAutomationFormMessages.issuesToolsMenu} />
                 </span>
@@ -1292,7 +1366,7 @@ function AddToolMenu({
                   disabled={form.listIssuesEnabled}
                   onClick={() => onChange({ ...form, listIssuesEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
                   {form.listIssuesEnabled ? (
                     <DropdownMenuHint>
@@ -1304,7 +1378,7 @@ function AddToolMenu({
                   disabled={form.createIssueEnabled}
                   onClick={() => onChange({ ...form, createIssueEnabled: true })}
                 >
-                  <CheckSquareIcon className="size-4" />
+                  <CheckSquareIcon className={BUILT_IN_MENU_ICON_CLASS} />
                   <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
                   {form.createIssueEnabled ? (
                     <DropdownMenuHint>
@@ -1382,7 +1456,7 @@ function AddToolMenu({
               disabled={form.webSearchEnabled}
               onClick={() => onChange({ ...form, webSearchEnabled: true })}
             >
-              <GlobeIcon className="size-4" />
+              <GlobeIcon className={BUILT_IN_MENU_ICON_CLASS} />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
                 <DropdownMenuHint>
@@ -1405,7 +1479,7 @@ function AddToolMenu({
             ))}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <AutomationToolMenuIcon icon={siGoogle} />
+                <AutomationToolMenuIcon icon={siGoogle} colored={false} />
                 <span className="min-w-0 flex-1">{COMING_SOON_GOOGLE_MENU_LABEL}</span>
                 <ComingSoonBadge className="ms-0" />
               </DropdownMenuSubTrigger>
@@ -1499,6 +1573,7 @@ const SKILL_INTEGRATION_LABELS: Record<WorkspaceAutomationSkillIntegration, Mess
   crowdin: workspaceAutomationFormMessages.skillIntegrationCrowdin,
   contentful: workspaceAutomationFormMessages.skillIntegrationContentful,
   intercom: workspaceAutomationFormMessages.skillIntegrationIntercom,
+  braze: workspaceAutomationFormMessages.skillIntegrationBraze,
   slack: workspaceAutomationFormMessages.skillIntegrationSlack,
   email: workspaceAutomationFormMessages.skillIntegrationEmail,
 };
@@ -1542,20 +1617,36 @@ const SKILL_TOOL_ICONS: Partial<Record<WorkspaceAutomationSkillTool, Icon>> = {
   use_web_search: GlobeIcon,
   create_native_tms_job: UploadSimpleIcon,
   list_issues: CheckSquareIcon,
-  notify_slack: SlackLogoIcon,
   notify_email: EnvelopeIcon,
 };
+
+/** Whether the skill works through an outside service or is part of Hyperlocalise. */
+function skillIconTone(skill: WorkspaceAutomationSkill): AutomationIconTone {
+  const tool = skill.tools[0];
+  return tool && (tool === "notify_slack" || SKILL_BRAND_ICONS[tool]) ? "external" : "builtIn";
+}
 
 /** The integration or surface the skill touches, the same icon its tool row uses. */
 function SkillIcon({ className, skill }: { className?: string; skill: WorkspaceAutomationSkill }) {
   const tool = skill.tools[0];
+  if (
+    tool === "import_braze_templates" ||
+    tool === "push_braze_templates" ||
+    tool === "import_braze_campaigns" ||
+    tool === "push_braze_campaigns"
+  ) {
+    return <BrazeToolIcon className={className} />;
+  }
+  if (tool === "notify_slack") {
+    return <SlackToolIcon className={className} />;
+  }
   const brand = tool ? SKILL_BRAND_ICONS[tool] : undefined;
   if (brand) {
-    return <SimpleBrandIcon icon={brand} colored={false} className={cn("size-4", className)} />;
+    return <SimpleBrandIcon icon={brand} colored className={cn(BRAND_ICON_CLASS, className)} />;
   }
 
   const ToolIcon = (tool ? SKILL_TOOL_ICONS[tool] : undefined) ?? SparkleIcon;
-  return <ToolIcon className={cn("size-4", className)} />;
+  return <ToolIcon className={cn(BUILT_IN_MENU_ICON_CLASS, className)} />;
 }
 
 function SkillsSettings({
@@ -1588,6 +1679,7 @@ function SkillsSettings({
           <EditorRow
             key={skill.id}
             icon={<SkillIcon skill={skill} />}
+            tone={skillIconTone(skill)}
             title={skill.name}
             description={`${skill.description} ${skill.grants}`}
             action={
@@ -1657,6 +1749,12 @@ function SkillsSettings({
                                     <span className="text-xs font-medium">
                                       <FormattedMessage
                                         {...workspaceAutomationFormMessages.skillNotApplicableHint}
+                                      />
+                                    </span>
+                                  ) : availability === "skill_exclusive" ? (
+                                    <span className="text-xs font-medium">
+                                      <FormattedMessage
+                                        {...workspaceAutomationFormMessages.skillExclusiveHint}
                                       />
                                     </span>
                                   ) : missingIntegrations.length > 0 ? (
@@ -1730,11 +1828,13 @@ function SuggestionChip({
   const unavailableHint =
     suggestion.availability === "trigger_mismatch"
       ? intl.formatMessage(workspaceAutomationFormMessages.skillNotApplicableHint)
-      : suggestion.availability !== "connect_first"
-        ? null
-        : suggestion.kind === "skill"
-          ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
-          : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
+      : suggestion.availability === "skill_exclusive"
+        ? intl.formatMessage(workspaceAutomationFormMessages.skillExclusiveHint)
+        : suggestion.availability !== "connect_first"
+          ? null
+          : suggestion.kind === "skill"
+            ? formatSkillConnectFirstHint(intl, suggestion.missingIntegrations)
+            : intl.formatMessage(workspaceAutomationFormMessages.connectFirstShortcut);
 
   return (
     <span
@@ -1838,6 +1938,7 @@ function ToolsSettings({
   repositories,
   ahrefsConnected,
   intercomConnected,
+  brazeConnected,
   semrushConnections,
   zernioConnections,
   slackConnected,
@@ -1863,6 +1964,7 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnected: boolean;
   intercomConnected: boolean;
+  brazeConnected: boolean;
   semrushConnections: SemrushConnectionOption[];
   zernioConnections: ZernioConnectionOption[];
   slackConnected: boolean;
@@ -1897,6 +1999,7 @@ function ToolsSettings({
         {form.knowledgeEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.memories} />}
             description={
               knowledgeAvailable
@@ -1947,6 +2050,7 @@ function ToolsSettings({
         {form.knowledgeFilesEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFilesDescription} />
@@ -1970,6 +2074,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepoDescription} />
@@ -2005,6 +2110,7 @@ function ToolsSettings({
         {form.gitlabEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siGitlab} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepo} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.useGitlabRepoDescription} />
@@ -2038,6 +2144,7 @@ function ToolsSettings({
         {form.githubEnabled && form.githubMode === "sync" ? (
           <EditorRow
             icon={<GitBranchIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />}
             description={
               <FormattedMessage
@@ -2121,6 +2228,7 @@ function ToolsSettings({
         {form.githubCommentEnabled ? (
           <EditorRow
             icon={<ChatTextIcon className="size-4" />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2174,7 +2282,8 @@ function ToolsSettings({
 
         {form.slackEnabled ? (
           <EditorRow
-            icon={<SlackLogoIcon className="size-4" />}
+            icon={<SlackToolIcon />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2221,6 +2330,7 @@ function ToolsSettings({
         {form.emailEnabled ? (
           <EditorRow
             icon={<EnvelopeIcon className="size-4" />}
+            tone="builtIn"
             title={
               <>
                 <span>
@@ -2338,7 +2448,8 @@ function ToolsSettings({
 
         {form.contentfulEnabled ? (
           <EditorRow
-            icon={<MagnifyingGlassIcon className="size-4" />}
+            icon={<AutomationToolMenuIcon icon={siContentful} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2521,6 +2632,7 @@ function ToolsSettings({
         {form.intercomEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siIntercom} />}
+            tone="external"
             title={
               <>
                 <span>Intercom Help Center</span>
@@ -2554,9 +2666,82 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.brazeEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Email Templates</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import templates on a schedule, translate in Jobs, then push approved locales as library copies."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_templates")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
+        {form.brazeCampaignsEnabled ? (
+          <EditorRow
+            icon={<BrazeToolIcon />}
+            title={
+              <>
+                <span>Braze Campaigns & Canvas</span>
+                {!brazeConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description="Import tagged draft campaigns and Canvas as JSON, translate in Jobs, then push approved locales through the Translation API."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                requiredBySkills={skillTools.get("import_braze_campaigns")}
+                label="Remove Braze"
+                onClick={() => onChange({ ...form, brazeCampaignsEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationBrazeCampaignsSettings
+              organizationSlug={organizationSlug}
+              form={form}
+              errors={errors}
+              brazeConnected={brazeConnected}
+              projectSourceLocale={selectedProject?.sourceLocale}
+              projectTargetLocales={selectedProject?.targetLocales}
+              onChange={onChange}
+            />
+            <FieldError message={errors.braze} />
+          </EditorRow>
+        ) : null}
+
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
+            tone="external"
             title={
               <>
                 <span>
@@ -2636,6 +2821,7 @@ function ToolsSettings({
         {form.createNativeTmsJobEnabled ? (
           <EditorRow
             icon={<UploadSimpleIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createJob} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createJobDescription} />
@@ -2710,6 +2896,7 @@ function ToolsSettings({
         {form.assignTranslateWithAgentEnabled ? (
           <EditorRow
             icon={<BrainIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />}
             description={
               <FormattedMessage
@@ -2735,6 +2922,7 @@ function ToolsSettings({
         {form.listIssuesEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.listIssues} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.listIssuesDescription} />
@@ -2753,6 +2941,7 @@ function ToolsSettings({
         {form.createIssueEnabled ? (
           <EditorRow
             icon={<CheckSquareIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.createIssue} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.createIssueDescription} />
@@ -2771,6 +2960,7 @@ function ToolsSettings({
         {form.mcpEnabled ? (
           <EditorRow
             icon={<FoldersIcon className="size-4" />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />}
             description={
               mcpConnected
@@ -2839,6 +3029,7 @@ function ToolsSettings({
         {form.semrushEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siSemrush} />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.semrush} />}
             description={
               semrushConnected
@@ -2905,6 +3096,7 @@ function ToolsSettings({
         {form.zernioEnabled ? (
           <EditorRow
             icon={<ZernioToolIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.zernio} />}
             description={
               zernioConnected
@@ -2971,6 +3163,7 @@ function ToolsSettings({
         {form.ahrefsEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon />}
+            tone="external"
             title={<FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />}
             description={
               ahrefsConnected
@@ -2997,6 +3190,7 @@ function ToolsSettings({
         {form.webSearchEnabled ? (
           <EditorRow
             icon={<GlobeIcon className="size-4" />}
+            tone="builtIn"
             title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
             description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
             action={
@@ -3073,6 +3267,7 @@ function ToolsSettings({
           repositories={repositories}
           ahrefsConnected={ahrefsConnected}
           intercomConnected={intercomConnected}
+          brazeConnected={brazeConnected}
           semrushConnected={semrushConnected}
           zernioConnected={zernioConnected}
           slackConnected={slackConnected}
@@ -3344,6 +3539,23 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const brazePipesQuery = useQuery({
+    queryKey: ["pipes", organizationSlug, BRAZE_PIPES_SLUG],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].pipes[":provider"].$get({
+        param: { organizationSlug, provider: BRAZE_PIPES_SLUG },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Braze connection");
+      }
+      const body = await response.json();
+      return body.pipe as {
+        connected: boolean;
+        needsReauthorization: boolean;
+      };
+    },
+  });
+
   const intercomPipesQuery = useQuery({
     queryKey: ["pipes", organizationSlug, INTERCOM_PIPES_SLUG],
     queryFn: async () => {
@@ -3435,6 +3647,7 @@ export function WorkspaceAutomationEditor({
   const zernioConnections = zernioConnectionsQuery.data ?? [];
   const ahrefsConnected = Boolean(ahrefsPipesQuery.data?.connected);
   const intercomConnected = Boolean(intercomPipesQuery.data?.connected);
+  const brazeConnected = Boolean(brazePipesQuery.data?.connected);
   const gitlabConnected = Boolean(gitlabPipesQuery.data?.connected);
   const gitlabProjects = gitlabProjectsQuery.data ?? [];
   const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
@@ -3460,6 +3673,7 @@ export function WorkspaceAutomationEditor({
     crowdin: tmsProviderQuery.isSuccess ? crowdinConnected : undefined,
     contentful: contentfulConnectionsQuery.isSuccess ? contentfulConnected : undefined,
     intercom: intercomPipesQuery.isSuccess ? intercomConnected : undefined,
+    braze: brazePipesQuery.isSuccess ? brazeConnected : undefined,
     slack: slackQuery.isSuccess ? slackConnected : undefined,
     email: emailConnected
       ? true
@@ -3525,7 +3739,8 @@ export function WorkspaceAutomationEditor({
     !slackQuery.isPending &&
     !resendPipesQuery.isPending &&
     !sendgridPipesQuery.isPending &&
-    !intercomPipesQuery.isPending;
+    !intercomPipesQuery.isPending &&
+    !brazePipesQuery.isPending;
 
   const editor = (
     <div ref={editorRef} className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -3614,14 +3829,17 @@ export function WorkspaceAutomationEditor({
       >
         {/* A new automation has settings only, and one tab is no choice to offer. */}
         {hasHistory ? (
-          <TabsList>
-            <TabsTrigger value="settings">
-              <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
-            </TabsTrigger>
-          </TabsList>
+          // The rule runs the editor's width, and the active tab's underline sits on it.
+          <div className="border-b border-border">
+            <TabsList variant="line" className="-ms-[3px]">
+              <TabsTrigger value="settings">
+                <FormattedMessage {...workspaceAutomationFormMessages.settingsTab} />
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                <FormattedMessage {...workspaceAutomationFormMessages.runHistoryTab} />
+              </TabsTrigger>
+            </TabsList>
+          </div>
         ) : null}
 
         <TabsContent
@@ -3703,6 +3921,7 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnected={ahrefsConnected}
             intercomConnected={intercomConnected}
+            brazeConnected={brazeConnected}
             semrushConnections={semrushConnections}
             zernioConnections={zernioConnections}
             slackConnected={slackConnected}

@@ -12,112 +12,260 @@
  */
 import {
   Alert,
-  Badge,
-  Box,
   Button,
-  CheckboxGroup,
   FormField,
   LinkButton,
+  ProgressBar,
   Rows,
   Select,
-  Switch,
   Text,
   TextInput,
   Title,
 } from "@canva/app-ui-kit";
-import { getDesignToken } from "@canva/design";
-import { useEffect, useMemo, useState } from "react";
+import { ReloadIcon, RestrictedMagicGradientIcon } from "@canva/app-ui-kit/icons";
+import { getDesignMetadata, getDesignToken } from "@canva/design";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
+import { normalizeSegmentText } from "./segment-file";
 import {
-  buildCanvaJobUrl,
-  CANVA_JOB_POLL_INTERVAL_MS,
-  type CanvaResourceAuth,
-  createCanvaJob,
+  bindCanvaProject,
   deauthorizeHyperlocalise,
+  fetchCanvaLocaleStatuses,
   fetchCanvaSession,
-  fetchCurrentCanvaJob,
-  generateCanvaJob,
-  getCanvaJob,
+  collectAndGenerateCanvaLocaleJobs,
+  generateCanvaLocaleJob,
   getHyperlocaliseAccessToken,
+  waitForCanvaJobs,
   HyperlocaliseClientError,
-  openExternalUrl,
-  pullCanvaTranslations,
+  pullCanvaLocalePages,
   requestHyperlocaliseAuthorization,
+  type CanvaResourceAuth,
+  collectCanvaDesign,
 } from "./hyperlocalise-client";
+import { isLocalDevelopment } from "./local-development";
 import {
   loadSettings,
   parseSelectedPageValues,
   parseTargetLocales,
+  projectLocalesToSettings,
+  recordAppliedLocales,
   saveSettings,
+  selectedPagesShowSourceLocale,
   selectedPageValues,
+  settingsForDesign,
 } from "./settings";
-import type { AppSettings, CanvaDesignJob, DesignPageInfo, DesignSegment } from "./types";
+import type {
+  AppSettings,
+  ApplyResult,
+  CanvaLocaleStatus,
+  CanvaSession,
+  CanvaSessionProject,
+  DesignPageInfo,
+  ExtractedDesignContent,
+} from "./types";
 
-const LOCALE_OPTIONS = [
-  { value: "en", label: "English (en)" },
-  { value: "es", label: "Spanish (es)" },
-  { value: "fr", label: "French (fr)" },
-  { value: "de", label: "German (de)" },
-  { value: "it", label: "Italian (it)" },
-  { value: "pt", label: "Portuguese (pt)" },
-  { value: "ja", label: "Japanese (ja)" },
-  { value: "ko", label: "Korean (ko)" },
-  { value: "zh-CN", label: "Chinese Simplified (zh-CN)" },
-  { value: "vi-VN", label: "Vietnamese (vi-VN)" },
-];
+type BusyAction = "connect" | "bind" | "upload" | "apply" | "translate" | null;
+type ToastTone = "positive" | "critical" | "warn" | "info";
+type AppToast = {
+  tone: ToastTone;
+  message: string;
+};
 
-type BusyAction = "connect" | "extract" | "create" | "generate" | "pull" | null;
+type StepProgress = {
+  label: string;
+  value: number;
+};
+
+function localeLabel(locale: string) {
+  const tag = locale.trim();
+  if (!tag) {
+    return tag;
+  }
+
+  try {
+    const language =
+      new Intl.DisplayNames(["en"], { type: "language" }).of(new Intl.Locale(tag).language) ?? tag;
+    return `${language} (${tag})`;
+  } catch {
+    return tag;
+  }
+}
 
 function defaultSelectedPages(pages: DesignPageInfo[]): number[] {
   return pages.filter((page) => page.editable).map((page) => page.index);
 }
 
-function pageDescription(page: DesignPageInfo): string {
-  if (!page.editable) {
-    return page.locked ? "Locked page" : "Unsupported page type";
+function defaultSelectedLocale(project: CanvaSessionProject | null, current: string) {
+  if (!project) {
+    return "";
   }
-
-  return "Editable page";
-}
-
-function isInFlightStatus(status: CanvaDesignJob["status"]) {
-  return status === "queued" || status === "running";
-}
-
-function jobStatusLabel(status: CanvaDesignJob["status"]) {
-  switch (status) {
-    case "queued":
-      return "Queued";
-    case "running":
-      return "Translating";
-    case "waiting_for_review":
-      return "Needs review";
-    case "succeeded":
-      return "Ready";
-    case "failed":
-      return "Failed";
-    case "cancelled":
-      return "Cancelled";
+  const locales = [project.sourceLocale, ...project.targetLocales].filter(Boolean);
+  if (current && locales.includes(current)) {
+    return current;
   }
+  return locales[0] ?? "";
 }
 
-function pageJobFromCreate(input: {
-  jobId: string;
-  projectId: string;
-  sourcePath: string;
-  targetLocales: string[];
-}): CanvaDesignJob {
+function localeOptions(project: CanvaSessionProject | null) {
+  if (!project) {
+    return [];
+  }
+  const seen = new Set<string>();
+  return [project.sourceLocale, ...project.targetLocales]
+    .map((locale) => locale.trim())
+    .filter((locale) => {
+      if (!locale || seen.has(locale)) {
+        return false;
+      }
+      seen.add(locale);
+      return true;
+    })
+    .map((locale) => ({
+      value: locale,
+      label: localeLabel(locale),
+    }));
+}
+
+function pageHasPullableTranslations(
+  entry: CanvaLocaleStatus,
+  page: CanvaLocaleStatus["pages"][number],
+) {
+  if (page.needsReupload) {
+    return false;
+  }
+  if (entry.isSource) {
+    return page.status === "succeeded";
+  }
+  return page.status === "succeeded" || page.status === "waiting_for_review";
+}
+
+function formatPageList(pageIndices: number[]) {
+  return pageIndices.map((index) => `Page ${index + 1}`).join(", ");
+}
+
+function selectedPagesNeedingReupload(
+  entry: CanvaLocaleStatus | undefined,
+  selected: number[],
+): number[] {
+  if (!entry) {
+    return [];
+  }
+  return selected.filter((index) => {
+    const page = entry.pages.find((item) => item.pageIndex === index);
+    return page?.needsReupload === true;
+  });
+}
+
+function selectedPagesMissingFromCollect(
+  entry: CanvaLocaleStatus | undefined,
+  selected: number[],
+): number[] {
+  if (!entry) {
+    return selected;
+  }
+  return selected.filter((index) => !entry.pages.some((page) => page.pageIndex === index));
+}
+
+function selectedPagesCollected(entry: CanvaLocaleStatus | undefined, selected: number[]) {
+  return (
+    selected.length > 0 &&
+    selectedPagesMissingFromCollect(entry, selected).length === 0 &&
+    selectedPagesNeedingReupload(entry, selected).length === 0
+  );
+}
+
+function persistAppliedLocale(
+  settings: AppSettings,
+  locale: string,
+  appliedPageIndices: number[],
+): AppSettings {
   return {
-    jobId: input.jobId,
-    status: "queued",
-    projectId: input.projectId,
-    sourcePath: input.sourcePath,
-    targetLocales: input.targetLocales,
-    lastError: null,
-    translationsByLocale: {},
+    ...settings,
+    appliedLocaleByPage: recordAppliedLocales(
+      settings.appliedLocaleByPage,
+      appliedPageIndices,
+      locale,
+    ),
   };
+}
+
+function uniqueUploadedTextCount(segments: ExtractedDesignContent["segments"]) {
+  const seen = new Set<string>();
+  for (const segment of segments) {
+    const normalized = normalizeSegmentText(segment.text);
+    if (!normalized) {
+      continue;
+    }
+    seen.add(`${segment.pageIndex}\0${normalized}`);
+  }
+  return seen.size;
+}
+
+function applyOutcomeMessage(
+  locale: string,
+  pageCount: number,
+  result: ApplyResult,
+): { message: string; tone: ToastTone } {
+  const matched = result.replaced + result.alreadyApplied;
+  if (result.pagesNeedingUpload.length > 0 && matched === 0) {
+    return {
+      message: `Upload ${formatPageList(result.pagesNeedingUpload)} again to apply translations.`,
+      tone: "critical",
+    };
+  }
+  if (matched === 0 && result.skipped > 0) {
+    return {
+      message: "Text on the selected pages changed since upload. Upload again, then apply.",
+      tone: "critical",
+    };
+  }
+  if (matched === 0 && result.untranslated > 0) {
+    return {
+      message: `No ${localeLabel(locale)} translations for the selected pages yet.`,
+      tone: "critical",
+    };
+  }
+  if (result.replaced === 0 && result.alreadyApplied > 0) {
+    return {
+      message: `${localeLabel(locale)} is already applied to the selected pages.`,
+      tone: "positive",
+    };
+  }
+  if (result.replaced > 0) {
+    const skippedNote =
+      result.skipped > 0
+        ? ` ${result.skipped} text box${result.skipped === 1 ? "" : "es"} changed since upload — Upload again to include them.`
+        : "";
+    return {
+      message: `Applied ${localeLabel(locale)} to ${pageCount} page${pageCount === 1 ? "" : "s"}.${skippedNote}`,
+      tone: "positive",
+    };
+  }
+  return {
+    message: "No matching text on those pages. Upload the pages again, then apply.",
+    tone: "critical",
+  };
+}
+
+function canApplySelectedPages(entry: CanvaLocaleStatus | undefined, selected: number[]) {
+  if (!entry || selected.length === 0) {
+    return false;
+  }
+  return selected.every((index) => {
+    const page = entry.pages.find((item) => item.pageIndex === index);
+    if (!page) {
+      return false;
+    }
+    return pageHasPullableTranslations(entry, page);
+  });
+}
+
+function uploadPreviewSummary(pageCount: number, textCount: number) {
+  const pages = `${pageCount} page${pageCount === 1 ? "" : "s"}`;
+  const texts = `${textCount} text${textCount === 1 ? "" : "s"}`;
+  return `${pages} · ${texts}`;
 }
 
 function isReconnectError(error: unknown) {
@@ -136,36 +284,86 @@ function isReconnectError(error: unknown) {
   );
 }
 
+function formatActionError(error: unknown): string {
+  if (error instanceof HyperlocaliseClientError) {
+    switch (error.code) {
+      case "canva_project_not_bound":
+        return "Choose a project in the app before applying.";
+      case "canva_design_not_collected":
+        return "Upload the selected pages first, then apply.";
+      case "job_target_locale_not_in_project":
+        return "That language is not in the project. Reload languages or update project settings.";
+      default:
+        return error.message;
+    }
+  }
+
+  return error instanceof Error ? error.message : "Something went wrong.";
+}
+
 export const App = () => {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [tokenDraft, setTokenDraft] = useState("");
+  const [showTokenField, setShowTokenField] = useState(false);
   const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
   const [pagesLoading, setPagesLoading] = useState(true);
-  const [pagesError, setPagesError] = useState<string | null>(null);
-  const [segments, setSegments] = useState<DesignSegment[]>([]);
-  const [pageJob, setPageJob] = useState<CanvaDesignJob | null>(null);
-  const [selectedLocale, setSelectedLocale] = useState("");
+  const [localesLoading, setLocalesLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [applyStatusLoading, setApplyStatusLoading] = useState(false);
+  const [localeStatuses, setLocaleStatuses] = useState<CanvaLocaleStatus[]>([]);
+  const [projects, setProjects] = useState<CanvaSessionProject[]>([]);
   const [busy, setBusy] = useState<BusyAction>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [oauthReady, setOauthReady] = useState(false);
+  const [pickingProject, setPickingProject] = useState(() => !loadSettings().projectId);
+  const [pagesReloadKey, setPagesReloadKey] = useState(0);
+  const [uploadPreview, setUploadPreview] = useState<ExtractedDesignContent | null>(null);
+  const [bindProgress, setBindProgress] = useState<StepProgress | null>(null);
+  const [applyProgress, setApplyProgress] = useState<StepProgress | null>(null);
+  const [translateProgress, setTranslateProgress] = useState<StepProgress | null>(null);
+  const [toast, setToast] = useState<AppToast | null>(null);
+  const didInitializePages = useRef(false);
 
-  const targetLocales = useMemo(
-    () => parseTargetLocales(settings.targetLocales),
-    [settings.targetLocales],
-  );
-  const editablePages = useMemo(() => designPages.filter((page) => page.editable), [designPages]);
-  const selectedPageIndices = useMemo(() => {
-    if (settings.selectedPageIndices.length > 0) {
-      return settings.selectedPageIndices.filter((index) =>
-        editablePages.some((page) => page.index === index),
-      );
+  const showToast = (message: string, tone: ToastTone = "positive") => {
+    setToast({ message, tone });
+  };
+
+  useEffect(() => {
+    if (!toast) {
+      return;
     }
+    const timeout = window.setTimeout(() => setToast(null), 5_000);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
-    return defaultSelectedPages(designPages);
-  }, [designPages, editablePages, settings.selectedPageIndices]);
-  const legacyConnectionToken = settings.connectionToken.trim();
+  const editablePages = useMemo(() => designPages.filter((page) => page.editable), [designPages]);
+  const selectedPageIndices = useMemo(
+    () =>
+      settings.selectedPageIndices.filter((index) =>
+        editablePages.some((page) => page.index === index),
+      ),
+    [editablePages, settings.selectedPageIndices],
+  );
+  const selectedPagesKey = useMemo(() => {
+    const sorted = [...selectedPageIndices];
+    sorted.sort((left, right) => left - right);
+    return sorted.join(",");
+  }, [selectedPageIndices]);
+  const allowConnectionToken = isLocalDevelopment();
+  const legacyConnectionToken = allowConnectionToken ? settings.connectionToken.trim() : "";
   const connected = oauthReady || legacyConnectionToken.length > 0;
+  const selectedProject =
+    projects.find((project) => project.id === settings.projectId) ??
+    (settings.projectId
+      ? {
+          id: settings.projectId,
+          name: settings.projectName,
+          sourceLocale: settings.sourceLocale,
+          targetLocales: parseTargetLocales(settings.targetLocales),
+        }
+      : null);
+  const selectedLocaleStatus = localeStatuses.find(
+    (entry) => entry.locale === settings.selectedLocale,
+  );
 
   const resolveAuth = async (): Promise<CanvaResourceAuth> => {
     const accessToken = await getHyperlocaliseAccessToken();
@@ -174,30 +372,135 @@ export const App = () => {
     }
     return { connectionToken: legacyConnectionToken };
   };
-  const canCreateJob =
+
+  const sourceLocaleStatus =
+    localeStatuses.find((entry) => entry.isSource) ??
+    localeStatuses.find((entry) => entry.locale === selectedProject?.sourceLocale);
+  const pagesNeedReupload = selectedPagesNeedingReupload(
+    selectedLocaleStatus ?? sourceLocaleStatus,
+    selectedPageIndices,
+  );
+  const sourceLocale = selectedProject?.sourceLocale || settings.sourceLocale;
+  const canUploadSource = selectedPagesShowSourceLocale(
+    settings.appliedLocaleByPage,
+    selectedPageIndices,
+    sourceLocale,
+  );
+  const canUpload =
     connected &&
-    targetLocales.length > 0 &&
+    Boolean(settings.projectId) &&
     selectedPageIndices.length > 0 &&
-    segments.length > 0 &&
+    canUploadSource &&
     busy == null;
-  const canPull =
+  const applyEligible =
     connected &&
-    busy == null &&
-    pageJob != null &&
-    (pageJob.status === "succeeded" || pageJob.status === "waiting_for_review");
-  const canGeneratePageJob =
-    connected && pageJob != null && pageJob.status === "queued" && busy == null;
+    Boolean(settings.projectId) &&
+    selectedPageIndices.length > 0 &&
+    Boolean(settings.selectedLocale) &&
+    canApplySelectedPages(selectedLocaleStatus, selectedPageIndices);
+  const applyButtonLoading = busy === "apply";
+  const applyButtonDisabled =
+    (!applyEligible && busy !== "apply") ||
+    applyStatusLoading ||
+    (busy != null && busy !== "apply");
+  const pagesUploaded = selectedPagesCollected(sourceLocaleStatus, selectedPageIndices);
+  const canTranslate =
+    connected &&
+    Boolean(settings.projectId) &&
+    selectedPageIndices.length > 0 &&
+    Boolean(settings.selectedLocale) &&
+    settings.selectedLocale !== selectedProject?.sourceLocale &&
+    !localesLoading &&
+    (pagesUploaded || canUploadSource) &&
+    busy == null;
+
+  const uploadTooltip = !canUpload
+    ? selectedPageIndices.length === 0
+      ? "Select at least one page to upload."
+      : !canUploadSource
+        ? `Apply ${localeLabel(sourceLocale)} to the design before uploading.`
+        : busy != null
+          ? "Wait for the current step to finish."
+          : undefined
+    : undefined;
+  const translateTooltip = !canTranslate
+    ? settings.selectedLocale === selectedProject?.sourceLocale
+      ? "Choose a target language to translate."
+      : selectedPageIndices.length === 0
+        ? "Select at least one page to translate."
+        : localesLoading
+          ? "Loading translation status..."
+          : !pagesUploaded && !canUploadSource
+            ? `Apply ${localeLabel(sourceLocale)} to the design before translating.`
+            : busy != null
+              ? "Wait for the current step to finish."
+              : undefined
+    : undefined;
+  const applyTooltip = applyButtonDisabled
+    ? !settings.selectedLocale
+      ? "Choose a language."
+      : selectedPageIndices.length === 0
+        ? "Select at least one page to apply."
+        : pagesNeedReupload.length > 0
+          ? `Upload ${formatPageList(pagesNeedReupload)} again to use Apply.`
+          : applyStatusLoading
+            ? "Loading translation status..."
+            : busy != null && busy !== "apply"
+              ? "Wait for the current step to finish."
+              : "No translations for the selected pages yet."
+    : "Apply Hyperlocalise translations to the selected pages";
 
   const persistSettings = (next: AppSettings) => {
     setSettings(next);
     saveSettings(next);
   };
 
+  const rememberDesign = (designId: string | undefined) => {
+    if (!designId) {
+      return;
+    }
+    setSettings((current) => {
+      const next = settingsForDesign(current, designId);
+      saveSettings(next);
+      return next;
+    });
+  };
+
+  const applySession = (session: CanvaSession, next: AppSettings): AppSettings => {
+    setProjects(session.projects);
+    if (!session.project) {
+      setPickingProject(true);
+      return {
+        ...next,
+        organizationSlug: session.organization.slug ?? "",
+        organizationName: session.organization.name,
+        projectId: "",
+        projectName: "",
+        sourceLocale: "",
+        targetLocales: "",
+        selectedLocale: "",
+        appliedLocaleByPage: {},
+      };
+    }
+    setPickingProject(false);
+
+    const locales = projectLocalesToSettings(session.project);
+    return {
+      ...next,
+      organizationSlug: session.organization.slug ?? "",
+      organizationName: session.organization.name,
+      projectId: session.project.id,
+      projectName: session.project.name,
+      ...locales,
+      selectedLocale: defaultSelectedLocale(session.project, next.selectedLocale),
+    };
+  };
+
   const updateSettings = (patch: Partial<AppSettings>) => {
     persistSettings({ ...settings, ...patch });
   };
 
-  const disconnect = () => {
+  const disconnect = (message?: string, tone: ToastTone = "info") => {
     void deauthorizeHyperlocalise();
     setOauthReady(false);
     persistSettings({
@@ -205,12 +508,20 @@ export const App = () => {
       connectionToken: "",
       organizationSlug: "",
       organizationName: "",
+      projectId: "",
       projectName: "",
+      selectedLocale: "",
+      designId: "",
+      appliedLocaleByPage: {},
       lastJobId: "",
     });
-    setPageJob(null);
+    setProjects([]);
+    setLocaleStatuses([]);
     setTokenDraft("");
-    setStatusMessage("Disconnected.");
+    setPickingProject(true);
+    if (message) {
+      showToast(message, tone);
+    }
   };
 
   useEffect(() => {
@@ -218,7 +529,6 @@ export const App = () => {
 
     async function loadPages() {
       setPagesLoading(true);
-      setPagesError(null);
 
       try {
         const pages = await listDesignPages();
@@ -228,10 +538,12 @@ export const App = () => {
 
         setDesignPages(pages);
         setSettings((current) => {
-          if (current.selectedPageIndices.length > 0) {
+          if (current.selectedPageIndices.length > 0 || didInitializePages.current) {
+            didInitializePages.current = true;
             return current;
           }
 
+          didInitializePages.current = true;
           const next = {
             ...current,
             selectedPageIndices: defaultSelectedPages(pages),
@@ -241,7 +553,10 @@ export const App = () => {
         });
       } catch (error) {
         if (!cancelled) {
-          setPagesError(error instanceof Error ? error.message : "Unable to load design pages.");
+          showToast(
+            error instanceof Error ? error.message : "Unable to load design pages.",
+            "warn",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -255,18 +570,7 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    if (targetLocales.length === 0) {
-      setSelectedLocale("");
-      return;
-    }
-
-    if (!targetLocales.includes(selectedLocale)) {
-      setSelectedLocale(targetLocales[0] ?? "");
-    }
-  }, [selectedLocale, targetLocales]);
+  }, [pagesReloadKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,33 +602,27 @@ export const App = () => {
           return;
         }
 
-        persistSettings({
-          ...settings,
-          organizationSlug: session.organization.slug ?? "",
-          organizationName: session.organization.name,
-          projectName: session.project.name,
-          sourceLocale: settings.sourceLocale || session.connection.sourceLocale,
-          targetLocales:
-            settings.targetLocales.trim().length > 0
-              ? settings.targetLocales
-              : session.connection.targetLocales.join(", "),
-        });
+        persistSettings(applySession(session, settings));
+        if (!session.project) {
+          setLocaleStatuses([]);
+          return;
+        }
 
         const { token } = await getDesignToken();
-        const current = await fetchCurrentCanvaJob({
+        const statuses = await fetchCanvaLocaleStatuses({
           auth: await resolveAuth(),
           designToken: token,
         });
-        if (!cancelled && current) {
-          setPageJob(current);
+        if (!cancelled) {
+          setLocaleStatuses(statuses.locales);
+          rememberDesign(statuses.designId);
         }
       } catch (error) {
         if (cancelled) {
           return;
         }
         if (isReconnectError(error)) {
-          disconnect();
-          setErrorMessage("Reconnect Hyperlocalise to continue.");
+          disconnect("Reconnect Hyperlocalise to continue.", "critical");
         }
       }
     }
@@ -339,60 +637,63 @@ export const App = () => {
   }, [connected]);
 
   useEffect(() => {
-    if (!pageJob || !isInFlightStatus(pageJob.status) || !connected) {
+    if (
+      !connected ||
+      !settings.projectId ||
+      selectedPageIndices.length === 0 ||
+      !settings.selectedLocale
+    ) {
       return;
     }
 
-    const jobId = pageJob.jobId;
     let cancelled = false;
 
-    async function refreshJob() {
+    async function refreshApplyEligibility() {
+      setApplyStatusLoading(true);
       try {
-        const job = await getCanvaJob({
+        const { token } = await getDesignToken();
+        const statuses = await fetchCanvaLocaleStatuses({
           auth: await resolveAuth(),
-          jobId,
+          designToken: token,
         });
+        if (!cancelled) {
+          setLocaleStatuses(statuses.locales);
+          rememberDesign(statuses.designId);
+        }
+      } catch (error) {
         if (cancelled) {
           return;
         }
-        setPageJob(job);
-        if (job.status === "succeeded") {
-          setStatusMessage("Translations are ready. Choose a locale and pull them into Canva.");
-        } else if (job.status === "waiting_for_review") {
-          setStatusMessage("Needs review. You can still pull the current translations.");
-        } else if (job.status === "failed") {
-          setErrorMessage(job.lastError || "Translation job failed.");
+        if (isReconnectError(error)) {
+          disconnect("Reconnect Hyperlocalise to continue.", "critical");
+          return;
         }
-      } catch (error) {
+      } finally {
         if (!cancelled) {
-          setErrorMessage(error instanceof Error ? error.message : "Unable to check job status.");
+          setApplyStatusLoading(false);
         }
       }
     }
 
-    void refreshJob();
-    const interval = window.setInterval(() => {
-      void refreshJob();
-    }, CANVA_JOB_POLL_INTERVAL_MS);
+    void refreshApplyEligibility();
+
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
     };
-  }, [connected, pageJob?.jobId, pageJob?.status, oauthReady, legacyConnectionToken]);
+    // Refetch when the target locale or selected pages change so Apply reflects latest jobs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, settings.projectId, settings.selectedLocale, selectedPagesKey]);
 
   const runAction = async (action: Exclude<BusyAction, null>, work: () => Promise<void>) => {
     setBusy(action);
-    setErrorMessage(null);
-    setStatusMessage(null);
     try {
       await work();
     } catch (error) {
       if (isReconnectError(error)) {
-        disconnect();
-        setErrorMessage("Reconnect Hyperlocalise to continue.");
+        disconnect("Reconnect Hyperlocalise to continue.", "critical");
         return;
       }
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+      showToast(formatActionError(error), "critical");
     } finally {
       setBusy(null);
     }
@@ -410,424 +711,671 @@ export const App = () => {
       }
       const session = await fetchCanvaSession({ accessToken });
       setOauthReady(true);
-      persistSettings({
-        ...settings,
-        connectionToken: "",
-        organizationSlug: session.organization.slug ?? "",
-        organizationName: session.organization.name,
-        projectName: session.project.name,
-        sourceLocale: session.connection.sourceLocale || settings.sourceLocale,
-        targetLocales: session.connection.targetLocales.join(", ") || settings.targetLocales,
-      });
-      setStatusMessage("Connected.");
+      persistSettings(
+        applySession(session, {
+          ...settings,
+          connectionToken: "",
+        }),
+      );
     });
 
   const handleConnectToken = () =>
     runAction("connect", async () => {
+      if (!allowConnectionToken) {
+        throw new Error("Connection tokens are only available in local development.");
+      }
       const connectionToken = tokenDraft.trim();
       if (!connectionToken) {
         throw new Error("Paste a connection token from Hyperlocalise.");
       }
       const session = await fetchCanvaSession(connectionToken);
-      persistSettings({
-        ...settings,
-        connectionToken,
-        organizationSlug: session.organization.slug ?? "",
-        organizationName: session.organization.name,
-        projectName: session.project.name,
-        sourceLocale: session.connection.sourceLocale || settings.sourceLocale,
-        targetLocales: session.connection.targetLocales.join(", ") || settings.targetLocales,
-      });
+      persistSettings(
+        applySession(session, {
+          ...settings,
+          connectionToken,
+        }),
+      );
       setTokenDraft("");
-      setStatusMessage("Connected.");
     });
 
-  const handleExtract = () =>
-    runAction("extract", async () => {
+  const refreshLocaleStatuses = async () => {
+    if (!settings.projectId) {
+      setLocaleStatuses([]);
+      return;
+    }
+    const { token } = await getDesignToken();
+    const statuses = await fetchCanvaLocaleStatuses({
+      auth: await resolveAuth(),
+      designToken: token,
+    });
+    setLocaleStatuses(statuses.locales);
+    rememberDesign(statuses.designId);
+    return statuses;
+  };
+
+  const reloadProjectOptions = async () => {
+    setProjectsLoading(true);
+    try {
+      const session = await fetchCanvaSession(await resolveAuth());
+      setProjects(session.projects);
+      persistSettings(applySession(session, settings));
+      if (!session.project) {
+        setLocaleStatuses([]);
+        return;
+      }
+      await refreshLocaleStatuses();
+    } catch (error) {
+      if (isReconnectError(error)) {
+        disconnect("Reconnect Hyperlocalise to continue.", "critical");
+        return;
+      }
+      showToast(error instanceof Error ? error.message : "Unable to reload projects.", "warn");
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const reloadLocaleOptions = async () => {
+    if (!settings.projectId) {
+      return;
+    }
+
+    setLocalesLoading(true);
+    try {
+      const session = await fetchCanvaSession(await resolveAuth());
+      persistSettings(applySession(session, settings));
+      if (!session.project) {
+        setLocaleStatuses([]);
+        return;
+      }
+      await refreshLocaleStatuses();
+    } catch (error) {
+      if (isReconnectError(error)) {
+        disconnect("Reconnect Hyperlocalise to continue.", "critical");
+        return;
+      }
+      showToast(error instanceof Error ? error.message : "Unable to reload languages.", "warn");
+    } finally {
+      setLocalesLoading(false);
+    }
+  };
+
+  const handleProjectChange = (projectId: string) =>
+    runAction("bind", async () => {
+      const setStep = (label: string, value: number) => {
+        setBindProgress({ label, value });
+      };
+
+      try {
+        setStep("Connecting project...", 20);
+        const session = await bindCanvaProject({
+          auth: await resolveAuth(),
+          projectId,
+        });
+        setStep("Loading languages...", 55);
+        persistSettings(applySession(session, settings));
+        if (!session.project) {
+          setLocaleStatuses([]);
+          setPickingProject(true);
+          return;
+        }
+        const { token } = await getDesignToken();
+        const statuses = await fetchCanvaLocaleStatuses({
+          auth: await resolveAuth(),
+          designToken: token,
+        });
+        setLocaleStatuses(statuses.locales);
+        rememberDesign(statuses.designId);
+        setStep("Almost ready...", 90);
+      } finally {
+        setBindProgress(null);
+      }
+    });
+
+  const pullSourcePagesForUpload = async () => {
+    const sourceLocale = selectedProject?.sourceLocale || settings.sourceLocale;
+    if (!sourceLocale) {
+      return [];
+    }
+    try {
+      const { token } = await getDesignToken();
+      const pulled = await pullCanvaLocalePages({
+        auth: await resolveAuth(),
+        designToken: token,
+        locale: sourceLocale,
+      });
+      return pulled.pages;
+    } catch (error) {
+      if (
+        error instanceof HyperlocaliseClientError &&
+        error.code === "canva_design_not_collected"
+      ) {
+        return [];
+      }
+      throw error;
+    }
+  };
+
+  const extractSelectedSourcePages = async () => {
+    const sourcePages = await pullSourcePagesForUpload();
+    const extracted = await extractDesignContent(selectedPageIndices, sourcePages);
+    if (extracted.segments.length === 0) {
+      throw new Error("Add text to the selected pages before uploading.");
+    }
+    return extracted;
+  };
+
+  const collectSegments = async (segments: ExtractedDesignContent["segments"]) => {
+    const [{ token }, metadata] = await Promise.all([getDesignToken(), getDesignMetadata()]);
+    return collectCanvaDesign({
+      auth: await resolveAuth(),
+      designToken: token,
+      designTitle: metadata.title,
+      segments,
+    });
+  };
+
+  const openUploadPreview = () =>
+    runAction("upload", async () => {
       if (selectedPageIndices.length === 0) {
         throw new Error("Select at least one editable page.");
       }
-      const extracted = await extractDesignContent(
-        selectedPageIndices,
-        settings.preserveFormatting,
-      );
-      setSegments(extracted.segments);
-      if (extracted.segments.length === 0) {
-        throw new Error("Add text to the selected pages before localizing.");
+      if (
+        !selectedPagesShowSourceLocale(
+          settings.appliedLocaleByPage,
+          selectedPageIndices,
+          sourceLocale,
+        )
+      ) {
+        throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before uploading.`);
       }
-      setStatusMessage(
-        `Extracted ${extracted.segments.length} text segment${extracted.segments.length === 1 ? "" : "s"}.`,
+      setUploadPreview(await extractSelectedSourcePages());
+    });
+
+  const confirmUpload = () =>
+    runAction("upload", async () => {
+      if (!uploadPreview) {
+        return;
+      }
+      const collected = await collectSegments(uploadPreview.segments);
+      setUploadPreview(null);
+      await refreshLocaleStatuses();
+      showToast(
+        `Uploaded ${collected.pages.length} page file${collected.pages.length === 1 ? "" : "s"}.`,
       );
     });
 
-  const handleCreateJob = (generate: boolean) =>
-    runAction(generate ? "generate" : "create", async () => {
-      if (segments.length === 0) {
-        throw new Error("Extract text first.");
+  const handleApply = () =>
+    runAction("apply", async () => {
+      const setStep = (label: string, value: number) => {
+        setApplyProgress({ label, value });
+      };
+
+      try {
+        if (!settings.selectedLocale) {
+          throw new Error("Choose a language.");
+        }
+        setUploadPreview(null);
+        setStep("Loading translations from Hyperlocalise...", 10);
+        const { token } = await getDesignToken();
+        const pulled = await pullCanvaLocalePages({
+          auth: await resolveAuth(),
+          designToken: token,
+          locale: settings.selectedLocale,
+        });
+        const selected = new Set(selectedPageIndices);
+        const pages = pulled.pages.filter((page) => selected.has(page.pageIndex));
+        if (pages.length === 0) {
+          throw new Error("No translations to apply for the selected pages.");
+        }
+        setStep("Writing translations to selected pages...", 70);
+        const applied = await applyTranslationsToDesign(pages);
+        const outcome = applyOutcomeMessage(settings.selectedLocale, pages.length, applied);
+        if (outcome.tone === "critical") {
+          throw new Error(outcome.message);
+        }
+        persistSettings(
+          persistAppliedLocale(settings, settings.selectedLocale, applied.appliedPageIndices),
+        );
+        setStep("Finishing up...", 95);
+        showToast(outcome.message);
+      } finally {
+        setApplyProgress(null);
       }
-      const { token } = await getDesignToken();
-      const created = await createCanvaJob({
-        auth: await resolveAuth(),
-        designToken: token,
-        sourceLocale: settings.sourceLocale.trim(),
-        targetLocales,
-        generate,
-        segments,
-      });
-      const nextJob = pageJobFromCreate({
-        ...created,
-        targetLocales,
-      });
-      setPageJob(nextJob);
-      persistSettings({ ...settings, lastJobId: created.jobId });
-      setStatusMessage(
-        generate
-          ? "Job created. Translating…"
-          : `Job ${created.jobId} created. Generate translations when you are ready.`,
-      );
     });
 
-  const handleGenerateExisting = () =>
-    runAction("generate", async () => {
-      if (!pageJob) {
-        throw new Error("Create a job first.");
+  const handleTranslate = () =>
+    runAction("translate", async () => {
+      const setStep = (label: string, value: number) => {
+        setTranslateProgress({ label, value });
+      };
+
+      try {
+        if (!settings.selectedLocale) {
+          throw new Error("Choose a language.");
+        }
+        if (settings.selectedLocale === selectedProject?.sourceLocale) {
+          throw new Error("Choose a target language to translate.");
+        }
+        if (selectedPageIndices.length === 0) {
+          throw new Error("Select at least one editable page.");
+        }
+
+        const { token } = await getDesignToken();
+        const auth = await resolveAuth();
+
+        let generated: { locale: string; projectId: string; jobIds: string[] };
+        if (!pagesUploaded) {
+          if (!canUploadSource) {
+            throw new Error(`Apply ${localeLabel(sourceLocale)} to the design before translating.`);
+          }
+          setStep("Uploading source text...", 6);
+          const extracted = await extractSelectedSourcePages();
+          const metadata = await getDesignMetadata();
+          setStep("Starting translation...", 12);
+          generated = await collectAndGenerateCanvaLocaleJobs({
+            auth,
+            designToken: token,
+            designTitle: metadata.title,
+            locale: settings.selectedLocale,
+            segments: extracted.segments,
+          });
+        } else {
+          setStep("Starting translation...", 12);
+          generated = await generateCanvaLocaleJob({
+            auth,
+            designToken: token,
+            locale: settings.selectedLocale,
+          });
+        }
+        persistSettings({
+          ...settings,
+          lastJobId: generated.jobIds[0] ?? settings.lastJobId,
+        });
+
+        setStep("Translating with AI...", 42);
+        await waitForCanvaJobs({
+          auth,
+          jobIds: generated.jobIds,
+          onProgress: (completed, total) => {
+            const jobSpan = 40;
+            const value = 42 + Math.round((completed / Math.max(total, 1)) * jobSpan);
+            setStep("Translating with AI...", Math.min(value, 82));
+          },
+        });
+
+        setStep("Applying to your design...", 88);
+        const pulled = await pullCanvaLocalePages({
+          auth,
+          designToken: token,
+          locale: settings.selectedLocale,
+        });
+        const selected = new Set(selectedPageIndices);
+        const pages = pulled.pages.filter((page) => selected.has(page.pageIndex));
+        if (pages.length === 0) {
+          throw new Error("No translations to apply.");
+        }
+        const applied = await applyTranslationsToDesign(pages);
+        const outcome = applyOutcomeMessage(settings.selectedLocale, pages.length, applied);
+        if (outcome.tone === "critical") {
+          throw new Error(outcome.message);
+        }
+
+        persistSettings({
+          ...persistAppliedLocale(settings, settings.selectedLocale, applied.appliedPageIndices),
+          lastJobId: generated.jobIds[0] ?? settings.lastJobId,
+        });
+        setStep("Finishing up...", 96);
+        try {
+          await refreshLocaleStatuses();
+        } catch {
+          // Jobs may already be running; a stale status panel must not fail a completed translate.
+        }
+        const skippedNote =
+          applied.skipped > 0
+            ? ` ${applied.skipped} text box${applied.skipped === 1 ? "" : "es"} changed since upload — Upload again to include them.`
+            : "";
+        showToast(
+          `Translated ${localeLabel(settings.selectedLocale)} and applied to ${pages.length} page${pages.length === 1 ? "" : "s"}.${skippedNote}`,
+        );
+      } finally {
+        setTranslateProgress(null);
       }
-      await generateCanvaJob({
-        auth: await resolveAuth(),
-        jobId: pageJob.jobId,
-      });
-      setPageJob({ ...pageJob, status: "queued", lastError: null });
-      setStatusMessage("Generating translations…");
     });
 
-  const handlePull = () =>
-    runAction("pull", async () => {
-      const { token } = await getDesignToken();
-      const pulled = await pullCanvaTranslations({
-        auth: await resolveAuth(),
-        designToken: token,
-      });
-      setPageJob(pulled);
-      const locale =
-        selectedLocale || Object.keys(pulled.translationsByLocale)[0] || targetLocales[0];
-      const translations = locale ? pulled.translationsByLocale[locale] : undefined;
-      if (!locale || !translations) {
-        throw new Error(`No translated content returned for ${locale || "the selected locale"}.`);
-      }
-      await applyTranslationsToDesign(
-        translations,
-        selectedPageIndices,
-        settings.preserveFormatting,
-      );
-      setStatusMessage(
-        `Applied ${Object.keys(translations).length} translated segments (${locale}).`,
-      );
-    });
+  const showProjectScreen = connected && (pickingProject || !selectedProject);
+  const showTranslateScreen = connected && !showProjectScreen;
 
-  const jobHref =
-    pageJob && settings.organizationSlug
-      ? buildCanvaJobUrl({
-          organizationSlug: settings.organizationSlug,
-          projectId: pageJob.projectId,
-          jobId: pageJob.jobId,
-        })
-      : null;
+  const toastMarkup = toast ? (
+    <div className={styles.toast}>
+      <Alert tone={toast.tone} onDismiss={() => setToast(null)}>
+        <Text>{toast.message}</Text>
+      </Alert>
+    </div>
+  ) : null;
 
   return (
-    <div className={styles.scrollContainer}>
-      <Rows spacing="2u">
-        <Rows spacing="1u">
-          <Title size="small">Hyperlocalise for Canva</Title>
-          <Text>
-            Connect your workspace, extract text from selected pages, create a translation job, then
-            pull reviewed locales back into this design.
-          </Text>
-        </Rows>
-
-        {pagesError ? (
-          <Alert tone="warn" title="Pages unavailable">
-            <Text>{pagesError}</Text>
-          </Alert>
-        ) : null}
-
-        {errorMessage ? (
-          <Alert tone="critical" title="Something went wrong">
-            <Text>{errorMessage}</Text>
-          </Alert>
-        ) : null}
-
-        {statusMessage ? (
-          <Alert tone="positive" title="Status">
-            <Text>{statusMessage}</Text>
-          </Alert>
-        ) : null}
-
-        <Box padding="2u" className={styles.panel}>
-          <Rows spacing="1.5u">
-            <Rows spacing="0.5u">
-              <Title size="xsmall">Workspace</Title>
-              <Text size="small" tone="secondary">
-                Sign in with Hyperlocalise through Canva OAuth. A pasted connection token is only
-                for local development.
-              </Text>
-            </Rows>
-
-            {connected ? (
-              <Rows spacing="1u">
-                <Text size="small">
-                  {settings.organizationName || "Connected"}
-                  {settings.projectName ? ` · ${settings.projectName}` : ""}
-                </Text>
-                <Button variant="secondary" onClick={disconnect} disabled={busy != null}>
-                  Disconnect
-                </Button>
-              </Rows>
-            ) : (
-              <Rows spacing="1.5u">
+    <div className={styles.appShell}>
+      {showProjectScreen ? (
+        <div className={styles.body}>
+          <FormField
+            label="Project"
+            value={settings.projectId}
+            control={(props) => (
+              <div className={styles.pageFieldRow}>
+                <div className={styles.pageFieldSelect}>
+                  <Select
+                    {...props}
+                    stretch
+                    placeholder={
+                      busy === "bind"
+                        ? "Connecting..."
+                        : projectsLoading
+                          ? "Loading projects..."
+                          : "Select a project"
+                    }
+                    disabled={busy === "bind" || projectsLoading}
+                    options={projects.map((project) => ({
+                      value: project.id,
+                      label: project.name,
+                    }))}
+                    onChange={(value) => {
+                      void handleProjectChange(value);
+                    }}
+                  />
+                </div>
                 <Button
-                  variant="primary"
-                  stretch
-                  onClick={handleConnectOauth}
-                  loading={busy === "connect"}
-                  disabled={busy != null}
-                >
-                  Connect Hyperlocalise
-                </Button>
-                <FormField
-                  label="Connection token"
-                  description="Optional fallback. Paste a token from workspace Integrations → Canva."
-                  value={tokenDraft}
-                  control={(props) => (
-                    <TextInput {...props} placeholder="hl_canva_..." onChange={setTokenDraft} />
-                  )}
+                  variant="tertiary"
+                  size="small"
+                  icon={ReloadIcon}
+                  ariaLabel="Reload projects"
+                  tooltipLabel="Reload projects"
+                  onClick={() => void reloadProjectOptions()}
+                  loading={projectsLoading}
+                  disabled={projectsLoading || busy === "bind"}
                 />
-                <Button
-                  variant="secondary"
-                  stretch
-                  onClick={handleConnectToken}
-                  disabled={busy != null || tokenDraft.trim().length === 0}
-                >
-                  Connect with token
-                </Button>
-              </Rows>
+              </div>
             )}
-          </Rows>
-        </Box>
-
-        {connected ? (
-          <>
-            <Box padding="2u" className={styles.panel}>
-              <Rows spacing="1.5u">
-                <Rows spacing="0.5u">
-                  <Title size="xsmall">Pages to localize</Title>
-                  <Text size="small" tone="secondary">
-                    Choose which pages to include in extract, upload, and pull.
-                  </Text>
-                </Rows>
-
-                {pagesLoading ? (
-                  <Text size="small" tone="secondary">
-                    Loading pages from your design...
-                  </Text>
-                ) : (
-                  <Rows spacing="1u">
-                    <Rows spacing="0.5u">
-                      <Text size="small">
-                        {selectedPageIndices.length} of {editablePages.length} editable pages
-                        selected
-                      </Text>
-                      <div className={styles.pageActions}>
-                        <LinkButton
-                          onClick={() =>
-                            updateSettings({
-                              selectedPageIndices: defaultSelectedPages(designPages),
-                            })
-                          }
-                        >
-                          Select all
-                        </LinkButton>
-                        <LinkButton onClick={() => updateSettings({ selectedPageIndices: [] })}>
-                          Clear
-                        </LinkButton>
-                      </div>
-                    </Rows>
-
-                    <CheckboxGroup
-                      value={selectedPageValues(selectedPageIndices)}
-                      onChange={(values) =>
-                        updateSettings({
-                          selectedPageIndices: parseSelectedPageValues(values),
-                        })
-                      }
-                      options={designPages.map((page) => ({
-                        value: String(page.index),
-                        label: page.label,
-                        description: pageDescription(page),
-                        disabled: !page.editable,
-                      }))}
-                    />
-                  </Rows>
-                )}
-              </Rows>
-            </Box>
-
-            <Box padding="2u" className={styles.panel}>
-              <Rows spacing="1.5u">
-                <Rows spacing="0.5u">
-                  <Title size="xsmall">Locales</Title>
-                  <Text size="small" tone="secondary">
-                    Defaults come from the connection. You can still edit them for this design.
-                  </Text>
-                </Rows>
-
-                <FormField
-                  label="Source locale"
-                  value={settings.sourceLocale}
-                  control={(props) => (
-                    <Select
-                      {...props}
-                      options={LOCALE_OPTIONS}
-                      onChange={(value) => updateSettings({ sourceLocale: value })}
-                    />
-                  )}
-                />
-
-                <FormField
-                  label="Target locales"
-                  description="Comma-separated locale codes"
-                  value={settings.targetLocales}
-                  control={(props) => (
-                    <TextInput
-                      {...props}
-                      placeholder="es, fr, de"
-                      onChange={(value) => updateSettings({ targetLocales: value })}
-                    />
-                  )}
-                />
-
-                <FormField
-                  label="Apply locale"
-                  value={selectedLocale}
-                  control={(props) => (
+          />
+          {busy === "bind" && bindProgress ? (
+            <div className={styles.stepProgress}>
+              <Text size="small" tone="secondary">
+                {bindProgress.label}
+              </Text>
+              <ProgressBar size="small" value={bindProgress.value} ariaLabel={bindProgress.label} />
+            </div>
+          ) : null}
+          <div className={styles.projectCta}>
+            {selectedProject ? (
+              <LinkButton onClick={() => setPickingProject(false)}>Cancel</LinkButton>
+            ) : null}
+            <LinkButton onClick={() => disconnect("Disconnected.")}>Switch Account</LinkButton>
+          </div>
+          {toastMarkup}
+        </div>
+      ) : showTranslateScreen && uploadPreview ? (
+        <>
+          <div className={styles.body}>
+            <Title size="small">Upload to Hyperlocalise</Title>
+            <Text size="small">
+              {uploadPreviewSummary(
+                uploadPreview.pageIndices.length,
+                uniqueUploadedTextCount(uploadPreview.segments),
+              )}
+              {selectedProject ? ` to ${selectedProject.name}` : ""}.
+            </Text>
+          </div>
+          <div className={styles.footer}>
+            <Rows spacing="1u">
+              <Button
+                variant="primary"
+                stretch
+                onClick={confirmUpload}
+                loading={busy === "upload"}
+                disabled={busy != null}
+              >
+                Upload pages
+              </Button>
+              <Button
+                variant="secondary"
+                stretch
+                onClick={() => setUploadPreview(null)}
+                disabled={busy != null}
+              >
+                Cancel
+              </Button>
+            </Rows>
+          </div>
+          {toastMarkup}
+        </>
+      ) : showTranslateScreen ? (
+        <>
+          <div className={styles.body}>
+            {selectedProject ? (
+              <div className={styles.projectCta}>
+                <Text size="small" tone="secondary">
+                  Project: {selectedProject.name}
+                </Text>
+                <Text size="small" tone="secondary">
+                  ·
+                </Text>
+                <LinkButton onClick={() => setPickingProject(true)}>Change</LinkButton>
+                <Text size="small" tone="secondary">
+                  ·
+                </Text>
+                <LinkButton onClick={() => disconnect("Disconnected.")}>Switch Account</LinkButton>
+              </div>
+            ) : null}
+            <FormField
+              label="Translate to"
+              value={settings.selectedLocale}
+              control={(props) => (
+                <div className={styles.pageFieldRow}>
+                  <div className={styles.pageFieldSelect}>
                     <Select
                       {...props}
                       stretch
-                      disabled={targetLocales.length === 0}
-                      options={targetLocales.map((locale) => ({
-                        value: locale,
-                        label: locale,
-                      }))}
-                      onChange={setSelectedLocale}
+                      placeholder={localesLoading ? "Loading languages..." : "Select a language"}
+                      disabled={localesLoading || !selectedProject}
+                      options={localeOptions(selectedProject)}
+                      onChange={(value) => updateSettings({ selectedLocale: value })}
                     />
-                  )}
-                />
-
-                <FormField
-                  label="Preserve inline formatting"
-                  value={settings.preserveFormatting}
-                  control={(props) => (
-                    <Switch
-                      {...props}
-                      value={settings.preserveFormatting}
-                      onChange={(value) => updateSettings({ preserveFormatting: value })}
-                    />
-                  )}
-                />
-              </Rows>
-            </Box>
-
-            <Box padding="2u" className={styles.panel}>
-              <Rows spacing="1.5u">
-                <Rows spacing="0.5u">
-                  <Title size="xsmall">Job</Title>
-                  <Text size="small" tone="secondary">
-                    Extract text, create a job, generate translations, then pull a locale back into
-                    Canva.
-                  </Text>
-                </Rows>
-
-                {pageJob ? (
-                  <Rows spacing="1u">
-                    <div className={styles.workflowStep}>
-                      <Badge
-                        text={jobStatusLabel(pageJob.status)}
-                        tone={
-                          pageJob.status === "succeeded"
-                            ? "positive"
-                            : pageJob.status === "failed" || pageJob.status === "cancelled"
-                              ? "critical"
-                              : "info"
+                  </div>
+                  <Button
+                    variant="tertiary"
+                    size="small"
+                    icon={ReloadIcon}
+                    ariaLabel="Reload languages"
+                    tooltipLabel="Reload languages"
+                    onClick={() => void reloadLocaleOptions()}
+                    loading={localesLoading}
+                    disabled={localesLoading || !selectedProject}
+                  />
+                </div>
+              )}
+            />
+            {selectedProject ? (
+              <Text size="small" tone="secondary">
+                Source language {localeLabel(selectedProject.sourceLocale)}
+              </Text>
+            ) : null}
+            <hr className={styles.sectionRule} />
+            <FormField
+              label="Pages to translate"
+              value={selectedPageValues(selectedPageIndices).join(",")}
+              control={(props) => (
+                <div className={styles.pageField}>
+                  <div className={styles.pageFieldRow}>
+                    <div className={styles.pageFieldSelect}>
+                      <Select
+                        {...props}
+                        type="multi"
+                        stretch
+                        placeholder={pagesLoading ? "Loading pages..." : "Select pages"}
+                        disabled={pagesLoading}
+                        value={selectedPageValues(selectedPageIndices)}
+                        options={designPages.map((page) => ({
+                          value: String(page.index),
+                          label: page.label,
+                          disabled: !page.editable,
+                        }))}
+                        onChange={(values) =>
+                          updateSettings({
+                            selectedPageIndices: parseSelectedPageValues(values),
+                          })
                         }
                       />
-                      <Text size="small">{pageJob.jobId}</Text>
                     </div>
-                    {jobHref ? (
-                      <LinkButton onClick={() => void openExternalUrl(jobHref)}>
-                        Open in Hyperlocalise
-                      </LinkButton>
-                    ) : null}
-                  </Rows>
-                ) : (
-                  <Text size="small" tone="secondary">
-                    No job for this design yet.
-                  </Text>
-                )}
-
+                    <Button
+                      variant="tertiary"
+                      size="small"
+                      icon={ReloadIcon}
+                      ariaLabel="Reload pages"
+                      tooltipLabel="Reload pages"
+                      onClick={() => setPagesReloadKey((current) => current + 1)}
+                      loading={pagesLoading}
+                      disabled={pagesLoading}
+                    />
+                  </div>
+                  <div className={styles.pageMenuActions}>
+                    <LinkButton
+                      onClick={() =>
+                        updateSettings({
+                          selectedPageIndices: defaultSelectedPages(designPages),
+                        })
+                      }
+                      disabled={
+                        pagesLoading ||
+                        editablePages.length === 0 ||
+                        selectedPageIndices.length === editablePages.length
+                      }
+                    >
+                      Select all
+                    </LinkButton>
+                    <LinkButton
+                      onClick={() => updateSettings({ selectedPageIndices: [] })}
+                      disabled={pagesLoading || selectedPageIndices.length === 0}
+                    >
+                      Clear all
+                    </LinkButton>
+                  </div>
+                </div>
+              )}
+            />
+            <div className={styles.stepActions}>
+              <Button
+                variant="secondary"
+                stretch
+                onClick={openUploadPreview}
+                disabled={!canUpload}
+                loading={busy === "upload"}
+                tooltipLabel={uploadTooltip}
+              >
+                Upload
+              </Button>
+              <Button
+                variant="secondary"
+                stretch
+                onClick={handleApply}
+                disabled={applyButtonDisabled}
+                loading={applyButtonLoading}
+                tooltipLabel={applyTooltip}
+              >
+                Apply
+              </Button>
+            </div>
+            {selectedPagesNeedingReupload(selectedLocaleStatus, selectedPageIndices).length > 0 ? (
+              <Text size="small" tone="secondary">
+                Upload{" "}
+                {formatPageList(
+                  selectedPagesNeedingReupload(selectedLocaleStatus, selectedPageIndices),
+                )}{" "}
+                again to use Apply.
+              </Text>
+            ) : null}
+            {busy === "apply" && applyProgress ? (
+              <div className={styles.stepProgress}>
                 <Text size="small" tone="secondary">
-                  {segments.length > 0
-                    ? `${segments.length} extracted segment${segments.length === 1 ? "" : "s"}.`
-                    : "Extract text from the selected pages to create a job."}
+                  {applyProgress.label}
                 </Text>
-
-                <Button
-                  variant="secondary"
-                  stretch
-                  onClick={handleExtract}
-                  disabled={busy != null || selectedPageIndices.length === 0}
-                  loading={busy === "extract"}
-                >
-                  Extract text
-                </Button>
-                <Button
-                  variant="primary"
-                  stretch
-                  onClick={() => handleCreateJob(true)}
-                  disabled={!canCreateJob}
-                  loading={busy === "generate"}
-                >
-                  Create job and generate
-                </Button>
-                <Button
-                  variant="secondary"
-                  stretch
-                  onClick={() => handleCreateJob(false)}
-                  disabled={!canCreateJob}
-                  loading={busy === "create"}
-                >
-                  Create job only
-                </Button>
-                <Button
-                  variant="secondary"
-                  stretch
-                  onClick={handleGenerateExisting}
-                  disabled={!canGeneratePageJob}
-                >
-                  Generate translations
-                </Button>
-                <Button
-                  variant="primary"
-                  stretch
-                  onClick={handlePull}
-                  disabled={!canPull}
-                  loading={busy === "pull"}
-                >
-                  Pull translations
-                </Button>
-              </Rows>
-            </Box>
-          </>
-        ) : null}
-      </Rows>
+                <ProgressBar
+                  size="small"
+                  value={applyProgress.value}
+                  ariaLabel={applyProgress.label}
+                />
+              </div>
+            ) : null}
+            {toastMarkup}
+          </div>
+          <div className={styles.footer}>
+            <Rows spacing="1u">
+              {busy === "translate" && translateProgress ? (
+                <div className={styles.stepProgress}>
+                  <Text size="small" tone="secondary">
+                    {translateProgress.label}
+                  </Text>
+                  <ProgressBar
+                    size="small"
+                    value={translateProgress.value}
+                    ariaLabel={translateProgress.label}
+                  />
+                </div>
+              ) : null}
+              <Button
+                variant="primary"
+                stretch
+                icon={RestrictedMagicGradientIcon}
+                onClick={handleTranslate}
+                disabled={!canTranslate}
+                loading={busy === "translate"}
+                tooltipLabel={translateTooltip}
+              >
+                Translate
+              </Button>
+            </Rows>
+          </div>
+        </>
+      ) : (
+        <div className={styles.body}>
+          <Text>Connect your Hyperlocalise account to translate your Canva designs.</Text>
+          <Button
+            variant="primary"
+            stretch
+            onClick={handleConnectOauth}
+            loading={busy === "connect"}
+            disabled={busy != null}
+          >
+            Connect Hyperlocalise
+          </Button>
+          {allowConnectionToken ? (
+            <>
+              <LinkButton onClick={() => setShowTokenField((current) => !current)}>
+                {showTokenField ? "Hide connection token" : "Use a connection token"}
+              </LinkButton>
+              {showTokenField ? (
+                <Rows spacing="1u">
+                  <FormField
+                    label="Connection token"
+                    value={tokenDraft}
+                    control={(props) => (
+                      <TextInput {...props} placeholder="hl_canva_..." onChange={setTokenDraft} />
+                    )}
+                  />
+                  <Button
+                    variant="secondary"
+                    stretch
+                    onClick={handleConnectToken}
+                    disabled={busy != null || tokenDraft.trim().length === 0}
+                  >
+                    Connect with token
+                  </Button>
+                </Rows>
+              ) : null}
+            </>
+          ) : null}
+          {toastMarkup}
+        </div>
+      )}
     </div>
   );
 };

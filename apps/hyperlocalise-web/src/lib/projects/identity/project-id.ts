@@ -37,7 +37,17 @@ export function normalizeProjectId(value: unknown) {
 
 export const projectIdSchema = z.preprocess(normalizeProjectId, z.string().trim().min(1).max(128));
 
+function normalizeOptionalProjectId(value: unknown) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === "string" && value.trim() === "") {
+    return undefined;
+  }
+  return normalizeProjectId(value);
+}
+
 export const optionalProjectIdSchema = z.preprocess(
-  normalizeProjectId,
+  normalizeOptionalProjectId,
   z.string().trim().min(1).max(128).optional(),
 );

@@ -4,9 +4,15 @@ locales:
   source: en-US
   targets:
     - zh-CN
-    - vi-VN
-    - de-DE
+    - da-DK
+    - nl-NL
+    - fil-PH
     - fr-FR
+    - de-DE
+    - ja-JP
+    - ko-KR
+    - th-TH
+    - vi-VN
 
 buckets:
   web:

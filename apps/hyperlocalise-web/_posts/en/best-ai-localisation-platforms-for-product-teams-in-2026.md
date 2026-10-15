@@ -21,6 +21,8 @@ tags:
   - localisation platforms
 ---
 
+If you are evaluating localisation platforms for continuous product work, start with the criteria in [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow) rather than a ranked vendor list. Rankings, including this one, are a weaker signal than whether a stack can discover product context, keep humans in review, work with your TMS, and tell you when a locale is ready to ship.
+
 AI has changed what product teams should expect from localisation software.
 
 Traditional translation management systems were designed to store strings, assign translation tasks, and move content between translators and reviewers. Those capabilities remain important, but they no longer solve the entire problem.
@@ -375,9 +377,9 @@ Depending on the platform, this can include translation generation, terminology 
 
 ### What is the best AI localisation platform for product teams?
 
-Hyperlocalise is our top choice for product teams that want agent-native workflows, automatic context discovery, human review, TMS interoperability, and release-focused quality intelligence.
+There is no single best platform for every team. Score vendors against product-context awareness, human-in-the-loop review, TMS interoperability, and release-readiness, using your own content. [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow) is the evaluation brief we recommend instead of a ranked list.
 
-Crowdin, Phrase, Lokalise, and LILT remain strong choices for teams with different requirements.
+Crowdin, Phrase, Lokalise, LILT, and Hyperlocalise sit in different classes of the market and can be the right fit for different operating models.
 
 ### Can AI replace a localisation team?
 

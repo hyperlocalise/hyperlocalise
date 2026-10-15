@@ -10,43 +10,107 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  segmentKey,
+  buildPageSourcePath,
   buildSourcePath,
-  segmentsToTranslationFile,
+  buildSourceTextPageFile,
+  isSourceTextKey,
+  normalizeSegmentText,
+  pageNeedsReupload,
   parseTranslationFile,
+  sourceTextKey,
 } from "./segment-file";
 
 describe("canva segment-file", () => {
-  it("builds stable segment keys and source paths", () => {
-    expect(segmentKey(1, 2, 3)).toBe("canva.segment.1.2.3");
+  it("builds source paths", () => {
     expect(buildSourcePath("design-123")).toBe("canva/designs/design-123.json");
+    expect(buildPageSourcePath("mindful-adventure", "DAF1", 0)).toBe(
+      "canva/designs/mindful-adventure-DAF1/page-1.json",
+    );
+    expect(buildPageSourcePath("mindful-adventure", "DAF2", 1)).toBe(
+      "canva/designs/mindful-adventure-DAF2/page-2.json",
+    );
   });
 
-  it("serializes and parses translation files", () => {
-    const segments = [
-      {
-        key: "canva.segment.0.0.0",
-        pageIndex: 0,
-        contentIndex: 0,
-        regionIndex: 0,
-        text: "Hello",
-      },
-    ];
+  it("normalizes unicode, whitespace, and line breaks", () => {
+    expect(normalizeSegmentText("  Hello\n\n  world  ")).toBe("Hello world");
+    const composed = "café";
+    const decomposed = "cafe\u0301";
+    expect(normalizeSegmentText(composed)).toBe(normalizeSegmentText(decomposed));
+  });
 
-    expect(segmentsToTranslationFile(segments)).toEqual({
-      "canva.segment.0.0.0": "Hello",
+  it("builds a stable source-text key", () => {
+    const digest = createHash("sha256").update("Hello", "utf8").digest("hex").slice(0, 16);
+    expect(sourceTextKey("Hello")).toBe(`canva.t.${digest}`);
+    expect(sourceTextKey("  Hello\n")).toBe(sourceTextKey("Hello"));
+    expect(isSourceTextKey(sourceTextKey("Hello"))).toBe(true);
+    expect(isSourceTextKey("canva.segment.0.0")).toBe(false);
+  });
+
+  it("dedupes identical text, skips blanks, and keeps the raw value", () => {
+    expect(buildSourceTextPageFile(["Hello", "  Hello\n", "   ", "World"])).toEqual({
+      [sourceTextKey("Hello")]: "Hello",
+      [sourceTextKey("World")]: "World",
     });
+  });
 
+  it("uses the full digest when short prefixes collide", () => {
+    const file = buildSourceTextPageFile(["Alpha", "Beta"], (normalized) =>
+      normalized === "Alpha"
+        ? `${"a".repeat(16)}${"1".repeat(48)}`
+        : `${"a".repeat(16)}${"2".repeat(48)}`,
+    );
+    expect(file).toEqual({
+      [`canva.t.${"a".repeat(16)}${"1".repeat(48)}`]: "Alpha",
+      [`canva.t.${"a".repeat(16)}${"2".repeat(48)}`]: "Beta",
+    });
+  });
+
+  it("parses source-text keys and leftover positional keys", () => {
     expect(
       parseTranslationFile({
-        "canva.segment.0.0.0": "Hola",
+        [sourceTextKey("Hello")]: "Hola",
+        "canva.segment.0.0": "Bonjour",
         ignored: "value",
       }),
     ).toEqual({
-      "canva.segment.0.0.0": "Hola",
+      [sourceTextKey("Hello")]: "Hola",
+      "canva.segment.0.0": "Bonjour",
+    });
+    expect(pageNeedsReupload({ "canva.segment.0.0": "Hello" })).toBe(true);
+    expect(pageNeedsReupload({ [sourceTextKey("Hello")]: "Hello" })).toBe(false);
+  });
+
+  it("reads flat segment keys only and ignores nested objects", () => {
+    expect(
+      parseTranslationFile({
+        "canva.segment.0.0": "Bonjour",
+        canva: {
+          segment: {
+            "0": {
+              "0": "Hello",
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      "canva.segment.0.0": "Bonjour",
+    });
+    expect(
+      parseTranslationFile({
+        canva: {
+          t: {
+            abcdef0123456789: "Hola",
+          },
+        },
+        "canva.t.abcdef0123456789": "Hello",
+      }),
+    ).toEqual({
+      "canva.t.abcdef0123456789": "Hello",
     });
   });
 });

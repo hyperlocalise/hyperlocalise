@@ -113,7 +113,6 @@ func TestEditorCatSkipsVercelRoutes(t *testing.T) {
 		{http.MethodPost, "/files/detail/cat/images/regenerate", "image_regenerate_deferred"},
 		{http.MethodPost, "/files/detail/cat/images/upload", "image_upload_deferred"},
 		{http.MethodPost, "/files/detail/cat/recommendation", "ai_recommendation_deferred"},
-		{http.MethodPost, "/files/detail/cat/visual-context", "visual_context_deferred"},
 	}
 	for _, route := range routes {
 		t.Run(route.code, func(t *testing.T) {
@@ -145,10 +144,27 @@ func TestEditorCatQueueNative(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Equal(t, "locales/en.json", body.ContentEditorQueue.SourcePath)
+	require.Equal(t, "auto", body.ContentEditorQueue.MessageFormat)
 	require.True(t, body.ContentEditorQueue.CanEditTranslations)
 	require.Len(t, body.ContentEditorQueue.Segments, 1)
 	require.Equal(t, "hello", body.ContentEditorQueue.Segments[0].Key)
 	require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+}
+
+func TestEditorCatQueueReturnsPersistedMessageFormat(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "locales/en.json")
+	mustEditorCatKey(t, scope, fileID, "hello", "Hello {{name}}")
+	_, err := scope.Pool.Exec(t.Context(), `update repository_source_files set message_format='i18next' where id=$1`, fileID)
+	require.NoError(t, err)
+
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=locales/en.json&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "i18next", body.ContentEditorQueue.MessageFormat)
 }
 
 func TestEditorCatQueueReturnsSourceIngestForEmptyHTML(t *testing.T) {
@@ -539,6 +555,19 @@ func TestRewriteHashedHTMLQueueKeysNoopsWithoutHashedKeys(t *testing.T) {
 	segments := []editorCatSegment{{Key: "html.body.p"}}
 	got := api.rewriteHashedHTMLQueueKeys(nil, editorCatActor{}, editorCatProject{}, "pages/home.html", segments)
 	require.Equal(t, "html.body.p", got[0].Key)
+}
+
+func TestIsTrustedStoredFileURL(t *testing.T) {
+	trustedPath := "https://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"
+	trustedWorkspace := "https://cdn.example.com/organizations/org_1/workspace/files/abc123/home.html"
+
+	require.True(t, isTrustedStoredFileURL(trustedPath))
+	require.True(t, isTrustedStoredFileURL(trustedWorkspace))
+	require.False(t, isTrustedStoredFileURL("http://blob.vercel-storage.com/organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL("https://evil.example/etc/passwd"))
+	require.False(t, isTrustedStoredFileURL("https:///organizations/org_1/projects/proj_1/files/abc123/home.html"))
+	require.False(t, isTrustedStoredFileURL(":not-a-url"))
+	require.False(t, isTrustedStoredFileURL(""))
 }
 
 func TestRewriteHashedHTMLSegmentKeysUsesTagPath(t *testing.T) {

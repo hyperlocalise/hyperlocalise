@@ -19,8 +19,8 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError, type GoSvcClient } from "@/lib/go-svc/go-svc-client";
 import { goSvcErrorMessage } from "@/lib/go-svc/go-svc-error";
 import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
@@ -131,35 +131,35 @@ function useMemoryListFilterState(
 }
 
 async function fetchWorkspaceMemories(
+  goSvcClient: GoSvcClient,
   organizationSlug: string,
   intl: ReturnType<typeof useIntl>,
   page: number,
   source: "native" | "external_tms",
   projectFilter: string,
 ) {
-  const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
-    param: { organizationSlug },
-    query: {
-      limit: String(MEMORIES_PAGE_SIZE),
-      offset: String((page - 1) * MEMORIES_PAGE_SIZE),
+  try {
+    const body = await goSvcClient.memory.list(organizationSlug, {
+      limit: MEMORIES_PAGE_SIZE,
+      offset: (page - 1) * MEMORIES_PAGE_SIZE,
       source,
       ...(projectFilter !== "all" ? { projectId: projectFilter } : {}),
-    },
-  });
-
-  if (!response.ok) {
+    });
+    return {
+      memories: body.memories as ApiMemory[],
+      total: body.total,
+    };
+  } catch (error) {
     throw new Error(
-      intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
-        status: response.status,
-      }),
+      goSvcErrorMessage(
+        error,
+        intl.formatMessage(translationMemoriesPageContentMessages.loadMemoriesFailed, {
+          status: error instanceof GoSvcClientError ? error.status : 0,
+        }),
+      ),
+      { cause: error },
     );
   }
-
-  const body = await response.json();
-  return {
-    memories: body.memories as ApiMemory[],
-    total: body.total as number,
-  };
 }
 
 export function TranslationMemoriesPageContent({
@@ -242,7 +242,14 @@ export function TranslationMemoriesPageContent({
     initialPageParam: 1,
     enabled: sourceFilter !== "external_tms",
     queryFn: ({ pageParam }) =>
-      fetchWorkspaceMemories(organizationSlug, intl, pageParam, "native", projectFilter),
+      fetchWorkspaceMemories(
+        goSvcClient,
+        organizationSlug,
+        intl,
+        pageParam,
+        "native",
+        projectFilter,
+      ),
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
       return loaded < lastPage.total ? pages.length + 1 : undefined;
@@ -254,7 +261,14 @@ export function TranslationMemoriesPageContent({
     initialPageParam: 1,
     enabled: !useLiveProviderMemories && sourceFilter !== "native",
     queryFn: ({ pageParam }) =>
-      fetchWorkspaceMemories(organizationSlug, intl, pageParam, "external_tms", projectFilter),
+      fetchWorkspaceMemories(
+        goSvcClient,
+        organizationSlug,
+        intl,
+        pageParam,
+        "external_tms",
+        projectFilter,
+      ),
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((count, page) => count + page.memories.length, 0);
       return loaded < lastPage.total ? pages.length + 1 : undefined;
@@ -320,25 +334,22 @@ export function TranslationMemoriesPageContent({
         }
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$post({
-        param: { organizationSlug },
-        json: {
+      let memoryId: string;
+      try {
+        const body = await goSvcClient.memory.create(organizationSlug, {
           name,
           description: values.description.trim(),
-        },
-      });
-
-      if (!response.ok) {
+        });
+        memoryId = body.memory.id;
+      } catch (error) {
         throw new Error(
-          await readApiError(
-            response,
+          goSvcErrorMessage(
+            error,
             intl.formatMessage(translationMemoriesPageContentMessages.createMemoryFailed),
           ),
+          { cause: error },
         );
       }
-
-      const body = await response.json();
-      const memoryId = body.memory.id as string;
       if (!values.importFile) {
         return { memoryId, importAttemptId: null as string | null };
       }

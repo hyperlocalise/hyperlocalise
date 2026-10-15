@@ -18,4 +18,3 @@ Sidebar **New Request** opens a full inbox page with a dedicated empty chat, ins
 
 - Removing the chat dock.
 - Syncing dock tabs with inbox selection.
-- Crowdin embed New conversation flow.

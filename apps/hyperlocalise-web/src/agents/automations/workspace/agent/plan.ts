@@ -20,6 +20,8 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
@@ -36,6 +38,10 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_contentful_translation",
   "import_intercom_articles",
   "push_intercom_translations",
+  "import_braze_templates",
+  "push_braze_templates",
+  "import_braze_campaigns",
+  "push_braze_campaigns",
   "create_native_tms_job",
   "assign_translate_with_agent",
   "list_issues",
@@ -109,6 +115,12 @@ function workflowToolEnabled(
     case "import_intercom_articles":
     case "push_intercom_translations":
       return hasWorkspaceAutomationIntercomTool(toolConfig);
+    case "import_braze_templates":
+    case "push_braze_templates":
+      return hasWorkspaceAutomationBrazeTool(toolConfig);
+    case "import_braze_campaigns":
+    case "push_braze_campaigns":
+      return hasWorkspaceAutomationBrazeCampaignsTool(toolConfig);
     case "create_native_tms_job":
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
@@ -215,6 +227,28 @@ export function buildWorkspaceOrchestratorPlan(
       notificationToolEnabled(tool, automation.toolConfig),
     );
     return { tools: [intercomTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)) {
+    const brazeTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_braze_campaigns"
+        : "import_braze_campaigns";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [brazeTool, ...notificationTools] };
+  }
+
+  if (hasWorkspaceAutomationBrazeTool(automation.toolConfig)) {
+    const brazeTool =
+      triggerContext?.operation === "push_approved"
+        ? "push_braze_templates"
+        : "import_braze_templates";
+    const notificationTools = NOTIFICATION_TOOLS.filter((tool) =>
+      notificationToolEnabled(tool, automation.toolConfig),
+    );
+    return { tools: [brazeTool, ...notificationTools] };
   }
 
   const workflowTools = orderWorkflowTools({

@@ -1,0 +1,100 @@
+---
+title: "Localize Figma"
+description: "Connect Hyperlocalise, pick a native project in the Figma plugin, upload page text, translate, and apply one locale at a time."
+---
+
+Figma does not translate. Hyperlocalise jobs do. Create one workspace Figma connection, then use the Hyperlocalise Figma plugin to pick a [native project](/platform/projects/create-project), upload text from pages, run translation jobs, and apply completed locales back onto the file.
+
+Jobs use the project's source locale and target locales. `en` is not `en-US`. `zh-CN` is not `zh-TW`.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) with a source locale and the target locales you will apply. |
+| Personal access token | A [personal access token](/platform/settings#personal-access-tokens) with `files:read`, `files:write`, `jobs:read`, and `jobs:write`. The token inherits your workspace role and project access. |
+| Hyperlocalise Figma plugin | The plugin installed in the Figma editor for your team. |
+| Editable text | Each text layer you upload becomes one segment keyed with `figma.k.*` in plugin data. |
+
+## Connect Figma
+
+1. Open workspace **Integrations** and find **Figma**.
+2. Enter a display name.
+3. Select the personal access token. The dropdown shows the token name.
+4. Save. You do not choose a project or locales on this form.
+
+App developers enable OAuth in the Figma Developer settings and on the Hyperlocalise deployment. See [Figma plugin OAuth](/contributing/figma-plugin-oauth) for authorization server URL, token exchange URL, and environment variables.
+
+A **connection token** is a local-development fallback only. On `localhost`, Integrations shows **Copy token** after save and **Regenerate token** on each connection. Production builds should use OAuth (`X-Hyperlocalise-Access-Token`) instead of a pasted token.
+
+Connect Figma before you upload text. Changing the project in the plugin changes the next upload and apply.
+
+## Step 1: Match project locales
+
+Create or choose the [native project](/platform/projects/create-project) you will select in the Figma plugin.
+
+1. Set the project **source locale** to the language of the copy on the pages you will upload.
+2. Add a project target locale for each language you will apply.
+3. Use exact BCP-47 tags. There is no language fallback across regions (`zh-CN` does not apply as `zh-TW`).
+
+Change languages in [project settings](/platform/projects/languages), then pick the project again in the plugin so it reloads the list.
+
+## Step 2: Connect from the plugin
+
+1. Open the Figma file in the editor and run the Hyperlocalise plugin.
+2. Connect with OAuth in production, or paste a connection token when developing against `localhost`.
+3. Select the native project. The plugin binds that project to the connection.
+
+## Step 3: Upload source text
+
+**Upload** writes source JSON into the selected project. It does not start a translation job and does not show translation progress.
+
+1. Select the pages to process.
+2. Confirm the canvas is on the **project source locale**. If a target language is already on the page, **Apply** the source locale first, then upload.
+3. Choose **Upload** and confirm. Each page is stored at `figma/files/<fileKey>/<page-title-slug>-<pageId>.json`. Review those files like other [JSON sources](/platform/projects/files).
+
+The plugin remaps layers to the last collected source (stamp key and known applied text) before it stores the file, so a page that still shows a previous target does not upload that target as source.
+
+Line breaks and unusual spaces inside a text layer are stored as normal spaces so later apply can match the same string.
+
+## Step 4: Translate
+
+**Translate** starts an agent job for the language selected under **Translate to**, waits for that job, then applies the result to the selected pages.
+
+- If the pages are not uploaded yet, Translate collects them first, but only while the design shows the project source locale.
+- Translate does not upload again when the selected pages are already collected.
+- Open the page files in the [Content Editor](/platform/cat) if you need to [review](/platform/cat) or wait for approval.
+
+Upload and Apply stay available as separate steps.
+
+## Step 5: Apply to the file
+
+**Apply** writes Hyperlocalise strings for **one** chosen language onto the selected pages. It matches stamped `figma.k.*` keys. It uses the **stored source file** as the source map, not whatever language is currently on the canvas.
+
+1. Under **Translate to**, pick the locale you want on the file (source or a target).
+2. Select every page that should receive that language.
+3. Choose **Apply** when that locale has pullable translations (job succeeded or waiting for review), or when you are applying the source locale from the last upload.
+
+For each stamped text node:
+
+- If Hyperlocalise has a real translation for that key, Apply writes it.
+- If the string is missing, or the job still has the multi-word English source, Apply **resets the layer to stored source**. It does not leave a previous target language on the node.
+
+Apply the source locale if you need a clean English (or source) canvas before the next upload. Inspect layout after applying another language, especially for longer text.
+
+If segment keys use the older `figma.segment.*` shape, upload again so the plugin mints new stamped keys before you apply.
+
+## Segment keys
+
+Each text node gets a stable `figma.k.<ulid>` key stored in plugin data (`hyperlocalise:segment:v1`). Keys stay on the node across locale applies. Editing source copy in Figma after upload means that node needs a fresh upload before apply can match the new text.
+
+## If upload or apply does not run
+
+- Confirm Figma is connected and a project is selected. That project needs a source locale and at least one target locale.
+- Confirm the personal access token still has `files:read`, `files:write`, `jobs:read`, and `jobs:write`, and that you can access the project.
+- Confirm you selected at least one page with editable text.
+- Confirm the canvas is on the project source locale before Upload. Apply the source language first if a target is currently on the page.
+- Confirm the language you apply is on the project. `en` is not `en-US`.
+- Open the job in Hyperlocalise for a failed locale.
+
+See [Connection troubleshooting](/platform/help/connections).

@@ -63,10 +63,15 @@ export type VisualWorkflowNodeRunRecord = {
 
 export type VisualWorkflowRunRecord = {
   id: string;
+  traceId: string;
+  parentRunId: string | null;
+  parentNodeId: string | null;
   visualWorkflowId: string;
   organizationId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
   mode?: "mock" | "live";
+  /** In a mock run, the steps that ran for real instead of using their test data. */
+  realNodeIds?: string[];
   status: VisualWorkflowRunStatus;
   idempotencyKey: string | null;
   definitionVersion: number;
@@ -78,4 +83,5 @@ export type VisualWorkflowRunRecord = {
   createdAt: string;
   updatedAt: string;
   nodeRuns?: VisualWorkflowNodeRunRecord[];
+  childRuns?: VisualWorkflowRunRecord[];
 };

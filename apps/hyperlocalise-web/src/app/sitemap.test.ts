@@ -27,11 +27,9 @@ describe("sitemap", () => {
     const homeEn = entries.find((entry) => entry.url === `${SITE_URL}/en`);
 
     expect(homeEn?.alternates?.languages).toEqual({
-      en: `${SITE_URL}/en`,
-      "zh-CN": `${SITE_URL}/zh-CN`,
-      "vi-VN": `${SITE_URL}/vi-VN`,
-      "de-DE": `${SITE_URL}/de-DE`,
-      "fr-FR": `${SITE_URL}/fr-FR`,
+      ...Object.fromEntries(
+        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}`]),
+      ),
       "x-default": `${SITE_URL}/en`,
     });
 

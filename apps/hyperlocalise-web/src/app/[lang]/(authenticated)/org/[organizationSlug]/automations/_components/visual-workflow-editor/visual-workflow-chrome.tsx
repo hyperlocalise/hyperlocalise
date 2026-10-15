@@ -12,21 +12,35 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/primitives/cn";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
+// The workflow's status and the switch that changes it, as one pill.
+const STATUS_TOGGLE_CLASS =
+  "flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-border px-2 text-xs font-medium whitespace-nowrap";
+
 export function VisualWorkflowChrome({
   name,
   onNameChange,
+  undoRedo,
   copied,
   onExport,
   onCopy,
@@ -45,6 +59,8 @@ export function VisualWorkflowChrome({
 }: {
   name: string;
   onNameChange: (name: string) => void;
+  /** Undo and redo buttons, shown first among the actions. */
+  undoRedo?: ReactNode;
   copied: boolean;
   onExport: () => void;
   onCopy: () => void;
@@ -68,6 +84,50 @@ export function VisualWorkflowChrome({
   return (
     <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2.5">
       <div className="flex min-w-0 flex-1 items-center gap-2">
+        {previewMode || !onStatusChange ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                // On a phone the badge beside the name says as much, and the row has no room.
+                <span className={cn(STATUS_TOGGLE_CLASS, "hidden text-muted-foreground sm:flex")}>
+                  <Switch
+                    disabled
+                    size="sm"
+                    aria-label={intl.formatMessage(messages.inactiveLabel)}
+                  />
+                  <FormattedMessage {...messages.inactiveLabel} />
+                </span>
+              }
+            />
+            <TooltipContent>{previewOnly}</TooltipContent>
+          </Tooltip>
+        ) : (
+          // The switch takes its name from the label around it, which is the status shown.
+          <label
+            className={cn(
+              STATUS_TOGGLE_CLASS,
+              isActive ? "text-foreground" : "text-muted-foreground",
+              statusDisabled || isSaving ? null : "cursor-pointer",
+            )}
+          >
+            <Switch
+              checked={isActive}
+              disabled={statusDisabled || isSaving}
+              size="sm"
+              onCheckedChange={(checked) => onStatusChange(checked)}
+            />
+            {/* On a phone the switch alone shows the status, and leaves the row to the name. */}
+            <span className="sr-only sm:not-sr-only">
+              {isActive ? (
+                <FormattedMessage {...messages.activeLabel} />
+              ) : workflowStatus === "paused" ? (
+                <FormattedMessage {...messages.pausedLabel} />
+              ) : (
+                <FormattedMessage {...messages.inactiveLabel} />
+              )}
+            </span>
+          </label>
+        )}
         <Input
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
@@ -82,14 +142,6 @@ export function VisualWorkflowChrome({
         ) : previewMode ? (
           <Badge variant="outline" className="rounded-full">
             <FormattedMessage {...messages.previewBadge} />
-          </Badge>
-        ) : workflowStatus !== "draft" ? (
-          <Badge variant={isActive ? "default" : "outline"} className="rounded-full">
-            {isActive ? (
-              <FormattedMessage {...messages.activeLabel} />
-            ) : (
-              <FormattedMessage {...messages.pausedLabel} />
-            )}
           </Badge>
         ) : null}
       </div>
@@ -114,62 +166,30 @@ export function VisualWorkflowChrome({
       </Tabs>
 
       <div className="flex flex-1 items-center justify-end gap-2">
-        {previewMode || !onStatusChange ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Switch
-                    disabled
-                    size="sm"
-                    aria-label={intl.formatMessage(messages.inactiveLabel)}
-                  />
-                  <FormattedMessage {...messages.inactiveLabel} />
-                </span>
-              }
-            />
-            <TooltipContent>{previewOnly}</TooltipContent>
-          </Tooltip>
-        ) : (
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Switch
-              checked={isActive}
-              disabled={statusDisabled || isSaving}
-              size="sm"
-              aria-label={intl.formatMessage(messages.activeLabel)}
-              onCheckedChange={(checked) => onStatusChange(checked)}
-            />
-            {isActive ? (
-              <FormattedMessage {...messages.activeLabel} />
+        {undoRedo}
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" />}>
+            {/* The menu closes on a choice, so the button itself confirms a copy. */}
+            {copied ? (
+              <FormattedMessage {...messages.copiedJson} />
             ) : (
-              <FormattedMessage {...messages.inactiveLabel} />
+              <FormattedMessage {...messages.exportMenu} />
             )}
-          </span>
-        )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button type="button" variant="outline" size="sm" disabled>
-                <FormattedMessage {...messages.share} />
-              </Button>
-            }
-          />
-          <TooltipContent>{previewOnly}</TooltipContent>
-        </Tooltip>
-        <Button type="button" variant="outline" size="sm" onClick={onCopy}>
-          {copied ? (
-            <FormattedMessage {...messages.copiedJson} />
-          ) : (
-            <FormattedMessage {...messages.copyJson} />
-          )}
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onExport}>
-          <FormattedMessage {...messages.exportJson} />
-        </Button>
+            <CaretDownIcon data-icon="inline-end" className="size-3.5 opacity-60" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onCopy}>
+              <FormattedMessage {...messages.copyJson} />
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <FormattedMessage {...messages.exportJson} />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {onDelete ? (
           <Button
             type="button"
-            variant="outline"
+            variant="destructive"
             size="sm"
             disabled={isDeleting || isSaving}
             onClick={onDelete}

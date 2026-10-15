@@ -556,6 +556,12 @@ export const workspaceAutomationFormMessages = defineMessages({
     description:
       "Hint on a skill that cannot be added because it does not work with the selected trigger",
   },
+  skillExclusiveHint: {
+    defaultMessage: "Use Email Templates or Campaigns & Canvas, not both",
+    id: "tYMhJaDhDu",
+    description:
+      "Hint on a Braze skill that cannot be added because the other Braze skill is already attached",
+  },
   requiredForSkillBadge: {
     defaultMessage: "{count, plural, one {Required for skill} other {Required for # skills}}",
     id: "CwUciV9/fZ",
@@ -592,6 +598,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Intercom",
     id: "8GHkIAG5lJ",
     description: "Name of the Intercom integration in the hint on a skill that needs it connected",
+  },
+  skillIntegrationBraze: {
+    defaultMessage: "Braze",
+    id: "o0HXRhjJ+T",
+    description: "Name of the Braze integration in the hint on a skill that needs it connected",
   },
   skillIntegrationSlack: {
     defaultMessage: "Slack",

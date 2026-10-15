@@ -65,6 +65,7 @@ export function JobsListToolbar({
   statusFilter,
   onStatusFilterChange,
   onClearFilters,
+  showStatusFilter = true,
   trailing,
 }: {
   searchDraft: string;
@@ -72,12 +73,13 @@ export function JobsListToolbar({
   statusFilter: JobsListStatusFilter;
   onStatusFilterChange: (status: JobsListStatusFilter) => void;
   onClearFilters: () => void;
+  showStatusFilter?: boolean;
   trailing?: ReactNode;
 }) {
   const intl = useIntl();
   const chips = getActiveJobsFilterChips({
     search: searchDraft,
-    status: statusFilter,
+    status: showStatusFilter ? statusFilter : "all",
   });
   const hasActiveFilters = chips.length > 0;
   const filterChipCount = chips.filter((chip) => chip.key !== "search").length;
@@ -93,52 +95,54 @@ export function JobsListToolbar({
           aria-label={intl.formatMessage(messages.searchLabel)}
         />
 
-        <Popover>
-          <PopoverTrigger
-            render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
-          >
-            <FunnelIcon className="size-3.5" />
-            {filterChipCount > 0 ? (
-              <FormattedMessage
-                {...messages.filterButtonWithCount}
-                values={{ count: filterChipCount }}
-              />
-            ) : (
-              <FormattedMessage {...messages.filterButton} />
-            )}
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[18rem] gap-3 p-3">
-            <PopoverHeader className="px-1">
-              <PopoverTitle className="text-sm font-medium">
-                <FormattedMessage {...messages.filterPopoverTitle} />
-              </PopoverTitle>
-            </PopoverHeader>
-            <WorkspaceFilterField label={intl.formatMessage(messages.statusLabel)}>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) =>
-                  onStatusFilterChange((value ?? "all") as JobsListStatusFilter)
-                }
-              >
-                <SelectTrigger className={workspaceFilterTriggerClassName}>
-                  <SelectValue>
-                    {intl.formatMessage(getJobsStatusFilterMessage(statusFilter))}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {JOBS_LIST_STATUS_FILTERS.map((status) => {
-                    const label = intl.formatMessage(getJobsStatusFilterMessage(status));
-                    return (
-                      <SelectItem key={status} value={status} label={label}>
-                        {label}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </WorkspaceFilterField>
-          </PopoverContent>
-        </Popover>
+        {showStatusFilter ? (
+          <Popover>
+            <PopoverTrigger
+              render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
+            >
+              <FunnelIcon className="size-3.5" />
+              {filterChipCount > 0 ? (
+                <FormattedMessage
+                  {...messages.filterButtonWithCount}
+                  values={{ count: filterChipCount }}
+                />
+              ) : (
+                <FormattedMessage {...messages.filterButton} />
+              )}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[18rem] gap-3 p-3">
+              <PopoverHeader className="px-1">
+                <PopoverTitle className="text-sm font-medium">
+                  <FormattedMessage {...messages.filterPopoverTitle} />
+                </PopoverTitle>
+              </PopoverHeader>
+              <WorkspaceFilterField label={intl.formatMessage(messages.statusLabel)}>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                    onStatusFilterChange((value ?? "all") as JobsListStatusFilter)
+                  }
+                >
+                  <SelectTrigger className={workspaceFilterTriggerClassName}>
+                    <SelectValue>
+                      {intl.formatMessage(getJobsStatusFilterMessage(statusFilter))}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JOBS_LIST_STATUS_FILTERS.map((status) => {
+                      const label = intl.formatMessage(getJobsStatusFilterMessage(status));
+                      return (
+                        <SelectItem key={status} value={status} label={label}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </WorkspaceFilterField>
+            </PopoverContent>
+          </Popover>
+        ) : null}
 
         {trailing}
       </div>

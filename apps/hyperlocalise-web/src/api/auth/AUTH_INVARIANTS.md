@@ -40,40 +40,30 @@ full WorkOS identity model.
 9. **WorkOS session cookie is the primary API auth channel for org routes.**
    Forged `x-hyperlocalise-auth` headers or other client-supplied identity must
    not bypass `workosAuthMiddleware`.
-   9a. **Crowdin App embed session is an explicit alternate channel.** Only an
-   explicit `X-Hyperlocalise-Crowdin-Embed` header or
-   `Authorization: Bearer hlce_…` may authenticate org-scoped routes after
-   Crowdin JWT bootstrap. The `hl_crowdin_embed` cookie must not be treated as
-   API auth (it is shared across the origin and would hijack WorkOS sessions).
-   The token only carries opaque Hyperlocalise ids; `workosAuthMiddleware`
-   still loads WorkOS-authoritative membership and capabilities for that
-   user/org. Crowdin JWTs and Crowdin user OAuth tokens must never be accepted
-   as org API auth by themselves.
-   9b. **Figma plugin clients use a personal access token.** The plugin sends
-   the PAT as `x-api-key` only. Protected `/api/integrations/figma/*` routes
-   authenticate through `apiKeyAuthMiddleware` and authorize with
-   `requireApiKeyPermission`. Compound routes require every scope they
-   exercise: session and job-status reads need `files:read` (job status also
-   needs `jobs:read`); creating a job needs `jobs:write` and `files:write`.
-   Effective access is the token scopes ∩ the owner's current membership,
-   role, team access, and capabilities. Do not accept WorkOS sealed sessions,
-   `X-Hyperlocalise-Figma-Session`, or `Authorization: Bearer` as Figma
-   integration auth. Do not mint a Figma-specific identity token.
-   9c. **WorkOS agent JWTs are an explicit alternate channel for MCP and
+   9a. **Figma plugin clients use workspace connection credentials.** Protected
+   `/api/integrations/figma/*` routes authenticate through
+   `figmaConnectionAuthMiddleware` with `X-Hyperlocalise-Connection-Token`
+   (localhost development) or `X-Hyperlocalise-Access-Token` (OAuth PKCE from
+   `/api/oauth/figma/*`). Each connection stores the backing personal access
+   token; effective access is that PAT's scopes ∩ the owner's current
+   membership, role, team access, and capabilities. Do not accept WorkOS
+   sealed sessions, `x-api-key`, `X-Hyperlocalise-Figma-Session`, or
+   `Authorization: Bearer` as Figma integration auth. Do not mint a
+   Figma-specific identity token.
+   9b. **WorkOS agent JWTs are an explicit alternate channel for MCP and
    `/api/v1` only.** Agents register through AuthKit (`service_auth`), complete
    the hosted claim ceremony, and present a short-lived access token as
    `Authorization: Bearer`. The JWT must carry `act.sub` (claimed user) and
    `org_id`. Access is the token `scope` ∩ the claimed user's live WorkOS
    membership, role, team access, and capabilities. Tokens without a claim,
    unknown users/orgs, and unauthoritative memberships fail closed. Do not
-   accept these JWTs on Figma, Crowdin embed, or org-scoped session routes.
+   accept these JWTs on Figma or org-scoped session routes.
    Keep first-party MCP OAuth (`hl_mcp_*`) and
    PATs (`x-api-key`) as separate channels.
 10. **Org slug must match an active membership.** Requested
     `organizationSlug` must resolve to a membership returned after the access
     gate; otherwise return `organization_access_denied` or picker/unresolvable
-    errors — never silently fall back to another org. Crowdin embed sessions
-    must also match the token’s `hlOrganizationSlug`.
+    errors — never silently fall back to another org.
 11. **Archived organizations are excluded.** Only organizations with
     `lifecycle_status = active` participate in session membership queries.
 

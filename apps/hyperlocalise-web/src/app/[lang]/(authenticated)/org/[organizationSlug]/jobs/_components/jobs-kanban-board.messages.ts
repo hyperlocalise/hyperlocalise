@@ -12,11 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { MessageDescriptor } from "react-intl";
 import { defineMessages } from "react-intl";
-
-import { getJobStatusMessage } from "./jobs-page-view.messages";
-import type { KanbanStatus } from "./jobs-view-helpers";
 
 export const jobsKanbanBoardMessages = defineMessages({
   details: {
@@ -59,8 +55,44 @@ export const jobsKanbanBoardMessages = defineMessages({
     id: "H0Rnoert6W",
     description: "Job kind and task identifier shown under the kanban card title",
   },
+  columnAriaLabel: {
+    defaultMessage: "{status}, {count, plural, one {# job} other {# jobs}}",
+    id: "HnN7Y1Kod7",
+    description: "Accessible label for a kanban column with its job count",
+  },
+  collapseColumn: {
+    defaultMessage: "Collapse {status} column",
+    id: "Ce+Nk9+zQq",
+    description: "Accessible label for the button that collapses a kanban column",
+  },
+  expandColumn: {
+    defaultMessage: "Expand {status} column",
+    id: "glq4HgwVfm",
+    description: "Accessible label for the collapsed kanban column rail",
+  },
+  showMore: {
+    defaultMessage: "Show {count} more",
+    id: "3x/TR5Dx/U",
+    description: "Button at the bottom of a kanban column that reveals hidden older jobs",
+  },
+  openJob: {
+    defaultMessage: "Open job {name}",
+    id: "2d92l/sm+5",
+    description: "Accessible label for the link that covers a kanban job card",
+  },
+  moreLocales: {
+    defaultMessage: "+{count}",
+    id: "FUr8tWqfQs",
+    description: "Chip showing how many more target locales a kanban job card has",
+  },
+  moreAssignees: {
+    defaultMessage: "+{count}",
+    id: "EpcpRJ0HL9",
+    description: "Avatar showing how many more assignees a kanban job card has",
+  },
+  overdueMeta: {
+    defaultMessage: "Overdue, was due {due}",
+    id: "6PGWQNvIwm",
+    description: "Tooltip on a kanban job card due chip when the job is past its due date",
+  },
 });
-
-export function getKanbanStatusMessage(status: KanbanStatus): MessageDescriptor {
-  return getJobStatusMessage(status);
-}

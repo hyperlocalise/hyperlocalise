@@ -13,6 +13,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import {
+  getUseCaseFaqItems,
+  getUseCaseFaqSectionCopy,
+} from "@/components/marketing/use-case/faq/use-case-faq-content";
+import type { UseCaseFaqSlug } from "@/components/marketing/use-case/faq/use-case-faq-types";
 import { UseCasePage } from "@/components/marketing/use-case/use-case-page";
 import {
   useCasePagesBySlug,
@@ -73,12 +78,23 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
 }
 
 export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
-  const { slug } = await params;
+  const { lang, slug } = await params;
   const content = useCasePagesBySlug[slug];
 
   if (!content) {
     notFound();
   }
 
-  return <UseCasePage content={content} />;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+  const faqSlug = slug as UseCaseFaqSlug;
+  const faqCopy = getUseCaseFaqSectionCopy(faqSlug, locale);
+
+  return (
+    <UseCasePage
+      content={content}
+      faqItems={getUseCaseFaqItems(faqSlug, locale)}
+      faqHeading={faqCopy.heading}
+      faqSubheading={faqCopy.subheading}
+    />
+  );
 }

@@ -24,6 +24,7 @@ import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stre
 import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { apiClient } from "@/lib/api-client-instance";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { InboxPageStoreProvider, useInboxPageStore } from "../store/inbox-page-store-context";
 import { conversationPanelMessages } from "./conversation-panel.messages";
@@ -43,9 +44,6 @@ import {
 } from "./inbox-notifications-api";
 import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
-
-const inboxApi = createInboxApi(apiClient);
-const notificationsApi = createInboxNotificationsApi(apiClient);
 
 const NOTIFICATIONS_PAGE_SIZE = 50;
 
@@ -69,8 +67,8 @@ export function InboxPageContent({
   currentUser,
   organizationSlug,
   canDeleteQueries = false,
-  inboxApi: injectedInboxApi = inboxApi,
-  notificationsApi: injectedNotificationsApi = notificationsApi,
+  inboxApi: injectedInboxApi,
+  notificationsApi: injectedNotificationsApi,
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
@@ -78,14 +76,24 @@ export function InboxPageContent({
   inboxApi?: InboxApi;
   notificationsApi?: InboxNotificationsApi;
 }) {
+  const { client: goSvcClient } = useGoSvcClient();
+  const notificationsApi = useMemo(
+    () => injectedNotificationsApi ?? createInboxNotificationsApi(goSvcClient.inbox),
+    [goSvcClient, injectedNotificationsApi],
+  );
+  const inboxApi = useMemo(
+    () => injectedInboxApi ?? createInboxApi(apiClient, goSvcClient.conversation),
+    [goSvcClient, injectedInboxApi],
+  );
+
   return (
     <InboxPageStoreProvider organizationSlug={organizationSlug}>
       <InboxPageContentObserver
         currentUser={currentUser}
         organizationSlug={organizationSlug}
         canDeleteQueries={canDeleteQueries}
-        inboxApi={injectedInboxApi}
-        notificationsApi={injectedNotificationsApi}
+        inboxApi={inboxApi}
+        notificationsApi={notificationsApi}
       />
     </InboxPageStoreProvider>
   );
@@ -193,6 +201,10 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
 
   const selectedConversationId = selection?.kind === "conversation" ? selection.id : "";
   const selectedNotificationId = selection?.kind === "notification" ? selection.id : "";
+  const selectedReplyDraft =
+    selection?.kind === "conversation" ? store.getReplyDraft(selection.id) : undefined;
+  const composerDraft =
+    selection?.kind === "new" ? store.composeDraft : (selectedReplyDraft?.text ?? "");
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedConversationId),
@@ -415,7 +427,9 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
-      draft={store.composeDraft}
+      draft={composerDraft}
+      draftProjectId={selectedReplyDraft?.projectId}
+      draftRepositoryKey={selectedReplyDraft?.repositoryKey}
       filters={store.filters}
       hasMoreNotifications={hasMoreNotifications}
       isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
@@ -430,7 +444,25 @@ const InboxPageContentObserver = observer(function InboxPageContentObserver({
       notifications={notifications}
       notificationsIsError={notificationsQuery.isError}
       notificationsIsLoading={notificationsQuery.isLoading}
-      onDraftChange={(draft) => store.setComposeDraft(draft)}
+      onDraftChange={(draft) => {
+        if (selection?.kind === "new") {
+          store.setComposeDraft(draft);
+          return;
+        }
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { text: draft });
+        }
+      }}
+      onDraftProjectChange={(projectId) => {
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { projectId });
+        }
+      }}
+      onDraftRepositoryChange={(repositoryKey) => {
+        if (selection?.kind === "conversation") {
+          store.setReplyDraft(selection.id, { repositoryKey });
+        }
+      }}
       onFiltersChange={(nextFilters) => store.setFilters(nextFilters)}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}

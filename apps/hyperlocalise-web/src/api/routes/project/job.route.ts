@@ -53,15 +53,12 @@ import {
   enqueueJobCreatedActivity,
   enqueueJobFailedActivity,
 } from "@/lib/activity-log/job-automation-events";
+import { recordJobEvents } from "@/lib/job-events/job-events-writer";
 import {
   assertOrganizationCanEnqueueTranslationJobInTransaction,
   OrganizationJobBudgetExceededError,
 } from "@/lib/security/organization-operation-budget";
-import {
-  getOrganizationJobById,
-  listOrganizationJobs,
-  listOrganizationProjectJobs,
-} from "@/lib/projects/jobs/organization-job-query-service";
+import { getOrganizationJobById } from "@/lib/projects/jobs/organization-job-query-service";
 import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import { enrichJobWithSourceFileDisplay } from "@/lib/projects/jobs/enrich-jobs-with-source-file-names";
 import type {
@@ -77,11 +74,8 @@ import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales
 
 import {
   projectForbiddenResponse,
-  getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
-  providerProjectUnavailableResponse,
-  resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
 } from "./project.shared";
 import {
@@ -111,8 +105,6 @@ import {
 } from "./agent-run.schema";
 import {
   createJobBodySchema,
-  jobListQuerySchema,
-  jobParamsSchema,
   jobProjectParamsSchema,
   updateJobBodySchema,
   workspaceJobParamsSchema,
@@ -246,16 +238,6 @@ const validateProjectParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-const validateJobParams = validator("param", (value, c) => {
-  const parsed = jobParamsSchema.safeParse(value);
-
-  if (!parsed.success) {
-    return notFoundResponse(c, "job_not_found", "Job not found");
-  }
-
-  return parsed.data;
-});
-
 const validateUpdateJobBody = validator("json", (value, c) => {
   const parsed = updateJobBodySchema.safeParse(value);
   if (!parsed.success) {
@@ -380,48 +362,12 @@ const validateCreateJobBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateJobListQuery = validator("query", (value, c) => {
-  const parsed = jobListQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return validationErrorResponse(
-      c,
-      "invalid_job_query",
-      "Invalid job query parameters",
-      parsed.error.issues,
-    );
-  }
-
-  return parsed.data;
-});
-
 export function createJobRoutes(options: CreateJobRoutesOptions) {
-  return new Hono<{ Variables: AuthVariables }>()
-    .get("/", validateProjectParams, validateJobListQuery, async (c) => {
-      const params = c.req.valid("param");
-      const query = c.req.valid("query");
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "native") {
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-
-        if (!project) {
-          scheduleProjectNotFoundDiagnostics({
-            auth: c.var.auth,
-            projectId: params.projectId,
-            route: "project.jobs.list",
-          });
-          return projectNotFoundResponse(c);
-        }
-      }
-
-      const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
-      return c.json({ jobs }, 200);
-    })
-    .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
+  return new Hono<{ Variables: AuthVariables }>().post(
+    "/",
+    validateProjectParams,
+    validateCreateJobBody,
+    async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);
       }
@@ -676,82 +622,22 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job: createdJob }, 201);
-    })
-    .get("/:jobId", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.detail",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const job = await getOwnedJob(params.projectId, params.jobId);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    })
-    .get("/:jobId/status", validateJobParams, async (c) => {
-      const params = c.req.valid("param");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
-
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.status",
-        });
-        return projectNotFoundResponse(c);
-      }
-
-      const [job] = await db
-        .select({
-          id: schema.jobs.id,
-          projectId: schema.jobs.projectId,
-          kind: schema.jobs.kind,
-          type: schema.translationJobDetails.type,
-          status: schema.jobs.status,
-          createdAt: schema.jobs.createdAt,
-          updatedAt: schema.jobs.updatedAt,
-          completedAt: schema.jobs.completedAt,
-          lastError: schema.jobs.lastError,
-        })
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, params.jobId)))
-        .limit(1);
-
-      if (!job) {
-        return notFoundResponse(c, "job_not_found", "Job not found");
-      }
-
-      return c.json({ job }, 200);
-    });
+    },
+  );
 }
 
 export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOptions) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .get("/", validateJobListQuery, async (c) => {
-      const query = c.req.valid("query");
-      const jobs = await listOrganizationJobs(c.var.auth, query);
-      return c.json({ jobs }, 200);
-    })
     .get("/:jobId", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
       const job = await getOrganizationJobById(c.var.auth, params.jobId);
 
       if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind) {
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
@@ -1363,6 +1249,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
+      await recordJobEvents({
+        jobId: retriedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_retried", payload: {} }],
+      });
+
       try {
         await options.jobQueue.enqueue({
           kind: "translation",
@@ -1479,6 +1371,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_marked_failed", payload: {} }],
+      });
 
       await enqueueJobFailedActivity({
         actorCredentialId: null,
@@ -1612,6 +1510,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
           : notFoundResponse(c, "job_not_found", "Job not found");
       }
+
+      await recordJobEvents({
+        jobId: updatedJob.id,
+        actorUserId: c.var.auth.user.localUserId,
+        events: [{ type: "job_cancelled", payload: {} }],
+      });
 
       await enqueueJobCancelledActivity({
         actorCredentialId: null,

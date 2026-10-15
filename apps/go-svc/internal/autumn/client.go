@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,6 +86,14 @@ func (e *apiError) Error() string {
 		return fmt.Sprintf("autumn: HTTP %d", e.StatusCode)
 	}
 	return fmt.Sprintf("autumn: HTTP %d: %s", e.StatusCode, e.Body)
+}
+
+func HTTPStatus(err error) (int, bool) {
+	var ae *apiError
+	if errors.As(err, &ae) {
+		return ae.StatusCode, true
+	}
+	return 0, false
 }
 
 func (c *Client) post(ctx context.Context, path, apiVersion string, payload any, out any) error {

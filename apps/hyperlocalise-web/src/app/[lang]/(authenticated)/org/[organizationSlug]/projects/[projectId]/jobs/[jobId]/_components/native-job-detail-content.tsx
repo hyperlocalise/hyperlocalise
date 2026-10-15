@@ -38,6 +38,8 @@ import { Button } from "@/components/ui/button";
 import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
+import { GoSvcClientError } from "@/lib/go-svc/go-svc-client";
+import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 import {
   buildJobContentEditorHref,
   canOpenJobContentEditor,
@@ -50,6 +52,12 @@ import {
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 import { buildJobDetailHref } from "../../../../../jobs/_components/jobs-view-helpers";
 
+import { isJobStatusActive } from "./build-job-activity";
+import {
+  hasJobActivityFeed,
+  JOB_ACTIVITY_POLL_INTERVAL_MS,
+  JobActivitySection,
+} from "./job-activity-section";
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
@@ -102,12 +110,24 @@ export function NativeJobDetailContent({
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const intl = useIntl();
+  const { client: goSvcClient } = useGoSvcClient();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
 
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
+      try {
+        const body = await goSvcClient.job.get<JobDetailRecord>(organizationSlug, jobId);
+        if (body.job.projectId !== projectId) {
+          throw new Error(intl.formatMessage(messages.jobWrongProject));
+        }
+        return body.job;
+      } catch (error) {
+        if (!(error instanceof GoSvcClientError) || error.status !== 404) {
+          throw error;
+        }
+      }
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });
@@ -121,6 +141,12 @@ export function NativeJobDetailContent({
         throw new Error(intl.formatMessage(messages.jobWrongProject));
       }
       return body.job;
+    },
+    refetchInterval: (query) => {
+      const current = query.state.data;
+      return current && hasJobActivityFeed(current) && isJobStatusActive(current.status)
+        ? JOB_ACTIVITY_POLL_INTERVAL_MS
+        : false;
     },
   });
 
@@ -402,7 +428,9 @@ export function NativeJobDetailContent({
             : undefined
         }
         renderExtraMain={
-          showFailureNotice || (job && isProviderBackedJob(job)) || reportsEnabled
+          showFailureNotice ||
+          (job && (isProviderBackedJob(job) || hasJobActivityFeed(job))) ||
+          reportsEnabled
             ? () => (
                 <>
                   {showFailureNotice && failureDetails ? (
@@ -410,6 +438,13 @@ export function NativeJobDetailContent({
                       details={failureDetails}
                       followUpHref={followUpHref}
                       variant={job?.status === "failed" ? "failed" : "partial"}
+                    />
+                  ) : null}
+                  {job && hasJobActivityFeed(job) ? (
+                    <JobActivitySection
+                      organizationSlug={organizationSlug}
+                      projectId={projectId}
+                      job={job}
                     />
                   ) : null}
                   {job && isProviderBackedJob(job) ? (

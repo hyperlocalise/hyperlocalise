@@ -113,7 +113,8 @@ describe("useUndoStack", () => {
     act(() => result.current.seal());
     act(() => result.current.change({ name: "y" }));
 
-    // Same length counts as equal now, so the second change records nothing.
-    expect(result.current.form).toEqual({ name: "x" });
+    // Same length counts as equal now, so the second change sets the document without a step.
+    expect(result.current.form).toEqual({ name: "y" });
+    expect(result.current.undoStep?.after).toEqual({ name: "x" });
   });
 });

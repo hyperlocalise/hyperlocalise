@@ -58,6 +58,10 @@ export interface ContentEditorWorkspaceEditing {
     options?: { instructions?: string; force?: boolean },
   ) => void | Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
+  onUploadVisualContext?: (
+    segmentId: string,
+    file: File,
+  ) => void | Promise<void | ContentEditorVisualContext>;
 }
 
 export interface ContentEditorWorkspaceReview {

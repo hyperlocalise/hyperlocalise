@@ -16,14 +16,27 @@ import remarkRehype from "remark-rehype";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeStringify from "rehype-stringify";
 
+import type { AppLocale } from "@/lib/app-i18n/locales";
+
+import { remarkLocalizeMarketingLinks } from "./remark-localize-marketing-links";
+
 const sanitizeSchema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), "table", "thead", "tbody", "tr", "th", "td"],
 };
 
-export async function markdownToHtml(markdown: string) {
-  const result = await remark()
-    .use(remarkGfm)
+export type MarkdownToHtmlOptions = {
+  locale?: AppLocale;
+};
+
+export async function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions) {
+  const processor = remark().use(remarkGfm);
+
+  if (options?.locale) {
+    processor.use(remarkLocalizeMarketingLinks(options.locale));
+  }
+
+  const result = await processor
     .use(remarkRehype)
     .use(rehypeSanitize, sanitizeSchema)
     .use(rehypeStringify)

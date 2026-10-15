@@ -327,6 +327,13 @@ function extractFoldedHtmlUnits(html: string): FoldedHtmlUnit[] {
   return units;
 }
 
+export function applyHtmlIngestTranslations(
+  html: string,
+  translations: Record<string, string>,
+): string {
+  return rewriteHtmlIngestTexts(html, translations);
+}
+
 function rewriteHtmlIngestTexts(html: string, translations: Record<string, string>): string {
   let out = "";
   walkHtmlDocument(html, {

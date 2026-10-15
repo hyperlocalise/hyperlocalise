@@ -46,8 +46,8 @@ export const useCasePageMessages = defineMessages({
     description: "Use case page overview section label",
   },
   ctaRequestDemo: {
-    defaultMessage: "Request a Demo",
-    id: "g3BfS0hD2m",
+    defaultMessage: "Request a demo",
+    id: "bAOOxyyl8P",
     description: "Use case page call-to-action to request a demo",
   },
   productLocalisationMetadataTitle: {
@@ -318,8 +318,8 @@ export const useCasePageMessages = defineMessages({
   },
   productLocalisationCtaDescription: {
     defaultMessage:
-      "Join the Hyperlocalise waitlist and see how your team can launch global product content faster without replacing your existing tools.",
-    id: "H/M3brO8Jk",
+      "Start a free workspace today, or request a demo, and see how your team can launch global product content faster without replacing your existing tools.",
+    id: "epsUQC31kr",
     description: "CTA section description for the product-localisation use case",
   },
   marketingLocalisationMetadataTitle: {
@@ -590,8 +590,9 @@ export const useCasePageMessages = defineMessages({
     description: "CTA section headline for the marketing-localisation use case",
   },
   marketingLocalisationCtaDescription: {
-    defaultMessage: "Request early access to Hyperlocalise.",
-    id: "712aIFkBYq",
+    defaultMessage:
+      "Start a free workspace, or request a demo, and launch global campaigns with brand-safe localisation workflows.",
+    id: "+oxkFsrFr8",
     description: "CTA section description for the marketing-localisation use case",
   },
   helpCenterLocalisationMetadataTitle: {
@@ -862,8 +863,8 @@ export const useCasePageMessages = defineMessages({
   },
   helpCenterLocalisationCtaDescription: {
     defaultMessage:
-      "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale.",
-    id: "EGy0DHdyiF",
+      "Start a free workspace, or request a demo, and see how your team can keep support content current across every locale.",
+    id: "76p0N2h6Ed",
     description: "CTA section description for the help-center-localisation use case",
   },
   githubReleaseLocalisationMetadataTitle: {
@@ -1131,8 +1132,8 @@ export const useCasePageMessages = defineMessages({
   },
   githubReleaseLocalisationCtaDescription: {
     defaultMessage:
-      "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
-    id: "Ka+dKs8Zz9",
+      "Start a free workspace, or request a demo, and bring localisation checks into your release pipeline.",
+    id: "WHOyA1uTn/",
     description: "CTA section description for the github-release-localisation use case",
   },
   localisationQualityMonitoringMetadataTitle: {
@@ -1403,8 +1404,9 @@ export const useCasePageMessages = defineMessages({
     description: "CTA section headline for the localisation-quality-monitoring use case",
   },
   localisationQualityMonitoringCtaDescription: {
-    defaultMessage: "Request early access to Hyperlocalise.",
-    id: "hEICju0qcP",
+    defaultMessage:
+      "Start a free workspace, or request a demo, and catch translation drift before it reaches your customers.",
+    id: "vFLD5uz9RF",
     description: "CTA section description for the localisation-quality-monitoring use case",
   },
   localisationOperationsMetadataTitle: {
@@ -1674,8 +1676,8 @@ export const useCasePageMessages = defineMessages({
   },
   localisationOperationsCtaDescription: {
     defaultMessage:
-      "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools.",
-    id: "vRHN9vcIJA",
+      "Start a free workspace, or request a demo, and see how your operations team can orchestrate localisation without replacing your existing tools.",
+    id: "BuyfK8oOrG",
     description: "CTA section description for the localisation-operations use case",
   },
 });

@@ -13,12 +13,15 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, sql, or, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, sql, or, isNull, lte, inArray } from "drizzle-orm";
 
+import type { ActivityActorKind } from "@/lib/activity-log/activity-log-contract";
+import { enqueueVisualWorkflowRunStartedActivity } from "@/lib/activity-log/visual-workflow-events";
 import { db, schema, type DatabaseClient } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
 
 import { encryptWorkflowPayload, decryptWorkflowPayload } from "./workflow-credentials";
+import { canRunForReal } from "./editor/visual-workflow-test-data";
 import { redactWorkflowSnapshot, collectWorkflowSecrets } from "./runtime/snapshots";
 import { parseVisualWorkflowV3Definition } from "./schema/definition-migration";
 import type { VisualWorkflowDefinition, VisualWorkflowV3Definition } from "./schema/types";
@@ -40,6 +43,11 @@ import { parseWaitResumeState, type WaitResumeState } from "./runtime/wait-sched
 import { parseMergeResumeState, type MergeResumeState } from "./runtime/merge-timeout";
 import { resolveDurableWaitMergeWake } from "./runtime/durable-resume-wake";
 import { WORKFLOW_LIMITS } from "./runtime/limits";
+import {
+  hasWorkflowRunExceededDeadline,
+  parseSubworkflowPausedMs,
+  parseSubworkflowResumeState,
+} from "./runtime/subworkflow-resume";
 
 export type VisualWorkflowRunExecutionView = VisualWorkflowRunRecord & {
   executionLeaseBusy?: boolean;
@@ -519,13 +527,18 @@ function serializeNodeRun(row: VisualWorkflowNodeRunRow): VisualWorkflowNodeRunR
 function serializeRun(
   row: VisualWorkflowRunRow,
   nodeRuns?: VisualWorkflowNodeRunRecord[],
+  childRuns?: VisualWorkflowRunRecord[],
 ): VisualWorkflowRunRecord {
   return {
     id: row.id,
+    traceId: row.traceId,
+    parentRunId: row.parentRunId,
+    parentNodeId: row.parentNodeId,
     visualWorkflowId: row.visualWorkflowId,
     organizationId: row.organizationId,
     triggerSource: row.triggerSource,
     mode: row.mode as "live" | "mock",
+    ...(row.realNodeIds?.length ? { realNodeIds: row.realNodeIds } : {}),
     status: row.status,
     idempotencyKey: row.idempotencyKey,
     definitionVersion: row.definitionVersion,
@@ -537,6 +550,7 @@ function serializeRun(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ...(nodeRuns ? { nodeRuns } : {}),
+    ...(childRuns ? { childRuns } : {}),
   };
 }
 
@@ -568,13 +582,88 @@ export async function getVisualWorkflowRunById(input: {
     return serializeRun(row);
   }
 
-  const nodeRuns = await listVisualWorkflowNodeRuns({
-    organizationId: input.organizationId,
-    runId: input.runId,
-    dbClient,
-  });
+  const traceRows = await dbClient
+    .select()
+    .from(schema.visualWorkflowRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowRuns.traceId, row.traceId),
+      ),
+    )
+    .orderBy(schema.visualWorkflowRuns.createdAt);
+  const childRowsByParent = new Map<string, VisualWorkflowRunRow[]>();
+  for (const traceRow of traceRows) {
+    if (!traceRow.parentRunId) continue;
+    const children = childRowsByParent.get(traceRow.parentRunId) ?? [];
+    children.push(traceRow);
+    childRowsByParent.set(traceRow.parentRunId, children);
+  }
+  const traceRunIds = traceRows.map((traceRow) => traceRow.id);
+  const traceNodeRows =
+    traceRunIds.length === 0
+      ? []
+      : await dbClient
+          .select()
+          .from(schema.visualWorkflowNodeRuns)
+          .where(
+            and(
+              eq(schema.visualWorkflowNodeRuns.organizationId, input.organizationId),
+              inArray(schema.visualWorkflowNodeRuns.runId, traceRunIds),
+            ),
+          )
+          .orderBy(
+            schema.visualWorkflowNodeRuns.createdAt,
+            schema.visualWorkflowNodeRuns.iteration,
+            schema.visualWorkflowNodeRuns.attempt,
+          );
+  const nodeRunsByRunId = new Map<string, VisualWorkflowNodeRunRecord[]>();
+  for (const nodeRow of traceNodeRows) {
+    const nodeRuns = nodeRunsByRunId.get(nodeRow.runId) ?? [];
+    nodeRuns.push(serializeNodeRun(nodeRow));
+    nodeRunsByRunId.set(nodeRow.runId, nodeRuns);
+  }
+  const serializeChildren = (parentRunId: string): VisualWorkflowRunRecord[] =>
+    (childRowsByParent.get(parentRunId) ?? []).map((childRow) =>
+      serializeRun(
+        childRow,
+        nodeRunsByRunId.get(childRow.id) ?? [],
+        serializeChildren(childRow.id),
+      ),
+    );
 
-  return serializeRun(row, nodeRuns);
+  return serializeRun(row, nodeRunsByRunId.get(row.id) ?? [], serializeChildren(row.id));
+}
+
+export async function getVisualWorkflowReturnedOutputs(input: {
+  organizationId: string;
+  runId: string;
+  dbClient?: DatabaseClient;
+}): Promise<Record<string, unknown>> {
+  const dbClient = input.dbClient ?? db;
+  const [returnNodeRun] = await dbClient
+    .select({ encryptedOutput: schema.visualWorkflowNodeRuns.encryptedOutput })
+    .from(schema.visualWorkflowNodeRuns)
+    .where(
+      and(
+        eq(schema.visualWorkflowNodeRuns.organizationId, input.organizationId),
+        eq(schema.visualWorkflowNodeRuns.runId, input.runId),
+        eq(schema.visualWorkflowNodeRuns.nodeType, "flow.return"),
+        eq(schema.visualWorkflowNodeRuns.status, "succeeded"),
+      ),
+    )
+    .orderBy(desc(schema.visualWorkflowNodeRuns.updatedAt))
+    .limit(1);
+  if (!returnNodeRun?.encryptedOutput) return {};
+
+  const execution = decryptWorkflowPayload(returnNodeRun.encryptedOutput) as {
+    ok?: boolean;
+    output?: { returnedOutputs?: unknown };
+  };
+  const returnedOutputs = execution.ok ? execution.output?.returnedOutputs : null;
+  return returnedOutputs && typeof returnedOutputs === "object"
+    ? (returnedOutputs as Record<string, unknown>)
+    : {};
 }
 
 export async function listVisualWorkflowRuns(input: {
@@ -644,6 +733,11 @@ export async function getVisualWorkflowRunByIdempotencyKey(input: {
 }
 
 export async function createVisualWorkflowRun(input: {
+  activityActor?: {
+    actorCredentialId: string | null;
+    actorKind: ActivityActorKind;
+    actorUserId: string | null;
+  };
   organizationId: string;
   visualWorkflowId: string;
   triggerSource: VisualWorkflowRunTriggerSource;
@@ -651,9 +745,18 @@ export async function createVisualWorkflowRun(input: {
   inputSnapshot?: Record<string, unknown>;
   status?: VisualWorkflowRunStatus;
   matchedDefinitionVersion?: number;
+  immutableDefinitionVersion?: number;
+  parentRunId?: string;
+  parentNodeId?: string;
+  traceId?: string;
+  enqueue?: boolean;
   testDefinition?: VisualWorkflowDefinition | VisualWorkflowV3Definition;
   mode?: "mock" | "live";
   mockOutputs?: Record<string, Record<string, unknown>>;
+  /** In a mock run, the steps that run for real instead of using their test data. */
+  realNodeIds?: readonly string[];
+  /** In a mock run, mocked steps that fail with this error instead of returning test data. */
+  mockFailures?: Record<string, { code?: string; message?: string }>;
   dbClient?: DatabaseClient;
 }): Promise<VisualWorkflowRunRecord> {
   if (!input.dbClient)
@@ -689,27 +792,59 @@ export async function createVisualWorkflowRun(input: {
     }
   }
 
-  const definitionInput = input.testDefinition ?? workflow.publishedDefinition;
+  const [immutableVersion] =
+    input.immutableDefinitionVersion === undefined
+      ? []
+      : await dbClient
+          .select({ definition: schema.visualWorkflowVersions.definition })
+          .from(schema.visualWorkflowVersions)
+          .where(
+            and(
+              eq(schema.visualWorkflowVersions.workflowId, input.visualWorkflowId),
+              eq(schema.visualWorkflowVersions.organizationId, input.organizationId),
+              eq(schema.visualWorkflowVersions.version, input.immutableDefinitionVersion),
+            ),
+          )
+          .limit(1);
+  if (input.immutableDefinitionVersion !== undefined && !immutableVersion) {
+    throw new Error("visual_workflow_version_not_found");
+  }
+  const definitionInput =
+    input.testDefinition ?? immutableVersion?.definition ?? workflow.publishedDefinition;
   if (!definitionInput) {
     throw new Error("workflow_not_published");
   }
   const definition = parseVisualWorkflowV3Definition(definitionInput);
   const payload = buildRunInputSnapshot({ triggerInput: input.inputSnapshot, definition });
+  const mock = (input.mode ?? "live") === "mock";
+  // Only steps that can be mocked can be picked to run for real, and only in a mock run.
+  const realNodeIds = mock
+    ? definition.nodes
+        .filter((node) => input.realNodeIds?.includes(node.id) && canRunForReal(node.type))
+        .map((node) => node.id)
+    : [];
+  const runId = randomUUID();
   const [row] = await dbClient
     .insert(schema.visualWorkflowRuns)
     .values({
+      id: runId,
+      traceId: input.traceId ?? runId,
+      parentRunId: input.parentRunId ?? null,
+      parentNodeId: input.parentNodeId ?? null,
       organizationId: input.organizationId,
       visualWorkflowId: input.visualWorkflowId,
       triggerSource: input.triggerSource,
       status: input.status ?? "queued",
       idempotencyKey: input.idempotencyKey ?? null,
-      definitionVersion: input.testDefinition
-        ? workflow.definitionVersion
-        : workflow.publishedVersion!,
+      definitionVersion:
+        input.immutableDefinitionVersion ??
+        (input.testDefinition ? workflow.definitionVersion : workflow.publishedVersion!),
       mode: input.mode ?? "live",
+      realNodeIds: mock ? realNodeIds : null,
       encryptedPayload: encryptWorkflowPayload({
         ...payload,
         mockOutputs: input.mockOutputs ?? {},
+        ...(mock ? { realNodeIds, mockFailures: input.mockFailures ?? {} } : {}),
       }),
       inputSnapshot: redactWorkflowSnapshot(payload, collectWorkflowSecrets(payload)) as Record<
         string,
@@ -742,10 +877,30 @@ export async function createVisualWorkflowRun(input: {
     throw new Error("failed_to_create_visual_workflow_run");
   }
 
-  await dbClient
-    .insert(schema.visualWorkflowOutbox)
-    .values({ runId: row.id, organizationId: row.organizationId, workflowId: row.visualWorkflowId })
-    .onConflictDoNothing();
+  if (input.enqueue !== false) {
+    await dbClient
+      .insert(schema.visualWorkflowOutbox)
+      .values({
+        runId: row.id,
+        organizationId: row.organizationId,
+        workflowId: row.visualWorkflowId,
+      })
+      .onConflictDoNothing();
+  }
+
+  if (input.enqueue !== false && !input.testDefinition && (input.mode ?? "live") !== "mock") {
+    await enqueueVisualWorkflowRunStartedActivity({
+      actorCredentialId: input.activityActor?.actorCredentialId ?? null,
+      actorKind: input.activityActor?.actorKind ?? "system",
+      actorUserId: input.activityActor?.actorUserId ?? null,
+      name: workflow.name,
+      organizationId: input.organizationId,
+      runId: row.id,
+      triggerSource: input.triggerSource,
+      visualWorkflowId: workflow.id,
+    });
+  }
+
   return serializeRun(row);
 }
 
@@ -1030,6 +1185,8 @@ export async function executeVisualWorkflowRun(input: {
   let retryResume = parseRetryResumeState(payload.retryBackoff);
   const waitResume = parseWaitResumeState(payload.waitResume);
   const mergeResume = parseMergeResumeState(payload.mergeResume);
+  const subworkflowResume = parseSubworkflowResumeState(payload.subworkflowResume);
+  const subworkflowPausedMs = parseSubworkflowPausedMs(payload.subworkflowPausedMs);
   if (retryResume?.wakeAt && !isRetryWakePending(retryResume)) {
     const { wakeAt: _wakeAt, ...withoutWake } = retryResume;
     retryResume = withoutWake;
@@ -1078,10 +1235,13 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
   if (
-    !waitResume &&
-    !mergeResume &&
-    run.startedAt &&
-    Date.now() - Date.parse(run.startedAt) > WORKFLOW_LIMITS.runTimeoutMs
+    hasWorkflowRunExceededDeadline({
+      startedAt: run.startedAt,
+      nowMs: Date.now(),
+      timeoutMs: WORKFLOW_LIMITS.runTimeoutMs,
+      pausedMs: subworkflowPausedMs,
+      hasDurableResume: Boolean(waitResume || mergeResume || subworkflowResume),
+    })
   )
     return finishVisualWorkflowRun({
       leaseToken,
@@ -1176,6 +1336,37 @@ export async function executeVisualWorkflowRun(input: {
       visualWorkflowId: input.visualWorkflowId,
       runId: run.id,
     });
+  const yieldedSubworkflowRunId =
+    !result.ok &&
+    result.error.code === "yield_execution" &&
+    typeof result.error.subworkflowRunId === "string"
+      ? result.error.subworkflowRunId
+      : null;
+  if (subworkflowResume && yieldedSubworkflowRunId !== subworkflowResume.childRunId) {
+    const waitingSince = Date.parse(subworkflowResume.waitingSince);
+    const additionalPausedMs = Number.isFinite(waitingSince)
+      ? Math.max(0, Date.now() - waitingSince)
+      : 0;
+    const {
+      subworkflowResume: _removedSubworkflowResume,
+      subworkflowPausedMs: _previousPausedMs,
+      ...payloadWithoutSubworkflowResume
+    } = payload;
+    payload = {
+      ...payloadWithoutSubworkflowResume,
+      subworkflowPausedMs: subworkflowPausedMs + additionalPausedMs,
+    };
+    await db
+      .update(schema.visualWorkflowRuns)
+      .set({ encryptedPayload: encryptWorkflowPayload(payload), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.id, run.id),
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+          eq(schema.visualWorkflowRuns.leaseToken, leaseToken),
+        ),
+      );
+  }
   if (
     waitResume &&
     (result.ok || result.error.code !== "wait_suspended") &&
@@ -1311,9 +1502,26 @@ export async function executeVisualWorkflowRun(input: {
         resume,
       });
     } else {
+      const wakeAt =
+        typeof result.error.wakeAt === "string" && Number.isFinite(Date.parse(result.error.wakeAt))
+          ? new Date(result.error.wakeAt)
+          : null;
+      if (yieldedSubworkflowRunId) {
+        payload = {
+          ...payload,
+          subworkflowResume:
+            subworkflowResume?.childRunId === yieldedSubworkflowRunId
+              ? subworkflowResume
+              : { childRunId: yieldedSubworkflowRunId, waitingSince: new Date().toISOString() },
+        };
+      }
       await db
         .update(schema.visualWorkflowRuns)
-        .set({ leaseExpiresAt: null })
+        .set({
+          leaseExpiresAt: wakeAt,
+          ...(yieldedSubworkflowRunId ? { encryptedPayload: encryptWorkflowPayload(payload) } : {}),
+          updatedAt: new Date(),
+        })
         .where(
           and(
             eq(schema.visualWorkflowRuns.id, run.id),
@@ -1379,11 +1587,19 @@ export async function executeVisualWorkflowRun(input: {
     });
   }
 
-  if (payload.retryBackoff || payload.waitResume || payload.mergeResume) {
+  if (
+    payload.retryBackoff ||
+    payload.waitResume ||
+    payload.mergeResume ||
+    payload.subworkflowResume ||
+    payload.subworkflowPausedMs
+  ) {
     const {
       retryBackoff: _removedRetry,
       waitResume: _removedWait,
       mergeResume: _removedMerge,
+      subworkflowResume: _removedSubworkflowResume,
+      subworkflowPausedMs: _removedSubworkflowPausedMs,
       ...payloadWithoutResume
     } = payload;
 
@@ -1416,6 +1632,11 @@ export async function executeVisualWorkflowRun(input: {
 }
 
 export async function dispatchManualVisualWorkflowRun(input: {
+  activityActor?: {
+    actorCredentialId: string | null;
+    actorKind: ActivityActorKind;
+    actorUserId: string | null;
+  };
   organizationId: string;
   visualWorkflowId: string;
   idempotencyKey: string;
@@ -1438,6 +1659,7 @@ export async function dispatchManualVisualWorkflowRun(input: {
   });
 
   const run = await createVisualWorkflowRun({
+    activityActor: input.activityActor,
     organizationId: input.organizationId,
     visualWorkflowId: input.visualWorkflowId,
     triggerSource: "manual",

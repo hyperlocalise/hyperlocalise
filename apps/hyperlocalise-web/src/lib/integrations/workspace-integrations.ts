@@ -33,7 +33,6 @@ export const workspaceComingSoonCollaborationSlugs = ["microsoft-teams", "jira",
 export const workspaceComingSoonGuidelineSlugs = ["google-drive", "sharepoint"] as const;
 
 export const workspaceComingSoonCustomerEngagementSlugs = [
-  "braze",
   "iterable",
   "customer-io",
   "loops",
@@ -55,6 +54,7 @@ export const workspacePipesGuidelineSlugs = [
 
 export const workspacePipesCustomerEngagementSlugs = [
   "intercom",
+  "braze",
   "hubspot",
   "mailchimp",
   "sendgrid",

@@ -24,6 +24,7 @@ import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { cn } from "@/lib/primitives/cn";
 import { REQUEST_DEMO_URL } from "../request-demo";
 import { heroSectionMessages } from "../hero-section.messages";
+import { TRUSTED_BY_LOGOS } from "../trusted-by-logos";
 import { ContentOpsMockStage } from "../content-ops/content-ops-mock-stage";
 import { homepageMessages as m } from "./homepage.messages";
 import { AgentChannelPreview } from "./agent-channel-preview";
@@ -48,45 +49,6 @@ const HOME_STYLE = {
   "--home-ink": "#123c3b",
   "--home-paper": "#e5eee5",
 } as CSSProperties;
-
-const TRUSTED_BY_LOGOS = [
-  {
-    id: "heidi-health",
-    href: "https://www.heidihealth.com",
-    src: "/images/customers/heidi-health-logo.png",
-    alt: heroSectionMessages.heidiHealthAlt,
-    width: 800,
-    height: 332,
-    className: "h-7 sm:h-8",
-  },
-  {
-    id: "tourfinder",
-    href: "https://tourfinder.vn",
-    src: "/images/customers/tourfinder-logo.png",
-    alt: heroSectionMessages.tourfinderAlt,
-    width: 1177,
-    height: 294,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "tourmatic",
-    href: "https://tourmatic.io",
-    src: "/images/customers/tourmatic-logo.svg",
-    alt: heroSectionMessages.tourmaticAlt,
-    width: 315,
-    height: 58,
-    className: "h-6 sm:h-7",
-  },
-  {
-    id: "weex",
-    href: "https://www.weex.com",
-    src: "/images/customers/weex-logo.svg",
-    alt: heroSectionMessages.weexAlt,
-    width: 134,
-    height: 28,
-    className: "h-6 sm:h-7",
-  },
-] as const;
 
 function SectionHeading({
   eyebrow,

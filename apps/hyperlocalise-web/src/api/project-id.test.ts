@@ -42,6 +42,7 @@ describe("project id schemas", () => {
     expect(normalizeProjectId("ext%253Acrowdin%253A902807")).toBe("ext:crowdin:902807");
     expect(projectIdSchema.parse("ext%253Acrowdin%253A902807")).toBe("ext:crowdin:902807");
     expect(optionalProjectIdSchema.parse(undefined)).toBeUndefined();
+    expect(optionalProjectIdSchema.parse("")).toBeUndefined();
   });
 
   it("normalizes project ids across route param, query, body, and multipart schemas", () => {

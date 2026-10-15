@@ -469,6 +469,27 @@ describe("GoSvcClient", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST");
   });
 
+  it("lists translation memories from go-svc with source and project filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        memories: [],
+        total: 0,
+      }),
+    );
+    const client = clientWith(fetchMock);
+
+    await client.memory.list("acme", {
+      limit: 25,
+      offset: 50,
+      source: "native",
+      projectId: "project-1",
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme/translation-memories?limit=25&offset=50&source=native&projectId=project-1`,
+    );
+  });
+
   it("lists translation memory interchange attempts from go-svc", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
@@ -678,6 +699,77 @@ describe("GoSvcClient", () => {
     expect(init.method).toBe("DELETE");
   });
 
+  it("lists organization issues and runs bulk actions on org routes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ issues: [], total: 0, summary: { total: 0 } }))
+      .mockResolvedValueOnce(
+        Response.json({
+          bulkAction: {
+            action: "unassign",
+            requested: 1,
+            succeeded: 1,
+            failed: 0,
+            unchanged: 0,
+            results: [],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ issues: [] }))
+      .mockResolvedValueOnce(Response.json({ issue: { id: "issue_1" } }));
+    const client = clientWith(fetchMock);
+
+    await client.issueSheet.listOrg("acme / eu", { status: "open", projectId: "project/1" });
+    await client.issueSheet.bulkActions("acme / eu", {
+      action: "unassign",
+      issues: [{ issueId: "11111111-1111-4111-8111-111111111111", projectId: "project/1" }],
+    });
+    await client.issueSheet.searchOrg("acme / eu", { q: "copy", limit: 20 });
+    await client.issueSheet.getOrg("acme / eu", "WEB-1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues?status=open&projectId=project%2F1`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issues/bulk-actions`, "POST"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/search?q=copy&limit=20`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/issue-sheet/WEB-1`, "GET"],
+    ]);
+  });
+
+  it("lists conversations, messages, and linked jobs from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ conversations: [] }))
+      .mockResolvedValueOnce(Response.json({ conversation: { id: "conv-1" }, messages: [] }))
+      .mockResolvedValueOnce(Response.json({ messages: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }));
+    const client = clientWith(fetchMock);
+
+    await client.conversation.list("acme / eu", {
+      limit: 50,
+      projectId: "project/1",
+      status: "active",
+    });
+    await client.conversation.get("acme / eu", "conv/1");
+    await client.conversation.listMessages("acme / eu", "conv/1");
+    await client.conversation.listJobs("acme / eu", "conv/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations?limit=50&projectId=project%2F1&status=active`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/messages`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/conversations/conv%2F1/jobs`, "GET"],
+    ]);
+  });
+
   it("encodes organization and issue-sheet path segments", () => {
     expect(orgPath("acme / eu", "dictionaries", "dict/1")).toBe(
       "/v1/orgs/acme%20%2F%20eu/dictionaries/dict%2F1",
@@ -688,5 +780,85 @@ describe("GoSvcClient", () => {
     expect(catPath("acme / eu", "project/1", "segments", "key/1", "target")).toBe(
       "/v1/orgs/acme%20%2F%20eu/projects/project%2F1/files/detail/cat/segments/key%2F1/target",
     );
+  });
+
+  it("lists jobs and project job status from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ jobs: [] }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1" } }))
+      .mockResolvedValueOnce(Response.json({ job: { id: "job-1", status: "running" } }));
+    const client = clientWith(fetchMock);
+
+    await client.job.list("acme / eu", { status: "running", open: true, limit: 20 });
+    await client.job.listProject("acme / eu", "project/1", { kind: "translation" });
+    await client.job.get("acme / eu", "job/1");
+    await client.job.getProject("acme / eu", "project/1", "job/1");
+    await client.job.status("acme / eu", "project/1", "job/1");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs?status=running&open=true&limit=20`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs?kind=translation`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/jobs/job%2F1`, "GET"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1`,
+        "GET",
+      ],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/projects/project%2F1/jobs/job%2F1/status`,
+        "GET",
+      ],
+    ]);
+  });
+
+  it("reads inbox notifications, preferences, and mentions from native go-svc reads", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ notifications: [], total: 0 }))
+      .mockResolvedValueOnce(Response.json({ unreadCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ notification: { id: "n-1" } }))
+      .mockResolvedValueOnce(Response.json({ markedCount: 2 }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: true } }))
+      .mockResolvedValueOnce(Response.json({ preferences: { email: false } }))
+      .mockResolvedValueOnce(Response.json({ mentionSuggestions: { users: [], issues: [] } }));
+    const client = clientWith(fetchMock);
+
+    await client.inbox.listNotifications("acme / eu", { unreadOnly: true, limit: 10, offset: 5 });
+    await client.inbox.unreadCount("acme / eu");
+    await client.inbox.getNotification("acme / eu", "note/1");
+    await client.inbox.markNotificationRead("acme / eu", "note/1");
+    await client.inbox.markAllNotificationsRead("acme / eu");
+    await client.inbox.getPreferences("acme / eu");
+    await client.inbox.updatePreferences("acme / eu", {
+      emailEnabled: false,
+      emailFormat: "digest",
+    });
+    await client.inbox.mentions("acme / eu", { q: "ada", projectId: "project/1", limit: 8 });
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, (init as RequestInit).method])).toEqual([
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications?unreadOnly=true&limit=10&offset=5`,
+        "GET",
+      ],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/unread-count`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/note%2F1/read`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notifications/read-all`, "POST"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "GET"],
+      [`${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/notification-preferences`, "PUT"],
+      [
+        `${DEFAULT_GO_SVC_BASE_URL}/v1/orgs/acme%20%2F%20eu/mentions?q=ada&projectId=project%2F1&limit=8`,
+        "GET",
+      ],
+    ]);
   });
 });

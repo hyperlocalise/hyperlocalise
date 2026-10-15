@@ -51,6 +51,8 @@ import {
   computeTryCatchCatchNodeIdsFromV3Edges,
   computeTryCatchSuccessNodeIdsFromV3Edges,
 } from "../editor/for-each-body-membership";
+import { executeSubworkflowNode } from "./execute-subworkflow-node";
+import { shouldStopAutomaticNodeRetry } from "./subworkflow-resume";
 
 const logger = createLogger("visual-workflow-node");
 
@@ -139,7 +141,13 @@ export async function executeDurableWorkflowSlice(input: {
   let externalExecuted = false;
   const mock = createMockWorkflowExecutor(
     (input.payload.mockOutputs as Record<string, Record<string, unknown>>) ?? {},
+    (input.payload.mockFailures as Record<string, { code?: string; message?: string }>) ?? {},
   );
+  // A test run calls out only for the steps it lists; every other step uses its test data.
+  const realTestNodeIds = new Set(
+    Array.isArray(input.payload.realNodeIds) ? (input.payload.realNodeIds as string[]) : [],
+  );
+  const runsForReal = (nodeId: string) => input.run.mode !== "mock" || realTestNodeIds.has(nodeId);
   const controller = new AbortController();
   const isCancelled = async () => {
     const [run] = await db
@@ -189,11 +197,15 @@ export async function executeDurableWorkflowSlice(input: {
               ![
                 "definitionSnapshot",
                 "mockOutputs",
+                "mockFailures",
+                "realNodeIds",
                 "triggeredAt",
                 "executionPlanVersion",
                 "retryBackoff",
                 "waitResume",
                 "mergeResume",
+                "subworkflowResume",
+                "subworkflowPausedMs",
               ].includes(name),
           ),
         ),
@@ -206,7 +218,10 @@ export async function executeDurableWorkflowSlice(input: {
       mergeResume,
       executeNode: async (args) => {
         const id = key(args.node.id, args.iteration);
-        const isExternal = args.node.type.startsWith("action.") || args.node.type === "ai.agent";
+        const isExternal =
+          args.node.type.startsWith("action.") ||
+          args.node.type === "ai.agent" ||
+          args.node.type === "flow.call_workflow";
         // Condition probes must all refresh in the same slice before the wait
         // re-evaluates; they must not consume the single post-wait external slot.
         const isWaitConditionProbe = waitConditionProbeNodeIds.has(args.node.id);
@@ -239,9 +254,11 @@ export async function executeDurableWorkflowSlice(input: {
           .filter((record) => key(record.nodeId, record.iteration) === id)
           .at(-1);
         const safe =
-          args.node.config.kind === "action.http" &&
-          (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader));
-        if (isExternal && previous?.status === "running" && input.run.mode !== "mock" && !safe)
+          args.node.config.kind === "flow.call_workflow" ||
+          (args.node.config.kind === "action.http" &&
+            (args.node.config.method === "GET" || Boolean(args.node.config.idempotencyHeader)));
+        const real = runsForReal(args.node.id);
+        if (isExternal && previous?.status === "running" && real && !safe)
           return {
             ok: false,
             error: {
@@ -252,7 +269,7 @@ export async function executeDurableWorkflowSlice(input: {
           };
         if (isExternal && !isWaitConditionProbe) externalExecuted = true;
         let config = { ...args.node.config } as Record<string, unknown>;
-        if (input.run.mode !== "mock") {
+        if (real) {
           const resolvedSecrets = await resolveSelectedNodeCredentials({
             organizationId: input.organizationId,
             node: args.node,
@@ -281,7 +298,10 @@ export async function executeDurableWorkflowSlice(input: {
             node: args.node,
           }),
         };
-        const firstAttempt = (previous?.attempt ?? 0) + 1;
+        const firstAttempt =
+          previous?.error?.code === "yield_execution"
+            ? previous.attempt
+            : (previous?.attempt ?? 0) + 1;
         const currentAttempts = records.filter(
           (record) =>
             key(record.nodeId, record.iteration) === id &&
@@ -294,7 +314,7 @@ export async function executeDurableWorkflowSlice(input: {
           isLogicRetryConfig(retryParent.config) &&
           retryParent.config.acknowledgeDuplicateRisk;
         const maxAttempts =
-          inRetryBody || input.run.mode === "mock"
+          inRetryBody || !real
             ? 1
             : safe
               ? Math.max(0, WORKFLOW_LIMITS.attempts - currentAttempts)
@@ -320,9 +340,17 @@ export async function executeDurableWorkflowSlice(input: {
               startedAt: new Date(),
             });
           try {
-            execution =
-              input.run.mode === "mock"
-                ? await mock(resolved)
+            execution = !real
+              ? await mock(resolved)
+              : resolved.node.config.kind === "flow.call_workflow"
+                ? await executeSubworkflowNode({
+                    node: resolved.node,
+                    organizationId: input.organizationId,
+                    parentRunId: input.run.id,
+                    traceId: input.run.traceId,
+                    iteration: args.iteration,
+                    attempt,
+                  })
                 : await executeVisualWorkflowNode(resolved);
           } catch {
             execution = {
@@ -338,7 +366,8 @@ export async function executeDurableWorkflowSlice(input: {
           }
           if (controller.signal.aborted)
             return { ok: false, error: { code: "cancelled", message: "Run cancelled." } };
-          if (execution.ok || offset === maxAttempts - 1) break;
+          if (execution.ok) break;
+          if (shouldStopAutomaticNodeRetry({ execution, offset, maxAttempts })) break;
           await upsertVisualWorkflowNodeRun({
             leaseToken: input.leaseToken,
             runId: input.run.id,
@@ -357,7 +386,7 @@ export async function executeDurableWorkflowSlice(input: {
           !execution.ok &&
           !safe &&
           !duplicateRiskAcknowledged &&
-          input.run.mode !== "mock" &&
+          real &&
           ["http_request_failed", "slack_send_failed", "email_send_failed", "http_error"].includes(
             execution.error.code ?? "",
           )

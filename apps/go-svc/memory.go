@@ -21,11 +21,19 @@ const (
 	memoryRequestTimeout = 30 * time.Second
 )
 
+const (
+	productUsageMemoryCreatedEvent  = "memory_created"
+	productUsageMemoryCreatedStatus = "created"
+	productUsageMemoryCreatedSource = "memory"
+)
+
 type memoryAPI struct {
 	pool        dictionaryPool
 	membership  organizationMembershipLookup
 	objects     *objectstore.Registry
 	interchange memoryInterchangePublisher
+	activityLog activityLogPublisher
+	analytics   memberProductUsageTracker
 }
 
 type memoryActor struct{ userID, organizationID, role string }
@@ -270,6 +278,7 @@ type memoryRecord struct {
 	LastSyncErrorMessage *string            `json:"lastSyncErrorMessage"`
 	CreatedAt            string             `json:"createdAt"`
 	UpdatedAt            string             `json:"updatedAt"`
+	ProjectCount         int                `json:"projectCount"`
 	ResourceKind         string             `json:"resourceKind"`
 	Capabilities         memoryCapabilities `json:"capabilities"`
 }

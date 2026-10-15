@@ -191,8 +191,11 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
   const showVideoSource = isVideoSegment || Boolean(segment.looksLikeVideoUrl);
   const showImageSource = isImageSegment || Boolean(segment.looksLikeImageUrl);
   const sourceMessageAnalysis = useMemo(
-    () => (isAssetSegment ? null : analyzeCatMessageFormat(segment.sourceText)),
-    [isAssetSegment, segment.sourceText],
+    () =>
+      isAssetSegment
+        ? null
+        : analyzeCatMessageFormat(segment.sourceText, { messageFormat: segment.messageFormat }),
+    [isAssetSegment, segment.messageFormat, segment.sourceText],
   );
   const hasApprovingTarget = isAssetSegment
     ? hasAssetTarget(segment)
@@ -552,6 +555,7 @@ export const ContentEditorSideBySideRow = observer(function ContentEditorSideByS
                       sourceText={segment.sourceText}
                       value={segment.targetText}
                       maxLength={segment.maxLength}
+                      messageFormat={segment.messageFormat}
                       compact
                       highlightTokens={highlightTokens}
                       highlightStatus={highlightStatus}

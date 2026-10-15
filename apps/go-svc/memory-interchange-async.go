@@ -32,14 +32,8 @@ type memoryInterchangeDownloadResponse struct {
 }
 
 func (api *memoryAPI) createMemoryImportUploadHandler(r *http.Request, actor memoryActor, m memoryRecord) (any, int, error) {
-	if !actor.canWriteMemories() {
-		return nil, 0, memoryFailure(403, "forbidden", "Insufficient permissions")
-	}
-	if err := requireNativeMemory(m); err != nil {
+	if denied, err := api.denyMemoryAction(r.Context(), actor, m, "import", true, true); denied {
 		return nil, 0, err
-	}
-	if m.Status == "archived" {
-		return nil, 0, memoryFailure(403, "memory_action_archived", "This translation memory is archived")
 	}
 	if api.objects == nil {
 		return nil, 0, memoryFailure(503, "object_storage_unavailable", "Memory object storage is unavailable")
@@ -204,6 +198,14 @@ func (api *memoryAPI) createMemoryExportHandler(r *http.Request, actor memoryAct
 		_, _ = api.pool.Exec(context.Background(), `update memory_import_attempts set status='failed', failure_code='memory_interchange_enqueue_failed', completed_at=now() where id=$1`, attemptID)
 		return nil, 0, err
 	}
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "translation_memory_exported",
+		OrganizationID: actor.organizationID,
+		Payload:        map[string]any{"resourceId": m.ID},
+		TargetID:       m.ID,
+		TargetKind:     "translation_memory",
+	})
 	return map[string]any{"attemptId": attemptID, "operation": "export", "status": "queued"}, http.StatusAccepted, nil
 }
 

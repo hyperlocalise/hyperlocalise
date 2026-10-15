@@ -240,6 +240,8 @@ That is the philosophy behind Hyperlocalise. We are building an AI workforce for
 
 The future of localisation will not be defined by who can send text to a language model. It will be defined by who can turn organisational knowledge and local expertise into a reliable, scalable way of working.
 
+If you are comparing an internal build with vendor platforms, [How to Choose a Continuous Localisation Workflow](/blog/how-to-choose-a-continuous-localisation-workflow) maps the other classes in the market — legacy TMS, developer-first platforms, and agentic layers — without a ranked list.
+
 ## See Hyperlocalise’s localisation agents in action
 
 If you are weighing build versus buy, we can walk through how an agentic localisation workflow fits your stack, your review process, and the markets you need to support.

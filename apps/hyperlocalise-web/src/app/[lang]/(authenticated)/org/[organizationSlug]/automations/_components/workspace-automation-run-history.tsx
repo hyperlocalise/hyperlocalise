@@ -24,6 +24,8 @@ import type {
 } from "@/lib/agents/workspace-automation-types";
 import { cn } from "@/lib/primitives/cn";
 
+import { toneClass } from "../../_components/workspace-resource-shared";
+
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import {
   humanizeRunSummaryKey,
@@ -41,8 +43,9 @@ const RUN_STATUS_BADGE_VARIANTS: Record<
   WorkspaceAutomationRunStatus,
   React.ComponentProps<typeof Badge>["variant"]
 > = {
-  queued: "outline",
-  running: "secondary",
+  queued: "warning",
+  // Drawn in the info tone below: the badge has no variant for it.
+  running: "outline",
   succeeded: "success",
   failed: "destructive",
   cancelled: "outline",
@@ -253,7 +256,10 @@ function RunRow({ run }: { run: WorkspaceAutomationRunRecord }) {
           !expandable && "invisible",
         )}
       />
-      <Badge variant={RUN_STATUS_BADGE_VARIANTS[run.status] ?? "outline"} className="w-fit">
+      <Badge
+        variant={RUN_STATUS_BADGE_VARIANTS[run.status] ?? "outline"}
+        className={cn("w-fit", run.status === "running" && toneClass("info"))}
+      >
         {formatRunStatus(intl, run.status)}
       </Badge>
       <span>{formatTriggerSource(intl, run.triggerSource)}</span>

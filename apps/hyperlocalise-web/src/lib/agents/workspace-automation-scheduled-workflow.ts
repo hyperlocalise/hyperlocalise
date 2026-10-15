@@ -19,6 +19,8 @@ import {
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationBrazeTool,
+  hasWorkspaceAutomationBrazeCampaignsTool,
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationListIssuesTool,
   hasWorkspaceAutomationWebSearchTool,
@@ -35,6 +37,8 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationGitlabAgentTool(toolConfig) ||
     hasWorkspaceAutomationContentfulWorkflow(toolConfig) ||
     hasWorkspaceAutomationIntercomTool(toolConfig) ||
+    hasWorkspaceAutomationBrazeTool(toolConfig) ||
+    hasWorkspaceAutomationBrazeCampaignsTool(toolConfig) ||
     hasWorkspaceAutomationListIssuesTool(toolConfig) ||
     hasWorkspaceAutomationCreateIssueTool(toolConfig) ||
     hasWorkspaceAutomationWebSearchTool(toolConfig) ||

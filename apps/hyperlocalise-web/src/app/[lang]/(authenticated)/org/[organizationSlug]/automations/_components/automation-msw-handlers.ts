@@ -206,6 +206,11 @@ export function createAutomationDetailMswHandlers(
     patchDelay?: number | "infinite";
     deleteDelay?: number | "infinite";
     recentRuns?: WorkspaceAutomationRunRecord[];
+    brazePush?: {
+      eligibleLocaleCount: number;
+      mappedItemCount: number;
+      pushRunInProgress: boolean;
+    } | null;
     intercomPush?: {
       eligibleLocaleCount: number;
       mappedArticleCount: number;
@@ -225,10 +230,11 @@ export function createAutomationDetailMswHandlers(
 ) {
   const recentRuns = options?.recentRuns ?? [];
   const intercomPush = options?.intercomPush ?? null;
+  const brazePush = options?.brazePush ?? null;
   return [
     ...automationEditorMswHandlers,
     http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
-      HttpResponse.json({ automation, recentRuns, intercomPush }),
+      HttpResponse.json({ automation, recentRuns, intercomPush, brazePush }),
     ),
     http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
       if (options?.patchDelay !== undefined) {

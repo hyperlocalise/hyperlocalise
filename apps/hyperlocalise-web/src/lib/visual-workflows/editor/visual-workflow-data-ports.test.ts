@@ -117,6 +117,40 @@ describe("getVisualWorkflowDataPorts", () => {
     });
   });
 
+  it("returns dynamic Call Workflow inputs and outputs by stable field ID", () => {
+    const ports = getVisualWorkflowDataPorts({
+      node: node("call", "flow.call_workflow", {
+        config: {
+          kind: "flow.call_workflow",
+          workflowId: "22222222-2222-4222-8222-222222222222",
+          version: 3,
+          inputFields: [{ id: "customer-id", name: "Customer", type: "string", required: true }],
+          outputFields: [{ id: "result-id", name: "Result", type: "object", required: false }],
+        },
+      }),
+      edges: [],
+    });
+
+    expect(ports.inputs).toEqual([
+      {
+        id: "value.customer-id",
+        label: "value.customer-id",
+        type: "string",
+        optional: false,
+        connectionCount: 0,
+      },
+    ]);
+    expect(ports.outputs).toEqual([
+      {
+        id: "value.result-id",
+        label: "value.result-id",
+        type: "object",
+        optional: true,
+        connectionCount: 0,
+      },
+    ]);
+  });
+
   it("returns dynamic Set ports without duplicates", () => {
     const ports = getVisualWorkflowDataPorts({
       node: node("set", "logic.set", {

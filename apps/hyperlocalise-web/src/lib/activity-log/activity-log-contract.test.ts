@@ -19,8 +19,12 @@ import {
   FILE_SEGMENT_ACTIVITY_EVENT_TYPES,
   isV1ActivityEventType,
   LATER_ACTIVITY_EVENT_TYPES,
-  RESERVED_ACTIVITY_EVENT_TYPES,
+  ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES,
+  DICTIONARY_ACTIVITY_EVENT_TYPES,
+  LINKED_DOMAIN_ACTIVITY_EVENT_TYPES,
+  QUERY_ACTIVITY_EVENT_TYPES,
   V1_ACTIVITY_EVENT_TYPES,
+  VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES,
 } from "./activity-log-contract";
 
 describe("activity log contract", () => {
@@ -41,18 +45,22 @@ describe("activity log contract", () => {
       "translation_memory",
       "job",
       "automation",
+      "visual_workflow",
+      "query",
       "file",
       "string_segment",
+      "dictionary",
+      "linked_domain",
     ]);
   });
 
-  it("keeps the v1 catalog separate from reserved and later events", () => {
+  it("keeps the v1 catalog separate from later and organization API key events", () => {
     expect(V1_ACTIVITY_EVENT_TYPES).toContain("personal_access_token_created");
     expect(V1_ACTIVITY_EVENT_TYPES).toContain("glossary_project_attached");
     expect(V1_ACTIVITY_EVENT_TYPES).not.toContain("glossary_ownership_changed");
     expect(V1_ACTIVITY_EVENT_TYPES).not.toContain("project_archived");
     expect(V1_ACTIVITY_EVENT_TYPES).not.toContain("organization_api_key_created");
-    expect(RESERVED_ACTIVITY_EVENT_TYPES).toEqual([
+    expect(ORGANIZATION_API_KEY_ACTIVITY_EVENT_TYPES).toEqual([
       "organization_api_key_created",
       "organization_api_key_revoked",
     ]);
@@ -60,9 +68,24 @@ describe("activity log contract", () => {
       "job_created",
       "job_cancelled",
       "job_failed",
+      "automation_created",
+      "automation_deleted",
       "automation_run_started",
       "automation_enabled",
       "automation_disabled",
+    ]);
+    expect(VISUAL_WORKFLOW_ACTIVITY_EVENT_TYPES).toEqual([
+      "visual_workflow_created",
+      "visual_workflow_deleted",
+      "visual_workflow_published",
+      "visual_workflow_enabled",
+      "visual_workflow_disabled",
+      "visual_workflow_run_started",
+    ]);
+    expect(QUERY_ACTIVITY_EVENT_TYPES).toEqual([
+      "query_created",
+      "query_deleted",
+      "query_imported",
     ]);
     expect(FILE_SEGMENT_ACTIVITY_EVENT_TYPES).toEqual([
       "file_uploaded",
@@ -75,6 +98,18 @@ describe("activity log contract", () => {
       "string_segment_locked",
       "string_segment_unlocked",
       "string_segment_commented",
+    ]);
+    expect(DICTIONARY_ACTIVITY_EVENT_TYPES).toEqual([
+      "dictionary_created",
+      "dictionary_deleted",
+      "dictionary_imported",
+      "dictionary_project_attached",
+    ]);
+    expect(LINKED_DOMAIN_ACTIVITY_EVENT_TYPES).toEqual([
+      "linked_domain_created",
+      "linked_domain_verified",
+      "linked_domain_cancelled",
+      "linked_domain_markets_changed",
     ]);
   });
 

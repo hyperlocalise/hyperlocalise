@@ -124,6 +124,8 @@ ${formatLinks(useCaseLinks)}
 ## Company
 
 - [Homepage](${SITE_URL}/en): Marketing homepage for the agentic localisation platform.
+- [Pricing](${SITE_URL}/en/pricing): Compare Free, Starter, Growth, and Enterprise plans for Hyperlocalise — agentic localisation for teams shipping global product content.
+- [Company](${SITE_URL}/en/company): Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.
 - [Blog](${SITE_URL}/en/blog): Product updates and writing on localisation operations.
 - [Trust Center](https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u): Security, privacy, and subprocessors.
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.

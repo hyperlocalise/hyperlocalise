@@ -106,7 +106,6 @@ export function ConversationMessageList({
   const intl = useIntl();
   const activeStream =
     streamedAssistant?.conversationId === conversationId ? streamedAssistant : null;
-  let renderedStream = false;
 
   return (
     <MessageScrollerProvider
@@ -130,49 +129,7 @@ export function ConversationMessageList({
                 />
               </MessageScrollerItem>
             ) : (
-              <>
-                {messages.map((message, index) => {
-                  const previousMessage = messages[index - 1];
-                  const shouldRenderStream =
-                    message.senderType === "agent" &&
-                    activeStream?.responseToMessageId === previousMessage?.id;
-
-                  if (shouldRenderStream && activeStream) {
-                    renderedStream = true;
-                    return (
-                      <MessageScrollerItem key={message.id} messageId={message.id}>
-                        <AssistantStreamMessage
-                          message={activeStream.message}
-                          isStreaming={isStreaming && activeStream.status === "streaming"}
-                          createdAt={message.createdAt}
-                        />
-                      </MessageScrollerItem>
-                    );
-                  }
-
-                  return (
-                    <MessageScrollerItem
-                      key={message.id}
-                      messageId={message.id}
-                      scrollAnchor={message.senderType === "user"}
-                    >
-                      <PersistedMessage currentUser={currentUser} message={message} />
-                    </MessageScrollerItem>
-                  );
-                })}
-
-                {activeStream &&
-                !renderedStream &&
-                messages.at(-1)?.id === activeStream.responseToMessageId ? (
-                  <MessageScrollerItem messageId={activeStream.message.id}>
-                    <AssistantStreamMessage
-                      message={activeStream.message}
-                      isStreaming={isStreaming && activeStream.status === "streaming"}
-                      createdAt={null}
-                    />
-                  </MessageScrollerItem>
-                ) : null}
-              </>
+              renderMessageItems({ activeStream, currentUser, isStreaming, messages })
             )}
           </MessageScrollerContent>
         </MessageScrollerViewport>
@@ -180,6 +137,86 @@ export function ConversationMessageList({
       </MessageScroller>
     </MessageScrollerProvider>
   );
+}
+
+// The scroller re-anchors to an unseen user message whenever the item count stays the same
+// but children change, so a streamed reply must keep its DOM node when it becomes persisted.
+// Rows must stay in one keyed array for React to carry that node across.
+function renderMessageItems({
+  activeStream,
+  currentUser,
+  isStreaming,
+  messages,
+}: {
+  activeStream: StreamedAssistantMessage | null;
+  currentUser: InboxCurrentUser;
+  isStreaming: boolean;
+  messages: ConversationMessage[];
+}) {
+  let renderedStream = false;
+  const isActiveStreamStreaming = isStreaming && activeStream?.status === "streaming";
+
+  const items = messages.map((message, index) => {
+    const previousMessage = messages[index - 1];
+    const itemKey = getMessageItemKey(message, previousMessage);
+
+    if (
+      activeStream &&
+      message.senderType === "agent" &&
+      activeStream.responseToMessageId === previousMessage?.id
+    ) {
+      renderedStream = true;
+      return (
+        <MessageScrollerItem key={itemKey} messageId={message.id}>
+          <AssistantStreamMessage
+            message={activeStream.message}
+            isStreaming={isActiveStreamStreaming}
+            createdAt={message.createdAt}
+          />
+        </MessageScrollerItem>
+      );
+    }
+
+    return (
+      <MessageScrollerItem
+        key={itemKey}
+        messageId={message.id}
+        scrollAnchor={message.senderType === "user"}
+      >
+        <PersistedMessage currentUser={currentUser} message={message} />
+      </MessageScrollerItem>
+    );
+  });
+
+  if (activeStream && !renderedStream && messages.at(-1)?.id === activeStream.responseToMessageId) {
+    items.push(
+      <MessageScrollerItem
+        key={replyItemKey(activeStream.responseToMessageId)}
+        messageId={activeStream.message.id}
+      >
+        <AssistantStreamMessage
+          message={activeStream.message}
+          isStreaming={isActiveStreamStreaming}
+          createdAt={null}
+        />
+      </MessageScrollerItem>,
+    );
+  }
+
+  return items;
+}
+
+function replyItemKey(userMessageId: string) {
+  return `reply-${userMessageId}`;
+}
+
+function getMessageItemKey(
+  message: ConversationMessage,
+  previousMessage: ConversationMessage | undefined,
+) {
+  return message.senderType === "agent" && previousMessage?.senderType === "user"
+    ? replyItemKey(previousMessage.id)
+    : message.id;
 }
 
 function MessageListSkeleton() {

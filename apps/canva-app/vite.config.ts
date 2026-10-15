@@ -27,6 +27,7 @@ const backendHost = process.env.VITEST
 export default defineConfig({
   define: {
     BACKEND_HOST: JSON.stringify(backendHost),
+    IS_LOCAL_DEVELOPMENT: "true",
   },
   fmt: {
     ignorePatterns: ["dist/**", "pnpm-lock.yaml"],

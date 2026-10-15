@@ -39,6 +39,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/activity-log/activity-log-writer", () => ({
   enqueueActivityLogEvent: enqueueActivityLogEventMock,
+  enqueueActivityLogEvents: vi.fn().mockResolvedValue([]),
 }));
 
 import { createApp } from "@/api/app";

@@ -1,49 +1,22 @@
-name: Ensure worker deploy not superseded
-description: Skip a push deploy only when main has newer commits that touch this worker's deploy paths
+name: Ensure deploy not superseded
+description: Skip a push deploy when prod has moved past this commit; the newer push deploys instead
 inputs:
   event-name:
     description: github.event_name for the workflow run
     required: true
-  filters:
-    description: dorny/paths-filter YAML with a single superseding filter key
-    required: true
 runs:
   using: composite
   steps:
-    - name: Decide whether to compare against main
-      id: prep
+    - name: Abort deploy when prod has a newer commit
       shell: bash
       run: |
         if [ "${{ inputs.event-name }}" != "push" ]; then
-          echo "range_check=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
-        git fetch origin main
-        tip="$(git rev-parse origin/main)"
-        if [ "${GITHUB_SHA}" = "${tip}" ]; then
-          echo "range_check=false" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        echo "range_check=true" >> "$GITHUB_OUTPUT"
-
-    - name: Detect superseding worker changes on main
-      if: steps.prep.outputs.range_check == 'true'
-      id: paths
-      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-      with:
-        base: ${{ github.sha }}
-        ref: origin/main
-        filters: ${{ inputs.filters }}
-
-    - name: Abort deploy when a newer worker deploy should win
-      if: steps.prep.outputs.range_check == 'true'
-      shell: bash
-      run: |
-        if [ "${{ steps.paths.outputs.superseding }}" = "true" ]; then
-          echo "::notice title=Deploy skipped::A newer commit on main changes this worker; that workflow run should deploy instead."
+        git fetch origin prod
+        tip="$(git rev-parse origin/prod)"
+        if [ "${GITHUB_SHA}" != "${tip}" ]; then
+          echo "::notice title=Deploy skipped::prod has moved to ${tip}; that workflow run deploys instead."
           exit 1
         fi
-
-        echo "No superseding changes for this worker between ${GITHUB_SHA} and main; continuing deploy."

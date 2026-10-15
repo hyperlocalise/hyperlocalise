@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { AVAILABLE_APP_CONTENT_LOCALES } from "./locales";
 import { getIntlShape } from "./intl";
 
 describe("getIntlShape", () => {
@@ -19,16 +20,24 @@ describe("getIntlShape", () => {
     expect(getIntlShape("en").messages).toEqual({});
   });
 
-  it("loads translated catalogs for every content locale", () => {
-    for (const locale of ["zh-CN", "vi-VN", "de-DE", "fr-FR"] as const) {
-      const messages = getIntlShape(locale).messages;
-      expect(Object.keys(messages).length).toBeGreaterThan(0);
+  it("binds every content locale to intl", () => {
+    for (const locale of AVAILABLE_APP_CONTENT_LOCALES) {
+      if (locale === "en") {
+        continue;
+      }
+
       expect(getIntlShape(locale).locale).toBe(locale);
     }
   });
 
+  it("loads non-empty translated catalogs where sync has landed", () => {
+    for (const locale of ["zh-CN", "vi-VN", "de-DE", "fr-FR"] as const) {
+      expect(Object.keys(getIntlShape(locale).messages).length).toBeGreaterThan(0);
+    }
+  });
+
   it("falls back to the default locale for unknown locales", () => {
-    expect(getIntlShape("ja-JP").locale).toBe("en");
-    expect(getIntlShape("ja-JP").messages).toEqual({});
+    expect(getIntlShape("sv-SE").locale).toBe("en");
+    expect(getIntlShape("sv-SE").messages).toEqual({});
   });
 });

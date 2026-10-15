@@ -434,6 +434,91 @@ export type CreateApiKeyBody = {
   permissions?: ApiKeyPermission[];
 };
 
+export type GoSvcIssueSheetColumn = {
+  id: string;
+  key: string;
+  label: string;
+  layer: string;
+  type: string;
+  config: { options?: { id: string; label: string; color?: string }[] };
+  sortOrder: number;
+  hidden: boolean;
+  icon: string | null;
+};
+
+export type GoSvcIssueSheetIssue = {
+  id: string;
+  identifier: string;
+  number?: number;
+  projectId?: string;
+  projectName?: string;
+  title: string;
+  description: string;
+  issueType: string;
+  status: string;
+  targetLocale: string | null;
+  sourcePath: string | null;
+  segmentId: string | null;
+  translationKeyId: string | null;
+  linkedCommentId: string | null;
+  linkedAgentRunId: string | null;
+  linkKind: string | null;
+  linkLabel: string | null;
+  linkUrl: string | null;
+  templateKey: string | null;
+  assigneeUserId: string | null;
+  reporter: string | null;
+  assignee: string | null;
+  key: string | null;
+  sourceText: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  values: Record<string, unknown>;
+  isWatching: boolean;
+  priority?: string | null;
+};
+
+export type GoSvcOrganizationIssue = GoSvcIssueSheetIssue & {
+  projectId: string;
+  projectName: string;
+};
+
+export type GoSvcIssueListSummary = {
+  total: number;
+  open: number;
+  inProgress: number;
+  resolved: number;
+  wontFix: number;
+};
+
+export type GoSvcIssueSearchResult = {
+  issueId: string;
+  projectId: string;
+  title: string;
+  status: string;
+};
+
+export type GoSvcAssignableIssueMember = {
+  userId: string;
+  workosUserId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  isCurrentUser: boolean;
+};
+
+export type GoSvcIssueSheetTemplateConfig = {
+  defaultTemplateKey: string | null;
+  assigneeByTemplate: {
+    templateKey: string;
+    userId: string;
+    assignable: boolean;
+  }[];
+};
+
 export type IssueSheetListQuery = GoSvcPageQuery & {
   view?: "my_work" | "qa_triage" | "source_context" | "all_open";
   status?: "open" | "in_progress" | "resolved" | "wont_fix" | "all";
@@ -453,6 +538,47 @@ export type IssueSheetListQuery = GoSvcPageQuery & {
   search?: string;
   sort?: "updated_at" | "created_at" | "priority" | "status";
   sortDir?: "asc" | "desc";
+};
+
+export type OrganizationIssuesListQuery = IssueSheetListQuery & {
+  projectId?: string;
+};
+
+export type OrganizationIssueSearchQuery = {
+  q?: string;
+  excludeIssueId?: string;
+  limit?: number;
+};
+
+export type IssueBulkActionTarget = {
+  issueId: string;
+  projectId: string;
+};
+
+export type IssueBulkActionBody =
+  | { action: "assign"; assigneeUserId: string; issues: IssueBulkActionTarget[] }
+  | { action: "unassign"; issues: IssueBulkActionTarget[] }
+  | { action: "set_status"; status: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_priority"; priority: string; issues: IssueBulkActionTarget[] }
+  | { action: "set_issue_type"; issueType: string; issues: IssueBulkActionTarget[] };
+
+export type IssueBulkActionResult = {
+  issueId: string;
+  projectId: string;
+  outcome: "updated" | "unchanged" | "failed";
+  issue?: GoSvcRecord;
+  error?: { code: string; message: string };
+};
+
+export type IssueBulkActionResponse = {
+  bulkAction: {
+    action: string;
+    requested: number;
+    succeeded: number;
+    failed: number;
+    unchanged: number;
+    results: IssueBulkActionResult[];
+  };
 };
 
 export type ActivityLogQuery = {
@@ -477,6 +603,8 @@ export type ValidateSegmentBody = {
   targetText: string;
   sourcePath: string;
   maxLength?: number;
+  /** auto | icu | i18next; omitted means auto. */
+  messageFormat?: string;
   modes?: readonly string[];
   targetLocale?: string;
   acceptedWords?: readonly string[];

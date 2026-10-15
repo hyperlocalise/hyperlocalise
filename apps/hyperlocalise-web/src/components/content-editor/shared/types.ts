@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { MessageFormat } from "@/lib/i18n/message-format";
 import type { SourceFileIngestState } from "@/lib/projects/files/source-file-ingest-state";
 import type { ContentEditorVisualContext } from "@/lib/translation/content-editor-visual-context";
 
@@ -90,6 +91,8 @@ export interface ContentEditorQueueSegment {
   isLocked?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
+  /** Placeholder syntax of this row's file; set when the queue spans multiple files. */
+  messageFormat?: MessageFormat;
   externalResourceId?: string;
   resourceType?: "file" | "key";
   /** Grouped queues: identical source strings this row saves to, including itself. */
@@ -125,6 +128,7 @@ export interface ContentEditorFileContext {
   };
   ingestState?: SourceFileIngestState;
   ingestError?: string | null;
+  messageFormat?: MessageFormat;
 }
 
 export interface ContentEditorSegment {
@@ -135,6 +139,8 @@ export interface ContentEditorSegment {
   targetText: string;
   /** Present when the queue spans multiple files. */
   sourcePath?: string;
+  /** Placeholder syntax used for format checks; defaults to auto. */
+  messageFormat?: MessageFormat;
   sourceLocale: string;
   targetLocale: string;
   contextLabel?: string;

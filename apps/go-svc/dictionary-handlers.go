@@ -91,7 +91,21 @@ func (api *dictionaryAPI) createDictionary(r *http.Request, actor dictionaryActo
 		description = *payload.Description
 	}
 	d, err := scanDictionary(api.pool.QueryRow(r.Context(), `insert into spellcheck_word_libraries as d (organization_id, created_by_user_id, name, description) values ($1,$2,$3,$4) returning `+dictionaryColumns, actor.organizationID, actor.userID, *payload.Name, description))
-	return map[string]any{"dictionary": d}, 201, err
+	if err != nil {
+		return nil, 0, err
+	}
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "dictionary_created",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"name":       d.Name,
+			"resourceId": d.ID,
+		},
+		TargetID:   d.ID,
+		TargetKind: "dictionary",
+	})
+	return map[string]any{"dictionary": d}, 201, nil
 }
 
 func (api *dictionaryAPI) getDictionary(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
@@ -121,7 +135,21 @@ func (api *dictionaryAPI) patchDictionary(r *http.Request, actor dictionaryActor
 
 func (api *dictionaryAPI) deleteDictionary(r *http.Request, actor dictionaryActor, d dictionaryRecord) (any, int, error) {
 	_, err := api.pool.Exec(r.Context(), `delete from spellcheck_word_libraries where id=$1 and organization_id=$2`, d.ID, actor.organizationID)
-	return nil, 204, err
+	if err != nil {
+		return nil, 204, err
+	}
+	api.publishActivity(r.Context(), activityLogEventInput{
+		ActorUserID:    actor.userID,
+		EventType:      "dictionary_deleted",
+		OrganizationID: actor.organizationID,
+		Payload: map[string]any{
+			"name":       d.Name,
+			"resourceId": d.ID,
+		},
+		TargetID:   d.ID,
+		TargetKind: "dictionary",
+	})
+	return nil, 204, nil
 }
 
 func (api *dictionaryAPI) listDictionaries(r *http.Request, actor dictionaryActor) (any, int, error) {

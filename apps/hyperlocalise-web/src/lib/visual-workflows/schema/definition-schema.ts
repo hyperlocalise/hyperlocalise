@@ -68,7 +68,42 @@ const visualCatalogTypeSchema = z.enum([
   "logic.merge",
   "logic.sequence",
   "logic.try_catch",
+  "flow.call_workflow",
 ]);
+
+const visualSubworkflowFieldSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(128),
+  type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+  required: z.boolean().optional(),
+});
+
+const visualSubworkflowFieldsSchema = z
+  .array(visualSubworkflowFieldSchema)
+  .max(32)
+  .superRefine((fields, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+
+    for (const [index, field] of fields.entries()) {
+      if (ids.has(field.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_subworkflow_field_id",
+        });
+      }
+      if (names.has(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_subworkflow_field_name",
+        });
+      }
+      ids.add(field.id);
+      names.add(field.name);
+    }
+  });
 
 const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("trigger.manual") }),
@@ -363,6 +398,14 @@ const visualNodeConfigSchema = z.discriminatedUnion("kind", [
       }),
   }),
   z.object({ kind: z.literal("logic.try_catch") }),
+  z.object({
+    kind: z.literal("flow.call_workflow"),
+    workflowId: z.string().uuid(),
+    version: z.number().int().positive(),
+    inputFields: visualSubworkflowFieldsSchema,
+    outputFields: visualSubworkflowFieldsSchema,
+    onError: visualNodeErrorBehaviorSchema.optional(),
+  }),
 ]);
 
 export const workflowBindingSchema = z.intersection(

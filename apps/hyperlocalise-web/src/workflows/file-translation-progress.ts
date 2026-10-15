@@ -106,6 +106,8 @@ export async function collectFileTranslationPageStep(input: {
   sourceEntries: Record<string, string>;
   prefills: Record<string, Record<string, string>>;
   confirmed: Record<string, Record<string, string>>;
+  /** Busts workflow step memoization when a new `hl run` finishes. */
+  hlRunFingerprint?: string;
 }) {
   "use step";
   const { readTranslatedFile, extractSandboxEntries } = await import("@/lib/translation/sandbox");
@@ -158,9 +160,10 @@ export async function collectFileTranslationPageStep(input: {
       sourcePath: input.inputFilename,
     });
     if (!extracted.ok) throw new Error("failed to extract completed translations");
+    const hlExtracted = hlEntriesPayloadToStringMap(extracted.entries);
     const collected = collectCompletedTranslationPageEntries({
       keys,
-      extracted: hlEntriesPayloadToStringMap(extracted.entries),
+      extracted: hlExtracted,
       prefills: input.prefills[locale] ?? {},
     });
     if (Object.keys(collected).length > 0) {

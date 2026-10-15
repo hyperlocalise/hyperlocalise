@@ -17,11 +17,16 @@ import {
   issueSheetIssuesFixture,
   issueSheetManySubscribersFixture,
   issueSheetProjectFixture,
+  issueSheetProjectId,
   issueSheetResponseFixture,
   issueSheetSubscribersFixture,
 } from "./issue-sheet.fixture";
 
-const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
+const issueSheetBasePath = "*/v1/orgs/:organizationSlug/projects/:projectId/issue-sheet";
+const orgIssuesPath = "*/v1/orgs/:organizationSlug/issues";
+const orgIssueSheetPath = "*/v1/orgs/:organizationSlug/issue-sheet";
+const honoIssueSheetImportPath =
+  "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet/import";
 
 const watchedIssueIds = new Set(
   issueSheetIssuesFixture.filter((issue) => issue.isWatching).map((issue) => issue.id),
@@ -118,6 +123,36 @@ export const issueSheetMswHandlers = [
     }),
   ),
   http.get(issueSheetBasePath, () => HttpResponse.json(issueSheetResponseFixture)),
+  http.get(orgIssuesPath, () =>
+    HttpResponse.json({
+      issues: issueSheetResponseFixture.issues,
+      total: issueSheetResponseFixture.total,
+      summary: issueSheetResponseFixture.summary,
+    }),
+  ),
+  http.post(`${orgIssuesPath}/bulk-actions`, () => HttpResponse.json({ updated: 0, skipped: 0 })),
+  http.get(`${orgIssueSheetPath}/search`, () =>
+    HttpResponse.json({
+      issues: issueSheetIssuesFixture.map((issue) => ({
+        issueId: issue.id,
+        projectId: issueSheetProjectId,
+        title: issue.title,
+        status: issue.status,
+      })),
+    }),
+  ),
+  http.get(`${orgIssueSheetPath}/:issueId`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find(
+      (row) => row.id === params.issueId || row.identifier === params.issueId,
+    );
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ issue: issueWithWatchState(issue) });
+  }),
+  http.post(honoIssueSheetImportPath, () =>
+    HttpResponse.json({ import: { created: 0, skippedDuplicates: 0, dryRun: true } }),
+  ),
   http.get(`${issueSheetBasePath}/columns`, () =>
     HttpResponse.json({ columns: issueSheetResponseFixture.columns }),
   ),

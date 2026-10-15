@@ -280,6 +280,35 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			wantErr:     true,
 			errContains: "unreal",
 		},
+		{
+			name:       "json_i18next_placeholder_ok",
+			path:       "/pkg/en.json",
+			source:     "Hello {{name}}",
+			translated: "Bonjour {{name}}",
+			wantErr:    false,
+		},
+		{
+			name:       "json_i18next_format_ok",
+			path:       "/pkg/en.json",
+			source:     "Hello {{name, uppercase}}",
+			translated: "Bonjour {{name, uppercase}}",
+			wantErr:    false,
+		},
+		{
+			name:        "json_i18next_placeholder_mismatch",
+			path:        "/pkg/en.json",
+			source:      "Hello {{name}}",
+			translated:  "Bonjour",
+			wantErr:     true,
+			errContains: "placeholder parity",
+		},
+		{
+			name:       "json_i18next_nesting_ok",
+			path:       "/pkg/en.json",
+			source:     "See $t(help.link)",
+			translated: "Voir $t(help.link)",
+			wantErr:    false,
+		},
 	}
 
 	for _, tt := range tests {

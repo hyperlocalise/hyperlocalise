@@ -46,12 +46,20 @@ import {
 } from "@/lib/agents/workspace-automations";
 import { resolveContentSyncRepositoryTarget } from "@/lib/agents/content-sync/content-sync-config";
 import {
+  hasWorkspaceAutomationBrazeCampaignsTool,
+  hasWorkspaceAutomationBrazeTool,
   hasWorkspaceAutomationIntercomTool,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationKind,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automation-types";
+import {
+  getBrazeCampaignPushEligibility,
+  getBrazePushEligibility,
+  isBrazePushRunActive,
+  type BrazePushItem,
+} from "@/lib/braze/push-eligibility";
 import {
   getIntercomPushEligibility,
   isIntercomPushRunActive,
@@ -73,7 +81,11 @@ import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import { getFileStorageAdapter } from "@/lib/file-storage/get-file-storage-adapter";
 import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
-import { enqueueAutomationStatusActivity } from "@/lib/activity-log/job-automation-events";
+import {
+  enqueueAutomationCreatedActivity,
+  enqueueAutomationDeletedActivity,
+  enqueueAutomationStatusActivity,
+} from "@/lib/activity-log/job-automation-events";
 
 import {
   createWorkspaceAutomationBodySchema,
@@ -552,6 +564,16 @@ export function createWorkspaceAutomationRoutes(
           return mapAutomationConfigValidationError(c, result.error);
         }
 
+        await enqueueAutomationCreatedActivity({
+          actorCredentialId: null,
+          actorKind: "user",
+          actorUserId: c.var.auth.user.localUserId,
+          automationId: result.value.id,
+          name: result.value.name,
+          organizationId,
+          status: result.value.status,
+        });
+
         return c.json({ automation: result.value, recentRuns: [] }, 201);
       } catch (error) {
         return mapAutomationError(c, error);
@@ -597,7 +619,34 @@ export function createWorkspaceAutomationRoutes(
         };
       }
 
-      return c.json({ automation, recentRuns, intercomPush }, 200);
+      let brazePush: {
+        eligibleLocaleCount: number;
+        mappedItemCount: number;
+        pushRunInProgress: boolean;
+        items?: BrazePushItem[];
+      } | null = null;
+      if (
+        hasWorkspaceAutomationBrazeTool(automation.toolConfig) ||
+        hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+      ) {
+        const eligibility = hasWorkspaceAutomationBrazeCampaignsTool(automation.toolConfig)
+          ? await getBrazeCampaignPushEligibility({
+              organizationId,
+              automation,
+            })
+          : await getBrazePushEligibility({
+              organizationId,
+              automation,
+            });
+        brazePush = {
+          eligibleLocaleCount: eligibility?.eligibleLocaleCount ?? 0,
+          mappedItemCount: eligibility?.mappedItemCount ?? 0,
+          pushRunInProgress: isBrazePushRunActive(recentRuns),
+          ...(includePushArticles ? { items: eligibility?.items ?? [] } : {}),
+        };
+      }
+
+      return c.json({ automation, recentRuns, intercomPush, brazePush }, 200);
     })
     .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");
@@ -822,14 +871,13 @@ export function createWorkspaceAutomationRoutes(
       }
 
       if (existing.status !== "archived") {
-        await enqueueAutomationStatusActivity({
+        await enqueueAutomationDeletedActivity({
           actorCredentialId: null,
           actorKind: "user",
           actorUserId: c.var.auth.user.localUserId,
           automationId: existing.id,
           name: result.value.name,
           organizationId,
-          status: "archived",
         });
       }
 

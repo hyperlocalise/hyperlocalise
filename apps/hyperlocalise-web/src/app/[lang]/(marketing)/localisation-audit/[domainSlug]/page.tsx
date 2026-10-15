@@ -17,6 +17,7 @@ import { LocalisationAuditResultPage } from "@/components/marketing/localisation
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { asPublishedLocalisationAudit } from "@/lib/localisation-audit/report-coverage";
 import {
   findLocalisationAuditBySlug,
   getLocalisationAuditStanding,
@@ -41,11 +42,12 @@ export async function generateMetadata({
     return { title: "Localisation audit | Hyperlocalise" };
   }
 
-  const audit = await findLocalisationAuditBySlug(domainSlug);
-  if (!audit) {
+  const found = await findLocalisationAuditBySlug(domainSlug);
+  if (!found) {
     return { title: "Localisation audit | Hyperlocalise" };
   }
 
+  const audit = asPublishedLocalisationAudit(found);
   const intl = getIntlShape(locale);
   const metadata = getLocalisationAuditResultRouteMetadata(intl, audit.domainKey, audit.score);
   const robots =
@@ -76,11 +78,12 @@ export default async function LocalisationAuditResultRoutePage({
     notFound();
   }
 
-  const audit = await findLocalisationAuditBySlug(domainSlug);
-  if (!audit) {
+  const found = await findLocalisationAuditBySlug(domainSlug);
+  if (!found) {
     notFound();
   }
 
+  const audit = asPublishedLocalisationAudit(found);
   const publicReport = audit.status === "succeeded";
   const standing =
     audit.status === "succeeded" && audit.score != null

@@ -19,7 +19,26 @@ import { getVisualWorkflowRunById } from "./visual-workflow-runs";
 const logger = createLogger("visual-workflow-recovery");
 type RunIdentity = { organizationId: string; visualWorkflowId: string; runId: string };
 export async function requestWorkflowCancellation(input: RunIdentity) {
+  const root = await getVisualWorkflowRunById(input);
+  if (!root) return null;
+
   const now = new Date();
+  const runIds = [input.runId];
+  let frontier = [input.runId];
+
+  while (frontier.length > 0) {
+    const children = await db
+      .select({ id: schema.visualWorkflowRuns.id })
+      .from(schema.visualWorkflowRuns)
+      .where(
+        and(
+          eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
+          inArray(schema.visualWorkflowRuns.parentRunId, frontier),
+        ),
+      );
+    frontier = children.map((child) => child.id).filter((id) => !runIds.includes(id));
+    runIds.push(...frontier);
+  }
 
   await db
     .update(schema.visualWorkflowRuns)
@@ -30,9 +49,8 @@ export async function requestWorkflowCancellation(input: RunIdentity) {
     })
     .where(
       and(
-        eq(schema.visualWorkflowRuns.id, input.runId),
+        inArray(schema.visualWorkflowRuns.id, runIds),
         eq(schema.visualWorkflowRuns.organizationId, input.organizationId),
-        eq(schema.visualWorkflowRuns.visualWorkflowId, input.visualWorkflowId),
         inArray(schema.visualWorkflowRuns.status, ["queued", "running"]),
       ),
     );

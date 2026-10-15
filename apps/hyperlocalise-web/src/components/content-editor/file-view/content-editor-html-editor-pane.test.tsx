@@ -20,6 +20,19 @@ import { ContentEditorTestProviders } from "@/components/content-editor/shared/c
 
 import { ContentEditorHtmlEditorPane } from "./content-editor-html-editor-pane";
 
+function fetchInputUrl(input: unknown): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  if (input instanceof Request) {
+    return input.url;
+  }
+  return "";
+}
+
 describe("ContentEditorHtmlEditorPane", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -191,7 +204,9 @@ describe("ContentEditorHtmlEditorPane", () => {
     );
 
     await waitFor(() => {
-      expect(fetchMock.mock.calls.some(([input]) => String(input).includes("saved"))).toBe(true);
+      expect(fetchMock.mock.calls.some(([input]) => fetchInputUrl(input).includes("saved"))).toBe(
+        true,
+      );
     });
     expect(screen.getByLabelText("Translated (fr)")).toHaveValue("<p>Saved and more</p>");
   });

@@ -13,6 +13,7 @@
 import { getWorkflowInputFields, getWorkflowOutputFields } from "../catalog/node-contracts";
 import type {
   CanonicalVisualWorkflowNode,
+  VisualWorkflowIssueReason,
   VisualWorkflowV3Definition,
   VisualWorkflowV3Edge,
   WorkflowBinding,
@@ -38,6 +39,9 @@ export type VisualWorkflowV3CompilationIssue = {
     | "overlapping_try_catch_region";
   edgeId?: string;
   nodeId?: string;
+  /** The input of the step that is at fault, by its name, when the issue is about one. */
+  field?: string;
+  reason?: VisualWorkflowIssueReason;
 };
 
 export type CompiledVisualWorkflowV3Definition = {
@@ -386,13 +390,15 @@ export function compileVisualWorkflowV3Definition(
   }
 
   for (const node of nodes) {
-    if (node.config.kind !== "flow.return") continue;
+    if (node.config.kind !== "flow.return" && node.config.kind !== "flow.call_workflow") continue;
 
     for (const field of getWorkflowInputFields(node)) {
       if (field.required && !Object.hasOwn(node.inputs ?? {}, field.name)) {
         issues.push({
           code: "missing_required_input",
           nodeId: node.id,
+          field: field.name,
+          reason: "required",
         });
       }
     }

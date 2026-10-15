@@ -96,6 +96,31 @@ func (api *issueSheetAPI) watchIssue(ctx context.Context, actor issueSheetActor,
 	}, 201, nil
 }
 
+func subscribeUsersToIssue(ctx context.Context, db dictionaryDB, organizationID, projectID, issueID string, userIDs []string, requireProjectAccess bool) error {
+	for _, userID := range userIDs {
+		if userID == "" {
+			continue
+		}
+		if requireProjectAccess {
+			allowed, err := userHasIssueProjectAccess(ctx, db, organizationID, projectID, userID)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				continue
+			}
+		}
+		if _, err := db.Exec(ctx, `
+            insert into issue_sheet_subscriptions (organization_id, project_id, issue_id, user_id)
+            values ($1, $2, $3, $4)
+            on conflict do nothing`,
+			organizationID, projectID, issueID, userID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (api *issueSheetAPI) unwatchIssue(ctx context.Context, actor issueSheetActor, project issueSheetProject, issueRef string) (any, int, error) {
 	issueID, err := api.resolveIssueID(ctx, actor.organizationID, project.ID, issueRef)
 	if err != nil {

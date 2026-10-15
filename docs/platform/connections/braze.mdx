@@ -1,0 +1,204 @@
+---
+title: "Localize Braze"
+description: "Choose Braze Email Templates or Campaigns & Canvas. Both skills share one Integrations connection. Do not mix them on one automation."
+---
+
+Hyperlocalise offers two Braze workflows, matching the split Crowdin publishes for Braze: **Email Templates** and **Campaigns & Canvas**. Use one workspace Braze connection for both. Choose the workflow that matches the Braze features you localize.
+
+## Choose the right workflow
+
+| Channel or feature | Braze Campaigns & Canvas | Braze Email Templates |
+| --- | --- | --- |
+| Campaigns | Available | Not in this workflow |
+| Canvas steps | Available | Not in this workflow |
+| Email templates | Not in this workflow | Available |
+| Content Blocks | Not in this workflow | Available |
+
+**Email Templates** imports HTML from the Braze media library, translates it in [Jobs](/platform/translation/jobs), then writes locale-suffixed copies such as `Template_Name_fr-FR`. The source template stays unchanged.
+
+**Campaigns & Canvas** imports tagged draft campaign and Canvas message variations as JSON, then writes approved locales into Braze multi-language variants. Do not attach both skills on one automation.
+
+Connected Content, send-time fetch, and drag-and-drop email templates stay out of both workflows.
+
+## Prerequisites
+
+| Requirement | Description |
+| --- | --- |
+| Native project | A [native project](/platform/projects/create-project) whose source locale and target locales map onto Braze locale keys or copy suffixes. |
+| Braze REST API key | Created in Braze **Settings → APIs and Identifiers**. Grant list access for **templates**, **Content Blocks**, **campaigns**, and **Canvas**. Save checks those four. Campaigns & Canvas also needs details and translations get/update on campaigns and Canvas. |
+| Braze REST cluster | The REST endpoint for that instance (for example `https://rest.iad-03.braze.com` or cluster `iad-03`). Search or paste it on the connection form. |
+| Braze multi-language settings | For Campaigns & Canvas, add locales in Braze **Settings → Localization Settings** before you tag messages. Note each **Locale key** (for example `en-US`, `fr-FR`). |
+| Locale mapping | Email Templates copy suffixes use native project locale tags (`fr-FR` writes `Template_Name_fr-FR`). Campaigns & Canvas maps those same tags to Braze locale UUIDs by exact `locale.name` or `locale_key`. Keep locked pairs separate: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`. |
+
+## Connect Braze
+
+1. Open workspace **Integrations** and find **Braze**.
+2. Paste the REST API key and choose the REST cluster for that instance.
+3. Save. Hyperlocalise pings Braze on that cluster to confirm the key can list email templates, Content Blocks, campaigns, and Canvas. A rejected key, missing permission, or unreachable cluster is not stored.
+4. Confirm the connection shows as connected.
+
+Connect Braze before you add a Braze skill. Email Templates and Campaigns & Canvas use the same connection.
+
+## Braze Email Templates
+
+Use this workflow to localize email at the template level. Import never changes Braze. **Push to Braze** is a separate action. It never updates the source template and never publishes.
+
+### Step 1: Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Braze email templates** template, or add the **Translate Braze Email Templates** skill from **Add Skill**.
+3. Attach the native project.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed templates and Content Blocks. It does not push copies.
+5. Under **Braze Email Templates**, set:
+   - **Source locale** (usually the project source)
+   - Optional **Email templates** and **Content Blocks** to limit import. Leave both empty to import the library, skipping locale copies
+   - **Existing Braze translations**: **Only empty locales** (default), **Refresh imported locales**, or **Overwrite all locales**
+   - **Overwrite Braze copies when the remote copy is newer** is on by default. Uncheck it to keep copies that teammates edited after the last push
+6. Save the automation.
+
+Braze is not a trigger type. Use a schedule or **Run now** for import. Use **Push to Braze** for write-back.
+
+### Step 2: Import templates
+
+**Run now** or wait for the schedule. Import writes one HTML source file per email template at `braze/templates/{template-slug}.html` and one file per Content Block at `braze/content-blocks/{block-slug}.html`. Email files store `subject`, `preheader`, `body`, and optional `plaintext_body` in field blocks. Review those files like other [HTML sources](/platform/projects/files). In the Content Editor they open in HTML File view.
+
+Import skips drag-and-drop email templates and names that already look like locale copies (`Template_Name_fr-FR`). Liquid tags stay protected so translators do not break personalization.
+
+A later import still checks mapped target locales when the source has not changed. If Braze already has a locale-suffixed copy, import can seed that copy as an approved translation. **Only empty locales** never overwrites work already in Hyperlocalise.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Locales just imported from Braze, locales already push-ready, and locales already on an open job for that file are left out. If **Translate with agent** is enabled, that leftover job is assigned to the agent.
+
+Inspect **Run History** for imported, skipped, and failed items, plus imported translations and jobs created.
+
+Import does not write copies to Braze.
+
+### Step 3: Review and push copies
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back.
+2. In the Content editor header, choose **Ingest** to import the automation’s configured set, or **Push to Braze** when at least one mapped locale is approved and no push is already running. Choose which mapped templates to write as locale-suffixed copies; the open file is selected by default. The dialog also shows the automation’s overwrite policy for newer remote copies. Hyperlocalise then opens the automation **Run History** tab so you can follow the run.
+3. Confirm Braze shows the new copies (`Template_Name_fr-FR`). The source template is unchanged. Content Block creates stay in **draft**. Publish in Braze after you review those copies.
+
+A later push skips a locale whose approved text already matches the last successful push, unless you enable overwrite for newer remote copies.
+
+Pushed copies use the native project locale in the Braze library name, for example `Welcome email_fr-FR`.
+
+## Braze Campaigns and Canvas
+
+Use this workflow to localize tagged copy inside Campaign and Canvas drafts. Import never writes to Braze. **Push to Braze** is a separate action. It never rewrites message HTML and never publishes.
+
+### Step 1: Set up locales in Braze
+
+Add target languages in Braze before you tag messages or create the automation.
+
+1. In Braze, open **Settings → Localization Settings**.
+2. Add each language you plan to support. Optionally include a region (`French` vs `French (France)`).
+3. Copy the **Locale key** for each locale (for example `en-US`, `fr-FR`, `es-MX`). Hyperlocalise matches those keys, not Braze locale UUIDs.
+
+Create the locales you will translate into. A message with tags but no locales added under **Manage languages** is skipped on import.
+
+### Step 2: Match project locales
+
+Create or choose a [native project](/platform/projects/create-project) whose locale tags match Braze.
+
+1. Set the project **source locale** to the language of the tagged default copy in Braze.
+2. Add a project target locale for each Braze locale you will write back.
+3. Use the same tag as the Braze **Locale key** or locale **name** (`fr-FR` matches `fr-FR`). Matching is exact after hyphen/underscore normalization. There is no language fallback: `es` does not map to `es-MX`, and `fr` does not map to `fr-FR`.
+4. Keep locked pairs on separate projects or omit the unused tag: `en-US` is not `en-GB`, `zh-CN` is not `zh-TW`, and `pt` is not `pt-BR`.
+
+Hyperlocalise looks up the Braze locale UUID from that exact name or key when it imports or pushes. You never paste UUIDs into the project. Unmapped project locales are skipped.
+
+### Step 3: Add translation tags to your Braze message
+
+Hyperlocalise reads the same Liquid translation tags Braze uses for multi-language messages. Wrap every piece of text, image URL, or localized link part you want translated.
+
+```liquid
+{% translation greeting %}Hello!{% endtranslation %}
+```
+
+1. Open the campaign or Canvas message in Braze.
+2. Wrap each segment with `{% translation your_id_here %}` and `{% endtranslation %}`. Give each block a unique id in that message (`greeting`, `welcome_header`). Semantic ids are easier to review in JSON File view.
+3. In most composers, highlight the text and press **Cmd + Option + L** (macOS) or **Ctrl + Alt + L** (Windows). In drag-and-drop email or Content Block editors, use **Add personalization** and choose translation tags.
+4. After you add tags, select **Manage languages** (or **Languages** in drag-and-drop) and add at least one locale from Localization Settings.
+5. Save the message as a **draft**. Post-launch drafts are in scope. Live-only messages without a draft are skipped.
+
+Keep tags around the smallest segments you can. Surrounding untagged HTML and Liquid stay in Braze. Do not nest translation tags. Braze allows up to 200 tags per message and about 2,000 characters of default text per tag.
+
+**Text and HTML.** Wrap only human-readable text. Leave `class`, `style`, `id`, and other attributes outside the tags.
+
+```html
+<p class="headline" style="color: red;">
+  {% translation sale_headline %}Welcome to our sale{% endtranslation %}
+</p>
+```
+
+Do not wrap a whole HTML document or a full `<p>` that includes attributes. That breaks formatting and can prevent Braze from exporting the translation map.
+
+**Links.** Keep `https://` and query strings outside the tags. Wrap only the language-specific host or path:
+
+```html
+<a href="https://{% translation store_host %}example.shop.com{% endtranslation %}">Visit our store</a>
+```
+
+**Right-to-left default copy.** Wrap the source text in a `span` so Braze can format it:
+
+```liquid
+{% translation greeting %}<span dir="rtl">مرحبا</span>{% endtranslation %}
+```
+
+If tags are missing, import finds no `translation_map` and skips that variation. Use **Email Templates** for library HTML. Do not wrap campaign copy and expect Email Templates to import it.
+
+### Step 4: Create the automation
+
+1. Open workspace **Automations** and select **New Automation**.
+2. Apply the **Translate Braze Campaigns & Canvas** template, or add that skill from **Add Skill**. Do not also attach **Translate Braze Email Templates**.
+3. Attach the native project from Step 2.
+4. Choose a **scheduled** or **manual** trigger. A schedule imports changed drafts. It does not push.
+5. Under **Braze Campaigns & Canvas**, set the source locale, optional campaign and Canvas filters, and the existing-translation policy.
+6. Save the automation.
+
+Braze is not a trigger type. Use a schedule, **Run now**, or Content Editor **Ingest** for import. Use **Push to Braze** for write-back.
+
+### Step 5: Import drafts
+
+**Run now**, wait for the schedule, or choose **Ingest** in the Content editor header. Import writes one JSON file per campaign message variation at `braze/campaigns/{campaign-slug}/{variation-slug}.json` and one file per Canvas message variation at `braze/canvas/{canvas-slug}/{step-slug}/{variation-slug}.json`. Each file is the Braze `translation_map` (tag id → source text). In the Content Editor those files open in JSON File view.
+
+Import skips archived, live-only, and messages without multi-language setup. Existing Braze locale maps seed into the project per the configured policy. **Only empty locales** never overwrites work already in Hyperlocalise.
+
+When **Create native TMS job** is enabled, the run opens a job for mapped locales that still need translation. Import does not write translations to Braze.
+
+### Step 6: Review and push locales
+
+1. Translate and [approve](/platform/cat) the mapped locales you want to write back. You do not need every locale approved.
+2. In the Content editor header, choose **Push to Braze**. Approved locales write into Braze multi-language variants by locale UUID. Push does not publish a live send.
+3. Open **Run History** if you need imported, skipped, or failed variations.
+
+A later push skips a locale whose approved map already matches the last successful push, unless you enable overwrite for newer remote translations.
+
+### Step 7: Preview as a multi-language user in Braze
+
+1. Open the campaign or Canvas step in the Braze composer.
+2. Open the **Test** tab.
+3. Choose **Preview message as user** (or **Preview as User → Multi-Language User**).
+4. Pick a user whose `language` attribute matches a translated locale key, or switch locale definitions in the multi-language preview.
+5. Confirm the tagged segments switch from the source language to the approved translation.
+
+Publish in Braze only after that preview. Hyperlocalise never publishes.
+
+## Change or remove access
+
+Disconnect Braze from **Integrations** when this workspace should stop using that Braze account. Inspect automations that depend on the connection before you disconnect. After you reconnect, confirm the REST cluster still matches.
+
+If the Email Templates library list is empty, confirm the API key, cluster, and that you completed the connection. See [Connection troubleshooting](/platform/help/connections).
+
+## If import or push does not run
+
+- Confirm Braze is connected and the automation is **Active**.
+- Confirm the REST cluster matches the Braze instance that owns the content.
+- Confirm you added locales in **Localization Settings**, tagged the draft, and selected those locales under **Manage languages**.
+- Confirm project locale tags match Braze **Locale key** or name exactly. Do not pair locked regional variants as the source.
+- If **Push to Braze** is missing, approve at least one mapped locale, confirm you have permission to manage automations, and wait until any in-progress push finishes.
+- Open **Run History** for the failed template, variation, or locale.
+- If **Ingest** is missing, confirm an active Braze automation is attached to the project and you can manage automations. Ingest stays available before any locale is push-ready.
+- An Email Templates automation will not pull campaign or Canvas messages. Use **Translate Braze Campaigns & Canvas**.
+
+See [Automation troubleshooting](/platform/help/automations) and [Connection troubleshooting](/platform/help/connections).

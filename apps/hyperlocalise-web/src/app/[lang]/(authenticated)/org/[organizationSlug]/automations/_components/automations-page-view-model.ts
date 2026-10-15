@@ -14,6 +14,7 @@ import type { IntlShape } from "react-intl";
 
 import {
   WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES,
+  listWorkspaceAutomationTemplateCategories,
   listWorkspaceAutomationTemplates,
   type WorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplateCategory,
@@ -75,7 +76,9 @@ export function resolveSortedAutomationTemplates(
 export function resolveTemplateCategoryTabs(templates: WorkspaceAutomationTemplate[]) {
   const counts = new Map<WorkspaceAutomationTemplateCategory, number>();
   for (const template of templates) {
-    counts.set(template.category, (counts.get(template.category) ?? 0) + 1);
+    for (const category of listWorkspaceAutomationTemplateCategories(template)) {
+      counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
   }
 
   return WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.filter((category) => counts.has(category.id));
