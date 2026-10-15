@@ -16,6 +16,8 @@ import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   ArrowCounterClockwiseIcon,
+  ArrowUUpLeftIcon,
+  ArrowUUpRightIcon,
   DotsThreeIcon,
   TrashIcon,
   PlayIcon,
@@ -42,6 +44,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -84,7 +87,8 @@ import { WorkspacePageShell } from "../../_components/workspace-resource-shared"
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
-import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
+import { useAutomationUndoNotice } from "./automation-undo-controls";
+import { automationUndoMessages } from "./automation-undo.messages";
 import { isSlackChannelMissing } from "./slack-channel-select";
 import { useAutomationFieldErrors } from "./use-automation-field-errors";
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
@@ -577,23 +581,6 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.runNow} />
         </Button>
       ) : null}
-      <AutomationUndoRedoButtons
-        canUndo={history.canUndo}
-        canRedo={history.canRedo}
-        undoStep={history.undoStep}
-        redoStep={history.redoStep}
-        disabled={writeInFlight}
-        onUndo={runUndo}
-        onRedo={runRedo}
-      />
-      <Button
-        variant="outline"
-        onClick={() => setDiscardDialogOpen(true)}
-        disabled={writeInFlight || !hasChanges}
-      >
-        <ArrowCounterClockwiseIcon data-icon="inline-start" />
-        <FormattedMessage {...automationDetailPageContentMessages.discardChanges} />
-      </Button>
       <Button
         onClick={() => {
           if (deleteInFlight) {
@@ -628,7 +615,23 @@ export function AutomationDetailPageContent({
         >
           <DotsThreeIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-40">
+        <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuItem
+            disabled={writeInFlight || !hasChanges}
+            onClick={() => setDiscardDialogOpen(true)}
+          >
+            <ArrowCounterClockwiseIcon />
+            <FormattedMessage {...automationDetailPageContentMessages.discardChanges} />
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={writeInFlight || !history.canUndo} onClick={runUndo}>
+            <ArrowUUpLeftIcon />
+            <FormattedMessage {...automationUndoMessages.undo} />
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={writeInFlight || !history.canRedo} onClick={runRedo}>
+            <ArrowUUpRightIcon />
+            <FormattedMessage {...automationUndoMessages.redo} />
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             variant="destructive"
             disabled={writeInFlight}

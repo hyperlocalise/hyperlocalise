@@ -165,9 +165,26 @@ function pendingResponse() {
   return new Promise(() => undefined);
 }
 
+async function openMoreActions(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "More actions" }));
+}
+
 async function openDeleteMenu(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "More actions" }));
+  await openMoreActions(user);
   return screen.getByRole("menuitem", { name: "Delete" });
+}
+
+async function openDiscardMenu(user: ReturnType<typeof userEvent.setup>) {
+  await openMoreActions(user);
+  return screen.getByRole("menuitem", { name: "Discard" });
+}
+
+function expectMenuItemDisabled(name: string) {
+  expect(screen.getByRole("menuitem", { name })).toHaveAttribute("aria-disabled", "true");
+}
+
+function expectMenuItemEnabled(name: string) {
+  expect(screen.getByRole("menuitem", { name })).not.toHaveAttribute("aria-disabled", "true");
 }
 
 describe("AutomationDetailPageContent write locking", () => {
@@ -496,7 +513,8 @@ describe("AutomationDetailPageContent save errors", () => {
 
     await vi.waitFor(() => expect(apiMocks.getAutomation).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled());
-    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+    await openMoreActions(user);
+    expectMenuItemDisabled("Discard");
   });
 
   it("drops errors the form no longer earns when the form changes", async () => {
@@ -555,13 +573,15 @@ describe("AutomationDetailPageContent discard changes", () => {
 
     renderPage();
 
-    expect(await screen.findByRole("button", { name: "Discard" })).toBeDisabled();
+    await openMoreActions(user);
+    expectMenuItemDisabled("Discard");
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Dirty form" }));
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       "Renamed automation",
     );
 
-    await user.click(screen.getByRole("button", { name: "Discard" }));
+    await user.click(await openDiscardMenu(user));
     const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
     await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));
 
@@ -571,7 +591,8 @@ describe("AutomationDetailPageContent discard changes", () => {
       ).not.toBeInTheDocument(),
     );
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(automation.name);
-    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    expectMenuItemDisabled("Discard");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(apiMocks.patchAutomation).not.toHaveBeenCalled();
   });
@@ -587,7 +608,7 @@ describe("AutomationDetailPageContent discard changes", () => {
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: "Dirty form" }));
-    await user.click(screen.getByRole("button", { name: "Discard" }));
+    await user.click(await openDiscardMenu(user));
     const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
     await user.click(within(dialog).getByRole("button", { name: "Keep editing" }));
 
@@ -616,7 +637,7 @@ describe("AutomationDetailPageContent discard changes", () => {
     await user.click(await screen.findByRole("button", { name: "Dirty form" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More actions" })).toBeDisabled();
   });
 });
 
@@ -878,8 +899,10 @@ describe("AutomationDetailPageContent undo", () => {
 
     renderPage(scheduledAutomation);
 
-    expect(await screen.findByRole("button", { name: "Undo" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Redo" })).toBeDisabled();
+    const user = userEvent.setup();
+    await openMoreActions(user);
+    expectMenuItemDisabled("Undo");
+    expectMenuItemDisabled("Redo");
   });
 
   it("undoes a discard, bringing the edits back and re-enabling Save", async () => {
@@ -889,7 +912,7 @@ describe("AutomationDetailPageContent undo", () => {
     renderPage(scheduledAutomation);
 
     await user.click(await screen.findByRole("button", { name: "Dirty form" }));
-    await user.click(screen.getByRole("button", { name: "Discard" }));
+    await user.click(await openDiscardMenu(user));
     const dialog = await screen.findByRole("alertdialog", { name: "Discard changes?" });
     await user.click(within(dialog).getByRole("button", { name: "Discard changes" }));
     await vi.waitFor(() =>
@@ -923,7 +946,8 @@ describe("AutomationDetailPageContent undo", () => {
     await user.click(within(dialog).getByRole("button", { name: "Discard changes and run" }));
     await vi.waitFor(() => expect(apiMocks.runAutomation).toHaveBeenCalledOnce());
 
-    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Undo" }));
 
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       "Renamed automation",
@@ -946,12 +970,15 @@ describe("AutomationDetailPageContent undo", () => {
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       "Renamed automation",
     );
-    expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+    await openMoreActions(user);
+    expectMenuItemEnabled("Undo");
+    await user.keyboard("{Escape}");
     await user.keyboard("{Control>}z{/Control}");
     expect(screen.getByRole("status", { name: "Form name" })).toHaveTextContent(
       scheduledAutomation.name,
     );
-    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    await openMoreActions(user);
+    expectMenuItemDisabled("Undo");
   });
 
   it("records a change saved elsewhere as a step, so undo brings the edits back", async () => {
@@ -991,7 +1018,7 @@ describe("AutomationDetailPageContent undo", () => {
 
     const { queryClient } = renderPage(scheduledAutomation);
 
-    await screen.findByRole("button", { name: "Undo" });
+    await screen.findByRole("button", { name: "More actions" });
     await refetch(queryClient);
 
     await vi.waitFor(() =>
@@ -999,7 +1026,9 @@ describe("AutomationDetailPageContent undo", () => {
         "Saved by a teammate",
       ),
     );
-    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    const user = userEvent.setup();
+    await openMoreActions(user);
+    expectMenuItemDisabled("Undo");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
@@ -1019,7 +1048,9 @@ describe("AutomationDetailPageContent undo", () => {
     await user.click(await screen.findByRole("button", { name: "Dirty form" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
     await vi.waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeDisabled());
-    expect(screen.getByRole("button", { name: "Undo" })).toBeEnabled();
+    await openMoreActions(user);
+    expectMenuItemEnabled("Undo");
+    await user.keyboard("{Escape}");
 
     await user.keyboard("{Control>}z{/Control}");
 
@@ -1095,6 +1126,8 @@ describe("AutomationDetailPageContent undo", () => {
     await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
 
     expect(name).toHaveValue(sourceUploadAutomation.name);
-    expect(screen.getByRole("button", { name: "Redo", hidden: true })).toBeEnabled();
+    await user.keyboard("{Escape}");
+    await openMoreActions(user);
+    expectMenuItemEnabled("Redo");
   });
 });
