@@ -200,6 +200,27 @@ describe("applyVisualWorkflowEdits", () => {
     expect(slack?.data.inputs).toEqual({ channelId: { kind: "literal", value: "C1" } });
   });
 
+  it("takes an empty value as a setting left for the person", () => {
+    const { state, results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        {
+          op: "add_node",
+          id: "notify_slack",
+          type: "action.notify_slack",
+          after: { nodeId: "set", handle: null },
+          config: { message: "Done", channelId: "" },
+        },
+      ],
+    });
+
+    expect(results[0]).toMatchObject({ status: "applied" });
+    expect(state.nodes.find((entry) => entry.id === "notify_slack")?.data.config).toMatchObject({
+      channelId: "",
+      message: "Done",
+    });
+  });
+
   it("leaves the called workflow of a Call workflow step to the person", () => {
     const { results } = applyVisualWorkflowEdits({
       state: base,

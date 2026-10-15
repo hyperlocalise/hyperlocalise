@@ -261,12 +261,6 @@ function mergeConfig(
   if (!patch || keys.length === 0) {
     return { config: current };
   }
-  const personOnly = keys.filter((key) => PERSON_ONLY_SETTINGS[type]?.includes(key));
-  if (personOnly.length > 0) {
-    return {
-      error: `${personOnly.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} is chosen by the person on the step's panel.`,
-    };
-  }
   const variant = nodeConfigSchemaFor(type);
   const unknown = keys.filter((key) => key === "kind" || !(key in variant.shape));
   if (unknown.length > 0) {
@@ -274,11 +268,31 @@ function mergeConfig(
       error: `${VISUAL_NODE_DESCRIPTIONS[type].title} has no setting called ${unknown.join(", ")}.`,
     };
   }
+  // An empty text value leaves a setting for the person to fill in, as a step fresh from the
+  // picker has it, so it is not held to the setting's rules.
+  const existing = current as unknown as Record<string, unknown>;
+  const blank = keys.filter(
+    (key) =>
+      patch[key] === "" && (existing[key] === undefined || typeof existing[key] === "string"),
+  );
+  const given = keys.filter((key) => !blank.includes(key));
+  const personOnly = given.filter((key) => PERSON_ONLY_SETTINGS[type]?.includes(key));
+  if (personOnly.length > 0) {
+    return {
+      error: `${personOnly.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} is chosen by the person on the step's panel.`,
+    };
+  }
   const parsed = variant
-    .pick(Object.fromEntries(keys.map((key) => [key, true as const])))
-    .safeParse(patch);
+    .pick(Object.fromEntries(given.map((key) => [key, true as const])))
+    .safeParse(Object.fromEntries(given.map((key) => [key, patch[key]])));
   return parsed.success
-    ? { config: { ...current, ...parsed.data } as VisualNodeConfig }
+    ? {
+        config: {
+          ...current,
+          ...Object.fromEntries(blank.map((key) => [key, ""])),
+          ...parsed.data,
+        } as VisualNodeConfig,
+      }
     : { error: describeZodIssues(parsed.error) };
 }
 
