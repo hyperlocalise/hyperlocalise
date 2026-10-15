@@ -76,42 +76,13 @@ function isKnownSegmentKey(key: string): boolean {
   return key.startsWith(SOURCE_TEXT_KEY_PREFIX) || key.startsWith(SEGMENT_KEY_PREFIX);
 }
 
-function flattenSegmentEntries(
-  output: Record<string, string>,
-  prefix: string,
-  value: unknown,
-): void {
-  if (typeof value === "string") {
-    if (isKnownSegmentKey(prefix)) {
-      output[prefix] = value;
-    }
-    return;
-  }
-
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return;
-  }
-
-  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-    flattenSegmentEntries(output, prefix ? `${prefix}.${key}` : key, nested);
-  }
-}
-
 export function parseTranslationFile(content: Record<string, unknown>): Record<string, string> {
   const translations: Record<string, string> = {};
-  const leaves: Record<string, unknown> = {};
-  const nested: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(content)) {
-    if (typeof value === "string") {
-      leaves[key] = value;
-    } else {
-      nested[key] = value;
+    if (typeof value === "string" && isKnownSegmentKey(key)) {
+      translations[key] = value;
     }
   }
-
-  flattenSegmentEntries(translations, "", leaves);
-  flattenSegmentEntries(translations, "", nested);
   return translations;
 }
 

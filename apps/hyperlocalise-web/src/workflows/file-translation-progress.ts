@@ -12,8 +12,6 @@
  */
 import { z } from "zod";
 
-import { isSourceTextKey, parseTranslationFile } from "@/lib/canva/segment-file";
-
 export const fileTranslationReportSchema = z.object({
   deferredByLimit: z.number().int().nonnegative(),
   succeeded: z.number().int().nonnegative(),
@@ -70,57 +68,6 @@ export function collectCompletedTranslationPageEntries(input: {
   return collected;
 }
 
-/** When the sandbox target file and `hl entries` disagree, pick the value that
- * actually looks translated. Prefer on-disk file text when both differ. */
-export function resolveCollectedTranslationEntryValue(
-  sourceText: string,
-  fileValue: string | undefined,
-  hlValue: string | undefined,
-): string | undefined {
-  const source = sourceText.trim();
-  const file = fileValue?.trim() ?? "";
-  const hl = hlValue?.trim() ?? "";
-  if (!file && !hl) {
-    return undefined;
-  }
-  const fileDiffersFromSource = file.length > 0 && file !== source;
-  const hlDiffersFromSource = hl.length > 0 && hl !== source;
-  if (fileDiffersFromSource && hlDiffersFromSource && file !== hl) {
-    return file;
-  }
-  if (fileDiffersFromSource) {
-    return file;
-  }
-  if (hlDiffersFromSource) {
-    return hl;
-  }
-  return file.length > 0 ? file : hl;
-}
-
-export function mergeCanvaJsonExtractedEntries(input: {
-  keys: readonly string[];
-  sourceEntries: Record<string, string>;
-  fileExtracted: Record<string, string>;
-  hlExtracted: Record<string, string>;
-}): Record<string, string> {
-  const merged: Record<string, string> = {};
-  for (const key of input.keys) {
-    const resolved = resolveCollectedTranslationEntryValue(
-      input.sourceEntries[key] ?? "",
-      input.fileExtracted[key],
-      input.hlExtracted[key],
-    );
-    if (resolved?.trim()) {
-      merged[key] = resolved;
-    }
-  }
-  return merged;
-}
-
-function usesCanvaSourceTextKeys(sourceEntries: Record<string, string>): boolean {
-  return Object.keys(sourceEntries).some(isSourceTextKey);
-}
-
 /** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
  * lock and a re-extracted target file never share keys. Collect only path keys
  * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
@@ -172,7 +119,6 @@ export async function collectFileTranslationPageStep(input: {
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
   const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
-  const canvaJsonCollect = usesCanvaSourceTextKeys(input.sourceEntries);
   const lock: unknown = JSON.parse(
     utf8FromStoredFileContent(
       await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
@@ -215,22 +161,9 @@ export async function collectFileTranslationPageStep(input: {
     });
     if (!extracted.ok) throw new Error("failed to extract completed translations");
     const hlExtracted = hlEntriesPayloadToStringMap(extracted.entries);
-    let extractedForCollect = hlExtracted;
-    if (canvaJsonCollect && filename.endsWith(".json")) {
-      const targetRaw = utf8FromStoredFileContent(
-        await readTranslatedFile(input.sandboxId, filename),
-      );
-      const fileExtracted = parseTranslationFile(JSON.parse(targetRaw) as Record<string, unknown>);
-      extractedForCollect = mergeCanvaJsonExtractedEntries({
-        keys,
-        sourceEntries: input.sourceEntries,
-        fileExtracted,
-        hlExtracted,
-      });
-    }
     const collected = collectCompletedTranslationPageEntries({
       keys,
-      extracted: extractedForCollect,
+      extracted: hlExtracted,
       prefills: input.prefills[locale] ?? {},
     });
     if (Object.keys(collected).length > 0) {

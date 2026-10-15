@@ -85,14 +85,14 @@ describe("canva segment-file", () => {
     expect(pageNeedsReupload({ [sourceTextKey("Hello")]: "Hello" })).toBe(false);
   });
 
-  it("flattens nested job output and prefers translated values over leftover source keys", () => {
+  it("reads flat segment keys only and ignores nested objects", () => {
     expect(
       parseTranslationFile({
-        "canva.segment.0.0": "Hello",
+        "canva.segment.0.0": "Bonjour",
         canva: {
           segment: {
             "0": {
-              "0": "Bonjour",
+              "0": "Hello",
             },
           },
         },
@@ -110,7 +110,7 @@ describe("canva segment-file", () => {
         "canva.t.abcdef0123456789": "Hello",
       }),
     ).toEqual({
-      "canva.t.abcdef0123456789": "Hola",
+      "canva.t.abcdef0123456789": "Hello",
     });
   });
 });
