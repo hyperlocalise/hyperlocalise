@@ -495,11 +495,14 @@ function applyOne(
       };
     }
     case "disconnect": {
+      // A plain output and an execution input are stored as `success` and `input` or as null.
       const matches = (edge: VisualWorkflowRfEdge) =>
         edge.source === op.source &&
         edge.target === op.target &&
-        (op.sourceHandle === undefined || (edge.sourceHandle ?? null) === op.sourceHandle) &&
-        (op.targetHandle === undefined || (edge.targetHandle ?? null) === op.targetHandle);
+        (op.sourceHandle === undefined ||
+          (edge.sourceHandle ?? "success") === (op.sourceHandle ?? "success")) &&
+        (op.targetHandle === undefined ||
+          (edge.targetHandle ?? "input") === (op.targetHandle ?? "input"));
       if (!edges.some(matches)) {
         return {
           state,

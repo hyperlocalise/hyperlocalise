@@ -406,6 +406,28 @@ describe("editVisualWorkflow", () => {
     ]);
   });
 
+  it("disconnects a plain output named either way, from a workflow the page sent", () => {
+    const { output } = editVisualWorkflow(
+      context({ ...base, edges: [{ ...edge("trigger", "set"), sourceHandle: null }] }),
+      {
+        operations: [
+          {
+            op: "disconnect",
+            source: "trigger",
+            target: "set",
+            sourceHandle: "success",
+            targetHandle: null,
+          },
+        ],
+      },
+    );
+
+    expect(output.applied && output.result).toMatchObject({
+      applied: [expect.stringContaining("disconnected Manual trigger")],
+      rejected: [],
+    });
+  });
+
   it("names a step it removed by its title", () => {
     const { output } = editVisualWorkflow(context(), {
       operations: [{ op: "remove_node", nodeId: "set" }],
