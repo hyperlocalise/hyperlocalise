@@ -26,7 +26,6 @@ type ConsentConnectionOption = {
   enabled: boolean;
   organizationName: string;
   organizationSlug: string | null;
-  projectName: string | null;
 };
 
 export function FigmaOauthConsentContent({
@@ -86,7 +85,6 @@ export function FigmaOauthConsentContent({
                   {connection.organizationName}
                   {connection.organizationSlug ? ` (${connection.organizationSlug})` : ""}
                   {` · ${connection.displayName}`}
-                  {connection.projectName ? ` · ${connection.projectName}` : ""}
                 </option>
               ))}
             </select>

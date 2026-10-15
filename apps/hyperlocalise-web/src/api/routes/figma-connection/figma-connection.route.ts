@@ -135,7 +135,6 @@ export function createFigmaConnectionRoutes() {
           userId: c.var.auth.user.localUserId,
           displayName: payload.displayName,
           apiKeyId: payload.apiKeyId,
-          projectId: payload.projectId,
           enabled: payload.enabled,
         });
 

@@ -30,13 +30,10 @@ export type FigmaConnectionSession = {
     name: string;
     slug: string | null;
   };
-  project: FigmaSessionProject | null;
   projects: FigmaSessionProject[];
   connection: {
     id: string;
     displayName: string;
-    sourceLocale: string;
-    targetLocales: string[];
   };
 };
 
@@ -44,10 +41,7 @@ export type FigmaConnectionSummary = {
   id: string;
   organizationId: string;
   apiKeyId: string;
-  projectId: string | null;
   displayName: string;
-  sourceLocale: string;
-  targetLocales: string[];
   connectionTokenPrefix: string;
   enabled: boolean;
   lastUsedAt: string | null;

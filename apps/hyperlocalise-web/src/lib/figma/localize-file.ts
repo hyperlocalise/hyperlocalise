@@ -41,7 +41,10 @@ import {
 } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import { parseIntegrationJsonFileExtracted } from "@/lib/figma/integration-json-job-output";
 import { omitMultiWordSameAsSourceTranslations } from "@/lib/figma/omit-multi-word-same-as-source";
+import { createLogger } from "@/lib/log";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+
+const figmaLocalizeLogger = createLogger("figma-localize");
 
 import {
   buildFigmaPageFileName,
@@ -679,14 +682,23 @@ export async function collectFigmaPage(input: {
     uploadSurface: "figma_plugin",
   });
 
-  void enqueueSourceFileIngestAfterUpload({
-    organizationId,
-    projectId: project.id,
-    storedFileId: storedFile.id,
-    sourceFileVersionId: version.id,
-    sourcePath,
-    sourceHash,
-  }).catch(() => {});
+  try {
+    await enqueueSourceFileIngestAfterUpload({
+      organizationId,
+      projectId: project.id,
+      storedFileId: storedFile.id,
+      sourceFileVersionId: version.id,
+      sourcePath,
+      sourceHash,
+    });
+  } catch (error) {
+    figmaLocalizeLogger.warn("figma source ingest enqueue failed", {
+      organizationId,
+      projectId: project.id,
+      storedFileId: storedFile.id,
+      errorCode: error instanceof Error ? error.message : "unknown",
+    });
+  }
 
   return {
     projectId: project.id,

@@ -38,10 +38,7 @@ function serializeConnection(connection: FigmaConnectionRow): FigmaConnectionSum
     id: connection.id,
     organizationId: connection.organizationId,
     apiKeyId: connection.apiKeyId,
-    projectId: connection.projectId,
     displayName: connection.displayName,
-    sourceLocale: connection.sourceLocale,
-    targetLocales: connection.targetLocales ?? [],
     connectionTokenPrefix: connection.connectionTokenPrefix,
     enabled: connection.enabled,
     lastUsedAt: connection.lastUsedAt?.toISOString() ?? null,
@@ -81,40 +78,6 @@ export async function assertApiKeyUsableForFigma(input: {
   }
 
   return apiKey;
-}
-
-async function loadProjectLocaleSnapshot(input: {
-  organizationId: string;
-  projectId: string;
-}): Promise<{ sourceLocale: string; targetLocales: string[] }> {
-  const [project] = await db
-    .select({
-      id: schema.projects.id,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.id, input.projectId),
-        eq(schema.projects.organizationId, input.organizationId),
-      ),
-    )
-    .limit(1);
-
-  if (!project) {
-    throw new Error("figma_project_not_found");
-  }
-
-  const sourceLocale = project.sourceLocale?.trim();
-  if (!sourceLocale) {
-    throw new Error("figma_project_source_locale_missing");
-  }
-
-  return {
-    sourceLocale,
-    targetLocales: project.targetLocales ?? [],
-  };
 }
 
 function serializeSessionProject(project: {
@@ -213,95 +176,18 @@ export async function getFigmaConnectionSession(input: {
     apiKeyId: connection.apiKeyId,
   });
 
-  let project =
-    connection.projectId == null
-      ? null
-      : (projects.find((entry) => entry.id === connection.projectId) ?? null);
-
-  if (!project && connection.projectId) {
-    const [boundProject] = await db
-      .select({
-        id: schema.projects.id,
-        name: schema.projects.name,
-        sourceLocale: schema.projects.sourceLocale,
-        targetLocales: schema.projects.targetLocales,
-      })
-      .from(schema.projects)
-      .where(
-        and(
-          eq(schema.projects.id, connection.projectId),
-          eq(schema.projects.organizationId, input.organizationId),
-        ),
-      )
-      .limit(1);
-    project = boundProject ? serializeSessionProject(boundProject) : null;
-  }
-
   return {
     organization: {
       id: organization.id,
       name: organization.name,
       slug: organization.slug ?? null,
     },
-    project,
     projects,
     connection: {
       id: connection.id,
       displayName: connection.displayName,
-      sourceLocale: connection.sourceLocale,
-      targetLocales: connection.targetLocales,
     },
   };
-}
-
-export async function bindFigmaConnectionProject(input: {
-  organizationId: string;
-  connectionId: string;
-  projectId: string;
-}): Promise<FigmaConnectionSession> {
-  const connection = await getFigmaConnection({
-    organizationId: input.organizationId,
-    connectionId: input.connectionId,
-  });
-  if (!connection) {
-    throw new Error("figma_session_not_found");
-  }
-
-  const locales = await loadProjectLocaleSnapshot({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-  });
-  const accessible = await listFigmaAccessibleProjects({
-    organizationId: input.organizationId,
-    apiKeyId: connection.apiKeyId,
-  });
-  if (!accessible.some((project) => project.id === input.projectId)) {
-    throw new Error("figma_project_not_found");
-  }
-
-  const [updated] = await db
-    .update(schema.figmaConnections)
-    .set({
-      projectId: input.projectId,
-      sourceLocale: locales.sourceLocale,
-      targetLocales: locales.targetLocales,
-    })
-    .where(
-      and(
-        eq(schema.figmaConnections.organizationId, input.organizationId),
-        eq(schema.figmaConnections.id, input.connectionId),
-      ),
-    )
-    .returning({ id: schema.figmaConnections.id });
-
-  if (!updated) {
-    throw new Error("figma_session_not_found");
-  }
-
-  return getFigmaConnectionSession({
-    organizationId: input.organizationId,
-    connectionId: input.connectionId,
-  });
 }
 
 export async function listFigmaConnections(input: {
@@ -341,19 +227,12 @@ export async function createFigmaConnection(input: {
   userId: string;
   displayName: string;
   apiKeyId: string;
-  projectId?: string;
   enabled?: boolean;
 }): Promise<FigmaConnectionSecretResult> {
   await assertApiKeyUsableForFigma({
     organizationId: input.organizationId,
     apiKeyId: input.apiKeyId,
   });
-  const locales = input.projectId
-    ? await loadProjectLocaleSnapshot({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-      })
-    : { sourceLocale: "", targetLocales: [] as string[] };
 
   const connectionToken = generateFigmaConnectionToken();
   const [connection] = await db
@@ -361,12 +240,9 @@ export async function createFigmaConnection(input: {
     .values({
       organizationId: input.organizationId,
       apiKeyId: input.apiKeyId,
-      projectId: input.projectId ?? null,
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,
-      sourceLocale: locales.sourceLocale,
-      targetLocales: locales.targetLocales,
       enabled: input.enabled ?? true,
       connectionTokenHash: hashFigmaConnectionToken(connectionToken),
       connectionTokenPrefix: getFigmaConnectionTokenPrefix(connectionToken),
@@ -389,7 +265,6 @@ export async function updateFigmaConnection(input: {
   connectionId: string;
   displayName?: string;
   apiKeyId?: string;
-  projectId?: string;
   enabled?: boolean;
 }): Promise<FigmaConnectionSummary | null> {
   const existing = await getFigmaConnection({
@@ -407,22 +282,11 @@ export async function updateFigmaConnection(input: {
     });
   }
 
-  const nextProjectId = input.projectId !== undefined ? input.projectId : existing.projectId;
-  const locales = nextProjectId
-    ? await loadProjectLocaleSnapshot({
-        organizationId: input.organizationId,
-        projectId: nextProjectId,
-      })
-    : { sourceLocale: "", targetLocales: [] as string[] };
-
   const [connection] = await db
     .update(schema.figmaConnections)
     .set({
       displayName: input.displayName,
       apiKeyId: input.apiKeyId,
-      projectId: input.projectId,
-      sourceLocale: locales.sourceLocale,
-      targetLocales: locales.targetLocales,
       enabled: input.enabled,
       updatedByUserId: input.userId,
     })

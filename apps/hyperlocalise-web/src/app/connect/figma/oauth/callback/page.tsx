@@ -2,40 +2,54 @@
 
 import { useEffect, useState } from "react";
 
-const FIGMA_OAUTH_MESSAGE_TYPE = "hyperlocalise-figma-oauth";
-
 export default function FigmaOAuthCallbackPage() {
   const [detail, setDetail] = useState("Completing sign-in…");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const state = params.get("state") ?? "";
+    const writeKey = params.get("state") ?? "";
     const code = params.get("code") ?? undefined;
     const error = params.get("error") ?? undefined;
     const errorDescription = params.get("error_description") ?? undefined;
 
-    if (window.opener) {
-      window.opener.postMessage(
-        {
-          type: FIGMA_OAUTH_MESSAGE_TYPE,
-          state,
-          code,
-          error,
-          errorDescription,
-        },
-        window.location.origin,
-      );
-    }
+    const completeHandoff = async () => {
+      if (!writeKey) {
+        setDetail("Missing authorization response. Close this window and try again.");
+        return;
+      }
 
-    if (error) {
-      setDetail(errorDescription ?? error);
-      return;
-    }
-    if (code) {
-      setDetail("Connected. You can close this window and return to Figma.");
-      return;
-    }
-    setDetail("Missing authorization response. Close this window and try again.");
+      try {
+        const response = await fetch("/api/oauth/figma/handoff/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            writeKey,
+            code,
+            error,
+            errorDescription,
+          }),
+        });
+        if (!response.ok) {
+          setDetail("Could not finish sign-in. Close this window and try again in Figma.");
+          return;
+        }
+      } catch {
+        setDetail("Could not finish sign-in. Close this window and try again in Figma.");
+        return;
+      }
+
+      if (error) {
+        setDetail(errorDescription ?? error);
+        return;
+      }
+      if (code) {
+        setDetail("Connected. You can close this window and return to Figma.");
+        return;
+      }
+      setDetail("Missing authorization response. Close this window and try again.");
+    };
+
+    void completeHandoff();
   }, []);
 
   return (

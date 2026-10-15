@@ -12,8 +12,6 @@
  */
 import { z } from "zod";
 
-import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
-
 export const figmaConnectionIdParamSchema = z.object({
   connectionId: z.string().uuid(),
 });
@@ -21,17 +19,11 @@ export const figmaConnectionIdParamSchema = z.object({
 export const createFigmaConnectionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256),
   apiKeyId: z.string().uuid(),
-  projectId: projectIdSchema.optional(),
   enabled: z.boolean().optional(),
-});
-
-export const bindFigmaProjectBodySchema = z.object({
-  projectId: projectIdSchema,
 });
 
 export const updateFigmaConnectionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256).optional(),
   apiKeyId: z.string().uuid().optional(),
-  projectId: optionalProjectIdSchema.optional(),
   enabled: z.boolean().optional(),
 });

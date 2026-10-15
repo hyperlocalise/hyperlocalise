@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   generateFigmaLocalizationMock: vi.fn(),
   generateFigmaLocaleJobsMock: vi.fn(),
   pullFigmaPageLocaleContentMock: vi.fn(),
+  getAccessibleFigmaProjectMock: vi.fn(),
   reconcileWorkosMembershipsForUserMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -43,6 +44,7 @@ vi.mock("@/lib/figma/localize-file", () => ({
   generateFigmaLocalization: mocks.generateFigmaLocalizationMock,
   generateFigmaLocaleJobs: mocks.generateFigmaLocaleJobsMock,
   pullFigmaPageLocaleContent: mocks.pullFigmaPageLocaleContentMock,
+  getAccessibleFigmaProject: mocks.getAccessibleFigmaProjectMock,
 }));
 
 vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
@@ -166,7 +168,7 @@ describe("figmaIntegrationRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({ error: "figma_connection_not_found" });
   });
 
-  it("returns the connected workspace session", async () => {
+  it("returns the workspace session and lists accessible projects", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -183,7 +185,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma session",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     const response = await client.api.integrations.figma.session.$get(undefined, {
@@ -194,9 +195,9 @@ describe("figmaIntegrationRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      session: { project: { id: string }; connection: { id: string } };
+      session: { projects: Array<{ id: string }>; connection: { id: string } };
     };
-    expect(body.session.project.id).toBe(projectBody.project.id);
+    expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
     expect(body.session.connection.id).toBe(created.connection.id);
   });
 
@@ -232,7 +233,7 @@ describe("figmaIntegrationRoutes", () => {
     expect(body).toMatchObject({ error: "figma_api_key_not_found" });
   });
 
-  it("returns an unbound session and lists org projects", async () => {
+  it("lists org projects on session without binding a connection to one", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -262,11 +263,9 @@ describe("figmaIntegrationRoutes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       session: {
-        project: { id: string } | null;
         projects: Array<{ id: string; name: string }>;
       };
     };
-    expect(body.session.project).toBeNull();
     expect(body.session.projects.map((project) => project.id)).toContain(projectBody.project.id);
   });
 
@@ -287,7 +286,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma collect",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     mocks.collectFigmaPageMock.mockResolvedValue({
@@ -300,6 +298,7 @@ describe("figmaIntegrationRoutes", () => {
     const response = await client.api.integrations.figma.collect.$post(
       {
         json: {
+          projectId: projectBody.project.id,
           fileKey: "file-key",
           pageId: "page-id",
           segments: [sampleSegment],
@@ -346,7 +345,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma locales",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     mocks.listFigmaPageLocaleStatusesMock.mockResolvedValue({
@@ -395,7 +393,7 @@ describe("figmaIntegrationRoutes", () => {
     );
   });
 
-  it("creates a job when the connection token is valid and a project is bound", async () => {
+  it("creates a job when the connection token is valid and projectId is supplied", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -412,7 +410,14 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma jobs",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
+    });
+
+    mocks.getAccessibleFigmaProjectMock.mockResolvedValue({
+      id: projectBody.project.id,
+      name: "Test project",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
     });
 
     mocks.startFigmaLocalizationMock.mockResolvedValue({
@@ -425,8 +430,10 @@ describe("figmaIntegrationRoutes", () => {
     const response = await client.api.integrations.figma.jobs.$post(
       {
         json: {
+          projectId: projectBody.project.id,
           fileKey: "file-key",
           pageId: "page-id",
+          targetLocales: ["fr-FR"],
           generate: false,
           segments: [sampleSegment],
         },
@@ -474,7 +481,14 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma generate",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
+    });
+
+    mocks.getAccessibleFigmaProjectMock.mockResolvedValue({
+      id: projectBody.project.id,
+      name: "Test project",
+      source: "native",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
     });
 
     mocks.generateFigmaLocaleJobsMock.mockResolvedValue({
@@ -487,6 +501,7 @@ describe("figmaIntegrationRoutes", () => {
     const response = await client.api.integrations.figma.jobs.$post(
       {
         json: {
+          projectId: projectBody.project.id,
           fileKey: "file-key",
           pageId: "page-id",
           targetLocales: ["vi"],
@@ -520,7 +535,7 @@ describe("figmaIntegrationRoutes", () => {
     );
   });
 
-  it("rejects job creation until a project is bound", async () => {
+  it("rejects job creation without projectId", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -554,10 +569,10 @@ describe("figmaIntegrationRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ error: "figma_project_not_bound" });
+    await expect(response.json()).resolves.toMatchObject({ error: "invalid_figma_job_payload" });
   });
 
-  it("pulls translations for a bound project", async () => {
+  it("pulls translations for a project", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     await apiKeyFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -574,7 +589,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma pull",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
@@ -628,7 +642,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma source pull",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     mocks.pullFigmaPageLocaleContentMock.mockResolvedValue({
@@ -685,7 +698,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma usage",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     const [untouched] = await db
@@ -725,7 +737,6 @@ describe("figmaIntegrationRoutes", () => {
       userId: auth.user.localUserId,
       displayName: "Figma disabled",
       apiKeyId: apiKey.id,
-      projectId: projectBody.project.id,
     });
 
     const disableResponse = await client.api.orgs[":organizationSlug"]["figma-connections"][

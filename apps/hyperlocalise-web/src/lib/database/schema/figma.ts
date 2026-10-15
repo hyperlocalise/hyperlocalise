@@ -10,11 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
-  jsonb,
   pgTable,
   text,
   timestamp,
@@ -24,11 +22,10 @@ import {
 
 import { organizationApiKeys } from "./integrations";
 import { organizations, users } from "./organizations";
-import { projects } from "./projects";
 
 /**
  * Stores per-organization Figma plugin connections bound to an API key.
- * Designers pick a native project from the Figma plugin.
+ * Designers pick a native project in the Figma plugin per request.
  * The plugin authenticates with an OAuth access token or a localhost connection token.
  */
 export const figmaConnections = pgTable(
@@ -41,7 +38,6 @@ export const figmaConnections = pgTable(
     apiKeyId: uuid("api_key_id")
       .notNull()
       .references(() => organizationApiKeys.id, { onDelete: "restrict" }),
-    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -49,11 +45,6 @@ export const figmaConnections = pgTable(
       onDelete: "set null",
     }),
     displayName: text("display_name").notNull(),
-    sourceLocale: text("source_locale").notNull().default("en"),
-    targetLocales: jsonb("target_locales")
-      .$type<string[]>()
-      .notNull()
-      .default(sql`'["es","fr","de"]'::jsonb`),
     connectionTokenHash: text("connection_token_hash").notNull(),
     connectionTokenPrefix: text("connection_token_prefix").notNull(),
     enabled: boolean("enabled").notNull().default(true),
@@ -68,7 +59,6 @@ export const figmaConnections = pgTable(
     uniqueIndex("figma_connections_token_hash_key").on(table.connectionTokenHash),
     index("idx_figma_connections_org").on(table.organizationId),
     index("idx_figma_connections_api_key").on(table.apiKeyId),
-    index("idx_figma_connections_project").on(table.projectId),
   ],
 );
 
@@ -137,5 +127,29 @@ export const figmaOauthTokens = pgTable(
     uniqueIndex("figma_oauth_tokens_refresh_token_hash_key").on(table.refreshTokenHash),
     index("idx_figma_oauth_tokens_connection").on(table.connectionId),
     index("idx_figma_oauth_tokens_org").on(table.organizationId),
+  ],
+);
+
+/**
+ * Server-side OAuth handoff for the Figma plugin (null-origin iframe / external browser).
+ */
+export const figmaOauthHandoffs = pgTable(
+  "figma_oauth_handoffs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    readKeyHash: text("read_key_hash").notNull(),
+    writeKeyHash: text("write_key_hash").notNull(),
+    code: text("code"),
+    error: text("error"),
+    errorDescription: text("error_description"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("figma_oauth_handoffs_read_key_hash_key").on(table.readKeyHash),
+    uniqueIndex("figma_oauth_handoffs_write_key_hash_key").on(table.writeKeyHash),
+    index("idx_figma_oauth_handoffs_expires").on(table.expiresAt),
   ],
 );

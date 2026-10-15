@@ -20,9 +20,6 @@ export type FigmaConnectionVariables = {
     id: string;
     organizationId: string;
     apiKeyId: string;
-    projectId: string | null;
-    sourceLocale: string;
-    targetLocales: string[];
     enabled: boolean;
   };
 };
@@ -85,9 +82,6 @@ export const figmaConnectionAuthMiddleware = createMiddleware<{
     id: connection.id,
     organizationId: connection.organizationId,
     apiKeyId: connection.apiKeyId,
-    projectId: connection.projectId,
-    sourceLocale: connection.sourceLocale,
-    targetLocales: connection.targetLocales ?? [],
     enabled: connection.enabled,
   });
 

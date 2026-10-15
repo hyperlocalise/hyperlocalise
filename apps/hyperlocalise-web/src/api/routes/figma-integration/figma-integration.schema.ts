@@ -12,17 +12,7 @@
  */
 import { z } from "zod";
 
-import type { ApiKeyPermission } from "@/api/routes/api-key/api-key.schema";
-import { projectIdSchema, optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
-
-/** Least-required PAT scopes for Figma plugin routes. */
-export const FIGMA_SESSION_PERMISSION = "files:read" satisfies ApiKeyPermission;
-export const FIGMA_PROJECTS_PERMISSION = "files:read" satisfies ApiKeyPermission;
-export const FIGMA_JOB_READ_PERMISSION = "jobs:read" satisfies ApiKeyPermission;
-export const FIGMA_JOB_WRITE_PERMISSION = "jobs:write" satisfies ApiKeyPermission;
-export const FIGMA_FILES_READ_PERMISSION = "files:read" satisfies ApiKeyPermission;
-export const FIGMA_FILES_WRITE_PERMISSION = "files:write" satisfies ApiKeyPermission;
-export const FIGMA_TRANSLATIONS_PERMISSION = "files:read" satisfies ApiKeyPermission;
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const figmaSegmentSchema = z.object({
   key: z.string().min(1).max(256),
@@ -40,7 +30,7 @@ const stampedSegmentKeySchema = z
   });
 
 export const collectFigmaPageBodySchema = z.object({
-  projectId: projectIdSchema.optional(),
+  projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
   fileName: z.string().min(1).max(256).optional(),
@@ -56,7 +46,7 @@ export const collectFigmaPageBodySchema = z.object({
 });
 
 export const figmaLocalesQuerySchema = z.object({
-  projectId: optionalProjectIdSchema,
+  projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
   pageIds: z
     .string()
@@ -71,13 +61,13 @@ export const figmaLocalesQuerySchema = z.object({
 });
 
 export const createFigmaJobBodySchema = z.object({
-  projectId: projectIdSchema.optional(),
+  projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
   fileName: z.string().min(1).max(256).optional(),
   pageName: z.string().min(1).max(256).optional(),
   sourceLocale: z.string().min(2).max(32).optional(),
-  targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50).optional(),
+  targetLocales: z.array(z.string().min(2).max(32)).min(1).max(50),
   generate: z.boolean().optional().default(true),
   segments: z
     .array(
@@ -94,7 +84,7 @@ export const figmaJobIdParamSchema = z.object({
 });
 
 export const currentFigmaJobQuerySchema = z.object({
-  projectId: optionalProjectIdSchema,
+  projectId: projectIdSchema,
   fileKey: z.string().min(1).max(128),
   pageId: z.string().min(1).max(128),
 });

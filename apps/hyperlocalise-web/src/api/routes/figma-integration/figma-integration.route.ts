@@ -18,9 +18,12 @@ import {
   type FigmaConnectionVariables,
 } from "@/api/auth/figma-connection";
 import { figmaCorsMiddleware } from "@/api/auth/figma-cors";
-import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import {
-  bindFigmaConnectionProject,
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+} from "@/api/response.schema";
+import {
   getFigmaConnectionSession,
   resolveTeamAccessForFigmaConnection,
   touchFigmaConnectionUsage,
@@ -29,17 +32,18 @@ import {
   collectFigmaPage,
   generateFigmaLocaleJobs,
   generateFigmaLocalization,
+  getAccessibleFigmaProject,
   getCurrentFigmaPageJob,
   getFigmaLocalizationStatus,
   listFigmaPageLocaleStatuses,
   pullFigmaPageLocaleContent,
   startFigmaLocalization,
 } from "@/lib/figma/localize-file";
+import { createLogger } from "@/lib/log";
 import type { FileStorageAdapter } from "@/lib/file-storage/types";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { env } from "@/lib/env";
 
-import { bindFigmaProjectBodySchema } from "../figma-connection/figma-connection.schema";
 import {
   collectFigmaPageBodySchema,
   createFigmaJobBodySchema,
@@ -122,25 +126,17 @@ const validatePullQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-const validateBindProjectBody = validator("json", (value, c) => {
-  const parsed = bindFigmaProjectBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return badRequestResponse(
-      c,
-      "invalid_figma_project_payload",
-      "Figma project payload is invalid.",
-      parsed.error.flatten(),
-    );
-  }
-  return parsed.data;
-});
-
 type CreateFigmaIntegrationRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
-function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
+const figmaIntegrationLogger = createLogger("figma-integration");
+
+function localizeErrorResponse(
+  c: Parameters<typeof badRequestResponse>[0] & { var: FigmaConnectionVariables },
+  error: unknown,
+) {
   const message = error instanceof Error ? error.message : "figma_localize_failed";
   const notFoundCodes = new Set([
     "figma_project_not_found",
@@ -152,6 +148,10 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
     return notFoundResponse(c, message);
   }
 
+  if (message === "figma_api_key_unauthorized") {
+    return forbiddenResponse(c, message);
+  }
+
   const badRequestCodes = new Set([
     "figma_no_text_segments",
     "figma_page_not_collected",
@@ -160,7 +160,6 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
     "job_already_running",
     "file_translation_job_required",
     "native_job_required",
-    "figma_project_not_bound",
     "job_source_locale_not_in_project",
     "job_target_locale_not_in_project",
     "duplicate_job_target_locales",
@@ -171,20 +170,13 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
     return badRequestResponse(c, message);
   }
 
-  return c.json(
-    {
-      error: "figma_localize_failed",
-      message,
-    },
-    502,
-  );
-}
+  figmaIntegrationLogger.warn("figma integration request failed", {
+    connectionId: c.var.figmaConnection.id,
+    organizationId: c.var.figmaConnection.organizationId,
+    errorCode: message,
+  });
 
-function requireBoundProject(connection: FigmaConnectionVariables["figmaConnection"]) {
-  if (!connection.projectId) {
-    throw new Error("figma_project_not_bound");
-  }
-  return connection.projectId;
+  return c.json({ error: "figma_localize_failed" }, 500);
 }
 
 async function resolveConnectionAuth(connection: FigmaConnectionVariables["figmaConnection"]) {
@@ -228,22 +220,6 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         return localizeErrorResponse(c, error);
       }
     })
-    .post("/project", figmaConnectionAuthMiddleware, validateBindProjectBody, async (c) => {
-      const payload = c.req.valid("json");
-      const connection = c.var.figmaConnection;
-      await touchFigmaConnectionUsage(connection.id);
-
-      try {
-        const session = await bindFigmaConnectionProject({
-          organizationId: connection.organizationId,
-          connectionId: connection.id,
-          projectId: payload.projectId,
-        });
-        return c.json({ session }, 200);
-      } catch (error) {
-        return localizeErrorResponse(c, error);
-      }
-    })
     .post("/collect", figmaConnectionAuthMiddleware, validateCollectBody, async (c) => {
       const payload = c.req.valid("json");
       const connection = c.var.figmaConnection;
@@ -251,11 +227,10 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
 
       try {
         const auth = await resolveConnectionAuth(connection);
-        const projectId = payload.projectId ?? requireBoundProject(connection);
         const result = await collectFigmaPage({
           auth,
           apiKeyId: connection.apiKeyId,
-          projectId,
+          projectId: payload.projectId,
           fileKey: payload.fileKey,
           pageId: payload.pageId,
           fileName: payload.fileName,
@@ -277,7 +252,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         const auth = await resolveConnectionAuth(connection);
         const result = await listFigmaPageLocaleStatuses({
           auth,
-          projectId: query.projectId ?? requireBoundProject(connection),
+          projectId: query.projectId,
           fileKey: query.fileKey,
           pageIds: query.pageIds,
         });
@@ -297,15 +272,19 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
 
       try {
         const auth = await resolveConnectionAuth(connection);
-        const projectId = requireBoundProject(connection);
-        const sourceLocale = payload.sourceLocale ?? connection.sourceLocale;
-        const targetLocales = payload.targetLocales ?? connection.targetLocales;
+        const project = await getAccessibleFigmaProject(auth, payload.projectId);
+        if (!project) {
+          throw new Error("figma_project_not_found");
+        }
+        const sourceLocale =
+          payload.sourceLocale?.trim() || project.sourceLocale?.trim() || "";
+        const targetLocales = payload.targetLocales;
 
         if (payload.segments && payload.segments.length > 0) {
           const result = await startFigmaLocalization({
             auth,
             apiKeyId: connection.apiKeyId,
-            projectId,
+            projectId: payload.projectId,
             fileKey: payload.fileKey,
             pageId: payload.pageId,
             fileName: payload.fileName,
@@ -322,7 +301,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
 
         const result = await generateFigmaLocaleJobs({
           auth,
-          projectId,
+          projectId: payload.projectId,
           fileKey: payload.fileKey,
           pageId: payload.pageId,
           sourceLocale,
@@ -345,7 +324,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
           auth,
           fileKey: query.fileKey,
           pageId: query.pageId,
-          projectId: query.projectId ?? requireBoundProject(connection),
+          projectId: query.projectId,
         });
         return c.json(result, 200);
       } catch (error) {
@@ -403,7 +382,7 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
         const auth = await resolveConnectionAuth(connection);
         const pullResult = await pullFigmaPageLocaleContent({
           auth,
-          projectId: query.projectId ?? requireBoundProject(connection),
+          projectId: query.projectId,
           fileKey: query.fileKey,
           pageId: query.pageId,
           locale: query.locale,

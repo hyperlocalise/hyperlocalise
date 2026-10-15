@@ -57,9 +57,6 @@ export type FigmaOauthConnectionRecord = {
   id: string;
   organizationId: string;
   apiKeyId: string;
-  projectId: string | null;
-  sourceLocale: string;
-  targetLocales: string[];
   enabled: boolean;
 };
 
@@ -70,10 +67,15 @@ export type FigmaOauthConsentConnection = {
   organizationId: string;
   organizationName: string;
   organizationSlug: string | null;
-  projectId: string | null;
-  projectName: string | null;
   role: OrganizationMembershipRole;
 };
+
+const FIGMA_OAUTH_HANDOFF_LIFETIME_MS = 10 * 60 * 1000;
+
+export type FigmaOauthHandoffReadResult =
+  | { status: "pending" }
+  | { status: "expired" }
+  | { status: "done"; code?: string; error?: string; errorDescription?: string };
 
 function getOauthSecret(): Buffer {
   const decoded = Buffer.from(env.PROVIDER_CREDENTIALS_MASTER_KEY, "base64");
@@ -324,10 +326,11 @@ export async function issueFigmaOauthTokens(input: {
 }
 
 export async function refreshFigmaOauthTokens(refreshToken: string) {
+  const refreshTokenHash = digestFigmaOauthToken(refreshToken);
   const [row] = await db
     .select()
     .from(schema.figmaOauthTokens)
-    .where(eq(schema.figmaOauthTokens.refreshTokenHash, digestFigmaOauthToken(refreshToken)))
+    .where(eq(schema.figmaOauthTokens.refreshTokenHash, refreshTokenHash))
     .limit(1);
 
   if (!row || row.revokedAt || row.refreshTokenExpiresAt.getTime() < Date.now()) {
@@ -347,7 +350,13 @@ export async function refreshFigmaOauthTokens(refreshToken: string) {
       refreshTokenExpiresAt: new Date(now + REFRESH_TOKEN_LIFETIME_MS),
       revokedAt: null,
     })
-    .where(and(eq(schema.figmaOauthTokens.id, row.id), isNull(schema.figmaOauthTokens.revokedAt)))
+    .where(
+      and(
+        eq(schema.figmaOauthTokens.id, row.id),
+        eq(schema.figmaOauthTokens.refreshTokenHash, refreshTokenHash),
+        isNull(schema.figmaOauthTokens.revokedAt),
+      ),
+    )
     .returning({ id: schema.figmaOauthTokens.id });
 
   if (!updated) {
@@ -401,9 +410,6 @@ export async function getFigmaConnectionByOauthAccessToken(
       id: schema.figmaConnections.id,
       organizationId: schema.figmaConnections.organizationId,
       apiKeyId: schema.figmaConnections.apiKeyId,
-      projectId: schema.figmaConnections.projectId,
-      sourceLocale: schema.figmaConnections.sourceLocale,
-      targetLocales: schema.figmaConnections.targetLocales,
       enabled: schema.figmaConnections.enabled,
       revokedAt: schema.figmaOauthTokens.revokedAt,
       accessTokenExpiresAt: schema.figmaOauthTokens.accessTokenExpiresAt,
@@ -430,10 +436,96 @@ export async function getFigmaConnectionByOauthAccessToken(
     id: row.id,
     organizationId: row.organizationId,
     apiKeyId: row.apiKeyId,
-    projectId: row.projectId,
-    sourceLocale: row.sourceLocale,
-    targetLocales: row.targetLocales ?? [],
     enabled: row.enabled,
+  };
+}
+
+function generateFigmaOauthHandoffKey(): string {
+  return randomCredentialBytes(32);
+}
+
+export async function createFigmaOauthHandoff(): Promise<{ readKey: string; writeKey: string }> {
+  const readKey = generateFigmaOauthHandoffKey();
+  const writeKey = generateFigmaOauthHandoffKey();
+  await db.insert(schema.figmaOauthHandoffs).values({
+    readKeyHash: digestFigmaOauthToken(readKey),
+    writeKeyHash: digestFigmaOauthToken(writeKey),
+    expiresAt: new Date(Date.now() + FIGMA_OAUTH_HANDOFF_LIFETIME_MS),
+  });
+  return { readKey, writeKey };
+}
+
+export async function completeFigmaOauthHandoff(input: {
+  writeKey: string;
+  code?: string;
+  error?: string;
+  errorDescription?: string;
+}): Promise<boolean> {
+  const writeKeyHash = digestFigmaOauthToken(input.writeKey);
+  const [updated] = await db
+    .update(schema.figmaOauthHandoffs)
+    .set({
+      code: input.code ?? null,
+      error: input.error ?? null,
+      errorDescription: input.errorDescription ?? null,
+      completedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.figmaOauthHandoffs.writeKeyHash, writeKeyHash),
+        isNull(schema.figmaOauthHandoffs.completedAt),
+        gt(schema.figmaOauthHandoffs.expiresAt, new Date()),
+      ),
+    )
+    .returning({ id: schema.figmaOauthHandoffs.id });
+
+  return Boolean(updated);
+}
+
+export async function readFigmaOauthHandoff(readKey: string): Promise<FigmaOauthHandoffReadResult> {
+  const readKeyHash = digestFigmaOauthToken(readKey);
+  const [row] = await db
+    .select()
+    .from(schema.figmaOauthHandoffs)
+    .where(eq(schema.figmaOauthHandoffs.readKeyHash, readKeyHash))
+    .limit(1);
+
+  if (!row) {
+    return { status: "expired" };
+  }
+
+  if (row.expiresAt.getTime() < Date.now()) {
+    return { status: "expired" };
+  }
+
+  if (!row.completedAt) {
+    return { status: "pending" };
+  }
+
+  const [consumed] = await db
+    .update(schema.figmaOauthHandoffs)
+    .set({ consumedAt: new Date() })
+    .where(
+      and(
+        eq(schema.figmaOauthHandoffs.id, row.id),
+        isNull(schema.figmaOauthHandoffs.consumedAt),
+      ),
+    )
+    .returning({
+      code: schema.figmaOauthHandoffs.code,
+      error: schema.figmaOauthHandoffs.error,
+      errorDescription: schema.figmaOauthHandoffs.errorDescription,
+    });
+
+  if (!consumed) {
+    return { status: "expired" };
+  }
+
+  return {
+    status: "done",
+    code: consumed.code ?? undefined,
+    error: consumed.error ?? undefined,
+    errorDescription: consumed.errorDescription ?? undefined,
   };
 }
 
@@ -448,8 +540,6 @@ export async function listFigmaOauthConsentConnections(
       organizationId: schema.organizations.id,
       organizationName: schema.organizations.name,
       organizationSlug: schema.organizations.slug,
-      projectId: schema.projects.id,
-      projectName: schema.projects.name,
       role: schema.organizationMemberships.role,
     })
     .from(schema.organizationMemberships)
@@ -461,7 +551,6 @@ export async function listFigmaOauthConsentConnections(
       schema.figmaConnections,
       eq(schema.figmaConnections.organizationId, schema.organizations.id),
     )
-    .leftJoin(schema.projects, eq(schema.figmaConnections.projectId, schema.projects.id))
     .where(eq(schema.organizationMemberships.userId, userId));
 
   return rows;

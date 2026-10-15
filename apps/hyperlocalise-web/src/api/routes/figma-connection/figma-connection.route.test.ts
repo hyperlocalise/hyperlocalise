@@ -81,7 +81,6 @@ describe("figmaConnectionRoutes", () => {
         json: {
           displayName: "Marketing Figma",
           apiKeyId: apiKey.id,
-          projectId: projectBody.project.id,
         },
       },
       { headers },
@@ -92,19 +91,16 @@ describe("figmaConnectionRoutes", () => {
       figmaConnection: {
         displayName: string;
         connectionTokenPrefix: string;
-        sourceLocale: string;
-        targetLocales: string[];
       };
       connectionToken: string;
     };
     expect(body.figmaConnection.displayName).toBe("Marketing Figma");
-    expect(body.figmaConnection.sourceLocale).toBe("en-US");
-    expect(body.figmaConnection.targetLocales).toEqual(["fr-FR", "de-DE"]);
     expect(body.connectionToken).toMatch(/^hl_figma_/);
     expect(body.figmaConnection.connectionTokenPrefix).toBe(body.connectionToken.slice(0, 12));
+    expect(projectBody.project.id).toBeTruthy();
   });
 
-  it("creates a Figma connection without a project", async () => {
+  it("creates a Figma connection without optional fields", async () => {
     const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
     const headers = await apiKeyFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -126,11 +122,9 @@ describe("figmaConnectionRoutes", () => {
 
     expect(response.status).toBe(201);
     const body = (await response.json()) as {
-      figmaConnection: { projectId: string | null; sourceLocale: string; targetLocales: string[] };
+      figmaConnection: { displayName: string };
     };
-    expect(body.figmaConnection.projectId).toBeNull();
-    expect(body.figmaConnection.sourceLocale).toBe("");
-    expect(body.figmaConnection.targetLocales).toEqual([]);
+    expect(body.figmaConnection.displayName).toBe("Unbound Figma");
   });
 
   it("records a credential rotation when the connection token is regenerated", async () => {
@@ -141,16 +135,12 @@ describe("figmaConnectionRoutes", () => {
     const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
       name: "Figma Rotation Key",
     });
-    const projectResponse = await projectFixture.createProjectViaApi(identity);
-    const projectBody = (await projectResponse.json()) as { project: { id: string } };
-
     const createResponse = await client.api.orgs[":organizationSlug"]["figma-connections"].$post(
       {
         param: { organizationSlug },
         json: {
           displayName: "Rotating Figma",
           apiKeyId: apiKey.id,
-          projectId: projectBody.project.id,
         },
       },
       { headers },
@@ -187,7 +177,6 @@ describe("figmaConnectionRoutes", () => {
         json: {
           displayName: "Blocked",
           apiKeyId: "00000000-0000-4000-8000-000000000001",
-          projectId: "project_test",
         },
       },
       { headers },

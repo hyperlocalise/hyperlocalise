@@ -18,7 +18,6 @@ import {
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import {
-  bindFigmaProject,
   collectFigmaPage,
   createFigmaJob,
   generateFigmaLocaleJob,
@@ -62,14 +61,14 @@ import {
 } from "./figma-locale-status";
 import {
   buildFigmaAuthorizeUrl,
-  createOAuthState,
+  createFigmaOauthHandoff,
   createPkceChallenge,
   createPkceVerifier,
   exchangeFigmaAuthorizationCode,
   fetchFigmaIntegrationHealth,
   figmaOAuthRedirectUri,
+  pollFigmaOauthHandoff,
   refreshFigmaAccessToken,
-  waitForFigmaOAuthCallback,
 } from "./figma-oauth";
 import { isLocalAppUrl } from "./local-development";
 import { pickTranslationsForLocale, projectLocalesMatch } from "./locale-map";
@@ -523,11 +522,8 @@ export function App() {
         }
 
         setProjects(session.projects);
-        const boundProject = session.project;
-        const nextProjectId =
-          boundProject?.id ?? resolvePersistedProjectId(settings.projectId, session.projects);
-        const nextProject =
-          boundProject ?? session.projects.find((project) => project.id === nextProjectId);
+        const nextProjectId = resolvePersistedProjectId(settings.projectId, session.projects);
+        const nextProject = session.projects.find((project) => project.id === nextProjectId);
         persistSettings({
           ...settings,
           userEmail: null,
@@ -876,11 +872,8 @@ export function App() {
         auth,
       });
       setProjects(session.projects);
-      const boundProject = session.project;
-      const nextProjectId =
-        boundProject?.id ?? resolvePersistedProjectId(settings.projectId, session.projects);
-      const nextProject =
-        boundProject ?? session.projects.find((project) => project.id === nextProjectId);
+      const nextProjectId = resolvePersistedProjectId(settings.projectId, session.projects);
+      const nextProject = session.projects.find((project) => project.id === nextProjectId);
       persistSettings({
         ...settings,
         organizationSlug: session.organization.slug ?? "",
@@ -949,16 +942,16 @@ export function App() {
         throw new Error("OAuth is not configured on this Hyperlocalise deployment.");
       }
 
+      const handoff = await createFigmaOauthHandoff(settings.appUrl);
       const verifier = createPkceVerifier();
       const codeChallenge = await createPkceChallenge(verifier);
-      const state = createOAuthState();
       const redirectUri = figmaOAuthRedirectUri(settings.appUrl);
       const authorizeUrl = buildFigmaAuthorizeUrl({
         appUrl: settings.appUrl,
         clientId,
         redirectUri,
         codeChallenge,
-        state,
+        state: handoff.writeKey,
       });
 
       const popup = window.open(authorizeUrl, "hyperlocalise_figma_oauth", "width=520,height=720");
@@ -966,7 +959,10 @@ export function App() {
         throw new Error("Allow pop-ups for this plugin to connect with Hyperlocalise.");
       }
 
-      const callback = await waitForFigmaOAuthCallback(state, popup);
+      const callback = await pollFigmaOauthHandoff({
+        appUrl: settings.appUrl,
+        readKey: handoff.readKey,
+      });
       popup.close();
       if ("error" in callback) {
         throw new Error(callback.errorDescription ?? "Hyperlocalise sign-in was cancelled.");
@@ -1006,41 +1002,24 @@ export function App() {
 
   const handleProjectChange = (projectId: string) =>
     runAction("bind", async () => {
-      const setStep = (label: string, value: number) => {
-        setBindProgress({ label, value });
-      };
-
-      try {
-        if (!auth) {
-          throw new Error("Connect first.");
-        }
-        const project = projects.find((item) => item.id === projectId);
-        setStep("Connecting project...", 20);
-        const session = await bindFigmaProject({
-          appUrl: settings.appUrl,
-          auth,
-          projectId,
-        });
-        setProjects(session.projects);
-        const boundProject = session.project ?? project;
-        setStep("Loading languages...", 55);
-        persistSettings({
-          ...settings,
-          projectId,
-          organizationSlug: session.organization.slug ?? settings.organizationSlug,
-          organizationName: session.organization.name,
-          selectedLocale: defaultSelectedLocale(boundProject ?? null, settings.selectedLocale),
-          appliedLocaleByPage: {},
-        });
-        setStep("Almost ready...", 90);
-        await refreshLocaleStatuses({
-          projectId,
-          project: boundProject ?? project ?? null,
-        });
-        setPickingProject(false);
-      } finally {
-        setBindProgress(null);
+      if (!auth) {
+        throw new Error("Connect first.");
       }
+      const project = projects.find((item) => item.id === projectId);
+      if (!project) {
+        throw new Error("Project was not found.");
+      }
+      persistSettings({
+        ...settings,
+        projectId,
+        selectedLocale: defaultSelectedLocale(project, settings.selectedLocale),
+        appliedLocaleByPage: {},
+      });
+      await refreshLocaleStatuses({
+        projectId,
+        project,
+      });
+      setPickingProject(false);
     });
 
   const handleDisconnect = () => {

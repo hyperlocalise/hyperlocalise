@@ -88,8 +88,8 @@ async function createConnectedWorkspace() {
     userId: auth.user.localUserId,
     displayName: "Figma OAuth",
     apiKeyId: apiKey.id,
-    projectId: projectBody.project.id,
   });
+  void projectBody;
 
   return { auth, created };
 }
@@ -125,8 +125,8 @@ describe("figmaOauthRoutes", () => {
     ).toBe(true);
     expect(
       connections.find((connection) => connection.connectionId === created.connection.id)
-        ?.projectName,
-    ).toBeNull();
+        ?.displayName,
+    ).toBe("Unbound Figma OAuth");
   });
 
   it("publishes authorization server metadata", async () => {
@@ -142,8 +142,45 @@ describe("figmaOauthRoutes", () => {
         revocation_endpoint: "http://localhost/api/oauth/figma/revoke",
         code_challenge_methods_supported: ["S256"],
         grant_types_supported: ["authorization_code", "refresh_token"],
+        token_endpoint_auth_methods_supported: ["none"],
       }),
     );
+  });
+
+  it("completes OAuth through the server-side handoff", async () => {
+    const handoffResponse = await app.request("http://localhost/api/oauth/figma/handoff", {
+      method: "POST",
+    });
+    expect(handoffResponse.status).toBe(201);
+    const handoff = (await handoffResponse.json()) as { readKey: string; writeKey: string };
+
+    const completeResponse = await app.request(
+      "http://localhost/api/oauth/figma/handoff/complete",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          writeKey: handoff.writeKey,
+          code: "oauth-code-from-browser",
+        }),
+      },
+    );
+    expect(completeResponse.status).toBe(200);
+
+    const pollResponse = await app.request(
+      `http://localhost/api/oauth/figma/handoff/${encodeURIComponent(handoff.readKey)}`,
+    );
+    expect(pollResponse.status).toBe(200);
+    await expect(pollResponse.json()).resolves.toEqual({
+      status: "done",
+      code: "oauth-code-from-browser",
+    });
+
+    const replayPoll = await app.request(
+      `http://localhost/api/oauth/figma/handoff/${encodeURIComponent(handoff.readKey)}`,
+    );
+    expect(replayPoll.status).toBe(200);
+    await expect(replayPoll.json()).resolves.toEqual({ status: "expired" });
   });
 
   it("rejects authorize requests with an unknown client", async () => {
@@ -292,6 +329,65 @@ describe("figmaOauthRoutes", () => {
       }).toString(),
     });
     expect(revokedRefresh.status).toBe(400);
+  });
+
+  it("allows only one concurrent refresh to succeed", async () => {
+    const { created } = await createConnectedWorkspace();
+
+    const consentResponse = await app.request("http://localhost/api/oauth/figma/consent", {
+      method: "POST",
+      headers: {
+        cookie: `${FIGMA_OAUTH_REQUEST_COOKIE}=${requestCookie()}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ connectionId: created.connection.id }).toString(),
+    });
+    const consentLocation = new URL(consentResponse.headers.get("location") ?? "");
+    const code = consentLocation.searchParams.get("code");
+    expect(code).toBeTruthy();
+
+    const tokenResponse = await app.request("http://localhost/api/oauth/figma/token", {
+      method: "POST",
+      headers: {
+        authorization: basicAuthHeader(),
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: code ?? "",
+        redirect_uri: REDIRECT_URI,
+        code_verifier: VERIFIER,
+      }).toString(),
+    });
+    const tokens = (await tokenResponse.json()) as { refresh_token: string };
+
+    const [firstRefresh, secondRefresh] = await Promise.all([
+      app.request("http://localhost/api/oauth/figma/token", {
+        method: "POST",
+        headers: {
+          authorization: basicAuthHeader(),
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: tokens.refresh_token,
+        }).toString(),
+      }),
+      app.request("http://localhost/api/oauth/figma/token", {
+        method: "POST",
+        headers: {
+          authorization: basicAuthHeader(),
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: tokens.refresh_token,
+        }).toString(),
+      }),
+    ]);
+
+    const statuses = [firstRefresh.status, secondRefresh.status].toSorted();
+    expect(statuses).toEqual([200, 400]);
   });
 
   it("denies consent when the user cancels", async () => {

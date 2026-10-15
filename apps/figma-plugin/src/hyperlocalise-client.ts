@@ -19,13 +19,10 @@ export type FigmaSessionProject = {
 
 export type FigmaSession = {
   organization: { id: string; name: string; slug: string | null };
-  project: FigmaSessionProject | null;
   projects: FigmaSessionProject[];
   connection: {
     id: string;
     displayName: string;
-    sourceLocale: string;
-    targetLocales: string[];
   };
 };
 
@@ -117,34 +114,6 @@ export async function fetchFigmaSession(input: {
     throw new HyperlocaliseClientError(
       "figma_session_failed",
       "Unable to load your Hyperlocalise session.",
-    );
-  }
-  return payload.session;
-}
-
-export async function bindFigmaProject(input: {
-  appUrl: string;
-  auth: string | FigmaResourceAuth;
-  projectId: string;
-}): Promise<FigmaSession> {
-  const response = await fetch(apiUrl(input.appUrl, "/api/integrations/figma/project"), {
-    method: "POST",
-    headers: buildRequestHeaders(input.appUrl, input.auth),
-    body: JSON.stringify({ projectId: input.projectId }),
-  });
-  const payload = (await response.json().catch(() => null)) as
-    | ({ session?: FigmaSession } & ErrorPayload)
-    | null;
-  throwIfFailed(
-    response,
-    payload,
-    "figma_project_bind_failed",
-    "Unable to select that Hyperlocalise project.",
-  );
-  if (!payload?.session) {
-    throw new HyperlocaliseClientError(
-      "figma_project_bind_failed",
-      "Unable to select that Hyperlocalise project.",
     );
   }
   return payload.session;

@@ -1,15 +1,6 @@
 import { normalizeAppUrl } from "./settings";
 
 export const FIGMA_OAUTH_CALLBACK_PATH = "/connect/figma/oauth/callback";
-export const FIGMA_OAUTH_MESSAGE_TYPE = "hyperlocalise-figma-oauth";
-
-export type FigmaOauthCallbackMessage = {
-  type: typeof FIGMA_OAUTH_MESSAGE_TYPE;
-  state: string;
-  code?: string;
-  error?: string;
-  errorDescription?: string;
-};
 
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = "";
@@ -28,12 +19,6 @@ export function createPkceVerifier(): string {
 export async function createPkceChallenge(verifier: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
   return base64UrlEncode(new Uint8Array(digest));
-}
-
-export function createOAuthState(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return base64UrlEncode(bytes);
 }
 
 export function figmaOAuthRedirectUri(appUrl: string): string {
@@ -63,8 +48,81 @@ export type FigmaOauthTokenResponse = {
   scope: string;
 };
 
-function basicAuthHeader(clientId: string): string {
-  return `Basic ${btoa(`${clientId}:`)}`;
+export type FigmaOauthHandoffKeys = {
+  readKey: string;
+  writeKey: string;
+};
+
+export type FigmaOauthHandoffPollResult =
+  | { status: "pending" }
+  | { status: "expired" }
+  | { status: "done"; code?: string; error?: string; errorDescription?: string };
+
+export async function createFigmaOauthHandoff(appUrl: string): Promise<FigmaOauthHandoffKeys> {
+  const response = await fetch(`${normalizeAppUrl(appUrl)}/api/oauth/figma/handoff`, {
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | (FigmaOauthHandoffKeys & { error?: string })
+    | null;
+  if (!response.ok || !payload?.readKey || !payload.writeKey) {
+    throw new Error(payload?.error ?? "figma_oauth_handoff_failed");
+  }
+  return { readKey: payload.readKey, writeKey: payload.writeKey };
+}
+
+export async function pollFigmaOauthHandoff(input: {
+  appUrl: string;
+  readKey: string;
+  intervalMs?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}): Promise<{ code: string } | { error: string; errorDescription?: string }> {
+  const intervalMs = input.intervalMs ?? 2_000;
+  const timeoutMs = input.timeoutMs ?? 15 * 60 * 1000;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (input.signal?.aborted) {
+      throw new Error("OAuth sign-in was cancelled.");
+    }
+
+    const response = await fetch(
+      `${normalizeAppUrl(input.appUrl)}/api/oauth/figma/handoff/${encodeURIComponent(input.readKey)}`,
+    );
+    const payload = (await response.json().catch(() => null)) as FigmaOauthHandoffPollResult | null;
+    if (!response.ok || !payload) {
+      throw new Error("figma_oauth_handoff_poll_failed");
+    }
+
+    if (payload.status === "expired") {
+      throw new Error("OAuth sign-in timed out.");
+    }
+
+    if (payload.status === "done") {
+      if (payload.code) {
+        return { code: payload.code };
+      }
+      return {
+        error: payload.error ?? "access_denied",
+        errorDescription: payload.errorDescription,
+      };
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(resolve, intervalMs);
+      input.signal?.addEventListener(
+        "abort",
+        () => {
+          window.clearTimeout(timer);
+          reject(new Error("OAuth sign-in was cancelled."));
+        },
+        { once: true },
+      );
+    });
+  }
+
+  throw new Error("OAuth sign-in timed out.");
 }
 
 export async function exchangeFigmaAuthorizationCode(input: {
@@ -84,7 +142,6 @@ export async function exchangeFigmaAuthorizationCode(input: {
   const response = await fetch(`${normalizeAppUrl(input.appUrl)}/api/oauth/figma/token`, {
     method: "POST",
     headers: {
-      Authorization: basicAuthHeader(input.clientId),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
@@ -111,7 +168,6 @@ export async function refreshFigmaAccessToken(input: {
   const response = await fetch(`${normalizeAppUrl(input.appUrl)}/api/oauth/figma/token`, {
     method: "POST",
     headers: {
-      Authorization: basicAuthHeader(input.clientId),
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
@@ -141,53 +197,4 @@ export function buildFigmaAuthorizeUrl(input: {
   url.searchParams.set("scope", "figma");
   url.searchParams.set("state", input.state);
   return url.href;
-}
-
-export function waitForFigmaOAuthCallback(
-  expectedState: string,
-  popup: Window,
-): Promise<{ code: string } | { error: string; errorDescription?: string }> {
-  return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(
-      () => {
-        cleanup();
-        reject(new Error("OAuth sign-in timed out."));
-      },
-      15 * 60 * 1000,
-    );
-
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== popup) {
-        return;
-      }
-      const data = event.data as Partial<FigmaOauthCallbackMessage> | null;
-      if (!data || data.type !== FIGMA_OAUTH_MESSAGE_TYPE || data.state !== expectedState) {
-        return;
-      }
-      cleanup();
-      if (data.code) {
-        resolve({ code: data.code });
-        return;
-      }
-      resolve({
-        error: data.error ?? "access_denied",
-        errorDescription: data.errorDescription,
-      });
-    };
-
-    const pollClosed = window.setInterval(() => {
-      if (popup.closed) {
-        cleanup();
-        reject(new Error("OAuth sign-in was closed before it finished."));
-      }
-    }, 500);
-
-    const cleanup = () => {
-      window.clearTimeout(timeout);
-      window.clearInterval(pollClosed);
-      window.removeEventListener("message", onMessage);
-    };
-
-    window.addEventListener("message", onMessage);
-  });
 }

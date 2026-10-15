@@ -16,23 +16,27 @@ import { validator } from "hono/validator";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { z } from "zod";
 
+import { figmaCorsMiddleware } from "@/api/auth/figma-cors";
 import { hasCapability } from "@/api/auth/policy";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { badRequestResponse } from "@/api/response.schema";
 import {
   authenticateFigmaOauthClient,
   buildFigmaOauthRedirect,
+  completeFigmaOauthHandoff,
+  createFigmaOauthAuthorizationCode,
+  createFigmaOauthAuthorizationRequest,
+  createFigmaOauthHandoff,
   FIGMA_OAUTH_REQUEST_COOKIE,
   FIGMA_OAUTH_SCOPE,
   consumeFigmaOauthAuthorizationCode,
-  createFigmaOauthAuthorizationCode,
-  createFigmaOauthAuthorizationRequest,
   getFigmaOauthRedirectAllowlist,
   isAllowedFigmaOauthRedirectUri,
   isFigmaOauthConfigured,
   issueFigmaOauthTokens,
   listFigmaOauthConsentConnections,
   parseFigmaOauthAuthorizationRequest,
+  readFigmaOauthHandoff,
   refreshFigmaOauthTokens,
   revokeFigmaOauthToken,
 } from "@/lib/figma/oauth";
@@ -74,6 +78,17 @@ const revokeRequestSchema = z.object({
   token_type_hint: z.enum(["access_token", "refresh_token"]).optional(),
   client_id: z.string().min(1).max(2048).optional(),
   client_secret: z.string().min(1).max(2048).optional(),
+});
+
+const handoffCompleteBodySchema = z.object({
+  writeKey: z.string().min(1).max(512),
+  code: z.string().min(1).max(8192).optional(),
+  error: z.string().min(1).max(256).optional(),
+  errorDescription: z.string().min(1).max(2048).optional(),
+});
+
+const handoffReadKeyParamSchema = z.object({
+  readKey: z.string().min(1).max(512),
 });
 
 function endpointOrigin(c: { req: { url: string } }) {
@@ -159,7 +174,7 @@ export function getFigmaOauthAuthorizationServerMetadata(origin: string) {
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
     grant_types_supported: ["authorization_code", "refresh_token"],
-    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+    token_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"],
     redirect_uris: getFigmaOauthRedirectAllowlist(),
   };
@@ -167,6 +182,7 @@ export function getFigmaOauthAuthorizationServerMetadata(origin: string) {
 
 export function createFigmaOauthRoutes(): Hono {
   return new Hono()
+    .use("*", figmaCorsMiddleware)
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getFigmaOauthAuthorizationServerMetadata(endpointOrigin(c)), 200),
     )
@@ -284,6 +300,52 @@ export function createFigmaOauthRoutes(): Hono {
         302,
       );
     })
+    .post("/handoff", async (c) => {
+      if (!isFigmaOauthConfigured()) {
+        return c.json({ error: "figma_oauth_unconfigured" }, 503);
+      }
+
+      const handoff = await createFigmaOauthHandoff();
+      return c.json(handoff, 201);
+    })
+    .post("/handoff/complete", async (c) => {
+      const parsed = handoffCompleteBodySchema.safeParse(await readFormOrJsonBody(c.req.raw));
+      if (!parsed.success) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const payload = parsed.data;
+      if (!payload.code && !payload.error) {
+        return oauthError(c, "invalid_request");
+      }
+
+      const completed = await completeFigmaOauthHandoff({
+        writeKey: payload.writeKey,
+        code: payload.code,
+        error: payload.error,
+        errorDescription: payload.errorDescription,
+      });
+      if (!completed) {
+        return oauthError(c, "invalid_grant");
+      }
+
+      return c.body(null, 200);
+    })
+    .get(
+      "/handoff/:readKey",
+      validator("param", (value, c) => {
+        const parsed = handoffReadKeyParamSchema.safeParse(value);
+        if (!parsed.success) {
+          return oauthError(c, "invalid_request");
+        }
+        return parsed.data;
+      }),
+      async (c) => {
+        const { readKey } = c.req.valid("param");
+        const result = await readFigmaOauthHandoff(readKey);
+        return c.json(result, 200);
+      },
+    )
     .post("/deny", async (c) => {
       const authRequestToken = getCookie(c, FIGMA_OAUTH_REQUEST_COOKIE);
       const authRequest = authRequestToken
