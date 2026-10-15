@@ -1532,7 +1532,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           if (page === 0) {
             continue;
           }
-          return true;
+          console.warn("[file-translation-workflow] same-as-source leftovers after retry page", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            page,
+            leftoverCount,
+            targetLocales: locales,
+          });
+          return false;
         }
         throw new FileTranslationWorkflowError(
           "translation_pagination_failed",

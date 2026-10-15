@@ -84,11 +84,15 @@ import {
 } from "./settings";
 import {
   applyOutcomeMessage,
+  emptyTranslationPullSummary,
   formatActionError,
+  mergeTranslationPullSummaries,
+  summarizeTranslationPull,
   toastBannerVariant,
   uploadPreviewSummary,
   uniqueUploadedTextCount,
   type AppToast,
+  type FigmaTranslationPullSummary,
   type FigmaUploadPreview,
   type StepProgress,
 } from "./workflow-ui";
@@ -1125,7 +1129,10 @@ export function App() {
     }
   };
 
-  const applyTranslationsForLocale = async (originatedPageId: string, locale: string) => {
+  const applyTranslationsForLocale = async (
+    originatedPageId: string,
+    locale: string,
+  ): Promise<{ count: number; summary: FigmaTranslationPullSummary }> => {
     if (!auth || !file) {
       throw new Error("Connect first.");
     }
@@ -1171,13 +1178,13 @@ export function App() {
         translationsByLocale = pulled;
       }
       if (pageIdRef.current !== originatedPageId) {
-        return 0;
+        return { count: 0, summary: emptyTranslationPullSummary() };
       }
       localeTranslations = pickTranslationsForLocale(translationsByLocale, locale);
     }
 
     if (pageIdRef.current !== originatedPageId) {
-      return 0;
+      return { count: 0, summary: emptyTranslationPullSummary() };
     }
     if (!localeTranslations) {
       throw new Error("No translations for the selected language.");
@@ -1192,10 +1199,11 @@ export function App() {
       "extracted",
     );
     if (pageIdRef.current !== originatedPageId) {
-      return 0;
+      return { count: 0, summary: emptyTranslationPullSummary() };
     }
     const remapped = await resolveSourceSegmentsForPage(originatedPageId, extracted);
     const sourceByKey = buildApplySourceByKey(remapped);
+    const summary = summarizeTranslationPull(localeTranslations, sourceByKey);
 
     const applied = await requestFromSandbox(
       {
@@ -1207,7 +1215,7 @@ export function App() {
       },
       "applied",
     );
-    return applied.count;
+    return { count: applied.count, summary };
   };
 
   const createJobForPage = async (pageId: string, generate: boolean) => {
@@ -1379,22 +1387,30 @@ export function App() {
         setStep("Loading translations from Hyperlocalise...", 10);
 
         let segmentTotal = 0;
+        const pullSummaries: FigmaTranslationPullSummary[] = [];
         const appliedPageIds: string[] = [];
         for (const pageId of selectedPageIds) {
           pageIdRef.current = pageId;
-          const count = await applyTranslationsForLocale(pageId, locale);
+          const result = await applyTranslationsForLocale(pageId, locale);
           if (pageIdRef.current !== pageId) {
             return;
           }
-          if (count > 0) {
+          pullSummaries.push(result.summary);
+          if (result.count > 0) {
             appliedPageIds.push(pageId);
           }
-          segmentTotal += count;
+          segmentTotal += result.count;
           setStep("Writing translations to selected pages...", 70);
         }
 
         const pageCount = selectedPageIds.length;
-        const outcome = applyOutcomeMessage(locale, pageCount, segmentTotal, localeLabel);
+        const outcome = applyOutcomeMessage(
+          locale,
+          pageCount,
+          segmentTotal,
+          localeLabel,
+          mergeTranslationPullSummaries(pullSummaries),
+        );
         if (outcome.tone === "critical") {
           throw new Error(outcome.message);
         }
@@ -1433,6 +1449,7 @@ export function App() {
 
         const pageCount = selectedPageIds.length;
         let segmentTotal = 0;
+        const pullSummaries: FigmaTranslationPullSummary[] = [];
         const appliedPageIds: string[] = [];
         let jobIndex = 0;
 
@@ -1471,17 +1488,24 @@ export function App() {
           }
 
           setStep("Applying to your design...", 88);
-          const count = await applyTranslationsForLocale(originatedPageId, locale);
+          const result = await applyTranslationsForLocale(originatedPageId, locale);
           if (pageIdRef.current !== originatedPageId) {
             return;
           }
-          if (count > 0) {
+          pullSummaries.push(result.summary);
+          if (result.count > 0) {
             appliedPageIds.push(originatedPageId);
           }
-          segmentTotal += count;
+          segmentTotal += result.count;
         }
 
-        const outcome = applyOutcomeMessage(locale, pageCount, segmentTotal, localeLabel);
+        const outcome = applyOutcomeMessage(
+          locale,
+          pageCount,
+          segmentTotal,
+          localeLabel,
+          mergeTranslationPullSummaries(pullSummaries),
+        );
         if (outcome.tone === "critical") {
           throw new Error(outcome.message);
         }
