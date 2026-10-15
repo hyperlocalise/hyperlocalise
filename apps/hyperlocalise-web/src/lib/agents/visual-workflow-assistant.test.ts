@@ -158,6 +158,29 @@ describe("applyVisualWorkflowEdits", () => {
     });
   });
 
+  it("sets a Wait step, whose type has a rule across its settings", () => {
+    const { state, results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        { op: "rename_workflow", name: "Wait then sync" },
+        {
+          op: "add_node",
+          id: "wait",
+          type: "flow.wait",
+          after: { nodeId: "set", handle: null },
+          config: { durationMs: 300_000 },
+        },
+        { op: "configure_node", nodeId: "wait", config: { mode: "duration", durationMs: 600_000 } },
+      ],
+    });
+
+    expect(results.map((result) => result.status)).toEqual(["applied", "applied", "applied"]);
+    expect(state.nodes.find((entry) => entry.id === "wait")?.data.config).toMatchObject({
+      mode: "duration",
+      durationMs: 600_000,
+    });
+  });
+
   it("refuses a new node the id of a node removed earlier, there or in the same call", () => {
     const { state, results, reservedNodeIds } = applyVisualWorkflowEdits({
       state: base,

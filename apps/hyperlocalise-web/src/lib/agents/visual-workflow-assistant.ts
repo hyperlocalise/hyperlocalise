@@ -227,7 +227,7 @@ export type VisualWorkflowEditChange = z.infer<typeof visualWorkflowEditChangeSc
 export type VisualWorkflowEditCallSummary =
   AutomationAssistantCallSummary<VisualWorkflowChangeLine>;
 
-/** The config rules of one node type, as a plain object schema so settings can be picked from it. */
+/** The config rules of one node type, as a plain object schema whose shape holds each setting's rule. */
 function nodeConfigSchemaFor(type: VisualCatalogType): z.ZodObject<z.ZodRawShape> {
   const variant = visualNodeConfigSchema.options.find((option) => option.shape.kind.value === type);
   if (!variant) {
@@ -290,8 +290,11 @@ function mergeConfig(
       error: `${personOnly.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} is chosen by the person on the step's panel.`,
     };
   }
-  const parsed = variant
-    .pick(Object.fromEntries(given.map((key) => [key, true as const])))
+  // Each given setting is held to its own rule. A rule across settings, such as a Wait's
+  // duration being needed in duration mode, is left to the workflow's issues, as for a step that
+  // is not finished; `pick` cannot take a type that has one.
+  const parsed = z
+    .object(Object.fromEntries(given.map((key) => [key, variant.shape[key]])))
     .safeParse(Object.fromEntries(given.map((key) => [key, patch[key]])));
   return parsed.success
     ? {
