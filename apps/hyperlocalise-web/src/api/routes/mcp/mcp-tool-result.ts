@@ -24,13 +24,6 @@ export const MCP_CREATE_TOOL = {
   openWorldHint: false,
 } as const satisfies ToolAnnotations;
 
-export const MCP_UPDATE_TOOL = {
-  readOnlyHint: false,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const satisfies ToolAnnotations;
-
 export const MCP_DESTRUCTIVE_TOOL = {
   readOnlyHint: false,
   destructiveHint: true,

@@ -27,7 +27,6 @@ import { isWorkspaceFeatureFlagEnabled } from "@/api/middleware/workspace-featur
 import {
   MCP_DESTRUCTIVE_TOOL,
   MCP_READ_ONLY_TOOL,
-  MCP_UPDATE_TOOL,
   mcpToolError,
   mcpToolJson,
 } from "@/api/routes/mcp/mcp-tool-result";
@@ -305,7 +304,12 @@ export function registerProjectManagerMcpTools(server: McpServer, apiAuth: ApiAu
   server.registerTool(
     "update_job",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description:
         "Rename, re-describe, or reassign one native Hyperlocalise job. Jobs mirrored from an external TMS must be updated in that TMS.",
       inputSchema: mcpUpdateJobInputSchema,

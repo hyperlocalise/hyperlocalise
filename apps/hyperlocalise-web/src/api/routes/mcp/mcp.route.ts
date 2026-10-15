@@ -36,7 +36,6 @@ import { registerProjectManagerMcpTools } from "@/api/routes/mcp/project-manager
 import {
   MCP_CREATE_TOOL,
   MCP_READ_ONLY_TOOL,
-  MCP_UPDATE_TOOL,
   mcpToolError,
 } from "@/api/routes/mcp/mcp-tool-result";
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
@@ -1549,7 +1548,12 @@ async function createMcpServerForRequest(
   server.registerTool(
     "update_issue",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description: "Update mutable fields on one accessible Hyperlocalise issue.",
       inputSchema: mcpUpdateIssueInputSchema,
     },
@@ -2370,7 +2374,12 @@ async function createMcpServerForRequest(
   server.registerTool(
     "update_translation",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description:
         "Save and optionally approve a target translation in an accessible Hyperlocalise project.",
       inputSchema: mcpUpdateTranslationInputSchema,
@@ -2457,7 +2466,12 @@ async function createMcpServerForRequest(
   server.registerTool(
     "upload_sources",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
       description: "Upload one source file to an accessible Hyperlocalise project.",
       inputSchema: mcpUploadSourcesInputSchema,
     },
