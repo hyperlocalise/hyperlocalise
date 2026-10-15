@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -67,6 +67,74 @@ describe("ContentEditorHtmlEditorPane", () => {
     const target = screen.getByTitle("Translated (fr)");
     expect(source).toHaveAttribute("srcdoc", "<table><tr><td>Source cell</td></tr></table>");
     expect(target).toHaveAttribute("srcdoc", "<table><tr><td>Target cell</td></tr></table>");
+    expect(source).toHaveAttribute("sandbox", "");
+    expect(target).toHaveAttribute("sandbox", "");
+  });
+
+  it("keeps the target preview read-only without onSave", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-readonly:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          canEdit={false}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const target = await screen.findByTitle("Translated (fr)");
+    expect(target).toHaveAttribute("sandbox", "");
+  });
+
+  it("marks review blocked after a designMode input on the target preview", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+    const onReviewBlockedChange = vi.fn();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-design:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={onSave}
+          onReviewBlockedChange={onReviewBlockedChange}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const target = await screen.findByTitle("Translated (fr)");
+    expect(target).toHaveAttribute("sandbox", "allow-same-origin");
+
+    const innerDoc = document.implementation.createHTMLDocument("Preview");
+    innerDoc.body.innerHTML = "<p>Hello</p>";
+    Object.defineProperty(target, "contentDocument", {
+      configurable: true,
+      value: innerDoc,
+    });
+    fireEvent.load(target);
+    innerDoc.body.innerHTML = "<p>Bonjour</p>";
+    innerDoc.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await waitFor(() => {
+      expect(onReviewBlockedChange).toHaveBeenCalledWith(true);
+    });
+    expect(target).toHaveAttribute("srcdoc", "<p>Hello</p>");
   });
 
   it("switches to code editing and blocks review while dirty", async () => {

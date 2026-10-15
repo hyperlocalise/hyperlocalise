@@ -13,13 +13,17 @@
  * Version 2.0 or later.
  */
 import { CodeSimpleIcon, TextTIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { FileViewPaneState } from "@/components/content-editor/file-view/content-editor-file-view-layout";
 import { contentEditorFileViewMessages } from "@/components/content-editor/file-view/content-editor-file-view.messages";
+import {
+  isFullHtmlDocument,
+  serializeDesignModeDocument,
+} from "@/components/content-editor/file-view/content-editor-html-design-mode";
 import {
   peekDocumentAutosaveDraft,
   useDocumentAutosave,
@@ -56,6 +60,10 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; sourceText: string };
 
+export type HtmlPreviewFrameHandle = {
+  flush: () => string | null;
+};
+
 export function ContentEditorHtmlEditorPane({
   documentKey,
   sourceSrc,
@@ -89,9 +97,11 @@ export function ContentEditorHtmlEditorPane({
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [body, setBody] = useState("");
   const [baseline, setBaseline] = useState<string | null>(null);
+  const [loadedAsFullDocument, setLoadedAsFullDocument] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [restoreSaveError, setRestoreSaveError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const targetPreviewRef = useRef<HtmlPreviewFrameHandle>(null);
   const targetSrcRef = useRef(targetSrc);
   const saveNowRef = useRef(async () => {});
   const openedKeyRef = useRef<string | null>(null);
@@ -146,6 +156,7 @@ export function ContentEditorHtmlEditorPane({
         setBody(serverText);
         setBaseline(serverText);
       }
+      setLoadedAsFullDocument(isFullHtmlDocument(serverText));
       readyRef.current = true;
       setLoad({ status: "ready", sourceText: source.text });
     })();
@@ -177,6 +188,7 @@ export function ContentEditorHtmlEditorPane({
       }
       setBody(target.text);
       setBaseline(target.text);
+      setLoadedAsFullDocument(isFullHtmlDocument(target.text));
     })();
     return () => {
       cancelled = true;
@@ -222,6 +234,16 @@ export function ContentEditorHtmlEditorPane({
     return () => root.removeEventListener("keydown", onKeyDown);
   });
 
+  const toggleCodeMode = useCallback(() => {
+    if (!codeMode) {
+      const flushed = targetPreviewRef.current?.flush();
+      if (flushed != null) {
+        setBody(flushed);
+      }
+    }
+    setCodeMode((open) => !open);
+  }, [codeMode]);
+
   const reviewBlocked =
     load.status !== "ready" ||
     baseline === null ||
@@ -256,12 +278,7 @@ export function ContentEditorHtmlEditorPane({
           {!saveActionsContainer ? saveStatus : null}
           <div className="ms-auto flex items-center gap-1">
             {editable ? (
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-pressed={codeMode}
-                onClick={() => setCodeMode((open) => !open)}
-              >
+              <Button size="xs" variant="ghost" aria-pressed={codeMode} onClick={toggleCodeMode}>
                 {codeMode ? (
                   <TextTIcon data-icon="inline-start" />
                 ) : (
@@ -300,7 +317,12 @@ export function ContentEditorHtmlEditorPane({
             />
           ) : (
             <HtmlPreviewFrame
+              ref={targetPreviewRef}
               srcDoc={body}
+              editable={editable}
+              loadedAsFullDocument={loadedAsFullDocument}
+              onHtmlChange={setBody}
+              onSaveShortcut={() => void autosave.saveNow()}
               label={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
                 locale: targetLocale,
               })}
@@ -312,18 +334,139 @@ export function ContentEditorHtmlEditorPane({
   );
 }
 
-function HtmlPreviewFrame({ srcDoc, label }: { srcDoc: string; label: string }) {
+const HtmlPreviewFrame = forwardRef<
+  HtmlPreviewFrameHandle,
+  {
+    srcDoc: string;
+    label: string;
+    editable?: boolean;
+    loadedAsFullDocument?: boolean;
+    onHtmlChange?: (html: string) => void;
+    onSaveShortcut?: () => void;
+  }
+>(function HtmlPreviewFrame(
+  { srcDoc, label, editable = false, loadedAsFullDocument = false, onHtmlChange, onSaveShortcut },
+  ref,
+) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const lastEmittedRef = useRef(srcDoc);
+  const paintSrcDocRef = useRef(srcDoc);
+  const loadedAsFullDocumentRef = useRef(loadedAsFullDocument);
+  const onHtmlChangeRef = useRef(onHtmlChange);
+  const onSaveShortcutRef = useRef(onSaveShortcut);
+  const skipSerializeOnLoadRef = useRef(true);
+  const teardownRef = useRef<(() => void) | null>(null);
+
+  loadedAsFullDocumentRef.current = loadedAsFullDocument;
+  onHtmlChangeRef.current = onHtmlChange;
+  onSaveShortcutRef.current = onSaveShortcut;
+
+  const readSerializedHtml = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) {
+      return null;
+    }
+    return serializeDesignModeDocument(doc, loadedAsFullDocumentRef.current);
+  }, []);
+
+  const emitChange = useCallback(() => {
+    const html = readSerializedHtml();
+    if (html == null) {
+      return;
+    }
+    lastEmittedRef.current = html;
+    onHtmlChangeRef.current?.(html);
+  }, [readSerializedHtml]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flush: () => {
+        const html = readSerializedHtml();
+        if (html != null) {
+          lastEmittedRef.current = html;
+        }
+        return html;
+      },
+    }),
+    [readSerializedHtml],
+  );
+
+  useEffect(() => {
+    if (srcDoc === lastEmittedRef.current) {
+      return;
+    }
+    lastEmittedRef.current = srcDoc;
+    skipSerializeOnLoadRef.current = true;
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.srcdoc = srcDoc;
+    }
+  }, [srcDoc]);
+
+  const handleLoad = useCallback(() => {
+    teardownRef.current?.();
+    teardownRef.current = null;
+
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) {
+      return;
+    }
+
+    if (editable) {
+      doc.designMode = "on";
+
+      const onInput = () => {
+        emitChange();
+      };
+      const onKeyDown = (event: KeyboardEvent) => {
+        const mod = event.metaKey || event.ctrlKey;
+        if (mod && event.key.toLowerCase() === "s" && !event.shiftKey) {
+          event.preventDefault();
+          emitChange();
+          onSaveShortcutRef.current?.();
+        }
+      };
+
+      doc.addEventListener("input", onInput);
+      doc.addEventListener("keydown", onKeyDown);
+      teardownRef.current = () => {
+        doc.removeEventListener("input", onInput);
+        doc.removeEventListener("keydown", onKeyDown);
+        doc.designMode = "off";
+      };
+    }
+
+    if (skipSerializeOnLoadRef.current) {
+      skipSerializeOnLoadRef.current = false;
+      return;
+    }
+    emitChange();
+  }, [editable, emitChange]);
+
+  useEffect(() => {
+    return () => {
+      teardownRef.current?.();
+    };
+  }, []);
+
   return (
     <section className="flex min-h-[32rem] min-w-0 flex-col" aria-label={label}>
       <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </p>
       <iframe
+        ref={iframeRef}
         title={label}
-        sandbox=""
-        srcDoc={srcDoc}
-        className="min-h-[32rem] w-full flex-1 rounded-xl border border-border bg-white"
+        sandbox={editable ? "allow-same-origin" : ""}
+        // Keep srcDoc stable while typing. Updating it remounts the document and drops the caret.
+        srcDoc={editable ? paintSrcDocRef.current : srcDoc}
+        onLoad={handleLoad}
+        className={cn(
+          "min-h-[32rem] w-full flex-1 rounded-xl border border-border bg-white",
+          editable && "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        )}
       />
     </section>
   );
-}
+});
