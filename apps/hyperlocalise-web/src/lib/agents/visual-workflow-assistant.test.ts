@@ -221,6 +221,45 @@ describe("applyVisualWorkflowEdits", () => {
     });
   });
 
+  it("leaves a Slack channel and an email's sender and recipients to the person", () => {
+    const { results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        {
+          op: "add_node",
+          id: "notify_slack",
+          type: "action.notify_slack",
+          after: { nodeId: "set", handle: null },
+          config: { channelId: "releases" },
+        },
+        {
+          op: "add_node",
+          id: "notify_email",
+          type: "action.notify_email",
+          after: { nodeId: "set", handle: null },
+          config: { from: "noreply@example.com", recipients: "team@example.com" },
+        },
+      ],
+    });
+
+    expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(results[1].status === "rejected" && results[1].message).toContain(
+      "from, recipients on Send email is chosen by the person",
+    );
+  });
+
+  it("takes a kind that names the step's own type", () => {
+    const { results } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        { op: "configure_node", nodeId: "set", config: { kind: "logic.set" } },
+        { op: "configure_node", nodeId: "set", config: { kind: "action.http" } },
+      ],
+    });
+
+    expect(results.map((result) => result.status)).toEqual(["applied", "rejected"]);
+  });
+
   it("leaves the called workflow of a Call workflow step to the person", () => {
     const { results } = applyVisualWorkflowEdits({
       state: base,
@@ -323,6 +362,14 @@ describe("editVisualWorkflow", () => {
         appliedToolCallIds: new Set(["call_1"]),
       }).applied,
     ).toEqual([]);
+  });
+
+  it("names a step it removed by its title", () => {
+    const { output } = editVisualWorkflow(context(), {
+      operations: [{ op: "remove_node", nodeId: "set" }],
+    });
+
+    expect(output.applied && output.result.applied[0]).toMatch(/^removed Set fields \(.*\) \[set\]$/);
   });
 
   it("lists field references the run could not read", () => {
@@ -437,6 +484,21 @@ describe("change lines and call parts", () => {
 });
 
 describe("page edits", () => {
+  it("reports no change for settings saved in another key order", () => {
+    const set = base.nodes[1]!;
+    const config = set.data.config as unknown as Record<string, unknown>;
+    const reordered = Object.fromEntries(Object.entries(config).reverse());
+    const after: VisualWorkflowEditorState = {
+      ...base,
+      nodes: [
+        base.nodes[0]!,
+        { ...set, data: { ...set.data, config: { kind: "logic.set", ...reordered } as never } },
+      ],
+    };
+
+    expect(listVisualWorkflowPageEdits(base, after)).toEqual([]);
+  });
+
   it("lists what the person changed, ignoring moves", () => {
     const after: VisualWorkflowEditorState = {
       name: "Moved",

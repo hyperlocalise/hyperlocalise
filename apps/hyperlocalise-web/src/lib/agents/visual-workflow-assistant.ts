@@ -237,6 +237,12 @@ function nodeConfigSchemaFor(type: VisualCatalogType): z.ZodObject<z.ZodRawShape
 
 /** Settings of a type that only the person sets, on the step's panel. */
 const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, readonly string[]>> = {
+  // Where a step reads from or sends to: the person picks or types these on the step's panel.
+  "trigger.github": ["githubInstallationRepositoryId"],
+  "trigger.source_upload": ["projectId"],
+  "action.content_sync": ["projectId", "connectionId", "resourceKey"],
+  "action.notify_slack": ["channelId"],
+  "action.notify_email": ["provider", "workosUserId", "from", "recipients"],
   // The called workflow, its version and its fields come from a workflow the person picks.
   "flow.call_workflow": ["workflowId", "version", "inputFields", "outputFields"],
 };
@@ -257,7 +263,8 @@ function mergeConfig(
   current: VisualNodeConfig,
   patch: Record<string, unknown> | null | undefined,
 ): { config: VisualNodeConfig } | { error: string } {
-  const keys = Object.keys(patch ?? {});
+  // A `kind` that names the step's own type says nothing new, so it is dropped.
+  const keys = Object.keys(patch ?? {}).filter((key) => !(key === "kind" && patch?.[key] === type));
   if (!patch || keys.length === 0) {
     return { config: current };
   }
@@ -623,9 +630,12 @@ function nodeLabel(node: VisualWorkflowRfNode): string {
 function describeOperation(
   state: VisualWorkflowEditorState,
   op: VisualWorkflowResolvedOperation,
+  before: VisualWorkflowEditorState = state,
 ): string {
+  // A step the call removed is named as it was before the call.
   const label = (id: string) => {
-    const node = state.nodes.find((entry) => entry.id === id);
+    const node =
+      state.nodes.find((entry) => entry.id === id) ?? before.nodes.find((entry) => entry.id === id);
     return node ? `${nodeLabel(node)} [${id}]` : `[${id}]`;
   };
   switch (op.op) {
@@ -732,7 +742,7 @@ export function editVisualWorkflow(
       changes: toVisualWorkflowChangeLines(before, results, state),
       result: {
         changed: applied.length > 0,
-        applied: applied.map((result) => describeOperation(state, result.op)),
+        applied: applied.map((result) => describeOperation(state, result.op, before)),
         rejected: results
           .filter((result) => result.status === "rejected")
           .map((result) => `${result.op.op}: ${result.message}`),
@@ -864,8 +874,19 @@ export function reduceVisualWorkflowHistoryOutput(output: unknown): {
     : { changed: false, output: { changed: false, applied: [], rejected: [] } };
 }
 
+/** JSON with object keys sorted, so settings saved in another key order compare equal. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, entry: unknown) =>
+    entry && typeof entry === "object" && !Array.isArray(entry)
+      ? Object.fromEntries(
+          Object.entries(entry as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+        )
+      : entry,
+  );
+}
+
 function settingsKey(node: VisualWorkflowRfNode): string {
-  return JSON.stringify({
+  return stableJson({
     config: node.data.config,
     inputs: node.data.inputs ?? {},
     outputFields: node.data.outputFields ?? [],
@@ -878,17 +899,18 @@ function changedSettings(before: VisualWorkflowRfNode, after: VisualWorkflowRfNo
   const left = before.data.config as unknown as Record<string, unknown>;
   const right = after.data.config as unknown as Record<string, unknown>;
   for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) {
-    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) {
+    if (stableJson(left[key]) !== stableJson(right[key])) {
       fields.add(key);
     }
   }
-  if (JSON.stringify(before.data.inputs ?? {}) !== JSON.stringify(after.data.inputs ?? {})) {
+  if (stableJson(before.data.inputs ?? {}) !== stableJson(after.data.inputs ?? {})) {
     fields.add("inputs");
   }
-  if (
-    JSON.stringify(before.data.outputFields ?? []) !== JSON.stringify(after.data.outputFields ?? [])
-  ) {
+  if (stableJson(before.data.outputFields ?? []) !== stableJson(after.data.outputFields ?? [])) {
     fields.add("outputFields");
+  }
+  if (stableJson(before.data.collect ?? {}) !== stableJson(after.data.collect ?? {})) {
+    fields.add("collect");
   }
   return [...fields];
 }
