@@ -150,6 +150,7 @@ export type VisualWorkflowEditRejection =
   | "unknown_node"
   | "node_id_taken"
   | "node_id_reserved"
+  | "set_by_person"
   | "trigger_exists"
   | "unknown_edge"
   | "invalid_config"
@@ -239,17 +240,81 @@ function nodeConfigSchemaFor(type: VisualCatalogType): z.ZodObject<z.ZodRawShape
   return variant as z.ZodObject<z.ZodRawShape>;
 }
 
-/** Settings of a type that only the person sets, on the step's panel. */
-const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, readonly string[]>> = {
-  // Where a step reads from or sends to: the person picks or types these on the step's panel.
-  "trigger.github": ["githubInstallationRepositoryId"],
-  "trigger.source_upload": ["projectId"],
-  "action.content_sync": ["projectId", "connectionId", "resourceKey"],
-  "action.notify_slack": ["channelId"],
-  "action.notify_email": ["provider", "workosUserId", "from", "recipients"],
-  // The called workflow, its version and its fields come from a workflow the person picks.
-  "flow.call_workflow": ["workflowId", "version", "inputFields", "outputFields"],
+const PROJECT_REASON = "it is one of the workspace's projects, which the assistant cannot see";
+const CONNECTED_SYSTEM_REASON =
+  "it is one of the content systems connected to the workspace, which the assistant cannot see";
+const CALLED_WORKFLOW_REASON =
+  "it comes from the workflow the person picks, one of the workspace's workflows, which the assistant cannot see";
+
+/**
+ * Settings of a type that only the person sets, on the step's Configuration tab, each with the
+ * reason the assistant gives for leaving it. Each picks something in the workspace that the
+ * model cannot see or check, or decides where a message goes, so a value it wrote would be a
+ * guess. A data input of the same name is the same setting, so no wire may set one either.
+ */
+const PERSON_ONLY_SETTINGS: Partial<Record<VisualCatalogType, Readonly<Record<string, string>>>> = {
+  "trigger.github": {
+    githubInstallationRepositoryId:
+      "it is one of the repositories connected to the workspace, which the assistant cannot see",
+  },
+  "trigger.source_upload": { projectId: PROJECT_REASON },
+  "action.http": {
+    auth: "it signs the request in with one of the workspace's saved credentials, which the assistant cannot see",
+  },
+  "action.content_sync": {
+    projectId: PROJECT_REASON,
+    provider: CONNECTED_SYSTEM_REASON,
+    connectionId: CONNECTED_SYSTEM_REASON,
+    resourceKey:
+      "it is picked from what the connected content system holds, which the assistant cannot see",
+  },
+  "action.notify_slack": {
+    channelId:
+      "it takes the Slack channel's ID, not its name, which the assistant cannot look up, and where the message goes is the person's decision",
+  },
+  "action.notify_email": {
+    provider: "it is the email service the workspace has set up, which the assistant cannot see",
+    workosUserId: "it is filled in from the person's own account when they save",
+    from: "the sender must be an address the workspace's email service accepts, which the assistant cannot check",
+    recipients:
+      "who receives the email is the person's decision, and the assistant would have to guess the addresses",
+  },
+  "flow.call_workflow": {
+    workflowId: CALLED_WORKFLOW_REASON,
+    version: CALLED_WORKFLOW_REASON,
+    inputFields: CALLED_WORKFLOW_REASON,
+    outputFields: CALLED_WORKFLOW_REASON,
+  },
 };
+
+function personOnlySettingsOf(type: VisualCatalogType | undefined): readonly string[] {
+  return type ? Object.keys(PERSON_ONLY_SETTINGS[type] ?? {}) : [];
+}
+
+/** Why the assistant leaves these settings of a type to the person, for its refusal and reply. */
+function describePersonOnly(type: VisualCatalogType, keys: readonly string[]): string {
+  const title = VISUAL_NODE_DESCRIPTIONS[type].title;
+  return keys
+    .map(
+      (key) =>
+        `${key} on ${title} is set by the person on the step's Configuration tab, since ${PERSON_ONLY_SETTINGS[type]?.[key]}.`,
+    )
+    .join(" ");
+}
+
+/**
+ * Whether the person has already chosen a setting of theirs on this step: it holds a value or a
+ * stored binding. Emptying such a setting changes their choice, so it is refused like setting it.
+ */
+function isChosenByPerson(
+  type: VisualCatalogType,
+  config: VisualNodeConfig,
+  bound: ReadonlySet<string>,
+  key: string,
+): boolean {
+  const value = (config as unknown as Record<string, unknown>)[key];
+  return personOnlySettingsOf(type).includes(key) && (Boolean(value) || bound.has(key));
+}
 
 function describeZodIssues(error: z.ZodError): string {
   return error.issues
@@ -266,7 +331,9 @@ function mergeConfig(
   type: VisualCatalogType,
   current: VisualNodeConfig,
   patch: Record<string, unknown> | null | undefined,
-): { config: VisualNodeConfig } | { error: string } {
+  /** Settings the step holds a stored binding for. */
+  bound: ReadonlySet<string> = new Set(),
+): { config: VisualNodeConfig } | { error: string; code: VisualWorkflowEditRejection } {
   // A `kind` that names the step's own type says nothing new, so it is dropped.
   const keys = Object.keys(patch ?? {}).filter((key) => !(key === "kind" && patch?.[key] === type));
   if (!patch || keys.length === 0) {
@@ -277,21 +344,22 @@ function mergeConfig(
   if (unknown.length > 0) {
     return {
       error: `${VISUAL_NODE_DESCRIPTIONS[type].title} has no setting called ${unknown.join(", ")}.`,
+      code: "invalid_config",
     };
   }
   // An empty text value leaves a setting for the person to fill in, as a step fresh from the
-  // picker has it, so it is not held to the setting's rules.
+  // picker has it, so it is not held to the setting's rules; but not one the person has chosen.
   const existing = current as unknown as Record<string, unknown>;
   const blank = keys.filter(
     (key) =>
-      patch[key] === "" && (existing[key] === undefined || typeof existing[key] === "string"),
+      patch[key] === "" &&
+      (existing[key] === undefined || typeof existing[key] === "string") &&
+      !isChosenByPerson(type, current, bound, key),
   );
   const given = keys.filter((key) => !blank.includes(key));
-  const personOnly = given.filter((key) => PERSON_ONLY_SETTINGS[type]?.includes(key));
+  const personOnly = given.filter((key) => personOnlySettingsOf(type).includes(key));
   if (personOnly.length > 0) {
-    return {
-      error: `${personOnly.join(", ")} on ${VISUAL_NODE_DESCRIPTIONS[type].title} is chosen by the person on the step's panel.`,
-    };
+    return { error: describePersonOnly(type, personOnly), code: "set_by_person" };
   }
   // Each given setting is held to its own rule. A rule across settings, such as a Wait's
   // duration being needed in duration mode, is left to the workflow's issues, as for a step that
@@ -307,7 +375,7 @@ function mergeConfig(
           ...parsed.data,
         } as VisualNodeConfig,
       }
-    : { error: describeZodIssues(parsed.error) };
+    : { error: describeZodIssues(parsed.error), code: "invalid_config" };
 }
 
 function describeConnectionEnds(input: {
@@ -377,6 +445,21 @@ function withoutBindingsOf(node: VisualWorkflowRfNode, keys: readonly string[]) 
   return { ...node, data: { ...node.data, inputs } };
 }
 
+/**
+ * Why a data connection into this input may not be made or taken away by the assistant, or null
+ * when it may: an input that is one of the person's settings is the setting itself.
+ */
+function refuseWireIntoPersonOnlySetting(
+  target: VisualWorkflowRfNode | undefined,
+  targetHandle: string | null | undefined,
+): string | null {
+  if (!target || !targetHandle) return null;
+  const type = target.data.catalogType;
+  return personOnlySettingsOf(type).includes(targetHandle)
+    ? `${describePersonOnly(type, [targetHandle])} A data connection into it would set it, so the assistant leaves that to the person too.`
+    : null;
+}
+
 function applyOne(
   state: VisualWorkflowEditorState,
   op: VisualWorkflowEditOperation | VisualWorkflowResolvedOperation,
@@ -425,7 +508,7 @@ function applyOne(
       }
       const merged = mergeConfig(op.type, createDefaultConfig(op.type), op.config);
       if ("error" in merged) {
-        return { state, result: rejected(op, "invalid_config", merged.error) };
+        return { state, result: rejected(op, merged.code, merged.error) };
       }
       const position =
         "position" in op
@@ -485,6 +568,10 @@ function applyOne(
           };
         }
       }
+      const refusal = refuseWireIntoPersonOnlySetting(find(op.target), op.targetHandle);
+      if (refusal) {
+        return { state, result: rejected(op, "set_by_person", refusal) };
+      }
       const connection = {
         source: op.source,
         target: op.target,
@@ -519,6 +606,20 @@ function applyOne(
           ),
         };
       }
+      const wired = edges.find(
+        (edge) =>
+          matches(edge) && refuseWireIntoPersonOnlySetting(find(edge.target), edge.targetHandle),
+      );
+      if (wired) {
+        return {
+          state,
+          result: rejected(
+            op,
+            "set_by_person",
+            refuseWireIntoPersonOnlySetting(find(wired.target), wired.targetHandle)!,
+          ),
+        };
+      }
       const kept = edges.filter((edge) => !matches(edge));
       return {
         state: withGraph({ nodes: reconcileFlowBodyMembership(nodes, kept), edges: kept }),
@@ -537,9 +638,14 @@ function applyOne(
       if (keys.length === 0) {
         return { state, result: { status: "applied", op } };
       }
-      const merged = mergeConfig(node.data.catalogType, node.data.config, op.config);
+      const merged = mergeConfig(
+        node.data.catalogType,
+        node.data.config,
+        op.config,
+        new Set(Object.keys(node.data.inputs ?? {})),
+      );
       if ("error" in merged) {
-        return { state, result: rejected(op, "invalid_config", merged.error) };
+        return { state, result: rejected(op, merged.code, merged.error) };
       }
       const graph = applyNodeConfigUpdate(nodes, edges, node.id, merged.config);
       return {
@@ -602,11 +708,18 @@ function splitPersonOnlySettings(
   if (op.op !== "configure_node" || !op.config) {
     return [op];
   }
-  const type = state.nodes.find((node) => node.id === op.nodeId)?.data.catalogType;
-  const personOnly = (type && PERSON_ONLY_SETTINGS[type]) || [];
+  const node = state.nodes.find((entry) => entry.id === op.nodeId);
+  if (!node) {
+    return [op];
+  }
+  const type = node.data.catalogType;
+  const bound = new Set(Object.keys(node.data.inputs ?? {}));
   const entries = Object.entries(op.config);
-  // An empty value leaves the setting for the person, so it is not theirs to refuse.
-  const isTheirs = ([key, value]: [string, unknown]) => personOnly.includes(key) && value !== "";
+  // An empty value leaves the setting for the person, so it is not theirs to refuse, unless
+  // they have chosen it already.
+  const isTheirs = ([key, value]: [string, unknown]) =>
+    personOnlySettingsOf(type).includes(key) &&
+    (value !== "" || isChosenByPerson(type, node.data.config, bound, key));
   const theirs = entries.filter(isTheirs);
   if (theirs.length === 0 || theirs.length === entries.length) {
     return [op];
@@ -1081,7 +1194,7 @@ export function describeVisualWorkflowCatalogue(): string {
     const handles = getAllowedExecutionSourceHandles({ type: item.type, config }).map(
       (handle) => handle ?? "success",
     );
-    const personOnly = PERSON_ONLY_SETTINGS[item.type] ?? [];
+    const personOnly = personOnlySettingsOf(item.type);
     const variant = nodeConfigSchemaFor(item.type);
     const schema = z.toJSONSchema(
       personOnly.length > 0
@@ -1097,10 +1210,15 @@ export function describeVisualWorkflowCatalogue(): string {
       `  category: ${item.category}`,
       `  does: ${description.purpose}`,
       `  execution outputs: ${handles.length > 0 ? handles.join(", ") : "(none: the workflow ends here)"}`,
-      `  data inputs: ${contract.inputs.length > 0 ? contract.inputs.map((field) => `${field.name} (${field.type}${field.required ? "" : ", optional"})`).join(", ") : "(none)"}`,
+      `  data inputs: ${contract.inputs.length > 0 ? contract.inputs.map((field) => `${field.name} (${field.type}${field.required ? "" : ", optional"}${personOnly.includes(field.name) ? ", set by the person only" : ""})`).join(", ") : "(none)"}`,
       `  data outputs: ${contract.outputs.length > 0 ? contract.outputs.map((field) => `${field.path} (${field.type})`).join(", ") : "(none)"}`,
       `  settings: ${JSON.stringify(settings)}`,
-      ...(personOnly.length > 0 ? [`  set by the person only: ${personOnly.join(", ")}`] : []),
+      ...(personOnly.length > 0
+        ? [
+            `  set by the person only: ${personOnly.join(", ")}`,
+            `  why: ${describePersonOnly(item.type, personOnly)}`,
+          ]
+        : []),
     ].join("\n");
   });
 
@@ -1196,7 +1314,7 @@ function describeNode(node: VisualWorkflowRfNode, edges: readonly VisualWorkflow
   }
   if (ports.inputs.length > 0) {
     lines.push(
-      `  data inputs: ${ports.inputs.map((port) => `${port.id} (${port.type}${port.optional ? ", optional" : ""}${port.connectionCount > 0 ? ", wired" : ""})`).join(", ")}`,
+      `  data inputs: ${ports.inputs.map((port) => `${port.id} (${port.type}${port.optional ? ", optional" : ""}${port.connectionCount > 0 ? ", wired" : ""}${personOnlySettingsOf(node.data.catalogType).includes(port.id) ? ", set by the person only" : ""})`).join(", ")}`,
     );
   }
   if (ports.outputs.length > 0) {

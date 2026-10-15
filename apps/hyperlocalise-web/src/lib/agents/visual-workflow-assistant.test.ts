@@ -148,9 +148,11 @@ describe("applyVisualWorkflowEdits", () => {
       { status: "applied", op: { config: { message: "{{ nodes.set.total }}" } } },
       {
         status: "rejected",
-        code: "invalid_config",
+        code: "set_by_person",
         op: { config: { channelId: "releases" } },
-        message: "channelId on Notify Slack is chosen by the person on the step's panel.",
+        message: expect.stringContaining(
+          "channelId on Notify Slack is set by the person on the step's Configuration tab, since it takes the Slack channel's ID",
+        ),
       },
     ]);
     expect(state.nodes.find((entry) => entry.id === "notify_slack")?.data.config).toMatchObject({
@@ -325,9 +327,103 @@ describe("applyVisualWorkflowEdits", () => {
     });
 
     expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
-    expect(results[1].status === "rejected" && results[1].message).toContain(
-      "from, recipients on Send email is chosen by the person",
+    expect(results[1].status === "rejected" && results[1].message).toMatch(
+      /^from on Send email is set by the person .* recipients on Send email is set by the person .*guess the addresses\.$/,
     );
+  });
+
+  it("leaves how an HTTP request signs in and a Content sync's system to the person", () => {
+    const { results } = applyVisualWorkflowEdits({
+      state: {
+        ...base,
+        nodes: [
+          ...base.nodes,
+          node("http", "action.http"),
+          node("content_sync", "action.content_sync"),
+        ],
+      },
+      operations: [
+        { op: "configure_node", nodeId: "http", config: { auth: { type: "bearer" } } },
+        { op: "configure_node", nodeId: "content_sync", config: { provider: "github" } },
+      ],
+    });
+
+    expect(results).toMatchObject([
+      {
+        status: "rejected",
+        code: "set_by_person",
+        message: expect.stringContaining("credentials"),
+      },
+      { status: "rejected", code: "set_by_person", message: expect.stringContaining("connected") },
+    ]);
+  });
+
+  it("refuses to empty a setting the person chose, but leaves one that is empty", () => {
+    const chosen = node("notify_slack", "action.notify_slack", {
+      data: {
+        catalogType: "action.notify_slack",
+        runStatus: "idle",
+        config: {
+          ...createDefaultConfig("action.notify_slack"),
+          channelId: "C0123",
+        } as VisualNodeConfig,
+      },
+    });
+    const { state, results } = applyVisualWorkflowEdits({
+      state: {
+        ...base,
+        nodes: [...base.nodes, chosen, node("notify_slack_2", "action.notify_slack")],
+      },
+      operations: [
+        { op: "configure_node", nodeId: "notify_slack", config: { channelId: "", message: "Hi" } },
+        { op: "configure_node", nodeId: "notify_slack_2", config: { channelId: "" } },
+      ],
+    });
+
+    expect(results).toMatchObject([
+      { status: "applied", op: { config: { message: "Hi" } } },
+      { status: "rejected", code: "set_by_person", op: { config: { channelId: "" } } },
+      { status: "applied" },
+    ]);
+    expect(state.nodes.find((entry) => entry.id === "notify_slack")?.data.config).toMatchObject({
+      channelId: "C0123",
+      message: "Hi",
+    });
+  });
+
+  it("refuses a data connection into a setting the person picks, and taking one away", () => {
+    const slack = node("notify_slack", "action.notify_slack");
+    const wired: VisualWorkflowRfEdge = {
+      id: "set-notify_slack-channel",
+      source: "set",
+      target: "notify_slack",
+      sourceHandle: "note",
+      targetHandle: "channelId",
+      data: { kind: "data" },
+    };
+    const { state, results } = applyVisualWorkflowEdits({
+      state: { ...base, nodes: [...base.nodes, slack], edges: [...base.edges, wired] },
+      operations: [
+        {
+          op: "connect",
+          source: "trigger",
+          sourceHandle: "triggeredAt",
+          target: "notify_slack",
+          targetHandle: "channelId",
+        },
+        { op: "disconnect", source: "set", target: "notify_slack", targetHandle: "channelId" },
+      ],
+    });
+
+    expect(results).toMatchObject([
+      {
+        status: "rejected",
+        code: "set_by_person",
+        message: expect.stringContaining("A data connection into it would set it"),
+      },
+      { status: "rejected", code: "set_by_person" },
+    ]);
+    expect(state.edges).toContainEqual(wired);
   });
 
   it("takes a kind that names the step's own type", () => {
@@ -362,9 +458,9 @@ describe("applyVisualWorkflowEdits", () => {
       ],
     });
 
-    expect(results[0]).toMatchObject({ status: "rejected", code: "invalid_config" });
+    expect(results[0]).toMatchObject({ status: "rejected", code: "set_by_person" });
     expect(results[0].status === "rejected" && results[0].message).toContain(
-      "chosen by the person",
+      "set by the person on the step's Configuration tab, since it comes from the workflow the person picks",
     );
     expect(results[1]).toMatchObject({ status: "applied" });
   });
@@ -713,6 +809,8 @@ describe("prompt text", () => {
     expect(callWorkflow).toContain(
       "set by the person only: workflowId, version, inputFields, outputFields",
     );
+    expect(callWorkflow).toContain("why: workflowId on Call workflow is set by the person");
+    expect(catalogue).toContain("channelId (string, set by the person only)");
     expect(callWorkflow.split("\n- type:")[0]).not.toContain('"workflowId"');
   });
 
