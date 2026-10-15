@@ -1356,14 +1356,14 @@ function withPersonOnlyValuesHidden(node: VisualWorkflowRfNode): {
   for (const key of theirs) {
     if (!(key in config) && !bound.has(key)) continue;
     config[key] = isChosenByPerson(type, node.data.config, bound, key)
-      ? "(chosen by the person)"
+      ? "(already set by the person; nothing needed)"
       : "(empty: the person chooses it)";
   }
   const inputs = node.data.inputs
     ? Object.fromEntries(
         Object.entries(node.data.inputs).map(([key, binding]) => [
           key,
-          theirs.includes(key) ? "(chosen by the person)" : binding,
+          theirs.includes(key) ? "(already set by the person; nothing needed)" : binding,
         ]),
       )
     : undefined;

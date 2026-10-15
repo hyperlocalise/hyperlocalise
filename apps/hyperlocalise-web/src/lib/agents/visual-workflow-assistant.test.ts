@@ -1073,7 +1073,7 @@ describe("prompt text", () => {
     );
 
     expect(page).not.toContain("C0SECRETCHANNEL");
-    expect(page).toContain('"channelId":"(chosen by the person)"');
+    expect(page).toContain('"channelId":"(already set by the person; nothing needed)"');
     expect(page).toContain('"channelId":"(empty: the person chooses it)"');
     expect(page).toContain("### What stops it from being published");
   });
