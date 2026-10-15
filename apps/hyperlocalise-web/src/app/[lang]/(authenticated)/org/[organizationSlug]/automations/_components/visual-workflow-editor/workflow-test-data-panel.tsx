@@ -56,6 +56,17 @@ function parseTextValue(field: WorkflowOutputField, text: string): unknown {
   return text;
 }
 
+/** A box of no fixed type holds a list or an object when its text is one, and text otherwise. */
+function parseUnknownValue(text: string): unknown {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return text;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return text;
+  }
+}
+
 function TestValueField({
   field,
   value,
@@ -172,6 +183,11 @@ function TestValueField({
                 : JSON.stringify(value)
         }
         onChange={(event) => onChange(parseTextValue(field, event.target.value))}
+        onBlur={(event) => {
+          if (field.type !== "unknown") return;
+          const parsed = parseUnknownValue(event.target.value);
+          if (typeof parsed !== "string") onChange(parsed);
+        }}
       />
     );
   }
