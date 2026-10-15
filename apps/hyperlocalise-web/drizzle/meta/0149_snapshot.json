@@ -1,5 +1,5 @@
 {
-  "id": "3cb27019-c839-4d00-a448-0212e585731c",
+  "id": "25696c15-0119-45ba-a48a-8e3600c5eaf7",
   "prevId": "6d319780-f495-40b8-aa93-ab3e844880f7",
   "version": "7",
   "dialect": "postgresql",
@@ -17884,12 +17884,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "visual_workflow_id": {
-          "name": "visual_workflow_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -17936,27 +17930,6 @@
           "columns": [
             {
               "expression": "automation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_automation_assistant_sessions_visual_workflow_author": {
-          "name": "idx_automation_assistant_sessions_visual_workflow_author",
-          "columns": [
-            {
-              "expression": "visual_workflow_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -18034,19 +18007,6 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        },
-        "automation_assistant_sessions_visual_workflow_id_visual_workflows_id_fk": {
-          "name": "automation_assistant_sessions_visual_workflow_id_visual_workflows_id_fk",
-          "tableFrom": "automation_assistant_sessions",
-          "tableTo": "visual_workflows",
-          "columnsFrom": [
-            "visual_workflow_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -18107,6 +18067,12 @@
         },
         "published_definition": {
           "name": "published_definition",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "encrypted_test_setup": {
+          "name": "encrypted_test_setup",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -18539,6 +18505,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'live'"
+        },
+        "real_node_ids": {
+          "name": "real_node_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "encrypted_payload": {
           "name": "encrypted_payload",

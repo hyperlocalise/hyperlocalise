@@ -12,19 +12,27 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { createDefaultConfig } from "../catalog/node-catalog";
+import { VISUAL_NODE_CATALOG, createDefaultConfig } from "../catalog/node-catalog";
+import { createVisualWorkflowExecutionContext } from "../runtime/context";
+import { executeLogicVisualWorkflowNode } from "../runtime/execute-logic-node";
 import { runVisualWorkflowInterpreter } from "../runtime/interpreter";
 import { createMockWorkflowExecutor } from "../runtime/mock-executor";
 import { toVisualWorkflowDefinition } from "../schema/serializers";
 import type { VisualWorkflowRfEdge, VisualWorkflowRfNode } from "../schema/types";
 import {
+  EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
   buildTestRunData,
+  canRunForReal,
   exampleTestData,
   findMissingTestValues,
+  findRealStepsFedByTestData,
   getTestDataFields,
-  takesTestData,
+  isMockable,
+  pruneTestSetup,
   testDataFromRun,
+  visualWorkflowTestSetupSchema,
   withTestValue,
+  type VisualWorkflowTestSetup,
 } from "./visual-workflow-test-data";
 
 function node(
@@ -40,15 +48,41 @@ function node(
   };
 }
 
+function setup(partial: Partial<VisualWorkflowTestSetup> = {}): VisualWorkflowTestSetup {
+  return { ...EMPTY_VISUAL_WORKFLOW_TEST_SETUP, ...partial };
+}
+
 const httpOutput = { status: 200, ok: true, headers: {}, body: "ok" };
 
-describe("takesTestData", () => {
-  it("is true for triggers and steps that call out, and false for steps that compute", () => {
-    expect(takesTestData("trigger.source_upload")).toBe(true);
-    expect(takesTestData("action.http")).toBe(true);
-    expect(takesTestData("ai.agent")).toBe(true);
-    expect(takesTestData("logic.if")).toBe(false);
-    expect(takesTestData("flow.wait")).toBe(false);
+describe("isMockable", () => {
+  it("is true for triggers and steps that call out, and false for steps the run works out", () => {
+    expect(isMockable("trigger.source_upload")).toBe(true);
+    expect(isMockable("action.http")).toBe(true);
+    expect(isMockable("ai.agent")).toBe(true);
+    expect(isMockable("logic.if")).toBe(false);
+    expect(isMockable("flow.wait")).toBe(false);
+    expect(isMockable("logic.merge")).toBe(false);
+  });
+
+  it("lets every step but a trigger run for real", () => {
+    expect(canRunForReal("action.notify_slack")).toBe(true);
+    expect(canRunForReal("trigger.manual")).toBe(false);
+    expect(canRunForReal("logic.set")).toBe(false);
+  });
+
+  // A step that is not mockable gets no test data, so the run must work it out itself: through its
+  // own logic, or, for Wait and Merge, in the run engine. Otherwise a test would make values up.
+  it("leaves only steps the run works out unmockable", () => {
+    const context = createVisualWorkflowExecutionContext({ triggerInput: {} });
+    for (const { type } of VISUAL_NODE_CATALOG) {
+      if (isMockable(type) || type === "flow.wait" || type === "logic.merge") continue;
+      const result = executeLogicVisualWorkflowNode({
+        node: { id: "step", type, config: createDefaultConfig(type) } as never,
+        context,
+        inputsResolved: true,
+      });
+      expect(result.ok || result.error.code !== "not_logic_node", type).toBe(true);
+    }
   });
 });
 
@@ -72,12 +106,11 @@ describe("findMissingTestValues", () => {
   const trigger = node("t", "trigger.source_upload");
   const http = node("http", "action.http");
 
-  it("lists every required output of a trigger and an action step that is not set", () => {
+  it("lists every required output of a trigger and a mocked step that is not set", () => {
     const missing = findMissingTestValues({
       nodes: [trigger, http],
       edges: [],
-      testData: { t: { projectId: "p1" }, http: { status: 200 } },
-      live: false,
+      setup: setup({ data: { t: { projectId: "p1" }, http: { status: 200 } } }),
     });
     expect(missing).toEqual([
       { nodeId: "t", path: "sourceFileId", reason: "required" },
@@ -87,12 +120,20 @@ describe("findMissingTestValues", () => {
     ]);
   });
 
-  it("asks only for the trigger's sample event in a live test", () => {
+  it("asks nothing of a step that runs for real, and still asks for the trigger's sample", () => {
     const missing = findMissingTestValues({
       nodes: [trigger, http],
       edges: [],
-      testData: { t: { projectId: "p1", sourceFileId: "f1" } },
-      live: true,
+      setup: setup({ data: { t: { projectId: "p1" } }, realNodeIds: ["http"] }),
+    });
+    expect(missing).toEqual([{ nodeId: "t", path: "sourceFileId", reason: "required" }]);
+  });
+
+  it("asks nothing of a mocked step set to fail", () => {
+    const missing = findMissingTestValues({
+      nodes: [http],
+      edges: [],
+      setup: setup({ failures: { http: { message: "Down" } } }),
     });
     expect(missing).toEqual([]);
   });
@@ -112,8 +153,7 @@ describe("findMissingTestValues", () => {
     const missing = findMissingTestValues({
       nodes: [http, slack],
       edges,
-      testData: { http: httpOutput, slack: { ok: true } },
-      live: false,
+      setup: setup({ data: { http: httpOutput, slack: { ok: true } } }),
     });
     // Values under a missing one are not listed again.
     expect(missing.filter((entry) => entry.nodeId === "http")).toEqual([
@@ -130,8 +170,7 @@ describe("findMissingTestValues", () => {
     const missing = findMissingTestValues({
       nodes: [manual, slack],
       edges: [],
-      testData: { t: { channel: "C1" }, slack: { ok: true } },
-      live: false,
+      setup: setup({ data: { t: { channel: "C1" }, slack: { ok: true } } }),
     });
     expect(missing.filter((entry) => entry.nodeId === "t")).toEqual([
       { nodeId: "t", path: "text", reason: "read" },
@@ -140,14 +179,66 @@ describe("findMissingTestValues", () => {
 
   it("asks nothing of steps that compute their own result", () => {
     const set = node("set", "logic.set");
-    expect(findMissingTestValues({ nodes: [set], edges: [], testData: {}, live: false })).toEqual(
-      [],
-    );
+    expect(findMissingTestValues({ nodes: [set], edges: [], setup: setup() })).toEqual([]);
+  });
+});
+
+describe("findRealStepsFedByTestData", () => {
+  const trigger = node("t", "trigger.manual");
+  const http = node("http", "action.http");
+  const set = node("set", "logic.set", {
+    config: {
+      kind: "logic.set",
+      assignments: [{ key: "text", value: "{{ nodes.http.body }}" }],
+    },
+  });
+  const slack = node("slack", "action.notify_slack", {
+    config: { kind: "action.notify_slack", channelId: "C1", message: "{{ nodes.set.text }}" },
+  });
+  const email = node("email", "action.notify_email", {
+    config: {
+      ...createDefaultConfig("action.notify_email"),
+      subject: "{{ trigger.name }}",
+    } as never,
+  });
+
+  it("names a real step that reads a mocked step's data through a step the run works out", () => {
+    expect(
+      findRealStepsFedByTestData({
+        nodes: [trigger, http, set, slack, email],
+        edges: [],
+        setup: setup({ realNodeIds: ["slack", "email"] }),
+      }),
+    ).toEqual([{ nodeId: "slack", mockedNodeIds: ["http"] }]);
+  });
+
+  it("names none when the step it reads runs for real too", () => {
+    expect(
+      findRealStepsFedByTestData({
+        nodes: [trigger, http, set, slack],
+        edges: [],
+        setup: setup({ realNodeIds: ["slack", "http"] }),
+      }),
+    ).toEqual([]);
+  });
+
+  it("follows a data wire", () => {
+    const wired = node("slack", "action.notify_slack");
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "w", source: "http", target: "slack", sourceHandle: "body", data: { kind: "data" } },
+    ];
+    expect(
+      findRealStepsFedByTestData({
+        nodes: [http, wired],
+        edges,
+        setup: setup({ realNodeIds: ["slack"] }),
+      }),
+    ).toEqual([{ nodeId: "slack", mockedNodeIds: ["http"] }]);
   });
 });
 
 describe("buildTestRunData", () => {
-  it("sends the sample event and an entry for every step whose mock result the editor decides", () => {
+  it("sends the sample event and an entry for every step whose result the editor decides", () => {
     const nodes = [
       node("t", "trigger.manual"),
       node("http", "action.http"),
@@ -155,22 +246,54 @@ describe("buildTestRunData", () => {
       node("wait", "flow.wait"),
     ];
     expect(
-      buildTestRunData({
-        nodes,
-        testData: { t: { name: "Ada" }, http: httpOutput },
-        live: false,
-      }),
+      buildTestRunData({ nodes, setup: setup({ data: { t: { name: "Ada" }, http: httpOutput } }) }),
     ).toEqual({
+      mode: "mock",
       triggerInput: { name: "Ada" },
-      mockOutputs: { t: {}, http: httpOutput, if: {} },
+      mockOutputs: { t: {}, http: httpOutput, if: {}, wait: {} },
+      realNodeIds: [],
+      mockFailures: {},
     });
   });
 
-  it("sends no test outputs for a live test", () => {
+  it("lists the steps that run for real, without an entry, and the failures of mocked ones", () => {
+    const nodes = [
+      node("t", "trigger.manual"),
+      node("http", "action.http"),
+      node("slack", "action.notify_slack"),
+    ];
+    expect(
+      buildTestRunData({
+        nodes,
+        setup: setup({
+          data: { http: httpOutput },
+          realNodeIds: ["slack", "t", "gone"],
+          failures: { http: { code: "timeout" }, slack: { message: "ignored" } },
+        }),
+      }),
+    ).toEqual({
+      mode: "mock",
+      triggerInput: {},
+      mockOutputs: { t: {}, http: httpOutput },
+      realNodeIds: ["slack"],
+      mockFailures: { http: { code: "timeout" } },
+    });
+  });
+
+  it("is a live run when every step that could be mocked runs for real", () => {
     const nodes = [node("t", "trigger.manual"), node("http", "action.http")];
     expect(
-      buildTestRunData({ nodes, testData: { t: { a: 1 }, http: httpOutput }, live: true }),
-    ).toEqual({ triggerInput: { a: 1 }, mockOutputs: {} });
+      buildTestRunData({
+        nodes,
+        setup: setup({ data: { t: { a: 1 }, http: httpOutput }, realNodeIds: ["http"] }),
+      }),
+    ).toEqual({
+      mode: "live",
+      triggerInput: { a: 1 },
+      mockOutputs: {},
+      realNodeIds: ["http"],
+      mockFailures: {},
+    });
   });
 
   it("makes a mock run use only the values given, inventing none", async () => {
@@ -181,8 +304,8 @@ describe("buildTestRunData", () => {
     const nodes = [trigger, http];
     const edges: VisualWorkflowRfEdge[] = [{ id: "e", source: "t", target: "http" }];
     const definition = toVisualWorkflowDefinition({ name: "Test data", nodes, edges });
-    const run = (testData: Record<string, Record<string, unknown>>) => {
-      const { triggerInput, mockOutputs } = buildTestRunData({ nodes, testData, live: false });
+    const run = (data: Record<string, Record<string, unknown>>) => {
+      const { triggerInput, mockOutputs } = buildTestRunData({ nodes, setup: setup({ data }) });
       return runVisualWorkflowInterpreter({
         definition,
         organizationId: "00000000-0000-4000-8000-000000000099",
@@ -204,6 +327,129 @@ describe("buildTestRunData", () => {
     expect(complete.context.nodes.t).toMatchObject({ projectId: "p1", sourceFileId: "f1" });
     expect(complete.context.nodes.http).toEqual(httpOutput);
   });
+
+  it("settles Wait and Merge from their inputs in a mock run, making nothing up", async () => {
+    const nodes = [
+      node("t", "trigger.manual"),
+      node("a", "logic.set", {
+        config: { kind: "logic.set", assignments: [{ key: "result", value: "sent" }] },
+      }),
+      node("b", "logic.set", {
+        config: { kind: "logic.set", assignments: [{ key: "result", value: "posted" }] },
+      }),
+      node("merge", "logic.merge", {
+        config: {
+          kind: "logic.merge",
+          mode: "all",
+          inputs: [
+            { id: "a-input", name: "A" },
+            { id: "b-input", name: "B" },
+          ],
+        } as never,
+        inputs: {
+          "value.a-input": { kind: "reference", nodeId: "a", path: ["result"], optional: true },
+          "value.b-input": { kind: "reference", nodeId: "b", path: ["result"], optional: true },
+        },
+      }),
+      node("wait", "flow.wait"),
+    ];
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "1", source: "t", target: "a" },
+      { id: "2", source: "t", target: "b" },
+      { id: "3", source: "a", target: "merge", targetHandle: "a-input" },
+      { id: "4", source: "b", target: "merge", targetHandle: "b-input" },
+      { id: "5", source: "merge", target: "wait", sourceHandle: "completed" },
+    ];
+    const definition = toVisualWorkflowDefinition({ name: "Merge", nodes, edges });
+    const { triggerInput, mockOutputs } = buildTestRunData({ nodes, setup: setup() });
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000099",
+      triggerInput,
+      mockMode: true,
+      executeNode: createMockWorkflowExecutor(mockOutputs),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.context.nodes.merge).toMatchObject({
+      status: "completed",
+      values: { "a-input": "sent", "b-input": "posted" },
+    });
+    expect(result.context.nodes.merge).not.toHaveProperty("simulated");
+    expect(result.context.nodes.wait).toMatchObject({ status: "completed" });
+    expect(result.context.nodes.wait).not.toHaveProperty("simulated");
+  });
+
+  it("fails a mocked step with its error, and the step's On error decides what follows", async () => {
+    const trigger = node("t", "trigger.manual");
+    const http = node("http", "action.http", {
+      config: {
+        ...createDefaultConfig("action.http"),
+        url: "https://example.com",
+        onError: "continue",
+      } as never,
+    });
+    const set = node("set", "logic.set", {
+      config: {
+        kind: "logic.set",
+        assignments: [{ key: "after", value: "ran" }],
+      },
+    });
+    const nodes = [trigger, http, set];
+    const edges: VisualWorkflowRfEdge[] = [
+      { id: "1", source: "t", target: "http" },
+      { id: "2", source: "http", target: "set" },
+    ];
+    const definition = toVisualWorkflowDefinition({ name: "Failure", nodes, edges });
+    const { triggerInput, mockOutputs, mockFailures } = buildTestRunData({
+      nodes,
+      setup: setup({ failures: { http: { code: "http_error", message: "Server down" } } }),
+    });
+    const result = await runVisualWorkflowInterpreter({
+      definition,
+      organizationId: "00000000-0000-4000-8000-000000000099",
+      triggerInput,
+      mockMode: true,
+      executeNode: createMockWorkflowExecutor(mockOutputs, mockFailures),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.context.nodes.http).toMatchObject({
+      failed: true,
+      error: { code: "http_error", message: "Server down" },
+    });
+    // On error is Continue, so the next step still runs.
+    expect(result.context.nodes.set).toEqual({ after: "ran" });
+  });
+});
+
+describe("pruneTestSetup", () => {
+  it("drops entries for steps the workflow no longer has", () => {
+    expect(
+      pruneTestSetup(
+        setup({
+          data: { a: { x: 1 }, gone: { y: 2 } },
+          realNodeIds: ["a", "gone"],
+          failures: { gone: { code: "c" } },
+        }),
+        ["a"],
+      ),
+    ).toEqual({ data: { a: { x: 1 } }, realNodeIds: ["a"], failures: {} });
+  });
+});
+
+describe("visualWorkflowTestSetupSchema", () => {
+  it("fills what is left out and refuses an unknown key", () => {
+    expect(visualWorkflowTestSetupSchema.parse({ data: { a: { x: 1 } } })).toEqual({
+      data: { a: { x: 1 } },
+      realNodeIds: [],
+      failures: {},
+    });
+    expect(visualWorkflowTestSetupSchema.safeParse({ live: true }).success).toBe(false);
+  });
+
+  it("refuses a setup too large to save", () => {
+    const big = { data: { a: { text: "x".repeat(600_000) } } };
+    expect(visualWorkflowTestSetupSchema.safeParse(big).success).toBe(false);
+  });
 });
 
 describe("exampleTestData", () => {
@@ -212,7 +458,7 @@ describe("exampleTestData", () => {
     const data = exampleTestData(http, { status: 503 });
     expect(data.status).toBe(503);
     expect(
-      findMissingTestValues({ nodes: [http], edges: [], testData: { http: data }, live: false }),
+      findMissingTestValues({ nodes: [http], edges: [], setup: setup({ data: { http: data } }) }),
     ).toEqual([]);
   });
 

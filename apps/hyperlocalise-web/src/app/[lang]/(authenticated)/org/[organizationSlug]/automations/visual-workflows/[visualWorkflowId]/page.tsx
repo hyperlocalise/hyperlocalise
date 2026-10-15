@@ -26,6 +26,7 @@ import {
   getVisualWorkflowById,
   getVisualWorkflowProjectName,
 } from "@/lib/visual-workflows/visual-workflows";
+import { getVisualWorkflowTestSetup } from "@/lib/visual-workflows/visual-workflow-test-setup";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { generateAuthenticatedPageMetadata } from "@/lib/seo/authenticated-page-metadata";
 
@@ -81,13 +82,18 @@ async function VisualWorkflowEditorPageLoader({
     notFound();
   }
 
-  const projectName =
+  const [projectName, testSetup] = await Promise.all([
     assistantEnabled && workflow.projectId
-      ? await getVisualWorkflowProjectName({
+      ? getVisualWorkflowProjectName({
           organizationId: auth.activeOrganization.localOrganizationId,
           projectId: workflow.projectId,
         })
-      : null;
+      : null,
+    getVisualWorkflowTestSetup({
+      organizationId: auth.activeOrganization.localOrganizationId,
+      visualWorkflowId,
+    }),
+  ]);
 
   return (
     <VisualWorkflowEditorPageContent
@@ -95,6 +101,7 @@ async function VisualWorkflowEditorPageLoader({
       organizationSlug={organizationSlug}
       projectName={projectName}
       workflow={workflow}
+      testSetup={testSetup}
     />
   );
 }

@@ -499,12 +499,15 @@ export const PortCompatibility: Story = {
     await expect(requestNode).not.toBeNull();
     await userEvent.click(requestNode!);
 
-    await expect(await canvas.findByLabelText("URL")).toBeDisabled();
-    await expect(
-      canvas.getAllByText(
-        "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-      ).length,
-    ).toBeGreaterThan(0);
+    // A wired setting names the output that feeds it, in place of a box to type in.
+    const urlLabel = await canvas.findByText("URL", { selector: "label" });
+    const urlField = urlLabel.closest<HTMLElement>('[data-slot="bound-field"]');
+    await expect(urlField).not.toBeNull();
+    await expect(within(urlField!).queryByRole("textbox")).not.toBeInTheDocument();
+    await expect(urlField!.querySelector('[data-slot="bound-source"]')).toHaveTextContent(
+      "triggeredAt",
+    );
+    await expect(within(urlField!).getByRole("button", { name: "Disconnect" })).toBeEnabled();
   },
 };
 
@@ -572,6 +575,62 @@ export const StepSettingsTabs: Story = {
     await expect(await canvas.findByLabelText("Slack channel ID")).toHaveAttribute(
       "aria-invalid",
       "true",
+    );
+  },
+};
+
+export const StepTestChoices: Story = {
+  name: "A step's test run choices",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A step that calls out can use its test data or run for real in test runs, and while it uses test data it can be set to fail. A step that runs for real is marked on the canvas, and the test settings count such steps and set them all at once.",
+      },
+    },
+  },
+  args: {
+    initialName: invalidStepDraft.name,
+    initialNodes: invalidStepDraft.nodes,
+    initialEdges: invalidStepDraft.edges,
+    organizationSlug: "acme",
+    visualWorkflowId: "workflow-1",
+    visualWorkflowsApi: {
+      createVisualWorkflowRun: fn(),
+      getVisualWorkflowRun: fn(),
+    } as never,
+  },
+  play: async ({ canvas }) => {
+    const titles = await canvas.findAllByText("Notify Slack", {}, { timeout: 10_000 });
+    const slackNode = titles
+      .map((entry) => entry.closest<HTMLElement>(".react-flow__node"))
+      .find((candidate) => candidate !== null)!;
+    await userEvent.click(slackNode);
+    await userEvent.click(await canvas.findByRole("tab", { name: "Test" }));
+
+    // A failure goes through the step's On error setting.
+    await userEvent.click(canvas.getByRole("combobox", { name: "Outcome" }));
+    await userEvent.click(await within(document.body).findByRole("option", { name: "Fails" }));
+    await expect(
+      await canvas.findByText("On error is set to Stop, so the test run stops at this step."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Error message")).toBeVisible();
+
+    // Running for real replaces the test data, and the card says so.
+    await userEvent.click(canvas.getByRole("combobox", { name: "In a test run" }));
+    await userEvent.click(
+      await within(document.body).findByRole("option", { name: "Run for real" }),
+    );
+    await expect(canvas.queryByRole("combobox", { name: "Outcome" })).not.toBeInTheDocument();
+    await expect(within(slackNode).getByText("Runs for real in test runs")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Test settings" }));
+    const popover = within(document.body);
+    await expect(await popover.findByText("1 step runs for real.")).toBeInTheDocument();
+    await userEvent.click(popover.getByRole("button", { name: "Use test data everywhere" }));
+    await expect(await popover.findByText("Every step uses its test data.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(slackNode).queryByText("Runs for real in test runs")).not.toBeInTheDocument(),
     );
   },
 };

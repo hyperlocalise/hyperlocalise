@@ -66,10 +66,17 @@ import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 import {
+  EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
   buildTestRunData,
+  canRunForReal,
   findMissingTestValues,
+  findRealStepsFedByTestData,
+  pruneTestSetup,
+  realTestNodeIds,
   testDataFromRun,
-  type VisualWorkflowTestData,
+  testFailureOf,
+  type VisualWorkflowTestFailure,
+  type VisualWorkflowTestSetup,
 } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 
 import {
@@ -86,8 +93,6 @@ import {
   collectWorkflowSecrets,
 } from "@/lib/visual-workflows/runtime/snapshots";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FieldDescription, FieldLabel } from "@/components/ui/field";
 import {
   Popover,
   PopoverContent,
@@ -102,6 +107,10 @@ import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
+import {
+  VisualWorkflowRealTestDialog,
+  type RealTestStep,
+} from "./visual-workflow-real-test-dialog";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import {
@@ -126,9 +135,11 @@ export function VisualWorkflowEditor({
   previewMode = false,
   playgroundMode = false,
   sampleDraft,
+  initialTestSetup,
   onSave,
   isSaving = false,
   savedDefinition,
+  savedTestSetup,
   onUnsavedChangesChange,
   organizationSlug,
   visualWorkflowId,
@@ -148,10 +159,17 @@ export function VisualWorkflowEditor({
   previewMode?: boolean;
   playgroundMode?: boolean;
   sampleDraft?: VisualWorkflowEditorState;
-  onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
+  /** The test data and test run choices saved with the draft. */
+  initialTestSetup?: VisualWorkflowTestSetup;
+  onSave?: (
+    definition: VisualWorkflowV3Definition,
+    testSetup: VisualWorkflowTestSetup,
+  ) => void | Promise<void>;
   isSaving?: boolean;
   /** The workflow as last saved. With it, the editor reports whether its graph differs from it. */
   savedDefinition?: VisualWorkflowV3Definition;
+  /** The test setup as last saved, compared like the graph. */
+  savedTestSetup?: VisualWorkflowTestSetup;
   onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   organizationSlug?: string;
   visualWorkflowId?: string;
@@ -172,9 +190,19 @@ export function VisualWorkflowEditor({
   /** The assistant's calls, in place of the server's, for stories. Must not change. */
   assistantApi?: AutomationAssistantApi;
 }) {
-  // Each step's own test data; kept out of the steps, so editing it is no undo step.
-  const [testData, setTestData] = useState<VisualWorkflowTestData>({});
-  const [liveTest, setLiveTest] = useState(false);
+  // Each step's test data and test run choices; kept out of the steps, so editing them is no undo
+  // step. They are saved with the draft.
+  const [testSetup, setTestSetup] = useState<VisualWorkflowTestSetup>(
+    initialTestSetup ?? EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+  );
+  const testData = testSetup.data;
+  // Only a test run on the server can call out, so only there can a step run for real.
+  const canTestForReal = Boolean(organizationSlug && visualWorkflowId && visualWorkflowsApi);
+  const effectiveTestSetup = useMemo(
+    () => (canTestForReal ? testSetup : { ...testSetup, realNodeIds: [] }),
+    [canTestForReal, testSetup],
+  );
+  const [realTestSteps, setRealTestSteps] = useState<RealTestStep[]>([]);
   const [requestedTab, setRequestedTab] = useState<{ tab: StepSettingsTab; key: number }>();
   // The step a value under the pointer in the settings panel comes from, marked on the canvas.
   const [pointedNodeId, setPointedNodeId] = useState<string | null>(null);
@@ -383,10 +411,25 @@ export function VisualWorkflowEditor({
     [edges, name, nodes],
   );
   const issues = useMemo(() => validateVisualWorkflowV3Definition(definition), [definition]);
+  const prunedTestSetup = useMemo(
+    () =>
+      pruneTestSetup(
+        testSetup,
+        nodes.map((node) => node.id),
+      ),
+    [nodes, testSetup],
+  );
   const hasUnsavedChanges = useMemo(
     () =>
-      savedDefinition !== undefined && !visualWorkflowDefinitionsEqual(savedDefinition, definition),
-    [definition, savedDefinition],
+      savedDefinition !== undefined &&
+      (!visualWorkflowDefinitionsEqual(savedDefinition, definition) ||
+        JSON.stringify(
+          pruneTestSetup(
+            savedTestSetup ?? EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+            nodes.map((node) => node.id),
+          ),
+        ) !== JSON.stringify(prunedTestSetup)),
+    [definition, nodes, prunedTestSetup, savedDefinition, savedTestSetup],
   );
   useEffect(() => {
     onUnsavedChangesChange?.(hasUnsavedChanges);
@@ -799,36 +842,61 @@ export function VisualWorkflowEditor({
   );
 
   const missingTestValues = useMemo(
-    () => findMissingTestValues({ nodes, edges, testData, live: liveTest }),
-    [edges, liveTest, nodes, testData],
+    () => findMissingTestValues({ nodes, edges, setup: effectiveTestSetup }),
+    [edges, effectiveTestSetup, nodes],
+  );
+  const realNodeIds = useMemo(
+    () => realTestNodeIds(nodes, effectiveTestSetup),
+    [effectiveTestSetup, nodes],
+  );
+  const stepTitle = useCallback(
+    (nodeId: string) => {
+      const step = nodes.find((node) => node.id === nodeId);
+      return step
+        ? intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType))
+        : nodeId;
+    },
+    [intl, nodes],
   );
 
-  const onTestWorkflowClick = useCallback(async () => {
-    // A test run invents no values, so one that lacks any is not started.
-    const firstMissing = missingTestValues[0];
-    if (firstMissing) {
-      const step = nodes.find((node) => node.id === firstMissing.nodeId);
-      toast.error(
-        intl.formatMessage(messages.testRunMissingData, { count: missingTestValues.length }),
-        {
-          description: step
-            ? intl.formatMessage(messages.testRunMissingDataFirst, {
-                path: firstMissing.path,
-                step: intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType)),
-              })
-            : undefined,
-          action: {
-            label: intl.formatMessage(messages.testRunMissingDataShow),
-            onClick: () => {
-              showNode(firstMissing.nodeId);
-              setRequestedTab({ tab: "test", key: Date.now() });
-            },
-          },
-        },
-      );
-      return;
-    }
-    const { triggerInput, mockOutputs } = buildTestRunData({ nodes, testData, live: liveTest });
+  const setStepTestData = useCallback((nodeId: string, value: Record<string, unknown>) => {
+    setTestSetup((current) => ({ ...current, data: { ...current.data, [nodeId]: value } }));
+  }, []);
+  const setStepRunsForReal = useCallback((nodeId: string, real: boolean) => {
+    setTestSetup((current) => ({
+      ...current,
+      realNodeIds: real
+        ? [...new Set([...current.realNodeIds, nodeId])]
+        : current.realNodeIds.filter((id) => id !== nodeId),
+    }));
+  }, []);
+  const setStepFailure = useCallback(
+    (nodeId: string, failure: VisualWorkflowTestFailure | undefined) => {
+      setTestSetup((current) => {
+        const failures = { ...current.failures };
+        if (failure) failures[nodeId] = failure;
+        else delete failures[nodeId];
+        return { ...current, failures };
+      });
+    },
+    [],
+  );
+  /** Sets every step that can run for real to do so, or every one to use its test data. */
+  const setEveryStepRunsForReal = useCallback(
+    (real: boolean) => {
+      setTestSetup((current) => ({
+        ...current,
+        realNodeIds: real
+          ? nodes.filter((node) => canRunForReal(node.data.catalogType)).map((node) => node.id)
+          : [],
+      }));
+    },
+    [nodes],
+  );
+
+  /** Starts a test run with the steps' test data and choices as they are. */
+  const startTestRun = useCallback(async () => {
+    const testRun = buildTestRunData({ nodes, setup: effectiveTestSetup });
     runAbortRef.current?.abort();
     const controller = new AbortController();
     runAbortRef.current = controller;
@@ -851,9 +919,11 @@ export function VisualWorkflowEditor({
           {
             idempotencyKey,
             definition,
-            inputSnapshot: triggerInput,
-            mode: liveTest ? "live" : "mock",
-            mockOutputs,
+            inputSnapshot: testRun.triggerInput,
+            mode: testRun.mode,
+            mockOutputs: testRun.mockOutputs,
+            realNodeIds: testRun.realNodeIds,
+            mockFailures: testRun.mockFailures,
           },
         );
 
@@ -888,8 +958,9 @@ export function VisualWorkflowEditor({
           name,
           nodes,
           edges,
-          triggerInput,
-          mockOutputs,
+          triggerInput: testRun.triggerInput,
+          mockOutputs: testRun.mockOutputs,
+          mockFailures: testRun.mockFailures,
           signal: controller.signal,
           onStatus: setRunStatus,
           onOutput: setNodeOutputSnapshot,
@@ -911,22 +982,75 @@ export function VisualWorkflowEditor({
     }
   }, [
     applyNodeRunStatuses,
-    missingTestValues,
-    showNode,
-    testData,
-    liveTest,
+    effectiveTestSetup,
     definition,
     edges,
     intl,
     name,
     nodes,
     organizationSlug,
-    playgroundMode,
     setNodeOutputSnapshot,
     setNodes,
     setRunStatus,
     visualWorkflowId,
     visualWorkflowsApi,
+  ]);
+
+  const onTestWorkflowClick = useCallback(() => {
+    // A test run invents no values, so one that lacks any is not started.
+    const firstMissing = missingTestValues[0];
+    if (firstMissing) {
+      const step = nodes.find((node) => node.id === firstMissing.nodeId);
+      toast.error(
+        intl.formatMessage(messages.testRunMissingData, { count: missingTestValues.length }),
+        {
+          description: step
+            ? intl.formatMessage(messages.testRunMissingDataFirst, {
+                path: firstMissing.path,
+                step: intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType)),
+              })
+            : undefined,
+          action: {
+            label: intl.formatMessage(messages.testRunMissingDataShow),
+            onClick: () => {
+              showNode(firstMissing.nodeId);
+              setRequestedTab({ tab: "test", key: Date.now() });
+            },
+          },
+        },
+      );
+      return;
+    }
+    // A step that calls out for real is only run once the person has seen it named.
+    if (realNodeIds.size > 0) {
+      const fedBy = new Map(
+        findRealStepsFedByTestData({ nodes, edges, setup: effectiveTestSetup }).map((entry) => [
+          entry.nodeId,
+          entry.mockedNodeIds,
+        ]),
+      );
+      setRealTestSteps(
+        nodes
+          .filter((node) => realNodeIds.has(node.id))
+          .map((node) => ({
+            nodeId: node.id,
+            title: stepTitle(node.id),
+            fedBy: (fedBy.get(node.id) ?? []).map(stepTitle),
+          })),
+      );
+      return;
+    }
+    void startTestRun();
+  }, [
+    edges,
+    effectiveTestSetup,
+    intl,
+    missingTestValues,
+    nodes,
+    realNodeIds,
+    showNode,
+    startTestRun,
+    stepTitle,
   ]);
 
   const draftJson = useCallback(
@@ -955,9 +1079,9 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(definition);
+    void onSave(definition, prunedTestSetup);
     setFreshNodeIds(NO_FRESH_STEPS);
-  }, [definition, onSave]);
+  }, [definition, onSave, prunedTestSetup]);
 
   const handleStatusChange = useCallback(
     async (active: boolean) => {
@@ -1007,6 +1131,16 @@ export function VisualWorkflowEditor({
         onDelete={onDelete}
         isDeleting={isDeleting}
       />
+      <VisualWorkflowRealTestDialog
+        steps={realTestSteps}
+        onOpenChange={(open) => {
+          if (!open) setRealTestSteps([]);
+        }}
+        onConfirm={() => {
+          setRealTestSteps([]);
+          void startTestRun();
+        }}
+      />
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel
           organizationSlug={organizationSlug}
@@ -1016,7 +1150,7 @@ export function VisualWorkflowEditor({
           onSelectRun={setSelectedRunId}
           onUseRunAsTestData={(nodeRuns) => {
             const fromRun = testDataFromRun(nodes, nodeRuns);
-            setTestData((current) => ({ ...current, ...fromRun }));
+            setTestSetup((current) => ({ ...current, data: { ...current.data, ...fromRun } }));
             toast.success(
               intl.formatMessage(messages.usedRunAsTestData, {
                 count: Object.keys(fromRun).length,
@@ -1031,6 +1165,7 @@ export function VisualWorkflowEditor({
             issueNodeIds={issueNodeIds}
             freshNodeIds={freshNodeIds}
             pointedNodeId={pointedNodeId}
+            realNodeIds={realNodeIds}
           >
             <VisualWorkflowCanvas
               nodes={nodes}
@@ -1078,17 +1213,38 @@ export function VisualWorkflowEditor({
                           {intl.formatMessage(messages.testSettingsHint)}
                         </PopoverDescription>
                       </PopoverHeader>
-                      <div className="mt-3 grid gap-1.5">
-                        <FieldLabel className="gap-2 text-sm">
-                          <Checkbox
-                            checked={liveTest}
-                            onCheckedChange={(value) => setLiveTest(Boolean(value))}
-                          />
-                          {intl.formatMessage(messages.liveTestLabel)}
-                        </FieldLabel>
-                        <FieldDescription>
-                          {intl.formatMessage(messages.liveTestDescription)}
-                        </FieldDescription>
+                      <div className="mt-3 grid gap-2">
+                        <p className="text-sm">
+                          {intl.formatMessage(messages.testSettingsRealCount, {
+                            count: realNodeIds.size,
+                          })}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={realNodeIds.size === 0}
+                            onClick={() => setEveryStepRunsForReal(false)}
+                          >
+                            {intl.formatMessage(messages.testSettingsUseTestDataEverywhere)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              realNodeIds.size ===
+                              nodes.filter((node) => canRunForReal(node.data.catalogType)).length
+                            }
+                            onClick={() => setEveryStepRunsForReal(true)}
+                          >
+                            {intl.formatMessage(messages.testSettingsRunEverythingForReal)}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {intl.formatMessage(messages.testSettingsAllRealNote)}
+                        </p>
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -1140,9 +1296,13 @@ export function VisualWorkflowEditor({
                 missingTestValues={missingTestValues.filter(
                   (entry) => entry.nodeId === selectedNode.id,
                 )}
-                onChangeTestData={(value) =>
-                  setTestData((current) => ({ ...current, [selectedNode.id]: value }))
+                onChangeTestData={(value) => setStepTestData(selectedNode.id, value)}
+                testRunsForReal={realNodeIds.has(selectedNode.id)}
+                onChangeTestRunsForReal={
+                  canTestForReal ? (real) => setStepRunsForReal(selectedNode.id, real) : undefined
                 }
+                testFailure={testFailureOf(selectedNode, effectiveTestSetup)}
+                onChangeTestFailure={(failure) => setStepFailure(selectedNode.id, failure)}
                 requestedTab={requestedTab}
                 onDisconnectInput={onDisconnectInput}
                 onPointStep={setPointedNodeId}

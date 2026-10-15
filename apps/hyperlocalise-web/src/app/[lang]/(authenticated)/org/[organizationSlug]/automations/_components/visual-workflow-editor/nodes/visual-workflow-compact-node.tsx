@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { readWorkflowPath } from "@/lib/visual-workflows/runtime/bindings";
-import { WarningCircleIcon } from "@phosphor-icons/react";
+import { BroadcastIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Handle, Position, useEdges, type NodeProps } from "@xyflow/react";
 import { defineMessages, FormattedMessage, useIntl } from "react-intl";
 
@@ -331,9 +331,10 @@ function DataPortLabel({
 export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<VisualWorkflowRfNode>) {
   const intl = useIntl();
   const edges = useEdges<VisualWorkflowRfEdge>();
-  const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId } =
+  const { onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds } =
     useVisualWorkflowCanvasActions();
   const hasIssue = issueNodeIds.has(id);
+  const runsForReal = realNodeIds.has(id);
   const isFresh = !selected && freshNodeIds.has(id);
   const isPointed = !selected && pointedNodeId === id;
   const catalog = catalogItemByType(data.catalogType);
@@ -552,6 +553,15 @@ export function VisualWorkflowCompactNode({ id, data, selected }: NodeProps<Visu
           title={intl.formatMessage(messages.stepHasIssue)}
         >
           <WarningCircleIcon className="size-3.5" />
+        </span>
+      ) : null}
+      {runsForReal ? (
+        <span
+          className="absolute top-2 left-2 text-warning"
+          title={intl.formatMessage(messages.stepRunsForReal)}
+        >
+          <BroadcastIcon weight="bold" className="size-3.5" />
+          <span className="sr-only">{intl.formatMessage(messages.stepRunsForReal)}</span>
         </span>
       ) : null}
       {isTrigger ? (

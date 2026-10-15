@@ -20,6 +20,7 @@ import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
+import type { VisualWorkflowTestSetup } from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import { parseVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/definition-migration";
 import {
   createEmptyVisualWorkflowDefinition,
@@ -69,6 +70,7 @@ vi.mock("./visual-workflow-editor/visual-workflow-editor", () => ({
     initialNodes,
     initialEdges,
     savedDefinition,
+    initialTestSetup,
     onUnsavedChangesChange,
     onSave,
     onDelete,
@@ -77,8 +79,9 @@ vi.mock("./visual-workflow-editor/visual-workflow-editor", () => ({
     initialNodes: VisualWorkflowRfNode[];
     initialEdges: VisualWorkflowRfEdge[];
     savedDefinition: VisualWorkflowV3Definition;
+    initialTestSetup: VisualWorkflowTestSetup;
     onUnsavedChangesChange: (hasUnsavedChanges: boolean) => void;
-    onSave: (definition: VisualWorkflowV3Definition) => void;
+    onSave: (definition: VisualWorkflowV3Definition, testSetup: VisualWorkflowTestSetup) => void;
     onDelete: () => void;
   }) => {
     const [name, setName] = useState(initialName);
@@ -97,7 +100,7 @@ vi.mock("./visual-workflow-editor/visual-workflow-editor", () => ({
         <button type="button" onClick={() => setName(`${name} v2`)}>
           Rename
         </button>
-        <button type="button" onClick={() => onSave(definition)}>
+        <button type="button" onClick={() => onSave(definition, initialTestSetup)}>
           Save
         </button>
         <button type="button" onClick={onDelete}>
@@ -145,7 +148,11 @@ function createApi() {
   };
 }
 
-function renderPage(api: VisualWorkflowsApi, extra?: ReactNode) {
+function renderPage(
+  api: VisualWorkflowsApi,
+  extra?: ReactNode,
+  testSetup?: VisualWorkflowTestSetup,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -158,6 +165,7 @@ function renderPage(api: VisualWorkflowsApi, extra?: ReactNode) {
         <VisualWorkflowEditorPageContent
           organizationSlug="acme"
           workflow={createWorkflow()}
+          testSetup={testSetup}
           visualWorkflowsApi={api}
         />
       </QueryClientProvider>
@@ -230,6 +238,22 @@ describe("VisualWorkflowEditorPageContent leave guard", () => {
 
     expect(clickInboxLink()).toBe(true);
     expect(screen.queryByText("Leave without saving?")).toBeNull();
+  });
+
+  it("saves the test setup with the draft", async () => {
+    const user = userEvent.setup();
+    const { api, updateVisualWorkflow } = createApi();
+    const testSetup = { data: { t: { name: "Ada" } }, realNodeIds: [], failures: {} };
+    renderPage(api, undefined, testSetup);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(updateVisualWorkflow).toHaveBeenCalledWith(
+        "acme",
+        "workflow-1",
+        expect.objectContaining({ testSetup }),
+      ),
+    );
   });
 
   it("goes to the workflow list after deleting without asking", async () => {

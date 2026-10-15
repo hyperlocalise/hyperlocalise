@@ -24,6 +24,10 @@ import {
   fromVisualWorkflowV3Definition,
   toVisualWorkflowV3Definition,
 } from "@/lib/visual-workflows/schema/serializers";
+import {
+  EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+  type VisualWorkflowTestSetup,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 import type { VisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowRecord } from "@/lib/visual-workflows/visual-workflow-types";
 
@@ -45,6 +49,7 @@ export function VisualWorkflowEditorPageContent({
   organizationSlug,
   projectName = null,
   workflow,
+  testSetup = EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
   visualWorkflowsApi: injectedApi = visualWorkflowsApi,
 }: {
   /** Whether the person may use the automation assistant on this workflow. */
@@ -53,6 +58,8 @@ export function VisualWorkflowEditorPageContent({
   /** Name of the project the workflow belongs to, for the assistant. */
   projectName?: string | null;
   workflow: VisualWorkflowRecord;
+  /** The test data and test run choices saved with the draft. */
+  testSetup?: VisualWorkflowTestSetup;
   visualWorkflowsApi?: VisualWorkflowsApi;
 }) {
   const router = useRouter();
@@ -75,12 +82,14 @@ export function VisualWorkflowEditorPageContent({
   const [savedDefinition, setSavedDefinition] = useState(() =>
     toVisualWorkflowV3Definition(editorState),
   );
+  const [savedTestSetup, setSavedTestSetup] = useState(testSetup);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
 
   const persistMutation = useMutation({
     mutationFn: (input: {
       definition: VisualWorkflowV3Definition;
+      testSetup?: VisualWorkflowTestSetup;
       status?: VisualWorkflowRecord["status"];
     }) =>
       injectedApi
@@ -88,21 +97,23 @@ export function VisualWorkflowEditorPageContent({
           expectedRevision: revision.current,
           name: input.definition.name,
           definition: input.definition,
+          ...(input.testSetup ? { testSetup: input.testSetup } : {}),
           ...(input.status ? { status: input.status } : {}),
         })
         .then((record) => {
           revision.current = record.revision;
           setSavedName(record.name);
           setSavedDefinition(input.definition);
+          if (input.testSetup) setSavedTestSetup(input.testSetup);
           return record;
         }),
   });
 
   const saveMutation = {
     ...persistMutation,
-    mutate: (definition: VisualWorkflowV3Definition) => {
+    mutate: (definition: VisualWorkflowV3Definition, testSetup: VisualWorkflowTestSetup) => {
       persistMutation.mutate(
-        { definition },
+        { definition, testSetup },
         {
           onSuccess: () => {
             toast.success(<FormattedMessage {...visualWorkflowEditorMessages.saved} />);
@@ -162,9 +173,11 @@ export function VisualWorkflowEditorPageContent({
         initialName={editorState.name}
         initialNodes={editorState.nodes}
         initialEdges={editorState.edges}
-        onSave={(definition) => saveMutation.mutate(definition)}
+        initialTestSetup={testSetup}
+        onSave={(definition, nextTestSetup) => saveMutation.mutate(definition, nextTestSetup)}
         isSaving={saveMutation.isPending}
         savedDefinition={savedDefinition}
+        savedTestSetup={savedTestSetup}
         onUnsavedChangesChange={setHasUnsavedChanges}
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}
