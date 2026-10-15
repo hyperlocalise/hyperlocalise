@@ -62,12 +62,16 @@ describe("isMockable", () => {
     expect(isMockable("logic.if")).toBe(false);
     expect(isMockable("flow.wait")).toBe(false);
     expect(isMockable("logic.merge")).toBe(false);
+    expect(isMockable("logic.create_object")).toBe(false);
+    expect(isMockable("logic.merge_objects")).toBe(false);
   });
 
   it("lets every step but a trigger run for real", () => {
     expect(canRunForReal("action.notify_slack")).toBe(true);
     expect(canRunForReal("trigger.manual")).toBe(false);
     expect(canRunForReal("logic.set")).toBe(false);
+    expect(canRunForReal("logic.create_object")).toBe(false);
+    expect(canRunForReal("logic.merge_objects")).toBe(false);
   });
 
   // A step that is not mockable gets no test data, so the run must work it out itself: through its

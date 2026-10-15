@@ -1085,6 +1085,65 @@ describe("VisualWorkflowConfigPanel", () => {
     });
   });
 
+  it("shows a wired Create Object field as a bound source and disables its default", () => {
+    const source: VisualWorkflowRfNode = {
+      id: "source",
+      type: "logic.set",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.set"),
+      data: {
+        catalogType: "logic.set",
+        config: createDefaultConfig("logic.set"),
+        runStatus: "idle",
+      },
+    };
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [{ id: "customer", name: "customerId", type: "string" }],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        nodes={[source, node]}
+        edges={[
+          {
+            id: "wire",
+            source: "source",
+            target: "create-object",
+            sourceHandle: "value",
+            targetHandle: "value.customer",
+            data: { kind: "data" },
+          },
+        ]}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={vi.fn()}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Set fields")).toBeInTheDocument();
+    expect(screen.getByText("› value")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Use inline default" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "Object field 1 default" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("configures Merge Objects ordering and conflict policy", async () => {
     const user = userEvent.setup();
     const onChangeConfig = vi.fn();

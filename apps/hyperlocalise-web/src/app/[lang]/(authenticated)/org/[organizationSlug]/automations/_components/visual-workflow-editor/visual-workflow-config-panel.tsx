@@ -291,7 +291,13 @@ export function VisualWorkflowConfigPanel({
     invalid: invalidFields.has(portId),
   });
   // Inputs that only a wire can feed, such as a Call workflow's or a Return's values.
-  const wireOnlyInputs = inputFields.filter((field) => field.name.startsWith("value."));
+  // Create/Merge object ports are shown with their field editors, not again at the bottom.
+  const wireOnlyInputs = inputFields.filter(
+    (field) =>
+      field.name.startsWith("value.") &&
+      config.kind !== "logic.create_object" &&
+      config.kind !== "logic.merge_objects",
+  );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
   const [tab, setTab] = useState<StepSettingsTab>("configuration");
@@ -1151,6 +1157,7 @@ export function VisualWorkflowConfigPanel({
             {config.fields.map((field, index) => {
               const portId = `value.${field.id}`;
               const connected = connectedInputProps(portId);
+              const wired = connected.port.source !== undefined;
               const hasDefault = Object.hasOwn(field, "defaultValue");
               return (
                 <div key={field.id} className="grid gap-2 rounded-md border border-border p-2">
@@ -1210,7 +1217,7 @@ export function VisualWorkflowConfigPanel({
                     <Checkbox
                       id={`vw-object-default-${field.id}`}
                       checked={hasDefault}
-                      disabled={connected.disabled}
+                      disabled={wired}
                       onCheckedChange={(checked) =>
                         onChangeConfig({
                           ...config,
@@ -1228,7 +1235,17 @@ export function VisualWorkflowConfigPanel({
                       <FormattedMessage {...messages.createObjectUseDefault} />
                     </Label>
                   </div>
-                  {hasDefault ? (
+                  {wired || !hasDefault ? (
+                    <WorkflowBoundField
+                      id={`vw-object-value-${field.id}`}
+                      label={field.name}
+                      value=""
+                      onChange={() => {}}
+                      editable={false}
+                      invalid={connected.invalid}
+                      port={connected.port}
+                    />
+                  ) : (
                     <ObjectDefaultInput
                       key={`${field.id}:${field.type}`}
                       ariaLabel={intl.formatMessage(messages.createObjectFieldDefault, {
@@ -1236,8 +1253,7 @@ export function VisualWorkflowConfigPanel({
                       })}
                       value={field.defaultValue}
                       type={field.type}
-                      disabled={connected.disabled}
-                      invalid={invalidFields.has(portId)}
+                      invalid={connected.invalid}
                       onChange={(defaultValue) =>
                         onChangeConfig({
                           ...config,
@@ -1247,10 +1263,7 @@ export function VisualWorkflowConfigPanel({
                         })
                       }
                     />
-                  ) : null}
-                  {connected.description ? (
-                    <p className="text-xs text-muted-foreground">{connected.description}</p>
-                  ) : null}
+                  )}
                   <div className="flex justify-end gap-1">
                     <Button
                       type="button"
@@ -1361,71 +1374,82 @@ export function VisualWorkflowConfigPanel({
               <FormattedMessage {...messages.mergeObjectsInputs} />
             </Label>
             {config.inputs.map((objectInput, index) => (
-              <div key={objectInput.id} className="flex items-center gap-2">
-                <Input
-                  aria-label={intl.formatMessage(messages.mergeObjectsInputName, {
-                    index: index + 1,
-                  })}
-                  value={objectInput.name}
-                  aria-invalid={invalidFields.has(`value.${objectInput.id}`) || undefined}
-                  onChange={(event) =>
-                    onChangeConfig({
-                      ...config,
-                      inputs: config.inputs.map((entry, inputIndex) =>
-                        inputIndex === index ? { ...entry, name: event.target.value } : entry,
-                      ),
-                    })
-                  }
+              <div key={objectInput.id} className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.mergeObjectsInputName, {
+                      index: index + 1,
+                    })}
+                    value={objectInput.name}
+                    aria-invalid={invalidFields.has(`value.${objectInput.id}`) || undefined}
+                    onChange={(event) =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.map((entry, inputIndex) =>
+                          inputIndex === index ? { ...entry, name: event.target.value } : entry,
+                        ),
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === 0}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputUp, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretUpIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === config.inputs.length - 1}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputDown, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretDownIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={config.inputs.length <= 2}
+                    aria-label={intl.formatMessage(messages.removeMergeObjectsInput, {
+                      index: index + 1,
+                    })}
+                    onClick={() =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                      })
+                    }
+                  >
+                    <TrashIcon className="size-4" />
+                  </Button>
+                </div>
+                <WorkflowBoundField
+                  id={`vw-merge-object-${objectInput.id}`}
+                  label={objectInput.name}
+                  value=""
+                  onChange={() => {}}
+                  editable={false}
+                  invalid={invalidFields.has(`value.${objectInput.id}`)}
+                  port={portFor(`value.${objectInput.id}`)}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={index === 0}
-                  aria-label={intl.formatMessage(messages.moveMergeObjectsInputUp, {
-                    index: index + 1,
-                  })}
-                  onClick={() => {
-                    const inputs = [...config.inputs];
-                    [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
-                    onChangeConfig({ ...config, inputs });
-                  }}
-                >
-                  <CaretUpIcon className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={index === config.inputs.length - 1}
-                  aria-label={intl.formatMessage(messages.moveMergeObjectsInputDown, {
-                    index: index + 1,
-                  })}
-                  onClick={() => {
-                    const inputs = [...config.inputs];
-                    [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
-                    onChangeConfig({ ...config, inputs });
-                  }}
-                >
-                  <CaretDownIcon className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={config.inputs.length <= 2}
-                  aria-label={intl.formatMessage(messages.removeMergeObjectsInput, {
-                    index: index + 1,
-                  })}
-                  onClick={() =>
-                    onChangeConfig({
-                      ...config,
-                      inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
-                    })
-                  }
-                >
-                  <TrashIcon className="size-4" />
-                </Button>
               </div>
             ))}
             <Button
