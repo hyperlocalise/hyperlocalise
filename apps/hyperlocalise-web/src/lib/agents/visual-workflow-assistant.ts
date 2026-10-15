@@ -620,7 +620,12 @@ function applyOne(
       };
       const validation = validateVisualWorkflowConnection({ nodes, edges, connection });
       if (!validation.valid) {
-        return { state, result: rejected(op, validation.code, validation.message) };
+        // A whole value of another type can still be read inside text, which takes any value.
+        const hint =
+          validation.code === "incompatible_data_types"
+            ? " To use the value inside a text setting instead, write its reference in that setting's text with configure_node."
+            : "";
+        return { state, result: rejected(op, validation.code, `${validation.message}${hint}`) };
       }
       return {
         state: withGraph(applyVisualWorkflowGraphConnection(nodes, edges, connection)),
@@ -868,7 +873,8 @@ function describeOperation(
     case "configure_node":
       return `changed ${Object.keys(op.config ?? {}).join(", ")} on ${label(op.nodeId)}`;
     case "rename_workflow":
-      return `renamed the workflow to "${op.name}"`;
+      // The old name stays in the conversation only through this line: the page is not kept.
+      return `renamed the workflow from ${JSON.stringify(before.name.trim())} to ${JSON.stringify(op.name)}`;
     default:
       return assertNever(op);
   }

@@ -689,6 +689,39 @@ describe("editVisualWorkflow", () => {
     });
   });
 
+  it("keeps the old name in a rename's result, and offers text when a wire's types differ", () => {
+    const { output } = editVisualWorkflow(
+      context({
+        ...base,
+        nodes: [
+          ...base.nodes,
+          node("if", "logic.if", { position: { x: 680, y: 0 } }),
+          node("notify_slack", "action.notify_slack", { position: { x: 1020, y: 0 } }),
+        ],
+        edges: [...base.edges, edge("set", "if"), edge("if", "notify_slack", "true")],
+      }),
+      {
+        operations: [
+          { op: "rename_workflow", name: "Nightly summary" },
+          {
+            op: "connect",
+            source: "if",
+            sourceHandle: "result",
+            target: "notify_slack",
+            targetHandle: "message",
+          },
+        ],
+      },
+    );
+
+    expect(output.applied && output.result.applied).toEqual([
+      'renamed the workflow from "Nightly sync" to "Nightly summary"',
+    ]);
+    expect(output.applied && output.result.rejected[0]).toMatch(
+      /write its reference in that setting's text with configure_node\.$/,
+    );
+  });
+
   it("names a step it removed by its title", () => {
     const { output } = editVisualWorkflow(context(), {
       operations: [{ op: "remove_node", nodeId: "set" }],
