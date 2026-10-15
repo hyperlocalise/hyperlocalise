@@ -46,6 +46,7 @@ const sessionFixture = {
 const signedInSettings: PluginSettings = {
   appUrl: DEFAULT_APP_URL,
   accessToken: null,
+  refreshToken: null,
   connectionToken: "hl_figma_test",
   personalAccessToken: null,
   userEmail: null,
@@ -154,9 +155,28 @@ function figmaFetchHandler(
   }
   if (url.includes("/api/integrations/figma/translations")) {
     const translations = overrides?.translations;
-    return translations instanceof Promise
-      ? translations
-      : (translations ?? jsonResponse({ error: "not_found" }, 404));
+    if (translations instanceof Promise) {
+      return translations;
+    }
+    if (translations) {
+      return translations;
+    }
+    const params = new URL(url, "http://localhost").searchParams;
+    const locale = params.get("locale");
+    if (locale === "en") {
+      return jsonResponse({
+        sourcePage: {
+          locale: "en",
+          sourcePath: "figma/files/file-1/page-1.json",
+          needsReupload: false,
+          entries: [],
+        },
+      });
+    }
+    return jsonResponse({ error: "not_found" }, 404);
+  }
+  if (url.includes("/api/integrations/figma/health")) {
+    return jsonResponse({ ok: true, figmaOauthConfigured: false });
   }
   return jsonResponse({ error: "not_found" }, 404);
 }
@@ -228,7 +248,7 @@ describe("Figma plugin UI", () => {
     await waitFor(() => {
       expect(result.getByRole("button", { name: "Connect Hyperlocalise" })).toBeTruthy();
     });
-    expect(result.getByText("Connection token")).toBeTruthy();
+    expect(result.getByRole("button", { name: "Connect with token" })).toBeTruthy();
     expect(result.queryByRole("button", { name: "Upload and translate" })).toBeNull();
   });
 

@@ -60,7 +60,19 @@ import {
   selectedPagesCollected,
   type FigmaLocaleStatus,
 } from "./figma-locale-status";
-import { localesMatchForPick, pickTranslationsForLocale } from "./locale-map";
+import {
+  buildFigmaAuthorizeUrl,
+  createOAuthState,
+  createPkceChallenge,
+  createPkceVerifier,
+  exchangeFigmaAuthorizationCode,
+  fetchFigmaIntegrationHealth,
+  figmaOAuthRedirectUri,
+  refreshFigmaAccessToken,
+  waitForFigmaOAuthCallback,
+} from "./figma-oauth";
+import { isLocalAppUrl } from "./local-development";
+import { pickTranslationsForLocale, projectLocalesMatch } from "./locale-map";
 import {
   DEFAULT_APP_URL,
   DEFAULT_SETTINGS,
@@ -132,7 +144,10 @@ function isReconnectError(error: unknown) {
   return (
     error.code === "unauthorized" ||
     error.code === "forbidden" ||
-    error.code === "workspace_archived"
+    error.code === "workspace_archived" ||
+    error.code === "figma_api_key_not_found" ||
+    error.code === "figma_access_token_invalid" ||
+    error.code === "figma_connection_not_found"
   );
 }
 
@@ -241,7 +256,7 @@ export function App() {
   usePluginUiResize(shellRef, postPluginMessage, uiLayoutKey);
 
   const selectedLocaleStatus = localeStatuses.find((entry) =>
-    localesMatchForPick(settings.selectedLocale, entry.locale),
+    projectLocalesMatch(settings.selectedLocale, entry.locale),
   );
   const sourceLocaleStatus =
     localeStatuses.find((entry) => entry.isSource) ??
@@ -354,6 +369,7 @@ export function App() {
   const clearConnection = (current: PluginSettings) => ({
     ...current,
     accessToken: null,
+    refreshToken: null,
     connectionToken: null,
     personalAccessToken: null,
     userEmail: null,
@@ -802,6 +818,33 @@ export function App() {
     try {
       await work();
     } catch (error) {
+      if (
+        error instanceof HyperlocaliseClientError &&
+        error.code === "figma_access_token_invalid" &&
+        settings.refreshToken?.trim()
+      ) {
+        try {
+          const health = await fetchFigmaIntegrationHealth(settings.appUrl);
+          const clientId = health.figmaOauthClientId?.trim();
+          if (clientId) {
+            const tokens = await refreshFigmaAccessToken({
+              appUrl: settings.appUrl,
+              clientId,
+              refreshToken: settings.refreshToken.trim(),
+            });
+            persistSettings({
+              ...settings,
+              accessToken: tokens.access_token,
+              refreshToken: tokens.refresh_token,
+              connectionToken: null,
+            });
+            showToast("Session refreshed. Try again.", "warn");
+            return;
+          }
+        } catch {
+          // Fall through to reconnect handling.
+        }
+      }
       if (isReconnectError(error)) {
         persistSettings(clearConnection(settings));
         showToast("Reconnect Hyperlocalise to continue.", "critical");
@@ -854,28 +897,99 @@ export function App() {
     postPluginMessage({ type: "boot" });
   };
 
-  const handleConnect = () =>
+  const allowConnectionToken = isLocalAppUrl(settings.appUrl);
+
+  const completeConnectSession = async (credentials: {
+    accessToken: string | null;
+    refreshToken: string | null;
+    connectionToken: string | null;
+  }) => {
+    const auth = resourceAuthFromSettings(credentials);
+    if (!auth) {
+      throw new Error("Connect credentials are missing.");
+    }
+    const session = await fetchFigmaSession({
+      appUrl: settings.appUrl,
+      auth,
+    });
+    persistSettings({
+      ...settings,
+      accessToken: credentials.accessToken,
+      refreshToken: credentials.refreshToken,
+      connectionToken: credentials.connectionToken,
+      personalAccessToken: null,
+      userEmail: null,
+      organizationSlug: session.organization.slug ?? "",
+      organizationName: session.organization.name,
+    });
+    setTokenDraft("");
+    showToast("Connected.");
+  };
+
+  const handleConnectOauth = () =>
     runAction("login", async () => {
+      const health = await fetchFigmaIntegrationHealth(settings.appUrl);
+      const clientId = health.figmaOauthClientId?.trim();
+      if (!health.figmaOauthConfigured || !clientId) {
+        if (allowConnectionToken) {
+          throw new Error("OAuth is not configured. Paste a connection token instead.");
+        }
+        throw new Error("OAuth is not configured on this Hyperlocalise deployment.");
+      }
+
+      const verifier = createPkceVerifier();
+      const codeChallenge = await createPkceChallenge(verifier);
+      const state = createOAuthState();
+      const redirectUri = figmaOAuthRedirectUri(settings.appUrl);
+      const authorizeUrl = buildFigmaAuthorizeUrl({
+        appUrl: settings.appUrl,
+        clientId,
+        redirectUri,
+        codeChallenge,
+        state,
+      });
+
+      const popup = window.open(authorizeUrl, "hyperlocalise_figma_oauth", "width=520,height=720");
+      if (!popup) {
+        throw new Error("Allow pop-ups for this plugin to connect with Hyperlocalise.");
+      }
+
+      const callback = await waitForFigmaOAuthCallback(state, popup);
+      popup.close();
+      if ("error" in callback) {
+        throw new Error(callback.errorDescription ?? "Hyperlocalise sign-in was cancelled.");
+      }
+
+      const tokens = await exchangeFigmaAuthorizationCode({
+        appUrl: settings.appUrl,
+        clientId,
+        code: callback.code,
+        codeVerifier: verifier,
+        redirectUri,
+      });
+
+      await completeConnectSession({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        connectionToken: null,
+      });
+    });
+
+  const handleConnectToken = () =>
+    runAction("login", async () => {
+      if (!allowConnectionToken) {
+        throw new Error("Connection tokens are only available when developing against localhost.");
+      }
       const connectionToken = tokenDraft.trim();
       if (!connectionToken) {
         throw new Error("Paste a connection token from Integrations to connect.");
       }
 
-      const session = await fetchFigmaSession({
-        appUrl: settings.appUrl,
-        auth: { connectionToken },
-      });
-      persistSettings({
-        ...settings,
+      await completeConnectSession({
         accessToken: null,
+        refreshToken: null,
         connectionToken,
-        personalAccessToken: null,
-        userEmail: null,
-        organizationSlug: session.organization.slug ?? "",
-        organizationName: session.organization.name,
       });
-      setTokenDraft("");
-      showToast("Connected.");
     });
 
   const handleProjectChange = (projectId: string) =>
@@ -962,8 +1076,10 @@ export function App() {
         locale: sourceLocale,
       });
       return remapExtractedSegmentsToSource(extracted.segments, sourcePage);
-    } catch {
-      return extracted.segments;
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error("Unable to load stored source text for this page.");
     }
   };
 
@@ -1009,25 +1125,21 @@ export function App() {
 
     let localeTranslations: Record<string, string> | undefined;
 
-    const applyingSource = localesMatchForPick(locale, sourceLocale);
+    const applyingSource = projectLocalesMatch(locale, sourceLocale);
 
     if (applyingSource) {
-      try {
-        const sourcePage = await pullFigmaSourcePage({
-          appUrl: settings.appUrl,
-          auth,
-          projectId,
-          fileKey: file.fileKey,
-          pageId: originatedPageId,
-          locale: sourceLocale,
-        });
-        if (!sourcePage.needsReupload && sourcePage.entries.length > 0) {
-          localeTranslations = Object.fromEntries(
-            sourcePage.entries.map((entry) => [entry.key, entry.source]),
-          );
-        }
-      } catch {
-        localeTranslations = undefined;
+      const sourcePage = await pullFigmaSourcePage({
+        appUrl: settings.appUrl,
+        auth,
+        projectId,
+        fileKey: file.fileKey,
+        pageId: originatedPageId,
+        locale: sourceLocale,
+      });
+      if (!sourcePage.needsReupload && sourcePage.entries.length > 0) {
+        localeTranslations = Object.fromEntries(
+          sourcePage.entries.map((entry) => [entry.key, entry.source]),
+        );
       }
     }
 
@@ -1447,27 +1559,36 @@ export function App() {
               </Muted>
             </Text>
             <VerticalSpace space="small" />
-            <FormField
-              label="Connection token"
-              hint="In Hyperlocalise, open Integrations → Figma, add a connection, and copy the token."
-            >
-              <Textbox
-                password
-                spellCheck={false}
-                value={tokenDraft}
-                onValueInput={setTokenDraft}
-                disabled={busy != null}
-                placeholder="hl_figma_…"
-              />
-            </FormField>
-            <VerticalSpace space="small" />
-            <Button
-              fullWidth
-              onClick={() => void handleConnect()}
-              disabled={busy != null || tokenDraft.trim().length === 0}
-            >
+            <Button fullWidth onClick={() => void handleConnectOauth()} disabled={busy != null}>
               {busy === "login" ? "Connecting…" : "Connect Hyperlocalise"}
             </Button>
+            {allowConnectionToken ? (
+              <>
+                <VerticalSpace space="small" />
+                <FormField
+                  label="Connection token (localhost)"
+                  hint="On localhost, open Integrations → Figma and copy the token."
+                >
+                  <Textbox
+                    password
+                    spellCheck={false}
+                    value={tokenDraft}
+                    onValueInput={setTokenDraft}
+                    disabled={busy != null}
+                    placeholder="hl_figma_…"
+                  />
+                </FormField>
+                <VerticalSpace space="small" />
+                <Button
+                  fullWidth
+                  secondary
+                  onClick={() => void handleConnectToken()}
+                  disabled={busy != null || tokenDraft.trim().length === 0}
+                >
+                  Connect with token
+                </Button>
+              </>
+            ) : null}
           </Container>
         </div>
       ) : null}

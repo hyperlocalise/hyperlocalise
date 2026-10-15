@@ -70,9 +70,9 @@ describe("pickTranslationsForLocale", () => {
     expect(pickTranslationsForLocale(map, "vi-vn")).toEqual({ "figma.k.a": "Xin chào" });
   });
 
-  it("matches by language subtag when the region tag differs", () => {
+  it("does not match a language-only tag to a regional project locale", () => {
     const map = { "vi-VN": { "figma.k.a": "Xin chào" } };
-    expect(pickTranslationsForLocale(map, "vi")).toEqual({ "figma.k.a": "Xin chào" });
+    expect(pickTranslationsForLocale(map, "vi")).toBeUndefined();
   });
 
   it("returns only the requested locale when the job map has two targets", () => {
@@ -89,12 +89,14 @@ describe("isProjectSourceLocale", () => {
   it("matches source locale tags case-insensitively", () => {
     expect(isProjectSourceLocale("en-US", "en-us")).toBe(true);
     expect(isProjectSourceLocale("en-US", "fr-FR")).toBe(false);
+    expect(isProjectSourceLocale("en", "en-US")).toBe(false);
   });
 });
 
 describe("figmaLocalesMatch", () => {
-  it("matches language subtags when regions differ", () => {
-    expect(figmaLocalesMatch("vi-VN", "vi")).toBe(true);
+  it("matches exact project locale tags only", () => {
+    expect(figmaLocalesMatch("vi-VN", "vi-vn")).toBe(true);
+    expect(figmaLocalesMatch("vi-VN", "vi")).toBe(false);
     expect(figmaLocalesMatch("zh-CN", "zh-TW")).toBe(false);
   });
 });

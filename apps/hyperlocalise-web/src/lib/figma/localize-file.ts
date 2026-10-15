@@ -25,6 +25,7 @@ import {
   getStoredFileContent,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
+import { figmaProjectLocalesMatch, isProjectSourceLocale } from "@/lib/figma/figma-locale-match";
 import { canonicalizeLocale } from "@/lib/i18n/locales";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { isErr } from "@/lib/primitives/result/results";
@@ -189,66 +190,6 @@ function localeKey(locale: string): string {
   return locale.trim().toLowerCase();
 }
 
-function languageSubtag(locale: string): string | null {
-  const canonical = canonicalizeLocale(locale);
-  if (!canonical) {
-    return null;
-  }
-  try {
-    return new Intl.Locale(canonical).language;
-  } catch {
-    return null;
-  }
-}
-
-function localeRegion(locale: string): string | null {
-  const canonical = canonicalizeLocale(locale);
-  if (!canonical) {
-    return null;
-  }
-  try {
-    const region = new Intl.Locale(canonical).region;
-    return region ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** True when two locale tags refer to the same language choice in plugin/API flows. */
-export function figmaLocalesMatch(a: string, b: string): boolean {
-  const trimmedA = a.trim();
-  const trimmedB = b.trim();
-  if (!trimmedA || !trimmedB) {
-    return false;
-  }
-  if (trimmedA === trimmedB) {
-    return true;
-  }
-  if (localeKey(trimmedA) === localeKey(trimmedB)) {
-    return true;
-  }
-  const canonicalA = canonicalizeLocale(trimmedA);
-  const canonicalB = canonicalizeLocale(trimmedB);
-  if (canonicalA && canonicalB && canonicalA === canonicalB) {
-    return true;
-  }
-  const langA = languageSubtag(trimmedA);
-  const langB = languageSubtag(trimmedB);
-  if (!langA || !langB || langA !== langB) {
-    return false;
-  }
-  const regionA = localeRegion(trimmedA);
-  const regionB = localeRegion(trimmedB);
-  if (!regionA || !regionB) {
-    return true;
-  }
-  return regionA === regionB;
-}
-
-export function isProjectSourceLocale(projectSourceLocale: string, locale: string): boolean {
-  return figmaLocalesMatch(projectSourceLocale, locale);
-}
-
 function sliceFigmaPageJobForLocale(job: FigmaPageJob, locale: string): FigmaPageJob {
   const picked = pickTranslationsForLocale(job.translationsByLocale, locale);
   if (!picked) {
@@ -282,18 +223,6 @@ export function pickTranslationsForLocale(
   );
   if (match && countNonEmptyTranslations(match[1])) {
     return match[1];
-  }
-
-  const languageMatches = Object.entries(translationsByLocale).filter(
-    ([entryLocale, translations]) => {
-      if (countNonEmptyTranslations(translations) === 0) {
-        return false;
-      }
-      return figmaLocalesMatch(trimmed, entryLocale);
-    },
-  );
-  if (languageMatches.length === 1) {
-    return languageMatches[0]![1];
   }
 
   return undefined;
@@ -925,7 +854,7 @@ export async function listFigmaPageLocaleStatuses(input: {
             pageId,
           }) &&
           readJobTargetLocales(candidate.inputPayload).some((target) =>
-            figmaLocalesMatch(target, trimmed),
+            figmaProjectLocalesMatch(target, trimmed),
           ),
       );
 
@@ -1447,7 +1376,9 @@ export async function pullFigmaPageLocaleContent(input: {
 }
 
 function readJobTargetLocalesIncludes(inputPayload: unknown, locale: string): boolean {
-  return readJobTargetLocales(inputPayload).some((target) => figmaLocalesMatch(target, locale));
+  return readJobTargetLocales(inputPayload).some((target) =>
+    figmaProjectLocalesMatch(target, locale),
+  );
 }
 
 async function findLatestFigmaPageJobForLocale(input: {
@@ -1577,3 +1508,7 @@ export async function pullLatestFigmaTranslations(input: {
 }): Promise<{ jobId: null; status: "not_found" } | FigmaPageJob> {
   return pullFigmaTranslationsForPage(input);
 }
+
+export { figmaProjectLocalesMatch, isProjectSourceLocale } from "@/lib/figma/figma-locale-match";
+/** @deprecated Use figmaProjectLocalesMatch — exact project tags only. */
+export const figmaLocalesMatch = figmaProjectLocalesMatch;

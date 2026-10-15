@@ -83,6 +83,7 @@ function throwIfFailed(
 
 export function resourceAuthFromSettings(input: {
   accessToken?: string | null;
+  refreshToken?: string | null;
   connectionToken?: string | null;
 }): FigmaResourceAuth | null {
   const accessToken = input.accessToken?.trim();

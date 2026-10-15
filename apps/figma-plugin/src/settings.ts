@@ -10,6 +10,7 @@ export const DEFAULT_APP_URL =
 export const DEFAULT_SETTINGS: PluginSettings = {
   appUrl: DEFAULT_APP_URL,
   accessToken: null,
+  refreshToken: null,
   connectionToken: null,
   personalAccessToken: null,
   userEmail: null,
@@ -107,6 +108,10 @@ export function mergeSettings(value: unknown): PluginSettings {
     accessToken:
       typeof candidate.accessToken === "string" && candidate.accessToken.trim()
         ? candidate.accessToken.trim()
+        : null,
+    refreshToken:
+      typeof candidate.refreshToken === "string" && candidate.refreshToken.trim()
+        ? candidate.refreshToken.trim()
         : null,
     connectionToken:
       typeof candidate.connectionToken === "string" && candidate.connectionToken.trim()

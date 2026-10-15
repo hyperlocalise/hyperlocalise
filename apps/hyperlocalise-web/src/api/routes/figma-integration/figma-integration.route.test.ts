@@ -99,9 +99,13 @@ describe("figmaIntegrationRoutes", () => {
   it("returns health without auth", async () => {
     const response = await client.api.integrations.figma.health.$get();
     expect(response.status).toBe(200);
+    const figmaOauthConfigured = Boolean(env.FIGMA_OAUTH_CLIENT_ID);
     await expect(response.json()).resolves.toEqual({
       ok: true,
-      figmaOauthConfigured: Boolean(env.FIGMA_OAUTH_CLIENT_ID),
+      figmaOauthConfigured,
+      ...(figmaOauthConfigured && env.FIGMA_OAUTH_CLIENT_ID
+        ? { figmaOauthClientId: env.FIGMA_OAUTH_CLIENT_ID }
+        : {}),
     });
   });
 
@@ -194,6 +198,38 @@ describe("figmaIntegrationRoutes", () => {
     };
     expect(body.session.project.id).toBe(projectBody.project.id);
     expect(body.session.connection.id).toBe(created.connection.id);
+  });
+
+  it("rejects session when the backing API key was revoked", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const { apiKey } = await apiKeyFixture.createOwnedApiKey(identity, {
+      name: "Figma revoked key",
+    });
+    const created = await createFigmaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Figma revoked",
+      apiKeyId: apiKey.id,
+    });
+
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ revokedAt: new Date() })
+      .where(eq(schema.organizationApiKeys.id, apiKey.id));
+
+    const response = await client.api.integrations.figma.session.$get(undefined, {
+      headers: {
+        "X-Hyperlocalise-Connection-Token": created.connectionToken,
+      },
+    });
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "figma_api_key_not_found" });
   });
 
   it("returns an unbound session and lists org projects", async () => {

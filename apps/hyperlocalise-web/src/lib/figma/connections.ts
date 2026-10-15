@@ -50,7 +50,10 @@ function serializeConnection(connection: FigmaConnectionRow): FigmaConnectionSum
   };
 }
 
-async function assertApiKeyUsableForFigma(input: { organizationId: string; apiKeyId: string }) {
+export async function assertApiKeyUsableForFigma(input: {
+  organizationId: string;
+  apiKeyId: string;
+}) {
   const [apiKey] = await db
     .select({
       id: schema.organizationApiKeys.id,
@@ -132,6 +135,15 @@ export async function listFigmaAccessibleProjects(input: {
   organizationId: string;
   apiKeyId: string;
 }): Promise<FigmaSessionProject[]> {
+  try {
+    await assertApiKeyUsableForFigma({
+      organizationId: input.organizationId,
+      apiKeyId: input.apiKeyId,
+    });
+  } catch {
+    return [];
+  }
+
   const [apiKey] = await db
     .select({
       id: schema.organizationApiKeys.id,
@@ -506,6 +518,15 @@ export async function resolveTeamAccessForFigmaConnection(input: {
   organizationId: string;
   apiKeyId: string;
 }): Promise<ApiAuthContext | null> {
+  try {
+    await assertApiKeyUsableForFigma({
+      organizationId: input.organizationId,
+      apiKeyId: input.apiKeyId,
+    });
+  } catch {
+    return null;
+  }
+
   const [apiKey] = await db
     .select({
       createdByUserId: schema.organizationApiKeys.createdByUserId,
@@ -519,7 +540,7 @@ export async function resolveTeamAccessForFigmaConnection(input: {
     )
     .limit(1);
 
-  if (!apiKey) {
+  if (!apiKey?.createdByUserId) {
     return null;
   }
 

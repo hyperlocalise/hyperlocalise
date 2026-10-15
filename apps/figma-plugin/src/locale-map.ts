@@ -18,62 +18,32 @@ function canonicalizeLocale(input: string): string | null {
   }
 }
 
-function languageSubtag(locale: string): string | null {
-  const canonical = canonicalizeLocale(locale);
-  if (!canonical) {
-    return null;
-  }
-  try {
-    return new Intl.Locale(canonical).language;
-  } catch {
-    return null;
-  }
-}
-
-function localeRegion(locale: string): string | null {
-  const canonical = canonicalizeLocale(locale);
-  if (!canonical) {
-    return null;
-  }
-  try {
-    return new Intl.Locale(canonical).region ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function hasNonEmptyTranslations(translations: Record<string, string>): boolean {
-  return Object.values(translations).some((value) => value.trim().length > 0);
-}
-
-export function localesMatchForPick(requested: string, candidate: string): boolean {
-  const a = requested.trim();
-  const b = candidate.trim();
-  if (!a || !b) {
+/** True when two tags are the same project locale (canonical BCP-47, case-insensitive). */
+export function projectLocalesMatch(a: string, b: string): boolean {
+  const trimmedA = a.trim();
+  const trimmedB = b.trim();
+  if (!trimmedA || !trimmedB) {
     return false;
   }
-  if (a === b) {
+  if (trimmedA === trimmedB) {
     return true;
   }
-  if (localeKey(a) === localeKey(b)) {
+  if (localeKey(trimmedA) === localeKey(trimmedB)) {
     return true;
   }
-  const canonicalA = canonicalizeLocale(a);
-  const canonicalB = canonicalizeLocale(b);
+  const canonicalA = canonicalizeLocale(trimmedA);
+  const canonicalB = canonicalizeLocale(trimmedB);
   if (canonicalA && canonicalB && canonicalA === canonicalB) {
     return true;
   }
-  const langA = languageSubtag(a);
-  const langB = languageSubtag(b);
-  if (!langA || !langB || langA !== langB) {
-    return false;
-  }
-  const regionA = localeRegion(a);
-  const regionB = localeRegion(b);
-  if (!regionA || !regionB) {
-    return true;
-  }
-  return regionA === regionB;
+  return false;
+}
+
+/** @deprecated Use projectLocalesMatch. */
+export const localesMatchForPick = projectLocalesMatch;
+
+function hasNonEmptyTranslations(translations: Record<string, string>): boolean {
+  return Object.values(translations).some((value) => value.trim().length > 0);
 }
 
 export function pickTranslationsForLocale(
@@ -101,22 +71,6 @@ export function pickTranslationsForLocale(
   );
   if (caseMatch && hasNonEmptyTranslations(caseMatch[1])) {
     return caseMatch[1];
-  }
-
-  const requestedLanguage = languageSubtag(trimmed);
-  if (!requestedLanguage) {
-    return undefined;
-  }
-  const languageMatches = Object.entries(translationsByLocale).filter(
-    ([entryLocale, translations]) => {
-      if (!hasNonEmptyTranslations(translations)) {
-        return false;
-      }
-      return localesMatchForPick(trimmed, entryLocale);
-    },
-  );
-  if (languageMatches.length === 1) {
-    return languageMatches[0]![1];
   }
 
   return undefined;

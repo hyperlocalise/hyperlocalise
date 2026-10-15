@@ -148,6 +148,11 @@ export function getFigmaOauthRedirectAllowlist(): string[] {
 
   const redirects = new Set(configured.length > 0 ? configured : [DEFAULT_FIGMA_REDIRECT_URI]);
 
+  const publicAppUrl = env.HYPERLOCALISE_PUBLIC_APP_URL?.trim();
+  if (publicAppUrl) {
+    redirects.add(new URL("/connect/figma/oauth/callback", publicAppUrl).href);
+  }
+
   if (env.NODE_ENV === "development") {
     redirects.add("http://localhost:3000/connect/figma/oauth/callback");
     redirects.add("figma://oauth/callback");

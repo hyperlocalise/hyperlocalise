@@ -13,7 +13,7 @@
 import { createMiddleware } from "hono/factory";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/response.schema";
-import { getFigmaConnectionByToken } from "@/lib/figma/connections";
+import { assertApiKeyUsableForFigma, getFigmaConnectionByToken } from "@/lib/figma/connections";
 import { getFigmaConnectionByOauthAccessToken } from "@/lib/figma/oauth";
 export type FigmaConnectionVariables = {
   figmaConnection: {
@@ -58,6 +58,27 @@ export const figmaConnectionAuthMiddleware = createMiddleware<{
 
   if (!connection.enabled) {
     return forbiddenResponse(c, "figma_connection_disabled", "This Figma connection is disabled.");
+  }
+
+  try {
+    await assertApiKeyUsableForFigma({
+      organizationId: connection.organizationId,
+      apiKeyId: connection.apiKeyId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "figma_api_key_not_found";
+    if (message === "figma_api_key_missing_permissions") {
+      return forbiddenResponse(
+        c,
+        message,
+        "The API key backing this Figma connection is missing required permissions.",
+      );
+    }
+    return unauthorizedResponse(
+      c,
+      "figma_api_key_not_found",
+      "The API key backing this Figma connection is no longer valid.",
+    );
   }
 
   c.set("figmaConnection", {

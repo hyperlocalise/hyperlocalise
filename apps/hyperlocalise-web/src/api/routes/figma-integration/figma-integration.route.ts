@@ -202,10 +202,14 @@ export function createFigmaIntegrationRoutes(options: CreateFigmaIntegrationRout
   return new Hono<{ Variables: FigmaConnectionVariables }>()
     .use("*", figmaCorsMiddleware)
     .get("/health", async (c) => {
+      const figmaOauthConfigured = Boolean(env.FIGMA_OAUTH_CLIENT_ID);
       return c.json(
         {
           ok: true,
-          figmaOauthConfigured: Boolean(env.FIGMA_OAUTH_CLIENT_ID),
+          figmaOauthConfigured,
+          ...(figmaOauthConfigured && env.FIGMA_OAUTH_CLIENT_ID
+            ? { figmaOauthClientId: env.FIGMA_OAUTH_CLIENT_ID }
+            : {}),
         },
         200,
       );

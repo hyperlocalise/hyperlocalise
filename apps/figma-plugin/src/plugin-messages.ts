@@ -22,6 +22,7 @@ export type FigmaPageOption = {
 export type PluginSettings = {
   appUrl: string;
   accessToken: string | null;
+  refreshToken: string | null;
   connectionToken: string | null;
   /** @deprecated Use connectionToken or accessToken from Integrations / OAuth. */
   personalAccessToken: string | null;
