@@ -22,11 +22,13 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import {
   MCP_CREATE_TOOL,
   MCP_READ_ONLY_TOOL,
-  MCP_UPDATE_TOOL,
   mcpToolError,
   mcpToolJson,
 } from "@/api/routes/mcp/mcp-tool-result";
-import { updateMcpTranslation } from "@/api/routes/mcp/mcp-update-translation";
+import {
+  setMcpTranslationStatus,
+  updateMcpTranslation,
+} from "@/api/routes/mcp/mcp-update-translation";
 import { projectFileCatStatusBodySchema } from "@/api/routes/project/project.schema";
 import { resolveProjectResourceTarget } from "@/api/routes/project/project.shared";
 import {
@@ -39,13 +41,11 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database/client";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
-import { isCatSegmentLocked } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import { trackNativeCatCommentProductUsage } from "@/lib/projects/content-editor/native-cat-product-analytics";
 import {
   getNativeProjectContentEditorSegmentComments,
   getNativeProjectContentEditorSegmentDetail,
   saveNativeProjectContentEditorComment,
-  updateNativeProjectTranslationStatus,
 } from "@/lib/projects/content-editor/native-content-editor-service";
 
 export const MCP_BULK_TRANSLATION_UPDATE_MAX_ITEMS = 50;
@@ -270,7 +270,12 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
   server.registerTool(
     "set_translation_status",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description:
         "Record a review decision on one translation without changing its text: approve it, reject it, or send it back to needs_review. Pair a rejection with add_translation_comment to explain why.",
       inputSchema: mcpSetTranslationStatusInputSchema,
@@ -297,27 +302,7 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
         return translationNotFound();
       }
 
-      const detail = await getNativeProjectContentEditorSegmentDetail({
-        organizationId,
-        projectId: project.id,
-        translationKeyId,
-        targetLocale,
-      });
-      if (!detail?.target) {
-        return translationNotFound();
-      }
-
-      const locked = await isCatSegmentLocked({
-        organizationId,
-        projectId: project.id,
-        targetLocale,
-        externalStringId: translationKeyId,
-      });
-      if (locked) {
-        return mcpToolError("translation_locked", "This translation is locked");
-      }
-
-      const translation = await updateNativeProjectTranslationStatus({
+      const result = await setMcpTranslationStatus({
         organizationId,
         projectId: project.id,
         translationKeyId,
@@ -325,8 +310,19 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
         status,
         actorUserId,
       });
-      if (!translation) {
-        return translationNotFound();
+      if (!result.ok) {
+        switch (result.error) {
+          case "translation_not_found":
+            return translationNotFound();
+          case "translation_locked":
+            return mcpToolError("translation_locked", "This translation is locked");
+          case "invalid_translation":
+            return mcpToolError(
+              "invalid_translation",
+              "Translation has invalid placeholders or ICU syntax",
+              { issues: result.issues },
+            );
+        }
       }
 
       const activityInput = {
@@ -334,7 +330,7 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
         organizationId,
         projectId: project.id,
         segmentId: translationKeyId,
-        sourcePath: detail.segment.sourcePath,
+        sourcePath: result.value.sourcePath,
         targetLocale,
       };
 
@@ -351,8 +347,8 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
       return mcpToolJson({
         id: translationKeyId,
         targetLocale,
-        targetText: translation.text,
-        status: translation.status,
+        targetText: result.value.targetText,
+        status: result.value.status,
       });
     },
   );
@@ -360,7 +356,12 @@ export function registerTranslatorMcpTools(server: McpServer, apiAuth: ApiAuthCo
   server.registerTool(
     "update_translations",
     {
-      annotations: MCP_UPDATE_TOOL,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       description: `Save and optionally approve up to ${MCP_BULK_TRANSLATION_UPDATE_MAX_ITEMS} translations in one project. Each row is validated for placeholders and ICU syntax and saved independently, so one invalid row does not block the rest. Returns a per-row result.`,
       inputSchema: mcpUpdateTranslationsInputSchema,
     },
