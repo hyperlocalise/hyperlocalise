@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -67,6 +67,122 @@ describe("ContentEditorHtmlEditorPane", () => {
     const target = screen.getByTitle("Translated (fr)");
     expect(source).toHaveAttribute("srcdoc", "<table><tr><td>Source cell</td></tr></table>");
     expect(target).toHaveAttribute("srcdoc", "<table><tr><td>Target cell</td></tr></table>");
+    expect(source).toHaveAttribute("sandbox", "");
+    expect(target).toHaveAttribute("sandbox", "");
+  });
+
+  it("keeps the target preview read-only without onSave", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-readonly:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          canEdit={false}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const target = await screen.findByTitle("Translated (fr)");
+    expect(target).toHaveAttribute("sandbox", "");
+  });
+
+  it("marks review blocked after a designMode input on the target preview", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+    const onReviewBlockedChange = vi.fn();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-design:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={onSave}
+          onReviewBlockedChange={onReviewBlockedChange}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    const target = await screen.findByTitle("Translated (fr)");
+    expect(target).toHaveAttribute("sandbox", "allow-same-origin");
+
+    const innerDoc = document.implementation.createHTMLDocument("Preview");
+    innerDoc.body.innerHTML = "<p>Hello</p>";
+    Object.defineProperty(target, "contentDocument", {
+      configurable: true,
+      value: innerDoc,
+    });
+    fireEvent.load(target);
+    innerDoc.body.innerHTML = "<p>Bonjour</p>";
+    innerDoc.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await waitFor(() => {
+      expect(onReviewBlockedChange).toHaveBeenCalledWith(true);
+    });
+    expect(target).toHaveAttribute("srcdoc", "<p>Hello</p>");
+  });
+
+  it("reclassifies full documents after structural code-mode edits", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-full-doc:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const editor = screen.getByLabelText("Translated (fr)");
+    await user.clear(editor);
+    await user.paste(
+      "<!DOCTYPE html><html><head><title>T</title></head><body><p>Hello</p></body></html>",
+    );
+    await user.click(screen.getByRole("button", { name: "View document" }));
+
+    const target = screen.getByTitle("Translated (fr)");
+    const innerDoc = document.implementation.createHTMLDocument("T");
+    innerDoc.body.innerHTML = "<p>Hello</p>";
+    Object.defineProperty(target, "contentDocument", {
+      configurable: true,
+      value: innerDoc,
+    });
+    fireEvent.load(target);
+    innerDoc.body.innerHTML = "<p>Bonjour</p>";
+    innerDoc.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const value = (screen.getByLabelText("Translated (fr)") as HTMLTextAreaElement).value;
+    expect(value.includes("<html")).toBe(true);
+    expect(value).toContain("<p>Bonjour</p>");
+    expect(value).not.toBe("<p>Bonjour</p>");
   });
 
   it("switches to code editing and blocks review while dirty", async () => {
