@@ -128,6 +128,34 @@ describe("applyVisualWorkflowEdits", () => {
     expect(state).toBe(base);
   });
 
+  it("refuses a new node the id of a node removed earlier, there or in the same call", () => {
+    const { state, results, reservedNodeIds } = applyVisualWorkflowEdits({
+      state: base,
+      operations: [
+        { op: "add_node", id: "slack", type: "action.notify_slack" },
+        { op: "remove_node", nodeId: "set" },
+        { op: "add_node", id: "set", type: "logic.set" },
+      ],
+      reservedNodeIds: ["slack"],
+    });
+
+    expect(results).toMatchObject([
+      {
+        status: "rejected",
+        code: "node_id_reserved",
+        message: expect.stringContaining("such as notify_slack."),
+      },
+      { status: "applied" },
+      {
+        status: "rejected",
+        code: "node_id_reserved",
+        message: expect.stringContaining("such as set_2."),
+      },
+    ]);
+    expect(state.nodes.map((entry) => entry.id)).toEqual(["trigger"]);
+    expect(reservedNodeIds).toEqual(["set", "slack"]);
+  });
+
   it("removes a node with its edges, connects, disconnects, configures and renames", () => {
     const { state, results } = applyVisualWorkflowEdits({
       state: {
@@ -362,6 +390,20 @@ describe("editVisualWorkflow", () => {
         appliedToolCallIds: new Set(["call_1"]),
       }).applied,
     ).toEqual([]);
+  });
+
+  it("keeps an id removed by one call from a node added by the next", () => {
+    const first = editVisualWorkflow(context(), {
+      operations: [{ op: "remove_node", nodeId: "set" }],
+    });
+    expect(first.context?.reservedNodeIds).toEqual(["set"]);
+
+    const { output } = editVisualWorkflow(first.context, {
+      operations: [{ op: "add_node", id: "set", type: "logic.set" }],
+    });
+    expect(output.applied && output.result.rejected).toEqual([
+      "add_node: The id set belonged to a node that was removed, and a new node cannot take it. Use another id, such as set_2.",
+    ]);
   });
 
   it("names a step it removed by its title", () => {
@@ -623,5 +665,17 @@ describe("prompt text", () => {
     expect(page).toContain("what: Set fields (logic.set)");
     expect(page).toContain("### Connections\n\n(none)");
     expect(page).toContain("orphan_node on node [set]");
+    expect(page).not.toContain("### Ids a new node cannot take");
+  });
+
+  it("lists the ids of removed steps that a new node cannot take", () => {
+    const page = describeVisualWorkflowPage({
+      ...context(),
+      reservedNodeIds: ["agent", "set"],
+    });
+
+    expect(page).toContain(
+      "### Ids a new node cannot take\n\nNodes with these ids were removed, and a new node cannot take one: agent\n",
+    );
   });
 });

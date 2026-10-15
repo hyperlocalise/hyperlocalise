@@ -671,6 +671,20 @@ export function VisualWorkflowEditor({
   for (const node of nodes) seenNodeIdsRef.current.add(node.id);
   const testSetupRef = useRef(testSetup);
   testSetupRef.current = testSetup;
+  // The same ids for the assistant's new steps, less those on the canvas.
+  const reservedNodeIds = useMemo(() => {
+    const onCanvas = new Set(nodes.map((node) => node.id));
+    return [
+      ...reservedVisualWorkflowNodeIds({
+        nodes,
+        edges,
+        setup: testSetup,
+        seenNodeIds: seenNodeIdsRef.current,
+      }),
+    ]
+      .filter((id) => !onCanvas.has(id))
+      .sort();
+  }, [nodes, edges, testSetup]);
 
   const addNode = useCallback(
     (type: VisualCatalogType) => {
@@ -1364,6 +1378,7 @@ export function VisualWorkflowEditor({
       hasUnsavedChanges={hasUnsavedChanges}
       onChange={takeAssistantChange}
       projectName={projectName}
+      reservedNodeIds={reservedNodeIds}
     >
       {editor}
       {undoConfirmDialog}

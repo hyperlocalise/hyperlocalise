@@ -36,6 +36,7 @@ export function AutomationAssistantVisualWorkflowProvider({
   onWorkingChange,
   organizationSlug,
   projectName,
+  reservedNodeIds,
   visualWorkflowId,
 }: {
   /** The calls for the session and its turns, in place of the server's. Must not change. */
@@ -54,6 +55,8 @@ export function AutomationAssistantVisualWorkflowProvider({
   organizationSlug: string;
   /** Display name of the project the workflow is in, when the page knows it. */
   projectName?: string | null;
+  /** Ids no step on the canvas has that a new step must not take. */
+  reservedNodeIds?: readonly string[];
   visualWorkflowId: string;
 }) {
   const [editorSessionId] = useState(() => crypto.randomUUID());
@@ -64,8 +67,9 @@ export function AutomationAssistantVisualWorkflowProvider({
         visualWorkflowId,
         definition: toVisualWorkflowV3Definition(graph),
         projectName,
+        reservedNodeIds,
       }),
-    [editorSessionId, graph, projectName, visualWorkflowId],
+    [editorSessionId, graph, projectName, reservedNodeIds, visualWorkflowId],
   );
   const sessionKey = useMemo(() => ({ visualWorkflowId }), [visualWorkflowId]);
 

@@ -23,6 +23,7 @@ export const VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND = "visual-workflow-editor";
 const MAX_ID_CHARS = 255;
 const MAX_NAME_CHARS = 500;
 const MAX_WORKFLOW_NAME_CHARS = 120;
+const MAX_RESERVED_NODE_IDS = 1000;
 
 /**
  * A workflow as the canvas holds it: the saved definition's shape, but a step's settings may be
@@ -63,6 +64,11 @@ export const visualWorkflowEditorContextSchema = z.object({
   definition: visualWorkflowDraftDefinitionSchema,
   /** Display name of the project the workflow is in, when the page knows it. */
   projectName: z.string().min(1).max(MAX_NAME_CHARS).nullable().optional(),
+  /**
+   * Ids no step on the canvas has that a new step must not take: those of steps removed since
+   * the editor opened, read by a setting or kept in the test setup.
+   */
+  reservedNodeIds: z.array(z.string().trim().min(1).max(128)).max(MAX_RESERVED_NODE_IDS).optional(),
 });
 
 export type VisualWorkflowEditorContext = z.infer<typeof visualWorkflowEditorContextSchema>;
@@ -72,6 +78,7 @@ export function buildVisualWorkflowEditorContext(input: {
   visualWorkflowId: string;
   definition: VisualWorkflowV3Definition;
   projectName?: string | null;
+  reservedNodeIds?: readonly string[];
 }): VisualWorkflowEditorContext {
   return {
     kind: VISUAL_WORKFLOW_EDITOR_CONTEXT_KIND,
@@ -79,5 +86,6 @@ export function buildVisualWorkflowEditorContext(input: {
     visualWorkflowId: input.visualWorkflowId,
     definition: input.definition,
     projectName: input.projectName?.trim() || null,
+    reservedNodeIds: input.reservedNodeIds?.length ? [...input.reservedNodeIds] : undefined,
   };
 }

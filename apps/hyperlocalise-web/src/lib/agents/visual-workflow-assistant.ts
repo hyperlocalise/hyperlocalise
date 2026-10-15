@@ -146,6 +146,7 @@ export type VisualWorkflowResolvedOperation = z.infer<typeof resolvedOperationSc
 export type VisualWorkflowEditRejection =
   | "unknown_node"
   | "node_id_taken"
+  | "node_id_reserved"
   | "trigger_exists"
   | "unknown_edge"
   | "invalid_config"
@@ -373,6 +374,7 @@ function withoutBindingsOf(node: VisualWorkflowRfNode, keys: readonly string[]) 
 function applyOne(
   state: VisualWorkflowEditorState,
   op: VisualWorkflowEditOperation | VisualWorkflowResolvedOperation,
+  reservedNodeIds: ReadonlySet<string>,
 ): { state: VisualWorkflowEditorState; result: VisualWorkflowEditResult } {
   const { nodes, edges } = state;
   const find = (id: string) => nodes.find((node) => node.id === id);
@@ -384,6 +386,18 @@ function applyOne(
         return {
           state,
           result: rejected(op, "node_id_taken", `A node with the id ${op.id} is already there.`),
+        };
+      }
+      if (reservedNodeIds.has(op.id)) {
+        // Test data and references are keyed by id, so the new node would take the old one's.
+        const free = nextVisualWorkflowNodeId(op.type, nodes, reservedNodeIds);
+        return {
+          state,
+          result: rejected(
+            op,
+            "node_id_reserved",
+            `The id ${op.id} belonged to a node that was removed, and a new node cannot take it. Use another id, such as ${free}.`,
+          ),
         };
       }
       if (isTriggerType(op.type) && nodes.some((node) => isTriggerType(node.data.catalogType))) {
@@ -540,19 +554,29 @@ function applyOne(
  * Applies the operations to the workflow in order, keeping going past one that is rejected, and
  * says what became of each. The page applies the operations that were applied with the same
  * function, so both end with the same workflow unless the person has edited the canvas since.
+ * A new node may not take the id of a node removed earlier, here or in `reservedNodeIds`; the
+ * ids this leaves reserved are returned for the next call.
  */
 export function applyVisualWorkflowEdits(input: {
   state: VisualWorkflowEditorState;
   operations: ReadonlyArray<VisualWorkflowEditOperation | VisualWorkflowResolvedOperation>;
-}): { state: VisualWorkflowEditorState; results: VisualWorkflowEditResult[] } {
+  reservedNodeIds?: Iterable<string>;
+}): {
+  state: VisualWorkflowEditorState;
+  results: VisualWorkflowEditResult[];
+  reservedNodeIds: string[];
+} {
   let state = input.state;
   const results: VisualWorkflowEditResult[] = [];
+  const reserved = new Set(input.reservedNodeIds);
   for (const op of input.operations) {
-    const next = applyOne(state, op);
+    for (const node of state.nodes) reserved.add(node.id);
+    const next = applyOne(state, op, reserved);
     state = next.state;
     results.push(next.result);
   }
-  return { state, results };
+  for (const node of state.nodes) reserved.delete(node.id);
+  return { state, results, reservedNodeIds: [...reserved].sort() };
 }
 
 function nodeType(state: VisualWorkflowEditorState, nodeId: string): VisualCatalogType {
@@ -724,9 +748,10 @@ export function editVisualWorkflow(
     };
   }
   const before = fromVisualWorkflowV3Definition(context.definition);
-  const { state, results } = applyVisualWorkflowEdits({
+  const { state, results, reservedNodeIds } = applyVisualWorkflowEdits({
     state: before,
     operations: input.operations,
+    reservedNodeIds: context.reservedNodeIds,
   });
   const definition = toVisualWorkflowV3Definition(state);
   const applied = results.filter(
@@ -734,7 +759,7 @@ export function editVisualWorkflow(
       result.status === "applied",
   );
   return {
-    context: { ...context, definition },
+    context: { ...context, definition, reservedNodeIds },
     output: {
       applied: true,
       editorSessionId: context.editorSessionId,
@@ -1106,6 +1131,8 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
   const { nodes, edges } = state;
   const issues = describeIssues(context.definition);
   const brokenReferences = describeReferenceProblems(state);
+  const onCanvas = new Set(nodes.map((node) => node.id));
+  const reservedNodeIds = (context.reservedNodeIds ?? []).filter((id) => !onCanvas.has(id));
   return [
     "<visual_workflow_page>",
     "## Visual workflow page",
@@ -1141,6 +1168,14 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
     brokenReferences.length > 0
       ? brokenReferences.map((reference) => `- ${reference}`).join("\n")
       : "(none)",
+    ...(reservedNodeIds.length > 0
+      ? [
+          "",
+          "### Ids a new node cannot take",
+          "",
+          `Nodes with these ids were removed, and a new node cannot take one: ${reservedNodeIds.join(", ")}`,
+        ]
+      : []),
     "</visual_workflow_page>",
   ].join("\n");
 }
