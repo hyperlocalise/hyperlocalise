@@ -232,6 +232,9 @@ describe("what the panel says a turn did", () => {
   it("takes no message while a saved automation's conversation loads or a turn runs", () => {
     const { unmount } = show(assistant({ status: "loading" }));
     expect(screen.getByText("prompt for acme (closed)")).toBeTruthy();
+    // Not called empty before it is known to be.
+    expect(screen.getByRole("status", { name: "Loading" })).toBeTruthy();
+    expect(screen.queryByText(/Describe what this automation should do/)).toBeNull();
     unmount();
 
     show(assistant({ status: "streaming", working: true }));

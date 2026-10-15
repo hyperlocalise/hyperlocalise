@@ -229,7 +229,11 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
       </header>
       <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
         <div ref={contentRef} className="flex flex-col gap-5">
-          {assistant.messages.length === 0 && !assistant.streaming ? (
+          {/* A saved conversation is not known to be empty until it has loaded. */}
+          {assistant.messages.length === 0 && assistant.status === "loading" ? (
+            <Spinner className="size-4 text-muted-foreground" />
+          ) : null}
+          {assistant.messages.length === 0 && assistant.status === "idle" ? (
             <TypographyMuted className="text-sm">
               <FormattedMessage
                 {...(assistant.mode === "visual_workflow" ? messages.emptyWorkflow : messages.empty)}
