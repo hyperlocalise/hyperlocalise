@@ -49,4 +49,15 @@ describe("JobsPageStore", () => {
     expect(store.statusFilter).toBe("all");
     expect(store.searchDraft).toBe("pricing");
   });
+
+  it("tracks create-job dialog chrome", () => {
+    const store = new JobsPageStore(undefined, new URLSearchParams());
+    expect(store.createJobOpen).toBe(false);
+
+    store.setCreateJobOpen(true);
+    expect(store.createJobOpen).toBe(true);
+
+    store.setCreateJobOpen(false);
+    expect(store.createJobOpen).toBe(false);
+  });
 });

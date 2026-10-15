@@ -26,6 +26,7 @@ export class JobsPageStore {
   searchDraft: string;
   viewMode: JobsViewMode;
   viewModeRestored = false;
+  createJobOpen = false;
 
   constructor(projectId: string | undefined, searchParams: URLSearchParams) {
     this.isProject = Boolean(projectId);
@@ -84,5 +85,9 @@ export class JobsPageStore {
   clearFilters() {
     this.state = clearJobsListFilters(this.state);
     this.searchDraft = "";
+  }
+
+  setCreateJobOpen(open: boolean) {
+    this.createJobOpen = open;
   }
 }

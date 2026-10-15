@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState } from "react";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,15 +21,21 @@ import { cn } from "@/lib/primitives/cn";
 import { DomainResearchEmpty } from "./domain-research-empty";
 import { domainOverviewViewMessages as messages } from "./domain-overview-view.messages";
 import type { DomainOverview } from "@/lib/domains/domain-overview";
+import { useDomainResearchShellStore } from "../store/domains-store-context";
 
 const KEYWORD_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(3,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 const PAGE_GRID =
   "grid grid-cols-[minmax(12rem,1.4fr)_repeat(2,minmax(4.5rem,0.55fr))] items-center gap-3 px-3 py-2.5";
 
-export function DomainOverviewTables({ overview }: { overview: DomainOverview }) {
+export const DomainOverviewTables = observer(function DomainOverviewTables({
+  overview,
+}: {
+  overview: DomainOverview;
+}) {
   const intl = useIntl();
-  const [tab, setTab] = useState<"keywords" | "pages">("keywords");
+  const { ui } = useDomainResearchShellStore();
+  const tab = ui.overviewTab;
   const rows = tab === "keywords" ? overview.topKeywords : overview.topPages;
 
   return (
@@ -38,7 +44,7 @@ export function DomainOverviewTables({ overview }: { overview: DomainOverview })
         value={tab}
         onValueChange={(value) => {
           if (value === "keywords" || value === "pages") {
-            setTab(value);
+            ui.setOverviewTab(value);
           }
         }}
       >
@@ -135,4 +141,4 @@ export function DomainOverviewTables({ overview }: { overview: DomainOverview })
       )}
     </div>
   );
-}
+});

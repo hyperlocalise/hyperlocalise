@@ -14,15 +14,17 @@ Saving changes a draft and increments its revision. Save and publish API request
 
 ## Adding a node
 
+How a step's settings panel and its test data are meant to work: [docs/adr/2026-10-15-visual-workflow-step-settings-and-test-data-design.md](../../../../../docs/adr/2026-10-15-visual-workflow-step-settings-and-test-data-design.md).
+
 Editor files are in `src/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/visual-workflow-editor/`. Other paths are relative to this folder.
 
 Every node:
 
 - **Type and config:** `schema/types.ts`, `schema/definition-schema.ts`, `schema/serializers.ts`.
 - **Catalog:** the entry, default config, card size, and subtitle in `catalog/node-catalog.ts`.
-- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the Inputs panel are drawn from this.
+- **Data contract:** inputs, outputs, and a mock sample in `catalog/node-contracts.ts`. The card's data ports and the port marks on the settings form are drawn from this: a setting whose name is an input in the contract shows its port, the fields of earlier steps and, when wired, its source.
 - **Runtime:** `runtime/execute-node.ts` for an action; `runtime/execute-logic-node.ts` and `runtime/interpreter.ts` for control flow. An action with outside effects also belongs in `validation/retry-idempotency.ts`.
-- **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`.
+- **Editor:** `titleFor` and `hintFor` in `visual-workflow-node-picker.tsx`, `titleMessage` in `nodes/visual-workflow-compact-node.tsx`, and the settings form in `visual-workflow-config-panel.tsx`, which is the panel's Configuration tab.
 
 A node with one execution output needs nothing else on the card. A node with several:
 
@@ -54,6 +56,17 @@ Validation issues:
 - A custom check in `validation/compile-workflow.ts` passes `{ field, reason }` as the fourth argument to `add`.
 - A settings control shows the invalid state when it uses `connectedInputProps(portId)` or passes `invalid`.
 - Wording for a new issue code goes in `issueMessage` in `visual-workflow-issue-list.tsx`. A code without wording shows the general step-configuration message.
+
+Settings and test data:
+
+- Draw a setting that is an input in the contract with `WorkflowBoundField` and `connectedInputProps(name)`. That gives it its port mark, the Insert menu, pills for the fields it reads and, when wired, its source with Disconnect. A plain input gets none of these.
+- Name an input that only a wire can feed `value.<name>` in the contract. The form lists it as a row that asks for a wire, so it needs no form field.
+- A node with nothing to set up goes in the empty-settings check of the Configuration tab in `visual-workflow-config-panel.tsx`, beside `trigger.manual` and `logic.try_catch`.
+- Mark the node in `MOCKABLE` in `editor/visual-workflow-test-data.ts`, which is typed over every step type, so a new type does not compile until it is there. `true` is for a step whose result comes from outside the run: a trigger, or a step that calls out. It gets a Test tab with a box per declared output, and Fill with examples starts from its contract `mock`. `false` is for a step the run works out from its inputs, in a test as in a live run; it has no test data. A step marked `false` must be handled by `runtime/execute-logic-node.ts` or settled by the run engine, as Wait and Merge are. A test checks this, because otherwise a test run would make its result up.
+- In a test run, each mockable step other than a trigger uses its test data, runs for real, or fails with an error the Test tab sets. The failure goes through the step's On error setting. A step runs for real only when it is listed in the run's `realNodeIds`: `runtime/durable-slice.ts` then fetches its credentials and calls the real executor. Every other step goes to `runtime/mock-executor.ts`. When every mockable step runs for real, the test is sent as a live run.
+- The test data and these choices are saved with the draft, encrypted, in `visual_workflows.encrypted_test_setup`, by the draft's own update in `updateVisualWorkflow`, so both share its revision check. They are never published. A run records the steps it ran for real in `visual_workflow_runs.real_node_ids`.
+- The editor's local test run (`preview/playground-run.ts`, used by Storybook) runs as a mock run, so a Wait finishes at once. It cannot run a step for real.
+- A new step's id is its type after the dot (`notify_slack`, then `notify_slack_2`; `editor/visual-workflow-node-id.ts`), and references to it read `{{ nodes.notify_slack.sent }}`. Pick a type name that reads well there. A deleted step's id stays reserved (`reservedVisualWorkflowNodeIds`), since test setup and references are keyed by id.
 
 ## Execution and recovery
 

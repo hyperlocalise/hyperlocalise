@@ -25,12 +25,16 @@ const VisualWorkflowCanvasActionsContext = createContext<{
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
   issueNodeIds: ReadonlySet<string>;
   freshNodeIds: ReadonlySet<string>;
+  pointedNodeId: string | null;
+  realNodeIds: ReadonlySet<string>;
 } | null>(null);
 
 export function VisualWorkflowCanvasActionsProvider({
   onAddFromNode,
   issueNodeIds = NO_NODE_IDS,
   freshNodeIds = NO_NODE_IDS,
+  pointedNodeId = null,
+  realNodeIds = NO_NODE_IDS,
   children,
 }: {
   onAddFromNode: (from: VisualWorkflowAddFrom) => void;
@@ -38,11 +42,15 @@ export function VisualWorkflowCanvasActionsProvider({
   issueNodeIds?: ReadonlySet<string>;
   /** The steps that appeared or were changed and have not been selected since, which the canvas marks. */
   freshNodeIds?: ReadonlySet<string>;
+  /** The step a value under the pointer in the settings panel comes from, which the canvas marks. */
+  pointedNodeId?: string | null;
+  /** The steps a test run runs for real instead of using their test data, which the canvas marks. */
+  realNodeIds?: ReadonlySet<string>;
   children: ReactNode;
 }) {
   return (
     <VisualWorkflowCanvasActionsContext.Provider
-      value={{ onAddFromNode, issueNodeIds, freshNodeIds }}
+      value={{ onAddFromNode, issueNodeIds, freshNodeIds, pointedNodeId, realNodeIds }}
     >
       {children}
     </VisualWorkflowCanvasActionsContext.Provider>

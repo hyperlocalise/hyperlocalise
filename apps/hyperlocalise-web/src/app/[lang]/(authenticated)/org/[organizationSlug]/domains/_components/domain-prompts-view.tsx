@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useId, useState } from "react";
+import { useId, useLayoutEffect } from "react";
+import { observer } from "mobx-react-lite";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -28,12 +29,24 @@ import { DomainResearchEmpty } from "./domain-research-empty";
 import { formatBrandEngine } from "./domain-research-format";
 import { domainResearchSharedMessages as sharedMessages } from "./domain-research-shared.messages";
 import { domainPromptsViewMessages as messages } from "./domain-prompts-view.messages";
+import { useDomainResearchShellStore } from "../store/domains-store-context";
 
-export function DomainPromptsView({ linkedDomainId }: { linkedDomainId: string }) {
+export const DomainPromptsView = observer(function DomainPromptsView({
+  linkedDomainId,
+}: {
+  linkedDomainId: string;
+}) {
   const intl = useIntl();
   const promptId = useId();
   const catalog = useDomainResearchCatalog(linkedDomainId);
-  const [prompt, setPrompt] = useState(catalog?.prompt ?? "");
+  const { ui } = useDomainResearchShellStore();
+
+  useLayoutEffect(() => {
+    if (!catalog) {
+      return;
+    }
+    ui.syncPrompt(catalog.market.id, catalog.prompt);
+  }, [catalog, ui]);
 
   if (!catalog) {
     return null;
@@ -63,8 +76,8 @@ export function DomainPromptsView({ linkedDomainId }: { linkedDomainId: string }
           </FieldLabel>
           <Textarea
             id={promptId}
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            value={ui.prompt}
+            onChange={(event) => ui.setPrompt(event.target.value)}
             className="min-h-20"
           />
         </Field>
@@ -103,4 +116,4 @@ export function DomainPromptsView({ linkedDomainId }: { linkedDomainId: string }
       </section>
     </div>
   );
-}
+});

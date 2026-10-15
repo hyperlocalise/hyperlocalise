@@ -28,6 +28,7 @@ import {
   getLocalisationAuditStanding,
   isLocalisationAuditRerunnable,
   isLocalisationAuditRetryable,
+  listCompletedLocalisationAuditSlugs,
   listLocalisationAuditLeaderboard,
   listPendingLocalisationAuditLeads,
   markLocalisationAuditLeadEmailQueued,
@@ -871,6 +872,11 @@ describe("localisation audit leaderboard", () => {
 
     const leaderboard = await listLocalisationAuditLeaderboard(50);
     expect(leaderboard.some((entry) => entry.domainKey === keys[2])).toBe(false);
+    const publishedSlugs = await listCompletedLocalisationAuditSlugs(50);
+    expect(publishedSlugs.some((entry) => entry.domainSlug === first.audit.domainSlug)).toBe(true);
+    expect(publishedSlugs.some((entry) => entry.domainSlug === blockedOnly.audit.domainSlug)).toBe(
+      false,
+    );
     const ranks = leaderboard.filter((entry) => keys.includes(entry.domainKey));
     expect(ranks[0]?.domainKey).toBe(keys[0]);
     expect(ranks[0]?.score).toBe(91);

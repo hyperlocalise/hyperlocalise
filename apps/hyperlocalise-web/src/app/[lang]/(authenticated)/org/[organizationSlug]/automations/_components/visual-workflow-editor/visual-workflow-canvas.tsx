@@ -21,7 +21,7 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -167,6 +167,7 @@ export function VisualWorkflowCanvas({
   onAddFirstStep,
   onLoadSample,
   onTestWorkflow,
+  testSettings,
 }: {
   nodes: VisualWorkflowRfNode[];
   edges: VisualWorkflowRfEdge[];
@@ -188,6 +189,8 @@ export function VisualWorkflowCanvas({
   onAddFirstStep: () => void;
   onLoadSample: () => void;
   onTestWorkflow: () => void;
+  /** A control shown beside the Test workflow button. */
+  testSettings?: ReactNode;
 }) {
   const reactFlowRef = useRef<ReactFlowInstance<VisualWorkflowRfNode, VisualWorkflowRfEdge> | null>(
     null,
@@ -300,7 +303,10 @@ export function VisualWorkflowCanvas({
         proOptions={{ hideAttribution: true }}
       >
         <Controls showInteractive={false} position="bottom-left" />
-        <Panel position="bottom-center" className="border-0 bg-transparent p-0 shadow-none">
+        <Panel
+          position="bottom-center"
+          className="flex items-center gap-2 border-0 bg-transparent p-0 shadow-none"
+        >
           <Button type="button" onClick={onTestWorkflow} disabled={isRunning || nodes.length === 0}>
             {isRunning ? (
               <FormattedMessage {...messages.testingWorkflow} />
@@ -308,6 +314,7 @@ export function VisualWorkflowCanvas({
               <FormattedMessage {...messages.testWorkflow} />
             )}
           </Button>
+          {testSettings}
         </Panel>
       </Canvas>
       {nodes.length === 0 ? (
