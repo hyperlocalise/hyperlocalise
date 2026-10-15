@@ -13,17 +13,28 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  enqueueApprovedActivityMock,
   getMessageFormatMock,
   getSegmentDetailMock,
   isLockedMock,
   saveTranslationMock,
   updateStatusMock,
 } = vi.hoisted(() => ({
+  enqueueApprovedActivityMock: vi.fn(),
   getMessageFormatMock: vi.fn(),
   getSegmentDetailMock: vi.fn(),
   isLockedMock: vi.fn(),
   saveTranslationMock: vi.fn(),
   updateStatusMock: vi.fn(),
+}));
+
+vi.mock("@/lib/activity-log/file-segment-events", () => ({
+  enqueueStringSegmentApprovedActivity: enqueueApprovedActivityMock,
+  sessionActivityActor: (userId: string | null | undefined) => ({
+    actorCredentialId: null,
+    actorKind: userId ? "user" : "system",
+    actorUserId: userId ?? null,
+  }),
 }));
 
 vi.mock("@/lib/projects/content-editor/content-editor-segment-lock-service", () => ({
@@ -189,6 +200,7 @@ describe("updateMcpTranslation message format", () => {
     });
     expect(getMessageFormatMock).not.toHaveBeenCalled();
     expect(saveTranslationMock).not.toHaveBeenCalled();
+    expect(enqueueApprovedActivityMock).not.toHaveBeenCalled();
   });
 
   it("allows an empty draft when approve is not requested", async () => {
@@ -209,6 +221,38 @@ describe("updateMcpTranslation message format", () => {
       value: { targetText: "", status: "draft" },
     });
     expect(saveTranslationMock).toHaveBeenCalledOnce();
+    expect(enqueueApprovedActivityMock).not.toHaveBeenCalled();
+  });
+
+  it("enqueues approval activity when a valid target is saved and approved", async () => {
+    stubSegment("Hello {{name}}");
+    getMessageFormatMock.mockResolvedValue("i18next");
+    saveTranslationMock.mockResolvedValue({
+      text: "Bonjour {{name}}",
+      updatedAt: new Date("2026-10-11T00:00:00.000Z"),
+    });
+
+    const result = await updateMcpTranslation({
+      ...INPUT,
+      targetText: "Bonjour {{name}}",
+      approve: true,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { targetText: "Bonjour {{name}}", status: "approved" },
+    });
+    expect(enqueueApprovedActivityMock).toHaveBeenCalledOnce();
+    expect(enqueueApprovedActivityMock).toHaveBeenCalledWith({
+      actorCredentialId: null,
+      actorKind: "user",
+      actorUserId: INPUT.actorUserId,
+      organizationId: INPUT.organizationId,
+      projectId: INPUT.projectId,
+      segmentId: INPUT.translationKeyId,
+      sourcePath: "locales/en.json",
+      targetLocale: INPUT.targetLocale,
+    });
   });
 });
 

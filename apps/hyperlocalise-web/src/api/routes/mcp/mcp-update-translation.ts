@@ -15,6 +15,10 @@ import {
   compareCatMessageFormats,
   type ContentEditorMessageParityIssue,
 } from "@/components/content-editor/message-format/content-editor-message-format";
+import {
+  enqueueStringSegmentApprovedActivity,
+  sessionActivityActor,
+} from "@/lib/activity-log/file-segment-events";
 import type { MessageFormat } from "@/lib/i18n/message-format";
 import { isCatSegmentLocked } from "@/lib/projects/content-editor/content-editor-segment-lock-service";
 import {
@@ -185,6 +189,17 @@ export async function updateMcpTranslation(input: {
       ok: false,
       error: "translation_not_found",
     };
+  }
+
+  if (input.approve) {
+    await enqueueStringSegmentApprovedActivity({
+      ...sessionActivityActor(input.actorUserId),
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      segmentId: input.translationKeyId,
+      sourcePath: detail.segment.sourcePath,
+      targetLocale: input.targetLocale,
+    });
   }
 
   return {
