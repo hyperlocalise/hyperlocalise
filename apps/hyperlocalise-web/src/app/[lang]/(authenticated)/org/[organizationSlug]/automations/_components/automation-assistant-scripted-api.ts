@@ -584,7 +584,11 @@ export function createScriptedAutomationAssistantApi(
 
       const turn = onCanvas
         ? {
-            ...runScriptedVisualWorkflowTurn({ scripts: canvasScripts, context: pageContext, text }),
+            ...runScriptedVisualWorkflowTurn({
+              scripts: canvasScripts,
+              context: pageContext,
+              text,
+            }),
             form: null,
             toolName: EDIT_VISUAL_WORKFLOW_TOOL_NAME,
           }

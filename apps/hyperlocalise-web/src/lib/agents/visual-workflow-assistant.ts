@@ -626,7 +626,8 @@ const REFERENCE_PROBLEMS: Record<VisualWorkflowReferenceProblem["reason"], strin
 
 function describeReferenceProblems(state: VisualWorkflowEditorState): string[] {
   return findVisualWorkflowReferenceProblems(state).map(
-    (problem) => `${problem.reference} on node [${problem.nodeId}] ${REFERENCE_PROBLEMS[problem.reason]}`,
+    (problem) =>
+      `${problem.reference} on node [${problem.nodeId}] ${REFERENCE_PROBLEMS[problem.reason]}`,
   );
 }
 

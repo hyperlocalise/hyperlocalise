@@ -80,9 +80,7 @@ export function findVisualWorkflowReferenceProblems({
               : "not_earlier";
       if (
         reason &&
-        !problems.some(
-          (problem) => problem.nodeId === node.id && problem.reference === segment.raw,
-        )
+        !problems.some((problem) => problem.nodeId === node.id && problem.reference === segment.raw)
       ) {
         problems.push({ nodeId: node.id, reference: segment.raw, reason });
       }
