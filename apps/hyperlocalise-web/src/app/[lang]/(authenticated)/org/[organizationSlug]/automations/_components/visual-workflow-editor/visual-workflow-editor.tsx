@@ -40,6 +40,10 @@ import {
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
 import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
+import {
+  nextVisualWorkflowNodeId,
+  reservedVisualWorkflowNodeIds,
+} from "@/lib/visual-workflows/editor/visual-workflow-node-id";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
   isVisualWorkflowGraphEqual,
@@ -64,6 +68,19 @@ import type { UndoOrigin } from "@/lib/undo-stack/undo-stack";
 import { useUndoShortcuts } from "@/lib/undo-stack/use-undo-shortcuts";
 import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 import { validateVisualWorkflowV3Definition } from "@/lib/visual-workflows/validation/validate-workflow-v3";
+import {
+  EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+  buildTestRunData,
+  canRunForReal,
+  findMissingTestValues,
+  findRealStepsFedByTestData,
+  pruneTestSetup,
+  realTestNodeIds,
+  testDataFromRun,
+  testFailureOf,
+  type VisualWorkflowTestFailure,
+  type VisualWorkflowTestSetup,
+} from "@/lib/visual-workflows/editor/visual-workflow-test-data";
 
 import {
   VisualWorkflowCanvas,
@@ -78,13 +95,25 @@ import {
   redactWorkflowSnapshot,
   collectWorkflowSecrets,
 } from "@/lib/visual-workflows/runtime/snapshots";
-import { WorkflowJsonField } from "./workflow-data-panel";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FieldLabel } from "@/components/ui/field";
-import { VisualWorkflowConfigPanel } from "./visual-workflow-config-panel";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
+import { VisualWorkflowConfigPanel, type StepSettingsTab } from "./visual-workflow-config-panel";
+import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
 import { VisualWorkflowEditorPanel } from "./visual-workflow-editor-panel";
 import { VisualWorkflowExecutionsPanel } from "./visual-workflow-executions-panel";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
+import {
+  VisualWorkflowRealTestDialog,
+  type RealTestStep,
+} from "./visual-workflow-real-test-dialog";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowNodePicker } from "./visual-workflow-node-picker";
 import {
@@ -103,9 +132,11 @@ export function VisualWorkflowEditor({
   previewMode = false,
   playgroundMode = false,
   sampleDraft,
+  initialTestSetup,
   onSave,
   isSaving = false,
   savedDefinition,
+  savedTestSetup,
   onUnsavedChangesChange,
   organizationSlug,
   visualWorkflowId,
@@ -122,10 +153,17 @@ export function VisualWorkflowEditor({
   previewMode?: boolean;
   playgroundMode?: boolean;
   sampleDraft?: VisualWorkflowEditorState;
-  onSave?: (definition: VisualWorkflowV3Definition) => void | Promise<void>;
+  /** The test data and test run choices saved with the draft. */
+  initialTestSetup?: VisualWorkflowTestSetup;
+  onSave?: (
+    definition: VisualWorkflowV3Definition,
+    testSetup: VisualWorkflowTestSetup,
+  ) => void | Promise<void>;
   isSaving?: boolean;
   /** The workflow as last saved. With it, the editor reports whether its graph differs from it. */
   savedDefinition?: VisualWorkflowV3Definition;
+  /** The test setup as last saved, compared like the graph. */
+  savedTestSetup?: VisualWorkflowTestSetup;
   onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   organizationSlug?: string;
   visualWorkflowId?: string;
@@ -140,9 +178,22 @@ export function VisualWorkflowEditor({
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
-  const [testPayload, setTestPayload] = useState<Record<string, unknown>>({});
-  const [mockOutputs, setMockOutputs] = useState<Record<string, Record<string, unknown>>>({});
-  const [liveTest, setLiveTest] = useState(false);
+  // Each step's test data and test run choices; kept out of the steps, so editing them is no undo
+  // step. They are saved with the draft.
+  const [testSetup, setTestSetup] = useState<VisualWorkflowTestSetup>(
+    initialTestSetup ?? EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+  );
+  const testData = testSetup.data;
+  // Only a test run on the server can call out, so only there can a step run for real.
+  const canTestForReal = Boolean(organizationSlug && visualWorkflowId && visualWorkflowsApi);
+  const effectiveTestSetup = useMemo(
+    () => (canTestForReal ? testSetup : { ...testSetup, realNodeIds: [] }),
+    [canTestForReal, testSetup],
+  );
+  const [realTestSteps, setRealTestSteps] = useState<RealTestStep[]>([]);
+  const [requestedTab, setRequestedTab] = useState<{ tab: StepSettingsTab; key: number }>();
+  // The step a value under the pointer in the settings panel comes from, marked on the canvas.
+  const [pointedNodeId, setPointedNodeId] = useState<string | null>(null);
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<"editor" | "executions">("editor");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -173,6 +224,9 @@ export function VisualWorkflowEditor({
   historyRef.current = history;
   const selectedNodeIdRef = useRef(selectedNodeId);
   selectedNodeIdRef.current = selectedNodeId;
+  useEffect(() => {
+    setPointedNodeId(null);
+  }, [selectedNodeId]);
   // The graph as it was when a drag began, so the drop records one step from there.
   const dragStartRef = useRef<VisualWorkflowGraph | null>(null);
   const undoNotice = useVisualWorkflowUndoNotice();
@@ -325,10 +379,25 @@ export function VisualWorkflowEditor({
     [edges, name, nodes],
   );
   const issues = useMemo(() => validateVisualWorkflowV3Definition(definition), [definition]);
+  const prunedTestSetup = useMemo(
+    () =>
+      pruneTestSetup(
+        testSetup,
+        nodes.map((node) => node.id),
+      ),
+    [nodes, testSetup],
+  );
   const hasUnsavedChanges = useMemo(
     () =>
-      savedDefinition !== undefined && !visualWorkflowDefinitionsEqual(savedDefinition, definition),
-    [definition, savedDefinition],
+      savedDefinition !== undefined &&
+      (!visualWorkflowDefinitionsEqual(savedDefinition, definition) ||
+        JSON.stringify(
+          pruneTestSetup(
+            savedTestSetup ?? EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+            nodes.map((node) => node.id),
+          ),
+        ) !== JSON.stringify(prunedTestSetup)),
+    [definition, nodes, prunedTestSetup, savedDefinition, savedTestSetup],
   );
   useEffect(() => {
     onUnsavedChangesChange?.(hasUnsavedChanges);
@@ -445,6 +514,23 @@ export function VisualWorkflowEditor({
     [commit],
   );
 
+  /** Takes away the data wire that feeds a setting of the open step. */
+  const onDisconnectInput = useCallback(
+    (portId: string) => {
+      const current = graphRef.current;
+      const nodeId = selectedNodeIdRef.current;
+      const edges = current.edges.filter(
+        (edge) =>
+          !(edge.data?.kind === "data" && edge.target === nodeId && edge.targetHandle === portId),
+      );
+      if (edges.length === current.edges.length) {
+        return;
+      }
+      commit({ ...current, edges, nodes: reconcileFlowBodyMembership(current.nodes, edges) });
+    },
+    [commit],
+  );
+
   const onConnect = useCallback(
     (connection: Connection) => {
       const current = graphRef.current;
@@ -545,14 +631,26 @@ export function VisualWorkflowEditor({
     [deselectNodes],
   );
 
+  // Every step id the editor has shown, so a deleted step's id is not given to a new step.
+  const seenNodeIdsRef = useRef(new Set<string>());
+  for (const node of nodes) seenNodeIdsRef.current.add(node.id);
+  const testSetupRef = useRef(testSetup);
+  testSetupRef.current = testSetup;
+
   const addNode = useCallback(
     (type: VisualCatalogType) => {
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? `vw_${crypto.randomUUID().slice(0, 8)}`
-          : `vw_${Date.now()}`;
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
+      const id = nextVisualWorkflowNodeId(
+        type,
+        currentNodes,
+        reservedVisualWorkflowNodeIds({
+          nodes: currentNodes,
+          edges: currentEdges,
+          setup: testSetupRef.current,
+          seenNodeIds: seenNodeIdsRef.current,
+        }),
+      );
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
       const config = createDefaultConfig(type);
       const size = getVisualNodeDimensions(type, config);
@@ -726,7 +824,62 @@ export function VisualWorkflowEditor({
     [setNodes],
   );
 
-  const onTestWorkflowClick = useCallback(async () => {
+  const missingTestValues = useMemo(
+    () => findMissingTestValues({ nodes, edges, setup: effectiveTestSetup }),
+    [edges, effectiveTestSetup, nodes],
+  );
+  const realNodeIds = useMemo(
+    () => realTestNodeIds(nodes, effectiveTestSetup),
+    [effectiveTestSetup, nodes],
+  );
+  const stepTitle = useCallback(
+    (nodeId: string) => {
+      const step = nodes.find((node) => node.id === nodeId);
+      return step
+        ? intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType))
+        : nodeId;
+    },
+    [intl, nodes],
+  );
+
+  const setStepTestData = useCallback((nodeId: string, value: Record<string, unknown>) => {
+    setTestSetup((current) => ({ ...current, data: { ...current.data, [nodeId]: value } }));
+  }, []);
+  const setStepRunsForReal = useCallback((nodeId: string, real: boolean) => {
+    setTestSetup((current) => ({
+      ...current,
+      realNodeIds: real
+        ? [...new Set([...current.realNodeIds, nodeId])]
+        : current.realNodeIds.filter((id) => id !== nodeId),
+    }));
+  }, []);
+  const setStepFailure = useCallback(
+    (nodeId: string, failure: VisualWorkflowTestFailure | undefined) => {
+      setTestSetup((current) => {
+        const failures = { ...current.failures };
+        if (failure) failures[nodeId] = failure;
+        else delete failures[nodeId];
+        return { ...current, failures };
+      });
+    },
+    [],
+  );
+  /** Sets every step that can run for real to do so, or every one to use its test data. */
+  const setEveryStepRunsForReal = useCallback(
+    (real: boolean) => {
+      setTestSetup((current) => ({
+        ...current,
+        realNodeIds: real
+          ? nodes.filter((node) => canRunForReal(node.data.catalogType)).map((node) => node.id)
+          : [],
+      }));
+    },
+    [nodes],
+  );
+
+  /** Starts a test run with the steps' test data and choices as they are. */
+  const startTestRun = useCallback(async () => {
+    const testRun = buildTestRunData({ nodes, setup: effectiveTestSetup });
     runAbortRef.current?.abort();
     const controller = new AbortController();
     runAbortRef.current = controller;
@@ -749,9 +902,11 @@ export function VisualWorkflowEditor({
           {
             idempotencyKey,
             definition,
-            inputSnapshot: testPayload,
-            mode: liveTest ? "live" : "mock",
-            mockOutputs,
+            inputSnapshot: testRun.triggerInput,
+            mode: testRun.mode,
+            mockOutputs: testRun.mockOutputs,
+            realNodeIds: testRun.realNodeIds,
+            mockFailures: testRun.mockFailures,
           },
         );
 
@@ -786,8 +941,9 @@ export function VisualWorkflowEditor({
           name,
           nodes,
           edges,
-          triggerInput: testPayload,
-          mockOutputs,
+          triggerInput: testRun.triggerInput,
+          mockOutputs: testRun.mockOutputs,
+          mockFailures: testRun.mockFailures,
           signal: controller.signal,
           onStatus: setRunStatus,
           onOutput: setNodeOutputSnapshot,
@@ -796,6 +952,12 @@ export function VisualWorkflowEditor({
           toast.error(intl.formatMessage(messages.testRunFailed));
         }
       }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        toast.error(intl.formatMessage(messages.testRunCouldNotStart), {
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
     } finally {
       if (!controller.signal.aborted) {
         setIsRunning(false);
@@ -803,21 +965,75 @@ export function VisualWorkflowEditor({
     }
   }, [
     applyNodeRunStatuses,
-    testPayload,
-    mockOutputs,
-    liveTest,
+    effectiveTestSetup,
     definition,
     edges,
     intl,
     name,
     nodes,
     organizationSlug,
-    playgroundMode,
     setNodeOutputSnapshot,
     setNodes,
     setRunStatus,
     visualWorkflowId,
     visualWorkflowsApi,
+  ]);
+
+  const onTestWorkflowClick = useCallback(() => {
+    // A test run invents no values, so one that lacks any is not started.
+    const firstMissing = missingTestValues[0];
+    if (firstMissing) {
+      const step = nodes.find((node) => node.id === firstMissing.nodeId);
+      toast.error(
+        intl.formatMessage(messages.testRunMissingData, { count: missingTestValues.length }),
+        {
+          description: step
+            ? intl.formatMessage(messages.testRunMissingDataFirst, {
+                path: firstMissing.path,
+                step: intl.formatMessage(visualWorkflowNodeTitleMessage(step.data.catalogType)),
+              })
+            : undefined,
+          action: {
+            label: intl.formatMessage(messages.testRunMissingDataShow),
+            onClick: () => {
+              showNode(firstMissing.nodeId);
+              setRequestedTab({ tab: "test", key: Date.now() });
+            },
+          },
+        },
+      );
+      return;
+    }
+    // A step that calls out for real is only run once the person has seen it named.
+    if (realNodeIds.size > 0) {
+      const fedBy = new Map(
+        findRealStepsFedByTestData({ nodes, edges, setup: effectiveTestSetup }).map((entry) => [
+          entry.nodeId,
+          entry.mockedNodeIds,
+        ]),
+      );
+      setRealTestSteps(
+        nodes
+          .filter((node) => realNodeIds.has(node.id))
+          .map((node) => ({
+            nodeId: node.id,
+            title: stepTitle(node.id),
+            fedBy: (fedBy.get(node.id) ?? []).map(stepTitle),
+          })),
+      );
+      return;
+    }
+    void startTestRun();
+  }, [
+    edges,
+    effectiveTestSetup,
+    intl,
+    missingTestValues,
+    nodes,
+    realNodeIds,
+    showNode,
+    startTestRun,
+    stepTitle,
   ]);
 
   const draftJson = useCallback(
@@ -846,9 +1062,9 @@ export function VisualWorkflowEditor({
     if (!onSave) {
       return;
     }
-    void onSave(definition);
+    void onSave(definition, prunedTestSetup);
     setFreshNodeIds(NO_FRESH_STEPS);
-  }, [definition, onSave]);
+  }, [definition, onSave, prunedTestSetup]);
 
   const handleStatusChange = useCallback(
     async (active: boolean) => {
@@ -898,49 +1114,16 @@ export function VisualWorkflowEditor({
         onDelete={onDelete}
         isDeleting={isDeleting}
       />
-      {activeTab === "editor" && organizationSlug ? (
-        <details className="border-b border-border px-4 py-2">
-          <summary className="cursor-pointer text-sm">
-            {intl.formatMessage({
-              description: "Visual workflow editor control",
-              id: "iF8OgIZ53W",
-              defaultMessage: "Test settings · mock by default",
-            })}
-          </summary>
-          <div className="grid gap-3 py-3 md:grid-cols-2">
-            <WorkflowJsonField
-              label={intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "SfxPvLTS+B",
-                defaultMessage: "Trigger payload (JSON)",
-              })}
-              value={testPayload}
-              onChange={(value) => setTestPayload(value as Record<string, unknown>)}
-            />
-            <WorkflowJsonField
-              label={intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "UsvrwYmjnb",
-                defaultMessage: "Mock outputs by node ID (JSON)",
-              })}
-              value={mockOutputs}
-              onChange={(value) => setMockOutputs(value as Record<string, Record<string, unknown>>)}
-            />
-            <FieldLabel>
-              <Checkbox
-                checked={liveTest}
-                onCheckedChange={(value) => setLiveTest(Boolean(value))}
-              />
-              {intl.formatMessage({
-                description: "Visual workflow editor control",
-                id: "RnDCfBW6QI",
-                defaultMessage:
-                  "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
-              })}
-            </FieldLabel>
-          </div>
-        </details>
-      ) : null}
+      <VisualWorkflowRealTestDialog
+        steps={realTestSteps}
+        onOpenChange={(open) => {
+          if (!open) setRealTestSteps([]);
+        }}
+        onConfirm={() => {
+          setRealTestSteps([]);
+          void startTestRun();
+        }}
+      />
       {activeTab === "executions" && organizationSlug && visualWorkflowId && visualWorkflowsApi ? (
         <VisualWorkflowExecutionsPanel
           organizationSlug={organizationSlug}
@@ -948,6 +1131,15 @@ export function VisualWorkflowEditor({
           visualWorkflowsApi={visualWorkflowsApi}
           selectedRunId={selectedRunId}
           onSelectRun={setSelectedRunId}
+          onUseRunAsTestData={(nodeRuns) => {
+            const fromRun = testDataFromRun(nodes, nodeRuns);
+            setTestSetup((current) => ({ ...current, data: { ...current.data, ...fromRun } }));
+            toast.success(
+              intl.formatMessage(messages.usedRunAsTestData, {
+                count: Object.keys(fromRun).length,
+              }),
+            );
+          }}
         />
       ) : (
         <div className="relative flex min-h-0 min-w-0 flex-1">
@@ -955,6 +1147,8 @@ export function VisualWorkflowEditor({
             onAddFromNode={openPicker}
             issueNodeIds={issueNodeIds}
             freshNodeIds={freshNodeIds}
+            pointedNodeId={pointedNodeId}
+            realNodeIds={realNodeIds}
           >
             <VisualWorkflowCanvas
               nodes={nodes}
@@ -978,6 +1172,67 @@ export function VisualWorkflowEditor({
                 setMobilePanelOpen(false);
               }}
               onTestWorkflow={onTestWorkflowClick}
+              testSettings={
+                organizationSlug ? (
+                  <Popover>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="bg-background shadow-xs"
+                          aria-label={intl.formatMessage(messages.testSettings)}
+                          title={intl.formatMessage(messages.testSettings)}
+                        />
+                      }
+                    >
+                      <SlidersHorizontalIcon />
+                    </PopoverTrigger>
+                    <PopoverContent align="center" side="top" className="w-80">
+                      <PopoverHeader>
+                        <PopoverTitle>{intl.formatMessage(messages.testSettings)}</PopoverTitle>
+                        <PopoverDescription>
+                          {intl.formatMessage(messages.testSettingsHint)}
+                        </PopoverDescription>
+                      </PopoverHeader>
+                      <div className="mt-3 grid gap-2">
+                        <p className="text-sm">
+                          {intl.formatMessage(messages.testSettingsRealCount, {
+                            count: realNodeIds.size,
+                          })}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={realNodeIds.size === 0}
+                            onClick={() => setEveryStepRunsForReal(false)}
+                          >
+                            {intl.formatMessage(messages.testSettingsUseTestDataEverywhere)}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              realNodeIds.size ===
+                              nodes.filter((node) => canRunForReal(node.data.catalogType)).length
+                            }
+                            onClick={() => setEveryStepRunsForReal(true)}
+                          >
+                            {intl.formatMessage(messages.testSettingsRunEverythingForReal)}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {intl.formatMessage(messages.testSettingsAllRealNote)}
+                        </p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : null
+              }
             />
             <div data-testid="visual-workflow-graph-edges" hidden>
               {edges.map((edge) => (
@@ -1019,6 +1274,21 @@ export function VisualWorkflowEditor({
                 onChangeConfig={onChangeConfig}
                 onChangeNodeType={onChangeNodeType}
                 onDeleteNode={onDeleteNode}
+                testData={testData[selectedNode.id]}
+                allTestData={testData}
+                missingTestValues={missingTestValues.filter(
+                  (entry) => entry.nodeId === selectedNode.id,
+                )}
+                onChangeTestData={(value) => setStepTestData(selectedNode.id, value)}
+                testRunsForReal={realNodeIds.has(selectedNode.id)}
+                onChangeTestRunsForReal={
+                  canTestForReal ? (real) => setStepRunsForReal(selectedNode.id, real) : undefined
+                }
+                testFailure={testFailureOf(selectedNode, effectiveTestSetup)}
+                onChangeTestFailure={(failure) => setStepFailure(selectedNode.id, failure)}
+                requestedTab={requestedTab}
+                onDisconnectInput={onDisconnectInput}
+                onPointStep={setPointedNodeId}
               />
             ) : (
               <>

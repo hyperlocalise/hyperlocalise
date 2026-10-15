@@ -50,6 +50,8 @@ export const visualWorkflowRuns = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     mode: text("mode").notNull().default("live"),
+    /** In a mock run, the steps that ran for real instead of using their test data. */
+    realNodeIds: jsonb("real_node_ids").$type<string[]>(),
     encryptedPayload: jsonb("encrypted_payload").$type<Record<string, unknown>>(),
     leaseToken: text("lease_token"),
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
