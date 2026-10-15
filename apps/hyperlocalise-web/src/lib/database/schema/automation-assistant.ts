@@ -10,7 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import type { UIMessage } from "ai";
 
@@ -38,7 +48,7 @@ export const automationAssistantSessions = pgTable(
     automationId: uuid("automation_id").references(() => workspaceAutomations.id, {
       onDelete: "cascade",
     }),
-    // Set instead of the automation when the session is about a visual workflow.
+    // Set instead of the automation when the session is about a visual workflow, never with it.
     visualWorkflowId: uuid("visual_workflow_id").references(() => visualWorkflows.id, {
       onDelete: "cascade",
     }),
@@ -69,6 +79,11 @@ export const automationAssistantSessions = pgTable(
     index("idx_automation_assistant_sessions_author_expires").on(
       table.createdByUserId,
       table.expiresAt,
+    ),
+    // A session is about one thing: an automation (perhaps not yet saved) or a visual workflow.
+    check(
+      "automation_assistant_sessions_one_subject",
+      sql`${table.automationId} IS NULL OR ${table.visualWorkflowId} IS NULL`,
     ),
   ],
 );

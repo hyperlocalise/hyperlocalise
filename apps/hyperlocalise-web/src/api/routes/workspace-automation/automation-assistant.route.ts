@@ -221,7 +221,10 @@ export function createAutomationAssistantRoutes() {
       if (!session) {
         return notFoundResponse(c, "session_not_found");
       }
-      if (session.automationId && session.automationId !== automationId) {
+      if (
+        session.visualWorkflowId !== null ||
+        (session.automationId && session.automationId !== automationId)
+      ) {
         return conflictResponse(c, "session_already_bound");
       }
       if (!(await automationExists(organizationId, automationId))) {

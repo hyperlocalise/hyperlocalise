@@ -156,6 +156,18 @@ describe("automation assistant sessions", () => {
       .from(schema.automationAssistantSessions)
       .where(eq(schema.automationAssistantSessions.id, session.id));
     expect(row?.expiresAt).toBeNull();
+
+    // It is never bound to an automation as well, by the binding or by any other write.
+    const automationId = await automationFor(scope);
+    expect(
+      outcome(await bindAutomationAssistantSession({ sessionId: session.id, automationId })),
+    ).toBe("session_already_bound");
+    await expect(
+      db
+        .update(schema.automationAssistantSessions)
+        .set({ automationId })
+        .where(eq(schema.automationAssistantSessions.id, session.id)),
+    ).rejects.toThrow();
   });
 
   it("keeps one session per saved automation and author, however many ask for the first at once", async () => {

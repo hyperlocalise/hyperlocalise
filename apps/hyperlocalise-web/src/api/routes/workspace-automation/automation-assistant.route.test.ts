@@ -191,7 +191,7 @@ describe("automation assistant sessions", () => {
   });
 
   it("keeps a session per visual workflow and author, and runs only that workflow's page on it", async () => {
-    const { headers, organizationId, slug } = await signIn();
+    const { headers, identity, organizationId, slug } = await signIn();
     const created = await createVisualWorkflow({ organizationId, name: "Nightly sync" });
     if (isErr(created)) {
       throw new Error(created.error.code);
@@ -242,6 +242,16 @@ describe("automation assistant sessions", () => {
     );
     expect(elsewhere.status).toBe(400);
     expect(await elsewhere.json()).toMatchObject({ error: "page_context_mismatch" });
+    const automationId = await seedAutomation({
+      organizationId,
+      userId: await fixture.getLocalUserId(identity.user.workosUserId),
+    });
+    const bound = await assistant.sessions[":sessionId"].$patch(
+      { param: { organizationSlug: slug, sessionId: session.id }, json: { automationId } },
+      { headers },
+    );
+    expect(bound.status).toBe(409);
+    expect(await bound.json()).toMatchObject({ error: "session_already_bound" });
 
     const missing = await assistant.sessions.$post(
       { param: { organizationSlug: slug }, json: { visualWorkflowId: crypto.randomUUID() } },

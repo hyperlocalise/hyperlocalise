@@ -1,5 +1,5 @@
 {
-  "id": "fd91f0cb-6fdd-496d-a23d-da2c5bd6cb54",
+  "id": "09107b50-0af6-455e-989f-58108bfb838b",
   "prevId": "3cfea852-5c35-4804-a363-87e01504a0eb",
   "version": "7",
   "dialect": "postgresql",
@@ -18718,7 +18718,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "automation_assistant_sessions_one_subject": {
+          "name": "automation_assistant_sessions_one_subject",
+          "value": "\"automation_assistant_sessions\".\"automation_id\" IS NULL OR \"automation_assistant_sessions\".\"visual_workflow_id\" IS NULL"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.visual_workflows": {

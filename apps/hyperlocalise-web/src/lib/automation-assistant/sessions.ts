@@ -196,7 +196,7 @@ export async function findAutomationAssistantSessionForVisualWorkflow(input: {
 }
 
 export type AutomationAssistantSessionBindError =
-  /** The session belongs to another automation, or is gone. */
+  /** The session belongs to another automation or to a visual workflow, or is gone. */
   | { code: "session_already_bound" }
   /** The person already has a session for the automation, so this one stays unbound. */
   | { code: "automation_session_exists" };
@@ -217,6 +217,8 @@ export async function bindAutomationAssistantSession(input: {
       .where(
         and(
           eq(sessions.id, input.sessionId),
+          // A session about a visual workflow is never bound to an automation as well.
+          isNull(sessions.visualWorkflowId),
           or(isNull(sessions.automationId), eq(sessions.automationId, input.automationId)),
         ),
       )
