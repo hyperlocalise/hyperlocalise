@@ -137,6 +137,54 @@ describe("ContentEditorHtmlEditorPane", () => {
     expect(target).toHaveAttribute("srcdoc", "<p>Hello</p>");
   });
 
+  it("reclassifies full documents after structural code-mode edits", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<p>Hello</p>")),
+    );
+
+    render(
+      <ContentEditorTestProviders>
+        <ContentEditorHtmlEditorPane
+          documentKey="html-full-doc:fr"
+          sourceSrc="https://example.com/source.html"
+          targetSrc="https://example.com/target.html"
+          filename="page.html"
+          sourceLocale="en"
+          targetLocale="fr"
+          onSave={vi.fn()}
+        />
+      </ContentEditorTestProviders>,
+    );
+
+    await screen.findByTitle("Translated (fr)");
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const editor = screen.getByLabelText("Translated (fr)");
+    await user.clear(editor);
+    await user.paste(
+      "<!DOCTYPE html><html><head><title>T</title></head><body><p>Hello</p></body></html>",
+    );
+    await user.click(screen.getByRole("button", { name: "View document" }));
+
+    const target = screen.getByTitle("Translated (fr)");
+    const innerDoc = document.implementation.createHTMLDocument("T");
+    innerDoc.body.innerHTML = "<p>Hello</p>";
+    Object.defineProperty(target, "contentDocument", {
+      configurable: true,
+      value: innerDoc,
+    });
+    fireEvent.load(target);
+    innerDoc.body.innerHTML = "<p>Bonjour</p>";
+    innerDoc.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await user.click(screen.getByRole("button", { name: "View code" }));
+    const value = (screen.getByLabelText("Translated (fr)") as HTMLTextAreaElement).value;
+    expect(value.includes("<html")).toBe(true);
+    expect(value).toContain("<p>Bonjour</p>");
+    expect(value).not.toBe("<p>Bonjour</p>");
+  });
+
   it("switches to code editing and blocks review while dirty", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

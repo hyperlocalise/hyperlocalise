@@ -23,6 +23,14 @@ describe("isFullHtmlDocument", () => {
     expect(isFullHtmlDocument("<table><tr><td>Cell</td></tr></table>")).toBe(false);
     expect(isFullHtmlDocument("<p>Fragment</p>")).toBe(false);
   });
+
+  it("ignores leading comments before doctype or html", () => {
+    expect(isFullHtmlDocument("<!-- generated --><!DOCTYPE html><html><body></body></html>")).toBe(
+      true,
+    );
+    expect(isFullHtmlDocument("<!-- note --><html><body></body></html>")).toBe(true);
+    expect(isFullHtmlDocument("<!-- note --><p>Fragment</p>")).toBe(false);
+  });
 });
 
 describe("serializeDesignModeDocument", () => {
@@ -31,11 +39,27 @@ describe("serializeDesignModeDocument", () => {
     expect(serializeDesignModeDocument(document, false)).toBe("<p>Hello</p>");
   });
 
+  it("includes head content for fragments parsed outside the body", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    doc.head.innerHTML = "<style>.x{color:red}</style>";
+    doc.body.innerHTML = "<p>Hi</p>";
+    expect(serializeDesignModeDocument(doc, false)).toBe("<style>.x{color:red}</style><p>Hi</p>");
+  });
+
   it("serializes documentElement for full documents", () => {
     const doc = document.implementation.createHTMLDocument("Title");
     doc.body.innerHTML = "<p>Full</p>";
     const serialized = serializeDesignModeDocument(doc, true);
     expect(serialized).toContain("<html");
     expect(serialized).toContain("<p>Full</p>");
+  });
+
+  it("preserves system-only doctypes", () => {
+    const doc = new DOMParser().parseFromString(
+      '<!DOCTYPE html SYSTEM "about:legacy-compat"><html><head></head><body><p>Legacy</p></body></html>',
+      "text/html",
+    );
+    const serialized = serializeDesignModeDocument(doc, true);
+    expect(serialized.startsWith('<!DOCTYPE html SYSTEM "about:legacy-compat">')).toBe(true);
   });
 });

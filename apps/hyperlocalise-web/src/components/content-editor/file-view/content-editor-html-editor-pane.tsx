@@ -97,7 +97,6 @@ export function ContentEditorHtmlEditorPane({
   const [load, setLoad] = useState<LoadState>({ status: "loading" });
   const [body, setBody] = useState("");
   const [baseline, setBaseline] = useState<string | null>(null);
-  const [loadedAsFullDocument, setLoadedAsFullDocument] = useState(false);
   const [codeMode, setCodeMode] = useState(false);
   const [restoreSaveError, setRestoreSaveError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -156,7 +155,6 @@ export function ContentEditorHtmlEditorPane({
         setBody(serverText);
         setBaseline(serverText);
       }
-      setLoadedAsFullDocument(isFullHtmlDocument(serverText));
       readyRef.current = true;
       setLoad({ status: "ready", sourceText: source.text });
     })();
@@ -188,7 +186,6 @@ export function ContentEditorHtmlEditorPane({
       }
       setBody(target.text);
       setBaseline(target.text);
-      setLoadedAsFullDocument(isFullHtmlDocument(target.text));
     })();
     return () => {
       cancelled = true;
@@ -320,7 +317,7 @@ export function ContentEditorHtmlEditorPane({
               ref={targetPreviewRef}
               srcDoc={body}
               editable={editable}
-              loadedAsFullDocument={loadedAsFullDocument}
+              loadedAsFullDocument={isFullHtmlDocument(body)}
               onHtmlChange={setBody}
               onSaveShortcut={() => void autosave.saveNow()}
               label={intl.formatMessage(contentEditorFileViewMessages.targetHeading, {
