@@ -235,16 +235,29 @@ function countNonEmptyTranslations(translations: Record<string, string>): number
   return Object.values(translations).filter((value) => value.trim().length > 0).length;
 }
 
-async function loadFigmaEditorTranslationsBySourcePath(input: {
+function figmaEditorTranslationLookupKey(locale: string, sourcePath: string) {
+  return `${locale}\0${sourcePath}`;
+}
+
+async function loadFigmaEditorTranslationsBySourcePaths(input: {
   organizationId: string;
   projectId: string;
-  locale: string;
-  sourcePath: string;
-}): Promise<Record<string, string>> {
+  locales: string[];
+  sourcePaths: string[];
+}): Promise<Map<string, Record<string, string>>> {
+  const locales = [...new Set(input.locales.map((locale) => locale.trim()).filter(Boolean))];
+  const sourcePaths = [...new Set(input.sourcePaths.filter((path) => path.trim().length > 0))];
+  const result = new Map<string, Record<string, string>>();
+  if (locales.length === 0 || sourcePaths.length === 0) {
+    return result;
+  }
+
   const rows = await db
     .select({
       key: schema.projectTranslationKeys.key,
       text: schema.projectTranslations.text,
+      locale: schema.projectTranslations.targetLocale,
+      sourcePath: schema.repositorySourceFiles.sourcePath,
     })
     .from(schema.projectTranslations)
     .innerJoin(
@@ -259,19 +272,39 @@ async function loadFigmaEditorTranslationsBySourcePath(input: {
       and(
         eq(schema.projectTranslations.organizationId, input.organizationId),
         eq(schema.projectTranslations.projectId, input.projectId),
-        eq(schema.projectTranslations.targetLocale, input.locale),
-        eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+        inArray(schema.projectTranslations.targetLocale, locales),
+        inArray(schema.repositorySourceFiles.sourcePath, sourcePaths),
       ),
     );
 
-  const segments: Record<string, string> = {};
   for (const row of rows) {
     if (row.text.trim().length === 0 || !isFigmaStampSegmentKey(row.key)) {
       continue;
     }
+    const lookupKey = figmaEditorTranslationLookupKey(row.locale, row.sourcePath);
+    let segments = result.get(lookupKey);
+    if (!segments) {
+      segments = {};
+      result.set(lookupKey, segments);
+    }
     segments[row.key] = row.text;
   }
-  return segments;
+  return result;
+}
+
+async function loadFigmaEditorTranslationsBySourcePath(input: {
+  organizationId: string;
+  projectId: string;
+  locale: string;
+  sourcePath: string;
+}): Promise<Record<string, string>> {
+  const batched = await loadFigmaEditorTranslationsBySourcePaths({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    locales: [input.locale],
+    sourcePaths: [input.sourcePath],
+  });
+  return batched.get(figmaEditorTranslationLookupKey(input.locale, input.sourcePath)) ?? {};
 }
 
 async function mergeFigmaTranslationsWithEditor(input: {
@@ -842,6 +875,13 @@ export async function listFigmaPageLocaleStatuses(input: {
     },
   ];
 
+  const pendingEditorLookups: Array<{
+    locale: string;
+    pageId: string;
+    sourcePath: string;
+    segmentCount: number;
+  }> = [];
+
   for (const locale of targetLocales) {
     const trimmed = locale.trim();
     if (!trimmed || trimmed === sourceLocale) {
@@ -872,18 +912,13 @@ export async function listFigmaPageLocaleStatuses(input: {
         continue;
       }
 
-      const editorSegments = await loadFigmaEditorTranslationsBySourcePath({
-        organizationId,
-        projectId: project.id,
+      pendingEditorLookups.push({
         locale: trimmed,
+        pageId,
         sourcePath: collected.sourcePath,
+        segmentCount: collected.segmentCount,
       });
-      const editorTranslated = countFigmaTranslatedKeys(editorSegments, collected.segmentCount);
-      if (editorTranslated > 0) {
-        localePages.push({ pageId, status: "waiting_for_review" });
-      } else {
-        localePages.push({ pageId, status: "missing" });
-      }
+      localePages.push({ pageId, status: "missing" });
     }
 
     locales.push({
@@ -891,6 +926,29 @@ export async function listFigmaPageLocaleStatuses(input: {
       isSource: false,
       pages: localePages,
     });
+  }
+
+  const editorByLocaleAndPath = await loadFigmaEditorTranslationsBySourcePaths({
+    organizationId,
+    projectId: project.id,
+    locales: pendingEditorLookups.map((entry) => entry.locale),
+    sourcePaths: pendingEditorLookups.map((entry) => entry.sourcePath),
+  });
+  const localePagesByLocale = new Map(locales.map((entry) => [entry.locale, entry.pages]));
+  for (const pending of pendingEditorLookups) {
+    const editorSegments =
+      editorByLocaleAndPath.get(
+        figmaEditorTranslationLookupKey(pending.locale, pending.sourcePath),
+      ) ?? {};
+    if (countFigmaTranslatedKeys(editorSegments, pending.segmentCount) === 0) {
+      continue;
+    }
+    const page = localePagesByLocale
+      .get(pending.locale)
+      ?.find((entry) => entry.pageId === pending.pageId);
+    if (page) {
+      page.status = "waiting_for_review";
+    }
   }
 
   return { locales, pages };

@@ -1,4 +1,5 @@
 import { fetchFigmaLocaleStatusesFromApi, type FigmaResourceAuth } from "./hyperlocalise-client";
+import { FIGMA_LOCALE_STATUS_PAGE_LIMIT } from "./page-selection";
 import type { FigmaPageJob } from "./plugin-messages";
 
 export type FigmaLocalePageStatus = {
@@ -49,6 +50,29 @@ export function canApplySelectedPages(entry: FigmaLocaleStatus | undefined, sele
   });
 }
 
+function chunkPageIds(pageIds: string[], size: number) {
+  const chunks: string[][] = [];
+  for (let index = 0; index < pageIds.length; index += size) {
+    chunks.push(pageIds.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function mergeLocaleStatuses(batches: FigmaLocaleStatus[][]): FigmaLocaleStatus[] {
+  const byLocale = new Map<string, FigmaLocaleStatus>();
+  for (const locales of batches) {
+    for (const entry of locales) {
+      const existing = byLocale.get(entry.locale);
+      if (!existing) {
+        byLocale.set(entry.locale, { ...entry, pages: [...entry.pages] });
+        continue;
+      }
+      existing.pages.push(...entry.pages);
+    }
+  }
+  return [...byLocale.values()];
+}
+
 export async function fetchFigmaLocaleStatuses(input: {
   appUrl: string;
   auth: FigmaResourceAuth;
@@ -60,12 +84,22 @@ export async function fetchFigmaLocaleStatuses(input: {
 }): Promise<FigmaLocaleStatus[]> {
   void input.sourceLocale;
   void input.targetLocales;
-  const result = await fetchFigmaLocaleStatusesFromApi({
-    appUrl: input.appUrl,
-    auth: input.auth,
-    projectId: input.projectId,
-    fileKey: input.fileKey,
-    pageIds: input.pageIds,
-  });
-  return result.locales;
+  const uniquePageIds = [...new Set(input.pageIds.filter((pageId) => pageId.trim().length > 0))];
+  if (uniquePageIds.length === 0) {
+    return [];
+  }
+
+  const batches = await Promise.all(
+    chunkPageIds(uniquePageIds, FIGMA_LOCALE_STATUS_PAGE_LIMIT).map(async (pageIds) => {
+      const result = await fetchFigmaLocaleStatusesFromApi({
+        appUrl: input.appUrl,
+        auth: input.auth,
+        projectId: input.projectId,
+        fileKey: input.fileKey,
+        pageIds,
+      });
+      return result.locales;
+    }),
+  );
+  return mergeLocaleStatuses(batches);
 }

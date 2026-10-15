@@ -47,6 +47,12 @@ import { remapExtractedSegmentsToSource } from "./extract-source";
 import { FormField } from "./form-field";
 import { TooltipButton, TooltipWrap } from "./tooltip-wrap";
 import { PageMultiSelect } from "./page-multi-select";
+import {
+  allPageIds,
+  FIGMA_LOCALE_STATUS_PAGE_LIMIT,
+  normalizeSelectedPageIds,
+  resolveSelectedPageIds,
+} from "./page-selection";
 import { defaultSelectedLocale, localeLabel, translateToOptionsForProject } from "./locale-label";
 import {
   isInFlightJobStatus,
@@ -153,20 +159,6 @@ function isReconnectError(error: unknown) {
     error.code === "figma_access_token_invalid" ||
     error.code === "figma_connection_not_found"
   );
-}
-
-function allPageIds(pageList: FigmaPageOption[]) {
-  return pageList.map((page) => page.pageId);
-}
-
-function normalizeSelectedPageIds(selected: string[], pageList: FigmaPageOption[]) {
-  const valid = new Set(allPageIds(pageList));
-  return selected.filter((id) => valid.has(id));
-}
-
-function resolveSelectedPageIds(saved: string[], pageList: FigmaPageOption[]) {
-  const normalized = normalizeSelectedPageIds(saved, pageList);
-  return normalized.length > 0 ? normalized : allPageIds(pageList);
 }
 
 export function App() {
@@ -372,7 +364,10 @@ export function App() {
   };
 
   const updatePageSelection = (nextIds: string[]) => {
-    persistSettings({ ...settings, selectedPageIds: nextIds });
+    persistSettings({
+      ...settings,
+      selectedPageIds: nextIds.slice(0, FIGMA_LOCALE_STATUS_PAGE_LIMIT),
+    });
     setPageJob(null);
     setStatusMessage(null);
     setErrorMessage(null);
@@ -1059,9 +1054,12 @@ export function App() {
       if (!project) {
         throw new Error("Project was not found.");
       }
+      setPageJob(null);
+      setPageBinding(null);
       persistSettings({
         ...settings,
         projectId,
+        lastJobId: null,
         selectedLocale: defaultSelectedLocale(project, settings.selectedLocale),
         appliedLocaleByPage: {},
       });
@@ -1105,8 +1103,12 @@ export function App() {
   const resolveSourceSegmentsForPage = async (
     pageId: string,
     extracted: Awaited<ReturnType<typeof ensureExtractedForPage>>,
+    options?: { remapToStoredSource?: boolean },
   ) => {
-    const projectId = pageJob?.projectId || settings.projectId;
+    if (!options?.remapToStoredSource) {
+      return extracted.segments;
+    }
+    const projectId = settings.projectId.trim();
     if (!auth || !projectId) {
       return extracted.segments;
     }
@@ -1165,7 +1167,7 @@ export function App() {
     if (!auth || !file) {
       throw new Error("Connect first.");
     }
-    const projectId = pageJob?.projectId || settings.projectId;
+    const projectId = settings.projectId.trim();
     if (!projectId) {
       throw new Error("Select a project to pull translations from.");
     }
@@ -1230,7 +1232,9 @@ export function App() {
     if (pageIdRef.current !== originatedPageId) {
       return { count: 0, summary: emptyTranslationPullSummary() };
     }
-    const remapped = await resolveSourceSegmentsForPage(originatedPageId, extracted);
+    const remapped = await resolveSourceSegmentsForPage(originatedPageId, extracted, {
+      remapToStoredSource: true,
+    });
     const sourceByKey = buildApplySourceByKey(remapped);
     const summary = summarizeTranslationPull(localeTranslations, sourceByKey);
 
@@ -1261,7 +1265,13 @@ export function App() {
 
     pageIdRef.current = pageId;
     const extracted = await ensureExtractedForPage(pageId);
-    const segments = await resolveSourceSegmentsForPage(pageId, extracted);
+    const segments = await resolveSourceSegmentsForPage(pageId, extracted, {
+      remapToStoredSource: !selectedPagesShowSourceLocale(
+        settings.appliedLocaleByPage,
+        [pageId],
+        sourceLocale,
+      ),
+    });
     if (segments.length === 0) {
       throw new Error("No text found on the selected page.");
     }
@@ -1569,7 +1579,9 @@ export function App() {
       : null;
   const translateFooterProgress = busy === "translate" ? translateProgress : null;
 
-  const allPagesSelected = pages.length > 0 && selectedPageIds.length === pages.length;
+  const selectablePageCount = Math.min(pages.length, FIGMA_LOCALE_STATUS_PAGE_LIMIT);
+  const allPagesSelected =
+    selectablePageCount > 0 && selectedPageIds.length === selectablePageCount;
   const projectDropdownOptions = projects.map((project) => ({
     value: project.id,
     text: project.name,
@@ -1875,6 +1887,7 @@ export function App() {
                           <PageMultiSelect
                             pages={pages}
                             selectedPageIds={selectedPageIds}
+                            maxSelected={FIGMA_LOCALE_STATUS_PAGE_LIMIT}
                             disabled={busy != null || pagesLoading}
                             placeholder="Select pages"
                             onChange={(pageIds) => updatePageSelection(pageIds)}
@@ -1897,7 +1910,9 @@ export function App() {
                         onClick={(event) => {
                           preventLinkNavigation(event);
                           if (busy == null && !pagesLoading && !allPagesSelected) {
-                            updatePageSelection(allPageIds(pages));
+                            updatePageSelection(
+                              allPageIds(pages).slice(0, FIGMA_LOCALE_STATUS_PAGE_LIMIT),
+                            );
                           }
                         }}
                       >
@@ -1915,6 +1930,15 @@ export function App() {
                         Clear all
                       </Link>
                     </div>
+                    {pages.length > FIGMA_LOCALE_STATUS_PAGE_LIMIT ? (
+                      <div className="fieldDescription">
+                        <Text>
+                          <Muted>
+                            Select up to {FIGMA_LOCALE_STATUS_PAGE_LIMIT} pages at a time.
+                          </Muted>
+                        </Text>
+                      </div>
+                    ) : null}
                   </FormField>
                 </div>
 

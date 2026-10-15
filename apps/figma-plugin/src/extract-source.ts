@@ -57,6 +57,7 @@ function entriesByKey(entries: FigmaSourcePullEntry[]): Map<string, FigmaSourceP
   return new Map(entries.map((entry) => [entry.key, entry]));
 }
 
+/** Apply-only: restore stored source so canvas target text is not used as `sourceByKey`. */
 export function remapExtractedSegmentsToSource(
   segments: FigmaSegment[],
   pullPage: FigmaSourcePullPage,

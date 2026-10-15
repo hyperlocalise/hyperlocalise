@@ -18,6 +18,7 @@ export function pagesMultiSelectLabel(selectedPageIds: string[], pages: FigmaPag
 type PageMultiSelectProps = {
   pages: FigmaPageOption[];
   selectedPageIds: string[];
+  maxSelected?: number;
   disabled?: boolean;
   placeholder?: string;
   onChange: (pageIds: string[]) => void;
@@ -26,6 +27,7 @@ type PageMultiSelectProps = {
 export function PageMultiSelect({
   pages,
   selectedPageIds,
+  maxSelected,
   disabled = false,
   placeholder = "Select pages",
   onChange,
@@ -87,9 +89,17 @@ export function PageMultiSelect({
             <div key={page.pageId} className="pageMultiSelectOption">
               <Checkbox
                 value={selectedSet.has(page.pageId)}
+                disabled={
+                  Boolean(maxSelected) &&
+                  !selectedSet.has(page.pageId) &&
+                  selectedPageIds.length >= (maxSelected ?? 0)
+                }
                 onValueChange={(checked) => {
                   const next = new Set(selectedPageIds);
                   if (checked) {
+                    if (maxSelected && next.size >= maxSelected) {
+                      return;
+                    }
                     next.add(page.pageId);
                   } else {
                     next.delete(page.pageId);
