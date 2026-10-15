@@ -1142,7 +1142,7 @@ export function describeVisualWorkflowPage(context: VisualWorkflowEditorContext)
     "Changes on the canvas are not saved until the person clicks Save.",
     "",
     `- Name: ${state.name.trim() ? JSON.stringify(state.name.trim()) : "(none yet)"}`,
-    `- Project: ${context.projectName ? JSON.stringify(context.projectName) : "(none chosen, set by the person on the page)"}`,
+    `- Project: ${context.projectName ? JSON.stringify(context.projectName) : "(none; a workflow does not need one, and the person sets it on the page)"}`,
     "",
     "### Nodes",
     "",
