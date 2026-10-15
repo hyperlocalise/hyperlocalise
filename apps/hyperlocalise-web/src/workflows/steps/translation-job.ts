@@ -450,7 +450,6 @@ export async function loadProjectTranslationsAsPrefilledEntriesStep(input: {
   projectId: string;
   sourcePath: string;
   targetLocale: string;
-  sourceEntries?: Record<string, string>;
 }) {
   "use step";
   const { loadProjectTranslationsAsPrefilledEntries } =

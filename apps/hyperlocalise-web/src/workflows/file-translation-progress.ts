@@ -10,18 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createHash } from "node:crypto";
 import { z } from "zod";
 
-import {
-  isSourceTextKey,
-  parseTranslationFile as parseCanvaTranslationFile,
-} from "@/lib/canva/segment-file";
-import {
-  isFigmaStampSegmentKey,
-  parseTranslationFile as parseFigmaTranslationFile,
-  propagateFigmaTranslationsBySharedSource,
-} from "@/lib/figma/segment-file";
+import { isSourceTextKey, parseTranslationFile } from "@/lib/canva/segment-file";
+
 export const fileTranslationReportSchema = z.object({
   deferredByLimit: z.number().int().nonnegative(),
   succeeded: z.number().int().nonnegative(),
@@ -69,50 +61,13 @@ export function collectCompletedTranslationPageEntries(input: {
       continue;
     }
     // TM/project prefills are unioned into the key set even when hl run
-    // never wrote them. Keep the prefill so pagination can confirm it.
-    const prefill = input.prefills[key];
-    if (prefill?.trim()) {
-      collected[key] = prefill;
-      continue;
-    }
+    // never wrote them. Missing prefill-only keys must not fail the page.
     if (key in input.prefills) {
       continue;
     }
     throw new Error("completed translation is missing from output");
   }
   return collected;
-}
-
-/** Copy a known translation onto every source key that shares that source text. */
-export function remapPrefillsOntoSourceKeys(
-  sourceEntries: Record<string, string>,
-  prefills: Record<string, string>,
-): Record<string, string> {
-  const remapped = { ...prefills };
-  const translationBySource = new Map<string, string>();
-  for (const [key, translation] of Object.entries(prefills)) {
-    const source = sourceEntries[key]?.trim();
-    const value = translation.trim();
-    if (!source || !value || value === source) {
-      continue;
-    }
-    if (!translationBySource.has(source)) {
-      translationBySource.set(source, translation);
-    }
-  }
-  if (translationBySource.size === 0) {
-    return remapped;
-  }
-  for (const [key, source] of Object.entries(sourceEntries)) {
-    if (remapped[key]?.trim()) {
-      continue;
-    }
-    const mapped = translationBySource.get(source.trim());
-    if (mapped) {
-      remapped[key] = mapped;
-    }
-  }
-  return remapped;
 }
 
 /** When the sandbox target file and `hl entries` disagree, pick the value that
@@ -166,49 +121,6 @@ function usesCanvaSourceTextKeys(sourceEntries: Record<string, string>): boolean
   return Object.keys(sourceEntries).some(isSourceTextKey);
 }
 
-function usesFigmaStampSourceKeys(sourceEntries: Record<string, string>): boolean {
-  return Object.keys(sourceEntries).some(isFigmaStampSegmentKey);
-}
-
-function usesIntegrationJsonSourceTextKeys(sourceEntries: Record<string, string>): boolean {
-  return usesCanvaSourceTextKeys(sourceEntries) || usesFigmaStampSourceKeys(sourceEntries);
-}
-
-function parseIntegrationJsonTranslationFile(
-  content: Record<string, unknown>,
-  sourceEntries: Record<string, string>,
-): Record<string, string> {
-  if (usesFigmaStampSourceKeys(sourceEntries)) {
-    return parseFigmaTranslationFile(content);
-  }
-  if (usesCanvaSourceTextKeys(sourceEntries)) {
-    return parseCanvaTranslationFile(content);
-  }
-  return {};
-}
-
-function stringEntriesFromJsonObject(content: Record<string, unknown>): Record<string, string> {
-  const entries: Record<string, string> = {};
-  for (const [key, value] of Object.entries(content)) {
-    if (typeof value === "string") {
-      entries[key] = value;
-    }
-  }
-  return entries;
-}
-
-/** Stamp/canva keys from the file plus CLI hash keys mapped onto source keys. */
-export function parseIntegrationJsonFileExtracted(
-  content: Record<string, unknown>,
-  sourceEntries: Record<string, string>,
-): Record<string, string> {
-  const stampParsed = parseIntegrationJsonTranslationFile(content, sourceEntries);
-  return {
-    ...applyHashedEntriesOntoSourceKeys(sourceEntries, stringEntriesFromJsonObject(content)),
-    ...stampParsed,
-  };
-}
-
 /** HTML keys are tag paths. The pinned sandbox CLI still hashes content, so the
  * lock and a re-extracted target file never share keys. Collect only path keys
  * that belong to lock-completed folded hashes; leftover source fallbacks stay out. */
@@ -232,166 +144,12 @@ export function collectHtmlTranslationPageEntries(input: {
   return collected;
 }
 
-function lockPathMatchesOutput(lockPath: string, outputFilename: string): boolean {
-  const normalized = lockPath.replace(/\\/g, "/").replace(/^\.\//, "");
-  if (normalized === outputFilename || normalized.endsWith(`/${outputFilename}`)) {
-    return true;
-  }
-  return normalized.split("/").pop() === outputFilename;
-}
-
-function hashedSourceLockAliases(sourceText: string): string[] {
-  const sha256 = createHash("sha256").update(sourceText, "utf8").digest("hex");
-  const normalized = sourceText.normalize("NFKC").replace(/\s+/g, " ").trim();
-  const nfkc = createHash("sha256").update(normalized, "utf8").digest("hex");
-  return [
-    sha256.slice(0, 16),
-    sha256.slice(0, 32),
-    nfkc.slice(0, 16),
-    `json.${sha256.slice(0, 16)}`,
-    `json.${nfkc.slice(0, 16)}`,
-  ];
-}
-
-/** Lock completion keys that correspond to the given source file keys. */
-export function lockCompletionKeysToClear(
-  sourceEntries: Record<string, string>,
-  lockKeys: readonly string[],
-  sourceKeysToClear: readonly string[],
-): string[] {
-  const clearSet = new Set(sourceKeysToClear);
-  const toRemove: string[] = [];
-  for (const lockKey of lockKeys) {
-    const mapped = sourceKeysForLockCompletions(sourceEntries, [lockKey]);
-    if (mapped.some((key) => clearSet.has(key))) {
-      toRemove.push(lockKey);
-    }
-  }
-  return toRemove;
-}
-
-/** Map CLI lock keys (JSON paths or content hashes) onto extract source keys. */
-export function sourceKeysForLockCompletions(
-  sourceEntries: Record<string, string>,
-  lockKeys: readonly string[],
-): string[] {
-  const mapped = new Set<string>();
-  const keysBySource = new Map<string, string[]>();
-  const keysByHash = new Map<string, string[]>();
-  for (const [key, source] of Object.entries(sourceEntries)) {
-    const text = source?.trim();
-    if (!text) {
-      continue;
-    }
-    const siblings = keysBySource.get(text) ?? [];
-    siblings.push(key);
-    keysBySource.set(text, siblings);
-    for (const alias of hashedSourceLockAliases(text)) {
-      const hashed = keysByHash.get(alias) ?? [];
-      hashed.push(key);
-      keysByHash.set(alias, hashed);
-    }
-  }
-  for (const lockKey of lockKeys) {
-    if (sourceEntries[lockKey]?.trim()) {
-      mapped.add(lockKey);
-      for (const sibling of keysBySource.get(sourceEntries[lockKey]!.trim()) ?? []) {
-        mapped.add(sibling);
-      }
-      continue;
-    }
-    const stripped = lockKey.replace(/^(json|html|md)\./, "").replace(/\.\d+$/, "");
-    for (const sibling of [
-      ...(keysByHash.get(lockKey) ?? []),
-      ...(keysByHash.get(stripped) ?? []),
-    ]) {
-      mapped.add(sibling);
-    }
-  }
-  return [...mapped];
-}
-
-function applyHashedEntriesOntoSourceKeys(
-  sourceEntries: Record<string, string>,
-  extracted: Record<string, string>,
-): Record<string, string> {
-  const out = { ...extracted };
-  for (const [key, source] of Object.entries(sourceEntries)) {
-    if (out[key]?.trim() || !source?.trim()) {
-      continue;
-    }
-    for (const alias of hashedSourceLockAliases(source.trim())) {
-      const value = extracted[alias];
-      if (value?.trim()) {
-        out[key] = value;
-        break;
-      }
-    }
-  }
-  return out;
-}
-
 export function completedFileTranslationKeys(lock: unknown, outputFilename: string): string[] {
   const parsed = lockSchema.parse(lock);
-  const entries = Object.entries(parsed.run_completed ?? {}).find(([path]) =>
-    lockPathMatchesOutput(path, outputFilename),
+  const entries = Object.entries(parsed.run_completed ?? {}).find(
+    ([path]) => path === outputFilename || path.endsWith(`/${outputFilename}`),
   );
   return Object.keys(entries?.[1] ?? {});
-}
-
-/** Drop lock completions and on-disk target text so a retry can re-translate pending keys. */
-export async function clearPendingTranslationLockAndTargetStep(input: {
-  sandboxId: string;
-  outputFilename: string;
-  sourceKeys: readonly string[];
-  sourceEntries: Record<string, string>;
-}) {
-  "use step";
-  if (input.sourceKeys.length === 0) {
-    return;
-  }
-  const { readTranslatedFile, writeFileToSandbox } = await import("@/lib/translation/sandbox");
-  const { utf8FromStoredFileContent } = await import("@/lib/projects/files/html-ingest-entries");
-
-  const lockPath = ".hyperlocalise.lock.json";
-  const lockRaw = utf8FromStoredFileContent(await readTranslatedFile(input.sandboxId, lockPath));
-  const lock = JSON.parse(lockRaw) as Record<string, unknown>;
-  const parsed = lockSchema.parse(lock);
-  const runCompleted = parsed.run_completed ?? {};
-  for (const [path, completions] of Object.entries(runCompleted)) {
-    if (!lockPathMatchesOutput(path, input.outputFilename)) {
-      continue;
-    }
-    const lockKeys = Object.keys(completions);
-    for (const lockKey of lockCompletionKeysToClear(
-      input.sourceEntries,
-      lockKeys,
-      input.sourceKeys,
-    )) {
-      delete completions[lockKey];
-    }
-  }
-  await writeFileToSandbox(
-    input.sandboxId,
-    lockPath,
-    Buffer.from(JSON.stringify(lock, null, 2), "utf8"),
-  );
-
-  const targetRaw = utf8FromStoredFileContent(
-    await readTranslatedFile(input.sandboxId, input.outputFilename),
-  );
-  const content = JSON.parse(targetRaw) as Record<string, unknown>;
-  for (const key of input.sourceKeys) {
-    const source = input.sourceEntries[key];
-    if (source && key in content) {
-      content[key] = source;
-    }
-  }
-  await writeFileToSandbox(
-    input.sandboxId,
-    input.outputFilename,
-    Buffer.from(JSON.stringify(content, null, 2), "utf8"),
-  );
 }
 
 export async function collectFileTranslationPageStep(input: {
@@ -414,8 +172,7 @@ export async function collectFileTranslationPageStep(input: {
     utf8FromStoredFileContent,
   } = await import("@/lib/projects/files/html-ingest-entries");
   const htmlSource = isHtmlTranslationSourcePath(input.inputFilename);
-  const integrationJsonCollect = usesIntegrationJsonSourceTextKeys(input.sourceEntries);
-  const figmaJsonCollect = usesFigmaStampSourceKeys(input.sourceEntries);
+  const canvaJsonCollect = usesCanvaSourceTextKeys(input.sourceEntries);
   const lock: unknown = JSON.parse(
     utf8FromStoredFileContent(
       await readTranslatedFile(input.sandboxId, ".hyperlocalise.lock.json"),
@@ -444,15 +201,10 @@ export async function collectFileTranslationPageStep(input: {
       }
       continue;
     }
-    const localePrefills = remapPrefillsOntoSourceKeys(
-      input.sourceEntries,
-      input.prefills[locale] ?? {},
-    );
-    const lockKeys = completedFileTranslationKeys(lock, filename);
     const keys = [
       ...new Set([
-        ...sourceKeysForLockCompletions(input.sourceEntries, lockKeys),
-        ...Object.keys(localePrefills),
+        ...completedFileTranslationKeys(lock, filename),
+        ...Object.keys(input.prefills[locale] ?? {}),
       ]),
     ].filter(
       (key) => input.sourceEntries[key]?.trim() && !(key in (input.confirmed[locale] ?? {})),
@@ -462,19 +214,13 @@ export async function collectFileTranslationPageStep(input: {
       sourcePath: input.inputFilename,
     });
     if (!extracted.ok) throw new Error("failed to extract completed translations");
-    const hlExtracted = applyHashedEntriesOntoSourceKeys(
-      input.sourceEntries,
-      hlEntriesPayloadToStringMap(extracted.entries),
-    );
+    const hlExtracted = hlEntriesPayloadToStringMap(extracted.entries);
     let extractedForCollect = hlExtracted;
-    if (integrationJsonCollect && filename.endsWith(".json")) {
+    if (canvaJsonCollect && filename.endsWith(".json")) {
       const targetRaw = utf8FromStoredFileContent(
         await readTranslatedFile(input.sandboxId, filename),
       );
-      const fileExtracted = parseIntegrationJsonFileExtracted(
-        JSON.parse(targetRaw) as Record<string, unknown>,
-        input.sourceEntries,
-      );
+      const fileExtracted = parseTranslationFile(JSON.parse(targetRaw) as Record<string, unknown>);
       extractedForCollect = mergeCanvaJsonExtractedEntries({
         keys,
         sourceEntries: input.sourceEntries,
@@ -482,20 +228,11 @@ export async function collectFileTranslationPageStep(input: {
         hlExtracted,
       });
     }
-    if (figmaJsonCollect) {
-      extractedForCollect = propagateFigmaTranslationsBySharedSource(
-        input.sourceEntries,
-        extractedForCollect,
-      );
-    }
-    let collected = collectCompletedTranslationPageEntries({
+    const collected = collectCompletedTranslationPageEntries({
       keys,
       extracted: extractedForCollect,
-      prefills: localePrefills,
+      prefills: input.prefills[locale] ?? {},
     });
-    if (figmaJsonCollect) {
-      collected = propagateFigmaTranslationsBySharedSource(input.sourceEntries, collected);
-    }
     if (Object.keys(collected).length > 0) {
       delta[locale] = collected;
     }

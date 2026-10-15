@@ -227,14 +227,7 @@ export class FileTranslationMemoryStore {
         keys: units.map((unit) => unit.key),
       }),
     );
-    const persistableUnits = units.filter(
-      (unit) =>
-        !hiddenKeys.has(unit.key) &&
-        !isSameAsSourceMemoryPrefill({
-          sourceText: unit.sourceText,
-          targetText: unit.targetText,
-        }),
-    );
+    const persistableUnits = units.filter((unit) => !hiddenKeys.has(unit.key));
     if (persistableUnits.length === 0) {
       return;
     }

@@ -298,29 +298,6 @@ describe("persistFileTranslationMemoryEntries", () => {
     expect(values.every((value) => value.targetText === "Bonjour")).toBe(true);
   });
 
-  it("does not persist multi-word source copies into translation memory", async () => {
-    await persistFileTranslationMemoryEntries({
-      jobId: "job_1",
-      projectId: "project_1",
-      sourceEntries: {
-        marketing: "Digital Marketing.",
-        brand: "Boost Your Brand",
-      },
-      sourceFileHash: "hash_1",
-      sourceLocale: "en",
-      sourcePath: "figma/files/abc/designs-0-1.json",
-      targetEntries: {
-        marketing: "Digital Marketing.",
-        brand: "提升您的品牌",
-      },
-      targetLocale: "zh-CN",
-    });
-
-    const [values] = valuesMock.mock.calls[0];
-    expect(values.map((value) => value.metadata.segmentKey)).toEqual(["brand", "brand"]);
-    expect(values.every((value) => value.targetText === "提升您的品牌")).toBe(true);
-  });
-
   it("creates a default native memory when the project has none attached", async () => {
     listAttachedMemoryIdsMock.mockResolvedValueOnce([]);
     ensureDefaultMemoryIdsMock.mockResolvedValueOnce(["memory_created"]);

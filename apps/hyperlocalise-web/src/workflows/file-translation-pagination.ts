@@ -73,20 +73,6 @@ export function nextFileTranslationPageDecision(input: {
   return "continue";
 }
 
-/** Whether `runPages` should treat pagination as successful after the page loop. */
-export function fileTranslationRunPagesSucceeded(input: {
-  locales: readonly string[];
-  confirmedByLocale: Record<string, Record<string, string>>;
-  stillPending: number;
-}): boolean {
-  if (input.stillPending > 0) {
-    return false;
-  }
-  return input.locales.some(
-    (locale) => Object.keys(input.confirmedByLocale[locale] ?? {}).length > 0,
-  );
-}
-
 /** Parse `deferred_by_limit=N` from `hl run` stdout. Missing marker means 0. */
 export function parseDeferredByLimit(output: string): number {
   const match = /\bdeferred_by_limit=(\d+)\b/.exec(output);

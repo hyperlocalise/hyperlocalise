@@ -56,51 +56,6 @@ export function shouldRetrySameAsSourcePrefill(input: {
   return isSameAsSourceMemoryPrefill(input);
 }
 
-/** Split a collected page into real translations and multi-word source copies. */
-export function partitionCollectedFileTranslations(input: {
-  sourceEntries: Record<string, string>;
-  collected: Record<string, string>;
-}): {
-  accepted: Record<string, string>;
-  leftovers: Record<string, string>;
-} {
-  const accepted: Record<string, string> = {};
-  const leftovers: Record<string, string> = {};
-  for (const [key, translatedText] of Object.entries(input.collected)) {
-    if (
-      isSameAsSourceMemoryPrefill({
-        sourceText: input.sourceEntries[key] ?? "",
-        targetText: translatedText,
-      })
-    ) {
-      leftovers[key] = translatedText;
-      continue;
-    }
-    accepted[key] = translatedText;
-  }
-  return { accepted, leftovers };
-}
-
-/** Drop multi-word source copies from job/output maps (Apply and TM must not treat them as translations). */
-export function omitMultiWordSameAsSourceTranslations(
-  sourceEntries: Record<string, string>,
-  translations: Record<string, string>,
-): Record<string, string> {
-  const filtered: Record<string, string> = {};
-  for (const [key, value] of Object.entries(translations)) {
-    if (
-      isSameAsSourceMemoryPrefill({
-        sourceText: sourceEntries[key] ?? "",
-        targetText: value,
-      })
-    ) {
-      continue;
-    }
-    filtered[key] = value;
-  }
-  return filtered;
-}
-
 /** Project translations win; TM fills untranslated keys when a reusable match exists. */
 export function mergeTranslationPrefills(input: {
   tmPrefilled: Record<string, string>;

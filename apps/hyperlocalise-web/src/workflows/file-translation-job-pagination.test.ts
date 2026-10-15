@@ -17,7 +17,6 @@ import {
   calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
-  fileTranslationRunPagesSucceeded,
   nextFileTranslationPageDecision,
   parseDeferredByLimit,
 } from "./file-translation-pagination";
@@ -133,28 +132,6 @@ describe("nextFileTranslationPageDecision", () => {
         failedCount: 0,
       }),
     ).toBe("continue");
-  });
-});
-
-describe("fileTranslationRunPagesSucceeded", () => {
-  it("fails when keys are still pending after pagination", () => {
-    expect(
-      fileTranslationRunPagesSucceeded({
-        locales: ["bn-BD"],
-        confirmedByLocale: { "bn-BD": { a: "translated" } },
-        stillPending: 2,
-      }),
-    ).toBe(false);
-  });
-
-  it("succeeds when every pending key was accepted", () => {
-    expect(
-      fileTranslationRunPagesSucceeded({
-        locales: ["bn-BD"],
-        confirmedByLocale: { "bn-BD": { a: "translated" } },
-        stillPending: 0,
-      }),
-    ).toBe(true);
   });
 });
 

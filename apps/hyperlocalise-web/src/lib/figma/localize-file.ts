@@ -39,8 +39,8 @@ import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
 } from "@/lib/projects/jobs/enqueue-file-translation-job";
-import { omitMultiWordSameAsSourceTranslations } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
-import { parseIntegrationJsonFileExtracted } from "@/workflows/file-translation-progress";
+import { parseIntegrationJsonFileExtracted } from "@/lib/figma/integration-json-job-output";
+import { omitMultiWordSameAsSourceTranslations } from "@/lib/figma/omit-multi-word-same-as-source";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {

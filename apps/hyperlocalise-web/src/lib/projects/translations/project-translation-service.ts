@@ -717,8 +717,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
     readyTranslationsOnly?: boolean;
     /** When true, keep only translations whose status is approved. */
     approvedTranslationsOnly?: boolean;
-    /** Current extract keys. Copies stored translations onto renamed keys that share source text. */
-    sourceEntries?: Record<string, string>;
   }): Promise<{
     prefilled: Record<string, string>;
     retryKeys: string[];
@@ -745,7 +743,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
     }
 
     const prefilled: Record<string, string> = {};
-    const translationBySource = new Map<string, string>();
     const retryKeys: string[] = [];
     let loadedKeyCount = 0;
     let translatedKeyCount = 0;
@@ -808,11 +805,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
         if (canPrefill && !retrySameAsSource) {
           prefilled[key.key] = translation!.text;
           translatedKeyCount += 1;
-          const source = key.sourceText.trim();
-          const value = translation!.text.trim();
-          if (source && value && value !== source && !translationBySource.has(source)) {
-            translationBySource.set(source, translation!.text);
-          }
           continue;
         }
 
@@ -826,18 +818,6 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
       if (keys.length < prefillKeysPageSize) {
         break;
-      }
-    }
-
-    if (input.sourceEntries && translationBySource.size > 0) {
-      for (const [entryKey, source] of Object.entries(input.sourceEntries)) {
-        if (prefilled[entryKey]?.trim()) {
-          continue;
-        }
-        const mapped = translationBySource.get(source.trim());
-        if (mapped) {
-          prefilled[entryKey] = mapped;
-        }
       }
     }
 
