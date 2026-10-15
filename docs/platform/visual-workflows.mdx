@@ -8,7 +8,7 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, or Retry nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
 4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps with the braces button beside the box, or wire the port on the canvas. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
@@ -40,6 +40,27 @@ Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow 
 | **Fail** | A branch should stop with a stable, machine-readable error | Set an error code (uppercase letters, digits, underscores; for example `INVALID_ORDER`) and a short message (up to 500 characters). The run fails at that node with a controlled terminal error. |
 
 These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.
+
+## Call reusable workflows
+
+**Call workflow** runs a **pinned published version** of another visual workflow as a subworkflow. Use it to share a reviewed branch (validation, notifications, enrichment) across many parent workflows without copying nodes.
+
+### Make a workflow reusable
+
+A published workflow appears in the Call workflow picker only when it defines a stable contract:
+
+1. Use a **Manual** trigger only. Scheduled, GitHub, and source-upload triggers are not reusable.
+2. On the trigger's **Outputs** tab, declare **output fields** (`path` and type). These paths are the subworkflow **inputs** callers must supply.
+3. Add a **Return** node and declare named outputs with types. Every **Return** on the canvas must expose the same output set. These fields are what the Call workflow step exposes to downstream nodes.
+4. **Publish** the workflow. Callers pin a specific version number; changing the draft does not affect runs until you publish again.
+
+### Call from a parent workflow
+
+1. Add **Call workflow** and select the reusable workflow and version.
+2. Wire each `value.<fieldId>` input on the canvas from upstream data, or use the Configuration tab rows that say to connect on the canvas. Input and output field IDs and types must match the target workflow's published contract at publish time.
+3. Use the step's success output paths (`value.<outputId>`) like any other step. Configure **On error** the same way as HTTP or Slack steps.
+
+Publish validation blocks missing workflows, wrong versions, contract mismatches, direct recursion, and call chains deeper than eight levels. Mock a Call workflow step on its **Test** tab like other steps that call out.
 
 ## Undo and redo edits
 
