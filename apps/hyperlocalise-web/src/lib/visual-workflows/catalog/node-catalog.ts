@@ -109,6 +109,18 @@ export const VISUAL_NODE_CATALOG: readonly VisualNodeCatalogItem[] = [
     icon: BracketsCurlyIcon,
   },
   {
+    type: "logic.create_object",
+    category: "logic",
+    enabled: true,
+    icon: BracketsCurlyIcon,
+  },
+  {
+    type: "logic.merge_objects",
+    category: "logic",
+    enabled: true,
+    icon: GitMergeIcon,
+  },
+  {
     type: "ai.agent",
     category: "ai",
     enabled: true,
@@ -253,6 +265,17 @@ export function createDefaultConfig(type: VisualCatalogType): VisualNodeConfig {
       };
     case "logic.set":
       return { kind: "logic.set", assignments: [{ key: "", value: "" }] };
+    case "logic.create_object":
+      return { kind: "logic.create_object", fields: [] };
+    case "logic.merge_objects":
+      return {
+        kind: "logic.merge_objects",
+        inputs: [
+          { id: createObjectPortId(), name: "Object 1" },
+          { id: createObjectPortId(), name: "Object 2" },
+        ],
+        conflictPolicy: "reject",
+      };
     case "ai.agent":
       return { kind: "ai.agent", prompt: "", onError: "stop" };
     case "logic.for_each":
@@ -397,6 +420,10 @@ export function resolveNodeSubtitle(config: VisualNodeConfig): string {
       return config.assignments.length > 0
         ? `${config.assignments.length} fields`
         : "No assignments";
+    case "logic.create_object":
+      return config.fields.length === 1 ? "1 field" : `${config.fields.length} fields`;
+    case "logic.merge_objects":
+      return `${config.inputs.length} objects · ${config.conflictPolicy.replace("_", " ")}`;
     case "ai.agent":
       return "Tools agent";
     case "logic.for_each":
@@ -441,5 +468,9 @@ export function createSequenceOutputId(): string {
 }
 
 export function createReturnOutputId(): string {
+  return crypto.randomUUID();
+}
+
+export function createObjectPortId(): string {
   return crypto.randomUUID();
 }

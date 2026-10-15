@@ -733,4 +733,122 @@ describe("VisualWorkflowConfigPanel", () => {
       onError: "stop",
     });
   });
+
+  it("edits Create Object fields without changing their stable IDs", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "create-object",
+      type: "logic.create_object",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.create_object"),
+      data: {
+        catalogType: "logic.create_object",
+        config: {
+          kind: "logic.create_object",
+          fields: [
+            { id: "customer", name: "customerId", type: "string" },
+            { id: "locale", name: "locale", type: "string", defaultValue: "en" },
+          ],
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[
+          {
+            code: "missing_required_input",
+            nodeId: node.id,
+            field: "value.customer",
+            reason: "required",
+          },
+        ]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    const firstName = screen.getByRole("textbox", { name: "Object field 1 name" });
+    expect(firstName).toHaveAttribute("aria-invalid", "true");
+    fireEvent.change(firstName, { target: { value: "renamedCustomer" } });
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "customer", name: "renamedCustomer" }),
+          expect.objectContaining({ id: "locale" }),
+        ],
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Move object field 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fields: [
+          expect.objectContaining({ id: "locale" }),
+          expect.objectContaining({ id: "customer" }),
+        ],
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add object field" }));
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      fields: [
+        expect.objectContaining({ id: "customer" }),
+        expect.objectContaining({ id: "locale" }),
+        expect.objectContaining({ name: "field3", type: "unknown" }),
+      ],
+    });
+  });
+
+  it("configures Merge Objects ordering and conflict policy", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    const node: VisualWorkflowRfNode = {
+      id: "merge-objects",
+      type: "logic.merge_objects",
+      position: { x: 0, y: 0 },
+      ...getVisualNodeDimensions("logic.merge_objects"),
+      data: {
+        catalogType: "logic.merge_objects",
+        config: {
+          kind: "logic.merge_objects",
+          inputs: [
+            { id: "base", name: "Base" },
+            { id: "override", name: "Override" },
+          ],
+          conflictPolicy: "reject",
+        },
+        runStatus: "idle",
+      },
+    };
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={node}
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Conflict policy" }));
+    await user.click(await screen.findByRole("option", { name: "Last object wins" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({ conflictPolicy: "last_wins" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Move merge object 2 up" }));
+    expect(onChangeConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        inputs: [
+          expect.objectContaining({ id: "override" }),
+          expect.objectContaining({ id: "base" }),
+        ],
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Remove merge object 1" })).toBeDisabled();
+  });
 });

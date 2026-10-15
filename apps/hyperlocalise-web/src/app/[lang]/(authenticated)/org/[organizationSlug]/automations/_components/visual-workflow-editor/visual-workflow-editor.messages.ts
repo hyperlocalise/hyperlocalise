@@ -245,6 +245,26 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "ZXPdUvtPkF",
     description: "Catalog description for the set fields node",
   },
+  nodeCreateObject: {
+    defaultMessage: "Create object",
+    id: "RHGI6JYY/i",
+    description: "Catalog title for the create object node",
+  },
+  nodeCreateObjectHint: {
+    defaultMessage: "Construct an object from named typed values.",
+    id: "TfUCgJttWd",
+    description: "Catalog description for the create object node",
+  },
+  nodeMergeObjects: {
+    defaultMessage: "Merge objects",
+    id: "Wj5eGg6F2i",
+    description: "Catalog title for the merge objects node",
+  },
+  nodeMergeObjectsHint: {
+    defaultMessage: "Combine objects with an explicit conflict policy.",
+    id: "EFqMJ3jrZJ",
+    description: "Catalog description for the merge objects node",
+  },
   nodeAi: {
     defaultMessage: "AI Agent",
     id: "mHug8Cyl7z",

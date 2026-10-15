@@ -27,6 +27,7 @@ import {
   visualWorkflowTerminalNodesDraft,
   visualWorkflowTryCatchDraft,
   visualWorkflowCallWorkflowDraft,
+  visualWorkflowObjectNodesDraft,
 } from "./visual-workflow-editor.fixture";
 import { VisualWorkflowEditor } from "./visual-workflow-editor";
 
@@ -1044,4 +1045,57 @@ export const CallWorkflowFailedNarrow: Story = {
   name: "Call Workflow — failed, narrow",
   parameters: { viewport: { defaultViewport: "mobile1" } },
   args: { ...CallWorkflowConfigured.args, initialNodes: callWorkflowNodesWithStatus("failed") },
+};
+
+export const CreateAndMergeObjects: Story = {
+  name: "Create and Merge Objects — configured",
+  args: {
+    initialName: visualWorkflowObjectNodesDraft.name,
+    initialNodes: visualWorkflowObjectNodesDraft.nodes,
+    initialEdges: visualWorkflowObjectNodesDraft.edges,
+    previewMode: true,
+    playgroundMode: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByLabelText("Data input: createdAt, string", {}, { timeout: 10_000 }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: locale, string, optional")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: Base context, object")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Data input: Overrides, object")).toBeInTheDocument();
+    await expect(canvas.getAllByLabelText("Data output: value, object")).toHaveLength(3);
+
+    const createNode = canvas
+      .getByLabelText("Data input: createdAt, string")
+      .closest(".react-flow__node");
+    await expect(createNode).not.toBeNull();
+    await userEvent.click(createNode!);
+    await expect(await canvas.findByRole("textbox", { name: "Object field 1 name" })).toHaveValue(
+      "createdAt",
+    );
+    await expect(canvas.getByRole("textbox", { name: "Object field 2 default" })).toHaveValue(
+      "en-AU",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Add object field" }));
+    await expect(canvas.getByRole("textbox", { name: "Object field 3 name" })).toHaveValue(
+      "field3",
+    );
+  },
+};
+
+export const CreateAndMergeObjectsNarrow: Story = {
+  name: "Create and Merge Objects — narrow preview",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
+  args: {
+    ...CreateAndMergeObjects.args,
+    initialNodes: visualWorkflowObjectNodesDraft.nodes.map((node) =>
+      node.id === "merge"
+        ? { ...node, data: { ...node.data, runStatus: "succeeded" as const } }
+        : node,
+    ),
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Succeeded", {}, { timeout: 10_000 })).toBeInTheDocument();
+    await expect(canvas.getByText(/requiresReview/)).toBeInTheDocument();
+  },
 };

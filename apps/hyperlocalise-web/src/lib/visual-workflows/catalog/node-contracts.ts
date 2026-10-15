@@ -103,6 +103,16 @@ export const NODE_CONTRACTS: Record<VisualCatalogType, NodeContract> = {
     mock: {},
   },
   "logic.set": { inputs: [], outputs: [], mock: {} },
+  "logic.create_object": {
+    inputs: [],
+    outputs: [output("value", "object")],
+    mock: { value: {} },
+  },
+  "logic.merge_objects": {
+    inputs: [],
+    outputs: [output("value", "object")],
+    mock: { value: {} },
+  },
   "logic.for_each": {
     inputs: [field("collection", "array")],
     outputs: [
@@ -229,6 +239,22 @@ export function getWorkflowOutputFields(node: CanonicalVisualWorkflowNode): Work
 }
 
 export function getWorkflowInputFields(node: CanonicalVisualWorkflowNode): WorkflowInputField[] {
+  if (node.config.kind === "logic.create_object") {
+    return node.config.fields.map((objectField) => ({
+      name: `value.${objectField.id}`,
+      type: objectField.type,
+      required: !Object.hasOwn(objectField, "defaultValue"),
+    }));
+  }
+
+  if (node.config.kind === "logic.merge_objects") {
+    return node.config.inputs.map((objectInput) => ({
+      name: `value.${objectInput.id}`,
+      type: "object",
+      required: true,
+    }));
+  }
+
   if (node.config.kind === "flow.return") {
     return node.config.outputs.map((returnOutput) => ({
       name: `value.${returnOutput.id}`,

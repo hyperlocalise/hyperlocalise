@@ -275,6 +275,16 @@ export function compileWorkflowIssues(
     for (const [name, value] of Object.entries(config))
       if (!node.inputs?.[name]) checkTemplates(value);
     const inputFields = getWorkflowInputFields(node);
+    if (node.config.kind === "logic.create_object") {
+      for (const field of node.config.fields) {
+        if (["__proto__", "prototype", "constructor"].includes(field.name)) {
+          add("invalid_node_config", node.id, undefined, {
+            field: `value.${field.id}`,
+            reason: "invalid",
+          });
+        }
+      }
+    }
     for (const field of inputFields)
       if (
         field.required &&

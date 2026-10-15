@@ -18,6 +18,7 @@ import {
   resolveVisualWorkflowCollection,
   resolveVisualWorkflowTemplate,
 } from "./expressions";
+import { executeCreateObject, executeMergeObjects } from "./object-nodes";
 
 export function executeLogicVisualWorkflowNode(input: {
   node: CanonicalVisualWorkflowNode;
@@ -111,6 +112,17 @@ export function executeLogicVisualWorkflowNode(input: {
         output,
       };
     }
+    case "logic.create_object":
+      return executeCreateObject({
+        fields: node.config.fields,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
+    case "logic.merge_objects":
+      return executeMergeObjects({
+        inputs: node.config.inputs,
+        conflictPolicy: node.config.conflictPolicy,
+        resolvedConfig: node.config as unknown as Record<string, unknown>,
+      });
     case "logic.for_each": {
       const items = resolveVisualWorkflowCollection(node.config.collection, context);
       return {
