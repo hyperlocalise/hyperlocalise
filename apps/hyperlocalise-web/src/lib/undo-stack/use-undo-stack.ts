@@ -29,7 +29,7 @@ import {
 export type UseUndoStackResult<T, D> = {
   /** The document as it is now. */
   form: T;
-  change: (next: T, meta?: { origin?: UndoOrigin; description?: D }) => void;
+  change: (next: T, meta?: { origin?: UndoOrigin; description?: D; group?: string }) => void;
   /** Closes the current burst of typing, so the next change starts a new step. */
   seal: () => void;
   undo: () => void;
@@ -73,7 +73,7 @@ export function useUndoStack<T, D>(
   );
 
   const change = useCallback(
-    (next: T, meta?: { origin?: UndoOrigin; description?: D }) =>
+    (next: T, meta?: { origin?: UndoOrigin; description?: D; group?: string }) =>
       dispatch({ type: "record", next, at: Date.now(), ...meta }),
     [],
   );

@@ -154,8 +154,11 @@ export type AutomationAssistantTarget<
   /** The page as it stands, or null while the page cannot use the assistant. */
   context: Context | null;
   document: Document;
-  /** Called with the document after each of the assistant's changes. */
-  onChange: (next: Document) => void;
+  /**
+   * Called with the document after each of the assistant's changes, and the turn that made it:
+   * the page keeps a turn's changes as one undo step.
+   */
+  onChange: (next: Document, turn: string) => void;
   /** The saved thing the session is about, or null while it has not been saved. */
   sessionKey: AssistantSessionKey | null;
   mode: AutomationAssistantMode;
@@ -317,7 +320,7 @@ export function AutomationAssistantSessionProvider<
     [chatDock],
   );
 
-  const applyStreamedChanges = useEffectEvent((message: UIMessage) => {
+  const applyStreamedChanges = useEffectEvent((message: UIMessage, turn: string) => {
     const current = targetRef.current.context;
     if (!current) {
       return;
@@ -348,7 +351,7 @@ export function AutomationAssistantSessionProvider<
     }
     if (result.document !== before) {
       pendingDocument.current = result.document;
-      onChange(result.document);
+      onChange(result.document, turn);
     }
   });
 
@@ -415,7 +418,8 @@ export function AutomationAssistantSessionProvider<
           );
         }
         setStreaming(reply);
-        applyStreamedChanges(reply);
+        // A turn's tool calls finish one by one; the person's message names the turn they share.
+        applyStreamedChanges(reply, local.id);
       }
     };
 

@@ -81,8 +81,8 @@ export function AutomationAssistantProvider({
   /** A request handed over from the automations page, sent once the page is ready. */
   initialPrompt?: string | null;
   mode: "create" | "detail";
-  /** Called with the form after each of the assistant's changes. */
-  onChange: (next: WorkspaceAutomationFormState) => void;
+  /** Called with the form after each of the assistant's changes, and the turn that made it. */
+  onChange: (next: WorkspaceAutomationFormState, turn: string) => void;
   /** Called when the session for this page starts or ends, with its id. */
   onSessionChange?: (sessionId: string | null) => void;
   onWorkingChange?: (working: boolean) => void;

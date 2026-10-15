@@ -53,8 +53,8 @@ export function AutomationAssistantVisualWorkflowProvider({
    * or taken back, and its count of them starts again.
    */
   hasUnsavedChanges?: boolean;
-  /** Called with the workflow after each of the assistant's changes. */
-  onChange: (next: VisualWorkflowGraph) => void;
+  /** Called with the workflow after each of the assistant's changes, and the turn that made it. */
+  onChange: (next: VisualWorkflowGraph, turn: string) => void;
   onWorkingChange?: (working: boolean) => void;
   organizationSlug: string;
   /** Display name of the project the workflow is in, when the page knows it. */

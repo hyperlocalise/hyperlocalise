@@ -249,15 +249,18 @@ export function VisualWorkflowEditor({
   undoNoticeRef.current = undoNotice;
 
   /** Records a step. */
-  const commit = useCallback((next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin }) => {
-    const previous = graphRef.current;
-    graphRef.current = next;
-    historyRef.current.change(next, meta);
-    // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
-    if (!isVisualWorkflowGraphEqual(previous, next)) {
-      undoNoticeRef.current.dismiss();
-    }
-  }, []);
+  const commit = useCallback(
+    (next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin; group?: string }) => {
+      const previous = graphRef.current;
+      graphRef.current = next;
+      historyRef.current.change(next, meta);
+      // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
+      if (!isVisualWorkflowGraphEqual(previous, next)) {
+        undoNoticeRef.current.dismiss();
+      }
+    },
+    [],
+  );
   /** Sets the graph without a step: a drag in progress, a selection, a run marker. */
   const place = useCallback((next: VisualWorkflowGraph) => {
     graphRef.current = next;
@@ -394,9 +397,9 @@ export function VisualWorkflowEditor({
   );
   undoActionsRef.current = { undo: runUndo, redo: runRedo };
   /** Takes the assistant's change and brings the last step it added to the middle of the view. */
-  const takeAssistantChange = (next: VisualWorkflowGraph) => {
+  const takeAssistantChange = (next: VisualWorkflowGraph, turn: string) => {
     const before = new Set(graphRef.current.nodes.map((node) => node.id));
-    applyAssistantChange(next);
+    applyAssistantChange(next, turn);
     const added = next.nodes.filter((node) => !before.has(node.id)).at(-1);
     if (added) {
       setFocusNode({ nodeId: added.id });

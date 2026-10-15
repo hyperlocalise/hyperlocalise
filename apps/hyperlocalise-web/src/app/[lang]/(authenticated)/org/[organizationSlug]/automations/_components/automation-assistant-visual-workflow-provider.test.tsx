@@ -12,7 +12,7 @@
  * Version 2.0 or later.
  */
 import type { UIMessage } from "ai";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { IntlProvider } from "react-intl";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -22,8 +22,10 @@ import { editVisualWorkflow } from "@/lib/agents/visual-workflow-assistant";
 import type { VisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
 import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
 import type { VisualWorkflowGraph } from "@/lib/visual-workflows/editor/visual-workflow-undo";
+import { useUndoStack } from "@/lib/undo-stack/use-undo-stack";
 
 import { useAutomationAssistant } from "./automation-assistant-session-provider";
+import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
 import { AutomationAssistantVisualWorkflowProvider } from "./automation-assistant-visual-workflow-provider";
 
 const api = vi.hoisted(() => ({
@@ -99,6 +101,31 @@ function replyFor(context: VisualWorkflowEditorContext): UIMessage {
   };
 }
 
+/** A notify step's tool call after the step `after`, as the server ran it on `context`. */
+function addNotify(context: VisualWorkflowEditorContext, id: string, after: string) {
+  return editVisualWorkflow(context, {
+    operations: [
+      {
+        op: "add_node",
+        id,
+        type: "action.notify_slack",
+        after: { nodeId: after, handle: null },
+        config: { message: "Sync finished" },
+      },
+    ],
+  });
+}
+
+function toolPart(toolCallId: string, output: unknown) {
+  return {
+    type: "tool-edit_visual_workflow" as const,
+    state: "output-available" as const,
+    toolCallId,
+    input: {},
+    output,
+  };
+}
+
 function Consumer() {
   const assistant = useAutomationAssistant();
   if (!assistant) {
@@ -125,6 +152,31 @@ function Harness() {
     >
       <Consumer />
       <p>{`nodes:${graph.nodes.map((node) => node.id).join(",")} edges:${graph.edges.map((edge) => `${edge.source}>${edge.target}`).join(",")}`}</p>
+    </AutomationAssistantVisualWorkflowProvider>
+  );
+}
+
+/** A canvas whose every change goes through an undo stack, as the editor's do. */
+function UndoHarness() {
+  const history = useUndoStack<VisualWorkflowGraph, null>(start, {
+    isEqual: (a, b) => a === b,
+    describe: () => null,
+  });
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const { applyAssistantChange } = useAssistantUndoSteps(historyRef, () => {});
+  return (
+    <AutomationAssistantVisualWorkflowProvider
+      organizationSlug="acme"
+      visualWorkflowId="wf-1"
+      graph={history.form}
+      onChange={applyAssistantChange}
+    >
+      <Consumer />
+      <button type="button" onClick={history.undo}>
+        Undo one step
+      </button>
+      <p>{`nodes:${history.form.nodes.map((node) => node.id).join(",")}`}</p>
     </AutomationAssistantVisualWorkflowProvider>
   );
 }
@@ -164,5 +216,46 @@ describe("AutomationAssistantVisualWorkflowProvider", () => {
     });
     expect(screen.getByText("nodes:trigger,notify edges:trigger>notify")).toBeTruthy();
     expect(api.createAssistantSession).toHaveBeenCalledWith("acme", { visualWorkflowId: "wf-1" });
+  });
+
+  it("keeps a turn whose tool calls finish one by one as one undo step", async () => {
+    const user = userEvent.setup();
+    api.findAssistantSession.mockResolvedValue({ session: null, messages: [] });
+    api.createAssistantSession.mockResolvedValue(session);
+    api.streamAssistantTurn.mockImplementation(async function* (input: {
+      pageContext: VisualWorkflowEditorContext;
+    }) {
+      const first = addNotify(input.pageContext, "notify", "trigger");
+      const second = addNotify(first.context!, "notify_again", "notify");
+      yield {
+        id: "stream-1",
+        role: "assistant",
+        parts: [toolPart("call_1", first.output)],
+      } satisfies UIMessage;
+      yield {
+        id: "stream-1",
+        role: "assistant",
+        parts: [toolPart("call_1", first.output), toolPart("call_2", second.output)],
+      } satisfies UIMessage;
+    });
+    api.loadAssistantSession.mockResolvedValue({ session, messages: [] });
+    render(
+      <IntlProvider locale="en">
+        <UndoHarness />
+      </IntlProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle/)).toBeTruthy();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(screen.getByText(/status:idle calls:2/)).toBeTruthy();
+    });
+    expect(screen.getByText("nodes:trigger,notify,notify_again")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Undo one step" }));
+
+    expect(screen.getByText("nodes:trigger")).toBeTruthy();
   });
 });
