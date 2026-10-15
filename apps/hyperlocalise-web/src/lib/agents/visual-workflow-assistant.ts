@@ -1154,9 +1154,7 @@ export const visualWorkflowEditor = {
   documentOf: (context) => fromVisualWorkflowV3Definition(context.definition),
   snapshotData: (state) => ({ definition: toVisualWorkflowV3Definition(state) }),
   readSnapshot: (data) => {
-    const parsed = z
-      .object({ definition: visualWorkflowDraftDefinitionSchema })
-      .safeParse(data);
+    const parsed = z.object({ definition: visualWorkflowDraftDefinitionSchema }).safeParse(data);
     return parsed.success ? fromVisualWorkflowV3Definition(parsed.data.definition) : null;
   },
   describeCatalogue: describeVisualWorkflowCatalogue,

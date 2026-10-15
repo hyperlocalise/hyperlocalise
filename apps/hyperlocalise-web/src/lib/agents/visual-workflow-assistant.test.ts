@@ -369,7 +369,9 @@ describe("editVisualWorkflow", () => {
       operations: [{ op: "remove_node", nodeId: "set" }],
     });
 
-    expect(output.applied && output.result.applied[0]).toMatch(/^removed Set fields \(.*\) \[set\]$/);
+    expect(output.applied && output.result.applied[0]).toMatch(
+      /^removed Set fields \(.*\) \[set\]$/,
+    );
   });
 
   it("lists field references the run could not read", () => {

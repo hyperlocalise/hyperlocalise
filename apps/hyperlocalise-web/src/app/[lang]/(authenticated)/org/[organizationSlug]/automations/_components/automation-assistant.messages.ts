@@ -92,7 +92,7 @@ export const automationAssistantMessages = defineMessages({
   },
   toolUpdatingWorkflow: {
     defaultMessage: "Updating the workflow\u2026",
-    id: "toolUpdatingWorkflow",
+    id: "dcomOTuPbB",
     description: "Line in the assistant's reply while its tool is changing the visual workflow",
   },
   toolUpdating: {
@@ -107,7 +107,7 @@ export const automationAssistantMessages = defineMessages({
   },
   toolFailedWorkflow: {
     defaultMessage: "The workflow could not be updated",
-    id: "toolFailedWorkflow",
+    id: "qQZGFuhT3T",
     description: "Line in the assistant's reply for a change to the visual workflow that failed",
   },
   toolFailed: {
@@ -309,7 +309,7 @@ export const automationAssistantMessages = defineMessages({
   },
   toolLineNodeAdded: {
     defaultMessage: "Added the {node} step",
-    id: "7u3f5h9bJH",
+    id: "F7MPcZxBJI",
     description:
       "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title",
   },
