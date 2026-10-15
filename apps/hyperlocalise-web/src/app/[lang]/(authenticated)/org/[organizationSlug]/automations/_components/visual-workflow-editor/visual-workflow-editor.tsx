@@ -40,7 +40,10 @@ import {
 } from "@/lib/visual-workflows/editor/visual-workflow-editor-graph";
 import { visualWorkflowDefinitionsEqual } from "@/lib/visual-workflows/editor/visual-workflow-definition-equality";
 import { markFreshVisualWorkflowSteps } from "@/lib/visual-workflows/editor/visual-workflow-fresh-steps";
-import { nextVisualWorkflowNodeId } from "@/lib/visual-workflows/editor/visual-workflow-node-id";
+import {
+  nextVisualWorkflowNodeId,
+  reservedVisualWorkflowNodeIds,
+} from "@/lib/visual-workflows/editor/visual-workflow-node-id";
 import { placeNewVisualWorkflowNode } from "@/lib/visual-workflows/editor/visual-workflow-node-placement";
 import {
   isVisualWorkflowGraphEqual,
@@ -628,11 +631,26 @@ export function VisualWorkflowEditor({
     [deselectNodes],
   );
 
+  // Every step id the editor has shown, so a deleted step's id is not given to a new step.
+  const seenNodeIdsRef = useRef(new Set<string>());
+  for (const node of nodes) seenNodeIdsRef.current.add(node.id);
+  const testSetupRef = useRef(testSetup);
+  testSetupRef.current = testSetup;
+
   const addNode = useCallback(
     (type: VisualCatalogType) => {
       const current = graphRef.current;
       const { nodes: currentNodes, edges: currentEdges } = current;
-      const id = nextVisualWorkflowNodeId(type, currentNodes);
+      const id = nextVisualWorkflowNodeId(
+        type,
+        currentNodes,
+        reservedVisualWorkflowNodeIds({
+          nodes: currentNodes,
+          edges: currentEdges,
+          setup: testSetupRef.current,
+          seenNodeIds: seenNodeIdsRef.current,
+        }),
+      );
       const source = addFrom ? currentNodes.find((node) => node.id === addFrom.nodeId) : undefined;
       const config = createDefaultConfig(type);
       const size = getVisualNodeDimensions(type, config);

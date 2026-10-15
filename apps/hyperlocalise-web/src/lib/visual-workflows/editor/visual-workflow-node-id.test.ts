@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { nextVisualWorkflowNodeId } from "./visual-workflow-node-id";
+import { createDefaultConfig } from "../catalog/node-catalog";
+import type { VisualWorkflowRfNode } from "../schema/types";
+import { nextVisualWorkflowNodeId, reservedVisualWorkflowNodeIds } from "./visual-workflow-node-id";
+import { EMPTY_VISUAL_WORKFLOW_TEST_SETUP } from "./visual-workflow-test-data";
 
 describe("nextVisualWorkflowNodeId", () => {
   it("names a step by its kind", () => {
@@ -25,5 +28,42 @@ describe("nextVisualWorkflowNodeId", () => {
     const nodes = [{ id: "http" }, { id: "http_2" }, { id: "slack" }];
     expect(nextVisualWorkflowNodeId("action.http", nodes)).toBe("http_3");
     expect(nextVisualWorkflowNodeId("action.notify_slack", nodes)).toBe("notify_slack");
+  });
+
+  it("skips a reserved id although no step on the canvas has it", () => {
+    expect(nextVisualWorkflowNodeId("action.http", [], ["http"])).toBe("http_2");
+  });
+});
+
+describe("reservedVisualWorkflowNodeIds", () => {
+  const slack: VisualWorkflowRfNode = {
+    id: "notify_slack",
+    type: "action.notify_slack",
+    position: { x: 0, y: 0 },
+    data: {
+      catalogType: "action.notify_slack",
+      config: {
+        ...createDefaultConfig("action.notify_slack"),
+        message: "Got {{ nodes.http.body }}",
+      } as VisualWorkflowRfNode["data"]["config"],
+      runStatus: "idle",
+    },
+  };
+
+  it("keeps a deleted step's id from a new step of the same kind", () => {
+    // `http` was deleted: the Slack step still reads it and its test setup is still held.
+    const reserved = reservedVisualWorkflowNodeIds({
+      nodes: [slack],
+      edges: [],
+      setup: {
+        ...EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
+        data: { http_2: { status: 200 } },
+        failures: { http_3: { message: "Down" } },
+        realNodeIds: ["http_4"],
+      },
+      seenNodeIds: ["http_5"],
+    });
+    expect([...reserved].toSorted()).toEqual(["http", "http_2", "http_3", "http_4", "http_5"]);
+    expect(nextVisualWorkflowNodeId("action.http", [slack], reserved)).toBe("http_6");
   });
 });

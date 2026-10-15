@@ -77,6 +77,8 @@ vi.mock("./visual-workflow-config-panel", () => ({
     onChangeTestRunsForReal,
     testRunsForReal,
     onChangeTestFailure,
+    onDeleteNode,
+    onBack,
     requestedTab,
   }: {
     node: VisualWorkflowRfNode;
@@ -86,6 +88,8 @@ vi.mock("./visual-workflow-config-panel", () => ({
     onChangeTestRunsForReal?: (real: boolean) => void;
     testRunsForReal?: boolean;
     onChangeTestFailure?: (failure: { message?: string } | undefined) => void;
+    onDeleteNode?: () => void;
+    onBack?: () => void;
     requestedTab?: { tab: StepSettingsTab };
   }) => (
     <div>
@@ -113,6 +117,12 @@ vi.mock("./visual-workflow-config-panel", () => ({
       ) : null}
       <button type="button" onClick={() => onChangeTestFailure?.({ message: "Down" })}>
         Set to fail
+      </button>
+      <button type="button" onClick={onDeleteNode}>
+        Delete step
+      </button>
+      <button type="button" onClick={onBack}>
+        Back
       </button>
     </div>
   ),
@@ -338,5 +348,27 @@ describe("VisualWorkflowEditor test data", () => {
       realNodeIds: ["slack"],
       failures: {},
     });
+  });
+
+  it("gives a step added after one was deleted a new id, so it takes none of its test setup", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    renderServerEditor(createApi(), { onSave });
+
+    await user.click(screen.getByRole("button", { name: "Select http" }));
+    await user.click(screen.getByRole("button", { name: "Set to fail" }));
+    await user.click(screen.getByRole("button", { name: "Delete step" }));
+    await user.click(await screen.findByRole("button", { name: /HTTP Request/ }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const [definition, testSetup] = onSave.mock.lastCall as [
+      { nodes: Array<{ id: string; type: string }> },
+      unknown,
+    ];
+    expect(definition.nodes.filter((node) => node.type === "action.http")).toEqual([
+      expect.objectContaining({ id: "http_2" }),
+    ]);
+    expect(testSetup).toEqual({ data: {}, realNodeIds: [], failures: {} });
   });
 });

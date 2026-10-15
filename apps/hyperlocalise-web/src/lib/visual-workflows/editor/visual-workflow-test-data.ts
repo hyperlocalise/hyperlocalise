@@ -195,7 +195,7 @@ function stringsIn(value: unknown): string[] {
 }
 
 /** Every value one step reads from another: through a data wire, a binding or a template. */
-function collectStepReads(
+export function listStepReads(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
 ): StepRead[] {
@@ -239,7 +239,7 @@ export function findMissingTestValues({
   edges: readonly VisualWorkflowRfEdge[];
   setup: VisualWorkflowTestSetup;
 }): MissingTestValue[] {
-  const reads = collectStepReads(nodes, edges);
+  const reads = listStepReads(nodes, edges);
   const real = realTestNodeIds(nodes, setup);
   return nodes.flatMap((node) => {
     if (!usesTestData(node, real) || testFailureOf(node, setup)) return [];
@@ -287,7 +287,7 @@ export function findRealStepsFedByTestData({
   if (real.size === 0) return [];
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const sources = new Map<string, Set<string>>();
-  for (const read of collectStepReads(nodes, edges)) {
+  for (const read of listStepReads(nodes, edges)) {
     if (read.nodeId === read.readerId || !byId.has(read.nodeId)) continue;
     const set = sources.get(read.readerId) ?? new Set<string>();
     set.add(read.nodeId);
