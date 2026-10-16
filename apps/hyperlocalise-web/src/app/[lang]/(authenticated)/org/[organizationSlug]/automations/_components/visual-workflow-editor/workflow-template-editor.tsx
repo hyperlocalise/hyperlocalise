@@ -410,10 +410,13 @@ export function WorkflowTemplateEditor({
   });
 
   // A change from outside, such as an undo, replaces the text unless it already reads the same.
+  // Deferred, since drawing the pills renders React while this commit is still running.
   useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
-    if (documentToTemplate(editor.state.doc) === value) return;
-    editor.commands.setContent(templateToDocument(value, { multiline }), { emitUpdate: false });
+    queueMicrotask(() => {
+      if (!editor || editor.isDestroyed) return;
+      if (documentToTemplate(editor.state.doc) === value) return;
+      editor.commands.setContent(templateToDocument(value, { multiline }), { emitUpdate: false });
+    });
   }, [editor, value, multiline]);
 
   useEffect(() => {
