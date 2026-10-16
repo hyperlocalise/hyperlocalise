@@ -86,12 +86,14 @@ function FieldReferencePill({ node, selected }: ReactNodeViewProps) {
       onMouseLeave={() => context?.onPoint?.(null)}
       // The wrapper sets `white-space: normal` itself; a pill never wraps.
       style={{ whiteSpace: "nowrap" }}
+      // 20px tall with 2px margins fills the 24px line exactly, so the pill sits in its middle.
+      // The selection ring is drawn inside: a one-line box clips anything outside the line.
       className={cn(
-        "mx-px inline-flex h-5.5 max-w-full cursor-default items-center gap-1 rounded-md border px-1.5 align-middle text-xs font-medium select-none",
+        "mx-px my-0.5 inline-flex h-5 max-w-full cursor-default items-center gap-1 rounded-md border px-1.5 align-top text-xs leading-none font-medium select-none",
         description?.broken
           ? "border-destructive/40 bg-destructive/10 text-destructive"
           : "border-primary/25 bg-primary/10 text-primary",
-        selected && "ring-2 ring-ring/50",
+        selected && "ring-2 ring-ring/60 ring-inset",
       )}
     >
       {description?.step ? (
