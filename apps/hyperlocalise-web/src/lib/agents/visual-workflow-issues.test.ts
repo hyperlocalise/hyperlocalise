@@ -72,15 +72,21 @@ describe("describeVisualWorkflowIssues", () => {
   });
 
   it("says once that a Loop has nothing on Each item, and which setting reads a missing value", () => {
+    // The Loop runs after either branch, so the HTTP request on one of them may not have run.
     const issues = issuesOf(
       [
         node("manual", "trigger.manual"),
+        node("branch", "logic.if", { condition: "1 == 1" }),
         node("http", "action.http", { url: "https://api.example.com" }),
+        node("other", "logic.set"),
         node("for_each", "logic.for_each", { collection: "[]" }),
       ],
       [
-        next("manual", "http"),
+        next("manual", "branch"),
+        next("branch", "http", "true"),
+        next("branch", "other", "false"),
         next("http", "for_each"),
+        next("other", "for_each"),
         {
           id: "wire",
           source: "http",
