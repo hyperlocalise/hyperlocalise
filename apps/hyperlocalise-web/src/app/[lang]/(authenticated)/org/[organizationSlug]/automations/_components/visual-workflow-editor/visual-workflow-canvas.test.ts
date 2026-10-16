@@ -115,7 +115,7 @@ describe("applyVisualWorkflowGraphConnection edge kinds", () => {
 });
 
 describe("presentVisualWorkflowEdges", () => {
-  it("visually distinguishes Each item and Done regions", () => {
+  it("draws a Loop's Each item steps in blue and every other execution wire grey", () => {
     const loopNodes = [
       node("trigger", "trigger.manual"),
       node("loop", "logic.for_each"),
@@ -135,25 +135,25 @@ describe("presentVisualWorkflowEdges", () => {
 
     const presented = presentVisualWorkflowEdges(loopNodes, edges);
 
-    expect(presented.find((edge) => edge.id === "loop-body")?.style).toMatchObject({
-      stroke: "var(--primary)",
-      strokeWidth: 2,
-    });
+    const colour = (id: string) =>
+      (presented.find((edge) => edge.id === id)?.style as Record<string, unknown> | undefined)?.[
+        "--xy-edge-stroke"
+      ];
 
-    expect(presented.find((edge) => edge.id === "body-end")?.style).toMatchObject({
-      stroke: "var(--primary)",
-      strokeWidth: 2,
-    });
-
-    expect(presented.find((edge) => edge.id === "loop-after")?.style).toMatchObject({
-      stroke: "var(--muted-foreground)",
-      strokeWidth: 2,
-    });
-
-    expect(presented.find((edge) => edge.id === "after-summary")?.style).toMatchObject({
-      stroke: "var(--muted-foreground)",
-      strokeWidth: 2,
-    });
+    // Each item steps stand out in blue; every other execution wire is the same grey.
+    expect(colour("loop-body")).toBe("var(--primary)");
+    expect(colour("body-end")).toBe("var(--primary)");
+    expect(colour("trigger-loop")).toBe("var(--muted-foreground)");
+    expect(colour("loop-after")).toBe("var(--muted-foreground)");
+    expect(colour("after-summary")).toBe("var(--muted-foreground)");
+    for (const edge of presented) {
+      // No inline stroke, so React Flow's selected style still darkens a selected wire.
+      expect(edge.style).toMatchObject({
+        strokeWidth: 2,
+        "--xy-edge-stroke-selected": "var(--foreground)",
+      });
+      expect(edge.style?.stroke).toBeUndefined();
+    }
 
     // The way the workflow runs is read from the handles, so execution edges carry no arrowhead.
     expect(presented.every((edge) => edge.markerEnd === undefined)).toBe(true);

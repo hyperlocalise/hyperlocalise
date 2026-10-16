@@ -21,7 +21,15 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -63,13 +71,23 @@ const EDGE_LABEL_PROPS = {
   },
 } satisfies Partial<VisualWorkflowRfEdge>;
 
-// Execution wires are drawn thicker than data wires; a Loop's own wires were already this width.
-const EXECUTION_STROKE_WIDTH = 2;
+/**
+ * An execution wire's look: thick and solid, grey, and a Loop's Each item steps in blue. The colour
+ * is set through React Flow's own variables, not `stroke`, so a selected wire still darkens: an
+ * inline `stroke` would outrank its selected style.
+ */
+function executionWireStyle(edge: VisualWorkflowRfEdge, colour: string): CSSProperties {
+  return {
+    ...edge.style,
+    "--xy-edge-stroke": colour,
+    "--xy-edge-stroke-selected": "var(--foreground)",
+    strokeWidth: 2,
+  } as CSSProperties;
+}
 
 type ForEachPresentedRegion = {
   loopId: string;
   bodyNodeIds: Set<string>;
-  exitNodeIds: Set<string>;
 };
 
 /**
@@ -89,7 +107,6 @@ export function presentVisualWorkflowEdges(
       return {
         loopId: node.id,
         bodyNodeIds: new Set(region.bodyNodeIds),
-        exitNodeIds: new Set(region.exitNodeIds),
       };
     });
 
@@ -128,36 +145,15 @@ export function presentVisualWorkflowEdges(
         (region.bodyNodeIds.has(edge.source) && region.bodyNodeIds.has(edge.target)),
     );
 
-    if (belongsToEachRegion) {
-      return {
-        ...edge,
-        style: {
-          ...edge.style,
-          stroke: "var(--primary)",
-          strokeWidth: EXECUTION_STROKE_WIDTH,
-        },
-      };
-    }
-
-    const belongsToDoneRegion = regions.some(
-      (region) =>
-        (edge.source === region.loopId && edge.sourceHandle === "done") ||
-        (region.exitNodeIds.has(edge.source) && region.exitNodeIds.has(edge.target)),
-    );
-
-    if (belongsToDoneRegion) {
-      return {
-        ...edge,
-        style: {
-          ...edge.style,
-          stroke: "var(--muted-foreground)",
-          strokeWidth: EXECUTION_STROKE_WIDTH,
-        },
-      };
-    }
-
-    const thick = { ...edge, style: { ...edge.style, strokeWidth: EXECUTION_STROKE_WIDTH } };
-    return edge.label === undefined ? thick : { ...thick, ...EDGE_LABEL_PROPS };
+    // Every execution wire looks like a Loop's Done path did, so only its Each item steps stand out.
+    const wire = {
+      ...edge,
+      style: executionWireStyle(
+        edge,
+        belongsToEachRegion ? "var(--primary)" : "var(--muted-foreground)",
+      ),
+    };
+    return edge.label === undefined ? wire : { ...wire, ...EDGE_LABEL_PROPS };
   });
 
   return [...presented, ...referenceLines];
