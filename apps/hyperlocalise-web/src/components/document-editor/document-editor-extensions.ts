@@ -191,7 +191,7 @@ export function isLossyDocumentRoundTrip(
   return true;
 }
 
-/** Collapses runs of blank lines that renderers leave around blocks, outside code fences. */
+/** Collapses extra blank lines around blocks, including a leading blank, outside code fences. */
 export function normalizeDocumentMarkdown(markdown: string) {
   const lines = markdown.split("\n");
   const output: string[] = [];
@@ -206,7 +206,7 @@ export function normalizeDocumentMarkdown(markdown: string) {
         fence = null;
       }
     }
-    if (fence === null && !line.trim() && output.length > 0 && !output.at(-1)?.trim()) {
+    if (fence === null && !line.trim() && (output.length === 0 || !output.at(-1)?.trim())) {
       continue;
     }
     output.push(fence === null && !line.trim() ? "" : line);

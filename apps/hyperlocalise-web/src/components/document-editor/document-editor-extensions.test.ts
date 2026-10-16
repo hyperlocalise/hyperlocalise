@@ -15,6 +15,7 @@ import { Editor, type JSONContent } from "@tiptap/core";
 import { marked } from "marked";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
+import { splitContentEditorDocument } from "@/components/content-editor/file-view/content-editor-document-frontmatter";
 import { INTERCOM_ARTICLE_BODY_MARKDOWN } from "@/lib/intercom/intercom-article-markdown.fixture";
 
 import {
@@ -112,6 +113,33 @@ describe("document Markdown round trip", () => {
 
   it("keeps an unedited Markdown document as written", () => {
     expect(roundTrip(MARKDOWN_FIXTURE, "markdown")).toBe(MARKDOWN_FIXTURE);
+  });
+
+  it("round-trips Markdown that starts with a blank line without forcing code mode", () => {
+    const original = "\nAI has made translation faster.\n\n## Heading\n\nSee [docs](/blog/x).";
+    const normalized = roundTrip(original, "markdown");
+
+    expect(normalized).toBe(
+      "AI has made translation faster.\n\n## Heading\n\nSee [docs](/blog/x).",
+    );
+    expect(isLossyDocumentRoundTrip("markdown", original, normalized)).toBe(false);
+  });
+
+  it("does not force code mode for a Markdown body after YAML frontmatter", () => {
+    const { body } = splitContentEditorDocument(`---
+title: "AI Translation Is Not Enough"
+---
+
+AI has made translation faster. But for global teams, faster translation does not always mean better localisation.
+
+## Translation quality is no longer just a language problem
+
+See [translation intelligence](/blog/what-is-translation-intelligence).
+`);
+    const normalized = roundTrip(body, "markdown");
+
+    expect(body.startsWith("\n")).toBe(true);
+    expect(isLossyDocumentRoundTrip("markdown", body, normalized)).toBe(false);
   });
 
   it("round-trips formatted headings and GitHub callouts without Intercom syntax", () => {
@@ -249,6 +277,9 @@ describe("isLossyDocumentRoundTrip", () => {
     expect(isLossyDocumentRoundTrip("mdx", "<Tabs>\n  <Tab />\n</Tabs>", "# Tabs")).toBe(true);
     expect(isLossyDocumentRoundTrip("mdx", "# Hello", "# Hello")).toBe(false);
     expect(isLossyDocumentRoundTrip("markdown", "# Hello\n\n\nWorld", "# Hello\n\nWorld")).toBe(
+      false,
+    );
+    expect(isLossyDocumentRoundTrip("markdown", "\n# Hello\n\nWorld", "# Hello\n\nWorld")).toBe(
       false,
     );
     expect(
