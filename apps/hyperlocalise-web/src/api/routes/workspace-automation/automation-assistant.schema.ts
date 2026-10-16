@@ -20,13 +20,24 @@ export const automationAssistantSessionParamsSchema = z.object({
   sessionId: z.string().uuid(),
 });
 
-export const automationAssistantSessionQuerySchema = z.object({
-  automationId: z.string().uuid(),
-});
+/** The saved thing a session is asked for by: an automation or a visual workflow, never both. */
+export const automationAssistantSessionQuerySchema = z
+  .object({
+    automationId: z.string().uuid().optional(),
+    visualWorkflowId: z.string().uuid().optional(),
+  })
+  .refine((query) => Boolean(query.automationId) !== Boolean(query.visualWorkflowId), {
+    message: "Give an automationId or a visualWorkflowId, not both.",
+  });
 
-export const createAutomationAssistantSessionBodySchema = z.object({
-  automationId: z.string().uuid().nullish(),
-});
+export const createAutomationAssistantSessionBodySchema = z
+  .object({
+    automationId: z.string().uuid().nullish(),
+    visualWorkflowId: z.string().uuid().nullish(),
+  })
+  .refine((body) => !(body.automationId && body.visualWorkflowId), {
+    message: "A session is about an automation or a visual workflow, not both.",
+  });
 
 export const bindAutomationAssistantSessionBodySchema = z.object({
   automationId: z.string().uuid(),
@@ -68,6 +79,7 @@ export function automationAssistantTurnText(
 export type AutomationAssistantSessionResponse = {
   id: string;
   automationId: string | null;
+  visualWorkflowId: string | null;
   title: string;
   turnInProgress: boolean;
   createdAt: string;

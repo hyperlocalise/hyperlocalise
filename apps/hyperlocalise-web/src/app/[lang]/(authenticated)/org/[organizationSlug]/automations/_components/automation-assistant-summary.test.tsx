@@ -40,6 +40,7 @@ function show(overrides: Partial<AutomationAssistantValue>) {
     appliedCallCount: 0,
     appliedChangeCount: 0,
     steps: [],
+    referenceLabel: null,
     ...overrides,
   };
   return render(

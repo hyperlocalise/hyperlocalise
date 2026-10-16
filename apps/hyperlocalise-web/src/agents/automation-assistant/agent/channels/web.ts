@@ -23,11 +23,16 @@ import {
   AUTOMATION_ASSISTANT_TURN_PART,
   AUTOMATION_SETUP_PAGE_EDITS_PART,
   AUTOMATION_SETUP_SNAPSHOT_PART,
-  describeAutomationSetupPage,
-  listAutomationSetupPageEdits,
-  type AutomationSetupPageEdit,
-} from "@/lib/agents/workspace-automation-assistant";
-import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
+} from "@/lib/agents/automation-assistant-editor";
+import {
+  describeAutomationAssistantPage,
+  listAutomationAssistantPageEdits,
+  snapshotOfAutomationAssistantPage,
+  toAutomationAssistantPageEditsData,
+  toAutomationAssistantSnapshotData,
+  type AutomationAssistantPageContext,
+  type AutomationAssistantPageEdit,
+} from "@/lib/agents/automation-assistant-editors";
 import {
   PRODUCT_USAGE_ANALYTICS_EVENTS,
   productUsageSourceForAutomationEditorMode,
@@ -36,7 +41,7 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import {
   addAutomationAssistantMessage,
   endAutomationAssistantTurn,
-  findAutomationAssistantFormAfterLastTurn,
+  findAutomationAssistantSnapshotAfterLastTurn,
   loadAutomationAssistantModelMessages,
   type AutomationAssistantSession,
 } from "@/lib/automation-assistant/sessions";
@@ -50,7 +55,7 @@ import type { AiTokenUsage } from "@/lib/billing/usage-control";
 import type { ResolvedAgentLanguageModel } from "@/lib/providers/language-model";
 
 import { createAutomationAssistantAgent } from "../agent";
-import type { AutomationAssistantToolContext } from "../tools/update-automation-setup";
+import { automationAssistantPageOf, createAutomationAssistantToolContext } from "../editors";
 
 export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
 
@@ -61,7 +66,10 @@ export const AUTOMATION_ASSISTANT_USAGE_SOURCE = "automation_assistant_turn";
 type AutomationAssistantUIMessage = UIMessage<
   never,
   InboxChatDataTypes & {
-    "page-edits": { edits: AutomationSetupPageEdit[] };
+    "page-edits": {
+      editor: AutomationAssistantPageContext["kind"];
+      edits: AutomationAssistantPageEdit[];
+    };
     turn: { id: string };
   }
 >;
@@ -80,6 +88,11 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
   return parts.filter((part) => !part.type.startsWith("data-"));
 }
 
+/** How the turn is counted: which page of the automation it came from. */
+function modeOf(pageContext: AutomationAssistantPageContext): string {
+  return pageContext.kind === "automation-editor" ? pageContext.mode : "visual_workflow";
+}
+
 /**
  * Puts the page as it stands at the start of the person's newest message, so that the request is
  * the last thing the model reads and the page the last thing before it. It is added for this
@@ -87,13 +100,13 @@ function persistableParts(parts: UIMessage["parts"]): UIMessage["parts"] {
  */
 function withPageNow(
   messages: ModelMessage[],
-  pageContext: WorkspaceAutomationEditorContext,
+  pageContext: AutomationAssistantPageContext,
 ): ModelMessage[] {
   const last = messages.at(-1);
   if (last?.role !== "user") {
     return messages;
   }
-  const page = { type: "text" as const, text: describeAutomationSetupPage(pageContext) };
+  const page = { type: "text" as const, text: describeAutomationAssistantPage(pageContext) };
   const content =
     typeof last.content === "string"
       ? [page, { type: "text" as const, text: last.content }]
@@ -111,32 +124,34 @@ export function createAutomationAssistantTurnResponse(input: {
   session: AutomationAssistantSession;
   organizationId: string;
   text: string;
-  pageContext: WorkspaceAutomationEditorContext;
+  pageContext: AutomationAssistantPageContext;
   languageModel: ResolvedAgentLanguageModel;
 }) {
-  const { session } = input;
+  const { session, pageContext } = input;
   const usageOperationKey = `automation-assistant-turn:${session.id}:${randomUUID()}`;
+  const mode = modeOf(pageContext);
   // The session is not a conversation, so the usage record names it here instead of linking to one.
   const usageDimensions = {
     surface: "automation_assistant",
     agent_surface: "automation_assistant",
-    mode: input.pageContext.mode,
+    mode,
     automation_assistant_session_id: session.id,
   };
   let shouldTrackUsage = false;
   let agentTokenUsagePromise: Promise<AiTokenUsage | null> | null = null;
-  // The tool rewrites this as it works, so after the turn it holds the form the turn left.
-  const toolContext: AutomationAssistantToolContext = { automationEditor: input.pageContext };
+  // The tool rewrites this as it works, so after the turn it holds the page the turn left.
+  const toolContext = createAutomationAssistantToolContext(pageContext);
 
   const stream = createUIMessageStream<AutomationAssistantUIMessage>({
     execute: async ({ writer }) => {
-      // Whatever differs between the form the last turn left and the page this message comes
+      // Whatever differs between the page the last turn left and the page this message comes
       // from, the person changed themselves. It is saved with their message, so every later turn
       // knows a change an earlier turn made may no longer be there.
-      const formAfterLastTurn = await findAutomationAssistantFormAfterLastTurn(session.id);
-      const pageEdits = formAfterLastTurn
-        ? listAutomationSetupPageEdits(formAfterLastTurn, input.pageContext.form)
+      const afterLastTurn = await findAutomationAssistantSnapshotAfterLastTurn(session.id);
+      const pageEdits = afterLastTurn
+        ? listAutomationAssistantPageEdits(afterLastTurn, pageContext)
         : [];
+      const pageEditsData = toAutomationAssistantPageEditsData(pageContext.kind, pageEdits);
       const turnId = await addAutomationAssistantMessage({
         sessionId: session.id,
         senderType: "user",
@@ -144,7 +159,7 @@ export function createAutomationAssistantTurnResponse(input: {
         ...(pageEdits.length > 0
           ? {
               parts: [
-                { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits: pageEdits } },
+                { type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: pageEditsData },
                 { type: "text", text: input.text },
               ],
             }
@@ -157,7 +172,7 @@ export function createAutomationAssistantTurnResponse(input: {
       // becomes of the reply.
       serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.automationAssistantMessageSent, {
         status: "sent",
-        source: productUsageSourceForAutomationEditorMode(input.pageContext.mode),
+        source: productUsageSourceForAutomationEditorMode(mode),
       });
       await reserveAgentRuntimeUsage({
         organizationId: input.organizationId,
@@ -169,12 +184,12 @@ export function createAutomationAssistantTurnResponse(input: {
 
       // The panel shows this above the person's message while the reply is still being written.
       if (pageEdits.length > 0) {
-        writer.write({ type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: { edits: pageEdits } });
+        writer.write({ type: AUTOMATION_SETUP_PAGE_EDITS_PART, data: pageEditsData });
       }
       writer.write({ type: "data-status", id: "prep", data: { message: "Thinking…" } });
       const messages = withPageNow(
         await loadAutomationAssistantModelMessages(session.id),
-        input.pageContext,
+        pageContext,
       );
       const agent = createAutomationAssistantAgent({
         toolContext,
@@ -196,10 +211,12 @@ export function createAutomationAssistantTurnResponse(input: {
               text: text || "(no response)",
               parts: [
                 ...(parts.length > 0 ? parts : [{ type: "text" as const, text: "(no response)" }]),
-                // The form as this turn left it, for the next turn to compare the page with.
+                // The page as this turn left it, for the next turn to compare the page with.
                 {
                   type: AUTOMATION_SETUP_SNAPSHOT_PART,
-                  data: { form: toolContext.automationEditor.form },
+                  data: toAutomationAssistantSnapshotData(
+                    snapshotOfAutomationAssistantPage(automationAssistantPageOf(toolContext)),
+                  ),
                 },
               ],
             });

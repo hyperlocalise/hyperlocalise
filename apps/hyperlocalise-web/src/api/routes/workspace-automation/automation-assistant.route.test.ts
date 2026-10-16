@@ -51,6 +51,11 @@ vi.mock("@/agents/automation-assistant/agent/channels/web", () => ({
 }));
 
 import { createApp } from "@/api/app";
+import { buildVisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
+import { isErr } from "@/lib/primitives/result/results";
+import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+import { createVisualWorkflow } from "@/lib/visual-workflows/visual-workflows";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import type { AppType } from "@/api/typed-app";
 import { buildWorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
@@ -101,7 +106,12 @@ async function seedAutomation(input: { organizationId: string; userId: string })
 const assistant = client.api.orgs[":organizationSlug"].automations.assistant;
 
 type SessionBody = {
-  session: { id: string; automationId: string | null; turnInProgress: boolean };
+  session: {
+    id: string;
+    automationId: string | null;
+    visualWorkflowId: string | null;
+    turnInProgress: boolean;
+  };
 };
 
 /** The body of a typed response, read past the status union the client gives it. */
@@ -111,6 +121,29 @@ async function json<T>(response: { json: () => Promise<unknown> }): Promise<T> {
 
 function userMessage(text: string) {
   return [{ id: "msg-1", role: "user", parts: [{ type: "text", text }] }];
+}
+
+function workflowPageContext(visualWorkflowId: string) {
+  return buildVisualWorkflowEditorContext({
+    editorSessionId: "editor-1",
+    visualWorkflowId,
+    definition: toVisualWorkflowV3Definition({
+      name: "Nightly sync",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          position: { x: 0, y: 0 },
+          data: {
+            catalogType: "trigger.manual",
+            config: createDefaultConfig("trigger.manual"),
+            runStatus: "idle",
+          },
+        },
+      ],
+      edges: [],
+    }),
+  });
 }
 
 function pageContext(automationId: string | null = null) {
@@ -155,6 +188,76 @@ describe("automation assistant sessions", () => {
       .from(schema.interactions)
       .where(eq(schema.interactions.id, session.id));
     expect(conversations).toEqual([]);
+  });
+
+  it("keeps a session per visual workflow and author, and runs only that workflow's page on it", async () => {
+    const { headers, identity, organizationId, slug } = await signIn();
+    const created = await createVisualWorkflow({ organizationId, name: "Nightly sync" });
+    if (isErr(created)) {
+      throw new Error(created.error.code);
+    }
+    const visualWorkflowId = created.value.id;
+
+    const none = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { visualWorkflowId } },
+      { headers },
+    );
+    expect(await none.json()).toEqual({ session: null, messages: [] });
+
+    const first = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: { visualWorkflowId } },
+      { headers },
+    );
+    expect(first.status).toBe(201);
+    const { session } = await json<SessionBody>(first);
+    expect(session).toMatchObject({ visualWorkflowId, automationId: null });
+    const again = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: { visualWorkflowId } },
+      { headers },
+    );
+    expect((await json<SessionBody>(again)).session.id).toBe(session.id);
+    const resumed = await assistant.sessions.$get(
+      { param: { organizationSlug: slug }, query: { visualWorkflowId } },
+      { headers },
+    );
+    expect(await resumed.json()).toMatchObject({ session: { id: session.id, visualWorkflowId } });
+
+    const turn = await assistant.sessions[":sessionId"].turns.$post(
+      {
+        param: { organizationSlug: slug, sessionId: session.id },
+        json: {
+          messages: userMessage("Call it Nightly sync"),
+          pageContext: workflowPageContext(visualWorkflowId),
+        },
+      },
+      { headers },
+    );
+    expect(turn.status).toBe(200);
+    const elsewhere = await assistant.sessions[":sessionId"].turns.$post(
+      {
+        param: { organizationSlug: slug, sessionId: session.id },
+        json: { messages: userMessage("Rename it"), pageContext: pageContext() },
+      },
+      { headers },
+    );
+    expect(elsewhere.status).toBe(400);
+    expect(await elsewhere.json()).toMatchObject({ error: "page_context_mismatch" });
+    const automationId = await seedAutomation({
+      organizationId,
+      userId: await fixture.getLocalUserId(identity.user.workosUserId),
+    });
+    const bound = await assistant.sessions[":sessionId"].$patch(
+      { param: { organizationSlug: slug, sessionId: session.id }, json: { automationId } },
+      { headers },
+    );
+    expect(bound.status).toBe(409);
+    expect(await bound.json()).toMatchObject({ error: "session_already_bound" });
+
+    const missing = await assistant.sessions.$post(
+      { param: { organizationSlug: slug }, json: { visualWorkflowId: crypto.randomUUID() } },
+      { headers },
+    );
+    expect(missing.status).toBe(404);
   });
 
   it("resumes the author's own session for an automation once it is bound", async () => {

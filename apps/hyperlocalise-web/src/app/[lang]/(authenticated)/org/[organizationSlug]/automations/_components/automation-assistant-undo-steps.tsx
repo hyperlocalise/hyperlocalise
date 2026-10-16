@@ -33,15 +33,15 @@ import { automationAssistantMessages as messages } from "./automation-assistant.
 type AssistantUndoHistory<TForm> = {
   undoStep: UndoStep<unknown, unknown> | null;
   seal: () => void;
-  change: (next: TForm, meta?: { origin?: UndoOrigin }) => void;
+  change: (next: TForm, meta?: { origin?: UndoOrigin; group?: string }) => void;
 };
 
 /**
  * How a page with an undo history takes the assistant's changes and gives them back.
  *
- * A change of the assistant's becomes one step, kept apart from the typing around it. Undoing
- * such a step asks first, since it is several fields at once and anything typed since; any other
- * step is undone straight away. The history is read through a ref, because undo also runs from a
+ * A turn of the assistant's becomes one step, however many changes it lands as, kept apart from
+ * the typing around it. Undoing such a step asks first, since it is several fields at once and
+ * anything typed since; any other step is undone straight away. The history is read through a ref, because undo also runs from a
  * notice shown renders ago.
  */
 export function useAssistantUndoSteps<TForm>(
@@ -49,7 +49,8 @@ export function useAssistantUndoSteps<TForm>(
   onUndo: () => void,
 ): {
   runUndo: () => void;
-  applyAssistantChange: (next: TForm) => void;
+  /** Takes one change of the assistant's, with the turn that made it. */
+  applyAssistantChange: (next: TForm, turn: string) => void;
   undoConfirmDialog: ReactNode;
 } {
   // The step the dialog asks about, by id: another change can land while it is open, and the
@@ -76,9 +77,10 @@ export function useAssistantUndoSteps<TForm>(
     }
   };
 
-  const applyAssistantChange = (next: TForm) => {
+  const applyAssistantChange = (next: TForm, turn: string) => {
     history.current.seal();
-    history.current.change(next, { origin: "assistant" });
+    // A later change of the same turn joins this step while nothing else is on top of it.
+    history.current.change(next, { origin: "assistant", group: turn });
     history.current.seal();
   };
 

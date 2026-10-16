@@ -45,8 +45,8 @@ function historyWith(pending: UndoStep<unknown, unknown> | null) {
         seal: () => {
           calls.push("seal");
         },
-        change: (next: string, meta?: { origin?: string }) => {
-          calls.push(`change ${next} as ${meta?.origin}`);
+        change: (next: string, meta?: { origin?: string; group?: string }) => {
+          calls.push(`change ${next} as ${meta?.origin} in ${meta?.group}`);
         },
       },
     },
@@ -75,7 +75,7 @@ function Harness({
       <button
         type="button"
         onClick={() => {
-          applyAssistantChange("the assistant's form");
+          applyAssistantChange("the assistant's form", "turn-1");
           calls?.push(...recorded);
         }}
       >
@@ -87,14 +87,14 @@ function Harness({
 }
 
 describe("useAssistantUndoSteps", () => {
-  it("takes a change of the assistant's as one step, sealed off from the typing around it", async () => {
+  it("takes a change of the assistant's into its turn's step, sealed off from the typing around it", async () => {
     const user = userEvent.setup();
     const calls: string[] = [];
     render(<Harness onConfirm={vi.fn()} pending={null} calls={calls} />);
 
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(calls).toEqual(["seal", "change the assistant's form as assistant", "seal"]);
+    expect(calls).toEqual(["seal", "change the assistant's form as assistant in turn-1", "seal"]);
   });
 
   it("does nothing when there is no step to undo", async () => {

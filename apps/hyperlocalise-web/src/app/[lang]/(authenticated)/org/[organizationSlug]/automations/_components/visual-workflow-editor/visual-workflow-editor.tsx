@@ -121,9 +121,15 @@ import {
   VisualWorkflowUndoRedoButtons,
   type VisualWorkflowUndoStep,
 } from "./visual-workflow-undo-buttons";
+import type { AutomationAssistantApi } from "../automation-assistant-api";
+import { AutomationAssistantSidePanel } from "../automation-assistant-panel";
+import { useAssistantUndoSteps } from "../automation-assistant-undo-steps";
+import { AutomationAssistantVisualWorkflowProvider } from "../automation-assistant-visual-workflow-provider";
 import type { VisualWorkflowsApi } from "../visual-workflows-api";
 
 const NO_FRESH_STEPS: ReadonlySet<string> = new Set();
+/** Below this much room the canvas would be too narrow beside the assistant, so it is a sheet. */
+const ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX = 1200;
 
 export function VisualWorkflowEditor({
   initialNodes = [],
@@ -146,6 +152,9 @@ export function VisualWorkflowEditor({
   statusUpdating = false,
   onDelete,
   isDeleting = false,
+  assistantEnabled = false,
+  assistantApi,
+  projectName = null,
 }: {
   initialNodes?: VisualWorkflowRfNode[];
   initialEdges?: VisualWorkflowRfEdge[];
@@ -177,6 +186,12 @@ export function VisualWorkflowEditor({
   statusUpdating?: boolean;
   onDelete?: () => void;
   isDeleting?: boolean;
+  /** Offers the automation assistant on a saved workflow, beside the canvas. */
+  assistantEnabled?: boolean;
+  /** Display name of the project the workflow is in, for the assistant. */
+  projectName?: string | null;
+  /** The assistant's calls, in place of the server's, for stories. Must not change. */
+  assistantApi?: AutomationAssistantApi;
 }) {
   // Each step's test data and test run choices; kept out of the steps, so editing them is no undo
   // step. They are saved with the draft.
@@ -234,15 +249,18 @@ export function VisualWorkflowEditor({
   undoNoticeRef.current = undoNotice;
 
   /** Records a step. */
-  const commit = useCallback((next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin }) => {
-    const previous = graphRef.current;
-    graphRef.current = next;
-    historyRef.current.change(next, meta);
-    // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
-    if (!isVisualWorkflowGraphEqual(previous, next)) {
-      undoNoticeRef.current.dismiss();
-    }
-  }, []);
+  const commit = useCallback(
+    (next: VisualWorkflowGraph, meta?: { origin?: UndoOrigin; group?: string }) => {
+      const previous = graphRef.current;
+      graphRef.current = next;
+      historyRef.current.change(next, meta);
+      // A recorded step clears the redo stack, so a notice offering the way back no longer applies.
+      if (!isVisualWorkflowGraphEqual(previous, next)) {
+        undoNoticeRef.current.dismiss();
+      }
+    },
+    [],
+  );
   /** Sets the graph without a step: a drag in progress, a selection, a run marker. */
   const place = useCallback((next: VisualWorkflowGraph) => {
     graphRef.current = next;
@@ -348,7 +366,7 @@ export function VisualWorkflowEditor({
     const text = direction === "undo" ? notice.undoTitle(step) : notice.redoTitle(step);
     setUndoAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
   }, []);
-  const runUndo = useCallback(() => {
+  const undoNow = useCallback(() => {
     const step = historyRef.current.undoStep;
     if (!step) {
       return;
@@ -366,7 +384,27 @@ export function VisualWorkflowEditor({
     restore(step.after);
     reportUndo(step, "redo");
   }, [reportUndo, restore]);
+  // The assistant's changes are steps of their own on the same stack, and undoing one asks first.
+  const assistantHistoryRef = useRef({
+    undoStep: history.undoStep,
+    seal: history.seal,
+    change: commit,
+  });
+  assistantHistoryRef.current = { undoStep: history.undoStep, seal: history.seal, change: commit };
+  const { runUndo, applyAssistantChange, undoConfirmDialog } = useAssistantUndoSteps(
+    assistantHistoryRef,
+    undoNow,
+  );
   undoActionsRef.current = { undo: runUndo, redo: runRedo };
+  /** Takes the assistant's change and brings the last step it added to the middle of the view. */
+  const takeAssistantChange = (next: VisualWorkflowGraph, turn: string) => {
+    const before = new Set(graphRef.current.nodes.map((node) => node.id));
+    applyAssistantChange(next, turn);
+    const added = next.nodes.filter((node) => !before.has(node.id)).at(-1);
+    if (added) {
+      setFocusNode({ nodeId: added.id });
+    }
+  };
   const { rootRef } = useUndoShortcuts({
     onUndo: runUndo,
     onRedo: runRedo,
@@ -636,6 +674,20 @@ export function VisualWorkflowEditor({
   for (const node of nodes) seenNodeIdsRef.current.add(node.id);
   const testSetupRef = useRef(testSetup);
   testSetupRef.current = testSetup;
+  // The same ids for the assistant's new steps, less those on the canvas.
+  const reservedNodeIds = useMemo(() => {
+    const onCanvas = new Set(nodes.map((node) => node.id));
+    return [
+      ...reservedVisualWorkflowNodeIds({
+        nodes,
+        edges,
+        setup: testSetup,
+        seenNodeIds: seenNodeIdsRef.current,
+      }),
+    ]
+      .filter((id) => !onCanvas.has(id))
+      .sort();
+  }, [nodes, edges, testSetup]);
 
   const addNode = useCallback(
     (type: VisualCatalogType) => {
@@ -1076,7 +1128,7 @@ export function VisualWorkflowEditor({
     [definition, onStatusChange, saveDisabled],
   );
 
-  return (
+  const editor = (
     <div
       ref={rootRef}
       className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
@@ -1305,9 +1357,35 @@ export function VisualWorkflowEditor({
               </>
             )}
           </VisualWorkflowEditorPanel>
+          <AutomationAssistantSidePanel minRowWidth={ASSISTANT_SIDE_BY_SIDE_MIN_WIDTH_PX} />
         </div>
       )}
     </div>
+  );
+
+  // The assistant needs a saved workflow to keep its session for.
+  if (!assistantEnabled || !organizationSlug || !visualWorkflowId) {
+    return (
+      <>
+        {editor}
+        {undoConfirmDialog}
+      </>
+    );
+  }
+  return (
+    <AutomationAssistantVisualWorkflowProvider
+      api={assistantApi}
+      organizationSlug={organizationSlug}
+      visualWorkflowId={visualWorkflowId}
+      graph={history.form}
+      hasUnsavedChanges={hasUnsavedChanges}
+      onChange={takeAssistantChange}
+      projectName={projectName}
+      reservedNodeIds={reservedNodeIds}
+    >
+      {editor}
+      {undoConfirmDialog}
+    </AutomationAssistantVisualWorkflowProvider>
   );
 }
 

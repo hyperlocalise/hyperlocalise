@@ -64,6 +64,7 @@ function assistant(overrides: Partial<AutomationAssistantValue> = {}): Automatio
     appliedCallCount: 0,
     appliedChangeCount: 0,
     steps: [],
+    referenceLabel: null,
     ...overrides,
   };
 }
@@ -176,6 +177,28 @@ describe("what the panel says a turn did", () => {
     expect(screen.queryByText(/changes are on the page/)).toBeNull();
   });
 
+  it("shows a field reference in a reply as a pill with the step and field", () => {
+    show(
+      assistant({
+        mode: "visual_workflow",
+        referenceLabel: (reference) =>
+          reference === "{{ nodes.agent.text }}" ? "AI Agent › text" : null,
+        messages: [
+          reply([
+            {
+              type: "text",
+              text: "It could read `{{ nodes.agent.text }}`, or {{ nodes.agent.text }}, not {{ nodes.gone.x }}.",
+            },
+          ]),
+        ],
+      }),
+    );
+
+    expect(screen.getAllByText("AI Agent › text")).toHaveLength(2);
+    expect(screen.queryByText(/nodes\.agent\.text/)).toBeNull();
+    expect(screen.getByText("{{ nodes.gone.x }}")).toBeTruthy();
+  });
+
   it("does not say so while the reply is still being written", () => {
     showStreaming([{ type: "text", text: "Let me" }] as UIMessage["parts"]);
 
@@ -202,6 +225,40 @@ describe("what the panel says a turn did", () => {
 
     expect(screen.getByRole("button", { name: "Updated the setup · 1 change" })).toBeTruthy();
     expect(screen.queryByText("No changes made to the setup")).toBeNull();
+  });
+
+  it("leaves out what the reply wrote before its last call once it says what was done", () => {
+    show(
+      assistant({
+        messages: [
+          reply([
+            { type: "text", text: "I'll name it and save it." },
+            {
+              type: TOOL,
+              toolCallId: "call_1",
+              state: "output-available",
+              input: {},
+              output: { applied: true, changes: [{ kind: "name", name: "Weekly digest" }] },
+            },
+            { type: "text", text: "Named it." },
+          ] as UIMessage["parts"]),
+          reply([
+            { type: "text", text: "Here is what I will change." },
+            {
+              type: TOOL,
+              toolCallId: "call_2",
+              state: "output-available",
+              input: {},
+              output: { applied: true, changes: [{ kind: "name", name: "Weekly digest" }] },
+            },
+          ] as UIMessage["parts"]),
+        ],
+      }),
+    );
+
+    expect(screen.queryByText("I'll name it and save it.")).toBeNull();
+    expect(screen.getByText("Named it.")).toBeTruthy();
+    expect(screen.getByText("Here is what I will change.")).toBeTruthy();
   });
 
   it("says above the person's message what they changed on the page before sending it", () => {
@@ -232,6 +289,9 @@ describe("what the panel says a turn did", () => {
   it("takes no message while a saved automation's conversation loads or a turn runs", () => {
     const { unmount } = show(assistant({ status: "loading" }));
     expect(screen.getByText("prompt for acme (closed)")).toBeTruthy();
+    // Not called empty before it is known to be.
+    expect(screen.getByRole("status", { name: "Loading" })).toBeTruthy();
+    expect(screen.queryByText(/Describe what this automation should do/)).toBeNull();
     unmount();
 
     show(assistant({ status: "streaming", working: true }));

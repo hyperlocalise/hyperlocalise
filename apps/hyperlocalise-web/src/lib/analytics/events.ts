@@ -159,10 +159,11 @@ export function productUsageSourceForConversation(source: string): string {
   return "other";
 }
 
-/** Where a message to the automation assistant was sent from: a new automation's page or a saved one's. */
+/** Where a message to the automation assistant was sent from: a new automation's page, a saved one's, or a visual workflow's. */
 export function productUsageSourceForAutomationEditorMode(mode: string): string {
   if (mode === "create") return "new_automation";
   if (mode === "detail") return "saved_automation";
+  if (mode === "visual_workflow") return "visual_workflow";
   return "other";
 }
 
