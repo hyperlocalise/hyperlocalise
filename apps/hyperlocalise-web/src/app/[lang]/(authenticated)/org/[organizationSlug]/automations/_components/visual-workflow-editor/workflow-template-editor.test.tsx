@@ -137,12 +137,15 @@ describe("WorkflowTemplateEditor", () => {
 
   it("turns a reference typed out in full, or pasted, into a pill", async () => {
     const { textbox, editor, onChange } = renderEditor("Hi ");
+    // Typing the closing brace goes through the editor's text input, as a key press does.
     act(() => {
-      editor
-        .chain()
-        .focus("end")
-        .insertContent("{{ nodes.http.status }}", { applyInputRules: true })
-        .run();
+      editor.chain().focus("end").insertContent("{{ nodes.http.status }").run();
+    });
+    const end = editor.state.selection.from;
+    act(() => {
+      editor.view.someProp("handleTextInput", (handle) =>
+        handle(editor.view, end, end, "}", () => editor.state.tr.insertText("}", end, end)),
+      );
     });
     await expectPills(textbox, 1);
     expect(onChange).toHaveBeenLastCalledWith("Hi {{ nodes.http.status }}");
