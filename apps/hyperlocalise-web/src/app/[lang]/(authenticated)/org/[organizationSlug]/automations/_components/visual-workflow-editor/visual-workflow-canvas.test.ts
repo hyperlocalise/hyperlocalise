@@ -192,14 +192,98 @@ describe("presentVisualWorkflowEdges", () => {
     const presented = presentVisualWorkflowEdges(loopNodes, edges);
     const data = presented.find((edge) => edge.id === "loop-body-data");
 
+    expect(data?.style?.strokeDasharray).toBeUndefined();
     expect(data).toMatchObject({
       label: "item → value",
       labelShowBg: false,
-      style: {
-        strokeDasharray: "5 4",
-      },
       markerEnd: { type: "arrowclosed" },
     });
+  });
+});
+
+describe("presentVisualWorkflowEdges wire weights and reference lines", () => {
+  function slackReading(message: string): VisualWorkflowRfNode {
+    const slack = node("slack", "action.notify_slack");
+    slack.data.config = { ...slack.data.config, message } as typeof slack.data.config;
+    return slack;
+  }
+
+  it("draws execution wires thick, and data wires solid with their dashes dropped", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("trigger", "trigger.manual"), node("request", "action.http")],
+      [
+        executionEdge("run", "trigger", "request"),
+        {
+          id: "wire",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "triggeredAt",
+          targetHandle: "url",
+          data: { kind: "data" },
+          style: { strokeDasharray: "5 4" },
+        },
+      ],
+    );
+
+    expect(presented.find((edge) => edge.id === "run")?.style).toMatchObject({ strokeWidth: 2 });
+    const wire = presented.find((edge) => edge.id === "wire");
+    expect(wire?.style?.strokeDasharray).toBeUndefined();
+    expect(wire?.style?.strokeWidth).toBeUndefined();
+    expect(wire?.selectable).toBeUndefined();
+  });
+
+  it("draws a dashed line that cannot be touched for each field a setting's text reads", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading(
+          "{{ nodes.http.status }} for {{ trigger.triggeredAt }}, {{ nodes.http.json.items.0 }} and {{ nodes.http.status }}",
+        ),
+      ],
+      [executionEdge("run", "trigger", "http"), executionEdge("next", "http", "slack")],
+    );
+
+    const lines = presented.filter((edge) => edge.data?.kind === "reference");
+    expect(
+      lines.map(
+        (line) => `${line.source}.${line.sourceHandle} -> ${line.target}.${line.targetHandle}`,
+      ),
+    ).toEqual([
+      "http.status -> slack.message",
+      "trigger.triggeredAt -> slack.message",
+      "http.json -> slack.message",
+    ]);
+    expect(lines[0]).toMatchObject({
+      selectable: false,
+      deletable: false,
+      focusable: false,
+      reconnectable: false,
+      interactionWidth: 0,
+      style: { strokeDasharray: "5 4", pointerEvents: "none" },
+    });
+  });
+
+  it("draws no line for a setting fed by a wire, or for a step that is gone", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading("{{ nodes.http.status }} {{ nodes.gone.status }}"),
+      ],
+      [
+        {
+          id: "wire",
+          source: "trigger",
+          target: "slack",
+          sourceHandle: "triggeredAt",
+          targetHandle: "message",
+          data: { kind: "data" },
+        },
+      ],
+    );
+
+    expect(presented.filter((edge) => edge.data?.kind === "reference")).toEqual([]);
   });
 });
 

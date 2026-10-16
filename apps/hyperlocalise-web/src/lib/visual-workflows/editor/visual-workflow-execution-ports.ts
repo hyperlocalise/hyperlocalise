@@ -10,20 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { VisualWorkflowRfEdge } from "../schema/types";
+import type { VisualWorkflowCanvasEdge } from "../schema/types";
 
 /**
  * Whether an execution wire is attached to a handle. A wire saved before ports had ids names no
  * handle, and attaches to the step's main output or its input.
  */
 export function isExecutionHandleConnected(
-  edges: readonly VisualWorkflowRfEdge[],
+  edges: readonly VisualWorkflowCanvasEdge[],
   nodeId: string,
   type: "source" | "target",
   handleId: string,
 ): boolean {
   return edges.some((edge) => {
-    if (edge.data?.kind === "data") {
+    if (edge.data?.kind === "data" || edge.data?.kind === "reference") {
       return false;
     }
     return type === "source"
