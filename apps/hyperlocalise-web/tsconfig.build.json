@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // TypeScript 7 re-checking against a saved .tsbuildinfo can report a false TS2589.
+    "incremental": false
+  },
   "exclude": [
     "node_modules",
     "src/e2e",
