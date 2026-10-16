@@ -350,6 +350,9 @@
   "+h67bEnfK7": {
     "defaultMessage": "Zeit"
   },
+  "+hYvvi6oXu": {
+    "defaultMessage": "Cancel"
+  },
   "+i+mcUZPR+": {
     "defaultMessage": "Hyperlab"
   },
@@ -578,6 +581,9 @@
   "/8fHPQltQc": {
     "defaultMessage": "Bringen Sie bei Bedarf den richtigen Kontext zurück."
   },
+  "/8khRIMh0p": {
+    "defaultMessage": "Allow access"
+  },
   "/9ZwuXxQ/T": {
     "defaultMessage": "JSON kopieren"
   },
@@ -700,6 +706,9 @@
   },
   "/Q3+a6FMED": {
     "defaultMessage": "Du kannst bis zu {count} Chats gleichzeitig ausführen."
+  },
+  "/QBr3H7p9k": {
+    "defaultMessage": "Could not connect two steps"
   },
   "/QZxo6jgZM": {
     "defaultMessage": "Soll AcmePay im spanischen Onboarding unübersetzt bleiben?"
@@ -1064,6 +1073,9 @@
   "08svfZAX+A": {
     "defaultMessage": "ein Glossar gelöscht"
   },
+  "091kJoAeYj": {
+    "defaultMessage": "{count, plural, one {one other setting} other {# other settings}}"
+  },
   "093XtFZn8Y": {
     "defaultMessage": "Durchsatz und Gebietsschema-Integrität überwachen"
   },
@@ -1325,6 +1337,9 @@
   "0d2hyvxzDu": {
     "defaultMessage": "Zielsprache"
   },
+  "0dFZxKMyvL": {
+    "defaultMessage": "Run every step for real"
+  },
   "0dJl0iGob6": {
     "defaultMessage": "Schleife"
   },
@@ -1399,6 +1414,9 @@
   },
   "0pg6zXLFtI": {
     "defaultMessage": "Rollenberechtigungen"
+  },
+  "0pyGkDDDgZ": {
+    "defaultMessage": "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses."
   },
   "0qIbYrqvNR": {
     "defaultMessage": "Überschrift 1"
@@ -1577,6 +1595,9 @@
   "1Do2u8ufv7": {
     "defaultMessage": "Noch keine nativen Projekte vorhanden. Erstelle ein Projekt, um zu beginnen."
   },
+  "1Dpcm8IxPm": {
+    "defaultMessage": "Test data taken from this run for {count, plural, one {# step} other {# steps}}."
+  },
   "1EFh6senwK": {
     "defaultMessage": "Prüfer"
   },
@@ -1681,6 +1702,9 @@
   },
   "1ToGNDd6TO": {
     "defaultMessage": "Dateien"
+  },
+  "1U9PZ5VcN2": {
+    "defaultMessage": "Clear"
   },
   "1UF6LNQQqI": {
     "defaultMessage": "Hero-Passung"
@@ -1937,6 +1961,9 @@
   "2+doJ4Hdy3": {
     "defaultMessage": "Header (JSON-Objekt)"
   },
+  "2+el5hYSzQ": {
+    "defaultMessage": "Template"
+  },
   "2+iIGrGb+G": {
     "defaultMessage": "Sprache wechseln.\nSehen Sie, was nicht funktioniert."
   },
@@ -2096,6 +2123,9 @@
   "2EB3wgNEGj": {
     "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer."
   },
+  "2Ejjbg+BRh": {
+    "defaultMessage": "Create a Figma connection in workspace Integrations first, then return to Figma and try again."
+  },
   "2Eln7MuWtc": {
     "defaultMessage": "Entfernen"
   },
@@ -2221,6 +2251,9 @@
   },
   "2VWwjqjclF": {
     "defaultMessage": "Zuständige Person"
+  },
+  "2WCxnj9DvK": {
+    "defaultMessage": "Could not add a step"
   },
   "2Wf+R5t111": {
     "defaultMessage": "{requestedLocale} ist keine Ziellocale für diese Datei. Doppelklicken Sie auf eine Datei oder verwenden Sie „Strings anzeigen“, um den CAT-Arbeitsbereich für {targetLocale} zu öffnen."
@@ -2468,6 +2501,9 @@
   "319r5R8fnf": {
     "defaultMessage": "In einem Test verwendet"
   },
+  "31JruwfzqD": {
+    "defaultMessage": "Copied"
+  },
   "31b9kvfP1i": {
     "defaultMessage": "Lokalisierungs-Diff wird gelesen …"
   },
@@ -2671,6 +2707,9 @@
   },
   "3URR9qLWsH": {
     "defaultMessage": "Ja. Hyperlocalise-Agenten sind in Integrationen wie Slack, Teams und GitHub verfügbar, sodass Teams dort Aufgaben anfordern können, wo sie bereits zusammenarbeiten. Die verfügbaren Aktionen hängen von der Integration und der Workspace-Konfiguration ab."
+  },
+  "3UVVqU60g6": {
+    "defaultMessage": "Ahrefs"
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Weiter"
@@ -3269,6 +3308,9 @@
   "4f79gyGj6Q": {
     "defaultMessage": "{subject} geöffnet"
   },
+  "4fBLqa8Qde": {
+    "defaultMessage": "Cancel"
+  },
   "4g0qoebzmh": {
     "defaultMessage": "Die Berichterstattung erfasst nur neue Aktivitäten. Frühere Aktivitäten sind nicht verfügbar, nicht gleich null. Datumsangaben und Wochen verwenden UTC."
   },
@@ -3533,6 +3575,9 @@
   "5C0es8ldjV": {
     "defaultMessage": "Markenstimme · Styleguide"
   },
+  "5C3EksSWTF": {
+    "defaultMessage": "Choose a connection to authorize this Figma app install."
+  },
   "5CjwrQGWSz": {
     "defaultMessage": "System"
   },
@@ -3589,6 +3634,9 @@
   },
   "5N7UDRdane": {
     "defaultMessage": "Verbinde einen Semrush-API-Schlüssel für SEO- und Traffic-Daten in Automatisierungen."
+  },
+  "5NY8ijgpii": {
+    "defaultMessage": "No changes made to the workflow"
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projekte"
@@ -3980,6 +4028,9 @@
   "6CovsOk2Kn": {
     "defaultMessage": "Hyperlocalise-Agent"
   },
+  "6DeonnLXWl": {
+    "defaultMessage": "This Figma authorization request is missing or expired. Start again from Figma."
+  },
   "6DqYm4cuZL": {
     "defaultMessage": "Webhook"
   },
@@ -3997,6 +4048,9 @@
   },
   "6F6TSGIXMs": {
     "defaultMessage": "Die Datei muss unter dem exakten Pfad öffentlich erreichbar sein."
+  },
+  "6GvRaMOu4p": {
+    "defaultMessage": "Create an API key with files and jobs permissions first."
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Wählen Sie eine TMX- oder CSV-Datei aus."
@@ -4315,6 +4369,9 @@
   },
   "6zAmu9E3FT": {
     "defaultMessage": "Manueller Lauf kann derzeit nicht zur Warteschlange hinzugefügt werden"
+  },
+  "6zcjX66YhX": {
+    "defaultMessage": "Select an API key"
   },
   "7+2d5ot9yA": {
     "defaultMessage": "See details"
@@ -4745,6 +4802,9 @@
   "7t3FQ5TrY6": {
     "defaultMessage": "Rechtliches · 6 Seiten · Verbunden"
   },
+  "7tK9YSDkvx": {
+    "defaultMessage": "Changed {fields} on the {node} step"
+  },
   "7tPiM+8vOJ": {
     "defaultMessage": "Auf diesen Entwurf angewendet"
   },
@@ -4795,6 +4855,9 @@
   },
   "7zni895OkR": {
     "defaultMessage": "Automatisierung erstellt"
+  },
+  "7zsudhIRfP": {
+    "defaultMessage": "Insert a field into {label}"
   },
   "8+43PQyB4j": {
     "defaultMessage": "Kontextbezogen über alle Inhaltsquellen hinweg"
@@ -5008,6 +5071,9 @@
   },
   "8OHSn5eQCa": {
     "defaultMessage": "Verbotener Glossarbegriff"
+  },
+  "8Oj/NozToL": {
+    "defaultMessage": "Choose a workspace API key with files and jobs read/write access."
   },
   "8Oyr38Aj4F": {
     "defaultMessage": "Loslegen"
@@ -5368,6 +5434,9 @@
   },
   "93i6HvwXyA": {
     "defaultMessage": "{count, plural, one {# übersetzbarer String insgesamt} other {# übersetzbare Strings insgesamt}}"
+  },
+  "94INRlGgGA": {
+    "defaultMessage": "The test run could not start."
   },
   "94NuGR6Dav": {
     "defaultMessage": "{format} · {mode}"
@@ -6539,6 +6608,9 @@
   "Bb2DHr7bXd": {
     "defaultMessage": "Auftrag abgebrochen"
   },
+  "Bb2iyK74xB": {
+    "defaultMessage": "optional"
+  },
   "BbOj+wUXk0": {
     "defaultMessage": "Einmal veröffentlichen.  \nÜberall gefunden werden."
   },
@@ -6604,6 +6676,9 @@
   },
   "BiKIjgXcMN": {
     "defaultMessage": "Integrationen öffnen"
+  },
+  "BicOZ7c8PB": {
+    "defaultMessage": "Authorize Figma"
   },
   "BjVwBrTuYP": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
@@ -6959,6 +7034,9 @@
   "CQEmCrymE3": {
     "defaultMessage": "Brand-claims-policy.pdf"
   },
+  "CQU1/0C8er": {
+    "defaultMessage": "Use as test data"
+  },
   "CR4EdyZSZI": {
     "defaultMessage": "Wer ist berechtigt?"
   },
@@ -7099,6 +7177,9 @@
   },
   "Ck9MOHJiWV": {
     "defaultMessage": "Diese Domain ist bereits verknüpft. Bearbeiten Sie stattdessen ihre Locales."
+  },
+  "CkFkjy7fQ+": {
+    "defaultMessage": "Use test data"
   },
   "CkQ3yx9NoL": {
     "defaultMessage": "Wissen"
@@ -7583,6 +7664,9 @@
   "DhOP2jRCDv": {
     "defaultMessage": "Jede Bewertung macht die nächste intelligenter"
   },
+  "Dhw0m5NXT1": {
+    "defaultMessage": "Fixed value"
+  },
   "Dhz9gdqnZ4": {
     "defaultMessage": "Der nächste Workflow startet intelligenter"
   },
@@ -7666,6 +7750,9 @@
   },
   "DtVOLEpfXB": {
     "defaultMessage": "Langer Text"
+  },
+  "Dtr9SPmsqm": {
+    "defaultMessage": "Done"
   },
   "DuGUFMT/N4": {
     "defaultMessage": "importierte Abfragen"
@@ -8099,6 +8186,9 @@
   "ElqTdiMapl": {
     "defaultMessage": "Durchsuchen Sie Quelldateien vom verbundenen TMS-Anbieter und öffnen Sie eine davon im Inhaltseditor, sofern sie unterstützt wird."
   },
+  "ElvzqUrelV": {
+    "defaultMessage": "Outcome"
+  },
   "ElyQMTBOLz": {
     "defaultMessage": "Das Zeichenlimit konnte nicht aktualisiert werden"
   },
@@ -8272,6 +8362,9 @@
   },
   "F7I6G7lNye": {
     "defaultMessage": "Projektdateien konnten nicht geladen werden."
+  },
+  "F7MPcZxBJI": {
+    "defaultMessage": "Added the {node} step"
   },
   "F7WfKl5UxS": {
     "defaultMessage": "Für diese Filter wurde keine Aktivität aufgezeichnet. Führen Sie eine Übersetzung aus oder erfassen Sie Zeit, um mit der Berichterstellung zu beginnen."
@@ -8456,6 +8549,9 @@
   "FVe674aA/n": {
     "defaultMessage": "Heidi Health"
   },
+  "FWjftu2kiI": {
+    "defaultMessage": "Saved credential"
+  },
   "FXDqvAOc70": {
     "defaultMessage": "Erstellt"
   },
@@ -8491,6 +8587,9 @@
   },
   "FaT5oUwQOq": {
     "defaultMessage": "Eine Seite kann live sein und trotzdem unsichtbar bleiben. Domains zeigt die Lücken in jeder Sprache, in der Suche und in KI-Antworten auf."
+  },
+  "FamtHptssa": {
+    "defaultMessage": "Figma connection deleted."
   },
   "Fb4AJ4nGEX": {
     "defaultMessage": "Nach Name oder Stelle suchen"
@@ -8551,6 +8650,9 @@
   },
   "Fhrua/1XPG": {
     "defaultMessage": "Übersetzungen überprüfen, ohne zu erraten, was der String bedeutet"
+  },
+  "FhxuAfxzUP": {
+    "defaultMessage": "{count, plural, =0 {Every step uses its test data.} one {# step runs for real.} other {# steps run for real.}}"
   },
   "FiNdNgLOfB": {
     "defaultMessage": "Weil jede Sprache eine weitere Möglichkeit bietet, Menschen miteinander zu verbinden."
@@ -8927,8 +9029,14 @@
   "Gb5iBYRxAb": {
     "defaultMessage": "{current} / {max}"
   },
+  "GbD3NV3O9z": {
+    "defaultMessage": "Failed to regenerate the Figma connection token."
+  },
   "Gbi1Dt47vU": {
     "defaultMessage": "Projekte, Integrationen, Zugangsdaten, Teams und Richtlinienressourcen verwalten; Reviews genehmigen und Änderungen zurückschreiben."
+  },
+  "GcIOfZ18Z9": {
+    "defaultMessage": "Run test"
   },
   "GdV4Jl3WMg": {
     "defaultMessage": "Wird ausgeführt, wenn Contentful einen passenden Webhook zum Erstellen oder Aktualisieren eines Eintrags sendet."
@@ -9100,6 +9208,9 @@
   },
   "Gx82rosgM3": {
     "defaultMessage": "Erschließen Sie neue Märkte, erstellen Sie mit derselben Mitarbeiterzahl zehnmal mehr mehrsprachige Inhalte und sichern Sie die Qualität beim Skalieren."
+  },
+  "GxutMPC4gp": {
+    "defaultMessage": "Configuration"
   },
   "Gy9Swg1os7": {
     "defaultMessage": "Zugriff bis zum {date}"
@@ -9350,6 +9461,9 @@
   "HV+orx8sr6": {
     "defaultMessage": "Änderungen an Strings erkennen und automatisch übersetzen"
   },
+  "HVa66T0BGY": {
+    "defaultMessage": "{count, plural, one {# step ran for real} other {# steps ran for real}}"
+  },
   "HVlJ+nwIfE": {
     "defaultMessage": "Die Vorschau ist bereit. Überprüfen Sie die unten aufgeführten Anzahlen und importieren Sie anschließend die Einträge in diesen Übersetzungsspeicher."
   },
@@ -9464,6 +9578,9 @@
   "HmIchM6Zb8": {
     "defaultMessage": "KI-abgeleiteter Kontext, Platzierung und Produktbedeutung für dieses visuelle Asset"
   },
+  "HmXZYnVvj0": {
+    "defaultMessage": "These steps call out for real in this test run. What they do happens and cannot be undone."
+  },
   "Hmhv+bwMHl": {
     "defaultMessage": "Persönlichen Zugriffstoken widerrufen"
   },
@@ -9541,6 +9658,9 @@
   },
   "HtM5Jg2cRQ": {
     "defaultMessage": "Zusammenführen deaktivieren"
+  },
+  "HtVUcSTMS/": {
+    "defaultMessage": "On error is set to Continue, so the test run goes on past this step."
   },
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, Übersetzung und Programmierung"
@@ -10163,6 +10283,9 @@
   "JC+c980Dxc": {
     "defaultMessage": "CSV"
   },
+  "JC/7r38rMk": {
+    "defaultMessage": "Changed the settings of the {node} step"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint"
   },
@@ -10177,6 +10300,9 @@
   },
   "JEdlCIcj1G": {
     "defaultMessage": "Wird getrennt…"
+  },
+  "JEi80S8Q14": {
+    "defaultMessage": "Ask for a change, or say what this workflow should do."
   },
   "JHFSIHw0S8": {
     "defaultMessage": "Benutzerdefiniert"
@@ -10253,6 +10379,12 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JQZCOawuKC": {
+    "defaultMessage": "Figma app authorized. Return to Figma to finish connecting."
+  },
+  "JQuMZXhBtU": {
+    "defaultMessage": "Enter valid JSON."
+  },
   "JRTnSLtq//": {
     "defaultMessage": "Intercom"
   },
@@ -10294,6 +10426,9 @@
   },
   "JV74CwQ5fc": {
     "defaultMessage": "Aktualisiere…"
+  },
+  "JVogogkuBP": {
+    "defaultMessage": "Use last run"
   },
   "JWYwsX1bkl": {
     "defaultMessage": "Gesprochene Audiodateien für lokalisierte Voiceovers, Vorschauen und Agentenantworten."
@@ -10372,6 +10507,9 @@
   },
   "JikjOnc0U+": {
     "defaultMessage": "Speichern fehlgeschlagen"
+  },
+  "JisM1jWILg": {
+    "defaultMessage": "Removed the {node} step"
   },
   "JjXQ6VXECt": {
     "defaultMessage": "Access tokens"
@@ -10462,6 +10600,9 @@
   },
   "JuVYR2r3yd": {
     "defaultMessage": "Navigationsmenü"
+  },
+  "JuzH9vR7ay": {
+    "defaultMessage": "Succeeds"
   },
   "JvZ26UFlte": {
     "defaultMessage": "Führen Sie dann {command} aus, um sich zu authentifizieren."
@@ -10703,6 +10844,9 @@
   "KXkRSMd8ip": {
     "defaultMessage": "Patch"
   },
+  "KXlC8hrmGf": {
+    "defaultMessage": "Disconnected {source} from {target}"
+  },
   "KXnH/FP4XN": {
     "defaultMessage": "HTTP"
   },
@@ -10741,6 +10885,9 @@
   },
   "KbRaMGCw9d": {
     "defaultMessage": "Arbeitsdatum (UTC)"
+  },
+  "KbaeWqdfEa": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab."
   },
   "Kbq8fI6g+r": {
     "defaultMessage": "Die Aufnahme konnte nicht in die Warteschlange gestellt werden."
@@ -10960,6 +11107,9 @@
   },
   "L9CYRKrj6S": {
     "defaultMessage": "Administrator"
+  },
+  "LAhLwqc2EA": {
+    "defaultMessage": "Figma"
   },
   "LAx6QaaPwX": {
     "defaultMessage": "Auswählen"
@@ -11375,6 +11525,9 @@
   "M09MwVsnwY": {
     "defaultMessage": "Suchen"
   },
+  "M0Sc0iJFfe": {
+    "defaultMessage": "More actions"
+  },
   "M0cRkUTb0F": {
     "defaultMessage": "Diese Automatisierung hat bereits die maximale Anzahl an Wissensdateien erreicht."
   },
@@ -11465,6 +11618,9 @@
   "M8XELItknC": {
     "defaultMessage": "Im Editor öffnen"
   },
+  "M9MtJAsUOq": {
+    "defaultMessage": "On error is set to Stop, so the test run stops at this step."
+  },
   "M9l7nT/Rpj": {
     "defaultMessage": "Ausstehende Verifizierung"
   },
@@ -11542,6 +11698,9 @@
   },
   "MJXPKuSba6": {
     "defaultMessage": "Volumen"
+  },
+  "MK78Fh8i76": {
+    "defaultMessage": "Error message"
   },
   "MKqk5CAbrB": {
     "defaultMessage": "Zurück zu Integrationen"
@@ -11761,6 +11920,9 @@
   },
   "Mojh5Scg1j": {
     "defaultMessage": "Wählen Sie die Region aus, in der Ihr Intercom-Arbeitsbereich gehostet wird."
+  },
+  "Mpd2ZhrVg/": {
+    "defaultMessage": "Choose an API key."
   },
   "Mpg1bKhmu2": {
     "defaultMessage": "Genehmigungsstatus"
@@ -12050,6 +12212,9 @@
   "NO+1ZaqMKM": {
     "defaultMessage": "Spalte hinzugefügt"
   },
+  "NOPoUyz/8O": {
+    "defaultMessage": "Renamed the workflow to \"{name}\""
+  },
   "NP2wAmeM1j": {
     "defaultMessage": "Fälligkeitsdatum"
   },
@@ -12142,6 +12307,9 @@
   },
   "NanjjZ6X+o": {
     "defaultMessage": "Keine Übersetzungsspeicher entsprechen Ihren Filtern. <clear>Filter löschen</clear>"
+  },
+  "NbAZVkN3TH": {
+    "defaultMessage": "Another step reads this, so a test run needs it."
   },
   "NbLadz5lws": {
     "defaultMessage": "Eigenschaften"
@@ -12539,6 +12707,9 @@
   "OSUbc/2Yxx": {
     "defaultMessage": "EN · FR · DE · JA Nachfrage im Vergleich"
   },
+  "OSdBlPpXbz": {
+    "defaultMessage": "Could not rename the workflow"
+  },
   "OSxEF0/gz3": {
     "defaultMessage": "Identische Zeichenfolgen automatisch zusammenführen"
   },
@@ -12658,6 +12829,9 @@
   },
   "OiGEycK9rN": {
     "defaultMessage": "Experimente"
+  },
+  "OiJHVksWWK": {
+    "defaultMessage": "On error is set to Branch, so the test run takes this step's error path."
   },
   "Oiey9nLAFp": {
     "defaultMessage": "Hyperlocalise hat die Contentful-Webhook-Konfiguration aktualisiert."
@@ -13175,6 +13349,9 @@
   "Pq7Qwu7wbl": {
     "defaultMessage": "Aktiviert"
   },
+  "PqA9E3tXEb": {
+    "defaultMessage": "Failed to load Figma connections."
+  },
   "PqqKKd0E77": {
     "defaultMessage": "Projekt konnte nicht erstellt werden"
   },
@@ -13336,6 +13513,9 @@
   },
   "Q6oQuKFEbX": {
     "defaultMessage": "Bringen Sie Ihren eigenen Modell-Stack mit"
+  },
+  "Q7NvaWMPza": {
+    "defaultMessage": "Error code"
   },
   "Q8OhM5eaVm": {
     "defaultMessage": "Programmieren"
@@ -13717,6 +13897,9 @@
   },
   "QvT2rHSxpM": {
     "defaultMessage": "Ebenen gespeichert"
+  },
+  "Qw/ZLtBjN0": {
+    "defaultMessage": "Crowdin"
   },
   "Qw3AuwhQJ4": {
     "defaultMessage": "String ausgeblendet"
@@ -14582,6 +14765,9 @@
   "SuWouxpjlP": {
     "defaultMessage": "Retrying"
   },
+  "Supl3UvqqT": {
+    "defaultMessage": "Local development only. This token is shown once. Paste it into a locally running Figma app. Production uses Connect Hyperlocalise (OAuth)."
+  },
   "SusA/f3CfU": {
     "defaultMessage": "Für dieses Projekt wurden noch keine Hyperlocalise-Jobs gefunden."
   },
@@ -14663,6 +14849,9 @@
   "T0J/dVp/Dp": {
     "defaultMessage": "Aktionen"
   },
+  "T17lvAfQL0": {
+    "defaultMessage": "All test data (JSON)"
+  },
   "T1Sk0Af2ER": {
     "defaultMessage": "Dagegen"
   },
@@ -14728,6 +14917,9 @@
   },
   "TCrPfIJsvP": {
     "defaultMessage": "Projekte prüfen"
+  },
+  "TD3EETjvkY": {
+    "defaultMessage": "Add connection"
   },
   "TDO0IYa70X": {
     "defaultMessage": "Kommentar gelöscht"
@@ -15263,6 +15455,9 @@
   "UIvzDxY9Tn": {
     "defaultMessage": "Beginnt mit {prefix}"
   },
+  "UIxKl4gSfi": {
+    "defaultMessage": "Updated the workflow · {count, plural, one {# change} other {# changes}}"
+  },
   "UJFX+3Y3fz": {
     "defaultMessage": "Fehlerzweig"
   },
@@ -15304,6 +15499,9 @@
   },
   "UNee5IDZlj": {
     "defaultMessage": "Übersetzung verfeinern"
+  },
+  "UNu4p11x2h": {
+    "defaultMessage": "Copy token"
   },
   "UO1B3Nh+0U": {
     "defaultMessage": "Tools"
@@ -15578,6 +15776,9 @@
   "UvtZVrIkJR": {
     "defaultMessage": "Entferne Kanten, die auf fehlende Schritte verweisen."
   },
+  "UwAnfXP81g": {
+    "defaultMessage": "This Figma connect request is missing or expired."
+  },
   "Uwe1uvQEJi": {
     "defaultMessage": "PR-Sichtbarkeit"
   },
@@ -15646,6 +15847,9 @@
   },
   "V21lzZzbHn": {
     "defaultMessage": "Wörter für dieses Gebietsschema konnten nicht exportiert werden."
+  },
+  "V2whWmooom": {
+    "defaultMessage": "Find a field"
   },
   "V3N8wNW3/m": {
     "defaultMessage": "Doch wir sahen auch die Realität hinter jedem erfolgreichen globalen Launch. Lokalisierungsteams arbeiteten unermüdlich daran, mit der Produktentwicklung Schritt zu halten. Produktkontext war an Dutzenden von Orten verteilt. Fragen wurden projektübergreifend wiederholt. Prüfungen zogen sich über mehrere Zeitzonen hinweg. Je schneller Produkte veröffentlicht wurden, desto größer wurde die operative Belastung."
@@ -15727,6 +15931,9 @@
   },
   "VEHKmr6W1d": {
     "defaultMessage": "Veröffentlichung"
+  },
+  "VElAUDjdAE": {
+    "defaultMessage": "Run {count, plural, one {# step} other {# steps}} for real?"
   },
   "VFS/q4p0GR": {
     "defaultMessage": "Zeitzone des Zeitplans"
@@ -15923,11 +16130,17 @@
   "VhXGN4Fsgz": {
     "defaultMessage": "Marktempfehlungen konnten nicht geladen werden."
   },
+  "VhvPvEqliZ": {
+    "defaultMessage": "Connect Figma"
+  },
   "ViFhELlwfG": {
     "defaultMessage": "Demo anfordern"
   },
   "Vj/gZDKJUv": {
     "defaultMessage": "Keine Segmente entsprechen den aktuellen Filtern."
+  },
+  "VjG0Zt9Hr8": {
+    "defaultMessage": "Test"
   },
   "VkNsZOH7xT": {
     "defaultMessage": "Organisation auswählen"
@@ -15937,6 +16150,9 @@
   },
   "Vl/WJ79qHw": {
     "defaultMessage": "Verbinden Sie Resend oder SendGrid unter <link>Integrationen</link>, um E-Mail-Benachrichtigungen zu nutzen."
+  },
+  "VluH2EAHsX": {
+    "defaultMessage": "Cleared the workflow's name"
   },
   "Vm1k8EkL8L": {
     "defaultMessage": "Problem"
@@ -16120,6 +16336,9 @@
   },
   "W8paQ6RjZy": {
     "defaultMessage": "Wie sieht der Lokalisierungsfortschritt in den verknüpften TMS-Projekten aus?"
+  },
+  "W9Pt1ytVfg": {
+    "defaultMessage": "Token starting with {prefix}"
   },
   "W9S7Ht69kS": {
     "defaultMessage": "Wissensspeicher"
@@ -16508,6 +16727,9 @@
   "Wzlq8Ew/Ii": {
     "defaultMessage": "API-Schlüssel"
   },
+  "X+6eLCg8p5": {
+    "defaultMessage": "Edit as text"
+  },
   "X+8j5AXyLj": {
     "defaultMessage": "In dieser Bibliothek finden Sie genehmigte Hinweise zum EU-KI-Gesetz, DSGVO-Marketingaussagen und Formulierungen zu gesundheitsbezogenen Angaben."
   },
@@ -16783,6 +17005,9 @@
   },
   "XYe4THixuv": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
+  },
+  "XZ5ZBfMizx": {
+    "defaultMessage": "Uses test data from {steps}"
   },
   "XaU9VG5iR6": {
     "defaultMessage": "Mitglied kann nicht zum Team hinzugefügt werden."
@@ -17342,6 +17567,9 @@
   "YkALJEyJhF": {
     "defaultMessage": "Änderungsanalyse"
   },
+  "YkGSzDTzNH": {
+    "defaultMessage": "Runs for real in test runs"
+  },
   "YkWm74hjVM": {
     "defaultMessage": "Weitere werden geladen …"
   },
@@ -17788,6 +18016,9 @@
   },
   "Zjsr28k65x": {
     "defaultMessage": "Übersichtliche Prüftabelle mit Sammelfreigabe und QA-Fehlerverfolgung"
+  },
+  "ZkAbhQobmZ": {
+    "defaultMessage": "Display name"
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Als Bild behandeln"
@@ -18260,6 +18491,9 @@
   "adEnn5Hnc9": {
     "defaultMessage": "GitHub hat die Anmeldedaten der App in dieser Umgebung abgelehnt. Setzen Sie GITHUB_APP_ID auf die App-ID aus den GitHub-App-Einstellungen und GITHUB_APP_PRIVATE_KEY auf das passende PEM (verwenden Sie wörtliche \\n-Zeilenumbrüche oder kodieren Sie die gesamte Datei in Base64)."
   },
+  "adR2DRzo2Q": {
+    "defaultMessage": "Enter a display name."
+  },
   "adTqYP7Vjb": {
     "defaultMessage": "Alle Regionen"
   },
@@ -18683,6 +18917,9 @@
   "bXM2sr8gtz": {
     "defaultMessage": "API-Schlüssel in die Zwischenablage kopiert"
   },
+  "bXMU39hmQJ": {
+    "defaultMessage": "Updated the workflow"
+  },
   "bXnJyD63X6": {
     "defaultMessage": "Verbinde Slack, Notion, Contentful und den Rest. Lass dann die nächste Kampagne demselben Ablauf folgen."
   },
@@ -18694,6 +18931,9 @@
   },
   "bYsksXFrGX": {
     "defaultMessage": "Änderungen verwerfen"
+  },
+  "bZKwFr1ByM": {
+    "defaultMessage": "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save."
   },
   "bZmWrWqZb+": {
     "defaultMessage": "Push-Quelle"
@@ -18848,6 +19088,9 @@
   "bsA+uhksQg": {
     "defaultMessage": "Für dieses Gebietsschema gibt es noch keine Wörter."
   },
+  "bsLwr0ECfl": {
+    "defaultMessage": "Save"
+  },
   "bsU0qqr6A2": {
     "defaultMessage": "Übersicht"
   },
@@ -18937,6 +19180,9 @@
   },
   "c3udbicBEE": {
     "defaultMessage": "Drift bereit"
+  },
+  "c43lsobCtO": {
+    "defaultMessage": "{count, plural, one {A test value is missing} other {# test values are missing}}"
   },
   "c4Om5rZTyf": {
     "defaultMessage": "Verbinden Sie die Systeme, die dieser Arbeitsbereich für Quellinhalte, Zusammenarbeit und Übersetzungen verwendet."
@@ -19127,6 +19373,9 @@
   "cRg9/fMFSw": {
     "defaultMessage": "Beim Audit dieser Domain ist etwas schiefgelaufen. Sie können es bedenkenlos erneut versuchen."
   },
+  "cRhF5oMlHA": {
+    "defaultMessage": "Remove"
+  },
   "cRtcug0AF8": {
     "defaultMessage": "Nicht aufteilen"
   },
@@ -19240,6 +19489,9 @@
   },
   "cgwAYz/R89": {
     "defaultMessage": "{providerName} aktualisieren"
+  },
+  "ch9gwSSThi": {
+    "defaultMessage": "Set {path} on the Test tab of {step}."
   },
   "ch9kNq8+UC": {
     "defaultMessage": "Unbekannte Größe"
@@ -19724,6 +19976,9 @@
   "dcbWLpn6f2": {
     "defaultMessage": "Aktualisierungsdatum nicht verfügbar"
   },
+  "dcomOTuPbB": {
+    "defaultMessage": "Updating the workflow…"
+  },
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainisch (Ukraine)"
   },
@@ -19990,6 +20245,9 @@
   },
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, Locale-Abdeckung und Qualität mehrsprachiger Inhalte"
+  },
+  "e5EIKdt4+j": {
+    "defaultMessage": "Could not change a step's settings"
   },
   "e5w8XM92TM": {
     "defaultMessage": "hat eine Zeichenfolge ausgeblendet"
@@ -20363,6 +20621,9 @@
   "eqUM05Hftm": {
     "defaultMessage": "Dieser Arbeitsbereich unterstützt bis zu {count} Textelemente. Entfernen Sie ein Element, bevor Sie weitere hinzufügen."
   },
+  "eqeg8nHR3p": {
+    "defaultMessage": "Enabled"
+  },
   "erXgCbsSqH": {
     "defaultMessage": "Gefilterte Daten als CSV exportieren"
   },
@@ -20707,6 +20968,9 @@
   },
   "fWyfUTYZOq": {
     "defaultMessage": "Wählen Sie ein Keyword aus, um dessen Suchnachfrage und Ranking-Ergebnisse zu analysieren."
+  },
+  "fX43+IisLH": {
+    "defaultMessage": "Could not disconnect two steps"
   },
   "fXIJvHCrL6": {
     "defaultMessage": "Vorheriger Abschnitt"
@@ -21070,6 +21334,9 @@
   },
   "gFvQ/JVP4A": {
     "defaultMessage": "Fehler und Warnungen im Zeitverlauf"
+  },
+  "gGRRIh5EV/": {
+    "defaultMessage": "Linked to Figma brand {brandId}"
   },
   "gHUxugs0eg": {
     "defaultMessage": "Für Lokalisierungsteams entwickelt. Starten Sie noch heute kostenlos."
@@ -21473,6 +21740,9 @@
   "h0dd/MaO2f": {
     "defaultMessage": "Sammle Änderungen an Strings, PR-Beschreibungen, Slack-Threads und Launch-Briefs, damit Übersetzer sehen, warum sich der Text geändert hat – nicht nur den Diff."
   },
+  "h0hMmM+3k4": {
+    "defaultMessage": "Braze"
+  },
   "h11M7dgCU3": {
     "defaultMessage": "Team"
   },
@@ -21511,6 +21781,9 @@
   },
   "h3qjecOeg8": {
     "defaultMessage": "{projectName} beim Anbieter öffnen"
+  },
+  "h4LTn78oL0": {
+    "defaultMessage": "Regenerate token"
   },
   "h4qqRHFDUX": {
     "defaultMessage": "Senden"
@@ -21628,6 +21901,9 @@
   },
   "hLYu5z/3mF": {
     "defaultMessage": "Veröffentlichen und optimieren Sie mehrsprachige Webinhalte für SEO, AEO und die lokale Auffindbarkeit."
+  },
+  "hLqs+EeEG8": {
+    "defaultMessage": "Connect this on the canvas."
   },
   "hMCKrgEEKW": {
     "defaultMessage": "Noch keine Kommentare oder Aktivitäten. Beginne die Diskussion."
@@ -22211,11 +22487,17 @@
   "iUA2MassCX": {
     "defaultMessage": "Wählen Sie eine Unterhaltung aus, um Details anzuzeigen"
   },
+  "iUENcP8UXx": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab."
+  },
   "iUfm3OxPfC": {
     "defaultMessage": "Synchronisierung"
   },
   "iUgXrXTD7Q": {
     "defaultMessage": "Hebräisch (Israel)"
+  },
+  "iUhV4+Yq09": {
+    "defaultMessage": "Test runs call out for real for this step: requests are sent, content is generated and messages are delivered. Its test data is kept for when it uses test data again."
   },
   "iV4M/BRREW": {
     "defaultMessage": "Anhang"
@@ -22252,6 +22534,9 @@
   },
   "ia5z3O+Lwm": {
     "defaultMessage": "Lokalisierte Videoerstellung und -neuerstellung für Bildschirmtexte und gesprochene Audiospuren."
+  },
+  "iaKQFI88/f": {
+    "defaultMessage": "Failed to save Figma connection."
   },
   "iaUn+Dn3Pk": {
     "defaultMessage": "Das Platzhalterformat konnte nicht geladen werden."
@@ -22313,11 +22598,17 @@
   "ih/69cODWD": {
     "defaultMessage": "Wird gesendet …"
   },
+  "ihICBXS5Mu": {
+    "defaultMessage": "Save"
+  },
   "ihYGlJZXjP": {
     "defaultMessage": "GitHub-Aktion"
   },
   "ihy++kxglc": {
     "defaultMessage": "Sprache auswählen"
+  },
+  "ijeBZJPxQs": {
+    "defaultMessage": "Semrush"
   },
   "il32pCskAo": {
     "defaultMessage": "Domains"
@@ -22414,6 +22705,9 @@
   },
   "iswoFpqCGE": {
     "defaultMessage": "GitHub-PR"
+  },
+  "it+CxLEVkH": {
+    "defaultMessage": "Insert a field from an earlier step"
   },
   "it5/fNQT1d": {
     "defaultMessage": "Gebietsschema verwenden"
@@ -22666,6 +22960,9 @@
   },
   "jSY7h//Jq9": {
     "defaultMessage": "Mit genehmigten Baselines vergleichen"
+  },
+  "jSZ5KDgjs6": {
+    "defaultMessage": "Describe what this workflow should do, or ask for a change."
   },
   "jSv2EzfhBb": {
     "defaultMessage": "alle"
@@ -23063,6 +23360,9 @@
   "kBjfpWlIHs": {
     "defaultMessage": "Läuft"
   },
+  "kC1soSUZq7": {
+    "defaultMessage": "The event this trigger passes on when you test the workflow. Real runs use the real event."
+  },
   "kC3PfwuLdP": {
     "defaultMessage": "Suchen"
   },
@@ -23083,6 +23383,9 @@
   },
   "kE7O20HfQk": {
     "defaultMessage": "Verbleibend (USD)"
+  },
+  "kEhYEqOX8G": {
+    "defaultMessage": "Disconnect"
   },
   "kF6mTL+t+j": {
     "defaultMessage": "{metric} nach Tag: {values}"
@@ -23117,6 +23420,9 @@
   "kHsmQCneif": {
     "defaultMessage": "Auslöser"
   },
+  "kHvyGVv5TJ": {
+    "defaultMessage": "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test."
+  },
   "kIG+JJHbzJ": {
     "defaultMessage": "Zoom zurücksetzen"
   },
@@ -23143,6 +23449,9 @@
   },
   "kMySdc7EDT": {
     "defaultMessage": "Abbrechen"
+  },
+  "kN6qwzFh/5": {
+    "defaultMessage": "Fill with examples"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "Überprüfung erforderlich"
@@ -23444,6 +23753,9 @@
   "kzAQTYATA+": {
     "defaultMessage": "Wählen Sie aus, ob Aktualisierungen des Issue-Sheet-Posteingangs auch an Ihre E-Mail-Adresse gesendet werden."
   },
+  "kzH21n29Rp": {
+    "defaultMessage": "Step settings"
+  },
   "kzMTx+wIMg": {
     "defaultMessage": "Bereitgestellt von der Google Domain Rank Overview API von DataForSEO Labs."
   },
@@ -23528,6 +23840,9 @@
   "lAx3q9l5/u": {
     "defaultMessage": "Wählen Sie die Modellanbieter und Tools aus, denen Ihr Team vertraut. Überlassen Sie Agenten wiederkehrende Aufgaben, während Menschen eingebunden bleiben."
   },
+  "lB0h34jODa": {
+    "defaultMessage": "Deny"
+  },
   "lBt4D36OVV": {
     "defaultMessage": "Update schließen"
   },
@@ -23554,6 +23869,9 @@
   },
   "lES6CzVw2i": {
     "defaultMessage": "Produktübersicht"
+  },
+  "lEXKxwEywz": {
+    "defaultMessage": "Connected {source} to {target}"
   },
   "lEmnokrrS2": {
     "defaultMessage": "hat eine verknüpfte Domain erstellt"
@@ -23680,6 +23998,9 @@
   },
   "lWsEWOz8r0": {
     "defaultMessage": "Eingehende Adresse bereit. Senden Sie Dateien oder Bilder mit einer Zielsprache per E-Mail zum Übersetzen."
+  },
+  "lX5fkBbKOJ": {
+    "defaultMessage": "Figma is requesting access to localize designs through a Hyperlocalise workspace connection."
   },
   "lXXmdSGuM3": {
     "defaultMessage": "Verbinden Sie {providerName} erneut, damit diese Integration weiterhin funktioniert."
@@ -23914,6 +24235,9 @@
   },
   "m3RSvNywAR": {
     "defaultMessage": "Aktivität konnte nicht geladen werden."
+  },
+  "m3elLgug6H": {
+    "defaultMessage": "When every step runs for real, a test run is a live run: Wait steps really wait. It never publishes."
   },
   "m3woOgoczi": {
     "defaultMessage": "vor 3 Std."
@@ -24275,6 +24599,9 @@
   "mhdxPi6b4a": {
     "defaultMessage": "{providerName}-Aufträge"
   },
+  "mhtqPj5f5v": {
+    "defaultMessage": "Test settings"
+  },
   "mi29vosn6Y": {
     "defaultMessage": "Wählen Sie einen unterstützten Anbieter aus."
   },
@@ -24346,6 +24673,9 @@
   },
   "mq4F9HRaBq": {
     "defaultMessage": "Name des Regelsatzes"
+  },
+  "mqYq/LYRBZ": {
+    "defaultMessage": "Show"
   },
   "mqq6dTwRZM": {
     "defaultMessage": "Ausgaben"
@@ -25304,6 +25634,9 @@
   "oj7kgOJK5f": {
     "defaultMessage": "Vertrauenszentrum"
   },
+  "ojIy177KR7": {
+    "defaultMessage": "Create a workspace connection here. Designers then sign in from Figma with OAuth."
+  },
   "ojrPiYWxu8": {
     "defaultMessage": "Wert kopieren"
   },
@@ -25928,6 +26261,9 @@
   "pxQacxRowI": {
     "defaultMessage": "Abgeschlossen"
   },
+  "py0C/2fMk8": {
+    "defaultMessage": "Failed to authorize the Figma app."
+  },
   "py4sv3RBJU": {
     "defaultMessage": "Markenstimme und Terminologie durchsetzen"
   },
@@ -26042,6 +26378,9 @@
   "q8JPEoD1z3": {
     "defaultMessage": "Zeige den Lokalisierungszustand direkt in GitHub an, damit Engineering und Lokalisierung eine gemeinsame Ansicht haben."
   },
+  "q8XoGsQB0C": {
+    "defaultMessage": "Delete"
+  },
   "q8jItOdlQf": {
     "defaultMessage": "Agentenlauf auswählen"
   },
@@ -26098,6 +26437,9 @@
   },
   "qBw0XsEKyN": {
     "defaultMessage": "Bleiben Sie flexibel über Anbieter und Plattformen hinweg"
+  },
+  "qByVEBzLzv": {
+    "defaultMessage": "Could not remove a step"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Lokalisieren Sie verhaltensbasierte E-Mails und In-App-Nachrichten in Customer.io."
@@ -26200,6 +26542,9 @@
   },
   "qQRYeCWT2J": {
     "defaultMessage": "Fügen Sie einen Braze-REST-API-Schlüssel ein und wählen Sie den REST-Cluster für diese Instanz aus."
+  },
+  "qQZGFuhT3T": {
+    "defaultMessage": "The workflow could not be updated"
   },
   "qRVA5sizhD": {
     "defaultMessage": "Einfache Pläne, um Hyperlocalise heute zu testen."
@@ -26363,6 +26708,9 @@
   "qmb/TOVO4K": {
     "defaultMessage": "Bilder haben unterschiedliche Seitenverhältnisse. Verwenden Sie den Originalbereich, um sie zu vergleichen."
   },
+  "qo0d24Hw+8": {
+    "defaultMessage": "Fails"
+  },
   "qoKQfRLzE9": {
     "defaultMessage": "Öffentliche Seiten und Sprachumgebungen werden stichprobenartig überprüft."
   },
@@ -26423,6 +26771,9 @@
   "qwBzCi54cg": {
     "defaultMessage": "{count, plural, =0 {Noch nicht verwendet} one {# Projekt} other {# Projekte}}"
   },
+  "qwKm4yzub8": {
+    "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Montag"
   },
@@ -26452,6 +26803,9 @@
   },
   "qzupTaytsB": {
     "defaultMessage": "Noch keine Aktivitäten"
+  },
+  "r/zdhHnzwh": {
+    "defaultMessage": "Ran for real"
   },
   "r01vthnyrV": {
     "defaultMessage": "Preiskartenname"
@@ -26807,6 +27161,9 @@
   "rhfG3eu2aR": {
     "defaultMessage": "Prüfmodus"
   },
+  "rhgvK4B/v1": {
+    "defaultMessage": "Workspace connection"
+  },
   "riG8529T+y": {
     "defaultMessage": "Allgemein"
   },
@@ -27073,6 +27430,9 @@
   },
   "sHEScxEFix": {
     "defaultMessage": "Editor"
+  },
+  "sHLZ/8LZoH": {
+    "defaultMessage": "Web search"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains"
@@ -27854,8 +28214,14 @@
   "u/GyZps3MY": {
     "defaultMessage": "{count, plural, one {# Block konnte nicht übersetzt werden.} other {# Blöcke konnten nicht übersetzt werden.}}"
   },
+  "u/fBB4HZhM": {
+    "defaultMessage": "Figma connection saved."
+  },
   "u0JPXvQtPf": {
     "defaultMessage": "Vom Anbieter bereitgestellt"
+  },
+  "u0c5HG4JX/": {
+    "defaultMessage": "In a test run"
   },
   "u0dyjBiqWo": {
     "defaultMessage": "Keyword"
@@ -27913,6 +28279,9 @@
   },
   "u8VX6gbiee": {
     "defaultMessage": "Diese Datei kann derzeit nicht hochgeladen werden."
+  },
+  "u9Qg5J09WM": {
+    "defaultMessage": "No fields from earlier steps."
   },
   "u9Z5lV8isJ": {
     "defaultMessage": "Übersetzungen konnten nicht heruntergeladen werden"
@@ -28748,6 +29117,9 @@
   "vmnQBcZ7YW": {
     "defaultMessage": "Noch nichts hier"
   },
+  "vmv1R5ICX0": {
+    "defaultMessage": "API key"
+  },
   "vnJqxWYdFd": {
     "defaultMessage": "Automatisierung gelöscht"
   },
@@ -28982,6 +29354,9 @@
   "wB36ZpuzG3": {
     "defaultMessage": "3 Zeichenfolgen geändert, 1 Übersetzungsproblem vor dem Zusammenführen angesprochen"
   },
+  "wBBk0AbwLo": {
+    "defaultMessage": "If this step fails"
+  },
   "wBNC3JBHju": {
     "defaultMessage": "Wochentag"
   },
@@ -29087,6 +29462,9 @@
   "wPaeLzlE/q": {
     "defaultMessage": "Quell- und Arbeitsaufwand nach Projekt und Gebietsschema"
   },
+  "wQGnFQYS2q": {
+    "defaultMessage": "Not set"
+  },
   "wQOKFwmzrC": {
     "defaultMessage": "Lokalisierungen"
   },
@@ -29185,6 +29563,9 @@
   },
   "wdhrNg8UHz": {
     "defaultMessage": "Job öffnen"
+  },
+  "we+P5cHH+C": {
+    "defaultMessage": "Use test data everywhere"
   },
   "weAVB6AXQJ": {
     "defaultMessage": "Alle Begriffe"
@@ -29326,6 +29707,9 @@
   },
   "wvvrX539Xf": {
     "defaultMessage": "Dateien konnten nicht geladen werden."
+  },
+  "wvz6JBopgC": {
+    "defaultMessage": "Connect Figma to Hyperlocalise"
   },
   "ww1ZEpMIQj": {
     "defaultMessage": "Dieser Speicher wird nur von den hier aufgeführten Projekten verwendet."
@@ -29485,6 +29869,9 @@
   },
   "xBKYTJYExq": {
     "defaultMessage": "Intercom"
+  },
+  "xC6Oep4Mv6": {
+    "defaultMessage": "Discard"
   },
   "xC7u8V65Ad": {
     "defaultMessage": "Alle Dateien"
@@ -29831,6 +30218,9 @@
   "xsAaVb0T8m": {
     "defaultMessage": "Wartet auf Prüfung"
   },
+  "xsPz0jjx3+": {
+    "defaultMessage": "Run for real"
+  },
   "xsZbCQ/A1V": {
     "defaultMessage": "Inbegriffen"
   },
@@ -29926,6 +30316,9 @@
   },
   "y4hQxxj/zM": {
     "defaultMessage": "Erstellen Sie Ihre Terminologiebibliothek"
+  },
+  "y50SdunZtN": {
+    "defaultMessage": "Copy this Figma connection token"
   },
   "y5nRcvmxtw": {
     "defaultMessage": "Zum Ende des Abrechnungszeitraums kündigen"
@@ -30431,6 +30824,9 @@
   "zDKQV1vdb3": {
     "defaultMessage": "Keyword"
   },
+  "zDoKlB01Q1": {
+    "defaultMessage": "Choose a project"
+  },
   "zEYxUcr2AM": {
     "defaultMessage": "Keine Beschreibung"
   },
@@ -30457,6 +30853,9 @@
   },
   "zI9Ceuo8wd": {
     "defaultMessage": "Abfragen"
+  },
+  "zIdwJ1idG9": {
+    "defaultMessage": "Failed to delete Figma connection."
   },
   "zIhD8Y76tZ": {
     "defaultMessage": "Weiter bearbeiten"
@@ -30487,6 +30886,9 @@
   },
   "zL0L4Vvw8O": {
     "defaultMessage": "Bei der Überprüfung des DE-Checkout-CTA angewendet"
+  },
+  "zL1SPi+Eok": {
+    "defaultMessage": "Open Integrations"
   },
   "zLa51T7B2l": {
     "defaultMessage": "Repository-Konfiguration wird überprüft"
@@ -30539,6 +30941,9 @@
   "zPtX/ng4pa": {
     "defaultMessage": "Agenten in Ihren Tools"
   },
+  "zQBuwK1cWP": {
+    "defaultMessage": "Zernio"
+  },
   "zQIP2wjI8l": {
     "defaultMessage": "Blockiert"
   },
@@ -30547,6 +30952,9 @@
   },
   "zR0I34Xobx": {
     "defaultMessage": "Bauen Sie Ihren mehrsprachigen Workflow auf."
+  },
+  "zRCtWtCl4W": {
+    "defaultMessage": "Needed for a test run."
   },
   "zRMNg+Lp1z": {
     "defaultMessage": "Neue Chance"
