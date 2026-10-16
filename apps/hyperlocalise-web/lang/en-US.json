@@ -811,6 +811,10 @@
     "defaultMessage": "You can run up to {count} chats at once.",
     "description": "Toast when the concurrent stream limit is reached"
   },
+  "/QBr3H7p9k": {
+    "defaultMessage": "Could not connect two steps",
+    "description": "Line in the assistant's change list: connecting two workflow steps was refused"
+  },
   "/QZxo6jgZM": {
     "defaultMessage": "Should AcmePay stay untranslated in Spanish onboarding?",
     "description": "Inbox assistant glossary question in content ops mock"
@@ -1182,6 +1186,10 @@
   "08svfZAX+A": {
     "defaultMessage": "deleted a glossary",
     "description": "Action for a glossary deletion activity"
+  },
+  "091kJoAeYj": {
+    "defaultMessage": "{count, plural, one {one other setting} other {# other settings}}",
+    "description": "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'"
   },
   "093XtFZn8Y": {
     "defaultMessage": "Monitor throughput and locale health",
@@ -2538,6 +2546,10 @@
   "2VWwjqjclF": {
     "defaultMessage": "Assignee",
     "description": "Label for single-assignee selection on native jobs"
+  },
+  "2WCxnj9DvK": {
+    "defaultMessage": "Could not add a step",
+    "description": "Line in the assistant's change list: adding a step to the workflow was refused"
   },
   "2Wk4xEwU1H": {
     "defaultMessage": "Coming soon",
@@ -4095,6 +4107,10 @@
     "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations.",
     "description": "Description for the Semrush integrations row"
   },
+  "5NY8ijgpii": {
+    "defaultMessage": "No changes made to the workflow",
+    "description": "Line in the assistant panel under a reply, or a tool call, that left the visual workflow as it was"
+  },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects",
     "description": "Dropdown label for the project selector"
@@ -5430,6 +5446,10 @@
   "7t3FQ5TrY6": {
     "defaultMessage": "Legal · 6 pages · Connected",
     "description": "Example Drive file detail in the source preview"
+  },
+  "7tK9YSDkvx": {
+    "defaultMessage": "Changed {fields} on the {node} step",
+    "description": "Line in the assistant's change list: a node's settings were changed; {fields} lists the settings, {node} is the node type's title"
   },
   "7tPiM+8vOJ": {
     "defaultMessage": "Applied to this draft",
@@ -9547,6 +9567,10 @@
     "defaultMessage": "Unable to load project files.",
     "description": "Fallback error when the project file CAT page fails to load data"
   },
+  "F7MPcZxBJI": {
+    "defaultMessage": "Added the {node} step",
+    "description": "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title"
+  },
   "F7WfKl5UxS": {
     "defaultMessage": "No activity recorded for these filters. Run a translation or log time to start reporting.",
     "description": "Translation reporting label"
@@ -11743,6 +11767,10 @@
     "defaultMessage": "CSV",
     "description": "Menu option to import Queries rows from a CSV file"
   },
+  "JC/7r38rMk": {
+    "defaultMessage": "Changed the settings of the {node} step",
+    "description": "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint",
     "description": "SharePoint source name on the guidelines board"
@@ -11762,6 +11790,10 @@
   "JEdlCIcj1G": {
     "defaultMessage": "Disconnecting…",
     "description": "Disconnect button label while GitHub is being disconnected"
+  },
+  "JEi80S8Q14": {
+    "defaultMessage": "Ask for a change, or say what this workflow should do.",
+    "description": "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed"
   },
   "JHFSIHw0S8": {
     "defaultMessage": "Custom",
@@ -11986,6 +12018,10 @@
   "JikjOnc0U+": {
     "defaultMessage": "Save failed",
     "description": "CAT format check label when saving a translation fails"
+  },
+  "JisM1jWILg": {
+    "defaultMessage": "Removed the {node} step",
+    "description": "Line in the assistant's change list: a node was removed from the workflow; {node} is the node type's title"
   },
   "Jjjtb6X1+r": {
     "defaultMessage": "Unable to load this entry.",
@@ -12334,6 +12370,10 @@
   "KXkRSMd8ip": {
     "defaultMessage": "Patch",
     "description": "Package version change badge for a patch update"
+  },
+  "KXlC8hrmGf": {
+    "defaultMessage": "Disconnected {source} from {target}",
+    "description": "Line in the assistant's change list: a connection between two workflow nodes was removed, named by their ids"
   },
   "KXnH/FP4XN": {
     "defaultMessage": "HTTP",
@@ -13923,6 +13963,10 @@
     "defaultMessage": "Column added",
     "description": "Toast when a custom Issue Sheet column is created successfully"
   },
+  "NOPoUyz/8O": {
+    "defaultMessage": "Renamed the workflow to \"{name}\"",
+    "description": "Line in the assistant's change list: the workflow was given a new name"
+  },
   "NP2wAmeM1j": {
     "defaultMessage": "Due date",
     "description": "Detail row label for the job due date"
@@ -14510,6 +14554,10 @@
   "OSUbc/2Yxx": {
     "defaultMessage": "EN · FR · DE · JA demand compared",
     "description": "Automations mock UI keyword research step 2"
+  },
+  "OSdBlPpXbz": {
+    "defaultMessage": "Could not rename the workflow",
+    "description": "Line in the assistant's change list: renaming the workflow was refused"
   },
   "OSxEF0/gz3": {
     "defaultMessage": "Automatically merge identical strings",
@@ -17643,6 +17691,10 @@
     "defaultMessage": "Starts with {prefix}",
     "description": "Access token prefix shown in the tokens table"
   },
+  "UIxKl4gSfi": {
+    "defaultMessage": "Updated the workflow · {count, plural, one {# change} other {# changes}}",
+    "description": "Line in the assistant panel for a finished tool call on a visual workflow, which opens to list the changes"
+  },
   "UJFX+3Y3fz": {
     "defaultMessage": "Error branch",
     "description": "Route to error branch on node error"
@@ -18458,6 +18510,10 @@
   "Vl/WJ79qHw": {
     "defaultMessage": "Connect Resend or SendGrid in <link>Integrations</link> to use email notifications.",
     "description": "Description for email notifications when email is not enabled"
+  },
+  "VluH2EAHsX": {
+    "defaultMessage": "Cleared the workflow's name",
+    "description": "Line in the list of what the person changed on the workflow themselves"
   },
   "Vm1k8EkL8L": {
     "defaultMessage": "Issue",
@@ -21575,6 +21631,10 @@
     "defaultMessage": "API key copied to clipboard",
     "description": "Success toast after copying a newly created API key"
   },
+  "bXMU39hmQJ": {
+    "defaultMessage": "Updated the workflow",
+    "description": "Line in the assistant panel for a finished tool call on a visual workflow that did not list its changes"
+  },
   "bXnJyD63X6": {
     "defaultMessage": "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
     "description": "Bottom CTA description for the agents automation product page"
@@ -21586,6 +21646,10 @@
   "bYpd314kqN": {
     "defaultMessage": "Localisation memory layer",
     "description": "Knowledge product visual mock card title"
+  },
+  "bZKwFr1ByM": {
+    "defaultMessage": "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save.",
+    "description": "Line at the end of the assistant panel while a visual workflow holds changes of the assistant that are not saved"
   },
   "bZmWrWqZb+": {
     "defaultMessage": "Push source",
@@ -22783,6 +22847,10 @@
     "defaultMessage": "Updated date unavailable",
     "description": "Fallback when a project has no usable updated timestamp"
   },
+  "dcomOTuPbB": {
+    "defaultMessage": "Updating the workflow…",
+    "description": "Line in the assistant's reply while its tool is changing the visual workflow"
+  },
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainian (Ukraine)",
     "description": "Display name for BCP-47 locale uk-UA"
@@ -23086,6 +23154,10 @@
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, locale coverage, and multilingual content quality",
     "description": "Domains mock UI localisation audit use case description"
+  },
+  "e5EIKdt4+j": {
+    "defaultMessage": "Could not change a step's settings",
+    "description": "Line in the assistant's change list: changing a workflow step's settings was refused"
   },
   "e5w8XM92TM": {
     "defaultMessage": "hid a string",
@@ -23898,6 +23970,10 @@
   "fWyfUTYZOq": {
     "defaultMessage": "Select a keyword to inspect its search demand and ranking results.",
     "description": "Keyword research screen: chooseKeyword"
+  },
+  "fX43+IisLH": {
+    "defaultMessage": "Could not disconnect two steps",
+    "description": "Line in the assistant's change list: disconnecting two workflow steps was refused"
   },
   "fXIJvHCrL6": {
     "defaultMessage": "Previous segment",
@@ -26195,6 +26271,10 @@
     "defaultMessage": "Compare against approved baselines",
     "description": "Workflow step 3 description for the localisation-quality-monitoring use case"
   },
+  "jSZ5KDgjs6": {
+    "defaultMessage": "Describe what this workflow should do, or ask for a change.",
+    "description": "Empty state of the assistant panel beside a visual workflow, before any message"
+  },
   "jSv2EzfhBb": {
     "defaultMessage": "every",
     "description": "Prose before the schedule cadence selector"
@@ -27194,6 +27274,10 @@
   "lES6CzVw2i": {
     "defaultMessage": "Product overview",
     "description": "TM match context label in the hero CAT mock"
+  },
+  "lEXKxwEywz": {
+    "defaultMessage": "Connected {source} to {target}",
+    "description": "Line in the assistant's change list: two workflow nodes were connected, named by their ids"
   },
   "lEmnokrrS2": {
     "defaultMessage": "created a linked domain",
@@ -30183,6 +30267,10 @@
     "defaultMessage": "Linked Domain Cancelled",
     "description": "Activity log event type label for cancelling a linked domain claim"
   },
+  "qByVEBzLzv": {
+    "defaultMessage": "Could not remove a step",
+    "description": "Line in the assistant's change list: removing a step from the workflow was refused"
+  },
   "qCIzGw7LDA": {
     "defaultMessage": "Localize behavioral email and in-app messages in Customer.io.",
     "description": "Customer.io integration description on the integrations page"
@@ -30298,6 +30386,10 @@
   "qQRYeCWT2J": {
     "defaultMessage": "Paste a Braze REST API key and choose the REST cluster for that instance.",
     "description": "Intro text shown before a Braze API key is saved"
+  },
+  "qQZGFuhT3T": {
+    "defaultMessage": "The workflow could not be updated",
+    "description": "Line in the assistant's reply for a change to the visual workflow that failed"
   },
   "qRVA5sizhD": {
     "defaultMessage": "Simple plans for evaluating Hyperlocalise today.",
@@ -30554,6 +30646,10 @@
   "qwBzCi54cg": {
     "defaultMessage": "{count, plural, =0 {Not used yet} one {# project} other {# projects}}",
     "description": "Workspace project usage count for a glossary"
+  },
+  "qwKm4yzub8": {
+    "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}",
+    "description": "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it"
   },
   "qxBrl7Yxqo": {
     "defaultMessage": "Monday",
