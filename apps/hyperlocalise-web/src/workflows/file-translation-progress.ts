@@ -104,6 +104,8 @@ export async function collectFileTranslationPageStep(input: {
   inputFilename: string;
   outputFilenames: Record<string, string>;
   sourceEntries: Record<string, string>;
+  /** Names the source column when reading `.xlsx` outputs. */
+  sourceLocale?: string;
   prefills: Record<string, Record<string, string>>;
   confirmed: Record<string, Record<string, string>>;
   /** Busts workflow step memoization when a new `hl run` finishes. */
@@ -112,6 +114,7 @@ export async function collectFileTranslationPageStep(input: {
   "use step";
   const { readTranslatedFile, extractSandboxEntries } = await import("@/lib/translation/sandbox");
   const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
+  const { sandboxEntriesLocaleOptions } = await import("@/lib/translation/sandbox-cli-release");
   const {
     extractHtmlIngestEntries,
     htmlCompletedPathKeysFromLock,
@@ -158,6 +161,7 @@ export async function collectFileTranslationPageStep(input: {
     if (keys.length === 0) continue;
     const extracted = await extractSandboxEntries(input.sandboxId, filename, {
       sourcePath: input.inputFilename,
+      ...sandboxEntriesLocaleOptions(filename, input.sourceLocale, locale),
     });
     if (!extracted.ok) throw new Error("failed to extract completed translations");
     const hlExtracted = hlEntriesPayloadToStringMap(extracted.entries);

@@ -56,8 +56,9 @@ func (e *targetFlushError) Unwrap() error {
 }
 
 func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryInput, staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
-	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
-	for path := range staged {
+	grouped := groupedStagedOutputPaths(staged)
+	targetPaths := make([]string, 0, len(grouped)+len(pruneTargets))
+	for path := range grouped {
 		targetPaths = append(targetPaths, path)
 	}
 	for path := range pruneTargets {
@@ -71,19 +72,21 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 	}
 	var warnings []string
 	for i, targetPath := range targetPaths {
-		output, ok := staged[targetPath]
-		if !ok {
-			output = pruneMetadata[targetPath]
+		outputs := grouped[targetPath]
+		if len(outputs) == 0 {
+			outputs = []stagedOutput{pruneMetadata[targetPath]}
 		}
-		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
-		if err != nil {
-			return nil, &targetFlushError{
-				TargetPath:       targetPath,
-				UnwrittenTargets: slices.Clone(targetPaths[i:]),
-				Err:              err,
+		for _, output := range outputs {
+			targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
+			if err != nil {
+				return nil, &targetFlushError{
+					TargetPath:       targetPath,
+					UnwrittenTargets: slices.Clone(targetPaths[i:]),
+					Err:              err,
+				}
 			}
+			warnings = append(warnings, targetWarnings...)
 		}
-		warnings = append(warnings, targetWarnings...)
 	}
 	return warnings, nil
 }
@@ -119,6 +122,17 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 			}
 		} else if !os.IsNotExist(targetErr) {
 			return nil, fmt.Errorf("flush outputs: read XLIFF target %q: %w", targetPath, targetErr)
+		}
+	}
+	if strings.EqualFold(filepath.Ext(targetPath), ".xlsx") {
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.ParseXLSXLocale(target, output.sourceLocale, output.targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: parse Excel target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read Excel target %q: %w", targetPath, targetErr)
 		}
 	}
 	stagedEntries := output.entries

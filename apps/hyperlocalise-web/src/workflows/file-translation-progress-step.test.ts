@@ -120,6 +120,34 @@ describe("collectFileTranslationPageStep HTML lock wiring", () => {
     expect(readTranslatedFileMock).not.toHaveBeenCalledWith("sbx_canva", outputFilename);
   });
 
+  it("reads workbook outputs from the target column", async () => {
+    const outputFilename = "strings-fr-FR.xlsx";
+    readTranslatedFileMock.mockResolvedValue(
+      JSON.stringify(lockFor(outputFilename, ["home.title"])),
+    );
+    extractSandboxEntriesMock.mockResolvedValue({
+      ok: true,
+      entries: { "home.title": "Accueil" },
+    });
+
+    await expect(
+      collectFileTranslationPageStep({
+        sandboxId: "sbx_xlsx",
+        inputFilename: "strings.xlsx",
+        outputFilenames: { "fr-FR": outputFilename },
+        sourceEntries: { "home.title": "Home" },
+        sourceLocale: "en-US",
+        prefills: {},
+        confirmed: {},
+      }),
+    ).resolves.toEqual({ "fr-FR": { "home.title": "Accueil" } });
+    expect(extractSandboxEntriesMock).toHaveBeenCalledWith("sbx_xlsx", outputFilename, {
+      sourcePath: "strings.xlsx",
+      sourceLocale: "en-US",
+      locale: "fr-FR",
+    });
+  });
+
   it("omits confirmed HTML path keys and locales that have nothing new", async () => {
     const folded = extractHtmlIngestEntries(sourceHtml, { foldInline: true });
     const hash = legacyHtmlSegmentKey(folded["html.p"] ?? "", new Map());

@@ -123,6 +123,9 @@ func (api *publicTranslationsAPI) load(ctx context.Context, principal publicAPIP
 	if isLottieTranslationSource(sourcePath, object.orderedKeys()) {
 		return nil, "", publicAPIFailure(http.StatusNotImplemented, "not_implemented", "Lottie translation download is not available on the native Go service yet")
 	}
+	if isSpreadsheetTranslationSource(sourcePath) {
+		return nil, "", publicAPIFailure(http.StatusNotImplemented, "not_implemented", "Excel translation download is not available on the native Go service yet")
+	}
 	return object.marshal(), publicTranslationFilename(sourcePath, locale), nil
 }
 

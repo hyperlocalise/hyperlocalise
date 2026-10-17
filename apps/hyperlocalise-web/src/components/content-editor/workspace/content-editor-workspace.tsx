@@ -634,6 +634,9 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       providerKind: shell.fileContext.providerKind,
     });
     const fileViewSegment = overlayCatDocumentFileViewSegment(editorSegment, shell.fileContext);
+    // The target workbook is generated from segment translations, so edits happen in segment views.
+    const isGeneratedFileView = capabilities.family === "spreadsheet";
+    const canEditFileView = canApprove && !fileViewSegment.isLocked && !isGeneratedFileView;
 
     return (
       <ContentEditorPanelErrorBoundary scope="editor" resetKeys={[viewMode, fileViewSegment.id]}>
@@ -641,8 +644,8 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           segment={fileViewSegment}
           viewerId={capabilities.viewerId}
           filename={shell.fileContext.filename}
-          canEdit={canApprove && !fileViewSegment.isLocked}
-          canApprove={canApprove && !fileViewSegment.isLocked}
+          canEdit={canEditFileView}
+          canApprove={canEditFileView}
           isApproving={isApproving}
           isImageBusy={isImageBusy}
           isImageGenerating={isSelectedImageGenerating}
@@ -652,9 +655,13 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
           hasNextSegment={hasNextSegment}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
-          onApprove={() => void review.onApprove(fileViewSegment.id, fileViewSegment.targetText)}
+          onApprove={
+            isGeneratedFileView
+              ? undefined
+              : () => void review.onApprove(fileViewSegment.id, fileViewSegment.targetText)
+          }
           onUpload={
-            editing.onUploadImage
+            editing.onUploadImage && !isGeneratedFileView
               ? (file) => editing.onUploadImage?.(fileViewSegment.id, file)
               : undefined
           }

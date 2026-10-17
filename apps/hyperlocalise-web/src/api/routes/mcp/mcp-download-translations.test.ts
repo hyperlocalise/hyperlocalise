@@ -17,6 +17,12 @@ const mocks = vi.hoisted(() => ({
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   inferSupportedTranslationFileFormat: vi.fn(),
+  loadProjectXlsxTranslationDownload: vi.fn(),
+}));
+
+vi.mock("@/lib/projects/files/xlsx-translation-download", () => ({
+  loadProjectXlsxTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectXlsxTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -44,6 +50,7 @@ describe("downloadMcpTranslations", () => {
     mocks.getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     mocks.inferSupportedTranslationFileFormat.mockReturnValue("json");
     mocks.loadProjectLottieTranslationDownload.mockResolvedValue({ ok: true, value: null });
+    mocks.loadProjectXlsxTranslationDownload.mockResolvedValue({ ok: true, value: null });
   });
 
   it("returns source_file_too_large with the key limit when prefill is truncated", async () => {
@@ -127,6 +134,57 @@ describe("downloadMcpTranslations", () => {
         content: Buffer.from("PK\x03\x04lottie").toString("base64"),
       },
     });
+  });
+
+  it("returns segmented Excel workbooks as base64 before the binary format check", async () => {
+    mocks.inferSupportedTranslationFileFormat.mockReturnValue("xlsx");
+    mocks.loadProjectXlsxTranslationDownload.mockResolvedValue({
+      ok: true,
+      value: {
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        content: Buffer.from("PK\x03\x04xlsx"),
+        translatedKeyCount: 1,
+      },
+    });
+
+    const result = await downloadMcpTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "copy/strings.xlsx",
+      locale: "fr-FR",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        filename: "strings-fr-FR.xlsx",
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        locale: "fr-FR",
+        sourcePath: "copy/strings.xlsx",
+        contentEncoding: "base64",
+        content: Buffer.from("PK\x03\x04xlsx").toString("base64"),
+      },
+    });
+    expect(mocks.loadProjectXlsxTranslationDownload).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "copy/strings.xlsx",
+      targetLocale: "fr-FR",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+  });
+
+  it("keeps rejecting Excel workbooks without segments", async () => {
+    mocks.inferSupportedTranslationFileFormat.mockReturnValue("xlsx");
+
+    const result = await downloadMcpTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "copy/legacy.xlsx",
+      locale: "fr-FR",
+    });
+
+    expect(result).toEqual({ ok: false, error: "unsupported_binary_download" });
   });
 
   it("returns translations_not_found when no keys load", async () => {

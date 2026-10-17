@@ -51,6 +51,7 @@ import {
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
+import { projectXlsxTranslationDownloadPath } from "@/lib/projects/files/xlsx-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
@@ -61,6 +62,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
@@ -280,7 +282,16 @@ export class NativeContentEditorService extends ProjectServiceBase {
       );
     }
 
-    if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
+    const isSegmentedSpreadsheet = Boolean(
+      inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath),
+    );
+    if (
+      inferSupportedOfficeTranslationFileFormat(input.sourcePath) &&
+      !(
+        isSegmentedSpreadsheet &&
+        (await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
+      )
+    ) {
       return this.withSourceIngest(
         input,
         await this.buildOfficeCatFileResponse({
@@ -292,6 +303,12 @@ export class NativeContentEditorService extends ProjectServiceBase {
     }
 
     const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+    const loadKeyedFileDocumentView = async () =>
+      isDocument
+        ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
+        : isSegmentedSpreadsheet
+          ? await this.loadSpreadsheetDocumentView({ input, sourceFileId: sourceFile.id })
+          : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
       limit: legacyNativeContentEditorSegmentLimit,
@@ -330,14 +347,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
           visibleKeys,
           truncated,
           pagination: undefined,
-          documentView: isDocument
-            ? publicDocumentView(
-                await this.loadDocumentView({
-                  input,
-                  sourceFileId: sourceFile.id,
-                }),
-              )
-            : undefined,
+          documentView: await loadKeyedFileDocumentView(),
         }),
       );
     }
@@ -393,14 +403,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
         visibleKeys: keys,
         truncated: pagination.hasMore,
         pagination,
-        documentView: isDocument
-          ? publicDocumentView(
-              await this.loadDocumentView({
-                input,
-                sourceFileId: sourceFile.id,
-              }),
-            )
-          : undefined,
+        documentView: await loadKeyedFileDocumentView(),
       }),
     );
   }
@@ -728,6 +731,57 @@ export class NativeContentEditorService extends ProjectServiceBase {
       imageVariantId: variant?.id ?? null,
       hasTarget: Boolean(targetStoredFileId),
       approvalStatus: variant?.status ?? null,
+    };
+  }
+
+  private async hasKeysForFile(input: {
+    organizationId: string;
+    projectId: string;
+    repositorySourceFileId: string;
+  }) {
+    const keys = await this.translations.listKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: input.repositorySourceFileId,
+      limit: 1,
+    });
+    return keys.length > 0;
+  }
+
+  /** Segmented workbooks have no stored target; File view previews the generated download. */
+  private async loadSpreadsheetDocumentView(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<NonNullable<ProjectFileContentEditorQueueFile["documentView"]>> {
+    const latestVersion = await getLatestRepositorySourceFileVersion({
+      organizationId: input.input.organizationId,
+      projectId: input.input.projectId,
+      sourcePath: input.input.sourcePath,
+      db: this.database,
+    });
+
+    return {
+      externalStringId: documentFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+      sourceAssetUrl: latestVersion
+        ? projectImageAssetPath({
+            organizationSlug: input.input.organizationSlug,
+            projectId: input.input.projectId,
+            fileId: latestVersion.storedFileId,
+          })
+        : null,
+      targetAssetUrl: projectXlsxTranslationDownloadPath({
+        organizationSlug: input.input.organizationSlug,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+      }),
+      imageVariantId: null,
     };
   }
 
@@ -1280,12 +1334,15 @@ export class NativeContentEditorService extends ProjectServiceBase {
       }
 
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
+      const hasKeyedSegments =
+        isDocument ||
+        Boolean(inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath));
       const fileBacked = isFileBackedCatSegmentId(
         input.externalStringId,
         sourceFile.id,
         input.sourcePath,
       );
-      if (fileBacked || !isDocument) {
+      if (fileBacked || !hasKeyedSegments) {
         if (!fileBacked) {
           return "not_found";
         }
@@ -1431,8 +1488,10 @@ export class NativeContentEditorService extends ProjectServiceBase {
       !isContentEditorAllFilesSourcePath(input.sourcePath) &&
       inferSupportedWholeFileTranslationFileFormat(input.sourcePath)
     ) {
-      const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
-      if (!isDocument) {
+      const hasKeyedSegments =
+        Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath)) ||
+        Boolean(inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath));
+      if (!hasKeyedSegments) {
         return [];
       }
 

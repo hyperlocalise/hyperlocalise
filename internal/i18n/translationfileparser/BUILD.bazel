@@ -7,6 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_tidwall_jsonc//:jsonc",
+        "@com_github_xuri_excelize_v2//:excelize",
         "@com_github_yuin_goldmark_v2//ast",
         "@com_github_yuin_goldmark_v2//extension",
         "@com_github_yuin_goldmark_v2//extension/ast",

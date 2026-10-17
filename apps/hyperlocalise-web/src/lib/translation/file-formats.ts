@@ -194,7 +194,38 @@ export function isOfficeTranslationFileFormat(
   );
 }
 
-/** Binary whole-file formats that skip string-key extraction (images + video + office). */
+export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx"] as const;
+
+export type SupportedSegmentedSpreadsheetTranslationFileFormat =
+  (typeof supportedSegmentedSpreadsheetTranslationFileFormats)[number];
+
+/**
+ * Office workbooks whose text cells are extracted into keyed segments, so they get segment
+ * views and a generated per-locale download on top of the stored-file Office behaviour.
+ */
+export function isSegmentedSpreadsheetTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedSegmentedSpreadsheetTranslationFileFormat {
+  return supportedSegmentedSpreadsheetTranslationFileFormats.includes(
+    format as SupportedSegmentedSpreadsheetTranslationFileFormat,
+  );
+}
+
+export function inferSupportedSegmentedSpreadsheetTranslationFileFormat(
+  filename: string,
+): SupportedSegmentedSpreadsheetTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isSegmentedSpreadsheetTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
+/**
+ * Binary whole-file formats (images + video + office). They skip sandbox string extraction;
+ * segmented spreadsheets are extracted in-process instead.
+ */
 export function isBinaryTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is

@@ -18,6 +18,7 @@ type IngestEntry struct {
 	Path        string
 	Kind        string
 	Format      string
+	Context     string
 }
 
 var maxLengthCommentPattern = regexp.MustCompile(`(?i)(?:max[\s._-]?length|character[\s._-]?limit|hl:max-length)\s*[:=]\s*(\d+)`)

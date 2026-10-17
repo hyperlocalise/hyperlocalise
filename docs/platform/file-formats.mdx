@@ -24,12 +24,40 @@ projects follow the [provider's capabilities](/platform/tms).
 | Subtitles | `.srt`, `.vtt`, `.sbv` | File translation jobs | Segment views | Reconstructed subtitle file |
 | Images | `.png`, `.jpg`, `.jpeg`, `.webp` | Image translation workflow | Image file view | Stored target image |
 | Video | `.mp4` | Video translation workflow | Video file view | Stored target video |
-| Office documents | `.docx`, `.xlsx`, `.xls`, `.pptx` | Manual localization in File view | Upload or edit translated file | Stored target file when available |
+| Excel workbooks | `.xlsx` | Segment translation | Segment views and File view | Generated target workbook |
+| Office documents | `.docx`, `.xls`, `.pptx` | Manual localization in File view | Upload or edit translated file | Stored target file when available |
 
-Office files are not handled by automatic file translation jobs. Open File view
-and upload or edit the translated file there. Other translation workflows require
+Office documents are not handled by automatic file translation jobs. Open File
+view and upload or edit the translated file there. Other translation workflows require
 an enabled provider and the relevant workspace access. A listed extension still
 needs valid content for its parser or viewer.
+
+## Excel workbooks
+
+Native projects split each `.xlsx` upload into segments, using the same rules as
+the [CLI Excel guide](/cli/reference/formats/xlsx):
+
+- A sheet whose first row has a source-locale column, such as `English` or
+  `en-US`, is a string table. Each row is one segment, keyed by its `Key`, `ID`,
+  or `Context` column. `Comment` columns become segment context, and
+  `Length limit` columns become maximum lengths.
+- Any other visible sheet is a free-form document. Each text cell is one
+  segment keyed by its address, such as `Pricing!B3`.
+
+Formulas, numbers, cells without letters, and hidden sheets are not segments.
+Translate and review the segments in Comfortable, Side by side, or Multilingual
+view. File view shows the source workbook next to a read-only preview of the
+target workbook generated from those translations. To change the target, edit
+its segments.
+
+**Download translations** returns a copy of the source workbook with ready
+translations in the target locale's column, or in place for free-form sheets.
+Untranslated rows stay empty, and cells for other locales keep their existing
+text. Translations already in the workbook are not imported on upload; use
+**Import translations** with the filled workbook to load them.
+
+Legacy `.xls` workbooks stay manual Office files. Save them as `.xlsx` to get
+segments.
 
 ## Choose a format guide
 
@@ -70,7 +98,8 @@ No. A Content Editor queue export contains filtered segments as CSV, TMX,
 XLF/XLIFF, or XLSX, up to 5,000 matching segments. It is useful for review and
 handoff. Use the project's **Download translations** action for complete target
 files. Document, image, video, and Office file views work with stored files rather
-than a segment queue.
+than a segment queue. Excel workbooks are the exception: their download is
+generated from segment translations.
 
 ## Does Platform support every CLI or TMS file format?
 

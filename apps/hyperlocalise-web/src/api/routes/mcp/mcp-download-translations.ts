@@ -13,6 +13,7 @@
 import path from "node:path";
 
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   getRepositorySourceFileByPath,
@@ -30,7 +31,7 @@ export type McpDownloadTranslationsDetail = {
   locale: string;
   sourcePath: string;
   content: string;
-  /** Present when `content` holds base64-encoded binary (dotLottie archives). */
+  /** Present when `content` holds base64-encoded binary (dotLottie archives, Excel workbooks). */
   contentEncoding?: "utf8" | "base64";
 };
 
@@ -45,7 +46,8 @@ export type McpDownloadTranslationsResult =
         | "source_file_not_found"
         | "translations_not_found"
         | "unsupported_binary_download"
-        | "lottie_export_failed";
+        | "lottie_export_failed"
+        | "xlsx_export_failed";
     }
   | {
       ok: false;
@@ -91,6 +93,29 @@ export async function downloadMcpTranslations(input: {
     return {
       ok: false,
       error: "source_file_not_found",
+    };
+  }
+
+  const xlsxDownload = await loadProjectXlsxTranslationDownload({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.locale,
+  });
+  if (isErr(xlsxDownload)) {
+    return { ok: false, error: "xlsx_export_failed" };
+  }
+  if (xlsxDownload.value) {
+    return {
+      ok: true,
+      value: {
+        filename: downloadFilename(input.sourcePath, input.locale),
+        contentType: xlsxDownload.value.contentType,
+        locale: input.locale,
+        sourcePath: input.sourcePath,
+        contentEncoding: "base64",
+        content: xlsxDownload.value.content.toString("base64"),
+      },
     };
   }
 

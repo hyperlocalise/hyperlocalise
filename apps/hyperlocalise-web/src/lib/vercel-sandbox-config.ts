@@ -17,14 +17,12 @@ import {
   isHyperlocaliseSandboxVcrImageEnabledForScope,
   type VercelSandboxImageScope,
 } from "@/lib/flags/release-flags";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-release";
 
 export type { VercelSandboxImageScope } from "@/lib/flags/release-flags";
 
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "15.2.0";
-
-/** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.3";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.

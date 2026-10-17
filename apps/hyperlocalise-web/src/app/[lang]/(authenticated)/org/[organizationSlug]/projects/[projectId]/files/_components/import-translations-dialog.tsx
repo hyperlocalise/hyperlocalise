@@ -31,11 +31,13 @@ import { readApiResponseError } from "@/lib/api-error";
 import {
   getSupportedFileTranslationAccept,
   inferSupportedFileTranslationFileFormat,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import { importTranslationsDialogMessages as messages } from "./import-translations-dialog.messages";
 
 const FILE_ACCEPT = getSupportedFileTranslationAccept();
+const SPREADSHEET_FILE_ACCEPT = ".xlsx";
 
 type ImportTranslationsDialogProps = {
   open: boolean;
@@ -63,6 +65,9 @@ export function ImportTranslationsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const isSpreadsheet = Boolean(
+    inferSupportedSegmentedSpreadsheetTranslationFileFormat(sourcePath),
+  );
 
   useEffect(() => {
     if (open) {
@@ -79,7 +84,7 @@ export function ImportTranslationsDialog({
       if (!selectedFile) {
         throw new Error(intl.formatMessage(messages.chooseFileRequired));
       }
-      if (!inferSupportedFileTranslationFileFormat(sourcePath)) {
+      if (!isSpreadsheet && !inferSupportedFileTranslationFileFormat(sourcePath)) {
         throw new Error(intl.formatMessage(messages.unsupportedFormat));
       }
 
@@ -167,7 +172,7 @@ export function ImportTranslationsDialog({
               <input
                 ref={inputRef}
                 type="file"
-                accept={FILE_ACCEPT}
+                accept={isSpreadsheet ? SPREADSHEET_FILE_ACCEPT : FILE_ACCEPT}
                 className="sr-only"
                 onChange={(event) => {
                   setSelectedFile(event.target.files?.[0] ?? null);

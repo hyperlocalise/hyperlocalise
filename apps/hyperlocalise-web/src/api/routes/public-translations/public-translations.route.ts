@@ -19,6 +19,7 @@ import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import { publicApiAuthMiddleware } from "@/api/auth/workos-agent";
 import { internalErrorResponse } from "@/api/response.schema";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
@@ -90,6 +91,29 @@ export function createPublicTranslationRoutes() {
           return sourceFileNotFoundResponse(c);
         }
 
+        const filename = downloadFilename(query.sourcePath, query.locale);
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const xlsxDownload = await loadProjectXlsxTranslationDownload({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(xlsxDownload)) {
+          return internalErrorResponse(
+            c,
+            "xlsx_export_failed",
+            "Could not write translations into the Excel workbook.",
+          );
+        }
+        if (xlsxDownload.value) {
+          return c.body(new Uint8Array(xlsxDownload.value.content), 200, {
+            "Content-Type": xlsxDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+          });
+        }
+
         const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
           projectId: project.id,
@@ -105,9 +129,6 @@ export function createPublicTranslationRoutes() {
         if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
-
-        const filename = downloadFilename(query.sourcePath, query.locale);
-        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
         const lottieDownload = await loadProjectLottieTranslationDownload({
           organizationId,

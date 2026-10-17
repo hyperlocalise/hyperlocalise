@@ -1,0 +1,129 @@
+---
+title: "Translate Excel workbooks with Hyperlocalise"
+sidebarTitle: "Excel workbooks"
+description: "Translate multilingual Excel string tables and free-form Excel sheets while keeping formulas, numbers, and formatting unchanged."
+---
+
+Hyperlocalise translates text cells in Excel workbooks. It reads each visible
+worksheet in one of two layouts and writes translations back into a copy of the
+source workbook.
+
+Supported extension: `.xlsx`. Legacy `.xls` workbooks are not parsed; save them
+as `.xlsx` first.
+
+## Layouts
+
+The CLI chooses a layout for each sheet from its first row and the source locale.
+
+- **Multilingual**: the first row has a column for the source locale, for
+  example `English`, `en-US`, or `en`. Each later row is one entry. Other
+  columns can hold the row key, a translator comment, a length limit, or other
+  locales.
+- **Cell**: no column names the source locale. Every text cell, including the
+  first row, is one entry keyed by its address, such as `Sheet1!B3`. Use this
+  for one-off documents such as price lists or reports.
+
+A workbook can mix layouts: one sheet can be a string table while another is a
+free-form document.
+
+## Source file
+
+This multilingual sheet has a key, a comment, a length limit, and an English
+source column. Save it as `copy/strings.xlsx`.
+
+| Key | Comment | Length limit | English | French |
+| --- | --- | --- | --- | --- |
+| checkout.title | Page heading | 24 | Checkout | Paiement |
+| checkout.cta | Primary button | 12 | Pay now | |
+
+## Header rules
+
+Only the first row is read for headers. Matching is case-insensitive, and any
+run of characters outside `a`-`z` and `0`-`9` becomes one `-`, so `en####us`
+reads as `en-us` and `String Length` reads as `string-length`.
+
+| Column | Accepted headers |
+| --- | --- |
+| Key | `key`, `id`, `context`, `string-id`, `string-key` |
+| Comment | `comment`, `comments`, `note`, `notes`, `description` |
+| Length limit | `length-limit`, `string-length`, `length`, `limit`, `max-length`, `maxlength`, `character-limit`, `char-limit` |
+| Locale | A locale code such as `fr`, `pt-BR`, or `zh-Hans`, or a language name such as `French`, `Portuguese (Brazil)`, or `Chinese Simplified` |
+
+When several columns could match a locale, an exact code wins over a base
+language, and a base language wins over a more specific region. For `fr-CA`, a
+`fr-CA` column wins over `fr`, and a `fr-FR` column is never used. For `fr`, a
+`fr` column wins over `fr-FR`. The source column is never reused as a target
+column.
+
+## Configure your files
+
+Write every locale into the same workbook by mapping the source path to itself:
+
+```yaml
+locales:
+    source: en
+    targets:
+        - fr
+        - es-419
+
+buckets:
+    copy:
+        files:
+            - from: copy/strings.xlsx
+              to: copy/strings.xlsx
+
+llm:
+    profiles:
+        default:
+            provider: openai
+            model: gpt-5.2
+```
+
+Or write one workbook per locale with a [path template](/cli/configuration/path-templates):
+
+```yaml
+buckets:
+    copy:
+        files:
+            - from: copy/en/strings.xlsx
+              to: copy/{{target}}/strings.xlsx
+```
+
+## Translate
+
+[Install the CLI](/cli/getting-started/install) and set `OPENAI_API_KEY` in your
+project's `.env.local` or shell. You can also configure another
+[AI provider](/cli/providers/overview).
+
+```bash
+hyperlocalise run --dry-run
+hyperlocalise run
+```
+
+## Behavior and limitations
+
+- Row keys come from the key column. A row with an empty key, or a key already
+  used earlier in the workbook, is keyed by sheet and row, such as
+  `Sheet1!5:5`. If an earlier row already uses that text as its key, a suffix
+  such as `#2` is added. Without a key column, every row uses its row address, so
+  inserting rows above existing ones changes their keys.
+
+- Comments are passed to the model as translation context. Length limits are
+  passed as maximum lengths.
+
+- A target locale with no column is added after the last used column. Its
+  header is the target locale code, and it copies the source column's width and
+  cell styles.
+
+- Existing target cells are kept. A run fills only entries that are missing or
+  changed, and cells for locales outside the run are untouched.
+
+- Formulas, numbers, dates, booleans, and cells without letters are never
+  translated. Hidden sheets are skipped.
+
+- Rich text runs inside a cell are flattened to plain text in the translated
+  cell. Cell-level formatting is kept.
+
+- `hl entries strings.xlsx --source-locale en --locale fr` prints the French
+  entries, keyed like the English source. Without `--source-locale`, `--locale`
+  names the source column. Comments are printed as `context`.

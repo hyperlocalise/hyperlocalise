@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   uploadRepositorySourceFilesFromSandbox: vi.fn(),
   canPushToGitHubRepository: vi.fn(),
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
+  loadProjectXlsxTranslationDownload: vi.fn(),
   hasDiffAgainstBase: vi.fn(),
   commitPushAndCreatePullTranslationsPullRequest: vi.fn(),
 }));
@@ -85,6 +86,11 @@ vi.mock("@/lib/agents/repository-write-gate", () => ({
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   loadProjectTranslationsAsPrefilledEntries: (...args: unknown[]) =>
     mocks.loadProjectTranslationsAsPrefilledEntries(...args),
+}));
+
+vi.mock("@/lib/projects/files/xlsx-translation-download", () => ({
+  loadProjectXlsxTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectXlsxTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/agents/github/github-repository-automation-pull-translations-pr", () => ({
@@ -409,5 +415,43 @@ describe("executeGithubContentSync", () => {
       }),
     );
     expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("pushes generated Excel workbooks only for locales with ready translations", async () => {
+    const workbook = Buffer.from("PK\x03\x04xlsx");
+    mocks.loadProjectXlsxTranslationDownload.mockImplementation(
+      async (input: { targetLocale: string }) => ({
+        ok: true,
+        value: {
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          content: workbook,
+          translatedKeyCount: input.targetLocale === "fr" ? 2 : 0,
+        },
+      }),
+    );
+
+    const result = await pullThenPush({
+      targetLocales: ["fr", "de"],
+      sourceFiles: [{ sourcePath: "github/acme/web/strings.xlsx" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toMatchObject({ written: 1 });
+    }
+    expect(mocks.loadProjectXlsxTranslationDownload).toHaveBeenCalledWith({
+      organizationId: ORG_ID,
+      projectId: PROJECT_ID,
+      sourcePath: "github/acme/web/strings.xlsx",
+      targetLocale: "fr",
+    });
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidates: [
+          expect.objectContaining({ targetPath: "locales/strings-fr.xlsx", content: workbook }),
+        ],
+      }),
+    );
   });
 });

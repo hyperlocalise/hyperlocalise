@@ -2692,6 +2692,12 @@ async function createMcpServerForRequest(
               "Could not write translations into the Lottie animation",
             );
 
+          case "xlsx_export_failed":
+            return mcpToolError(
+              "xlsx_export_failed",
+              "Could not write translations into the Excel workbook",
+            );
+
           default:
             return assertNever(downloadError);
         }

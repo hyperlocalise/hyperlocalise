@@ -201,7 +201,7 @@ func (s *Service) recordMTBatchAttempt(state *executorState, key mtGroupKey, pro
 
 func (s *Service) recordMTTaskSuccess(ctx context.Context, task Task, value string, state *executorState, emitter *eventEmitter, completions chan<- taskCompletion) {
 	completion := taskCompletion{
-		identity:     preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey),
+		identity:     taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey),
 		entryKey:     task.EntryKey,
 		value:        value,
 		sourceHash:   taskLockSourceHash(task),

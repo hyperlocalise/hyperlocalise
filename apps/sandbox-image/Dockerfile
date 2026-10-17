@@ -59,6 +59,7 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
+# (HYPERLOCALISE_VERSION: apps/hyperlocalise-web/src/lib/translation/sandbox-cli-release.ts)
 ARG NODE_MAJOR=24
 ARG RIPGREP_VERSION=15.2.0
 ARG HYPERLOCALISE_VERSION=1.13.3

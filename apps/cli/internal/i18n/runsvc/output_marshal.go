@@ -29,6 +29,9 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	case ".lottie":
 		content, err := s.marshalDotLottieTarget(path, sourcePath, values)
 		return content, nil, err
+	case ".xlsx":
+		content, err := s.marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale, values)
+		return content, nil, err
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
@@ -284,6 +287,21 @@ func (s *Service) marshalDotLottieTarget(path, sourcePath string, values map[str
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 	content, err := translationfileparser.MarshalDotLottie(sourceTemplate, values)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Excel targets are always written into a copy of the source workbook so new
+// rows, sheets, and formatting carry over. When the target path is the source
+// path, that copy already holds the other locales' columns.
+func (s *Service) marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := translationfileparser.MarshalXLSX(sourceTemplate, values, sourceLocale, targetLocale)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}

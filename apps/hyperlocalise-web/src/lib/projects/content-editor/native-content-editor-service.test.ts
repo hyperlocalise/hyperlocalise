@@ -451,6 +451,100 @@ describe("NativeContentEditorService.getCatFile", () => {
     });
   });
 
+  it("returns Excel workbook keys plus a File view of the generated workbook", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_xlsx",
+        key: "home.title",
+        sourceText: "Home",
+        context: "Navigation label",
+        type: "string",
+        maxLength: 20,
+        metadata: null,
+      },
+    ]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_xlsx",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/strings v2.xlsx",
+      targetLocale: "fr-FR",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({ repositorySourceFileId: "file_1", limit: 1 }),
+    );
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_xlsx",
+      key: "home.title",
+      sourceText: "Home",
+      context: "Navigation label",
+      maxLength: 20,
+    });
+    expect(result?.segments[0]?.contentKind).toBeUndefined();
+    expect(result?.documentView).toEqual({
+      externalStringId: "file_1",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_xlsx",
+      targetAssetUrl:
+        "/api/orgs/acme/projects/project_1/files/translations/download?sourcePath=sheets%2Fstrings+v2.xlsx&locale=fr-FR",
+      imageVariantId: null,
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Office File view for Excel uploads with no keys", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_xlsx",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_xlsx",
+      storedFileId: "stored_target_xlsx",
+      status: "draft",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/rates.xlsx",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledTimes(1);
+    expect(result?.documentView).toBeUndefined();
+    expect(result?.segments).toEqual([
+      expect.objectContaining({
+        externalStringId: "file_1",
+        key: "sheets/rates.xlsx",
+        contentKind: "office_file",
+        targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_xlsx",
+        imageVariantId: "variant_xlsx",
+      }),
+    ]);
+  });
+
+  it("keeps legacy .xls workbooks as Office files without listing keys", async () => {
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "sheets/rates.xls",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(result?.segments[0]?.contentKind).toBe("office_file");
+  });
+
   it("returns ingested markdown keys plus a document view overlay", async () => {
     listKeysForFile.mockResolvedValue([
       {
@@ -963,6 +1057,38 @@ describe("NativeContentEditorService.getSegmentTarget", () => {
         ...segmentInput,
         sourcePath: "assets/hero.png",
         externalStringId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      }),
+    ).resolves.toBe("not_found");
+    expect(getTranslationsByKeyIds).not.toHaveBeenCalled();
+  });
+
+  it("resolves an Excel workbook segment key instead of the whole-file variant", async () => {
+    selectLimit.mockResolvedValue([{ id: "key-uuid", metadata: null }]);
+    getTranslationsByKeyIds.mockResolvedValue([
+      { id: "translation_1", text: "Accueil", status: "approved" },
+    ]);
+
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "sheets/strings.xlsx",
+        externalStringId: "key-uuid",
+      }),
+    ).resolves.toEqual({
+      text: "Accueil",
+      externalTranslationId: "translation_1",
+      isApproved: true,
+      status: "approved",
+    });
+    expect(getImageVariant).not.toHaveBeenCalled();
+  });
+
+  it("rejects a key UUID on a legacy .xls workbook", async () => {
+    await expect(
+      service.getSegmentTarget({
+        ...segmentInput,
+        sourcePath: "sheets/strings.xls",
+        externalStringId: "key-uuid",
       }),
     ).resolves.toBe("not_found");
     expect(getTranslationsByKeyIds).not.toHaveBeenCalled();

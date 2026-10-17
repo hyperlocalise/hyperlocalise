@@ -19,12 +19,17 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import {
+  isSandboxFileTranslationFormat,
+  sandboxEntriesLocaleOptions,
+} from "@/lib/translation/sandbox-cli-release";
 import { addCliTokenUsage, type CliTokenUsage } from "@/lib/translation/cli-token-usage";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import type { JobEventInput } from "@/lib/job-events/job-events-contract";
@@ -548,15 +553,13 @@ runTranslationStep.maxRetries = 0;
 async function extractEntriesStep(
   sandboxId: string,
   path: string,
-  options?: { sourcePath?: string },
+  options?: { sourcePath?: string; sourceLocale?: string; locale?: string },
 ) {
   "use step";
   // Use extractSandboxEntries so UTF-8 entries are read via binary file IO,
   // not sandbox stdout string capture (which can turn multi-byte chars into �).
   const { extractSandboxEntries, readTranslatedFile } = await import("@/lib/translation/sandbox");
-  const result = await extractSandboxEntries(sandboxId, path, {
-    sourcePath: options?.sourcePath,
-  });
+  const result = await extractSandboxEntries(sandboxId, path, options);
   if (!result.ok) {
     throw new Error(
       `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
@@ -608,6 +611,8 @@ async function assembleFileTranslationContextStep(input: {
   sourceLocale: string;
   targetLocales: string[];
   sourceContent: Buffer;
+  /** Text to match glossary terms against when the file bytes are not text. */
+  sourceText?: string;
   metadata?: Record<string, string>;
 }) {
   "use step";
@@ -634,7 +639,7 @@ async function assembleFileTranslationContextStep(input: {
     throw new Error(`project ${input.projectId} not found`);
   }
 
-  const sourceText = input.sourceContent.toString("utf8").slice(0, 500_000);
+  const sourceText = (input.sourceText ?? input.sourceContent.toString("utf8")).slice(0, 500_000);
   const attachedTerms = await listGlossaryTermsForProject({
     organizationId: project.organizationId,
     projectId: input.projectId,
@@ -756,14 +761,21 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     return { status: "failed" as const, reason: aiFeatures.error.code };
   }
 
-  if (isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+  const sourceIsSpreadsheet = isSegmentedSpreadsheetTranslationFileFormat(
+    parsedInput.fileFormat as SupportedTranslationFileFormat,
+  );
+  if (
+    isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat) &&
+    !isSandboxFileTranslationFormat(parsedInput.fileFormat)
+  ) {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       code: "office_file_manual_cat",
-      message:
-        "Office files are localized in CAT File view. Upload or edit the translated file there.",
+      message: sourceIsSpreadsheet
+        ? "Excel workbooks are translated as segments. Upload the workbook to the project and translate its segments in CAT."
+        : "Office files are localized in CAT File view. Upload or edit the translated file there.",
     });
     return { status: "failed" as const, reason: "office_file_manual_cat" };
   }
@@ -957,21 +969,27 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
   };
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
-  try {
-    const context = await assembleFileTranslationContextStep({
+  const assembleContext = async (sourceText?: string) => {
+    const assembled = await assembleFileTranslationContextStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       sourceLocale: parsedInput.sourceLocale,
       targetLocales: parsedInput.targetLocales,
       sourceContent,
+      sourceText,
       metadata: parsedInput.metadata,
     });
     await recordEvents([
       {
         type: "context_ready",
-        payload: { glossaryTermCount: context.glossaryTerms?.length ?? 0 },
+        payload: { glossaryTermCount: assembled.glossaryTerms?.length ?? 0 },
       },
     ]);
+    return assembled;
+  };
+  try {
+    // Workbook bytes are zipped, so glossary terms are matched against extracted cell text.
+    const contextFromFile = sourceIsSpreadsheet ? null : await assembleContext();
 
     ({ sandboxId } = await createSandboxStep());
     await prepareSandboxStep(sandboxId);
@@ -990,7 +1008,13 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       sandboxId,
     });
 
-    const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
+    const sourceEntries = await extractEntriesStep(
+      sandboxId,
+      inputFilename,
+      sandboxEntriesLocaleOptions(inputFilename, parsedInput.sourceLocale),
+    );
+    const context =
+      contextFromFile ?? (await assembleContext(Object.values(sourceEntries).join("\n")));
     const translatableKeys = Object.keys(sourceEntries).filter((key) => sourceEntries[key]?.trim());
     const sourceEntryCount = translatableKeys.length;
     const prefilledByLocale: Record<string, Record<string, string>> = {};
@@ -1362,6 +1386,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             ]),
           ),
           sourceEntries,
+          sourceLocale: parsedInput.sourceLocale,
           prefills: prefilledByLocale,
           confirmed: confirmedByLocale,
           hlRunFingerprint: `${page}:${attempt}:${result.succeeded}:${result.failed}:${result.exitCode ?? "na"}`,

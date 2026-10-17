@@ -1152,17 +1152,21 @@ func taskIdentity(targetPath, entryKey string) string {
 
 func taskIdentityCandidates(task Task, projectRoot string) []string {
 	identities := []string{
+		taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey),
 		preferredTaskIdentity(projectRoot, task.TargetPath, task.EntryKey),
 		taskIdentity(task.TargetPath, task.EntryKey),
 	}
 	if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+		identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, task.EntryKey))
 		identities = append(identities, taskIdentity(rel, task.EntryKey))
 	}
 	if isMarkdownEntryKey(task.EntryKey) {
 		for _, entryKey := range legacyMarkdownEntryKeyCandidates(task.EntryKey) {
+			identities = append(identities, taskLockIdentity(projectRoot, task.TargetPath, task.TargetLocale, entryKey))
 			identities = append(identities, preferredTaskIdentity(projectRoot, task.TargetPath, entryKey))
 			identities = append(identities, taskIdentity(task.TargetPath, entryKey))
 			if rel, ok := relativizeProjectPath(projectRoot, task.TargetPath); ok {
+				identities = append(identities, taskLockIdentity(projectRoot, rel, task.TargetLocale, entryKey))
 				identities = append(identities, taskIdentity(rel, entryKey))
 			}
 		}

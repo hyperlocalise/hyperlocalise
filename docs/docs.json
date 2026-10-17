@@ -332,6 +332,7 @@
                           "cli/reference/formats/fluent",
                           "cli/reference/formats/csv",
                           "cli/reference/formats/tsv",
+                          "cli/reference/formats/xlsx",
                           "cli/reference/formats/toml"
                         ]
                       },
