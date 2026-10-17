@@ -10,7 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { inferSupportedSegmentedSpreadsheetTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
+  isSupportedFileTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
 export const sandboxHyperlocaliseReleaseVersion = "1.13.3";
@@ -45,6 +50,18 @@ export function isReleaseVersionAtLeast(version: string, minimum: string): boole
  */
 export function sandboxCliParsesXlsx(version: string = sandboxHyperlocaliseReleaseVersion): boolean {
   return isReleaseVersionAtLeast(version, hyperlocaliseCliXlsxReleaseVersion);
+}
+
+/** Whether file translation jobs can run `format` through the sandbox CLI. */
+export function isSandboxFileTranslationFormat(
+  format: string,
+  cliParsesXlsx: boolean = sandboxCliParsesXlsx(),
+): boolean {
+  const supported = format as SupportedTranslationFileFormat;
+  return (
+    isSupportedFileTranslationFileFormat(supported) ||
+    (cliParsesXlsx && isSegmentedSpreadsheetTranslationFileFormat(supported))
+  );
 }
 
 /**

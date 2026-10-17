@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   hyperlocaliseCliXlsxReleaseVersion,
   isReleaseVersionAtLeast,
+  isSandboxFileTranslationFormat,
   sandboxCliParsesXlsx,
   sandboxEntriesLocaleOptions,
 } from "./sandbox-cli-release";
@@ -37,6 +38,19 @@ describe("sandboxCliParsesXlsx", () => {
   it("turns on at the first CLI release that reads workbooks", () => {
     expect(sandboxCliParsesXlsx("1.13.3")).toBe(false);
     expect(sandboxCliParsesXlsx(hyperlocaliseCliXlsxReleaseVersion)).toBe(true);
+  });
+});
+
+describe("isSandboxFileTranslationFormat", () => {
+  it("adds workbooks to file translation once the CLI parses them", () => {
+    expect(isSandboxFileTranslationFormat("json", false)).toBe(true);
+    expect(isSandboxFileTranslationFormat("xlsx", false)).toBe(false);
+    expect(isSandboxFileTranslationFormat("xlsx", true)).toBe(true);
+  });
+
+  it("keeps other Office formats in CAT", () => {
+    expect(isSandboxFileTranslationFormat("xls", true)).toBe(false);
+    expect(isSandboxFileTranslationFormat("docx", true)).toBe(false);
   });
 });
 
