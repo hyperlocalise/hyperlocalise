@@ -19,6 +19,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
@@ -762,8 +763,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       code: "office_file_manual_cat",
-      message:
-        "Office files are localized in CAT File view. Upload or edit the translated file there.",
+      message: isSegmentedSpreadsheetTranslationFileFormat(
+        parsedInput.fileFormat as SupportedTranslationFileFormat,
+      )
+        ? "Excel workbooks are translated as segments. Upload the workbook to the project and translate its segments in CAT."
+        : "Office files are localized in CAT File view. Upload or edit the translated file there.",
     });
     return { status: "failed" as const, reason: "office_file_manual_cat" };
   }

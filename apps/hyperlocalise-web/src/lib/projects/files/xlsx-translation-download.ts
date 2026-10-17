@@ -32,6 +32,17 @@ export type ProjectXlsxTranslationDownloadError =
   | { code: "project_not_found" }
   | { code: "source_content_not_found" };
 
+/** Same-origin URL of the generated workbook, used as the File view target. */
+export function projectXlsxTranslationDownloadPath(input: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+}) {
+  const params = new URLSearchParams({ sourcePath: input.sourcePath, locale: input.targetLocale });
+  return `/api/orgs/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/files/translations/download?${params.toString()}`;
+}
+
 /**
  * Builds the `targetLocale` copy of a segmented `.xlsx` source from its ready translations.
  * Source text is never written into target cells, so untranslated rows stay empty in

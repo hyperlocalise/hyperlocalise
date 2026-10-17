@@ -33,6 +33,12 @@ describe("availablePersonasForFamily", () => {
     );
   });
 
+  it("offers translator, designer, and reviewer for segmented Excel workbooks", () => {
+    expect(
+      availablePersonasForFamily("spreadsheet", ["comfortable", "side-by-side", "file"]),
+    ).toEqual(["translator", "designer", "reviewer"]);
+  });
+
   it("stays designer-only for document files without segment views", () => {
     expect(availablePersonasForFamily("document", ["file"])).toEqual(["designer"]);
     expect(availablePersonasForFamily("document")).toEqual(["designer"]);

@@ -14,13 +14,20 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 import type { ContentEditorContentKind } from "@/components/content-editor/shared/types";
 import type { ContentEditorWorkspaceViewMode } from "./content-editor-workspace-view-mode";
 
-export type ContentEditorFileViewFamily = "image" | "video" | "text" | "office" | "document";
+export type ContentEditorFileViewFamily =
+  | "image"
+  | "video"
+  | "text"
+  | "office"
+  | "document"
+  | "spreadsheet";
 
 export type ContentEditorFileViewerId =
   | "image"
@@ -122,6 +129,28 @@ export function resolveCatFileViewCapabilities(input: {
       availableViews: FILE_ONLY_VIEWS,
       defaultView: "file",
       viewerId: "video",
+    };
+  }
+
+  // Workbooks ingested as keyed segments. Legacy uploads with no keys keep `office_file` segments.
+  if (
+    contentKind !== "office_file" &&
+    inferSupportedSegmentedSpreadsheetTranslationFileFormat(sourcePath)
+  ) {
+    if (!nativeProject) {
+      return {
+        family: "text",
+        availableViews: segmentViews(input.multilingualViewAvailable),
+        defaultView: "side-by-side",
+        viewerId: null,
+      };
+    }
+
+    return {
+      family: "spreadsheet",
+      availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
+      defaultView: "side-by-side",
+      viewerId: "xlsx",
     };
   }
 
