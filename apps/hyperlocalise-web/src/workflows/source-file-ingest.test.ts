@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   prepareSourceIngestSandboxStep: vi.fn(),
   writeSourceIngestFileStep: vi.fn(),
   extractSourceIngestEntriesStep: vi.fn(),
+  extractXlsxSourceEntriesStep: vi.fn(),
   loadSourceFileSegmentationStep: vi.fn(),
   writeSourceFileSegmentationSrxStep: vi.fn(),
   parseHlEntriesStep: vi.fn(),
@@ -153,6 +154,57 @@ describe("sourceFileIngestWorkflow documents", () => {
     });
     expect(mocks.ensureImageVariantsForSourceFileStep).toHaveBeenCalled();
     expect(mocks.extractSourceIngestEntriesStep).not.toHaveBeenCalled();
+    expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
+  });
+});
+
+describe("sourceFileIngestWorkflow spreadsheets", () => {
+  const xlsxEntry = { key: "home.title", text: "Home", context: null, type: "string" };
+
+  it("extracts Excel segments in-process and reconciles them without a sandbox", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractXlsxSourceEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractXlsxSourceEntriesStep).toHaveBeenCalledWith({
+      organizationId: "org",
+      projectId: "project",
+      storedFileId: "stored",
+    });
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
+      expect.objectContaining({ entries: [xlsxEntry] }),
+    );
+    expect(mocks.dispatchSourceUploadAutomationsStep).toHaveBeenCalledOnce();
+    expect(mocks.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).not.toHaveBeenCalled();
+  });
+
+  it("marks the version failed when the workbook cannot be read", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    mocks.extractXlsxSourceEntriesStep.mockRejectedValue(
+      new Error("failed to extract entries from the workbook: invalid_xlsx"),
+    );
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).rejects.toThrow("invalid_xlsx");
+    expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ingestState: "failed",
+        ingestError: "the file format could not be parsed into translation keys",
+      }),
+    );
+  });
+
+  it("keeps legacy .xls uploads as whole files", async () => {
+    mocks.getProjectTargetLocalesStep.mockResolvedValue(["fr"]);
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xls" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 0 });
+    expect(mocks.extractXlsxSourceEntriesStep).not.toHaveBeenCalled();
     expect(mocks.reconcileSourceFileTranslationKeysStep).not.toHaveBeenCalled();
   });
 });

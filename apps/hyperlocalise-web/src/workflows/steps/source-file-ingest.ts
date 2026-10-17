@@ -128,6 +128,20 @@ export async function parseHlEntriesStep(
   return entriesFromHlOutput(payload, true);
 }
 
+export async function extractXlsxSourceEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+}): Promise<ProjectSourceStringEntry[]> {
+  "use step";
+  const { loadProjectXlsxSourceEntries } = await import("@/lib/projects/files/xlsx-source-entries");
+  const entries = await loadProjectXlsxSourceEntries(input);
+  if (!entries.ok) {
+    throw new Error(`failed to extract entries from the workbook: ${entries.error.code}`);
+  }
+  return entries.value;
+}
+
 export async function stopSourceIngestSandboxStep(sandboxId: string) {
   "use step";
   const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");

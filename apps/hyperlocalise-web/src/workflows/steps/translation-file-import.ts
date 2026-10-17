@@ -26,6 +26,21 @@ export async function extractTranslationImportEntriesStep(input: {
   return result.entries;
 }
 
+export async function extractXlsxTranslationImportEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  targetLocale: string;
+}): Promise<Record<string, string>> {
+  "use step";
+  const { loadProjectXlsxTargetEntries } = await import("@/lib/projects/files/xlsx-source-entries");
+  const entries = await loadProjectXlsxTargetEntries(input);
+  if (!entries.ok) {
+    throw new Error(`failed to extract entries from the workbook: ${entries.error.code}`);
+  }
+  return entries.value;
+}
+
 export async function importTranslationsFromEntriesStep(input: {
   organizationId: string;
   projectId: string;

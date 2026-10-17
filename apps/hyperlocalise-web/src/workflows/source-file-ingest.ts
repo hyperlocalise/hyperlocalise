@@ -17,6 +17,7 @@ import {
   isBinaryTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isImageTranslationFileFormat,
+  isSegmentedSpreadsheetTranslationFileFormat,
   isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
@@ -27,6 +28,7 @@ import {
   ensureImageVariantsForSourceFileStep,
   ensureVideoVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
+  extractXlsxSourceEntriesStep,
   getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
   markSourceFileIngestStateStep,
@@ -125,6 +127,42 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
           repositorySourceFileId,
           targetLocales,
         });
+      }
+
+      if (inferredFormat && isSegmentedSpreadsheetTranslationFileFormat(inferredFormat)) {
+        const entries = await extractXlsxSourceEntriesStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          storedFileId: event.storedFileId,
+        });
+        const reconciliation = await reconcileSourceFileTranslationKeysStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          repositorySourceFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          workflowRunId,
+          entries,
+        });
+
+        ingestCompleted = true;
+        if (reconciliation.status === "superseded") {
+          return { status: "skipped" as const, reason: "superseded" };
+        }
+
+        await dispatchSourceUploadAutomationsStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          sourceFileId: event.storedFileId,
+          sourceFileVersionId: event.sourceFileVersionId,
+          sourcePath: event.sourcePath,
+          sourceHash: claim.sourceHash,
+          targetAutomationId: event.targetAutomationId,
+        });
+
+        return {
+          status: "ingested" as const,
+          importedKeyCount: entries.length,
+        };
       }
 
       if (isBinary) {

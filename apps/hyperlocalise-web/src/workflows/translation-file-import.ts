@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { inferSupportedSegmentedSpreadsheetTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import {
   createSourceIngestSandboxStep,
@@ -22,6 +23,7 @@ import { getStoredFileContentStep } from "./steps/translation-job";
 import {
   enqueueFileTranslationsImportedActivityStep,
   extractTranslationImportEntriesStep,
+  extractXlsxTranslationImportEntriesStep,
   importTranslationsFromEntriesStep,
 } from "./steps/translation-file-import";
 
@@ -37,6 +39,16 @@ function basename(filePath: string): string {
 
 export async function translationFileImportWorkflow(event: TranslationFileImportEventData) {
   "use workflow";
+
+  if (inferSupportedSegmentedSpreadsheetTranslationFileFormat(event.sourcePath)) {
+    const entries = await extractXlsxTranslationImportEntriesStep({
+      organizationId: event.organizationId,
+      projectId: event.projectId,
+      storedFileId: event.storedFileId,
+      targetLocale: event.targetLocale,
+    });
+    return importAndRecord(event, entries);
+  }
 
   let sandboxId: string | null = null;
 
@@ -61,33 +73,40 @@ export async function translationFileImportWorkflow(event: TranslationFileImport
     });
     const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
 
-    const result = await importTranslationsFromEntriesStep({
-      organizationId: event.organizationId,
-      projectId: event.projectId,
-      sourcePath: event.sourcePath,
-      targetLocale: event.targetLocale,
-      entries: hlEntriesPayloadToStringMap(extractedEntries),
-      actorUserId: event.actorUserId ?? null,
-    });
-
-    await enqueueFileTranslationsImportedActivityStep({
-      actorUserId: event.actorUserId ?? null,
-      organizationId: event.organizationId,
-      projectId: event.projectId,
-      sourcePath: event.sourcePath,
-      storedFileId: event.storedFileId,
-      targetLocale: event.targetLocale,
-    });
-
-    return {
-      status: "imported" as const,
-      matched: result.matched,
-      imported: result.imported,
-      skipped: result.skipped,
-    };
+    return await importAndRecord(event, hlEntriesPayloadToStringMap(extractedEntries));
   } finally {
     if (sandboxId) {
       await stopSourceIngestSandboxStep(sandboxId).catch(() => undefined);
     }
   }
+}
+
+async function importAndRecord(
+  event: TranslationFileImportEventData,
+  entries: Record<string, string>,
+) {
+  const result = await importTranslationsFromEntriesStep({
+    organizationId: event.organizationId,
+    projectId: event.projectId,
+    sourcePath: event.sourcePath,
+    targetLocale: event.targetLocale,
+    entries,
+    actorUserId: event.actorUserId ?? null,
+  });
+
+  await enqueueFileTranslationsImportedActivityStep({
+    actorUserId: event.actorUserId ?? null,
+    organizationId: event.organizationId,
+    projectId: event.projectId,
+    sourcePath: event.sourcePath,
+    storedFileId: event.storedFileId,
+    targetLocale: event.targetLocale,
+  });
+
+  return {
+    status: "imported" as const,
+    matched: result.matched,
+    imported: result.imported,
+    skipped: result.skipped,
+  };
 }
