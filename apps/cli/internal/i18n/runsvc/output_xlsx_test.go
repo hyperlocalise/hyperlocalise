@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -224,5 +225,56 @@ func TestExecutePoolSharedWorkbookLocales(t *testing.T) {
 	}
 	if spanish["greeting"] != "Hola" {
 		t.Fatalf("unexpected spanish values: %#v", spanish)
+	}
+}
+
+func TestMarshalTargetFileXLSXUsesSourceWorkbook(t *testing.T) {
+	workbook := excelize.NewFile()
+	rows := [][]any{
+		{"Key", "English", "French"},
+		{"greeting", "Hello", "stale"},
+	}
+	for index, row := range rows {
+		cell, err := excelize.CoordinatesToCellName(1, index+1)
+		if err != nil {
+			t.Fatalf("cell name: %v", err)
+		}
+		if err := workbook.SetSheetRow("Sheet1", cell, &row); err != nil {
+			t.Fatalf("set row: %v", err)
+		}
+	}
+	var buffer bytes.Buffer
+	if err := workbook.Write(&buffer); err != nil {
+		t.Fatalf("write workbook: %v", err)
+	}
+	sourceBytes := buffer.Bytes()
+
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/en/strings.xlsx":
+			return sourceBytes, nil
+		case "/tmp/fr/strings.xlsx":
+			return []byte("stale target"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/fr/strings.xlsx", "/tmp/en/strings.xlsx", "en", "fr", map[string]string{"greeting": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal xlsx target: %v", err)
+	}
+	french, err := translationfileparser.ParseXLSXLocale(content, "en", "fr")
+	if err != nil {
+		t.Fatalf("parse french: %v", err)
+	}
+	if french["greeting"] != "Bonjour" {
+		t.Fatalf("expected translated greeting, got %#v", french)
+	}
+
+	_, _, missing := svc.marshalTargetFile("/tmp/fr/strings.xlsx", "/tmp/missing.xlsx", "en", "fr", map[string]string{"greeting": "Bonjour"}, nil, nil)
+	if missing == nil || !strings.Contains(missing.Error(), "read template source") {
+		t.Fatalf("expected source template read error, got %v", missing)
 	}
 }

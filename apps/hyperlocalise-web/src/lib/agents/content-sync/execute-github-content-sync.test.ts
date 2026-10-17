@@ -454,4 +454,23 @@ describe("executeGithubContentSync", () => {
       }),
     );
   });
+
+  it("skips Excel exports that fail to generate instead of falling back to JSON", async () => {
+    mocks.loadProjectXlsxTranslationDownload.mockResolvedValue({
+      ok: false,
+      error: { code: "invalid_xlsx" },
+    });
+
+    const result = await pullThenPush({
+      targetLocales: ["fr"],
+      sourceFiles: [{ sourcePath: "github/acme/web/strings.xlsx" }],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isOk(result)) {
+      expect(result.value.pushed).toEqual({ written: 0 });
+    }
+    expect(mocks.loadProjectTranslationsAsPrefilledEntries).not.toHaveBeenCalled();
+    expect(mocks.commitPushAndCreatePullTranslationsPullRequest).not.toHaveBeenCalled();
+  });
 });
