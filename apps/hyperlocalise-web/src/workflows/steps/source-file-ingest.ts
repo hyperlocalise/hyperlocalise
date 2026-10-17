@@ -71,11 +71,15 @@ export async function writeSourceIngestFileStep(
 export async function extractSourceIngestEntriesStep(
   sandboxId: string,
   filePath: string,
-  options?: { srx?: string },
+  options?: { srx?: string; sourceLocale?: string; locale?: string },
 ) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
-  const result = await extractSandboxEntries(sandboxId, filePath, { srx: options?.srx });
+  const result = await extractSandboxEntries(sandboxId, filePath, {
+    srx: options?.srx,
+    sourceLocale: options?.sourceLocale,
+    locale: options?.locale,
+  });
   if (!result.ok) {
     throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
   }
@@ -140,6 +144,19 @@ export async function extractXlsxSourceEntriesStep(input: {
     throw new Error(`failed to extract entries from the workbook: ${entries.error.code}`);
   }
   return entries.value;
+}
+
+export async function getProjectSourceLocaleStep(input: {
+  organizationId: string;
+  projectId: string;
+}): Promise<string | null> {
+  "use step";
+  const { getProjectSourceLocale } = await import("@/lib/projects/files/xlsx-source-entries");
+  const sourceLocale = await getProjectSourceLocale(input);
+  if (!sourceLocale.ok) {
+    throw new Error(`project ${input.projectId} not found`);
+  }
+  return sourceLocale.value;
 }
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {

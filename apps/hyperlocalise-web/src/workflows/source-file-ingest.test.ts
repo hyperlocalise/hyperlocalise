@@ -30,10 +30,16 @@ const mocks = vi.hoisted(() => ({
   ensureImageVariantsForSourceFileStep: vi.fn(),
   ensureVideoVariantsForSourceFileStep: vi.fn(),
   getProjectTargetLocalesStep: vi.fn(),
+  getProjectSourceLocaleStep: vi.fn(),
 }));
+const cliRelease = vi.hoisted(() => ({ parsesXlsx: false }));
 vi.mock("workflow", () => ({ getWorkflowMetadata: () => ({ workflowRunId: "run" }) }));
 vi.mock("./steps/source-file-ingest", () => mocks);
 vi.mock("./steps/translation-job", () => ({ getStoredFileContentStep: vi.fn(async () => "{}") }));
+vi.mock("@/lib/translation/sandbox-cli-release", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/translation/sandbox-cli-release")>()),
+  sandboxCliParsesXlsx: () => cliRelease.parsesXlsx,
+}));
 
 import { sourceFileIngestWorkflow } from "./source-file-ingest";
 
@@ -47,6 +53,7 @@ const event = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  cliRelease.parsesXlsx = false;
   mocks.claimSourceFileIngestStep.mockResolvedValue({
     repositorySourceFileId: "file",
     sourceHash: "hash",
@@ -197,6 +204,28 @@ describe("sourceFileIngestWorkflow spreadsheets", () => {
         ingestError: "the file format could not be parsed into translation keys",
       }),
     );
+  });
+
+  it("parses Excel segments with hl entries once the sandbox CLI reads workbooks", async () => {
+    cliRelease.parsesXlsx = true;
+    mocks.getStoredFileMetadataStep.mockResolvedValue({ filename: "strings.xlsx" });
+    mocks.getProjectSourceLocaleStep.mockResolvedValue("en-US");
+    mocks.parseHlEntriesStep.mockResolvedValue([xlsxEntry]);
+
+    await expect(
+      sourceFileIngestWorkflow({ ...event, sourcePath: "copy/strings.xlsx" }),
+    ).resolves.toEqual({ status: "ingested", importedKeyCount: 1 });
+    expect(mocks.extractSourceIngestEntriesStep).toHaveBeenCalledWith("sandbox", "strings.xlsx", {
+      sourceLocale: "en-US",
+      locale: "en-US",
+    });
+    expect(mocks.loadSourceFileSegmentationStep).not.toHaveBeenCalled();
+    expect(mocks.extractXlsxSourceEntriesStep).not.toHaveBeenCalled();
+    expect(mocks.markSourceFileIngestStateStep).not.toHaveBeenCalled();
+    expect(mocks.reconcileSourceFileTranslationKeysStep).toHaveBeenCalledWith(
+      expect.objectContaining({ entries: [xlsxEntry] }),
+    );
+    expect(mocks.stopSourceIngestSandboxStep).toHaveBeenCalledWith("sandbox");
   });
 
   it("keeps legacy .xls uploads as whole files", async () => {

@@ -11,9 +11,11 @@
  * Version 2.0 or later.
  */
 import { inferSupportedSegmentedSpreadsheetTranslationFileFormat } from "@/lib/translation/file-formats";
+import { sandboxCliParsesXlsx } from "@/lib/translation/sandbox-cli-release";
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import {
   createSourceIngestSandboxStep,
+  getProjectSourceLocaleStep,
   getStoredFileMetadataStep,
   prepareSourceIngestSandboxStep,
   stopSourceIngestSandboxStep,
@@ -40,7 +42,10 @@ function basename(filePath: string): string {
 export async function translationFileImportWorkflow(event: TranslationFileImportEventData) {
   "use workflow";
 
-  if (inferSupportedSegmentedSpreadsheetTranslationFileFormat(event.sourcePath)) {
+  const isSpreadsheet = Boolean(
+    inferSupportedSegmentedSpreadsheetTranslationFileFormat(event.sourcePath),
+  );
+  if (isSpreadsheet && !sandboxCliParsesXlsx()) {
     const entries = await extractXlsxTranslationImportEntriesStep({
       organizationId: event.organizationId,
       projectId: event.projectId,
@@ -66,10 +71,17 @@ export async function translationFileImportWorkflow(event: TranslationFileImport
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
+    const sourceLocale = isSpreadsheet
+      ? await getProjectSourceLocaleStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+        })
+      : null;
     const extractedEntries = await extractTranslationImportEntriesStep({
       sandboxId,
       filePath: inputFilename,
       targetLocale: event.targetLocale,
+      sourceLocale,
     });
     const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
 
