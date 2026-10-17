@@ -25,6 +25,12 @@ import {
   UseCaseScenarioSection,
   UseCaseWorkflowSection,
 } from "./use-case-sections";
+import { ProductLocalisationWorkflowSection } from "./product-localisation-workflow";
+import { ProductLocalisationCapabilities } from "./product-localisation-capabilities";
+import { ProductLocalisationScenario } from "./product-localisation-scenario";
+import { MarketingLocalisationScenario } from "./marketing-localisation-scenario";
+import { MarketingLocalisationWorkflowSection } from "./marketing-localisation-workflow";
+import { MarketingLocalisationCapabilities } from "./marketing-localisation-capabilities";
 
 type UseCasePageProps = {
   content: UseCasePageContent;
@@ -46,11 +52,23 @@ export function UseCasePage({ content, faqItems, faqHeading, faqSubheading }: Us
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseWorkflowSection content={content.workflow} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationWorkflowSection content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationWorkflowSection content={content} />
+          ) : (
+            <UseCaseWorkflowSection content={content.workflow} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseCapabilitiesSection content={content.capabilities} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationCapabilities content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationCapabilities content={content} />
+          ) : (
+            <UseCaseCapabilitiesSection content={content.capabilities} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
@@ -58,7 +76,13 @@ export function UseCasePage({ content, faqItems, faqHeading, faqSubheading }: Us
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseScenarioSection content={content.scenario} />
+          {content.slug === "product-localisation" ? (
+            <ProductLocalisationScenario content={content} />
+          ) : content.slug === "marketing-localisation" ? (
+            <MarketingLocalisationScenario content={content} />
+          ) : (
+            <UseCaseScenarioSection content={content.scenario} />
+          )}
         </section>
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
