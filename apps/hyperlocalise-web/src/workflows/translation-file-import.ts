@@ -10,8 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { inferSupportedSegmentedSpreadsheetTranslationFileFormat } from "@/lib/translation/file-formats";
-import { sandboxCliParsesXlsx } from "@/lib/translation/sandbox-cli-release";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import {
   createSourceIngestSandboxStep,
@@ -25,7 +28,7 @@ import { getStoredFileContentStep } from "./steps/translation-job";
 import {
   enqueueFileTranslationsImportedActivityStep,
   extractTranslationImportEntriesStep,
-  extractXlsxTranslationImportEntriesStep,
+  extractOfficeTranslationImportEntriesStep,
   importTranslationsFromEntriesStep,
 } from "./steps/translation-file-import";
 
@@ -42,14 +45,17 @@ function basename(filePath: string): string {
 export async function translationFileImportWorkflow(event: TranslationFileImportEventData) {
   "use workflow";
 
+  const officeFormat = inferSupportedOfficeTranslationFileFormat(event.sourcePath);
   const isSpreadsheet = Boolean(
     inferSupportedSegmentedSpreadsheetTranslationFileFormat(event.sourcePath),
   );
-  if (isSpreadsheet && !sandboxCliParsesXlsx()) {
-    const entries = await extractXlsxTranslationImportEntriesStep({
+  // .xls sources download as .xlsx, so either may come back; the CLI reads neither as .xls.
+  if (officeFormat && (officeFormat === "xls" || !sandboxCliParsesOffice())) {
+    const entries = await extractOfficeTranslationImportEntriesStep({
       organizationId: event.organizationId,
       projectId: event.projectId,
       storedFileId: event.storedFileId,
+      sourcePath: event.sourcePath,
       targetLocale: event.targetLocale,
     });
     return importAndRecord(event, entries);

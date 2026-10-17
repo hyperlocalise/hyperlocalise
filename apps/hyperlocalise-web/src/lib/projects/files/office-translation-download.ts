@@ -14,26 +14,36 @@ import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
 } from "@/lib/file-storage/records";
-import { getProjectSourceLocale } from "@/lib/projects/files/xlsx-source-entries";
+import { getProjectSourceLocale } from "@/lib/projects/files/office-source-entries";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { inferSupportedSegmentedSpreadsheetTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedOfficeTranslationFileFormat,
+  type SupportedOfficeTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import { applyDocxTranslations, DOCX_CONTENT_TYPE } from "@/lib/translation/ooxml/docx-document";
+import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
+import { applyPptxTranslations, PPTX_CONTENT_TYPE } from "@/lib/translation/ooxml/pptx-deck";
+import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
 import { XLSX_CONTENT_TYPE, type XlsxWorkbookError } from "@/lib/translation/xlsx/xlsx-workbook";
 import { applyXlsxTranslations } from "@/lib/translation/xlsx/xlsx-writer";
 
-export type ProjectXlsxTranslationDownload = {
+export type ProjectOfficeTranslationDownload = {
   content: Buffer;
-  contentType: typeof XLSX_CONTENT_TYPE;
+  contentType: typeof XLSX_CONTENT_TYPE | typeof DOCX_CONTENT_TYPE | typeof PPTX_CONTENT_TYPE;
+  /** `.xls` sources are generated as `.xlsx`; other formats keep their extension. */
+  extension: ".xlsx" | ".docx" | ".pptx";
   translatedKeyCount: number;
 };
 
-export type ProjectXlsxTranslationDownloadError =
+export type ProjectOfficeTranslationDownloadError =
   | XlsxWorkbookError
+  | OoxmlError
   | { code: "project_not_found" }
   | { code: "source_content_not_found" };
 
-/** Same-origin URL of the generated workbook, used as the File view target. */
-export function projectXlsxTranslationDownloadPath(input: {
+/** Same-origin URL of the generated file, used as the File view target. */
+export function projectOfficeTranslationDownloadPath(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -44,22 +54,102 @@ export function projectXlsxTranslationDownloadPath(input: {
 }
 
 /**
- * Builds the `targetLocale` copy of a segmented `.xlsx` source from its ready translations.
- * Source text is never written into target cells. In multilingual sheets, target cells
- * without a ready value are cleared so leftover workbook text does not survive the patch.
- * Cell-layout sheets keep their source text where no translation is supplied.
- *
- * Resolves to `null` when the path is not a segmented workbook or the file has no keys
- * (legacy Office uploads), so callers keep their stored-file download.
+ * Download filename for the `targetLocale` copy of `sourcePath`, swapping `.xls` for the
+ * `.xlsx` the download is generated as.
  */
-export async function loadProjectXlsxTranslationDownload(input: {
+export function officeTranslationDownloadFilename(
+  filename: string,
+  download: Pick<ProjectOfficeTranslationDownload, "extension">,
+): string {
+  const dot = filename.lastIndexOf(".");
+  const stem = dot > filename.lastIndexOf("/") ? filename.slice(0, dot) : filename;
+  return `${stem}${download.extension}`;
+}
+
+/** Error code and message for a failed Office download, kept per format for API callers. */
+export function officeTranslationDownloadFailure(sourcePath: string): {
+  code: "xlsx_export_failed" | "office_export_failed";
+  message: string;
+} {
+  const format = inferSupportedOfficeTranslationFileFormat(sourcePath);
+  return format === "xlsx" || format === "xls"
+    ? {
+        code: "xlsx_export_failed",
+        message: "Could not write translations into the Excel workbook.",
+      }
+    : {
+        code: "office_export_failed",
+        message: "Could not write translations into the Office file.",
+      };
+}
+
+async function applyOfficeTranslations(input: {
+  format: SupportedOfficeTranslationFileFormat;
+  template: Uint8Array;
+  values: Readonly<Record<string, string>>;
+  sourceLocale: string | null;
+  targetLocale: string;
+}): Promise<
+  Result<
+    Omit<ProjectOfficeTranslationDownload, "translatedKeyCount">,
+    ProjectOfficeTranslationDownloadError
+  >
+> {
+  switch (input.format) {
+    case "xlsx":
+    case "xls": {
+      const template = spreadsheetXlsxContent(input.template);
+      if (isErr(template)) {
+        return template;
+      }
+      const content = await applyXlsxTranslations({ ...input, template: template.value });
+      return isErr(content)
+        ? content
+        : ok({ content: content.value, contentType: XLSX_CONTENT_TYPE, extension: ".xlsx" });
+    }
+    case "docx": {
+      const content = await applyDocxTranslations(input.template, input.values);
+      return isErr(content)
+        ? content
+        : ok({
+            content: Buffer.from(content.value),
+            contentType: DOCX_CONTENT_TYPE,
+            extension: ".docx",
+          });
+    }
+    case "pptx": {
+      const content = await applyPptxTranslations(input.template, input.values);
+      return isErr(content)
+        ? content
+        : ok({
+            content: Buffer.from(content.value),
+            contentType: PPTX_CONTENT_TYPE,
+            extension: ".pptx",
+          });
+    }
+  }
+}
+
+/**
+ * Builds the `targetLocale` copy of a segmented Office source from its ready translations.
+ * Source text is never written into multilingual target cells, and their cells without a
+ * ready value are cleared. Cell-layout sheets, document paragraphs, and slide paragraphs
+ * keep their source text where no translation is supplied.
+ *
+ * Resolves to `null` when the path is not an Office file or the file has no keys (legacy
+ * uploads), so callers keep their stored-file download.
+ */
+export async function loadProjectOfficeTranslationDownload(input: {
   organizationId: string;
   projectId: string;
   sourcePath: string;
   targetLocale: string;
   approvedTranslationsOnly?: boolean;
-}): Promise<Result<ProjectXlsxTranslationDownload | null, ProjectXlsxTranslationDownloadError>> {
-  if (!inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath)) {
+}): Promise<
+  Result<ProjectOfficeTranslationDownload | null, ProjectOfficeTranslationDownloadError>
+> {
+  const format = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
+  if (!format) {
     return ok(null);
   }
 
@@ -100,18 +190,15 @@ export async function loadProjectXlsxTranslationDownload(input: {
     return err({ code: "source_content_not_found" });
   }
 
-  const content = await applyXlsxTranslations({
+  const generated = await applyOfficeTranslations({
+    format,
     template: stored.value.content,
     values: translations.prefilled,
     sourceLocale: sourceLocale.value,
     targetLocale: input.targetLocale,
   });
-  if (isErr(content)) {
-    return content;
+  if (isErr(generated)) {
+    return generated;
   }
-  return ok({
-    content: content.value,
-    contentType: XLSX_CONTENT_TYPE,
-    translatedKeyCount: translations.translatedKeyCount,
-  });
+  return ok({ ...generated.value, translatedKeyCount: translations.translatedKeyCount });
 }

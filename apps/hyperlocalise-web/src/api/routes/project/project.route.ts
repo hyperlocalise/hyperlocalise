@@ -166,7 +166,11 @@ import {
   setTranslationKeyTreatAsVideo,
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
-import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
 import {
   fileVariantDownloadName,
   loadProjectFileVariant,
@@ -285,7 +289,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
-  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
@@ -3634,23 +3638,21 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
         const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
-        const xlsxDownload = await loadProjectXlsxTranslationDownload({
+        const officeDownload = await loadProjectOfficeTranslationDownload({
           organizationId,
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           targetLocale: query.locale,
         });
-        if (isErr(xlsxDownload)) {
-          return internalErrorResponse(
-            c,
-            "xlsx_export_failed",
-            "Could not write translations into the Excel workbook.",
-          );
+        if (isErr(officeDownload)) {
+          const failure = officeTranslationDownloadFailure(query.sourcePath);
+          return internalErrorResponse(c, failure.code, failure.message);
         }
-        if (xlsxDownload.value) {
-          return c.body(new Uint8Array(xlsxDownload.value.content), 200, {
-            "Content-Type": xlsxDownload.value.contentType,
-            "Content-Disposition": contentDisposition,
+        if (officeDownload.value) {
+          const officeFilename = officeTranslationDownloadFilename(filename, officeDownload.value);
+          return c.body(new Uint8Array(officeDownload.value.content), 200, {
+            "Content-Type": officeDownload.value.contentType,
+            "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(officeFilename)}`,
             "X-Content-Type-Options": "nosniff",
             "Cache-Control": "no-store",
           });
@@ -3989,7 +3991,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         if (
           !inferSupportedFileTranslationFileFormat(parsed.data.sourcePath) &&
-          !inferSupportedSegmentedSpreadsheetTranslationFileFormat(parsed.data.sourcePath)
+          !inferSupportedOfficeTranslationFileFormat(parsed.data.sourcePath)
         ) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }

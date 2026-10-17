@@ -11,8 +11,11 @@
  * Version 2.0 or later.
  */
 
-/** Families match Go sentinels: HLMDPH (markdown), HLHTPH (HTML), HLLQPH (Liquid), HLUEPH (Unreal PO). */
-export type ContentEditorInternalMarkupFamily = "MD" | "HT" | "LQ" | "UE";
+/**
+ * Families match Go sentinels: HLMDPH (markdown), HLHTPH (HTML), HLLQPH (Liquid), HLUEPH (Unreal PO),
+ * HLOXPH (Word and PowerPoint run formatting).
+ */
+export type ContentEditorInternalMarkupFamily = "MD" | "HT" | "LQ" | "UE" | "OX";
 
 export interface ContentEditorInternalMarkupSpan {
   family: ContentEditorInternalMarkupFamily;
@@ -23,9 +26,9 @@ export interface ContentEditorInternalMarkupSpan {
   label: string;
 }
 
-// RS/US delimiters match Go HLMDPH / HLHTPH / HLLQPH sentinels (\x1e...\x1f).
+// RS/US delimiters match Go HLMDPH / HLHTPH / HLLQPH / HLUEPH / HLOXPH sentinels (\x1e...\x1f).
 const INTERNAL_MARKUP_PATTERN = new RegExp(
-  `${String.fromCharCode(0x1e)}HL(MD|HT|LQ|UE)PH_[A-Z0-9]+_(\\d+)${String.fromCharCode(0x1f)}`,
+  `${String.fromCharCode(0x1e)}HL(MD|HT|LQ|UE|OX)PH_[A-Z0-9]+_(\\d+)${String.fromCharCode(0x1f)}`,
   "g",
 );
 
@@ -39,6 +42,8 @@ function familyFromMatch(raw: string): ContentEditorInternalMarkupFamily {
       return "LQ";
     case "UE":
       return "UE";
+    case "OX":
+      return "OX";
     default:
       return "MD";
   }

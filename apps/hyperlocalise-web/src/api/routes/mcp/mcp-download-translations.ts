@@ -13,7 +13,11 @@
 import path from "node:path";
 
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
-import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
+import {
+  loadProjectOfficeTranslationDownload,
+  officeTranslationDownloadFailure,
+  officeTranslationDownloadFilename,
+} from "@/lib/projects/files/office-translation-download";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   getRepositorySourceFileByPath,
@@ -31,7 +35,7 @@ export type McpDownloadTranslationsDetail = {
   locale: string;
   sourcePath: string;
   content: string;
-  /** Present when `content` holds base64-encoded binary (dotLottie archives, Excel workbooks). */
+  /** Present when `content` holds base64-encoded binary (dotLottie archives, Office files). */
   contentEncoding?: "utf8" | "base64";
 };
 
@@ -47,7 +51,8 @@ export type McpDownloadTranslationsResult =
         | "translations_not_found"
         | "unsupported_binary_download"
         | "lottie_export_failed"
-        | "xlsx_export_failed";
+        | "xlsx_export_failed"
+        | "office_export_failed";
     }
   | {
       ok: false;
@@ -96,25 +101,28 @@ export async function downloadMcpTranslations(input: {
     };
   }
 
-  const xlsxDownload = await loadProjectXlsxTranslationDownload({
+  const officeDownload = await loadProjectOfficeTranslationDownload({
     organizationId: input.organizationId,
     projectId: input.projectId,
     sourcePath: input.sourcePath,
     targetLocale: input.locale,
   });
-  if (isErr(xlsxDownload)) {
-    return { ok: false, error: "xlsx_export_failed" };
+  if (isErr(officeDownload)) {
+    return { ok: false, error: officeTranslationDownloadFailure(input.sourcePath).code };
   }
-  if (xlsxDownload.value) {
+  if (officeDownload.value) {
     return {
       ok: true,
       value: {
-        filename: downloadFilename(input.sourcePath, input.locale),
-        contentType: xlsxDownload.value.contentType,
+        filename: officeTranslationDownloadFilename(
+          downloadFilename(input.sourcePath, input.locale),
+          officeDownload.value,
+        ),
+        contentType: officeDownload.value.contentType,
         locale: input.locale,
         sourcePath: input.sourcePath,
         contentEncoding: "base64",
-        content: xlsxDownload.value.content.toString("base64"),
+        content: officeDownload.value.content.toString("base64"),
       },
     };
   }

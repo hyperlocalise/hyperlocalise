@@ -14,6 +14,7 @@ const (
 	FormatICUInvariant
 	FormatWebVTT
 	FormatAsciiDoc
+	FormatOffice
 )
 
 func KindForSourcePath(path string) FormatKind {
@@ -38,6 +39,8 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
+	case ".docx", ".pptx":
+		return FormatOffice
 	}
 
 	// Fallback for uncommon casing or other extensions
@@ -52,6 +55,8 @@ func KindForSourcePath(path string) FormatKind {
 		return FormatWebVTT
 	case ".liquid":
 		return FormatLiquid
+	case ".docx", ".pptx":
+		return FormatOffice
 	default:
 		return FormatICUInvariant
 	}

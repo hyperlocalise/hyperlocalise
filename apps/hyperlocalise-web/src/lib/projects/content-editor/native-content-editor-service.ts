@@ -21,6 +21,7 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeContentEditorSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database/client";
+import { createLogger } from "@/lib/log";
 import {
   getLatestRepositorySourceFileVersion,
   getStoredFileContent,
@@ -51,7 +52,8 @@ import {
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
 import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
-import { projectXlsxTranslationDownloadPath } from "@/lib/projects/files/xlsx-translation-download";
+import { requeueKeylessOfficeSourceIngest } from "@/lib/projects/files/office-legacy-reingest";
+import { projectOfficeTranslationDownloadPath } from "@/lib/projects/files/office-translation-download";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
@@ -62,13 +64,14 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
-  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
   looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
 import { resolveLottieSourceKind } from "@/lib/translation/lottie/lottie-translation-export";
+
+const logger = createLogger("native-content-editor-service");
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -282,16 +285,18 @@ export class NativeContentEditorService extends ProjectServiceBase {
       );
     }
 
-    const isSegmentedSpreadsheet = Boolean(
-      inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath),
-    );
+    const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
     if (
-      inferSupportedOfficeTranslationFileFormat(input.sourcePath) &&
-      !(
-        isSegmentedSpreadsheet &&
-        (await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
-      )
+      isOffice &&
+      !(await this.hasKeysForFile({ ...input, repositorySourceFileId: sourceFile.id }))
     ) {
+      await requeueKeylessOfficeSourceIngest({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      }).catch((error: unknown) => {
+        logger.warn({ error, sourcePath: input.sourcePath }, "failed to requeue Office ingest");
+      });
       return this.withSourceIngest(
         input,
         await this.buildOfficeCatFileResponse({
@@ -306,8 +311,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
     const loadKeyedFileDocumentView = async () =>
       isDocument
         ? publicDocumentView(await this.loadDocumentView({ input, sourceFileId: sourceFile.id }))
-        : isSegmentedSpreadsheet
-          ? await this.loadSpreadsheetDocumentView({ input, sourceFileId: sourceFile.id })
+        : isOffice
+          ? await this.loadOfficeDocumentView({ input, sourceFileId: sourceFile.id })
           : undefined;
     const paginationInput = input.pagination ?? {
       offset: 0,
@@ -748,8 +753,8 @@ export class NativeContentEditorService extends ProjectServiceBase {
     return keys.length > 0;
   }
 
-  /** Segmented workbooks have no stored target; File view previews the generated download. */
-  private async loadSpreadsheetDocumentView(input: {
+  /** Segmented Office files have no stored target; File view previews the generated download. */
+  private async loadOfficeDocumentView(input: {
     input: {
       organizationId: string;
       projectId: string;
@@ -775,7 +780,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
             fileId: latestVersion.storedFileId,
           })
         : null,
-      targetAssetUrl: projectXlsxTranslationDownloadPath({
+      targetAssetUrl: projectOfficeTranslationDownloadPath({
         organizationSlug: input.input.organizationSlug,
         projectId: input.input.projectId,
         sourcePath: input.input.sourcePath,
@@ -1335,8 +1340,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
 
       const isDocument = Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath));
       const hasKeyedSegments =
-        isDocument ||
-        Boolean(inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath));
+        isDocument || Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       const fileBacked = isFileBackedCatSegmentId(
         input.externalStringId,
         sourceFile.id,
@@ -1490,7 +1494,7 @@ export class NativeContentEditorService extends ProjectServiceBase {
     ) {
       const hasKeyedSegments =
         Boolean(inferSupportedDocumentTranslationFileFormat(input.sourcePath)) ||
-        Boolean(inferSupportedSegmentedSpreadsheetTranslationFileFormat(input.sourcePath));
+        Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
       if (!hasKeyedSegments) {
         return [];
       }

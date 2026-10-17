@@ -14,7 +14,6 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
-  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -27,7 +26,7 @@ export type ContentEditorFileViewFamily =
   | "text"
   | "office"
   | "document"
-  | "spreadsheet";
+  | "office-segments";
 
 export type ContentEditorFileViewerId =
   | "image"
@@ -132,11 +131,10 @@ export function resolveCatFileViewCapabilities(input: {
     };
   }
 
-  // Workbooks ingested as keyed segments. Legacy uploads with no keys keep `office_file` segments.
-  if (
-    contentKind !== "office_file" &&
-    inferSupportedSegmentedSpreadsheetTranslationFileFormat(sourcePath)
-  ) {
+  const extension = extensionOf(sourcePath);
+  // Office files ingested as keyed segments. Legacy uploads with no keys keep `office_file`
+  // segments and the stored-file viewer below.
+  if (contentKind !== "office_file" && inferSupportedOfficeTranslationFileFormat(sourcePath)) {
     if (!nativeProject) {
       return {
         family: "text",
@@ -147,14 +145,13 @@ export function resolveCatFileViewCapabilities(input: {
     }
 
     return {
-      family: "spreadsheet",
+      family: "office-segments",
       availableViews: documentAndSegmentViews(input.multilingualViewAvailable),
       defaultView: "side-by-side",
-      viewerId: "xlsx",
+      viewerId: officeViewerIdForExtension(extension) ?? "docx",
     };
   }
 
-  const extension = extensionOf(sourcePath);
   const officeFormat =
     contentKind === "office_file" || inferSupportedOfficeTranslationFileFormat(sourcePath);
   if (officeFormat) {

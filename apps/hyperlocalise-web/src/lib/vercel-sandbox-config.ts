@@ -17,7 +17,7 @@ import {
   isHyperlocaliseSandboxVcrImageEnabledForScope,
   type VercelSandboxImageScope,
 } from "@/lib/flags/release-flags";
-import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-release";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 
 export type { VercelSandboxImageScope } from "@/lib/flags/release-flags";
 

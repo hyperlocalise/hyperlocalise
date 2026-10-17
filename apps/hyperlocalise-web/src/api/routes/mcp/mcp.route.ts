@@ -2698,6 +2698,12 @@ async function createMcpServerForRequest(
               "Could not write translations into the Excel workbook",
             );
 
+          case "office_export_failed":
+            return mcpToolError(
+              "office_export_failed",
+              "Could not write translations into the Office file",
+            );
+
           default:
             return assertNever(downloadError);
         }

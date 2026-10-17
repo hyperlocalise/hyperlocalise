@@ -1,0 +1,40 @@
+{
+  "entries": [
+    {
+      "key": "ppt/slides/slide2.xml#0",
+      "text": "Welcome",
+      "context": "Slide 1, Title 1"
+    },
+    {
+      "key": "ppt/slides/slide2.xml#1",
+      "text": "Ship \u001eHLOXPH_6F30_0\u001ffaster\u001eHLOXPH_6330_1\u001f today\nSlide \u001eHLOXPH_6130_2\u001f",
+      "context": "Slide 1, Body 2\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "ppt/slides/slide1.xml#0",
+      "text": "Price \u0026 plan",
+      "context": "Slide 2, Table 3, table cell"
+    }
+  ],
+  "translatedEntries": [
+    {
+      "key": "ppt/slides/slide2.xml#0",
+      "text": "Bienvenue",
+      "context": "Slide 1, Title 1"
+    },
+    {
+      "key": "ppt/slides/slide2.xml#1",
+      "text": "Expédiez \u001eHLOXPH_6F30_0\u001fplus vite\u001eHLOXPH_6330_1\u001f aujourd'hui\nDiapositive \u001eHLOXPH_6130_2\u001f",
+      "context": "Slide 1, Body 2\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "ppt/slides/slide1.xml#0",
+      "text": "Prix \u0026 forfait",
+      "context": "Slide 2, Table 3, table cell"
+    }
+  ],
+  "translatedParts": {
+    "ppt/slides/slide1.xml": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?\u003e\n\u003cp:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"\u003e\u003cp:cSld\u003e\u003cp:spTree\u003e\u003cp:nvGrpSpPr\u003e\u003cp:cNvPr id=\"1\" name=\"\"/\u003e\u003cp:cNvGrpSpPr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvGrpSpPr\u003e\u003cp:grpSpPr/\u003e\n\u003cp:graphicFrame\u003e\u003cp:nvGraphicFramePr\u003e\u003cp:cNvPr id=\"4\" name=\"Table 3\"/\u003e\u003cp:cNvGraphicFramePr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvGraphicFramePr\u003e\u003cp:xfrm\u003e\u003ca:off x=\"0\" y=\"0\"/\u003e\u003ca:ext cx=\"1\" cy=\"1\"/\u003e\u003c/p:xfrm\u003e\u003ca:graphic\u003e\u003ca:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"\u003e\u003ca:tbl\u003e\u003ca:tblGrid\u003e\u003ca:gridCol w=\"1\"/\u003e\u003c/a:tblGrid\u003e\u003ca:tr h=\"1\"\u003e\u003ca:tc\u003e\u003ca:txBody\u003e\u003ca:bodyPr/\u003e\u003ca:p\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\"/\u003e\u003ca:t\u003ePrix \u0026amp; forfait\u003c/a:t\u003e\u003c/a:r\u003e\u003c/a:p\u003e\u003c/a:txBody\u003e\u003ca:tcPr/\u003e\u003c/a:tc\u003e\u003c/a:tr\u003e\u003c/a:tbl\u003e\u003c/a:graphicData\u003e\u003c/a:graphic\u003e\u003c/p:graphicFrame\u003e\n\u003c/p:spTree\u003e\u003c/p:cSld\u003e\u003c/p:sld\u003e\n",
+    "ppt/slides/slide2.xml": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?\u003e\n\u003cp:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"\u003e\u003cp:cSld\u003e\u003cp:spTree\u003e\u003cp:nvGrpSpPr\u003e\u003cp:cNvPr id=\"1\" name=\"\"/\u003e\u003cp:cNvGrpSpPr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvGrpSpPr\u003e\u003cp:grpSpPr/\u003e\n\u003cp:sp\u003e\u003cp:nvSpPr\u003e\u003cp:cNvPr id=\"2\" name=\"Title 1\"/\u003e\u003cp:cNvSpPr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvSpPr\u003e\u003cp:spPr/\u003e\u003cp:txBody\u003e\u003ca:bodyPr/\u003e\u003ca:p\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\" dirty=\"0\"/\u003e\u003ca:t\u003eBienvenue\u003c/a:t\u003e\u003c/a:r\u003e\u003c/a:p\u003e\u003c/p:txBody\u003e\u003c/p:sp\u003e\n\u003cp:sp\u003e\u003cp:nvSpPr\u003e\u003cp:cNvPr id=\"3\" name=\"Body 2\"/\u003e\u003cp:cNvSpPr/\u003e\u003cp:nvPr/\u003e\u003c/p:nvSpPr\u003e\u003cp:spPr/\u003e\u003cp:txBody\u003e\u003ca:bodyPr/\u003e\u003ca:p\u003e\u003ca:pPr lvl=\"1\"/\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\"/\u003e\u003ca:t\u003eExpédiez \u003c/a:t\u003e\u003c/a:r\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\" b=\"1\"/\u003e\u003ca:t\u003eplus vite\u003c/a:t\u003e\u003c/a:r\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\"/\u003e\u003ca:t\u003e aujourd'hui\u003c/a:t\u003e\u003c/a:r\u003e\u003ca:br/\u003e\u003ca:r\u003e\u003ca:rPr lang=\"en-US\"/\u003e\u003ca:t\u003eDiapositive \u003c/a:t\u003e\u003c/a:r\u003e\u003ca:fld id=\"{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}\" type=\"slidenum\"\u003e\u003ca:rPr lang=\"en-US\"/\u003e\u003ca:t\u003e1\u003c/a:t\u003e\u003c/a:fld\u003e\u003ca:endParaRPr lang=\"en-US\"/\u003e\u003c/a:p\u003e\u003ca:p\u003e\u003ca:endParaRPr lang=\"en-US\"/\u003e\u003c/a:p\u003e\u003c/p:txBody\u003e\u003c/p:sp\u003e\n\u003c/p:spTree\u003e\u003c/p:cSld\u003e\u003c/p:sld\u003e\n"
+  }
+}

@@ -58,6 +58,8 @@ const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
 
 type ContentEditorWorkspacePanel = "edit" | "queue" | "ai";
 
+const OFFICE_DRAFT_SAVE_CONCURRENCY = 4;
+
 function useIsCompactWorkspace(viewMode: string) {
   const [isCompact, setIsCompact] = useState(false);
   const [element, setElement] = useState<HTMLDivElement | null>(null);
@@ -634,15 +636,47 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
       providerKind: shell.fileContext.providerKind,
     });
     const fileViewSegment = overlayCatDocumentFileViewSegment(editorSegment, shell.fileContext);
-    // The target workbook is generated from segment translations, so edits happen in segment views.
-    const isGeneratedFileView = capabilities.family === "spreadsheet";
+    // The target Office file is generated from segment translations, so edits go to segments.
+    const isGeneratedFileView = capabilities.family === "office-segments";
     const canEditFileView = canApprove && !fileViewSegment.isLocked && !isGeneratedFileView;
+    const saveDraft = review.onSaveDraft;
+    const officeSegments = isGeneratedFileView
+      ? {
+          segments: queueSegments.flatMap((queueSegment) => {
+            const view = store.getSegmentView(queueSegment.id);
+            return view ? [view] : [];
+          }),
+          dirtySegmentIds: dirtySegmentIds ?? new Set<string>(),
+          canEdit: canApprove && Boolean(saveDraft),
+          hasMore: hasMoreQueue,
+          onLoadMore: onLoadMoreQueue,
+          onChange: (segmentId: string, value: string) => editing.onTargetChange(segmentId, value),
+          onSaveDrafts: async (segmentIds: string[]) => {
+            if (!saveDraft) {
+              return;
+            }
+            for (let start = 0; start < segmentIds.length; start += OFFICE_DRAFT_SAVE_CONCURRENCY) {
+              await Promise.all(
+                segmentIds
+                  .slice(start, start + OFFICE_DRAFT_SAVE_CONCURRENCY)
+                  .map(async (segmentId) => {
+                    const targetText = store.getSegmentView(segmentId)?.targetText;
+                    if (targetText !== undefined) {
+                      await saveDraft(segmentId, targetText);
+                    }
+                  }),
+              );
+            }
+          },
+        }
+      : undefined;
 
     return (
       <ContentEditorPanelErrorBoundary scope="editor" resetKeys={[viewMode, fileViewSegment.id]}>
         <ContentEditorFileViewPanel
           segment={fileViewSegment}
           viewerId={capabilities.viewerId}
+          officeSegments={officeSegments}
           filename={shell.fileContext.filename}
           canEdit={canEditFileView}
           canApprove={canEditFileView}

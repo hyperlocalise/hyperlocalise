@@ -18,14 +18,25 @@ import { getStoredFileContent } from "@/lib/file-storage/records";
 import { entriesFromHlOutput, type HlEntriesPayload } from "@/lib/projects/files/hl-entries";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import {
+  inferSupportedOfficeTranslationFileFormat,
+  type SupportedOfficeTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import { readDocxEntries } from "@/lib/translation/ooxml/docx-document";
+import type { OoxmlEntry } from "@/lib/translation/ooxml/ooxml-paragraph";
+import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
+import { readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
+import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
+import {
   loadXlsxWorkbook,
   readXlsxEntries,
   type XlsxEntry,
   type XlsxWorkbookError,
 } from "@/lib/translation/xlsx/xlsx-workbook";
 
-export type ProjectXlsxEntriesError =
+export type ProjectOfficeEntriesError =
   | XlsxWorkbookError
+  | OoxmlError
+  | { code: "unsupported_office_format" }
   | { code: "project_not_found" }
   | { code: "source_content_not_found" };
 
@@ -47,15 +58,20 @@ export async function getProjectSourceLocale(input: {
   return project ? ok(project.sourceLocale) : err({ code: "project_not_found" });
 }
 
-async function loadStoredWorkbookEntries(input: {
+type StoredOfficeFile = {
+  format: SupportedOfficeTranslationFileFormat;
+  content: Uint8Array;
+};
+
+async function loadStoredOfficeFile(input: {
   organizationId: string;
   projectId: string;
   storedFileId: string;
-  locale: (sourceLocale: string | null) => string;
-}): Promise<Result<XlsxEntry[], ProjectXlsxEntriesError>> {
-  const sourceLocale = await getProjectSourceLocale(input);
-  if (isErr(sourceLocale)) {
-    return sourceLocale;
+  sourcePath: string;
+}): Promise<Result<StoredOfficeFile, ProjectOfficeEntriesError>> {
+  const format = inferSupportedOfficeTranslationFileFormat(input.sourcePath);
+  if (!format) {
+    return err({ code: "unsupported_office_format" });
   }
   const stored = await fromThrowableAsync(
     getStoredFileContent({
@@ -67,55 +83,111 @@ async function loadStoredWorkbookEntries(input: {
   if (isErr(stored)) {
     return err({ code: "source_content_not_found" });
   }
-  const workbook = await loadXlsxWorkbook(stored.value.content);
+  return ok({ format, content: stored.value.content });
+}
+
+async function readWorkbookEntries(
+  file: StoredOfficeFile,
+  sourceLocale: string | null,
+  locale: string,
+): Promise<Result<XlsxEntry[], XlsxWorkbookError>> {
+  const content = spreadsheetXlsxContent(file.content);
+  if (isErr(content)) {
+    return content;
+  }
+  const workbook = await loadXlsxWorkbook(content.value);
   if (isErr(workbook)) {
     return workbook;
   }
-  return ok(readXlsxEntries(workbook.value, sourceLocale.value, input.locale(sourceLocale.value)));
+  return ok(readXlsxEntries(workbook.value, sourceLocale, locale));
+}
+
+function readParagraphEntries(file: StoredOfficeFile): Promise<Result<OoxmlEntry[], OoxmlError>> {
+  return file.format === "docx" ? readDocxEntries(file.content) : readPptxEntries(file.content);
 }
 
 /**
- * Source segments of a stored `.xlsx` upload. Comments become segment context and
- * length-limit columns become max lengths, as in the CLI.
+ * Source segments of a stored Office upload, keyed like the CLI keys them. Workbook
+ * comments and length-limit columns become context and max lengths; document and slide
+ * paragraphs carry their location and style as context.
  */
-export async function loadProjectXlsxSourceEntries(input: {
+export async function loadProjectOfficeSourceEntries(input: {
   organizationId: string;
   projectId: string;
   storedFileId: string;
-}): Promise<Result<ProjectSourceStringEntry[], ProjectXlsxEntriesError>> {
-  const entries = await loadStoredWorkbookEntries({
-    ...input,
-    locale: (sourceLocale) => sourceLocale ?? "",
-  });
-  if (isErr(entries)) {
-    return entries;
+  sourcePath: string;
+}): Promise<Result<ProjectSourceStringEntry[], ProjectOfficeEntriesError>> {
+  const file = await loadStoredOfficeFile(input);
+  if (isErr(file)) {
+    return file;
   }
+
   const payload: HlEntriesPayload = {};
-  for (const entry of entries.value) {
-    payload[entry.key] = {
-      text: entry.text,
-      ...(entry.maxLength > 0 ? { maxLength: entry.maxLength } : {}),
-      ...(entry.comment ? { context: entry.comment } : {}),
-    };
+  if (file.value.format === "xlsx" || file.value.format === "xls") {
+    const sourceLocale = await getProjectSourceLocale(input);
+    if (isErr(sourceLocale)) {
+      return sourceLocale;
+    }
+    const entries = await readWorkbookEntries(
+      file.value,
+      sourceLocale.value,
+      sourceLocale.value ?? "",
+    );
+    if (isErr(entries)) {
+      return entries;
+    }
+    for (const entry of entries.value) {
+      payload[entry.key] = {
+        text: entry.text,
+        ...(entry.maxLength > 0 ? { maxLength: entry.maxLength } : {}),
+        ...(entry.comment ? { context: entry.comment } : {}),
+      };
+    }
+  } else {
+    const entries = await readParagraphEntries(file.value);
+    if (isErr(entries)) {
+      return entries;
+    }
+    for (const entry of entries.value) {
+      payload[entry.key] = {
+        text: entry.text,
+        ...(entry.context ? { context: entry.context } : {}),
+      };
+    }
   }
   return ok(entriesFromHlOutput(payload, true));
 }
 
 /**
- * `targetLocale` translations in a stored `.xlsx`, keyed like its source segments.
- * Multilingual sheets read the target column; cell-layout sheets are read in place, so the
- * upload is expected to be the translated copy of the workbook.
+ * `targetLocale` translations in a stored Office upload, keyed like its source segments.
+ * Multilingual sheets read the target column. Cell-layout sheets, documents, and decks are
+ * read in place, so the upload is expected to be the translated copy of the source.
  */
-export async function loadProjectXlsxTargetEntries(input: {
+export async function loadProjectOfficeTargetEntries(input: {
   organizationId: string;
   projectId: string;
   storedFileId: string;
+  sourcePath: string;
   targetLocale: string;
-}): Promise<Result<Record<string, string>, ProjectXlsxEntriesError>> {
-  const entries = await loadStoredWorkbookEntries({
-    ...input,
-    locale: () => input.targetLocale,
-  });
+}): Promise<Result<Record<string, string>, ProjectOfficeEntriesError>> {
+  const file = await loadStoredOfficeFile(input);
+  if (isErr(file)) {
+    return file;
+  }
+
+  if (file.value.format === "xlsx" || file.value.format === "xls") {
+    const sourceLocale = await getProjectSourceLocale(input);
+    if (isErr(sourceLocale)) {
+      return sourceLocale;
+    }
+    const entries = await readWorkbookEntries(file.value, sourceLocale.value, input.targetLocale);
+    if (isErr(entries)) {
+      return entries;
+    }
+    return ok(Object.fromEntries(entries.value.map((entry) => [entry.key, entry.text])));
+  }
+
+  const entries = await readParagraphEntries(file.value);
   if (isErr(entries)) {
     return entries;
   }

@@ -33,6 +33,8 @@ func TestKindForSourcePath(t *testing.T) {
 		{"/notes/README.MDOWN", FormatMarkdown},
 		{"/docs/guide.adoc", FormatAsciiDoc},
 		{"/docs/GUIDE.ASC", FormatAsciiDoc},
+		{"/docs/brief.docx", FormatOffice},
+		{"/decks/LAUNCH.PPTX", FormatOffice},
 		{"  spaced.md  ", FormatMarkdown},
 		{"noext", FormatICUInvariant},
 		{"", FormatICUInvariant},
@@ -400,5 +402,18 @@ func TestValidateForKindDispatches(t *testing.T) {
 	}
 	if err := validateForKind(FormatICUInvariant, "x {n}", "y {n}"); err != nil {
 		t.Fatalf("unexpected %v", err)
+	}
+}
+
+func TestFirstValidationErrorOfficePlaceholders(t *testing.T) {
+	open := "\x1eHLOXPH_6F30_0\x1f"
+	closeToken := "\x1eHLOXPH_6330_1\x1f"
+	source := "Read the " + open + "terms" + closeToken
+	if err := FirstValidationError("docs/brief.docx", source, "Lisez les "+open+"conditions"+closeToken); err != nil {
+		t.Fatalf("expected valid office translation, got %v", err)
+	}
+	err := FirstValidationError("docs/brief.docx", source, "Lisez les conditions")
+	if err == nil || !strings.Contains(err.Error(), "office placeholder mismatch") {
+		t.Fatalf("expected office placeholder mismatch, got %v", err)
 	}
 }

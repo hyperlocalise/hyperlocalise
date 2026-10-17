@@ -102,6 +102,10 @@ import {
   ContentEditorHtmlEditorPane,
 } from "./content-editor-html-editor-pane";
 import { contentEditorOfficeUploadAccept } from "./content-editor-office-mime";
+import {
+  ContentEditorOfficeSegmentFieldsPane,
+  type ContentEditorOfficeSegmentFieldsConfig,
+} from "./content-editor-office-segment-fields-pane";
 import type { ContentEditorOfficeKind } from "./content-editor-office-convert";
 
 const ContentEditorOfficeFileViewerPane = dynamic(
@@ -123,6 +127,14 @@ function isOfficeViewerId(
   viewerId: ContentEditorFileViewerId | null,
 ): viewerId is ContentEditorOfficeKind {
   return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
+}
+
+/** Generated Office downloads are rebuilt on request, so a new query forces a fresh copy. */
+function withPreviewRevision(src: string | null, revision: number) {
+  if (!src || revision === 0) {
+    return src;
+  }
+  return `${src}${src.includes("?") ? "&" : "?"}revision=${revision}`;
 }
 
 function useFileViewUiStore() {
@@ -155,6 +167,7 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   adaptiveWorkspaceEnabled = false,
   isDesignerPersona = false,
   intelligence,
+  officeSegments,
 }: {
   segment: ContentEditorSegment;
   viewerId: ContentEditorFileViewerId | null;
@@ -179,8 +192,11 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
   adaptiveWorkspaceEnabled?: boolean;
   isDesignerPersona?: boolean;
   intelligence?: ContentEditorSegmentIntelligence;
+  /** Edits a generated Office file through its segments instead of the file itself. */
+  officeSegments?: ContentEditorOfficeSegmentFieldsConfig;
 }) {
   const intl = useIntl();
+  const [previewRevision, setPreviewRevision] = useState(0);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const ui = useFileViewUiStore();
   ui.applyFileViewViewer(viewerId);
@@ -593,6 +609,59 @@ export const ContentEditorFileViewPanel = observer(function ContentEditorFileVie
           selectionAi={selectionAi}
           assistant={documentAssistant}
         />
+      ) : officeKind && officeSegments ? (
+        <FileViewWorkspace>
+          <FileViewWorkspaceContent layout="split">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <Columns
+                spacing="3u"
+                height="full"
+                alignY="stretch"
+                align="start"
+                collapseBelow="large"
+              >
+                <Column width="1/2">
+                  <FileViewPaneColumn>
+                    <ContentEditorOfficeSegmentFieldsPane
+                      {...officeSegments}
+                      onSaveDrafts={async (segmentIds) => {
+                        await officeSegments.onSaveDrafts(segmentIds);
+                        setPreviewRevision((revision) => revision + 1);
+                      }}
+                    />
+                  </FileViewPaneColumn>
+                </Column>
+                <Column width="1/2">
+                  <FileViewPaneColumn>
+                    {sourcePaneVisible ? (
+                      sourcePane
+                    ) : (
+                      <FileViewPane
+                        title={
+                          <FormattedMessage
+                            {...contentEditorFileViewMessages.targetHeading}
+                            values={{ locale: segment.targetLocale }}
+                          />
+                        }
+                      >
+                        <ContentEditorOfficeFileViewerPane
+                          key={previewRevision}
+                          kind={officeKind}
+                          role="target"
+                          src={withPreviewRevision(targetSrc, previewRevision)}
+                          seedSrc={sourceSrc}
+                          filename={displayName}
+                          isLoading={isSegmentTargetLoading}
+                          canEdit={false}
+                        />
+                      </FileViewPane>
+                    )}
+                  </FileViewPaneColumn>
+                </Column>
+              </Columns>
+            </div>
+          </FileViewWorkspaceContent>
+        </FileViewWorkspace>
       ) : (
         <FileViewWorkspace>
           <FileViewWorkspaceContent

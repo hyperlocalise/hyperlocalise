@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { toast } from "sonner";
 import { invalidateContentEditorBrazePushQueries } from "@/components/content-editor/page/content-editor-braze-push-queries";
 import { invalidateContentEditorIntercomPushQueries } from "@/components/content-editor/page/content-editor-intercom-push-queries";
 
@@ -102,6 +103,10 @@ import {
   projectFileCatToWorkspaceState,
   resolveCatFileIdentity,
 } from "./project-file-content-editor-mapper";
+import {
+  isParseBackDocumentPath,
+  saveDocumentParseBackDrafts,
+} from "./content-editor-document-parse-back";
 import { projectFileCatWorkspaceMessages } from "./project-file-content-editor-workspace.messages";
 import { fetchCatSegmentValidation } from "./project-file-content-editor-validation";
 import {
@@ -117,6 +122,8 @@ import { useContentEditorSegmentQuery } from "./use-content-editor-segment-query
 import { useContentEditorWorkspaceQuerySync } from "./use-content-editor-workspace-query-sync";
 import { downloadProjectFileContentEditorExport } from "./project-file-content-editor-export";
 import type { ContentEditorFilteredExportFormat } from "@/lib/projects/content-editor/content-editor-filtered-export";
+
+const DOCUMENT_PARSE_BACK_LISTED_KEYS = 5;
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
   if (highlightLocale && targetLocales.includes(highlightLocale)) {
@@ -716,6 +723,53 @@ export function ProjectFileContentEditorWorkspace({
     invalidateContentEditorIntercomPushQueries(queryClient, organizationSlug, projectId);
     invalidateContentEditorBrazePushQueries(queryClient, organizationSlug, projectId);
   }, [invalidateQueue, organizationSlug, projectId, queryClient]);
+
+  const isKeyedDocumentFileView = (segmentId: string) =>
+    isNativeProject &&
+    isParseBackDocumentPath(sourcePath) &&
+    isCatDocumentFileViewSegmentId(segmentId, contentEditorFile?.documentView) &&
+    Boolean(contentEditorFile?.segments.some((segment) => segment.contentKind !== "document"));
+
+  const writeDocumentEditsToSegments = async (file: File) => {
+    try {
+      const content = await file.text();
+      const result = await saveDocumentParseBackDrafts({
+        parse: () =>
+          goSvcClient.cat.parseBackDocument(organizationSlug, projectId, {
+            sourcePath,
+            targetLocale,
+            content,
+          }),
+        saveDraft: (externalStringId, targetText) => handleSaveDraft(externalStringId, targetText),
+      });
+      const notSaved = [
+        ...result.unmapped.map((entry) => entry.key),
+        ...result.failed.map((entry) => entry.key),
+      ];
+      if (notSaved.length > 0) {
+        toast.warning(
+          intl.formatMessage(projectFileCatWorkspaceMessages.documentDraftsNotSaved, {
+            count: notSaved.length,
+          }),
+          {
+            description: intl.formatMessage(
+              projectFileCatWorkspaceMessages.documentDraftsNotSavedDetail,
+              { keys: notSaved.slice(0, DOCUMENT_PARSE_BACK_LISTED_KEYS).join(", ") },
+            ),
+          },
+        );
+      }
+      if (result.saved > 0) {
+        toast.success(
+          intl.formatMessage(projectFileCatWorkspaceMessages.documentDraftsSaved, {
+            count: result.saved,
+          }),
+        );
+      }
+    } catch {
+      toast.error(intl.formatMessage(projectFileCatWorkspaceMessages.documentParseBackFailed));
+    }
+  };
 
   const handleSaveDraft = useCallback(
     async (segmentId: string, targetText: string) => {
@@ -1400,6 +1454,9 @@ export function ProjectFileContentEditorWorkspace({
                       : {}),
                     onUploadImage: async (segmentId, file) => {
                       await uploadImage({ externalStringId: segmentId, file });
+                      if (isKeyedDocumentFileView(segmentId)) {
+                        await writeDocumentEditsToSegments(file);
+                      }
                     },
                     ...(!contentEditorFile?.provider?.kind ||
                     contentEditorFile.provider.kind === "native"

@@ -14,7 +14,7 @@ export async function extractTranslationImportEntriesStep(input: {
   sandboxId: string;
   filePath: string;
   targetLocale: string;
-  /** Names the source column of `.xlsx` workbooks; other formats ignore it. */
+  /** Names the source column of workbooks; other formats ignore it. */
   sourceLocale?: string | null;
 }) {
   "use step";
@@ -30,17 +30,19 @@ export async function extractTranslationImportEntriesStep(input: {
   return result.entries;
 }
 
-export async function extractXlsxTranslationImportEntriesStep(input: {
+export async function extractOfficeTranslationImportEntriesStep(input: {
   organizationId: string;
   projectId: string;
   storedFileId: string;
+  sourcePath: string;
   targetLocale: string;
 }): Promise<Record<string, string>> {
   "use step";
-  const { loadProjectXlsxTargetEntries } = await import("@/lib/projects/files/xlsx-source-entries");
-  const entries = await loadProjectXlsxTargetEntries(input);
+  const { loadProjectOfficeTargetEntries } =
+    await import("@/lib/projects/files/office-source-entries");
+  const entries = await loadProjectOfficeTargetEntries(input);
   if (!entries.ok) {
-    throw new Error(`failed to extract entries from the workbook: ${entries.error.code}`);
+    throw new Error(`failed to extract entries from the Office file: ${entries.error.code}`);
   }
   return entries.value;
 }

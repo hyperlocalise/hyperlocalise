@@ -23,19 +23,19 @@ const ingestSteps = vi.hoisted(() => ({
 const importSteps = vi.hoisted(() => ({
   enqueueFileTranslationsImportedActivityStep: vi.fn(),
   extractTranslationImportEntriesStep: vi.fn(),
-  extractXlsxTranslationImportEntriesStep: vi.fn(),
+  extractOfficeTranslationImportEntriesStep: vi.fn(),
   importTranslationsFromEntriesStep: vi.fn(),
 }));
-const cliRelease = vi.hoisted(() => ({ parsesXlsx: false }));
+const cliRelease = vi.hoisted(() => ({ parsesOffice: false }));
 
 vi.mock("./steps/source-file-ingest", () => ingestSteps);
 vi.mock("./steps/translation-file-import", () => importSteps);
 vi.mock("./steps/translation-job", () => ({
   getStoredFileContentStep: vi.fn(async () => Buffer.from("workbook")),
 }));
-vi.mock("@/lib/translation/sandbox-cli-release", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/translation/sandbox-cli-release")>()),
-  sandboxCliParsesXlsx: () => cliRelease.parsesXlsx,
+vi.mock("@/lib/translation/sandbox-cli-version", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/translation/sandbox-cli-version")>()),
+  sandboxCliParsesOffice: () => cliRelease.parsesOffice,
 }));
 
 import { translationFileImportWorkflow } from "./translation-file-import";
@@ -51,13 +51,13 @@ const event = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  cliRelease.parsesXlsx = false;
+  cliRelease.parsesOffice = false;
   ingestSteps.getStoredFileMetadataStep.mockResolvedValue({ filename: "strings.xlsx" });
   ingestSteps.createSourceIngestSandboxStep.mockResolvedValue({ sandboxId: "sandbox" });
   ingestSteps.getProjectSourceLocaleStep.mockResolvedValue("en-US");
   ingestSteps.stopSourceIngestSandboxStep.mockResolvedValue(undefined);
   importSteps.extractTranslationImportEntriesStep.mockResolvedValue({ "home.title": "Accueil" });
-  importSteps.extractXlsxTranslationImportEntriesStep.mockResolvedValue({
+  importSteps.extractOfficeTranslationImportEntriesStep.mockResolvedValue({
     "home.title": "Accueil",
   });
   importSteps.importTranslationsFromEntriesStep.mockResolvedValue({
@@ -70,17 +70,36 @@ beforeEach(() => {
 describe("translationFileImportWorkflow workbooks", () => {
   it("reads workbooks in-process until the sandbox CLI parses them", async () => {
     await expect(translationFileImportWorkflow(event)).resolves.toMatchObject({ imported: 1 });
-    expect(importSteps.extractXlsxTranslationImportEntriesStep).toHaveBeenCalledWith({
+    expect(importSteps.extractOfficeTranslationImportEntriesStep).toHaveBeenCalledWith({
       organizationId: "org",
       projectId: "project",
       storedFileId: "stored",
+      sourcePath: "copy/strings.xlsx",
       targetLocale: "fr-FR",
     });
     expect(ingestSteps.createSourceIngestSandboxStep).not.toHaveBeenCalled();
   });
 
+  it("reads Word documents in-process until the sandbox CLI parses them", async () => {
+    await translationFileImportWorkflow({ ...event, sourcePath: "docs/report.docx" });
+    expect(importSteps.extractOfficeTranslationImportEntriesStep).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "docs/report.docx" }),
+    );
+    expect(ingestSteps.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+  });
+
+  it("always reads legacy .xls workbooks in-process", async () => {
+    cliRelease.parsesOffice = true;
+
+    await translationFileImportWorkflow({ ...event, sourcePath: "copy/legacy.xls" });
+    expect(importSteps.extractOfficeTranslationImportEntriesStep).toHaveBeenCalledWith(
+      expect.objectContaining({ sourcePath: "copy/legacy.xls" }),
+    );
+    expect(ingestSteps.createSourceIngestSandboxStep).not.toHaveBeenCalled();
+  });
+
   it("reads workbooks with hl entries and the project source locale", async () => {
-    cliRelease.parsesXlsx = true;
+    cliRelease.parsesOffice = true;
 
     await expect(translationFileImportWorkflow(event)).resolves.toMatchObject({ imported: 1 });
     expect(importSteps.extractTranslationImportEntriesStep).toHaveBeenCalledWith({
@@ -92,12 +111,12 @@ describe("translationFileImportWorkflow workbooks", () => {
     expect(importSteps.importTranslationsFromEntriesStep).toHaveBeenCalledWith(
       expect.objectContaining({ entries: { "home.title": "Accueil" } }),
     );
-    expect(importSteps.extractXlsxTranslationImportEntriesStep).not.toHaveBeenCalled();
+    expect(importSteps.extractOfficeTranslationImportEntriesStep).not.toHaveBeenCalled();
     expect(ingestSteps.stopSourceIngestSandboxStep).toHaveBeenCalledWith("sandbox");
   });
 
   it("does not look up the source locale for other formats", async () => {
-    cliRelease.parsesXlsx = true;
+    cliRelease.parsesOffice = true;
     ingestSteps.getStoredFileMetadataStep.mockResolvedValue({ filename: "fr.json" });
 
     await translationFileImportWorkflow({ ...event, sourcePath: "locales/en.json" });
