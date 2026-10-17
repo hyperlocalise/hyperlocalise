@@ -84,7 +84,7 @@ func ParseXLSXLocaleWithContext(content []byte, sourceLocale, locale string) (ma
 	return values, entryContext, nil
 }
 
-// ParseXLSXIngestEntries returns locale entries with their length limits.
+// ParseXLSXIngestEntries returns locale entries with their length limits and comments.
 func ParseXLSXIngestEntries(content []byte, sourceLocale, locale string) (map[string]IngestEntry, error) {
 	entries, err := ReadXLSXEntries(content, sourceLocale, locale)
 	if err != nil {
@@ -92,7 +92,7 @@ func ParseXLSXIngestEntries(content []byte, sourceLocale, locale string) (map[st
 	}
 	out := make(map[string]IngestEntry, len(entries))
 	for _, entry := range entries {
-		out[entry.Key] = IngestEntry{Text: entry.Text, MaxLength: entry.MaxLength}
+		out[entry.Key] = IngestEntry{Text: entry.Text, MaxLength: entry.MaxLength, Context: entry.Comment}
 	}
 	return out, nil
 }

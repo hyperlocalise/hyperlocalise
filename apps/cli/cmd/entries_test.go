@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/xuri/excelize/v2"
 )
 
 func TestEntriesCommandExtractsMaxLengthFromAppleStrings(t *testing.T) {
@@ -516,4 +517,70 @@ func decodeEntriesCommandStrings(raw []byte) (map[string]string, error) {
 		out[key] = record.Text
 	}
 	return out, nil
+}
+
+func TestEntriesCommandReadsXLSXTargetColumnWithSourceLocale(t *testing.T) {
+	workbook := excelize.NewFile()
+	cells := map[string]string{
+		"A1": "Key", "B1": "English", "C1": "French", "D1": "Comment",
+		"A2": "home.title", "B2": "Home", "C2": "Accueil", "D2": "Navigation label",
+		"A3": "home.cta", "B3": "Start", "C3": "",
+	}
+	for cell, value := range cells {
+		if err := workbook.SetCellValue("Sheet1", cell, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	buffer, err := workbook.WriteToBuffer()
+	_ = workbook.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "strings.xlsx")
+	if err := os.WriteFile(path, buffer.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	run := func(args ...string) map[string]json.RawMessage {
+		t.Helper()
+		root := newRootCmd("test")
+		out := bytes.NewBuffer(nil)
+		root.SetOut(out)
+		root.SetErr(out)
+		root.SetArgs(append([]string{"entries", path}, args...))
+		if err := root.Execute(); err != nil {
+			t.Fatalf("execute entries: %v", err)
+		}
+		var payload map[string]json.RawMessage
+		if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+			t.Fatalf("decode output: %v", err)
+		}
+		return payload
+	}
+
+	type entry struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	decode := func(raw json.RawMessage) entry {
+		t.Helper()
+		var value entry
+		if err := json.Unmarshal(raw, &value); err != nil {
+			t.Fatalf("decode entry %s: %v", raw, err)
+		}
+		return value
+	}
+
+	source := run("--locale", "en")
+	if got := decode(source["home.title"]); got != (entry{Text: "Home", Context: "Navigation label"}) {
+		t.Fatalf("unexpected source entry: %+v", got)
+	}
+
+	target := run("--source-locale", "en", "--locale", "fr")
+	if len(target) != 1 {
+		t.Fatalf("expected only translated cells, got %#v", target)
+	}
+	if got := decode(target["home.title"]); got != (entry{Text: "Accueil", Context: "Navigation label"}) {
+		t.Fatalf("unexpected target entry: %+v", got)
+	}
 }

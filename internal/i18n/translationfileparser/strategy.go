@@ -204,6 +204,13 @@ func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]str
 // ParseIngestEntries resolves a parser from the file path extension and returns entries
 // enriched with optional import metadata such as max-length limits.
 func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string) (map[string]IngestEntry, error) {
+	return s.ParseIngestEntriesWithSourceLocale(path, content, "", locale)
+}
+
+// ParseIngestEntriesWithSourceLocale is ParseIngestEntries for formats that
+// read a locale column relative to a source column, such as .xlsx. An empty
+// sourceLocale treats locale as the source locale.
+func (s *Strategy) ParseIngestEntriesWithSourceLocale(path string, content []byte, sourceLocale, locale string) (map[string]IngestEntry, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {
 		return nil, fmt.Errorf("translation file parser: file %q has no extension", path)
@@ -239,7 +246,7 @@ func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string
 		}
 		return entries, nil
 	case ".xlsx":
-		entries, err := ParseXLSXIngestEntries(content, locale, locale)
+		entries, err := ParseXLSXIngestEntries(content, sourceLocale, locale)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}

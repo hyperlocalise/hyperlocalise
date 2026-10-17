@@ -406,3 +406,30 @@ func TestStrategyXLSX(t *testing.T) {
 		t.Fatalf("expected an error for an invalid workbook")
 	}
 }
+
+func TestStrategyParseIngestEntriesWithSourceLocaleReadsTargetColumn(t *testing.T) {
+	strategy := NewDefaultStrategy()
+	entries, err := strategy.ParseIngestEntriesWithSourceLocale("strings.xlsx", multilingualXLSX(t), "en", "fr-FR")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	want := map[string]IngestEntry{
+		"home.title": {Text: "Accueil", MaxLength: 12, Context: "Navigation label"},
+	}
+	if !reflect.DeepEqual(entries, want) {
+		t.Fatalf("entries mismatch\n got: %#v\nwant: %#v", entries, want)
+	}
+}
+
+func TestStrategyParseIngestEntriesKeepsXLSXComments(t *testing.T) {
+	strategy := NewDefaultStrategy()
+	entries, err := strategy.ParseIngestEntries("strings.xlsx", multilingualXLSX(t), "en")
+	if err != nil {
+		t.Fatalf("parse ingest entries: %v", err)
+	}
+	got := EncodeEntriesCommandOutput(entries)["home.title"]
+	want := map[string]any{"text": "Home", "maxLength": 12, "context": "Navigation label"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("encoded entry mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
