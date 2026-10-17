@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +19,27 @@ import { defineConfig } from "vite-plus";
 import type { DummyRuleMap } from "vite-plus/lint";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+const testFileInclude = "src/**/*.test.{ts,tsx}";
+const testFileExclude = ["src/e2e/**"];
+
+// Files that rewrite the module graph cannot share a worker cache.
+const moduleGraphMutationPattern = /\bvi\.(mock|doMock|doUnmock|unmock|resetModules|hoisted)\b/;
+
+function listTestFiles(): string[] {
+  return globSync(testFileInclude, { cwd: rootDir }).filter(
+    (relativePath) => !relativePath.startsWith("src/e2e/"),
+  );
+}
+
+const isolatedTestFiles = listTestFiles().filter((relativePath) => {
+  const source = readFileSync(path.join(rootDir, relativePath), "utf8");
+  return moduleGraphMutationPattern.test(source);
+});
+const isolatedTestFileSet = new Set(isolatedTestFiles);
+const sharedTestFiles = listTestFiles().filter(
+  (relativePath) => !isolatedTestFileSet.has(relativePath),
+);
 
 loadDotenv({ path: path.join(rootDir, ".env") });
 
@@ -110,8 +132,29 @@ export default defineConfig({
     pool: "threads",
     reporters: isCi ? ["dot", "github-actions"] : ["default"],
     setupFiles: ["./src/test/setup-dom.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
-    exclude: ["src/e2e/**"],
+    include: [testFileInclude],
+    exclude: testFileExclude,
+    // Shared files reuse the worker module graph. Files that call vi.mock
+    // keep per-file isolation so their replacements do not leak.
+    // https://vitest.dev/guide/improving-performance#test-isolation
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "shared",
+          isolate: false,
+          exclude: [...testFileExclude, ...isolatedTestFiles],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "isolated",
+          isolate: true,
+          exclude: [...testFileExclude, ...sharedTestFiles],
+        },
+      },
+    ],
     deps: {
       optimizer: {
         ssr: {
