@@ -101,3 +101,29 @@ func TestMapParsedDocumentToKeysSkipsUnchangedSplitParagraphs(t *testing.T) {
 		t.Fatalf("expected an unchanged paragraph, got %+v", result)
 	}
 }
+
+func TestMapParsedDocumentToKeysIgnoresUntouchedUntranslatedParagraphs(t *testing.T) {
+	source := "# Getting started\n\nInstall the CLI.\n\nRun the setup.\n"
+	keys, _ := parseBackTestKeys(t, "docs/guide.md", source, nil)
+	parsedSource, err := translationfileparser.NewDefaultStrategy().Parse("docs/guide.md", []byte(source))
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	// parseBackKeys falls back to the source text when a key has no translation yet.
+	for i := range keys {
+		keys[i].target = parsedSource[keys[i].key]
+	}
+	edited, err := translationfileparser.NewDefaultStrategy().Parse("docs/guide.md", []byte("# Premiers pas\n\nInstall the CLI.\n\nRun the setup.\n"))
+	if err != nil {
+		t.Fatalf("parse edited: %v", err)
+	}
+
+	result := mapParsedDocumentToKeys(edited, keys)
+
+	if len(result.Unmapped) != 0 {
+		t.Fatalf("unexpected unmapped edits: %+v", result.Unmapped)
+	}
+	if len(result.Changes) != 1 || result.Changes[0].TargetText != "Premiers pas" {
+		t.Fatalf("expected only the edited heading to change, got %+v", result.Changes)
+	}
+}

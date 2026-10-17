@@ -89,7 +89,7 @@ func (api *editorCatAPI) parseBackDocument(r *http.Request, actor editorCatActor
 
 func (api *editorCatAPI) parseBackKeys(r *http.Request, actor editorCatActor, project editorCatProject, sourceFileID, targetLocale string) ([]editorCatParseBackKey, error) {
 	rows, err := api.pool.Query(r.Context(), `
-        select k.id::text, k.key, coalesce(t.text, '')
+        select k.id::text, k.key, coalesce(nullif(t.text, ''), k.source_text)
         from project_translation_keys k
         left join project_translations t on t.translation_key_id=k.id and t.target_locale=$4
             and t.organization_id=$1 and t.project_id=$2
