@@ -27,6 +27,12 @@ const getLatestRepositorySourceFileVersion = vi.fn();
 const getStoredFileContent = vi.fn();
 const getImageVariant = vi.fn();
 const getVideoVariant = vi.fn();
+const requeueKeylessOfficeSourceIngest = vi.fn();
+
+vi.mock("@/lib/projects/files/office-legacy-reingest", () => ({
+  requeueKeylessOfficeSourceIngest: (...args: unknown[]) =>
+    requeueKeylessOfficeSourceIngest(...args),
+}));
 
 vi.mock("@/lib/file-storage/records", () => ({
   getLatestRepositorySourceFileVersion: (...args: unknown[]) =>
@@ -88,6 +94,7 @@ describe("NativeContentEditorService.getCatFile", () => {
     getStoredFileContent.mockReset();
     getImageVariant.mockResolvedValue(null);
     getVideoVariant.mockResolvedValue(null);
+    requeueKeylessOfficeSourceIngest.mockResolvedValue(false);
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -419,7 +426,8 @@ describe("NativeContentEditorService.getCatFile", () => {
     });
   });
 
-  it("returns a synthetic office_file segment for docx sources", async () => {
+  it("returns a synthetic office_file segment for keyless docx sources", async () => {
+    listKeysForFile.mockResolvedValue([]);
     getLatestRepositorySourceFileVersion.mockResolvedValue({
       storedFileId: "stored_source_docx",
     });
@@ -438,7 +446,12 @@ describe("NativeContentEditorService.getCatFile", () => {
       organizationSlug: "acme",
     });
 
-    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(listKeysForFile).toHaveBeenCalledTimes(1);
+    expect(requeueKeylessOfficeSourceIngest).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/brief.docx",
+    });
     expect(result?.segments).toHaveLength(1);
     expect(result?.segments[0]).toMatchObject({
       externalStringId: "file_1",
@@ -531,7 +544,10 @@ describe("NativeContentEditorService.getCatFile", () => {
     ]);
   });
 
-  it("keeps legacy .xls workbooks as Office files without listing keys", async () => {
+  it("keeps the Office File view when requeueing a keyless .xls workbook fails", async () => {
+    listKeysForFile.mockResolvedValue([]);
+    requeueKeylessOfficeSourceIngest.mockRejectedValue(new Error("workflow unavailable"));
+
     const result = await service.getCatFile({
       organizationId: "org_1",
       projectId: "project_1",
@@ -541,7 +557,7 @@ describe("NativeContentEditorService.getCatFile", () => {
       organizationSlug: "acme",
     });
 
-    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(requeueKeylessOfficeSourceIngest).toHaveBeenCalledTimes(1);
     expect(result?.segments[0]?.contentKind).toBe("office_file");
   });
 

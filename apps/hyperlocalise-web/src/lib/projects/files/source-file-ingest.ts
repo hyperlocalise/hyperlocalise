@@ -166,6 +166,7 @@ export async function enqueueSourceFileIngestAfterUpload(
     storedFileId: input.storedFileId,
     sourcePath: input.sourcePath,
     targetAutomationId: input.targetAutomationId,
+    ...(input.reingest ? { reingest: true } : {}),
   });
 
   logger.info(

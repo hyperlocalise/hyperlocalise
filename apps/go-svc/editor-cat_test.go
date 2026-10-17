@@ -612,6 +612,47 @@ func TestEditorCatQueueMarkdownKeysAndDocumentView(t *testing.T) {
 	require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
 }
 
+func TestEditorCatQueueOfficeKeysAndGeneratedFileView(t *testing.T) {
+	for _, sourcePath := range []string{"docs/brief.docx", "decks/launch.pptx", "copy/strings.xlsx", "copy/legacy.xls"} {
+		t.Run(sourcePath, func(t *testing.T) {
+			api, scope := editorCatTestAPI(t, "translator")
+			fileID := mustEditorCatSourceFile(t, scope, sourcePath)
+			keyID := mustEditorCatKey(t, scope, fileID, "word/document.xml#0", "Welcome")
+			rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			var body struct {
+				ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+			require.Len(t, body.ContentEditorQueue.Segments, 1)
+			require.Equal(t, keyID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+			require.NotNil(t, body.ContentEditorQueue.DocumentView)
+			require.Equal(t, fileID, body.ContentEditorQueue.DocumentView.ExternalStringID)
+			require.NotNil(t, body.ContentEditorQueue.DocumentView.TargetAssetURL)
+			require.Equal(t,
+				"/api/orgs/"+scope.Slug+"/projects/"+scope.ProjectID+"/files/translations/download?sourcePath="+url.QueryEscape(sourcePath)+"&locale=fr",
+				*body.ContentEditorQueue.DocumentView.TargetAssetURL)
+
+			target := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/segments/"+keyID+"/target?sourcePath="+sourcePath+"&targetLocale=fr"), "")
+			require.Equal(t, http.StatusOK, target.Code, target.Body.String())
+		})
+	}
+}
+
+func TestEditorCatQueueOfficeWithoutKeysStaysWholeFile(t *testing.T) {
+	api, scope := editorCatTestAPI(t, "translator")
+	fileID := mustEditorCatSourceFile(t, scope, "docs/brief.docx")
+	rec := editorCatRequestScope(api, scope, http.MethodGet, editorCatPathFor(scope, "/files/detail/cat/queue?sourcePath=docs/brief.docx&targetLocale=fr"), "")
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var body struct {
+		ContentEditorQueue editorCatQueueFile `json:"contentEditorQueue"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, fileID, body.ContentEditorQueue.Segments[0].ExternalStringID)
+	require.Equal(t, "office_file", *body.ContentEditorQueue.Segments[0].ContentKind)
+	require.Nil(t, body.ContentEditorQueue.DocumentView)
+}
+
 func TestEditorCatQueueMarkdownWithoutKeysFallsBackToDocument(t *testing.T) {
 	api, scope := editorCatTestAPI(t, "translator")
 	fileID := mustEditorCatSourceFile(t, scope, "docs/intro.md")

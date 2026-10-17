@@ -33,10 +33,12 @@
 - `.json` Lottie animations via `JSONParser` content detection (editable text layers only)
 - `.lottie` via `DotLottieParser` (dotLottie zip archives)
 - `.xlsx` via `XLSXParser` (Excel workbooks, multilingual and cell layouts)
+- `.docx` via `DOCXParser` (Word paragraphs)
+- `.pptx` via `PPTXParser` (PowerPoint slide paragraphs)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, SVG text, Lottie, and Excel parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, Qt Linguist TS, XLIFF, PO, Apple strings/catalog, Markdown/MDX, AsciiDoc, CSV, TSV, TOML, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX/RESW, Java properties, INI, SubRip/WebVTT/SBV subtitle, SVG text, Lottie, Excel, Word, and PowerPoint parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -74,6 +76,14 @@
 - `ParseSource`, `ParseWithLocale`, and `ParseIngestEntries` read the locale column. `ReadXLSXEntries(content, sourceLocale, locale)` reads a target column with source-derived keys.
 - `MarshalXLSX(template, values, sourceLocale, targetLocale)` writes into a copy of the template. A missing target column is appended with the locale code as header and the source column's width and styles. Empty values, unknown keys, and formula cells are skipped.
 - Header rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/xlsx/xlsx-columns.ts`; keep both in sync.
+
+### Word and PowerPoint (`.docx`, `.pptx`)
+
+- One entry per paragraph, keyed `<part>#<index>`: `word/document.xml#12`, `ppt/slides/slide3.xml#4`. The index counts every paragraph in the part, including empty ones.
+- Word reads the main document, then headers, footers, footnotes, and endnotes. Tracked deletions are dropped and tracked insertions are kept. PowerPoint reads slides in presentation order; notes, layouts, masters, charts, and diagrams are not entries.
+- An entry's text uses the formatting that covers most of the paragraph. Other formatting, links, and non-text objects become `\x1eHLOXPH_<hex>_<n>\x1f` placeholders, and the entry context asks the model to keep them.
+- `MarshalDOCX(template, values)` and `MarshalPPTX(template, values)` rebuild only paragraphs whose value differs from the source, reading formatting from the template. Other parts are copied without recompression.
+- Rules are mirrored in `apps/hyperlocalise-web/src/lib/translation/ooxml`; `testdata/ooxml` goldens are shared by both test suites.
 
 ### JSONC
 

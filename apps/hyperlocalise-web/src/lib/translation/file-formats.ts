@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
+
 export const supportedTranslationFileFormats = [
   "json",
   "jsonc",
@@ -90,6 +92,10 @@ export const supportedFileTranslationFileFormats = [
   "jpeg",
   "webp",
   "mp4",
+  "docx",
+  "xlsx",
+  "xls",
+  "pptx",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -194,14 +200,14 @@ export function isOfficeTranslationFileFormat(
   );
 }
 
-export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx"] as const;
+export const supportedSegmentedSpreadsheetTranslationFileFormats = ["xlsx", "xls"] as const;
 
 export type SupportedSegmentedSpreadsheetTranslationFileFormat =
   (typeof supportedSegmentedSpreadsheetTranslationFileFormats)[number];
 
 /**
- * Office workbooks whose text cells are extracted into keyed segments, so they get segment
- * views and a generated per-locale download on top of the stored-file Office behaviour.
+ * Workbooks among the Office formats. Every Office format is extracted into keyed segments
+ * with a generated per-locale download; workbooks also key by locale column or cell.
  */
 export function isSegmentedSpreadsheetTranslationFileFormat(
   format: SupportedTranslationFileFormat,
@@ -286,11 +292,28 @@ export function inferSupportedTranslationFileFormat(
   return formatsByExtension[filename.slice(dotIndex).toLowerCase()] ?? null;
 }
 
+/** File translation job formats the pinned sandbox CLI can run, for user-facing lists. */
+export function availableFileTranslationFileFormats(
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
+): SupportedFileTranslationFileFormat[] {
+  return supportedFileTranslationFileFormats.filter(
+    (format) => cliParsesOffice || !isOfficeTranslationFileFormat(format),
+  );
+}
+
+/**
+ * The file translation job format for `filename`. Office files qualify only once the
+ * pinned sandbox CLI parses them; until then they are translated as segments in CAT.
+ */
 export function inferSupportedFileTranslationFileFormat(
   filename: string,
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
 ): SupportedFileTranslationFileFormat | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isSupportedFileTranslationFileFormat(format)) {
+    return null;
+  }
+  if (!cliParsesOffice && isOfficeTranslationFileFormat(format)) {
     return null;
   }
 

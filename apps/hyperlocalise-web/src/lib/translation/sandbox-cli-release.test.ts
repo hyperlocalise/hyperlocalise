@@ -12,13 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { isSandboxFileTranslationFormat, sandboxEntriesLocaleOptions } from "./sandbox-cli-release";
 import {
-  hyperlocaliseCliXlsxReleaseVersion,
+  hyperlocaliseCliOfficeReleaseVersion,
   isReleaseVersionAtLeast,
-  isSandboxFileTranslationFormat,
-  sandboxCliParsesXlsx,
-  sandboxEntriesLocaleOptions,
-} from "./sandbox-cli-release";
+  sandboxCliParsesOffice,
+} from "./sandbox-cli-version";
 
 describe("isReleaseVersionAtLeast", () => {
   it("compares numeric release parts", () => {
@@ -34,23 +33,24 @@ describe("isReleaseVersionAtLeast", () => {
   });
 });
 
-describe("sandboxCliParsesXlsx", () => {
-  it("turns on at the first CLI release that reads workbooks", () => {
-    expect(sandboxCliParsesXlsx("1.13.3")).toBe(false);
-    expect(sandboxCliParsesXlsx(hyperlocaliseCliXlsxReleaseVersion)).toBe(true);
+describe("sandboxCliParsesOffice", () => {
+  it("turns on at the first CLI release that reads Office files", () => {
+    expect(sandboxCliParsesOffice("1.13.3")).toBe(false);
+    expect(sandboxCliParsesOffice(hyperlocaliseCliOfficeReleaseVersion)).toBe(true);
   });
 });
 
 describe("isSandboxFileTranslationFormat", () => {
-  it("adds workbooks to file translation once the CLI parses them", () => {
+  it("adds Office files to file translation once the CLI parses them", () => {
     expect(isSandboxFileTranslationFormat("json", false)).toBe(true);
-    expect(isSandboxFileTranslationFormat("xlsx", false)).toBe(false);
-    expect(isSandboxFileTranslationFormat("xlsx", true)).toBe(true);
+    for (const format of ["docx", "xlsx", "xls", "pptx"]) {
+      expect(isSandboxFileTranslationFormat(format, false)).toBe(false);
+      expect(isSandboxFileTranslationFormat(format, true)).toBe(true);
+    }
   });
 
-  it("keeps other Office formats in CAT", () => {
-    expect(isSandboxFileTranslationFormat("xls", true)).toBe(false);
-    expect(isSandboxFileTranslationFormat("docx", true)).toBe(false);
+  it("rejects formats outside file translation", () => {
+    expect(isSandboxFileTranslationFormat("rtf", true)).toBe(false);
   });
 });
 
@@ -60,7 +60,7 @@ describe("sandboxEntriesLocaleOptions", () => {
       sourceLocale: "en-US",
       locale: "en-US",
     });
-    expect(sandboxEntriesLocaleOptions("Strings.XLSX", "en-US", "fr-FR")).toEqual({
+    expect(sandboxEntriesLocaleOptions("Strings.XLS", "en-US", "fr-FR")).toEqual({
       sourceLocale: "en-US",
       locale: "fr-FR",
     });
@@ -68,7 +68,7 @@ describe("sandboxEntriesLocaleOptions", () => {
 
   it("keeps other formats and missing source locales unchanged", () => {
     expect(sandboxEntriesLocaleOptions("en.json", "en-US", "fr-FR")).toEqual({});
-    expect(sandboxEntriesLocaleOptions("rates.xls", "en-US", "fr-FR")).toEqual({});
+    expect(sandboxEntriesLocaleOptions("deck.pptx", "en-US", "fr-FR")).toEqual({});
     expect(sandboxEntriesLocaleOptions("strings.xlsx", null, "fr-FR")).toEqual({});
   });
 });

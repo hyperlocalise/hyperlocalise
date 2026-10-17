@@ -50,7 +50,7 @@ import {
   sandboxSnapshotExpirationMs,
   sandboxSnapshotRetentionCount,
 } from "@/lib/vercel-sandbox-config";
-import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-release";
+import { sandboxHyperlocaliseReleaseVersion } from "@/lib/translation/sandbox-cli-version";
 
 describe("installQaSpellingSandboxCommand", () => {
   it("stages dictionaries with root privileges into DICPATH", () => {

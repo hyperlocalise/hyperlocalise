@@ -12,58 +12,22 @@
  */
 import {
   inferSupportedSegmentedSpreadsheetTranslationFileFormat,
-  isSegmentedSpreadsheetTranslationFileFormat,
+  isOfficeTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
-
-/** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.3";
-
-/** First CLI release whose `hl entries` and `hl run` read and write `.xlsx` workbooks. */
-export const hyperlocaliseCliXlsxReleaseVersion = "1.14.0";
-
-function parseReleaseVersion(version: string): number[] {
-  return version
-    .trim()
-    .replace(/^v/, "")
-    .split("-")[0]!
-    .split(".")
-    .map((part) => Number.parseInt(part, 10) || 0);
-}
-
-export function isReleaseVersionAtLeast(version: string, minimum: string): boolean {
-  const actual = parseReleaseVersion(version);
-  const required = parseReleaseVersion(minimum);
-  for (let index = 0; index < Math.max(actual.length, required.length); index += 1) {
-    const difference = (actual[index] ?? 0) - (required[index] ?? 0);
-    if (difference !== 0) {
-      return difference > 0;
-    }
-  }
-  return true;
-}
-
-/**
- * Whether the sandbox CLI parses `.xlsx` into segments. Until the pin reaches
- * {@link hyperlocaliseCliXlsxReleaseVersion}, workbooks are read in-process instead.
- */
-export function sandboxCliParsesXlsx(
-  version: string = sandboxHyperlocaliseReleaseVersion,
-): boolean {
-  return isReleaseVersionAtLeast(version, hyperlocaliseCliXlsxReleaseVersion);
-}
+import { sandboxCliParsesOffice } from "@/lib/translation/sandbox-cli-version";
 
 /** Whether file translation jobs can run `format` through the sandbox CLI. */
 export function isSandboxFileTranslationFormat(
   format: string,
-  cliParsesXlsx: boolean = sandboxCliParsesXlsx(),
+  cliParsesOffice: boolean = sandboxCliParsesOffice(),
 ): boolean {
   const supported = format as SupportedTranslationFileFormat;
-  return (
-    isSupportedFileTranslationFileFormat(supported) ||
-    (cliParsesXlsx && isSegmentedSpreadsheetTranslationFileFormat(supported))
-  );
+  if (!isSupportedFileTranslationFileFormat(supported)) {
+    return false;
+  }
+  return cliParsesOffice || !isOfficeTranslationFileFormat(supported);
 }
 
 /**

@@ -155,6 +155,8 @@ export type SourceFileIngestEventData = {
   storedFileId: string;
   sourcePath: string;
   targetAutomationId?: string;
+  /** Re-keys an existing upload, so upload automations must not run again. */
+  reingest?: boolean;
 };
 
 export type SourceFileIngestQueue = JobQueue<SourceFileIngestEventData>;

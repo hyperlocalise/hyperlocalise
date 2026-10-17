@@ -32,8 +32,23 @@ import type {
 
 const PLACEHOLDER_PATTERN = /\{[^{}\s]+\}|%\d*\$?[sd]|%\w+/gu;
 const PRINTF_PLACEHOLDER_PATTERN = /%\d*\$?[sd]|%\w+/gu;
+// Ingest sentinels for markup the file writer restores (\x1eHL<family>PH_<hex>_<n>\x1f).
+const INTERNAL_MARKUP_PATTERN = new RegExp(
+  `${String.fromCharCode(0x1e)}HL(MD|HT|LQ|UE|OX)PH_[A-Za-z0-9]+_(\\d+)${String.fromCharCode(0x1f)}`,
+  "gu",
+);
 
 function collectPlaceholders(value: string, format: MessageFormat) {
+  const markup = [...value.matchAll(INTERNAL_MARKUP_PATTERN)].map(
+    (match) => `${match[1]}#${match[2]}`,
+  );
+  return [
+    ...markup,
+    ...collectFormatPlaceholders(value.replace(INTERNAL_MARKUP_PATTERN, ""), format),
+  ];
+}
+
+function collectFormatPlaceholders(value: string, format: MessageFormat) {
   const classicPattern = messageFormatParsesIcu(format)
     ? PLACEHOLDER_PATTERN
     : PRINTF_PLACEHOLDER_PATTERN;

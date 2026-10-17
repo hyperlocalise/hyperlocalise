@@ -58,10 +58,15 @@ describe("isContentEditorGroupingAvailable", () => {
     );
   });
 
-  it("keeps grouping off for native media and office files", () => {
+  it("keeps grouping off for native media files", () => {
     expect(isContentEditorGroupingAvailable(nativeFile, "hero.png")).toBe(false);
     expect(isContentEditorGroupingAvailable(nativeFile, "clip.mp4")).toBe(false);
-    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(false);
+  });
+
+  it("enables grouping for segmented office files", () => {
+    expect(isContentEditorGroupingAvailable(nativeFile, "brief.docx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "deck.pptx")).toBe(true);
+    expect(isContentEditorGroupingAvailable(nativeFile, "legacy.xls")).toBe(true);
   });
 
   it("enables grouping for native markdown files that also have segment view", () => {
