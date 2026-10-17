@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
+import { observer } from "mobx-react-lite";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   ClockIcon,
@@ -65,20 +66,11 @@ import { buildTmEntryLocaleOptions } from "./tm-entry-list-state";
 import { TM_ENTRY_SEARCH_QUERY_KEY } from "./tm-entry-search";
 import { tmEntryReviewSummaryQueryKey } from "./tm-entry-review";
 import { translationMemoryDetailPageContentMessages as messages } from "./translation-memory-detail-page-content.messages";
-
-type EntryForm = {
-  sourceLocale: string;
-  targetLocale: string;
-  sourceText: string;
-  targetText: string;
-};
-
-const emptyEntryForm: EntryForm = {
-  sourceLocale: "en-US",
-  targetLocale: "fr-FR",
-  sourceText: "",
-  targetText: "",
-};
+import type { TmEntryForm } from "../store/translation-memory-detail-store";
+import {
+  TranslationMemoryDetailStoreProvider,
+  useTranslationMemoryDetailStore,
+} from "../store/translation-memory-detail-store-context";
 
 export function TranslationMemoryDetailPageContent({
   organizationSlug,
@@ -88,472 +80,468 @@ export function TranslationMemoryDetailPageContent({
   memoryId: string;
   canManageMemories?: boolean;
 }) {
-  const intl = useIntl();
-  const queryClient = useQueryClient();
-  const { client: goSvcClient } = useGoSvcClient();
-  const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntryForm);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [addEntryOpen, setAddEntryOpen] = useState(false);
-  const [projectsOpen, setProjectsOpen] = useState(false);
-  const [importHistoryOpen, setImportHistoryOpen] = useState(false);
-  const importActionRef = useRef<(() => void) | null>(null);
-  const exportActionRef = useRef<(() => void) | null>(null);
-
-  const memoryQuery = useQuery({
-    queryKey: ["translation-memory", organizationSlug, memoryId],
-    queryFn: async () => {
-      if (parseLiveProviderMemoryId(memoryId)) {
-        const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
-          ":memoryId"
-        ].$get({ param: { organizationSlug, memoryId } });
-        if (!response.ok)
-          throw new Error(
-            await readApiError(response, intl.formatMessage(messages.loadMemoryFailed)),
-          );
-        const body = await response.json();
-        return body.memory as MemoryRecord;
-      }
-      try {
-        const body = await goSvcClient.memory.get(organizationSlug, memoryId);
-        return body.memory as MemoryRecord;
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadMemoryFailed)), {
-          cause: error,
-        });
-      }
-    },
-  });
-
-  const attachedProjectsQuery = useQuery({
-    queryKey: ["translation-memory-projects", organizationSlug, memoryId],
-    enabled: !parseLiveProviderMemoryId(memoryId),
-    queryFn: async () => {
-      try {
-        const body = await goSvcClient.memory.projects.list(organizationSlug, memoryId);
-        return body.projects as MemoryProjectRecord[];
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
-          cause: error,
-        });
-      }
-    },
-  });
-
-  const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
-    queryFn: async () => {
-      try {
-        const body = await goSvcClient.project.list(organizationSlug);
-        return body.projects;
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)), {
-          cause: error,
-        });
-      }
-    },
-  });
-
-  const invalidateEntries = () =>
-    Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
-      }),
-    ]);
-  const invalidateImports = () =>
-    queryClient.invalidateQueries({
-      queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
-    });
-  const invalidateProjects = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["translation-memory-projects", organizationSlug, memoryId],
-    });
-
-  const saveEntry = useMutation({
-    mutationFn: async (values: EntryForm) => {
-      const payload = {
-        sourceLocale: values.sourceLocale.trim(),
-        targetLocale: values.targetLocale.trim(),
-        sourceText: values.sourceText.trim(),
-        targetText: values.targetText.trim(),
-        matchScore: 100,
-      };
-      try {
-        return await goSvcClient.memory.entries.create(organizationSlug, memoryId, payload);
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveEntryFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: async () => {
-      await invalidateEntries();
-      setEntryForm(emptyEntryForm);
-      setAddEntryOpen(false);
-      toast.success(intl.formatMessage(messages.entryAdded));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const deleteEntry = useMutation({
-    mutationFn: async (entryId: string) => {
-      try {
-        await goSvcClient.memory.entries.delete(organizationSlug, memoryId, entryId);
-      } catch (error) {
-        throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.deleteEntryFailed)), {
-          cause: error,
-        });
-      }
-    },
-    onSuccess: async () => {
-      await invalidateEntries();
-      toast.success(intl.formatMessage(messages.entryDeleted));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const attachProject = useMutation({
-    mutationFn: async (projectId: string) => {
-      try {
-        return await goSvcClient.memory.projects.attach(organizationSlug, memoryId, {
-          projectId,
-          priority: 0,
-        });
-      } catch (error) {
-        throw new Error(
-          goSvcErrorMessage(error, intl.formatMessage(messages.assignProjectFailed)),
-          { cause: error },
-        );
-      }
-    },
-    onSuccess: async () => {
-      await invalidateProjects();
-      setSelectedProjectId("");
-      toast.success(intl.formatMessage(messages.projectAssigned));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const detachProject = useMutation({
-    mutationFn: async (projectId: string) => {
-      try {
-        await goSvcClient.memory.projects.detach(organizationSlug, memoryId, projectId);
-      } catch (error) {
-        throw new Error(
-          goSvcErrorMessage(error, intl.formatMessage(messages.removeProjectFailed)),
-          { cause: error },
-        );
-      }
-    },
-    onSuccess: async () => {
-      await invalidateProjects();
-      toast.success(intl.formatMessage(messages.projectRemoved));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const memory = memoryQuery.data;
-  const canEdit = memory?.capabilities?.edit.allowed ?? false;
-  const canReview = memory?.capabilities?.review.allowed ?? false;
-  const canManageMemoryEntries = canEdit || canReview;
-  const attachedProjectIds = useMemo(
-    () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
-    [attachedProjectsQuery.data],
-  );
-  const availableProjects = (projectsQuery.data ?? []).filter(
-    (project) => !attachedProjectIds.has(project.id),
-  );
-
-  if (memoryQuery.isLoading) {
-    return (
-      <TypographyP className="py-8" size="small" tone="subtle">
-        <FormattedMessage {...messages.loading} />
-      </TypographyP>
-    );
-  }
-  if (!memory) {
-    return (
-      <TypographyP className="py-8" size="small" tone="subtle">
-        <FormattedMessage {...messages.notFound} />
-      </TypographyP>
-    );
-  }
-
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-      <section className="flex flex-wrap items-center justify-end gap-2">
-        <h1 className="sr-only">{memory.name}</h1>
-        <Badge variant="outline">
-          {memory.source === "native" ? (
-            <FormattedMessage {...messages.sourceWorkspace} />
-          ) : (
-            <FormattedMessage {...messages.sourceProvider} />
-          )}
-        </Badge>
-      </section>
-
-      <TmEntryExplorer
-        organizationSlug={organizationSlug}
-        memoryId={memoryId}
-        localeCoverage={memory.localeCoverage}
-        canEdit={canEdit}
-        canReview={canReview}
-        canBulkDelete={canEdit}
-        canManageMemories={canManageMemoryEntries}
-        isDeleting={deleteEntry.isPending}
-        onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
-        emptyActions={
-          canEdit ? (
-            <>
-              <Button type="button" size="sm" onClick={() => setAddEntryOpen(true)}>
-                <FormattedMessage {...messages.addEntry} />
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => importActionRef.current?.()}
-              >
-                <UploadSimpleIcon className="size-4" />
-                <FormattedMessage {...messages.importTmxAction} />
-              </Button>
-            </>
-          ) : null
-        }
-        toolbarActions={
-          <>
-            <Button type="button" variant="outline" size="sm" onClick={() => setProjectsOpen(true)}>
-              <FormattedMessage {...messages.projectsToolbar} />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label={intl.formatMessage(messages.moreActions)}
-                  />
-                }
-              >
-                <DotsThreeCircleIcon className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem onClick={() => setImportHistoryOpen(true)}>
-                  <ClockIcon className="size-4" />
-                  <FormattedMessage {...messages.importHistory} />
-                </DropdownMenuItem>
-                {canEdit ? (
-                  <DropdownMenuItem onClick={() => importActionRef.current?.()}>
-                    <UploadSimpleIcon className="size-4" />
-                    <FormattedMessage {...messages.importAction} />
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem onClick={() => exportActionRef.current?.()}>
-                  <DownloadSimpleIcon className="size-4" />
-                  <FormattedMessage {...messages.exportAction} />
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <TmImportHistory
-              organizationSlug={organizationSlug}
-              memoryId={memoryId}
-              open={importHistoryOpen}
-              onOpenChange={setImportHistoryOpen}
-            />
-            <TmImportExportPanel
-              organizationSlug={organizationSlug}
-              memoryId={memoryId}
-              localeCoverage={memory.localeCoverage}
-              canEdit={canEdit}
-              onImported={async () => {
-                await Promise.all([invalidateEntries(), invalidateImports()]);
-              }}
-              renderActions={({ openImport, openExport }) => {
-                importActionRef.current = openImport;
-                exportActionRef.current = openExport;
-                return null;
-              }}
-            />
-            {canEdit ? (
-              <Button type="button" size="sm" onClick={() => setAddEntryOpen(true)}>
-                <FormattedMessage {...messages.addEntry} />
-              </Button>
-            ) : null}
-          </>
-        }
-      />
-
-      <Dialog
-        open={addEntryOpen}
-        onOpenChange={(open) => {
-          setAddEntryOpen(open);
-          if (!open) {
-            setEntryForm(emptyEntryForm);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...messages.addEntryDialogTitle} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage {...messages.addEntryDialogDescription} />
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 md:grid-cols-2">
-            <TmEntryLocaleField
-              label={intl.formatMessage(messages.sourceLocaleLabel)}
-              value={entryForm.sourceLocale}
-              locales={buildTmEntryLocaleOptions({
-                localeCoverage: memory.localeCoverage,
-                selected: entryForm.sourceLocale,
-              })}
-              onValueChange={(locale) =>
-                setEntryForm((current) => ({
-                  ...current,
-                  sourceLocale: locale,
-                }))
-              }
-            />
-            <TmEntryLocaleField
-              label={intl.formatMessage(messages.targetLocaleLabel)}
-              value={entryForm.targetLocale}
-              locales={buildTmEntryLocaleOptions({
-                localeCoverage: memory.localeCoverage,
-                selected: entryForm.targetLocale,
-              })}
-              onValueChange={(locale) =>
-                setEntryForm((current) => ({
-                  ...current,
-                  targetLocale: locale,
-                }))
-              }
-            />
-            <Field className="gap-1.5">
-              <FieldLabel>
-                <FormattedMessage {...messages.sourceTextLabel} />
-              </FieldLabel>
-              <Textarea
-                value={entryForm.sourceText}
-                onChange={(event) =>
-                  setEntryForm((current) => ({ ...current, sourceText: event.target.value }))
-                }
-              />
-            </Field>
-            <Field className="gap-1.5">
-              <FieldLabel>
-                <FormattedMessage {...messages.targetTextLabel} />
-              </FieldLabel>
-              <Textarea
-                value={entryForm.targetText}
-                onChange={(event) =>
-                  setEntryForm((current) => ({ ...current, targetText: event.target.value }))
-                }
-              />
-            </Field>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setAddEntryOpen(false);
-                setEntryForm(emptyEntryForm);
-              }}
-            >
-              <FormattedMessage {...messages.cancelAddEntry} />
-            </Button>
-            <Button
-              type="button"
-              disabled={
-                !entryForm.sourceText.trim() ||
-                !entryForm.targetText.trim() ||
-                !entryForm.sourceLocale.trim() ||
-                !entryForm.targetLocale.trim() ||
-                saveEntry.isPending
-              }
-              onClick={() => saveEntry.mutate(entryForm)}
-            >
-              <FormattedMessage {...messages.addEntry} />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={projectsOpen} onOpenChange={setProjectsOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              <FormattedMessage {...messages.assignedProjectsTitle} />
-            </DialogTitle>
-            <DialogDescription>
-              <FormattedMessage {...messages.assignedProjectsDescription} />
-            </DialogDescription>
-          </DialogHeader>
-          {canEdit ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Select
-                value={selectedProjectId || null}
-                onValueChange={(value) => setSelectedProjectId(value ?? "")}
-              >
-                <SelectTrigger className="sm:max-w-sm">
-                  <SelectValue
-                    placeholder={intl.formatMessage(messages.selectProjectPlaceholder)}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableProjects.map((project) => (
-                    <SelectItem key={project.id} value={project.id} label={project.name}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                disabled={!selectedProjectId || attachProject.isPending}
-                onClick={() => attachProject.mutate(selectedProjectId)}
-              >
-                <FormattedMessage {...messages.assignToProject} />
-              </Button>
-            </div>
-          ) : null}
-          <div className="grid gap-2">
-            {(attachedProjectsQuery.data ?? []).map((project) => (
-              <div
-                key={project.projectId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
-              >
-                <OrgNavLink
-                  href={`/org/${organizationSlug}/projects/${project.projectId}`}
-                  className="text-sm font-medium text-foreground hover:underline"
-                >
-                  {project.projectName}
-                </OrgNavLink>
-                {canEdit ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => detachProject.mutate(project.projectId)}
-                  >
-                    <FormattedMessage {...messages.removeProject} />
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-            {attachedProjectsQuery.isSuccess && (attachedProjectsQuery.data ?? []).length === 0 ? (
-              <TypographyP size="small" tone="subtle">
-                <FormattedMessage {...messages.noProjectsAssigned} />
-              </TypographyP>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </main>
+    <TranslationMemoryDetailStoreProvider organizationSlug={organizationSlug} memoryId={memoryId}>
+      <TranslationMemoryDetailPageContentView />
+    </TranslationMemoryDetailStoreProvider>
   );
 }
+
+const TranslationMemoryDetailPageContentView = observer(
+  function TranslationMemoryDetailPageContentView() {
+    const intl = useIntl();
+    const queryClient = useQueryClient();
+    const { client: goSvcClient } = useGoSvcClient();
+    const pageStore = useTranslationMemoryDetailStore();
+    const organizationSlug = pageStore.organizationSlug;
+    const memoryId = pageStore.memoryId;
+    const entryForm = pageStore.entryForm;
+    const selectedProjectId = pageStore.selectedProjectId;
+    const addEntryOpen = pageStore.addEntryOpen;
+    const projectsOpen = pageStore.projectsOpen;
+    const importHistoryOpen = pageStore.importHistoryOpen;
+    const importActionRef = useRef<(() => void) | null>(null);
+    const exportActionRef = useRef<(() => void) | null>(null);
+
+    const memoryQuery = useQuery({
+      queryKey: ["translation-memory", organizationSlug, memoryId],
+      queryFn: async () => {
+        if (parseLiveProviderMemoryId(memoryId)) {
+          const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"][
+            ":memoryId"
+          ].$get({ param: { organizationSlug, memoryId } });
+          if (!response.ok)
+            throw new Error(
+              await readApiError(response, intl.formatMessage(messages.loadMemoryFailed)),
+            );
+          const body = await response.json();
+          return body.memory as MemoryRecord;
+        }
+        try {
+          const body = await goSvcClient.memory.get(organizationSlug, memoryId);
+          return body.memory as MemoryRecord;
+        } catch (error) {
+          throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.loadMemoryFailed)), {
+            cause: error,
+          });
+        }
+      },
+    });
+
+    const attachedProjectsQuery = useQuery({
+      queryKey: ["translation-memory-projects", organizationSlug, memoryId],
+      enabled: !parseLiveProviderMemoryId(memoryId),
+      queryFn: async () => {
+        try {
+          const body = await goSvcClient.memory.projects.list(organizationSlug, memoryId);
+          return body.projects as MemoryProjectRecord[];
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)),
+            {
+              cause: error,
+            },
+          );
+        }
+      },
+    });
+
+    const projectsQuery = useQuery({
+      queryKey: ["translation-projects", organizationSlug],
+      queryFn: async () => {
+        try {
+          const body = await goSvcClient.project.list(organizationSlug);
+          return body.projects;
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(error, intl.formatMessage(messages.loadProjectsFailed)),
+            {
+              cause: error,
+            },
+          );
+        }
+      },
+    });
+
+    const invalidateEntries = () =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [TM_ENTRY_SEARCH_QUERY_KEY, organizationSlug, memoryId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmEntryReviewSummaryQueryKey(organizationSlug, memoryId),
+        }),
+      ]);
+    const invalidateImports = () =>
+      queryClient.invalidateQueries({
+        queryKey: tmImportAttemptsQueryKey(organizationSlug, memoryId),
+      });
+    const invalidateProjects = () =>
+      queryClient.invalidateQueries({
+        queryKey: ["translation-memory-projects", organizationSlug, memoryId],
+      });
+
+    const saveEntry = useMutation({
+      mutationFn: async (values: TmEntryForm) => {
+        const payload = {
+          sourceLocale: values.sourceLocale.trim(),
+          targetLocale: values.targetLocale.trim(),
+          sourceText: values.sourceText.trim(),
+          targetText: values.targetText.trim(),
+          matchScore: 100,
+        };
+        try {
+          return await goSvcClient.memory.entries.create(organizationSlug, memoryId, payload);
+        } catch (error) {
+          throw new Error(goSvcErrorMessage(error, intl.formatMessage(messages.saveEntryFailed)), {
+            cause: error,
+          });
+        }
+      },
+      onSuccess: async () => {
+        await invalidateEntries();
+        pageStore.setAddEntryOpen(false);
+        toast.success(intl.formatMessage(messages.entryAdded));
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+    const deleteEntry = useMutation({
+      mutationFn: async (entryId: string) => {
+        try {
+          await goSvcClient.memory.entries.delete(organizationSlug, memoryId, entryId);
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(error, intl.formatMessage(messages.deleteEntryFailed)),
+            {
+              cause: error,
+            },
+          );
+        }
+      },
+      onSuccess: async () => {
+        await invalidateEntries();
+        toast.success(intl.formatMessage(messages.entryDeleted));
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+    const attachProject = useMutation({
+      mutationFn: async (projectId: string) => {
+        try {
+          return await goSvcClient.memory.projects.attach(organizationSlug, memoryId, {
+            projectId,
+            priority: 0,
+          });
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(error, intl.formatMessage(messages.assignProjectFailed)),
+            { cause: error },
+          );
+        }
+      },
+      onSuccess: async () => {
+        await invalidateProjects();
+        pageStore.clearSelectedProject();
+        toast.success(intl.formatMessage(messages.projectAssigned));
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+    const detachProject = useMutation({
+      mutationFn: async (projectId: string) => {
+        try {
+          await goSvcClient.memory.projects.detach(organizationSlug, memoryId, projectId);
+        } catch (error) {
+          throw new Error(
+            goSvcErrorMessage(error, intl.formatMessage(messages.removeProjectFailed)),
+            { cause: error },
+          );
+        }
+      },
+      onSuccess: async () => {
+        await invalidateProjects();
+        toast.success(intl.formatMessage(messages.projectRemoved));
+      },
+      onError: (error) => toast.error(error.message),
+    });
+
+    const memory = memoryQuery.data;
+    const canEdit = memory?.capabilities?.edit.allowed ?? false;
+    const canReview = memory?.capabilities?.review.allowed ?? false;
+    const canManageMemoryEntries = canEdit || canReview;
+    const attachedProjectIds = useMemo(
+      () => new Set((attachedProjectsQuery.data ?? []).map((project) => project.projectId)),
+      [attachedProjectsQuery.data],
+    );
+    const availableProjects = (projectsQuery.data ?? []).filter(
+      (project) => !attachedProjectIds.has(project.id),
+    );
+
+    if (memoryQuery.isLoading) {
+      return (
+        <TypographyP className="py-8" size="small" tone="subtle">
+          <FormattedMessage {...messages.loading} />
+        </TypographyP>
+      );
+    }
+    if (!memory) {
+      return (
+        <TypographyP className="py-8" size="small" tone="subtle">
+          <FormattedMessage {...messages.notFound} />
+        </TypographyP>
+      );
+    }
+
+    return (
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+        <section className="flex flex-wrap items-center justify-end gap-2">
+          <h1 className="sr-only">{memory.name}</h1>
+          <Badge variant="outline">
+            {memory.source === "native" ? (
+              <FormattedMessage {...messages.sourceWorkspace} />
+            ) : (
+              <FormattedMessage {...messages.sourceProvider} />
+            )}
+          </Badge>
+        </section>
+
+        <TmEntryExplorer
+          organizationSlug={organizationSlug}
+          memoryId={memoryId}
+          localeCoverage={memory.localeCoverage}
+          canEdit={canEdit}
+          canReview={canReview}
+          canBulkDelete={canEdit}
+          canManageMemories={canManageMemoryEntries}
+          isDeleting={deleteEntry.isPending}
+          onDeleteEntry={(entryId) => deleteEntry.mutate(entryId)}
+          emptyActions={
+            canEdit ? (
+              <>
+                <Button type="button" size="sm" onClick={() => pageStore.openAddEntry()}>
+                  <FormattedMessage {...messages.addEntry} />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => importActionRef.current?.()}
+                >
+                  <UploadSimpleIcon className="size-4" />
+                  <FormattedMessage {...messages.importTmxAction} />
+                </Button>
+              </>
+            ) : null
+          }
+          toolbarActions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => pageStore.setProjectsOpen(true)}
+              >
+                <FormattedMessage {...messages.projectsToolbar} />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label={intl.formatMessage(messages.moreActions)}
+                    />
+                  }
+                >
+                  <DotsThreeCircleIcon className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  <DropdownMenuItem onClick={() => pageStore.setImportHistoryOpen(true)}>
+                    <ClockIcon className="size-4" />
+                    <FormattedMessage {...messages.importHistory} />
+                  </DropdownMenuItem>
+                  {canEdit ? (
+                    <DropdownMenuItem onClick={() => importActionRef.current?.()}>
+                      <UploadSimpleIcon className="size-4" />
+                      <FormattedMessage {...messages.importAction} />
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem onClick={() => exportActionRef.current?.()}>
+                    <DownloadSimpleIcon className="size-4" />
+                    <FormattedMessage {...messages.exportAction} />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <TmImportHistory
+                organizationSlug={organizationSlug}
+                memoryId={memoryId}
+                open={importHistoryOpen}
+                onOpenChange={(open) => pageStore.setImportHistoryOpen(open)}
+              />
+              <TmImportExportPanel
+                organizationSlug={organizationSlug}
+                memoryId={memoryId}
+                localeCoverage={memory.localeCoverage}
+                canEdit={canEdit}
+                onImported={async () => {
+                  await Promise.all([invalidateEntries(), invalidateImports()]);
+                }}
+                renderActions={({ openImport, openExport }) => {
+                  importActionRef.current = openImport;
+                  exportActionRef.current = openExport;
+                  return null;
+                }}
+              />
+              {canEdit ? (
+                <Button type="button" size="sm" onClick={() => pageStore.openAddEntry()}>
+                  <FormattedMessage {...messages.addEntry} />
+                </Button>
+              ) : null}
+            </>
+          }
+        />
+
+        <Dialog open={addEntryOpen} onOpenChange={(open) => pageStore.setAddEntryOpen(open)}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                <FormattedMessage {...messages.addEntryDialogTitle} />
+              </DialogTitle>
+              <DialogDescription>
+                <FormattedMessage {...messages.addEntryDialogDescription} />
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 md:grid-cols-2">
+              <TmEntryLocaleField
+                label={intl.formatMessage(messages.sourceLocaleLabel)}
+                value={entryForm.sourceLocale}
+                locales={buildTmEntryLocaleOptions({
+                  localeCoverage: memory.localeCoverage,
+                  selected: entryForm.sourceLocale,
+                })}
+                onValueChange={(locale) => pageStore.patchEntryForm({ sourceLocale: locale })}
+              />
+              <TmEntryLocaleField
+                label={intl.formatMessage(messages.targetLocaleLabel)}
+                value={entryForm.targetLocale}
+                locales={buildTmEntryLocaleOptions({
+                  localeCoverage: memory.localeCoverage,
+                  selected: entryForm.targetLocale,
+                })}
+                onValueChange={(locale) => pageStore.patchEntryForm({ targetLocale: locale })}
+              />
+              <Field className="gap-1.5">
+                <FieldLabel>
+                  <FormattedMessage {...messages.sourceTextLabel} />
+                </FieldLabel>
+                <Textarea
+                  value={entryForm.sourceText}
+                  onChange={(event) => pageStore.patchEntryForm({ sourceText: event.target.value })}
+                />
+              </Field>
+              <Field className="gap-1.5">
+                <FieldLabel>
+                  <FormattedMessage {...messages.targetTextLabel} />
+                </FieldLabel>
+                <Textarea
+                  value={entryForm.targetText}
+                  onChange={(event) => pageStore.patchEntryForm({ targetText: event.target.value })}
+                />
+              </Field>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => pageStore.setAddEntryOpen(false)}
+              >
+                <FormattedMessage {...messages.cancelAddEntry} />
+              </Button>
+              <Button
+                type="button"
+                disabled={!pageStore.canSubmitEntry || saveEntry.isPending}
+                onClick={() => saveEntry.mutate(entryForm)}
+              >
+                <FormattedMessage {...messages.addEntry} />
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={projectsOpen} onOpenChange={(open) => pageStore.setProjectsOpen(open)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                <FormattedMessage {...messages.assignedProjectsTitle} />
+              </DialogTitle>
+              <DialogDescription>
+                <FormattedMessage {...messages.assignedProjectsDescription} />
+              </DialogDescription>
+            </DialogHeader>
+            {canEdit ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select
+                  value={selectedProjectId || null}
+                  onValueChange={(value) => pageStore.setSelectedProjectId(value ?? "")}
+                >
+                  <SelectTrigger className="sm:max-w-sm">
+                    <SelectValue
+                      placeholder={intl.formatMessage(messages.selectProjectPlaceholder)}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id} label={project.name}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  disabled={!selectedProjectId || attachProject.isPending}
+                  onClick={() => attachProject.mutate(selectedProjectId)}
+                >
+                  <FormattedMessage {...messages.assignToProject} />
+                </Button>
+              </div>
+            ) : null}
+            <div className="grid gap-2">
+              {(attachedProjectsQuery.data ?? []).map((project) => (
+                <div
+                  key={project.projectId}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
+                >
+                  <OrgNavLink
+                    href={`/org/${organizationSlug}/projects/${project.projectId}`}
+                    className="text-sm font-medium text-foreground hover:underline"
+                  >
+                    {project.projectName}
+                  </OrgNavLink>
+                  {canEdit ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => detachProject.mutate(project.projectId)}
+                    >
+                      <FormattedMessage {...messages.removeProject} />
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              {attachedProjectsQuery.isSuccess &&
+              (attachedProjectsQuery.data ?? []).length === 0 ? (
+                <TypographyP size="small" tone="subtle">
+                  <FormattedMessage {...messages.noProjectsAssigned} />
+                </TypographyP>
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </main>
+    );
+  },
+);
