@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -357,34 +358,55 @@ func serializeGlossaryXLSX(concepts []glossaryExportConcept) ([]byte, error) {
 	conceptsSheet := "Concepts"
 	termsSheet := "Terms"
 	_ = f.SetSheetName("Sheet1", conceptsSheet)
-	_, _ = f.NewSheet(termsSheet)
-	conceptHeaders := []string{"conceptId", "primaryTerm", "subject", "definition", "translatable", "note", "url", "figure"}
-	termHeaders := []string{"conceptId", "termId", "locale", "term", "description", "note", "partOfSpeech", "gender", "termType", "status", "caseSensitive", "forbidden", "provenance", "reviewStatus"}
-	for i, h := range conceptHeaders {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(conceptsSheet, cell, h)
+	if _, err := f.NewSheet(termsSheet); err != nil {
+		return nil, err
 	}
-	for i, h := range termHeaders {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(termsSheet, cell, h)
+
+	conceptsWriter, err := f.NewStreamWriter(conceptsSheet)
+	if err != nil {
+		return nil, err
 	}
+	termsWriter, err := f.NewStreamWriter(termsSheet)
+	if err != nil {
+		return nil, err
+	}
+
+	conceptHeaders := []any{"conceptId", "primaryTerm", "subject", "definition", "translatable", "note", "url", "figure"}
+	termHeaders := []any{"conceptId", "termId", "locale", "term", "description", "note", "partOfSpeech", "gender", "termType", "status", "caseSensitive", "forbidden", "provenance", "reviewStatus"}
+
+	if err := conceptsWriter.SetRow("A1", conceptHeaders); err != nil {
+		return nil, err
+	}
+	if err := termsWriter.SetRow("A1", termHeaders); err != nil {
+		return nil, err
+	}
+
 	termRow := 2
 	for i, concept := range concepts {
 		row := i + 2
-		values := []any{concept.ID, concept.PrimaryTerm, concept.Subject, concept.Definition, concept.Translatable, concept.Note, stringOrEmpty(concept.URL), stringOrEmpty(concept.Figure)}
-		for col, value := range values {
-			cell, _ := excelize.CoordinatesToCellName(col+1, row)
-			_ = f.SetCellValue(conceptsSheet, cell, value)
+		conceptCell := "A" + strconv.Itoa(row)
+		conceptValues := []any{concept.ID, concept.PrimaryTerm, concept.Subject, concept.Definition, concept.Translatable, concept.Note, stringOrEmpty(concept.URL), stringOrEmpty(concept.Figure)}
+		if err := conceptsWriter.SetRow(conceptCell, conceptValues); err != nil {
+			return nil, err
 		}
+
 		for _, term := range concept.Terms {
+			termCell := "A" + strconv.Itoa(termRow)
 			termValues := []any{concept.ID, term.ID, term.Locale, term.Term, term.Description, term.Note, term.PartOfSpeech, stringOrEmpty(term.Gender), stringOrEmpty(term.TermType), term.Status, term.CaseSensitive, term.Forbidden, term.Provenance, term.ReviewStatus}
-			for col, value := range termValues {
-				cell, _ := excelize.CoordinatesToCellName(col+1, termRow)
-				_ = f.SetCellValue(termsSheet, cell, value)
+			if err := termsWriter.SetRow(termCell, termValues); err != nil {
+				return nil, err
 			}
 			termRow++
 		}
 	}
+
+	if err := conceptsWriter.Flush(); err != nil {
+		return nil, err
+	}
+	if err := termsWriter.Flush(); err != nil {
+		return nil, err
+	}
+
 	buf, err := f.WriteToBuffer()
 	if err != nil {
 		return nil, err

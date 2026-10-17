@@ -16,6 +16,7 @@ import {
   NODE_CONTRACTS,
 } from "../catalog/node-contracts";
 import type {
+  VisualWorkflowCanvasEdge,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
   WorkflowBinding,
@@ -77,7 +78,7 @@ export function getVisualWorkflowDataPorts({
   edges,
 }: {
   node: VisualWorkflowRfNode;
-  edges: readonly VisualWorkflowRfEdge[];
+  edges: readonly VisualWorkflowCanvasEdge[];
 }): VisualWorkflowDataPorts {
   const dataEdges = edges.filter((edge) => edge.data?.kind === "data");
 

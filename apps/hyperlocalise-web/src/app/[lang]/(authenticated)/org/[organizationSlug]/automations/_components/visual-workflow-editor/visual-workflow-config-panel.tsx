@@ -83,7 +83,10 @@ import {
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { VisualWorkflowIssueList } from "./visual-workflow-issue-list";
 import { getVisualWorkflowDataEdgeBinding } from "@/lib/visual-workflows/editor/visual-workflow-data-ports";
-import { listUpstreamFields } from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
+import {
+  listUpstreamFields,
+  upstreamNodeIds,
+} from "@/lib/visual-workflows/editor/visual-workflow-upstream-fields";
 import { getWorkflowInputFields } from "@/lib/visual-workflows/catalog/node-contracts";
 import { cn } from "@/lib/primitives/cn";
 import { visualWorkflowNodeTitleMessage } from "./visual-workflow-node-picker";
@@ -194,6 +197,7 @@ export function VisualWorkflowConfigPanel({
     outputFields: node.data.outputFields,
   });
   const upstreamFields = listUpstreamFields({ node, nodes, edges, testData: allTestData });
+  const upstreamIds = upstreamNodeIds(node.id, edges);
   const triggerId = nodes.find((step) => isTriggerType(step.data.catalogType))?.id;
   const stepTitle = (nodeId: string) => {
     const step = nodes.find((entry) => entry.id === nodeId);
@@ -280,6 +284,7 @@ export function VisualWorkflowConfigPanel({
       source,
       fields: upstreamFields,
       stepTitle,
+      runsBefore: (nodeId) => upstreamIds.has(nodeId),
       triggerId,
       onPoint: onPointStep,
     };

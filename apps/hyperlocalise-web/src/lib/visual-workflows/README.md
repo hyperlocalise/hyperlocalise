@@ -59,7 +59,7 @@ Validation issues:
 
 Settings and test data:
 
-- Draw a setting that is an input in the contract with `WorkflowBoundField` and `connectedInputProps(name)`. That gives it its port mark, the Insert menu, pills for the fields it reads and, when wired, its source with Disconnect. A plain input gets none of these.
+- Draw a setting that is an input in the contract with `WorkflowBoundField` and `connectedInputProps(name)`. That gives it its port mark, the Insert menu and `{{` field list, a TipTap box that keeps the fields it reads as pills (`WorkflowTemplateEditor`) and, when wired, its source with Disconnect. A plain input gets none of these.
 - Name an input that only a wire can feed `value.<name>` in the contract. The form lists it as a row that asks for a wire, so it needs no form field.
 - A node with nothing to set up goes in the empty-settings check of the Configuration tab in `visual-workflow-config-panel.tsx`, beside `trigger.manual` and `logic.try_catch`.
 - Mark the node in `MOCKABLE` in `editor/visual-workflow-test-data.ts`, which is typed over every step type, so a new type does not compile until it is there. `true` is for a step whose result comes from outside the run: a trigger, or a step that calls out. It gets a Test tab with a box per declared output, and Fill with examples starts from its contract `mock`. `false` is for a step the run works out from its inputs, in a test as in a live run; it has no test data. A step marked `false` must be handled by `runtime/execute-logic-node.ts` or settled by the run engine, as Wait and Merge are. A test checks this, because otherwise a test run would make its result up.

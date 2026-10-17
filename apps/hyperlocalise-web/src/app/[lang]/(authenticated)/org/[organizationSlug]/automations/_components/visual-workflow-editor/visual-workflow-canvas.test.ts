@@ -115,7 +115,7 @@ describe("applyVisualWorkflowGraphConnection edge kinds", () => {
 });
 
 describe("presentVisualWorkflowEdges", () => {
-  it("visually distinguishes Each item and Done regions", () => {
+  it("draws a Loop's Each item steps in blue and every other execution wire grey", () => {
     const loopNodes = [
       node("trigger", "trigger.manual"),
       node("loop", "logic.for_each"),
@@ -135,25 +135,25 @@ describe("presentVisualWorkflowEdges", () => {
 
     const presented = presentVisualWorkflowEdges(loopNodes, edges);
 
-    expect(presented.find((edge) => edge.id === "loop-body")?.style).toMatchObject({
-      stroke: "var(--primary)",
-      strokeWidth: 2,
-    });
+    const colour = (id: string) =>
+      (presented.find((edge) => edge.id === id)?.style as Record<string, unknown> | undefined)?.[
+        "--xy-edge-stroke"
+      ];
 
-    expect(presented.find((edge) => edge.id === "body-end")?.style).toMatchObject({
-      stroke: "var(--primary)",
-      strokeWidth: 2,
-    });
-
-    expect(presented.find((edge) => edge.id === "loop-after")?.style).toMatchObject({
-      stroke: "var(--muted-foreground)",
-      strokeWidth: 2,
-    });
-
-    expect(presented.find((edge) => edge.id === "after-summary")?.style).toMatchObject({
-      stroke: "var(--muted-foreground)",
-      strokeWidth: 2,
-    });
+    // Each item steps stand out in blue; every other execution wire is the same grey.
+    expect(colour("loop-body")).toBe("var(--primary)");
+    expect(colour("body-end")).toBe("var(--primary)");
+    expect(colour("trigger-loop")).toBe("var(--muted-foreground)");
+    expect(colour("loop-after")).toBe("var(--muted-foreground)");
+    expect(colour("after-summary")).toBe("var(--muted-foreground)");
+    for (const edge of presented) {
+      // No inline stroke, so React Flow's selected style still darkens a selected wire.
+      expect(edge.style).toMatchObject({
+        strokeWidth: 2,
+        "--xy-edge-stroke-selected": "var(--foreground)",
+      });
+      expect(edge.style?.stroke).toBeUndefined();
+    }
 
     // The way the workflow runs is read from the handles, so execution edges carry no arrowhead.
     expect(presented.every((edge) => edge.markerEnd === undefined)).toBe(true);
@@ -192,14 +192,98 @@ describe("presentVisualWorkflowEdges", () => {
     const presented = presentVisualWorkflowEdges(loopNodes, edges);
     const data = presented.find((edge) => edge.id === "loop-body-data");
 
+    expect(data?.style?.strokeDasharray).toBeUndefined();
     expect(data).toMatchObject({
       label: "item → value",
       labelShowBg: false,
-      style: {
-        strokeDasharray: "5 4",
-      },
       markerEnd: { type: "arrowclosed" },
     });
+  });
+});
+
+describe("presentVisualWorkflowEdges wire weights and reference lines", () => {
+  function slackReading(message: string): VisualWorkflowRfNode {
+    const slack = node("slack", "action.notify_slack");
+    slack.data.config = { ...slack.data.config, message } as typeof slack.data.config;
+    return slack;
+  }
+
+  it("draws execution wires thick, and data wires solid with their dashes dropped", () => {
+    const presented = presentVisualWorkflowEdges(
+      [node("trigger", "trigger.manual"), node("request", "action.http")],
+      [
+        executionEdge("run", "trigger", "request"),
+        {
+          id: "wire",
+          source: "trigger",
+          target: "request",
+          sourceHandle: "triggeredAt",
+          targetHandle: "url",
+          data: { kind: "data" },
+          style: { strokeDasharray: "5 4" },
+        },
+      ],
+    );
+
+    expect(presented.find((edge) => edge.id === "run")?.style).toMatchObject({ strokeWidth: 2 });
+    const wire = presented.find((edge) => edge.id === "wire");
+    expect(wire?.style?.strokeDasharray).toBeUndefined();
+    expect(wire?.style?.strokeWidth).toBeUndefined();
+    expect(wire?.selectable).toBeUndefined();
+  });
+
+  it("draws a dashed line that cannot be touched for each field a setting's text reads", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading(
+          "{{ nodes.http.status }} for {{ trigger.triggeredAt }}, {{ nodes.http.json.items.0 }} and {{ nodes.http.status }}",
+        ),
+      ],
+      [executionEdge("run", "trigger", "http"), executionEdge("next", "http", "slack")],
+    );
+
+    const lines = presented.filter((edge) => edge.data?.kind === "reference");
+    expect(
+      lines.map(
+        (line) => `${line.source}.${line.sourceHandle} -> ${line.target}.${line.targetHandle}`,
+      ),
+    ).toEqual([
+      "http.status -> slack.message",
+      "trigger.triggeredAt -> slack.message",
+      "http.json -> slack.message",
+    ]);
+    expect(lines[0]).toMatchObject({
+      selectable: false,
+      deletable: false,
+      focusable: false,
+      reconnectable: false,
+      interactionWidth: 0,
+      style: { strokeDasharray: "5 4", pointerEvents: "none" },
+    });
+  });
+
+  it("draws no line for a setting fed by a wire, or for a step that is gone", () => {
+    const presented = presentVisualWorkflowEdges(
+      [
+        node("trigger", "trigger.manual"),
+        node("http", "action.http"),
+        slackReading("{{ nodes.http.status }} {{ nodes.gone.status }}"),
+      ],
+      [
+        {
+          id: "wire",
+          source: "trigger",
+          target: "slack",
+          sourceHandle: "triggeredAt",
+          targetHandle: "message",
+          data: { kind: "data" },
+        },
+      ],
+    );
+
+    expect(presented.filter((edge) => edge.data?.kind === "reference")).toEqual([]);
   });
 });
 

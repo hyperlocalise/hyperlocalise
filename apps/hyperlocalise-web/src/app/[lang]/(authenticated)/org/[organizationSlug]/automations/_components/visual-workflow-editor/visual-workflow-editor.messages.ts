@@ -369,6 +369,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "u9Qg5J09WM",
     description: "Shown when the menu of fields from earlier workflow steps has nothing to list",
   },
+  fieldReferenceUnavailable: {
+    defaultMessage: "{reference} cannot be read here: that step does not run before this one.",
+    id: "WYSFWtMM/n",
+    description:
+      "Tooltip of a field pill in a workflow step's setting whose step is gone or runs later; reference is the step and field, such as 'HTTP request › status'",
+  },
   connectOnCanvas: {
     defaultMessage: "Connect this on the canvas.",
     id: "hLqs+EeEG8",
