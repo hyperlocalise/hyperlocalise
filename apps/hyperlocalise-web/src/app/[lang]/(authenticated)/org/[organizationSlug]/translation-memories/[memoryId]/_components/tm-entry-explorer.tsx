@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { observer } from "mobx-react-lite";
 import { EraserIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -51,12 +52,10 @@ import {
   buildTmEntryLocaleOptions,
   canGoToPreviousTmEntryPage,
   getActiveTmEntryFilterChips,
-  readTmEntryCursorStack,
   readTmEntryScrollOffset,
   tmEntryCursorStackStorageKey,
   tmEntryListStateToApiQuery,
   tmEntryScrollStorageKey,
-  writeTmEntryCursorStack,
   writeTmEntryScrollOffset,
 } from "./tm-entry-list-state";
 import {
@@ -74,8 +73,10 @@ import {
   tmEntryReviewSummaryQueryKey,
 } from "./tm-entry-review";
 import { useTmEntryListUrlState } from "./use-tm-entry-list-url-state";
+import { TranslationMemoryDetailStore } from "../store/translation-memory-detail-store";
+import { useOptionalTranslationMemoryDetailStore } from "../store/translation-memory-detail-store-context";
 
-export function TmEntryExplorer({
+export const TmEntryExplorer = observer(function TmEntryExplorer({
   organizationSlug,
   memoryId,
   localeCoverage,
@@ -104,19 +105,25 @@ export function TmEntryExplorer({
   const queryClient = useQueryClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } =
     useTmEntryListUrlState();
-  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
-  const [confirmBulkDeleteOpen, setConfirmBulkDeleteOpen] = useState(false);
+  const pageStore = useOptionalTranslationMemoryDetailStore();
+  const localStore = useMemo(
+    () => new TranslationMemoryDetailStore(organizationSlug, memoryId),
+    [organizationSlug, memoryId],
+  );
+  const store = pageStore ?? localStore;
+  const selectedEntryIds = store.selectedEntryIds;
+  const confirmBulkDeleteOpen = store.confirmBulkDeleteOpen;
+  const cursorNotice = store.cursorNotice;
+  const startInEditMode = store.startInEditMode;
+  const cursorStack = store.cursorStack;
   const listRef = useRef<HTMLDivElement>(null);
   const requestIdRef = useRef(0);
-  const [cursorNotice, setCursorNotice] = useState<string | null>(null);
-  const [startInEditMode, setStartInEditMode] = useState(false);
   const apiQuery = tmEntryListStateToApiQuery(state);
   const cursorStackKey = tmEntryCursorStackStorageKey(memoryId, state);
-  const [cursorStack, setCursorStack] = useState(() => readTmEntryCursorStack(cursorStackKey));
 
   useEffect(() => {
-    setCursorStack(readTmEntryCursorStack(cursorStackKey));
-  }, [cursorStackKey]);
+    store.loadCursorStack(cursorStackKey);
+  }, [cursorStackKey, store]);
 
   const localeOptions = useMemo(
     () =>
@@ -184,15 +191,18 @@ export function TmEntryExplorer({
     if (!entriesQuery.isError || !isInvalidCursorError(entriesQuery.error) || !state.cursor) {
       return;
     }
-    setCursorNotice(intl.formatMessage(messages.invalidCursor));
-    writeTmEntryCursorStack(cursorStackKey, []);
-    setCursorStack([]);
+    store.setCursorNotice(intl.formatMessage(messages.invalidCursor));
+    store.resetCursorStack(cursorStackKey);
     updateState({ cursor: undefined });
-  }, [cursorStackKey, entriesQuery.error, entriesQuery.isError, intl, state.cursor, updateState]);
-
-  useEffect(() => {
-    setCursorNotice(null);
-  }, [cursorStackKey]);
+  }, [
+    cursorStackKey,
+    entriesQuery.error,
+    entriesQuery.isError,
+    intl,
+    state.cursor,
+    store,
+    updateState,
+  ]);
 
   useEffect(() => {
     const stored = readTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId));
@@ -226,13 +236,13 @@ export function TmEntryExplorer({
 
   const openEntry = (entry: MemoryEntryRecord, options?: { edit?: boolean }) => {
     persistScroll();
-    setStartInEditMode(Boolean(options?.edit));
+    store.openEntry(options);
     updateState({ entry: entry.id });
     listRef.current?.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`)?.focus();
   };
 
   const closeEntry = () => {
-    setStartInEditMode(false);
+    store.closeEntry();
     updateState({ entry: undefined });
     const stored = readTmEntryScrollOffset(tmEntryScrollStorageKey(memoryId));
     if (stored !== null && listRef.current) {
@@ -252,7 +262,7 @@ export function TmEntryExplorer({
         queryKey: [TM_ENTRY_DETAIL_QUERY_KEY, organizationSlug, memoryId],
       }),
     ]);
-    setSelectedEntryIds([]);
+    store.clearSelection();
   };
 
   const bulkReview = useMutation({
@@ -294,7 +304,7 @@ export function TmEntryExplorer({
         closeEntry();
       }
       await invalidateMemoryEntries();
-      setConfirmBulkDeleteOpen(false);
+      store.setConfirmBulkDeleteOpen(false);
       toast.success(intl.formatMessage(messages.bulkDeleted, { count: result.deleted }));
     },
     onError: (error) => toast.error(error.message),
@@ -306,9 +316,7 @@ export function TmEntryExplorer({
       return;
     }
     persistScroll();
-    const nextStack = [...cursorStack, state.cursor ?? ""];
-    writeTmEntryCursorStack(cursorStackKey, nextStack);
-    setCursorStack(nextStack);
+    store.pushCursor(cursorStackKey, state.cursor ?? "");
     updateState({ cursor: nextCursor });
   };
 
@@ -322,10 +330,7 @@ export function TmEntryExplorer({
       return;
     }
     persistScroll();
-    const nextStack = [...cursorStack];
-    const previous = nextStack.pop();
-    writeTmEntryCursorStack(cursorStackKey, nextStack);
-    setCursorStack(nextStack);
+    const previous = store.popCursor(cursorStackKey);
     updateState({ cursor: previous || undefined });
   };
 
@@ -462,7 +467,7 @@ export function TmEntryExplorer({
               size="sm"
               variant="ghost"
               disabled={bulkReview.isPending || bulkDelete.isPending}
-              onClick={() => setConfirmBulkDeleteOpen(true)}
+              onClick={() => store.setConfirmBulkDeleteOpen(true)}
             >
               <FormattedMessage {...messages.deleteSelected} />
             </Button>
@@ -546,7 +551,7 @@ export function TmEntryExplorer({
               <Checkbox
                 checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
                 onCheckedChange={(checked) => {
-                  setSelectedEntryIds(checked === true ? visibleEntryIds : []);
+                  store.setVisibleSelection(visibleEntryIds, checked === true);
                 }}
                 aria-label={intl.formatMessage(messages.selectAllAria)}
               />
@@ -607,11 +612,7 @@ export function TmEntryExplorer({
                     <Checkbox
                       checked={isChecked}
                       onCheckedChange={(checked) => {
-                        setSelectedEntryIds((current) =>
-                          checked === true
-                            ? [...current, entry.id]
-                            : current.filter((entryId) => entryId !== entry.id),
-                        );
+                        store.toggleEntryId(entry.id, checked === true);
                       }}
                       aria-label={intl.formatMessage(messages.selectEntryAria, {
                         sourceText: entry.sourceText,
@@ -683,7 +684,7 @@ export function TmEntryExplorer({
           if (bulkDelete.isPending) {
             return;
           }
-          setConfirmBulkDeleteOpen(nextOpen);
+          store.setConfirmBulkDeleteOpen(nextOpen);
         }}
       >
         <AlertDialogContent>
@@ -727,7 +728,7 @@ export function TmEntryExplorer({
           }
         }}
         onOpenVariant={(variantId) => {
-          setStartInEditMode(false);
+          store.setStartInEditMode(false);
           persistScroll();
           updateState({ entry: variantId });
         }}
@@ -791,4 +792,4 @@ export function TmEntryExplorer({
       ) : null}
     </div>
   );
-}
+});
