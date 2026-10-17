@@ -450,7 +450,12 @@ export async function applyXlsxTranslations(input: {
     if (isErr(xml)) {
       return err({ code: "invalid_xlsx" });
     }
-    zip.file(partPath, patchWorksheetXml(xml.value, patch));
+    // Keep the part's timestamp so the same translations always produce the same bytes;
+    // content sync diffs generated workbooks against the repository.
+    zip.file(partPath, patchWorksheetXml(xml.value, patch), {
+      date: part.date,
+      createFolders: false,
+    });
   }
 
   const generated = await fromThrowableAsync(

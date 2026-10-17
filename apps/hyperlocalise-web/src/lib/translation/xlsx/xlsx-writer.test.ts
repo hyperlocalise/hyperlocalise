@@ -12,7 +12,7 @@
  */
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { isOk } from "@/lib/primitives/result/results";
 
@@ -80,6 +80,25 @@ describe("applyXlsxTranslations", () => {
     const sourceWidth = /<col min="4" max="4" width="([^"]+)"/.exec(xml)?.[1];
     expect(sourceWidth).toBeDefined();
     expect(xml).toContain(`<col min="7" max="7" width="${sourceWidth}" customWidth="1"/>`);
+  });
+
+  it("produces identical bytes for identical input", async () => {
+    const template = multilingualXlsxFixture();
+    const input = {
+      template,
+      values: { "home.cta": "Essai gratuit" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    };
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      const first = await apply(input);
+      vi.setSystemTime(new Date("2026-06-01T12:34:56Z"));
+      expect(Buffer.from(await apply(input)).equals(Buffer.from(first))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never writes into the source column for a same-language target", async () => {
