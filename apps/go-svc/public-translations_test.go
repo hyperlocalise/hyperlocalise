@@ -331,6 +331,14 @@ func TestPublicTranslationsDownloadValidation(t *testing.T) {
 	})
 }
 
+func TestPublicTranslationsDownloadExcel(t *testing.T) {
+	f := newPublicTranslationsFixture(t, "admin", nil)
+	fileID := mustSourceFile(t, f.scope, f.scope.ProjectID, "copy/strings.XLSX")
+	mustTranslationKey(t, f.scope, f.scope.ProjectID, fileID, "greeting", "Hello", false)
+	requirePublicAPIError(t, f.download(t, f.scope.ProjectID, "copy/strings.XLSX", "fr"), http.StatusNotImplemented, "not_implemented",
+		"Excel translation download is not available on the native Go service yet")
+}
+
 func TestPublicTranslationsDownloadLottie(t *testing.T) {
 	const notImplemented = "Lottie translation download is not available on the native Go service yet"
 
