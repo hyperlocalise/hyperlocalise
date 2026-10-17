@@ -126,7 +126,7 @@ function explainIssue(definition: VisualWorkflowV3Definition, issue: Issue): str
       }
       return `${step}'s settings are not valid.`;
     case "invalid_binding":
-      return `${setting ?? step} reads a value that may not be there when it runs: from a step that is not in the workflow or does not always run before it, an output a step gives only sometimes, a step outside the loop it collects from, or a value of the wrong type.`;
+      return `${setting ?? step} reads a value that may not be there when it runs: from a step that is not in the workflow or does not always run before it, a step outside the loop it collects from, or a value of the wrong type.`;
     case "invalid_loop":
     case "invalid_retry":
     case "invalid_try_catch_region":

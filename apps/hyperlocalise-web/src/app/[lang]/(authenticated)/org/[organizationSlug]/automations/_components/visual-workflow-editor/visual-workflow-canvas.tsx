@@ -21,7 +21,15 @@ import {
   type ReactFlowInstance,
   type XYPosition,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { toast } from "sonner";
 import { FormattedMessage } from "react-intl";
 
@@ -33,6 +41,7 @@ import { VISUAL_NODE_CATALOG } from "@/lib/visual-workflows/catalog/node-catalog
 import { validateVisualWorkflowConnection } from "@/lib/visual-workflows/validation/validate-connection";
 import type {
   VisualCatalogType,
+  VisualWorkflowCanvasEdge,
   VisualWorkflowRfEdge,
   VisualWorkflowRfNode,
 } from "@/lib/visual-workflows/schema/types";
@@ -40,6 +49,7 @@ import type {
 import { VisualWorkflowCompactNode } from "./nodes/visual-workflow-compact-node";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 import { deriveForEachLoopRegion } from "@/lib/visual-workflows/editor/for-each-body-membership";
+import { listVisualWorkflowReferenceLines } from "@/lib/visual-workflows/editor/visual-workflow-reference-lines";
 
 export const VISUAL_WORKFLOW_NODE_TYPES = Object.fromEntries(
   VISUAL_NODE_CATALOG.filter((item) => item.enabled).map((item) => [
@@ -61,16 +71,34 @@ const EDGE_LABEL_PROPS = {
   },
 } satisfies Partial<VisualWorkflowRfEdge>;
 
+/**
+ * An execution wire's look: thick and solid, grey, and a Loop's Each item steps in blue. The colour
+ * is set through React Flow's own variables, not `stroke`, so a selected wire still darkens: an
+ * inline `stroke` would outrank its selected style.
+ */
+function executionWireStyle(edge: VisualWorkflowRfEdge, colour: string): CSSProperties {
+  return {
+    ...edge.style,
+    "--xy-edge-stroke": colour,
+    "--xy-edge-stroke-selected": "var(--foreground)",
+    strokeWidth: 2,
+  } as CSSProperties;
+}
+
 type ForEachPresentedRegion = {
   loopId: string;
   bodyNodeIds: Set<string>;
-  exitNodeIds: Set<string>;
 };
 
+/**
+ * The edges as the canvas draws them: execution wires thick and solid, data wires thin and solid,
+ * and a thin dashed line, which cannot be selected, moved or deleted, for each field a setting's
+ * text reads.
+ */
 export function presentVisualWorkflowEdges(
   nodes: readonly VisualWorkflowRfNode[],
   edges: readonly VisualWorkflowRfEdge[],
-): VisualWorkflowRfEdge[] {
+): VisualWorkflowCanvasEdge[] {
   const regions: ForEachPresentedRegion[] = nodes
     .filter((node) => node.data.catalogType === "logic.for_each")
     .map((node) => {
@@ -79,20 +107,34 @@ export function presentVisualWorkflowEdges(
       return {
         loopId: node.id,
         bodyNodeIds: new Set(region.bodyNodeIds),
-        exitNodeIds: new Set(region.exitNodeIds),
       };
     });
 
-  return edges.map((edge) => {
+  const referenceLines = listVisualWorkflowReferenceLines(nodes, edges).map(
+    (line): VisualWorkflowCanvasEdge => ({
+      ...line,
+      data: { kind: "reference" },
+      selectable: false,
+      deletable: false,
+      focusable: false,
+      reconnectable: false,
+      interactionWidth: 0,
+      // React Flow's stylesheet sets pointer events on every edge and outranks Tailwind.
+      className: "!pointer-events-none",
+      style: { strokeDasharray: "5 4", pointerEvents: "none" },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+    }),
+  );
+
+  const presented = edges.map((edge) => {
     if (edge.data?.kind === "data") {
+      // A wire drawn in this session carries the dashed style it was made with; wires are solid.
+      const { strokeDasharray: _, ...style } = edge.style ?? {};
       return {
         ...edge,
         ...EDGE_LABEL_PROPS,
+        style,
         label: `${edge.sourceHandle ?? "output"} → ${edge.targetHandle ?? "input"}`,
-        style: {
-          ...edge.style,
-          strokeDasharray: "5 4",
-        },
         markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       };
     }
@@ -103,36 +145,23 @@ export function presentVisualWorkflowEdges(
         (region.bodyNodeIds.has(edge.source) && region.bodyNodeIds.has(edge.target)),
     );
 
-    if (belongsToEachRegion) {
-      return {
-        ...edge,
-        style: {
-          ...edge.style,
-          stroke: "var(--primary)",
-          strokeWidth: 2,
-        },
-      };
-    }
-
-    const belongsToDoneRegion = regions.some(
-      (region) =>
-        (edge.source === region.loopId && edge.sourceHandle === "done") ||
-        (region.exitNodeIds.has(edge.source) && region.exitNodeIds.has(edge.target)),
-    );
-
-    if (belongsToDoneRegion) {
-      return {
-        ...edge,
-        style: {
-          ...edge.style,
-          stroke: "var(--muted-foreground)",
-          strokeWidth: 2,
-        },
-      };
-    }
-
-    return edge.label === undefined ? edge : { ...edge, ...EDGE_LABEL_PROPS };
+    // Every execution wire looks like a Loop's Done path did, so only its Each item steps stand out.
+    const wire = {
+      ...edge,
+      style: executionWireStyle(
+        edge,
+        belongsToEachRegion ? "var(--primary)" : "var(--muted-foreground)",
+      ),
+    };
+    return edge.label === undefined ? wire : { ...wire, ...EDGE_LABEL_PROPS };
   });
+
+  return [...presented, ...referenceLines];
+}
+
+/** The edges among those the canvas draws that are stored with the workflow. */
+function storedEdges(edges: readonly VisualWorkflowCanvasEdge[]): VisualWorkflowRfEdge[] {
+  return edges.filter((edge): edge is VisualWorkflowRfEdge => edge.data?.kind !== "reference");
 }
 
 /** Reads the canvas position at the middle of the view, or null while the canvas is not shown. */
@@ -192,9 +221,10 @@ export function VisualWorkflowCanvas({
   /** A control shown beside the Test workflow button. */
   testSettings?: ReactNode;
 }) {
-  const reactFlowRef = useRef<ReactFlowInstance<VisualWorkflowRfNode, VisualWorkflowRfEdge> | null>(
-    null,
-  );
+  const reactFlowRef = useRef<ReactFlowInstance<
+    VisualWorkflowRfNode,
+    VisualWorkflowCanvasEdge
+  > | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reconnectingEdgeIdRef = useRef<string | null>(null);
   const lastConnectionErrorRef = useRef<string | null>(null);
@@ -209,8 +239,15 @@ export function VisualWorkflowCanvas({
     };
   }, [viewCenterRef]);
   const presentedEdges = useMemo(() => presentVisualWorkflowEdges(nodes, edges), [edges, nodes]);
+  const referenceLineIds = useMemo(
+    () =>
+      new Set(
+        presentedEdges.filter((edge) => edge.data?.kind === "reference").map((edge) => edge.id),
+      ),
+    [presentedEdges],
+  );
   const isValidConnection = useCallback(
-    (connection: Connection | VisualWorkflowRfEdge) => {
+    (connection: Connection | VisualWorkflowCanvasEdge) => {
       const result = validateVisualWorkflowConnection({
         nodes,
         edges,
@@ -248,14 +285,29 @@ export function VisualWorkflowCanvas({
 
   return (
     <div ref={containerRef} className="relative min-h-0 min-w-0 flex-1">
-      <Canvas
+      <Canvas<VisualWorkflowRfNode, VisualWorkflowCanvasEdge>
         className="h-full"
         nodes={nodes}
         edges={presentedEdges}
         nodeTypes={VISUAL_WORKFLOW_NODE_TYPES}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onBeforeDelete={onBeforeDelete}
+        // Reference lines cannot be selected or deleted; only stored edges reach the editor.
+        onEdgesChange={(changes) =>
+          onEdgesChange(
+            changes.filter(
+              (change) => !("id" in change) || !referenceLineIds.has(change.id),
+            ) as EdgeChange<VisualWorkflowRfEdge>[],
+          )
+        }
+        onBeforeDelete={
+          onBeforeDelete
+            ? ({ nodes: deleted, edges: deletedEdges }) =>
+                onBeforeDelete({
+                  nodes: deleted,
+                  edges: storedEdges(deletedEdges),
+                })
+            : undefined
+        }
         onConnect={onConnect}
         onConnectStart={() => {
           lastConnectionErrorRef.current = null;
@@ -271,7 +323,10 @@ export function VisualWorkflowCanvas({
 
           lastConnectionErrorRef.current = null;
         }}
-        onReconnect={onReconnect}
+        onReconnect={(oldEdge, connection) => {
+          const [stored] = storedEdges([oldEdge]);
+          if (stored) onReconnect(stored, connection);
+        }}
         onReconnectStart={(_, edge) => {
           reconnectingEdgeIdRef.current = edge.id;
           lastConnectionErrorRef.current = null;
