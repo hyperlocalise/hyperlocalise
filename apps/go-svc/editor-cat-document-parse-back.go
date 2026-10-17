@@ -18,7 +18,17 @@ const (
 	editorCatParseBackMaxDocument = 1 << 20
 )
 
-var editorCatParseBackExtensions = map[string]bool{".md": true, ".mdx": true, ".html": true}
+func isEditorCatParseBackPath(sourcePath string) bool {
+	if translationfileparser.IsMarkdownDocumentExtension(sourcePath) {
+		return true
+	}
+	switch strings.ToLower(path.Ext(sourcePath)) {
+	case ".html", ".htm":
+		return true
+	default:
+		return false
+	}
+}
 
 type editorCatDocumentChange struct {
 	ExternalStringID string `json:"externalStringId"`
@@ -67,7 +77,7 @@ func (api *editorCatAPI) parseBackDocument(r *http.Request, actor editorCatActor
 	if sourcePath == "" || targetLocale == "" || len(body.Content) > editorCatParseBackMaxDocument {
 		return nil, 0, editorCatFailure(400, "invalid_project_payload", "Invalid CAT payload")
 	}
-	if !editorCatParseBackExtensions[strings.ToLower(path.Ext(sourcePath))] {
+	if !isEditorCatParseBackPath(sourcePath) {
 		return nil, 0, editorCatFailure(400, "unsupported_document_format", "Only Markdown, MDX, and HTML files map back to segments")
 	}
 	sourceFileID, err := api.sourceFileID(r, actor, project, sourcePath)

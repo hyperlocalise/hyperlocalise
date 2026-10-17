@@ -50,6 +50,8 @@ describe("isParseBackDocumentPath", () => {
   it("accepts the formats the go-svc parser keys", () => {
     expect(isParseBackDocumentPath("docs/guide.MDX")).toBe(true);
     expect(isParseBackDocumentPath("site/index.html")).toBe(true);
+    expect(isParseBackDocumentPath("docs/notes.markdown")).toBe(true);
+    expect(isParseBackDocumentPath("site/legacy.HTM")).toBe(true);
     expect(isParseBackDocumentPath("docs/guide.adoc")).toBe(false);
   });
 });

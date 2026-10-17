@@ -127,3 +127,16 @@ func TestMapParsedDocumentToKeysIgnoresUntouchedUntranslatedParagraphs(t *testin
 		t.Fatalf("expected only the edited heading to change, got %+v", result.Changes)
 	}
 }
+
+func TestIsEditorCatParseBackPathAcceptsDocumentAliases(t *testing.T) {
+	for _, sourcePath := range []string{"docs/guide.md", "docs/guide.MDX", "docs/notes.markdown", "docs/notes.mkd", "site/index.html", "site/legacy.HTM"} {
+		if !isEditorCatParseBackPath(sourcePath) {
+			t.Errorf("expected %s to map back to segments", sourcePath)
+		}
+	}
+	for _, sourcePath := range []string{"docs/guide.adoc", "slides/deck.pptx", "locales/en.json"} {
+		if isEditorCatParseBackPath(sourcePath) {
+			t.Errorf("expected %s not to map back to segments", sourcePath)
+		}
+	}
+}

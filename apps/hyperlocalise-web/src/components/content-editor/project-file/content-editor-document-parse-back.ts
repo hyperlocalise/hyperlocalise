@@ -14,13 +14,22 @@ import type {
   CatDocumentParseBackResponse,
   CatDocumentUnmapped,
 } from "@/lib/go-svc/go-svc-cat-document.types";
+import {
+  inferSupportedTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 const DOCUMENT_DRAFT_SAVE_CONCURRENCY = 4;
 
-const PARSE_BACK_EXTENSION_PATTERN = /\.(md|mdx|html)$/i;
+const PARSE_BACK_FORMATS: ReadonlySet<SupportedTranslationFileFormat> = new Set([
+  "markdown",
+  "mdx",
+  "html",
+]);
 
 export function isParseBackDocumentPath(sourcePath: string) {
-  return PARSE_BACK_EXTENSION_PATTERN.test(sourcePath);
+  const format = inferSupportedTranslationFileFormat(sourcePath);
+  return format !== null && PARSE_BACK_FORMATS.has(format);
 }
 
 export type DocumentParseBackResult = {
