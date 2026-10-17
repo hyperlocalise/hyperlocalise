@@ -16,7 +16,11 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { isOk } from "@/lib/primitives/result/results";
 
-import { cellLayoutXlsxFixture, multilingualXlsxFixture } from "./xlsx-workbook.fixture";
+import {
+  buildXlsxFixture,
+  cellLayoutXlsxFixture,
+  multilingualXlsxFixture,
+} from "./xlsx-workbook.fixture";
 import { loadXlsxWorkbook, readXlsxEntries } from "./xlsx-workbook";
 import { applyXlsxTranslations, patchWorksheetXml } from "./xlsx-writer";
 
@@ -57,6 +61,39 @@ describe("applyXlsxTranslations", () => {
       "Strings!5:5": "Pas de clé",
     });
     expect((await entries(out, "en", "en"))["home.title"]).toBe("Home");
+  });
+
+  it("clears existing non-formula target cells that have no ready value", async () => {
+    const template = buildXlsxFixture([
+      {
+        name: "Strings",
+        cells: {
+          A1: "Key",
+          B1: "French",
+          C1: "English",
+          A2: "home.title",
+          B2: "Accueil",
+          C2: "Home",
+          A3: "home.cta",
+          B3: "Ancien CTA",
+          C3: "Start free trial",
+          A4: "home.note",
+          B4: { formula: 'CONCAT("A","B")', cached: "AB" },
+          C4: "Note",
+        },
+      },
+    ]);
+    const out = await apply({
+      template,
+      values: { "home.cta": "Essai gratuit" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+    const sheet = XLSX.read(out, { type: "array", cellFormula: true }).Sheets.Strings!;
+    expect(sheet.B2).toBeUndefined();
+    expect(sheet.B3?.v).toBe("Essai gratuit");
+    expect(sheet.B4?.f).toBe('CONCAT("A","B")');
+    expect(await entries(out, "en", "fr")).toEqual({ "home.cta": "Essai gratuit" });
   });
 
   it("appends a locale column after the last used column and copies the source width", async () => {

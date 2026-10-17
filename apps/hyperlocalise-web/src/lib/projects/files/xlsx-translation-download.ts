@@ -45,8 +45,9 @@ export function projectXlsxTranslationDownloadPath(input: {
 
 /**
  * Builds the `targetLocale` copy of a segmented `.xlsx` source from its ready translations.
- * Source text is never written into target cells, so untranslated rows stay empty in
- * multilingual sheets and keep their source text in cell-layout sheets.
+ * Source text is never written into target cells. In multilingual sheets, target cells
+ * without a ready value are cleared so leftover workbook text does not survive the patch.
+ * Cell-layout sheets keep their source text where no translation is supplied.
  *
  * Resolves to `null` when the path is not a segmented workbook or the file has no keys
  * (legacy Office uploads), so callers keep their stored-file download.

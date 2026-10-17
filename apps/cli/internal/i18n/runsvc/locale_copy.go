@@ -123,7 +123,7 @@ func (s *Service) persistCopyLockEntries(lockState *lockfile.File, copyTasks []T
 		} else if _, exists := output.entries[task.EntryKey]; !exists {
 			continue
 		}
-		identity := preferredTaskIdentity(s.projectRoot, task.TargetPath, task.EntryKey)
+		identity := taskLockIdentity(s.projectRoot, task.TargetPath, task.TargetLocale, task.EntryKey)
 		lockState.RunCompleted[identity] = lockfile.RunCompletion{
 			SourceHash: taskLockSourceHash(task),
 			TaskHash:   lockTaskHash(task),

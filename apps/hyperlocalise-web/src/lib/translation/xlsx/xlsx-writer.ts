@@ -214,15 +214,22 @@ function cellWritesForRows(
   for (let row = 1; row < sheet.rowCount; row += 1) {
     const key = sheet.rowKeys.get(row);
     const value = key ? values[key] : undefined;
-    if (!value || sheet.rows.get(row)?.get(targetColumn)?.hasFormula) {
+    const existing = sheet.rows.get(row)?.get(targetColumn);
+    if (existing?.hasFormula) {
       continue;
     }
-    writes.push({
-      row,
-      column: targetColumn,
-      text: value,
-      ...(appended ? { styleFromColumn: sourceColumn } : {}),
-    });
+    if (value) {
+      writes.push({
+        row,
+        column: targetColumn,
+        text: value,
+        ...(appended ? { styleFromColumn: sourceColumn } : {}),
+      });
+      continue;
+    }
+    if (!appended && existing) {
+      writes.push({ row, column: targetColumn, text: "" });
+    }
   }
   return { writes, appended };
 }
@@ -289,6 +296,17 @@ function applyWritesToRows(rows: ParsedRow[], writes: readonly CellWrite[], pref
   for (const write of writes) {
     const number = write.row + 1;
     let row = rowsByNumber.get(number);
+    if (write.text === "") {
+      if (!row) {
+        continue;
+      }
+      row.modified = true;
+      const existingIndex = row.cells.findIndex((cell) => cell.column === write.column);
+      if (existingIndex !== -1) {
+        row.cells.splice(existingIndex, 1);
+      }
+      continue;
+    }
     if (!row) {
       row = { number, attributes: ` r="${number}"`, cells: [], selfClosing: false, modified: true };
       rowsByNumber.set(number, row);
@@ -418,8 +436,10 @@ export function patchWorksheetXml(xml: string, patch: SheetPatch): string {
 /**
  * Writes `values` into a copy of `template`. Multilingual sheets receive values in the
  * `targetLocale` column, appended after the last used column when row 1 has none.
- * Cell-layout sheets receive values in place of the source text. Empty values, unknown
- * keys, and formula cells are skipped.
+ * Non-formula cells in an existing target column are cleared when no ready value is
+ * supplied, so stale or unapproved text does not survive a patch of the original
+ * workbook. Cell-layout sheets receive values in place of the source text. Empty
+ * values, unknown keys, and formula cells are skipped there.
  */
 export async function applyXlsxTranslations(input: {
   template: Uint8Array;
