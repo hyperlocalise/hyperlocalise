@@ -3003,6 +3003,10 @@
     "defaultMessage": "Loop membership is derived automatically from connections leaving the Each item port.",
     "description": "Explanation of graph-derived For Each membership"
   },
+  "3PWsvMVfTw": {
+    "defaultMessage": "Add object input",
+    "description": "Add a Merge Objects input"
+  },
   "3QmQFMO6jX": {
     "defaultMessage": "Languages",
     "description": "Multilingual table languages label"
@@ -5903,6 +5907,10 @@
     "defaultMessage": "Authentication method",
     "description": "Label for the Crowdin authentication method selector"
   },
+  "8bubQShwFP": {
+    "defaultMessage": "Move object field {index} up",
+    "description": "Move a Create Object field upward"
+  },
   "8cCnIQ+Lhz": {
     "defaultMessage": "Unable to update project",
     "description": "Fallback error when updating a project fails"
@@ -7402,6 +7410,10 @@
   "BHCGhKF/Fb": {
     "defaultMessage": "Projects created and managed in this workspace.",
     "description": "Section description for native Hyperlocalise projects"
+  },
+  "BHHt9+y7Na": {
+    "defaultMessage": "Remove object field {index}",
+    "description": "Remove a Create Object field"
   },
   "BHmWNCONbs": {
     "defaultMessage": "Demo request: Guideline",
@@ -8907,6 +8919,10 @@
     "defaultMessage": "Hyperlocalise Agent capabilities inherit this provider and model until customized per capability.",
     "description": "Description for the workspace default model summary panel"
   },
+  "Dx5wD+SCfe": {
+    "defaultMessage": "Objects to merge",
+    "description": "Merge Objects input list"
+  },
   "DxQL85kivW": {
     "defaultMessage": "Turn launch briefs, campaign assets, and regional messaging into reviewed, culturally adapted copy — with approval flows and glossary control built in.",
     "description": "Hero subheadline for the marketing-localisation use case"
@@ -9062,6 +9078,10 @@
   "EFds7VbW/w": {
     "defaultMessage": "95–99%",
     "description": "Translation reporting label"
+  },
+  "EFqMJ3jrZJ": {
+    "defaultMessage": "Combine objects with an explicit conflict policy.",
+    "description": "Catalog description for the merge objects node"
   },
   "EGVRBepZ6Q": {
     "defaultMessage": "AI Credit",
@@ -10351,6 +10371,10 @@
     "defaultMessage": "Merge mode",
     "description": "Merge node mode field"
   },
+  "GaqidMa6rb": {
+    "defaultMessage": "First object wins",
+    "description": "Merge Objects policy that keeps the earlier overlapping value"
+  },
   "GausSgRE+l": {
     "defaultMessage": "Combining credits into the four module scores.",
     "description": "Detail text when a localisation audit is scoring"
@@ -10887,6 +10911,10 @@
     "defaultMessage": "Context attached in the file",
     "description": "Section heading for developer context attached in the source file"
   },
+  "Ha0TLn977I": {
+    "defaultMessage": "Object field {index} name",
+    "description": "Create Object field name input"
+  },
   "Ha7VIKn6vj": {
     "defaultMessage": "Cancel",
     "description": "Cancel the approved-image regenerate confirmation in the gallery"
@@ -11002,6 +11030,10 @@
   "HnQHQaB8I0": {
     "defaultMessage": "Enter a single word with no spaces.",
     "description": "Validation error for an empty or invalid dictionary word"
+  },
+  "HnpxT9SEMg": {
+    "defaultMessage": "The page view can't keep this file as written, so it opened as code to avoid changing it.",
+    "description": "Document editor: banner when parse/serialize would change the file, so it falls back to raw source"
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Add target locales in project settings before creating jobs.",
@@ -12039,6 +12071,10 @@
     "defaultMessage": "Set project budget",
     "description": "Translation reporting label"
   },
+  "JlldqkR4C6": {
+    "defaultMessage": "Reject conflicts",
+    "description": "Merge Objects policy that fails when keys overlap"
+  },
   "Jm9tR2PeYs": {
     "defaultMessage": "Select a project",
     "description": "Placeholder for the project select in the create issue dialog"
@@ -12434,6 +12470,10 @@
   "KdE//1z84h": {
     "defaultMessage": "Project settings sections",
     "description": "Accessible label for the project settings section navigation"
+  },
+  "KdJvt1B/0f": {
+    "defaultMessage": "Add object field",
+    "description": "Add a Create Object field"
   },
   "Kdyh8ZKnlc": {
     "defaultMessage": "Untranslated",
@@ -15115,6 +15155,10 @@
     "defaultMessage": "Turkish (Türkiye)",
     "description": "Display name for BCP-47 locale tr-TR"
   },
+  "PV2k2eiaiP": {
+    "defaultMessage": "Remove merge object {index}",
+    "description": "Remove a Merge Objects input"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "Founders",
     "description": "Heading above founder cards on the company page"
@@ -16030,6 +16074,10 @@
   "RG2VP91ErR": {
     "defaultMessage": "Iterable",
     "description": "Iterable integration name on the integrations page"
+  },
+  "RHGI6JYY/i": {
+    "defaultMessage": "Create object",
+    "description": "Catalog title for the create object node"
   },
   "RHfBrqrbnQ": {
     "defaultMessage": "Add connection",
@@ -17327,6 +17375,10 @@
     "defaultMessage": "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
     "description": "Workflow section description for the help-center-localisation use case"
   },
+  "TfUCgJttWd": {
+    "defaultMessage": "Construct an object from named typed values.",
+    "description": "Catalog description for the create object node"
+  },
   "TfjiaDPI2s": {
     "defaultMessage": "French launch",
     "description": "Third breadcrumb in the marketing hero CAT workspace mock"
@@ -18535,6 +18587,10 @@
     "defaultMessage": "Try again",
     "description": "Translation reporting label"
   },
+  "VoaTgvMGb7": {
+    "defaultMessage": "Use inline default",
+    "description": "Create Object checkbox to store an inline default value"
+  },
   "Vp/ZC71Tvv": {
     "defaultMessage": "What is Hyperlab, in one sentence?",
     "description": "Hyperlab FAQ question explaining the product"
@@ -18903,6 +18959,10 @@
     "defaultMessage": "Pages",
     "description": "Built-in pages integration name on the integrations page"
   },
+  "WYSFWtMM/n": {
+    "defaultMessage": "{reference} cannot be read here: that step does not run before this one.",
+    "description": "Tooltip of a field pill in a workflow step's setting whose step is gone or runs later; reference is the step and field, such as 'HTTP request › status'"
+  },
   "WYgLOUJFzG": {
     "defaultMessage": "Save layers",
     "description": "Image viewer: save"
@@ -18982,6 +19042,10 @@
   "WikmHw1TGh": {
     "defaultMessage": "Locales: fr-FR, de-DE, ja-JP · due Friday",
     "description": "Intake summary line for target locales and deadline"
+  },
+  "Wj5eGg6F2i": {
+    "defaultMessage": "Merge objects",
+    "description": "Catalog title for the merge objects node"
   },
   "WjB4ZUzNnv": {
     "defaultMessage": "Japan only",
@@ -19582,6 +19646,10 @@
   "XlLg7tU4UB": {
     "defaultMessage": "Redo",
     "description": "Accessible name of the button that puts back the latest undone change to an automation"
+  },
+  "XmEYDXugqn": {
+    "defaultMessage": "Create object fields",
+    "description": "Create Object field list heading"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation",
@@ -20283,6 +20351,10 @@
     "defaultMessage": "Email agent enabled",
     "description": "Toast after enabling the email agent"
   },
+  "Z3cwlcqzDt": {
+    "defaultMessage": "Conflict policy",
+    "description": "Merge Objects conflict policy field"
+  },
   "Z3fCUPrSEf": {
     "defaultMessage": "Import",
     "description": "Button to import translation memory entries from a CSV or TMX file"
@@ -20774,10 +20846,6 @@
   "a+y3L+ar21": {
     "defaultMessage": "Get started",
     "description": "Sample button A in the Hyperlab comparison mock"
-  },
-  "a/00MN41ob": {
-    "defaultMessage": "This file has MDX the page view can't read safely, so it opened as code to avoid changing it.",
-    "description": "Document editor: banner when an MDX file falls back to raw source"
   },
   "a/ZzE1agR3": {
     "defaultMessage": "Create issues for this page",
@@ -23687,6 +23755,10 @@
     "defaultMessage": "More translation memory actions",
     "description": "Accessible label for the translation memory actions menu"
   },
+  "f/XNJ63dud": {
+    "defaultMessage": "Merge object {index} name",
+    "description": "Merge Objects input name field"
+  },
   "f01aYrKnGZ": {
     "defaultMessage": "Automation",
     "description": "Activity subtitle for an automation run on the overview"
@@ -24359,6 +24431,10 @@
     "defaultMessage": "Bring translation intelligence into your localisation workflow",
     "description": "CTA section headline for the marketing-localisation use case"
   },
+  "gBrgYSI8np": {
+    "defaultMessage": "Move merge object {index} down",
+    "description": "Move a Merge Objects input downward"
+  },
   "gBuKJZ8SD6": {
     "defaultMessage": "Sync",
     "description": "Sync origin for a translation memory entry"
@@ -24482,6 +24558,10 @@
   "gNwdZXjHEr": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the placeholder format dialog"
+  },
+  "gO4ZluW8Rk": {
+    "defaultMessage": "Move merge object {index} up",
+    "description": "Move a Merge Objects input upward"
   },
   "gO74VPwdhY": {
     "defaultMessage": "Sample data · Seven-day trends are illustrative.",
@@ -26827,6 +26907,10 @@
     "defaultMessage": "Add rule",
     "description": "Button to add an audience rule"
   },
+  "kO17DbZxuG": {
+    "defaultMessage": "Add a named field to construct an object.",
+    "description": "Empty Create Object field list help"
+  },
   "kO32zaHAd6": {
     "defaultMessage": "Couldn't save title",
     "description": "Toast when job title save fails"
@@ -28395,6 +28479,10 @@
     "defaultMessage": "Returned outputs",
     "description": "Return workflow output list"
   },
+  "nB3IXQfE4i": {
+    "defaultMessage": "Move object field {index} down",
+    "description": "Move a Create Object field downward"
+  },
   "nBWhU6jbvc": {
     "defaultMessage": "Template",
     "description": "Label for the read-only issue template provenance field"
@@ -28602,6 +28690,10 @@
   "nVpf5SOxZJ": {
     "defaultMessage": "via {name}",
     "description": "Shows the API key used to perform an activity"
+  },
+  "nWyqpLBFh/": {
+    "defaultMessage": "Last object wins",
+    "description": "Merge Objects policy that keeps the later overlapping value"
   },
   "nXCktzp8yW": {
     "defaultMessage": "Automation Workflow",
@@ -30375,6 +30467,10 @@
     "defaultMessage": "The Search Console connection needs to be authorized again. Reconnect it here.",
     "description": "Empty state description when the Search Console pipe needs reauthorization"
   },
+  "qOKUAtOaFb": {
+    "defaultMessage": "Object field {index} default",
+    "description": "Create Object field default value input"
+  },
   "qP1TyGV4tR": {
     "defaultMessage": "Page {page} of {totalPages}",
     "description": "Current page indicator for the glossaries list"
@@ -31074,6 +31170,10 @@
   "rgfO40Efmv": {
     "defaultMessage": "Select a bar to filter the findings below.",
     "description": "Workspace QA hint that chart bars filter the findings list"
+  },
+  "rh2+BteZ5e": {
+    "defaultMessage": "Object field {index} type",
+    "description": "Create Object field type selector"
   },
   "rh4QHX9qYb": {
     "defaultMessage": "No provider files were found for this project.",

@@ -2687,6 +2687,9 @@
   "3OlJR3Fxjp": {
     "defaultMessage": "循环成员关系会根据离开 Each 项目端口的连接自动推导。"
   },
+  "3PWsvMVfTw": {
+    "defaultMessage": "Add object input"
+  },
   "3QmQFMO6jX": {
     "defaultMessage": "语言"
   },
@@ -5201,6 +5204,9 @@
   "8bpns6mW0p": {
     "defaultMessage": "身份验证方法"
   },
+  "8bubQShwFP": {
+    "defaultMessage": "Move object field {index} up"
+  },
   "8cCnIQ+Lhz": {
     "defaultMessage": "无法更新项目"
   },
@@ -6478,6 +6484,9 @@
   },
   "BHCGhKF/Fb": {
     "defaultMessage": "在此工作区中创建和管理的项目。"
+  },
+  "BHHt9+y7Na": {
+    "defaultMessage": "Remove object field {index}"
   },
   "BHmWNCONbs": {
     "defaultMessage": "演示请求：Guideline"
@@ -7784,6 +7793,9 @@
   "Dx55FkCrgu": {
     "defaultMessage": "关联现有问题"
   },
+  "Dx5wD+SCfe": {
+    "defaultMessage": "Objects to merge"
+  },
   "DxQL85kivW": {
     "defaultMessage": "将发布简报、活动素材和区域信息转化为经过审核、符合当地文化的文案——内置审批流程和术语表控制。"
   },
@@ -7927,6 +7939,9 @@
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99%"
+  },
+  "EFqMJ3jrZJ": {
+    "defaultMessage": "Combine objects with an explicit conflict policy."
   },
   "EGVRBepZ6Q": {
     "defaultMessage": "AI 积分"
@@ -9017,6 +9032,9 @@
   "GafA21RnmS": {
     "defaultMessage": "合并模式"
   },
+  "GaqidMa6rb": {
+    "defaultMessage": "First object wins"
+  },
   "GausSgRE+l": {
     "defaultMessage": "将学分合并计入四个模块分数。"
   },
@@ -9494,6 +9512,9 @@
   "HZtAltEBuQ": {
     "defaultMessage": "文件中附加了上下文"
   },
+  "Ha0TLn977I": {
+    "defaultMessage": "Object field {index} name"
+  },
   "Ha7VIKn6vj": {
     "defaultMessage": "取消"
   },
@@ -9598,6 +9619,9 @@
   },
   "HnQHQaB8I0": {
     "defaultMessage": "请输入一个不含空格的单词。"
+  },
+  "HnpxT9SEMg": {
+    "defaultMessage": "The page view can't keep this file as written, so it opened as code to avoid changing it."
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "在创建任务之前，请在项目设置中添加目标区域设置。"
@@ -10529,6 +10553,9 @@
   "Jlg9FCraTi": {
     "defaultMessage": "设置项目预算"
   },
+  "JlldqkR4C6": {
+    "defaultMessage": "Reject conflicts"
+  },
   "Jm9tR2PeYs": {
     "defaultMessage": "选择一个项目"
   },
@@ -10903,6 +10930,9 @@
   },
   "KdE//1z84h": {
     "defaultMessage": "项目设置部分"
+  },
+  "KdJvt1B/0f": {
+    "defaultMessage": "Add object field"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "CAT 工作区加载失败"
@@ -13202,6 +13232,9 @@
   "PT4ucYt9VV": {
     "defaultMessage": "Forbidden"
   },
+  "PV2k2eiaiP": {
+    "defaultMessage": "Remove merge object {index}"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "创始人"
   },
@@ -14020,6 +14053,9 @@
   },
   "RG2VP91ErR": {
     "defaultMessage": "Iterable"
+  },
+  "RHGI6JYY/i": {
+    "defaultMessage": "Create object"
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "无法加载自动化运行记录。"
@@ -15137,6 +15173,9 @@
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise 将 CMS 变更信号连接到翻译、术语检查和持续的新鲜度监控。"
   },
+  "TfUCgJttWd": {
+    "defaultMessage": "Construct an object from named typed values."
+  },
   "TfZLiRg/Of": {
     "defaultMessage": "账户设置"
   },
@@ -16169,6 +16208,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "再试一次"
   },
+  "VoaTgvMGb7": {
+    "defaultMessage": "Use inline default"
+  },
   "Vp/ZC71Tvv": {
     "defaultMessage": "用一句话来说，Hyperlab 是什么？"
   },
@@ -16511,6 +16553,9 @@
   "WYPwI9kUrL": {
     "defaultMessage": "页面"
   },
+  "WYSFWtMM/n": {
+    "defaultMessage": "{reference} cannot be read here: that step does not run before this one."
+  },
   "WYgLOUJFzG": {
     "defaultMessage": "保存图层"
   },
@@ -16579,6 +16624,9 @@
   },
   "WikmHw1TGh": {
     "defaultMessage": "语言区域：fr-FR、de-DE、ja-JP · 截止日期为星期五"
+  },
+  "Wj5eGg6F2i": {
+    "defaultMessage": "Merge objects"
   },
   "WjB4ZUzNnv": {
     "defaultMessage": "仅限日本"
@@ -17098,6 +17146,9 @@
   },
   "XlfDKFWw7A": {
     "defaultMessage": "在每次同步中都保留共享上下文、评估和回归检查，避免质量在不知不觉中下降。"
+  },
+  "XmEYDXugqn": {
+    "defaultMessage": "Create object fields"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation"
@@ -17719,6 +17770,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "电子邮件代理已启用"
+  },
+  "Z3cwlcqzDt": {
+    "defaultMessage": "Conflict policy"
   },
   "Z3fCUPrSEf": {
     "defaultMessage": "导入"
@@ -20708,6 +20762,9 @@
   "f/Vobm5joW": {
     "defaultMessage": "更多翻译记忆操作"
   },
+  "f/XNJ63dud": {
+    "defaultMessage": "Merge object {index} name"
+  },
   "f/b31Mw+9f": {
     "defaultMessage": "{count}个已加载{more}"
   },
@@ -21296,6 +21353,9 @@
   "gAtWW1Oa92": {
     "defaultMessage": "将翻译智能融入您的本地化工作流程"
   },
+  "gBrgYSI8np": {
+    "defaultMessage": "Move merge object {index} down"
+  },
   "gBuKJZ8SD6": {
     "defaultMessage": "同步"
   },
@@ -21397,6 +21457,9 @@
   },
   "gNwdZXjHEr": {
     "defaultMessage": "取消"
+  },
+  "gO4ZluW8Rk": {
+    "defaultMessage": "Move merge object {index} up"
   },
   "gO74VPwdhY": {
     "defaultMessage": "示例数据 · 七天趋势仅供参考。"
@@ -23462,6 +23525,9 @@
   "kNmR4YupCp": {
     "defaultMessage": "添加规则"
   },
+  "kO17DbZxuG": {
+    "defaultMessage": "Add a named field to construct an object."
+  },
   "kO32zaHAd6": {
     "defaultMessage": "无法保存标题"
   },
@@ -24845,6 +24911,9 @@
   "nAUAvUF3jq": {
     "defaultMessage": "返回的输出项"
   },
+  "nB3IXQfE4i": {
+    "defaultMessage": "Move object field {index} down"
+  },
   "nBWhU6jbvc": {
     "defaultMessage": "模板"
   },
@@ -25042,6 +25111,9 @@
   },
   "nVpf5SOxZJ": {
     "defaultMessage": "通过 {name}"
+  },
+  "nWyqpLBFh/": {
+    "defaultMessage": "Last object wins"
   },
   "nXCktzp8yW": {
     "defaultMessage": "自动化工作流"
@@ -26528,6 +26600,9 @@
   "qNbrHndGz/": {
     "defaultMessage": "Search Console 连接需要重新授权。请在此处重新连接。"
   },
+  "qOKUAtOaFb": {
+    "defaultMessage": "Object field {index} default"
+  },
   "qOrpKFZ2EU": {
     "defaultMessage": "Resource"
   },
@@ -27151,6 +27226,9 @@
   },
   "rgfO40Efmv": {
     "defaultMessage": "选择一个柱形以筛选下方的调查结果。"
+  },
+  "rh2+BteZ5e": {
+    "defaultMessage": "Object field {index} type"
   },
   "rh4QHX9qYb": {
     "defaultMessage": "未找到此项目的提供商文件。"
