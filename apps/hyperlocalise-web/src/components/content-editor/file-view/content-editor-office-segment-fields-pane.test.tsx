@@ -128,4 +128,22 @@ describe("ContentEditorOfficeSegmentFieldsPane", () => {
     );
     expect(screen.getByLabelText("B3")).toHaveAttribute("aria-invalid", "true");
   });
+
+  it("reports unsaved fields when the save request rejects", async () => {
+    render(
+      <Harness
+        onSaveDrafts={() => {
+          throw new Error("network");
+        }}
+        initial={[segment("a", "Prices!B3", "Free trial")]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("B3"), { target: { value: "Essai" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save 1 draft" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("1 edit was not saved"),
+    );
+  });
 });

@@ -101,7 +101,8 @@ export function ContentEditorOfficeSegmentFieldsPane({
 
   function saveDrafts() {
     startSaving(async () => {
-      await onSaveDrafts(dirtyIds);
+      await onSaveDrafts(dirtyIds).catch(() => undefined);
+      // Saved segments leave the dirty set, so any still dirty are reported as failed.
       setFailedSegmentIds(new Set(dirtyIds));
     });
   }

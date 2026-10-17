@@ -656,7 +656,7 @@ export const ContentEditorWorkspaceView = observer(function ContentEditorWorkspa
               return;
             }
             for (let start = 0; start < segmentIds.length; start += OFFICE_DRAFT_SAVE_CONCURRENCY) {
-              await Promise.all(
+              await Promise.allSettled(
                 segmentIds
                   .slice(start, start + OFFICE_DRAFT_SAVE_CONCURRENCY)
                   .map(async (segmentId) => {
