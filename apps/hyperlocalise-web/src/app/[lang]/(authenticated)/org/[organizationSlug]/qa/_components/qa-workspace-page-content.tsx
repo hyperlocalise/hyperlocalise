@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { observer } from "mobx-react-lite";
 import { CheckCircleIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
@@ -31,11 +32,14 @@ import { translationQaCheckTypes } from "@/lib/qa/types";
 import { createWorkspaceQaReportClient } from "@/lib/qa/qa-report-client";
 import { useWorkspaceQaReports } from "@/lib/qa/use-workspace-qa-reports";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { QA_FILTER_ALL } from "@/components/qa/qa-filters-store";
+import {
+  QaWorkspaceUiStoreProvider,
+  useQaWorkspaceUiStore,
+} from "../store/qa-workspace-store-context";
 import { qaWorkspaceMessages as messages } from "../qa-workspace.messages";
 import { QaWorkspaceOverview } from "./qa-workspace-overview";
 import { summarizeWorkspaceQa } from "./qa-workspace-summary";
-
-const DEFAULT_STATUS = "open";
 
 export function QaWorkspacePageContent({
   organizationSlug,
@@ -44,30 +48,36 @@ export function QaWorkspacePageContent({
   organizationSlug: string;
   canPromoteFindings: boolean;
 }) {
+  return (
+    <QaWorkspaceUiStoreProvider organizationSlug={organizationSlug}>
+      <QaWorkspacePageContentView canPromoteFindings={canPromoteFindings} />
+    </QaWorkspaceUiStoreProvider>
+  );
+}
+
+const QaWorkspacePageContentView = observer(function QaWorkspacePageContentView({
+  canPromoteFindings,
+}: {
+  canPromoteFindings: boolean;
+}) {
   const intl = useIntl();
   const { client } = useGoSvcClient();
   const api = useMemo(() => createWorkspaceQaReportClient(client), [client]);
-  const [locale, setLocale] = useState("all");
-  const [checkType, setCheckType] = useState("all");
-  const [projectId, setProjectId] = useState("all");
-  const [severity, setSeverity] = useState("all");
-  const [status, setStatus] = useState(DEFAULT_STATUS);
-  const [tab, setTab] = useState("findings");
-  const filtered =
-    locale !== "all" ||
-    checkType !== "all" ||
-    projectId !== "all" ||
-    severity !== "all" ||
-    status !== DEFAULT_STATUS;
+  const pageStore = useQaWorkspaceUiStore();
+  const organizationSlug = pageStore.organizationSlug;
+  const locale = pageStore.locale;
+  const checkType = pageStore.checkType;
+  const projectId = pageStore.projectId;
+  const severity = pageStore.severity;
+  const status = pageStore.status;
+  const tab = pageStore.tab;
+  const filtered = pageStore.isFiltered;
   const reportsQuery = useWorkspaceQaReports(organizationSlug, { staleTime: 0 });
   const reports = reportsQuery.data?.reports ?? [];
   const summary = summarizeWorkspaceQa(reports);
   const reportsByProject = new Map(reports.map((row) => [row.projectId, row]));
   const showFindingsFor = (filter: { projectId?: string; locale?: string; checkType?: string }) => {
-    if (filter.projectId) setProjectId(filter.projectId);
-    if (filter.locale) setLocale(filter.locale);
-    if (filter.checkType) setCheckType(filter.checkType);
-    setTab("findings");
+    pageStore.showFindingsFor(filter);
   };
   const failedReports = reports.filter((row) => row.report?.status === "failed");
   const selectedReport = reports.find((row) => row.projectId === projectId);
@@ -99,10 +109,10 @@ export function QaWorkspacePageContent({
       api.listFindings({
         param: { organizationSlug },
         query: {
-          locale: locale === "all" ? undefined : locale,
-          checkType: checkType === "all" ? undefined : checkType,
-          projectId: projectId === "all" ? undefined : projectId,
-          severity: severity === "all" ? undefined : severity,
+          locale: locale === QA_FILTER_ALL ? undefined : locale,
+          checkType: checkType === QA_FILTER_ALL ? undefined : checkType,
+          projectId: projectId === QA_FILTER_ALL ? undefined : projectId,
+          severity: severity === QA_FILTER_ALL ? undefined : severity,
           status,
           limit: "50",
           offset: String(pageParam),
@@ -154,12 +164,16 @@ export function QaWorkspacePageContent({
               {intl.formatMessage(messages.failedProjectsHelp)}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setTab("projects")}>
+          <Button variant="outline" size="sm" onClick={() => pageStore.setTab("projects")}>
             {intl.formatMessage(messages.reviewProjects)}
           </Button>
         </section>
       ) : null}
-      <Tabs value={tab} onValueChange={(value) => setTab(String(value))} className="gap-6">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => pageStore.setTab(String(value))}
+        className="gap-6"
+      >
         <TabsList variant="line">
           <TabsTrigger value="findings">{intl.formatMessage(m.findings)}</TabsTrigger>
           <TabsTrigger value="projects">{intl.formatMessage(m.projects)}</TabsTrigger>
@@ -169,7 +183,7 @@ export function QaWorkspacePageContent({
             <QaFilter
               label={intl.formatMessage(m.projects)}
               value={projectId}
-              onChange={setProjectId}
+              onChange={(value) => pageStore.setProjectId(value)}
               options={[
                 all,
                 ...reports.map((row) => ({ value: row.projectId, label: row.projectName })),
@@ -178,13 +192,13 @@ export function QaWorkspacePageContent({
             <QaFilter
               label={intl.formatMessage(m.language)}
               value={locale}
-              onChange={setLocale}
+              onChange={(value) => pageStore.setLocale(value)}
               options={[all, ...locales.map((value) => ({ value, label: value }))]}
             />
             <QaFilter
               label={intl.formatMessage(m.check)}
               value={checkType}
-              onChange={setCheckType}
+              onChange={(value) => pageStore.setCheckType(value)}
               options={[
                 all,
                 ...translationQaCheckTypes.map((value) => ({
@@ -196,7 +210,7 @@ export function QaWorkspacePageContent({
             <QaFilter
               label={intl.formatMessage(m.severity)}
               value={severity}
-              onChange={setSeverity}
+              onChange={(value) => pageStore.setSeverity(value)}
               options={[
                 all,
                 ...(["error", "warning"] as const).map((value) => ({
@@ -208,7 +222,7 @@ export function QaWorkspacePageContent({
             <QaFilter
               label={intl.formatMessage(m.status)}
               value={status}
-              onChange={setStatus}
+              onChange={(value) => pageStore.setStatus(value)}
               options={[
                 all,
                 ...(["open", "ignored", "resolved"] as const).map((value) => ({
@@ -250,17 +264,7 @@ export function QaWorkspacePageContent({
                 <p className="text-sm">{intl.formatMessage(filtered ? m.noMatches : m.clean)}</p>
               ) : null}
               {filtered ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setLocale("all");
-                    setCheckType("all");
-                    setProjectId("all");
-                    setSeverity("all");
-                    setStatus(DEFAULT_STATUS);
-                  }}
-                >
+                <Button variant="outline" size="sm" onClick={() => pageStore.clearFilters()}>
                   {intl.formatMessage(m.clearFilters)}
                 </Button>
               ) : null}
@@ -344,4 +348,4 @@ export function QaWorkspacePageContent({
       </Tabs>
     </WorkspacePageShell>
   );
-}
+});
