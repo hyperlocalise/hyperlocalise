@@ -58,6 +58,8 @@ export const visualCatalogTypeSchema = z.enum([
   "logic.if",
   "logic.switch",
   "logic.set",
+  "logic.create_object",
+  "logic.merge_objects",
   "ai.agent",
   "logic.for_each",
   "logic.retry",
@@ -102,6 +104,95 @@ const visualSubworkflowFieldsSchema = z
       }
       ids.add(field.id);
       names.add(field.name);
+    }
+  });
+
+const visualObjectFieldsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+      type: z.enum(["string", "number", "boolean", "object", "array", "unknown"]),
+      defaultValue: z.unknown().optional(),
+    }),
+  )
+  .max(100)
+  .superRefine((fields, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, field] of fields.entries()) {
+      if (ids.has(field.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_object_field_id",
+        });
+      }
+      if (names.has(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_object_field_name",
+        });
+      }
+      if (["__proto__", "prototype", "constructor"].includes(field.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "unsafe_object_field_name",
+        });
+      }
+      if (Object.hasOwn(field, "defaultValue")) {
+        const value = field.defaultValue;
+        const matchesType =
+          field.type === "unknown" ||
+          (field.type === "array"
+            ? Array.isArray(value)
+            : field.type === "object"
+              ? value !== null && typeof value === "object" && !Array.isArray(value)
+              : typeof value === field.type);
+        if (!matchesType) {
+          context.addIssue({
+            code: "custom",
+            path: [index, "defaultValue"],
+            message: "invalid_object_field_default",
+          });
+        }
+      }
+      ids.add(field.id);
+      names.add(field.name);
+    }
+  });
+
+const visualObjectMergeInputsSchema = z
+  .array(
+    z.object({
+      id: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(128),
+    }),
+  )
+  .min(2)
+  .max(32)
+  .superRefine((inputs, context) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const [index, input] of inputs.entries()) {
+      if (ids.has(input.id)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "id"],
+          message: "duplicate_object_input_id",
+        });
+      }
+      if (names.has(input.name)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "name"],
+          message: "duplicate_object_input_name",
+        });
+      }
+      ids.add(input.id);
+      names.add(input.name);
     }
   });
 
@@ -215,6 +306,15 @@ export const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("logic.set"),
     assignments: z.array(visualKeyValuePairSchema).max(32),
+  }),
+  z.object({
+    kind: z.literal("logic.create_object"),
+    fields: visualObjectFieldsSchema,
+  }),
+  z.object({
+    kind: z.literal("logic.merge_objects"),
+    inputs: visualObjectMergeInputsSchema,
+    conflictPolicy: z.enum(["reject", "first_wins", "last_wins"]),
   }),
   z.object({
     kind: z.literal("ai.agent"),

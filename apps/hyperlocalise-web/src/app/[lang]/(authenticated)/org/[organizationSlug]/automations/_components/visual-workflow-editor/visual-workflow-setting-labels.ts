@@ -63,6 +63,11 @@ const SETTING_LABELS: Partial<Record<VisualCatalogType, Record<string, MessageDe
   "logic.if": { condition: messages.ifCondition },
   "logic.switch": { expression: messages.switchExpression, cases: messages.switchCases },
   "logic.set": { assignments: messages.setAssignments },
+  "logic.create_object": { fields: messages.createObjectFields },
+  "logic.merge_objects": {
+    conflictPolicy: messages.mergeObjectsConflictPolicy,
+    inputs: messages.mergeObjectsInputs,
+  },
   "ai.agent": { prompt: messages.aiPrompt, ...ON_ERROR },
   "logic.for_each": { collection: messages.forEachCollection },
   "logic.retry": {

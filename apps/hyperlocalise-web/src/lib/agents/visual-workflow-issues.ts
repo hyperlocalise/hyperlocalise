@@ -41,6 +41,10 @@ export const VISUAL_WORKFLOW_STEP_RULES: Partial<Record<VisualCatalogType, strin
     "At least one step must be connected to Try. Those steps connect only to each other. Catch runs when one of them fails, Success when none does, and Finally after either. The Try steps of two Try / Catch steps may sit one wholly inside the other, never partly.",
   "logic.merge":
     "Its execution inputs are a list, each with its own id that the block gives: connect each incoming path into one of those, not into a plain input.",
+  "logic.create_object":
+    "Each field is a data input with its own id: connect a value into that field, or set a defaultValue on it. The constructed object is the step's value output.",
+  "logic.merge_objects":
+    "Each object to merge is a data input with its own id: connect an object into that input. At least two objects are required. Overlapping keys follow conflictPolicy. The merged object is the step's value output.",
   "flow.stop": ENDING_RULES,
   "flow.fail": ENDING_RULES,
   "flow.return": `${ENDING_RULES} Each of its required output fields needs a data connection.`,

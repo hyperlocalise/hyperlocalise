@@ -245,6 +245,126 @@ export const visualWorkflowEditorMessages = defineMessages({
     id: "ZXPdUvtPkF",
     description: "Catalog description for the set fields node",
   },
+  nodeCreateObject: {
+    defaultMessage: "Create object",
+    id: "RHGI6JYY/i",
+    description: "Catalog title for the create object node",
+  },
+  nodeCreateObjectHint: {
+    defaultMessage: "Construct an object from named typed values.",
+    id: "TfUCgJttWd",
+    description: "Catalog description for the create object node",
+  },
+  nodeMergeObjects: {
+    defaultMessage: "Merge objects",
+    id: "Wj5eGg6F2i",
+    description: "Catalog title for the merge objects node",
+  },
+  nodeMergeObjectsHint: {
+    defaultMessage: "Combine objects with an explicit conflict policy.",
+    id: "EFqMJ3jrZJ",
+    description: "Catalog description for the merge objects node",
+  },
+  createObjectFields: {
+    defaultMessage: "Create object fields",
+    id: "XmEYDXugqn",
+    description: "Create Object field list heading",
+  },
+  createObjectFieldsEmpty: {
+    defaultMessage: "Add a named field to construct an object.",
+    id: "kO17DbZxuG",
+    description: "Empty Create Object field list help",
+  },
+  createObjectFieldName: {
+    defaultMessage: "Object field {index} name",
+    id: "Ha0TLn977I",
+    description: "Create Object field name input",
+  },
+  createObjectFieldType: {
+    defaultMessage: "Object field {index} type",
+    id: "rh2+BteZ5e",
+    description: "Create Object field type selector",
+  },
+  createObjectFieldDefault: {
+    defaultMessage: "Object field {index} default",
+    id: "qOKUAtOaFb",
+    description: "Create Object field default value input",
+  },
+  createObjectUseDefault: {
+    defaultMessage: "Use inline default",
+    id: "VoaTgvMGb7",
+    description: "Create Object checkbox to store an inline default value",
+  },
+  addCreateObjectField: {
+    defaultMessage: "Add object field",
+    id: "KdJvt1B/0f",
+    description: "Add a Create Object field",
+  },
+  removeCreateObjectField: {
+    defaultMessage: "Remove object field {index}",
+    id: "BHHt9+y7Na",
+    description: "Remove a Create Object field",
+  },
+  moveCreateObjectFieldUp: {
+    defaultMessage: "Move object field {index} up",
+    id: "8bubQShwFP",
+    description: "Move a Create Object field upward",
+  },
+  moveCreateObjectFieldDown: {
+    defaultMessage: "Move object field {index} down",
+    id: "nB3IXQfE4i",
+    description: "Move a Create Object field downward",
+  },
+  mergeObjectsConflictPolicy: {
+    defaultMessage: "Conflict policy",
+    id: "Z3cwlcqzDt",
+    description: "Merge Objects conflict policy field",
+  },
+  mergeObjectsConflictReject: {
+    defaultMessage: "Reject conflicts",
+    id: "JlldqkR4C6",
+    description: "Merge Objects policy that fails when keys overlap",
+  },
+  mergeObjectsConflictFirstWins: {
+    defaultMessage: "First object wins",
+    id: "GaqidMa6rb",
+    description: "Merge Objects policy that keeps the earlier overlapping value",
+  },
+  mergeObjectsConflictLastWins: {
+    defaultMessage: "Last object wins",
+    id: "nWyqpLBFh/",
+    description: "Merge Objects policy that keeps the later overlapping value",
+  },
+  mergeObjectsInputs: {
+    defaultMessage: "Objects to merge",
+    id: "Dx5wD+SCfe",
+    description: "Merge Objects input list",
+  },
+  mergeObjectsInputName: {
+    defaultMessage: "Merge object {index} name",
+    id: "f/XNJ63dud",
+    description: "Merge Objects input name field",
+  },
+  addMergeObjectsInput: {
+    defaultMessage: "Add object input",
+    id: "3PWsvMVfTw",
+    description: "Add a Merge Objects input",
+  },
+  removeMergeObjectsInput: {
+    defaultMessage: "Remove merge object {index}",
+    id: "PV2k2eiaiP",
+    description: "Remove a Merge Objects input",
+  },
+  moveMergeObjectsInputUp: {
+    defaultMessage: "Move merge object {index} up",
+    id: "gO4ZluW8Rk",
+    description: "Move a Merge Objects input upward",
+  },
+  moveMergeObjectsInputDown: {
+    defaultMessage: "Move merge object {index} down",
+    id: "gBrgYSI8np",
+    description: "Move a Merge Objects input downward",
+  },
   nodeAi: {
     defaultMessage: "AI Agent",
     id: "mHug8Cyl7z",

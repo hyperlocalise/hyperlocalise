@@ -51,6 +51,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyP } from "@/components/ui/typography";
 import {
   createMergeInputId,
+  createObjectPortId,
   createReturnOutputId,
   createSequenceOutputId,
   isTriggerType,
@@ -71,6 +72,7 @@ import type {
   VisualWorkflowGithubTriggerEvent,
   VisualWorkflowRfNode,
   VisualWorkflowValidationIssue,
+  WorkflowValueType,
 } from "@/lib/visual-workflows/schema/types";
 import type { VisualWorkflowV3ValidationIssue } from "@/lib/visual-workflows/validation/validate-workflow-v3";
 
@@ -294,7 +296,13 @@ export function VisualWorkflowConfigPanel({
     invalid: invalidFields.has(portId),
   });
   // Inputs that only a wire can feed, such as a Call workflow's or a Return's values.
-  const wireOnlyInputs = inputFields.filter((field) => field.name.startsWith("value."));
+  // Create/Merge object ports are shown with their field editors, not again at the bottom.
+  const wireOnlyInputs = inputFields.filter(
+    (field) =>
+      field.name.startsWith("value.") &&
+      config.kind !== "logic.create_object" &&
+      config.kind !== "logic.merge_objects",
+  );
 
   // The tab stays as chosen from step to step, and starts over when the panel is opened again.
   const [tab, setTab] = useState<StepSettingsTab>("configuration");
@@ -1140,6 +1148,337 @@ export function VisualWorkflowConfigPanel({
             pairs={config.assignments}
             onChange={(assignments) => onChangeConfig({ ...config, assignments })}
           />
+        ) : null}
+        {config.kind === "logic.create_object" ? (
+          <div className="grid gap-3">
+            <Label>
+              <FormattedMessage {...messages.createObjectFields} />
+            </Label>
+            {config.fields.length === 0 ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.createObjectFieldsEmpty} />
+              </TypographyP>
+            ) : null}
+            {config.fields.map((field, index) => {
+              const portId = `value.${field.id}`;
+              const connected = connectedInputProps(portId);
+              const wired = connected.port.source !== undefined;
+              const hasDefault = Object.hasOwn(field, "defaultValue");
+              return (
+                <div key={field.id} className="grid gap-2 rounded-md border border-border p-2">
+                  <div className="grid grid-cols-[1fr_7rem] gap-2">
+                    <Input
+                      aria-label={intl.formatMessage(messages.createObjectFieldName, {
+                        index: index + 1,
+                      })}
+                      value={field.name}
+                      aria-invalid={invalidFields.has(portId) || undefined}
+                      onChange={(event) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index ? { ...entry, name: event.target.value } : entry,
+                          ),
+                        })
+                      }
+                    />
+                    <Select
+                      value={field.type}
+                      onValueChange={(type) => {
+                        if (!isWorkflowValueType(type)) return;
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index
+                              ? {
+                                  ...entry,
+                                  type,
+                                  ...(Object.hasOwn(entry, "defaultValue")
+                                    ? { defaultValue: defaultValueForType(type) }
+                                    : {}),
+                                }
+                              : entry,
+                          ),
+                        });
+                      }}
+                    >
+                      <SelectTrigger
+                        aria-label={intl.formatMessage(messages.createObjectFieldType, {
+                          index: index + 1,
+                        })}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_VALUE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`vw-object-default-${field.id}`}
+                      checked={hasDefault}
+                      disabled={wired}
+                      onCheckedChange={(checked) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) => {
+                            if (fieldIndex !== index) return entry;
+                            if (checked === true)
+                              return { ...entry, defaultValue: defaultValueForType(entry.type) };
+                            const { defaultValue: _removed, ...withoutDefault } = entry;
+                            return withoutDefault;
+                          }),
+                        })
+                      }
+                    />
+                    <Label htmlFor={`vw-object-default-${field.id}`}>
+                      <FormattedMessage {...messages.createObjectUseDefault} />
+                    </Label>
+                  </div>
+                  {wired || !hasDefault ? (
+                    <WorkflowBoundField
+                      id={`vw-object-value-${field.id}`}
+                      label={field.name}
+                      value=""
+                      onChange={() => {}}
+                      editable={false}
+                      invalid={connected.invalid}
+                      port={connected.port}
+                    />
+                  ) : (
+                    <ObjectDefaultInput
+                      key={`${field.id}:${field.type}`}
+                      ariaLabel={intl.formatMessage(messages.createObjectFieldDefault, {
+                        index: index + 1,
+                      })}
+                      value={field.defaultValue}
+                      type={field.type}
+                      invalid={connected.invalid}
+                      onChange={(defaultValue) =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.map((entry, fieldIndex) =>
+                            fieldIndex === index ? { ...entry, defaultValue } : entry,
+                          ),
+                        })
+                      }
+                    />
+                  )}
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === 0}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldUp, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const fields = [...config.fields];
+                        [fields[index - 1], fields[index]] = [fields[index]!, fields[index - 1]!];
+                        onChangeConfig({ ...config, fields });
+                      }}
+                    >
+                      <CaretUpIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={index === config.fields.length - 1}
+                      aria-label={intl.formatMessage(messages.moveCreateObjectFieldDown, {
+                        index: index + 1,
+                      })}
+                      onClick={() => {
+                        const fields = [...config.fields];
+                        [fields[index], fields[index + 1]] = [fields[index + 1]!, fields[index]!];
+                        onChangeConfig({ ...config, fields });
+                      }}
+                    >
+                      <CaretDownIcon className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={intl.formatMessage(messages.removeCreateObjectField, {
+                        index: index + 1,
+                      })}
+                      onClick={() =>
+                        onChangeConfig({
+                          ...config,
+                          fields: config.fields.filter((_, fieldIndex) => fieldIndex !== index),
+                        })
+                      }
+                    >
+                      <TrashIcon className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.fields.length >= 100}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  fields: [
+                    ...config.fields,
+                    {
+                      id: createObjectPortId(),
+                      name: `field${config.fields.length + 1}`,
+                      type: "unknown",
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addCreateObjectField} />
+            </Button>
+          </div>
+        ) : null}
+        {config.kind === "logic.merge_objects" ? (
+          <div className="grid gap-3">
+            <SelectField
+              id="vw-object-conflict-policy"
+              label={intl.formatMessage(messages.mergeObjectsConflictPolicy)}
+              value={config.conflictPolicy}
+              items={[
+                {
+                  value: "reject",
+                  label: intl.formatMessage(messages.mergeObjectsConflictReject),
+                },
+                {
+                  value: "first_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictFirstWins),
+                },
+                {
+                  value: "last_wins",
+                  label: intl.formatMessage(messages.mergeObjectsConflictLastWins),
+                },
+              ]}
+              onValueChange={(conflictPolicy) => {
+                if (
+                  conflictPolicy === "reject" ||
+                  conflictPolicy === "first_wins" ||
+                  conflictPolicy === "last_wins"
+                )
+                  onChangeConfig({ ...config, conflictPolicy });
+              }}
+            />
+            <Label>
+              <FormattedMessage {...messages.mergeObjectsInputs} />
+            </Label>
+            {config.inputs.map((objectInput, index) => (
+              <div key={objectInput.id} className="grid gap-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    aria-label={intl.formatMessage(messages.mergeObjectsInputName, {
+                      index: index + 1,
+                    })}
+                    value={objectInput.name}
+                    aria-invalid={invalidFields.has(`value.${objectInput.id}`) || undefined}
+                    onChange={(event) =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.map((entry, inputIndex) =>
+                          inputIndex === index ? { ...entry, name: event.target.value } : entry,
+                        ),
+                      })
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === 0}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputUp, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index - 1], inputs[index]] = [inputs[index]!, inputs[index - 1]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretUpIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={index === config.inputs.length - 1}
+                    aria-label={intl.formatMessage(messages.moveMergeObjectsInputDown, {
+                      index: index + 1,
+                    })}
+                    onClick={() => {
+                      const inputs = [...config.inputs];
+                      [inputs[index], inputs[index + 1]] = [inputs[index + 1]!, inputs[index]!];
+                      onChangeConfig({ ...config, inputs });
+                    }}
+                  >
+                    <CaretDownIcon className="size-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={config.inputs.length <= 2}
+                    aria-label={intl.formatMessage(messages.removeMergeObjectsInput, {
+                      index: index + 1,
+                    })}
+                    onClick={() =>
+                      onChangeConfig({
+                        ...config,
+                        inputs: config.inputs.filter((_, inputIndex) => inputIndex !== index),
+                      })
+                    }
+                  >
+                    <TrashIcon className="size-4" />
+                  </Button>
+                </div>
+                <WorkflowBoundField
+                  id={`vw-merge-object-${objectInput.id}`}
+                  label={objectInput.name}
+                  value=""
+                  onChange={() => {}}
+                  editable={false}
+                  invalid={invalidFields.has(`value.${objectInput.id}`)}
+                  port={portFor(`value.${objectInput.id}`)}
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={config.inputs.length >= 32}
+              onClick={() =>
+                onChangeConfig({
+                  ...config,
+                  inputs: [
+                    ...config.inputs,
+                    {
+                      id: createObjectPortId(),
+                      name: `Object ${config.inputs.length + 1}`,
+                    },
+                  ],
+                })
+              }
+            >
+              <PlusIcon className="size-4" />
+              <FormattedMessage {...messages.addMergeObjectsInput} />
+            </Button>
+          </div>
         ) : null}
         {config.kind === "logic.for_each" ? (
           <TextAreaField
@@ -2164,6 +2503,111 @@ function CheckboxField({
 
 function isHttpMethod(value: string): value is HttpMethod {
   return HTTP_METHODS.includes(value as HttpMethod);
+}
+
+const WORKFLOW_VALUE_TYPES: readonly WorkflowValueType[] = [
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "unknown",
+];
+
+function isWorkflowValueType(value: string | null): value is WorkflowValueType {
+  return WORKFLOW_VALUE_TYPES.includes(value as WorkflowValueType);
+}
+
+function defaultValueForType(type: WorkflowValueType): unknown {
+  if (type === "number") return 0;
+  if (type === "boolean") return false;
+  if (type === "object") return {};
+  if (type === "array") return [];
+  return "";
+}
+
+function formatObjectDefault(value: unknown, type: WorkflowValueType): string {
+  if (type === "string") return typeof value === "string" ? value : "";
+  if (type === "number" || type === "boolean") return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+function parseObjectDefault(value: string, type: WorkflowValueType): unknown {
+  if (type === "string") return value;
+  if (type === "number") return Number(value);
+  if (type === "boolean") return value === "true";
+  return JSON.parse(value);
+}
+
+function usesJsonObjectDefault(type: WorkflowValueType): boolean {
+  return type === "object" || type === "array";
+}
+
+function tryParseJson(value: string): { ok: true; value: unknown } | { ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(value) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function ObjectDefaultInput({
+  ariaLabel,
+  value,
+  type,
+  disabled,
+  invalid,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: unknown;
+  type: WorkflowValueType;
+  disabled?: boolean;
+  invalid?: boolean;
+  onChange: (value: unknown) => void;
+}) {
+  const formatted = formatObjectDefault(value, type);
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft ?? formatted;
+  const jsonDraftInvalid = usesJsonObjectDefault(type) && draft !== null && !tryParseJson(draft).ok;
+
+  return (
+    <Input
+      aria-label={ariaLabel}
+      value={display}
+      disabled={disabled}
+      aria-invalid={invalid || jsonDraftInvalid || undefined}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (!usesJsonObjectDefault(type)) {
+          setDraft(null);
+          onChange(parseObjectDefault(next, type));
+          return;
+        }
+
+        setDraft(next);
+        const parsed = tryParseJson(next);
+        if (parsed.ok) {
+          onChange(parsed.value);
+        }
+      }}
+      onBlur={() => {
+        if (!usesJsonObjectDefault(type)) {
+          return;
+        }
+
+        const parsed = tryParseJson(draft ?? formatted);
+        if (parsed.ok) {
+          onChange(parsed.value);
+          setDraft(null);
+        }
+      }}
+    />
+  );
 }
 
 function isHttpAuthType(value: string): value is HttpAuthType {

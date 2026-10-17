@@ -21,3 +21,4 @@ export { visualWorkflowSequenceDraft } from "@/lib/visual-workflows/fixtures/seq
 export { visualWorkflowTerminalNodesDraft } from "@/lib/visual-workflows/fixtures/terminal-nodes-draft";
 export { visualWorkflowTryCatchDraft } from "@/lib/visual-workflows/fixtures/try-catch-draft";
 export { visualWorkflowCallWorkflowDraft } from "@/lib/visual-workflows/fixtures/call-workflow-draft";
+export { visualWorkflowObjectNodesDraft } from "@/lib/visual-workflows/fixtures/object-nodes-draft";

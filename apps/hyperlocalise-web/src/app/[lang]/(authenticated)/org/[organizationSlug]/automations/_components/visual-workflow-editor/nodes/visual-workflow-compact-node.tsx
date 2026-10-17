@@ -743,6 +743,10 @@ function titleMessage(type: VisualWorkflowRfNode["data"]["catalogType"]) {
       return messages.nodeSwitch;
     case "logic.set":
       return messages.nodeSet;
+    case "logic.create_object":
+      return messages.nodeCreateObject;
+    case "logic.merge_objects":
+      return messages.nodeMergeObjects;
     case "ai.agent":
       return messages.nodeAi;
     case "logic.for_each":

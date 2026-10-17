@@ -41,6 +41,14 @@ export const VISUAL_NODE_DESCRIPTIONS: Record<
   "logic.if": { title: "If", purpose: "Branch on a condition." },
   "logic.switch": { title: "Switch", purpose: "Route to one of several branches." },
   "logic.set": { title: "Set fields", purpose: "Assign values into the workflow context." },
+  "logic.create_object": {
+    title: "Create object",
+    purpose: "Construct an object from named typed values.",
+  },
+  "logic.merge_objects": {
+    title: "Merge objects",
+    purpose: "Combine objects with an explicit conflict policy.",
+  },
   "ai.agent": { title: "AI Agent", purpose: "Placeholder agent step with tools." },
   "logic.for_each": { title: "Loop", purpose: "Iterate over a collection sequentially." },
   "logic.retry": { title: "Retry", purpose: "Re-run a body region with backoff." },

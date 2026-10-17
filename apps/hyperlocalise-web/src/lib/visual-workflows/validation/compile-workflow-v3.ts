@@ -390,7 +390,13 @@ export function compileVisualWorkflowV3Definition(
   }
 
   for (const node of nodes) {
-    if (node.config.kind !== "flow.return" && node.config.kind !== "flow.call_workflow") continue;
+    if (
+      node.config.kind !== "flow.return" &&
+      node.config.kind !== "flow.call_workflow" &&
+      node.config.kind !== "logic.create_object" &&
+      node.config.kind !== "logic.merge_objects"
+    )
+      continue;
 
     for (const field of getWorkflowInputFields(node)) {
       if (field.required && !Object.hasOwn(node.inputs ?? {}, field.name)) {

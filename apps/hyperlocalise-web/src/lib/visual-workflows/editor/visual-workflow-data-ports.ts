@@ -45,7 +45,12 @@ function getInputFields(node: VisualWorkflowRfNode) {
     }));
   }
 
-  if (node.data.config.kind === "flow.return" || node.data.config.kind === "flow.call_workflow") {
+  if (
+    node.data.config.kind === "flow.return" ||
+    node.data.config.kind === "flow.call_workflow" ||
+    node.data.config.kind === "logic.create_object" ||
+    node.data.config.kind === "logic.merge_objects"
+  ) {
     return getWorkflowInputFields({
       id: node.id,
       type: node.data.catalogType,
@@ -73,6 +78,18 @@ function getInputFields(node: VisualWorkflowRfNode) {
     }));
 }
 
+function getInputLabel(node: VisualWorkflowRfNode, portId: string): string {
+  if (node.data.config.kind === "logic.create_object" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.fields.find((field) => field.id === id)?.name ?? portId;
+  }
+  if (node.data.config.kind === "logic.merge_objects" && portId.startsWith("value.")) {
+    const id = portId.slice("value.".length);
+    return node.data.config.inputs.find((input) => input.id === id)?.name ?? portId;
+  }
+  return portId;
+}
+
 export function getVisualWorkflowDataPorts({
   node,
   edges,
@@ -84,7 +101,7 @@ export function getVisualWorkflowDataPorts({
 
   const inputs = getInputFields(node).map((field) => ({
     id: field.name,
-    label: field.name,
+    label: getInputLabel(node, field.name),
     type: field.type,
     optional: field.required !== true,
     connectionCount: dataEdges.filter(

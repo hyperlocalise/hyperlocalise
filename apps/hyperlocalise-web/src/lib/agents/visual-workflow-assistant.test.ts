@@ -943,6 +943,10 @@ describe("prompt text", () => {
 
     expect(catalogue).toContain("type: action.notify_slack");
     expect(catalogue).toContain("title: Notify Slack");
+    expect(catalogue).toContain("type: logic.create_object");
+    expect(catalogue).toContain("title: Create object");
+    expect(catalogue).toContain("type: logic.merge_objects");
+    expect(catalogue).toContain("title: Merge objects");
     expect(catalogue).toContain("execution outputs: true, false");
     expect(catalogue).toContain("execution outputs: (none: the workflow ends here)");
     expect(catalogue).toContain('"message"');
