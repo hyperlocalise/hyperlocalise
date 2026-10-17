@@ -451,6 +451,38 @@ describe("sandbox command runner", () => {
     });
   });
 
+  it("passes the workbook source locale to hl entries", async () => {
+    const wait = vi.fn().mockResolvedValue({ exitCode: 0, output: sandboxMocks.output });
+    const readFileToBuffer = vi.fn().mockResolvedValue(Buffer.from('{"home.title":"Accueil"}'));
+    sandboxMocks.output.mockResolvedValue("");
+    sandboxMocks.runCommand
+      .mockResolvedValueOnce({ cmdId: "cmd_entries", wait })
+      .mockResolvedValueOnce({ cmdId: "cmd_cleanup", wait });
+    sandboxMocks.get
+      .mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand })
+      .mockResolvedValueOnce({ readFileToBuffer })
+      .mockResolvedValueOnce({ runCommand: sandboxMocks.runCommand });
+
+    await expect(
+      extractSandboxEntries("sandbox_123", "strings.xlsx", {
+        sourceLocale: "en-US",
+        locale: "fr-FR",
+      }),
+    ).resolves.toEqual({ ok: true, entries: { "home.title": "Accueil" } });
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cmd: "bash",
+        args: [
+          "-lc",
+          expect.stringMatching(
+            /^hl entries 'strings\.xlsx' --source-locale 'en-US' --locale 'fr-FR' > '\/tmp\/hl-entries-[0-9a-f-]+\.json'$/,
+          ),
+        ],
+      }),
+    );
+  });
+
   it("returns exitCode and output when hl entries fails", async () => {
     const wait = vi.fn().mockResolvedValue({
       exitCode: 1,
