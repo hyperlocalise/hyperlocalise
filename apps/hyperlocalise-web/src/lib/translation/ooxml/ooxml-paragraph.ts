@@ -436,12 +436,22 @@ export function ooxmlHasLetter(text: string): boolean {
   return LETTER_PATTERN.test(text.replace(TOKEN_PATTERN, ""));
 }
 
-export function ooxmlPartEntries(partName: string, paragraphs: OoxmlParagraph[]): OoxmlEntry[] {
+/** Which paragraph texts become entries; source segments need a letter to be translatable. */
+export type OoxmlEntryFilter = (text: string) => boolean;
+
+/** Translated copies keep any text, so `2026` or `✅` still maps onto a lettered source. */
+export const ooxmlNonEmptyText: OoxmlEntryFilter = (text) => text.trim() !== "";
+
+export function ooxmlPartEntries(
+  partName: string,
+  paragraphs: OoxmlParagraph[],
+  include: OoxmlEntryFilter = ooxmlHasLetter,
+): OoxmlEntry[] {
   const entries: OoxmlEntry[] = [];
   for (const paragraph of paragraphs) {
     if (paragraph.isFallback) continue;
     const text = paragraph.segment();
-    if (!ooxmlHasLetter(text)) continue;
+    if (!include(text)) continue;
     const context = text.includes(OOXML_TOKEN_MARKER)
       ? `${paragraph.context}\n${PRESERVE_PLACEHOLDERS_LINE}`.trim()
       : paragraph.context;

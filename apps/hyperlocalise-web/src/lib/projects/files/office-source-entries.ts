@@ -22,7 +22,11 @@ import {
   type SupportedOfficeTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import { readDocxEntries } from "@/lib/translation/ooxml/docx-document";
-import type { OoxmlEntry } from "@/lib/translation/ooxml/ooxml-paragraph";
+import {
+  ooxmlNonEmptyText,
+  type OoxmlEntry,
+  type OoxmlEntryFilter,
+} from "@/lib/translation/ooxml/ooxml-paragraph";
 import type { OoxmlError } from "@/lib/translation/ooxml/ooxml-tree";
 import { readPptxEntries } from "@/lib/translation/ooxml/pptx-deck";
 import { spreadsheetXlsxContent } from "@/lib/translation/xlsx/xls-workbook";
@@ -102,8 +106,13 @@ async function readWorkbookEntries(
   return ok(readXlsxEntries(workbook.value, sourceLocale, locale));
 }
 
-function readParagraphEntries(file: StoredOfficeFile): Promise<Result<OoxmlEntry[], OoxmlError>> {
-  return file.format === "docx" ? readDocxEntries(file.content) : readPptxEntries(file.content);
+function readParagraphEntries(
+  file: StoredOfficeFile,
+  include?: OoxmlEntryFilter,
+): Promise<Result<OoxmlEntry[], OoxmlError>> {
+  return file.format === "docx"
+    ? readDocxEntries(file.content, include)
+    : readPptxEntries(file.content, include);
 }
 
 /**
@@ -187,7 +196,7 @@ export async function loadProjectOfficeTargetEntries(input: {
     return ok(Object.fromEntries(entries.value.map((entry) => [entry.key, entry.text])));
   }
 
-  const entries = await readParagraphEntries(file.value);
+  const entries = await readParagraphEntries(file.value, ooxmlNonEmptyText);
   if (isErr(entries)) {
     return entries;
   }

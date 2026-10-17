@@ -20,6 +20,7 @@ import {
   ooxmlPartEntries,
   walkOoxmlParagraphs,
   type OoxmlEntry,
+  type OoxmlEntryFilter,
 } from "./ooxml-paragraph";
 import {
   OOXML_NAMESPACE_DRAWING,
@@ -183,6 +184,7 @@ function writePptxText(out: string[], paragraph: OoxmlParagraph, props: string, 
 /** Lists a deck's paragraphs with text, in slide order. */
 export async function readPptxEntries(
   content: Uint8Array,
+  include?: OoxmlEntryFilter,
 ): Promise<Result<OoxmlEntry[], OoxmlError>> {
   const pkg = await openOoxmlPackage(content, "pptx");
   if (isErr(pkg)) return pkg;
@@ -192,7 +194,7 @@ export async function readPptxEntries(
   for (const [index, slide] of slides.value.entries()) {
     const scanned = scanPptxSlide(slide, index + 1);
     if (isErr(scanned)) return scanned;
-    entries.push(...ooxmlPartEntries(slide.name, scanned.value.paragraphs));
+    entries.push(...ooxmlPartEntries(slide.name, scanned.value.paragraphs, include));
   }
   return ok(entries);
 }

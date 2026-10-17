@@ -19,7 +19,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { isErr, type Result } from "@/lib/primitives/result/results";
 
 import { applyDocxTranslations, readDocxEntries } from "./docx-document";
-import { OOXML_TOKEN_MARKER, ooxmlPlaceholderTokens, type OoxmlEntry } from "./ooxml-paragraph";
+import {
+  OOXML_TOKEN_MARKER,
+  ooxmlNonEmptyText,
+  ooxmlPlaceholderTokens,
+  type OoxmlEntry,
+} from "./ooxml-paragraph";
 import type { OoxmlError } from "./ooxml-tree";
 import { OOXML_FIXTURE_DIR, ooxmlFixture, type OoxmlFixtureName } from "./ooxml.fixture";
 import { applyPptxTranslations, readPptxEntries } from "./pptx-deck";
@@ -117,6 +122,21 @@ describe("Office parity with the Go parser", () => {
     const close = "\x1eHLOXPH_6330_1\x1f";
     expect(ooxmlPlaceholderTokens(`Read ${open}terms${close}`)).toEqual([close, open]);
     expect(ooxmlPlaceholderTokens("plain")).toEqual([]);
+  });
+
+  it("reads non-letter translations only when targets are read as non-empty text", async () => {
+    const source = await ooxmlFixture("docx-basic");
+    const plain = unwrap(await readDocxEntries(source)).find(
+      (entry) => !entry.text.includes(OOXML_TOKEN_MARKER),
+    )!;
+    const translated = unwrap(await applyDocxTranslations(source, { [plain.key]: "2026" }));
+
+    const asSource = unwrap(await readDocxEntries(translated));
+    const asTarget = unwrap(await readDocxEntries(translated, ooxmlNonEmptyText));
+
+    expect(asSource.some((entry) => entry.key === plain.key)).toBe(false);
+    expect(asTarget.find((entry) => entry.key === plain.key)?.text).toBe("2026");
+    expect(asTarget.every((entry) => entry.text.trim() !== "")).toBe(true);
   });
 
   it("rejects packages that are not Office files", async () => {

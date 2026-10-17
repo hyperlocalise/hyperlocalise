@@ -20,6 +20,7 @@ import {
   ooxmlPartEntries,
   walkOoxmlParagraphs,
   type OoxmlEntry,
+  type OoxmlEntryFilter,
 } from "./ooxml-paragraph";
 import {
   OOXML_NAMESPACE_WORD,
@@ -344,6 +345,7 @@ function writeDocxText(out: string[], paragraph: OoxmlParagraph, props: string, 
 /** Lists a document's paragraphs with text, in part order. */
 export async function readDocxEntries(
   content: Uint8Array,
+  include?: OoxmlEntryFilter,
 ): Promise<Result<OoxmlEntry[], OoxmlError>> {
   const pkg = await openOoxmlPackage(content, "docx");
   if (isErr(pkg)) return pkg;
@@ -353,7 +355,7 @@ export async function readDocxEntries(
   for (const part of parts.value) {
     const scanned = scanDocxPart(part);
     if (isErr(scanned)) return scanned;
-    entries.push(...ooxmlPartEntries(part.name, scanned.value.paragraphs));
+    entries.push(...ooxmlPartEntries(part.name, scanned.value.paragraphs, include));
   }
   return ok(entries);
 }
