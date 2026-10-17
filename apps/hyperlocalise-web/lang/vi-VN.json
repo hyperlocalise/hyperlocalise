@@ -2687,6 +2687,9 @@
   "3OlJR3Fxjp": {
     "defaultMessage": "Tính thành viên của vòng lặp được suy ra tự động từ các kết nối đi ra từ cổng Each item."
   },
+  "3PWsvMVfTw": {
+    "defaultMessage": "Add object input"
+  },
   "3QmQFMO6jX": {
     "defaultMessage": "Ngôn ngữ"
   },
@@ -5201,6 +5204,9 @@
   "8bpns6mW0p": {
     "defaultMessage": "Phương thức xác thực"
   },
+  "8bubQShwFP": {
+    "defaultMessage": "Move object field {index} up"
+  },
   "8cCnIQ+Lhz": {
     "defaultMessage": "Không thể cập nhật dự án"
   },
@@ -6478,6 +6484,9 @@
   },
   "BHCGhKF/Fb": {
     "defaultMessage": "Các dự án được tạo và quản lý trong không gian làm việc này."
+  },
+  "BHHt9+y7Na": {
+    "defaultMessage": "Remove object field {index}"
   },
   "BHmWNCONbs": {
     "defaultMessage": "Yêu cầu dùng thử: Guideline"
@@ -7784,6 +7793,9 @@
   "Dx55FkCrgu": {
     "defaultMessage": "Liên kết hiện có"
   },
+  "Dx5wD+SCfe": {
+    "defaultMessage": "Objects to merge"
+  },
   "DxQL85kivW": {
     "defaultMessage": "Biến các bản tóm tắt ra mắt, tài sản chiến dịch và thông điệp theo khu vực thành nội dung đã được rà soát, phù hợp với văn hóa địa phương — với quy trình phê duyệt và kiểm soát bảng thuật ngữ được tích hợp sẵn."
   },
@@ -7927,6 +7939,9 @@
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99%"
+  },
+  "EFqMJ3jrZJ": {
+    "defaultMessage": "Combine objects with an explicit conflict policy."
   },
   "EGVRBepZ6Q": {
     "defaultMessage": "Tín dụng AI"
@@ -9017,6 +9032,9 @@
   "GafA21RnmS": {
     "defaultMessage": "Chế độ hợp nhất"
   },
+  "GaqidMa6rb": {
+    "defaultMessage": "First object wins"
+  },
   "GausSgRE+l": {
     "defaultMessage": "Kết hợp các tín chỉ vào điểm số của bốn học phần."
   },
@@ -9494,6 +9512,9 @@
   "HZtAltEBuQ": {
     "defaultMessage": "Ngữ cảnh được đính kèm trong tệp"
   },
+  "Ha0TLn977I": {
+    "defaultMessage": "Object field {index} name"
+  },
   "Ha7VIKn6vj": {
     "defaultMessage": "Hủy"
   },
@@ -9598,6 +9619,9 @@
   },
   "HnQHQaB8I0": {
     "defaultMessage": "Nhập một từ duy nhất không có khoảng trắng."
+  },
+  "HnpxT9SEMg": {
+    "defaultMessage": "The page view can't keep this file as written, so it opened as code to avoid changing it."
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Thêm ngôn ngữ đích trong cài đặt dự án trước khi tạo tác vụ."
@@ -10529,6 +10553,9 @@
   "Jlg9FCraTi": {
     "defaultMessage": "Đặt ngân sách dự án"
   },
+  "JlldqkR4C6": {
+    "defaultMessage": "Reject conflicts"
+  },
   "Jm9tR2PeYs": {
     "defaultMessage": "Chọn một dự án"
   },
@@ -10903,6 +10930,9 @@
   },
   "KdE//1z84h": {
     "defaultMessage": "Các mục cài đặt dự án"
+  },
+  "KdJvt1B/0f": {
+    "defaultMessage": "Add object field"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "Không thể tải không gian làm việc CAT"
@@ -13202,6 +13232,9 @@
   "PT4ucYt9VV": {
     "defaultMessage": "Forbidden"
   },
+  "PV2k2eiaiP": {
+    "defaultMessage": "Remove merge object {index}"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "Những người sáng lập"
   },
@@ -14020,6 +14053,9 @@
   },
   "RG2VP91ErR": {
     "defaultMessage": "Iterable"
+  },
+  "RHGI6JYY/i": {
+    "defaultMessage": "Create object"
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "Không thể tải các lần chạy tự động hóa."
@@ -15137,6 +15173,9 @@
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise kết nối các tín hiệu thay đổi từ CMS với dịch thuật, kiểm tra thuật ngữ và giám sát độ mới liên tục."
   },
+  "TfUCgJttWd": {
+    "defaultMessage": "Construct an object from named typed values."
+  },
   "TfZLiRg/Of": {
     "defaultMessage": "Cài đặt tài khoản"
   },
@@ -16169,6 +16208,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "Thử lại"
   },
+  "VoaTgvMGb7": {
+    "defaultMessage": "Use inline default"
+  },
   "Vp/ZC71Tvv": {
     "defaultMessage": "Hyperlab là gì, trong một câu?"
   },
@@ -16511,6 +16553,9 @@
   "WYPwI9kUrL": {
     "defaultMessage": "Trang"
   },
+  "WYSFWtMM/n": {
+    "defaultMessage": "{reference} cannot be read here: that step does not run before this one."
+  },
   "WYgLOUJFzG": {
     "defaultMessage": "Lưu các lớp"
   },
@@ -16579,6 +16624,9 @@
   },
   "WikmHw1TGh": {
     "defaultMessage": "Ngôn ngữ: fr-FR, de-DE, ja-JP · hạn vào thứ Sáu"
+  },
+  "Wj5eGg6F2i": {
+    "defaultMessage": "Merge objects"
   },
   "WjB4ZUzNnv": {
     "defaultMessage": "Chỉ Nhật Bản"
@@ -17098,6 +17146,9 @@
   },
   "XlfDKFWw7A": {
     "defaultMessage": "Mang theo ngữ cảnh dùng chung, các bài đánh giá và kiểm tra hồi quy qua mọi lần đồng bộ để chất lượng không âm thầm suy giảm."
+  },
+  "XmEYDXugqn": {
+    "defaultMessage": "Create object fields"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Translation"
@@ -17719,6 +17770,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Tác nhân email đã được bật"
+  },
+  "Z3cwlcqzDt": {
+    "defaultMessage": "Conflict policy"
   },
   "Z3fCUPrSEf": {
     "defaultMessage": "Nhập khẩu"
@@ -20708,6 +20762,9 @@
   "f/Vobm5joW": {
     "defaultMessage": "Thêm hành động bộ nhớ bản dịch"
   },
+  "f/XNJ63dud": {
+    "defaultMessage": "Merge object {index} name"
+  },
   "f/b31Mw+9f": {
     "defaultMessage": "{count} đã tải{more}"
   },
@@ -21296,6 +21353,9 @@
   "gAtWW1Oa92": {
     "defaultMessage": "Đưa trí tuệ dịch thuật vào quy trình bản địa hóa của bạn"
   },
+  "gBrgYSI8np": {
+    "defaultMessage": "Move merge object {index} down"
+  },
   "gBuKJZ8SD6": {
     "defaultMessage": "Đồng bộ"
   },
@@ -21397,6 +21457,9 @@
   },
   "gNwdZXjHEr": {
     "defaultMessage": "Hủy"
+  },
+  "gO4ZluW8Rk": {
+    "defaultMessage": "Move merge object {index} up"
   },
   "gO74VPwdhY": {
     "defaultMessage": "Dữ liệu mẫu · Xu hướng trong bảy ngày chỉ mang tính minh họa."
@@ -23462,6 +23525,9 @@
   "kNmR4YupCp": {
     "defaultMessage": "Thêm quy tắc"
   },
+  "kO17DbZxuG": {
+    "defaultMessage": "Add a named field to construct an object."
+  },
   "kO32zaHAd6": {
     "defaultMessage": "Không thể lưu tiêu đề"
   },
@@ -24845,6 +24911,9 @@
   "nAUAvUF3jq": {
     "defaultMessage": "Các đầu ra được trả về"
   },
+  "nB3IXQfE4i": {
+    "defaultMessage": "Move object field {index} down"
+  },
   "nBWhU6jbvc": {
     "defaultMessage": "Mẫu"
   },
@@ -25042,6 +25111,9 @@
   },
   "nVpf5SOxZJ": {
     "defaultMessage": "qua {name}"
+  },
+  "nWyqpLBFh/": {
+    "defaultMessage": "Last object wins"
   },
   "nXCktzp8yW": {
     "defaultMessage": "Quy trình tự động hóa"
@@ -26528,6 +26600,9 @@
   "qNbrHndGz/": {
     "defaultMessage": "Kết nối Search Console cần được ủy quyền lại. Kết nối lại tại đây."
   },
+  "qOKUAtOaFb": {
+    "defaultMessage": "Object field {index} default"
+  },
   "qOrpKFZ2EU": {
     "defaultMessage": "Resource"
   },
@@ -27151,6 +27226,9 @@
   },
   "rgfO40Efmv": {
     "defaultMessage": "Chọn một thanh để lọc danh sách phát hiện bên dưới."
+  },
+  "rh2+BteZ5e": {
+    "defaultMessage": "Object field {index} type"
   },
   "rh4QHX9qYb": {
     "defaultMessage": "Không tìm thấy tệp nhà cung cấp nào cho dự án này."

@@ -2687,6 +2687,9 @@
   "3OlJR3Fxjp": {
     "defaultMessage": "L’appartenance à la boucle est déterminée automatiquement à partir des connexions partant du port Each item."
   },
+  "3PWsvMVfTw": {
+    "defaultMessage": "Add object input"
+  },
   "3QmQFMO6jX": {
     "defaultMessage": "Langues"
   },
@@ -5201,6 +5204,9 @@
   "8bpns6mW0p": {
     "defaultMessage": "Méthode d'authentification"
   },
+  "8bubQShwFP": {
+    "defaultMessage": "Move object field {index} up"
+  },
   "8cCnIQ+Lhz": {
     "defaultMessage": "Impossible de mettre à jour le projet"
   },
@@ -6478,6 +6484,9 @@
   },
   "BHCGhKF/Fb": {
     "defaultMessage": "Projets créés et gérés dans cet espace de travail."
+  },
+  "BHHt9+y7Na": {
+    "defaultMessage": "Remove object field {index}"
   },
   "BHmWNCONbs": {
     "defaultMessage": "Demande de démonstration : Guideline"
@@ -7784,6 +7793,9 @@
   "Dx55FkCrgu": {
     "defaultMessage": "Lier un élément existant"
   },
+  "Dx5wD+SCfe": {
+    "defaultMessage": "Objects to merge"
+  },
   "DxQL85kivW": {
     "defaultMessage": "Transformez les briefs de lancement, les ressources de campagne et les messages régionaux en contenu relu et adapté culturellement — avec des flux de validation et un contrôle du glossaire intégrés."
   },
@@ -7927,6 +7939,9 @@
   },
   "EFds7VbW/w": {
     "defaultMessage": "95–99 %"
+  },
+  "EFqMJ3jrZJ": {
+    "defaultMessage": "Combine objects with an explicit conflict policy."
   },
   "EGVRBepZ6Q": {
     "defaultMessage": "Crédit IA"
@@ -9017,6 +9032,9 @@
   "GafA21RnmS": {
     "defaultMessage": "Mode de fusion"
   },
+  "GaqidMa6rb": {
+    "defaultMessage": "First object wins"
+  },
   "GausSgRE+l": {
     "defaultMessage": "Combinaison des crédits dans les scores des quatre modules."
   },
@@ -9494,6 +9512,9 @@
   "HZtAltEBuQ": {
     "defaultMessage": "Contexte joint dans le fichier"
   },
+  "Ha0TLn977I": {
+    "defaultMessage": "Object field {index} name"
+  },
   "Ha7VIKn6vj": {
     "defaultMessage": "Annuler"
   },
@@ -9598,6 +9619,9 @@
   },
   "HnQHQaB8I0": {
     "defaultMessage": "Entrez un seul mot sans espaces."
+  },
+  "HnpxT9SEMg": {
+    "defaultMessage": "The page view can't keep this file as written, so it opened as code to avoid changing it."
   },
   "Ho5CjjaEBq": {
     "defaultMessage": "Ajoutez des paramètres régionaux cibles dans les paramètres du projet avant de créer des tâches."
@@ -10529,6 +10553,9 @@
   "Jlg9FCraTi": {
     "defaultMessage": "Définir le budget du projet"
   },
+  "JlldqkR4C6": {
+    "defaultMessage": "Reject conflicts"
+  },
   "Jm9tR2PeYs": {
     "defaultMessage": "Sélectionnez un projet"
   },
@@ -10903,6 +10930,9 @@
   },
   "KdE//1z84h": {
     "defaultMessage": "Sections des paramètres du projet"
+  },
+  "KdJvt1B/0f": {
+    "defaultMessage": "Add object field"
   },
   "Kdwno+5sGa": {
     "defaultMessage": "Le chargement de l’espace de travail CAT a échoué"
@@ -13202,6 +13232,9 @@
   "PT4ucYt9VV": {
     "defaultMessage": "Forbidden"
   },
+  "PV2k2eiaiP": {
+    "defaultMessage": "Remove merge object {index}"
+  },
   "PVXHS+qpRe": {
     "defaultMessage": "Fondateurs"
   },
@@ -14020,6 +14053,9 @@
   },
   "RG2VP91ErR": {
     "defaultMessage": "Iterable"
+  },
+  "RHGI6JYY/i": {
+    "defaultMessage": "Create object"
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "Les exécutions d’automatisation n’ont pas pu être chargées."
@@ -15137,6 +15173,9 @@
   "Tertld8DQl": {
     "defaultMessage": "Hyperlocalise relie les signaux de changement du CMS à la traduction, aux vérifications terminologiques et à la surveillance continue de l’actualité du contenu."
   },
+  "TfUCgJttWd": {
+    "defaultMessage": "Construct an object from named typed values."
+  },
   "TfZLiRg/Of": {
     "defaultMessage": "Paramètres du compte"
   },
@@ -16169,6 +16208,9 @@
   "VoN3hfznUR": {
     "defaultMessage": "Réessayer"
   },
+  "VoaTgvMGb7": {
+    "defaultMessage": "Use inline default"
+  },
   "Vp/ZC71Tvv": {
     "defaultMessage": "Qu’est-ce que Hyperlab, en une phrase ?"
   },
@@ -16511,6 +16553,9 @@
   "WYPwI9kUrL": {
     "defaultMessage": "Pages"
   },
+  "WYSFWtMM/n": {
+    "defaultMessage": "{reference} cannot be read here: that step does not run before this one."
+  },
   "WYgLOUJFzG": {
     "defaultMessage": "Enregistrer les calques"
   },
@@ -16579,6 +16624,9 @@
   },
   "WikmHw1TGh": {
     "defaultMessage": "Paramètres régionaux : fr-FR, de-DE, ja-JP · échéance vendredi"
+  },
+  "Wj5eGg6F2i": {
+    "defaultMessage": "Merge objects"
   },
   "WjB4ZUzNnv": {
     "defaultMessage": "Japon uniquement"
@@ -17098,6 +17146,9 @@
   },
   "XlfDKFWw7A": {
     "defaultMessage": "Transportez le contexte partagé, les évaluations et les vérifications de régression à chaque synchronisation afin que la qualité ne dérive pas silencieusement."
+  },
+  "XmEYDXugqn": {
+    "defaultMessage": "Create object fields"
   },
   "XmcWHG0JFP": {
     "defaultMessage": "Traduction"
@@ -17719,6 +17770,9 @@
   },
   "Z3S7OrVNyY": {
     "defaultMessage": "Agent de messagerie activé"
+  },
+  "Z3cwlcqzDt": {
+    "defaultMessage": "Conflict policy"
   },
   "Z3fCUPrSEf": {
     "defaultMessage": "Importer"
@@ -20708,6 +20762,9 @@
   "f/Vobm5joW": {
     "defaultMessage": "Plus d’actions de mémoire de traduction"
   },
+  "f/XNJ63dud": {
+    "defaultMessage": "Merge object {index} name"
+  },
   "f/b31Mw+9f": {
     "defaultMessage": "{count} chargés{more}"
   },
@@ -21296,6 +21353,9 @@
   "gAtWW1Oa92": {
     "defaultMessage": "Intégrez l’intelligence de traduction à votre flux de travail de localisation"
   },
+  "gBrgYSI8np": {
+    "defaultMessage": "Move merge object {index} down"
+  },
   "gBuKJZ8SD6": {
     "defaultMessage": "Synchroniser"
   },
@@ -21397,6 +21457,9 @@
   },
   "gNwdZXjHEr": {
     "defaultMessage": "Annuler"
+  },
+  "gO4ZluW8Rk": {
+    "defaultMessage": "Move merge object {index} up"
   },
   "gO74VPwdhY": {
     "defaultMessage": "Données d’exemple · Les tendances sur sept jours sont données à titre indicatif."
@@ -23462,6 +23525,9 @@
   "kNmR4YupCp": {
     "defaultMessage": "Ajouter une règle"
   },
+  "kO17DbZxuG": {
+    "defaultMessage": "Add a named field to construct an object."
+  },
   "kO32zaHAd6": {
     "defaultMessage": "Impossible d’enregistrer le titre"
   },
@@ -24845,6 +24911,9 @@
   "nAUAvUF3jq": {
     "defaultMessage": "Résultats renvoyés"
   },
+  "nB3IXQfE4i": {
+    "defaultMessage": "Move object field {index} down"
+  },
   "nBWhU6jbvc": {
     "defaultMessage": "Modèle"
   },
@@ -25042,6 +25111,9 @@
   },
   "nVpf5SOxZJ": {
     "defaultMessage": "via {name}"
+  },
+  "nWyqpLBFh/": {
+    "defaultMessage": "Last object wins"
   },
   "nXCktzp8yW": {
     "defaultMessage": "Flux d’automatisation"
@@ -26528,6 +26600,9 @@
   "qNbrHndGz/": {
     "defaultMessage": "La connexion à la Search Console doit être autorisée à nouveau. Reconnectez-la ici."
   },
+  "qOKUAtOaFb": {
+    "defaultMessage": "Object field {index} default"
+  },
   "qOrpKFZ2EU": {
     "defaultMessage": "Resource"
   },
@@ -27151,6 +27226,9 @@
   },
   "rgfO40Efmv": {
     "defaultMessage": "Sélectionnez une barre pour filtrer les résultats ci-dessous."
+  },
+  "rh2+BteZ5e": {
+    "defaultMessage": "Object field {index} type"
   },
   "rh4QHX9qYb": {
     "defaultMessage": "Aucun fichier fournisseur n’a été trouvé pour ce projet."
