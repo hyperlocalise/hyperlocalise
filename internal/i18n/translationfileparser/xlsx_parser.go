@@ -397,7 +397,11 @@ func xlsxIsTranslatableCell(workbook *excelize.File, sheet, cell, text string) (
 	if err != nil {
 		return false, fmt.Errorf("xlsx: read %s!%s: %w", sheet, cell, err)
 	}
-	if cellType != excelize.CellTypeSharedString && cellType != excelize.CellTypeInlineString {
+	// Excelize reports t="str" as a formula type, but writers such as SheetJS also use it
+	// for plain strings without an <f> element; the formula check below separates the two.
+	switch cellType {
+	case excelize.CellTypeSharedString, excelize.CellTypeInlineString, excelize.CellTypeFormula:
+	default:
 		return false, nil
 	}
 	formula, err := workbook.GetCellFormula(sheet, cell)

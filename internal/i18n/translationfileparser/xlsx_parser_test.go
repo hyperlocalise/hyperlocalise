@@ -1,7 +1,9 @@
 package translationfileparser
 
 import (
+	"archive/zip"
 	"bytes"
+	"io"
 	"reflect"
 	"testing"
 
@@ -279,6 +281,53 @@ func TestMarshalXLSXCopiesSourceStyleToAppendedColumn(t *testing.T) {
 	}
 	if width, _ := result.GetColWidth("Sheet1", "B"); width != 40 {
 		t.Fatalf("B width = %v, want 40", width)
+	}
+}
+
+func replaceXLSXPart(t *testing.T, content []byte, part, body string) []byte {
+	t.Helper()
+	reader, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))
+	if err != nil {
+		t.Fatalf("open zip: %v", err)
+	}
+	var out bytes.Buffer
+	writer := zip.NewWriter(&out)
+	for _, file := range reader.File {
+		dst, err := writer.Create(file.Name)
+		if err != nil {
+			t.Fatalf("create %s: %v", file.Name, err)
+		}
+		if file.Name == part {
+			_, _ = dst.Write([]byte(body))
+			continue
+		}
+		src, err := file.Open()
+		if err != nil {
+			t.Fatalf("open %s: %v", file.Name, err)
+		}
+		_, _ = io.Copy(dst, src)
+		_ = src.Close()
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+	return out.Bytes()
+}
+
+func TestReadXLSXEntriesAcceptsPlainStrCellsButNotFormulas(t *testing.T) {
+	template := buildXLSX(t, map[string][]xlsxTestCell{"Sheet": {{cell: "A1", value: "placeholder"}}}, []string{"Sheet"})
+	content := replaceXLSXPart(t, template, "xl/worksheets/sheet1.xml",
+		`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`+
+			`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>`+
+			`<row r="1"><c r="A1" t="str"><v>Written as str</v></c></row>`+
+			`<row r="2"><c r="A2" t="str"><f>"Com"&amp;"puted"</f><v>Computed</v></c></row>`+
+			`</sheetData></worksheet>`)
+	values, err := ParseXLSXLocale(content, "en", "en")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !reflect.DeepEqual(values, map[string]string{"Sheet!A1": "Written as str"}) {
+		t.Fatalf("unexpected values: %#v", values)
 	}
 }
 
