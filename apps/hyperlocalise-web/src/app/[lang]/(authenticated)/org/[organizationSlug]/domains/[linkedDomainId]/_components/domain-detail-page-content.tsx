@@ -16,6 +16,7 @@ import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import { usePathname } from "next/navigation";
 import { ArrowLeftIcon, GlobeIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { observer } from "mobx-react-lite";
 import { useEffect, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -30,9 +31,25 @@ import { useGoSvcClient } from "@/lib/go-svc/use-go-svc-client";
 
 import { PageHeader, WorkspacePageShell } from "../../../_components/workspace-resource-shared";
 
+import { DomainsPageStoreProvider, useDomainsPageStore } from "../../store/domains-store-context";
+
 import { domainDetailPageContentMessages as messages } from "./domain-detail-page-content.messages";
 
 export function DomainDetailPageContent({
+  organizationSlug,
+  linkedDomainId,
+}: {
+  organizationSlug: string;
+  linkedDomainId: string;
+}) {
+  return (
+    <DomainsPageStoreProvider organizationSlug={organizationSlug}>
+      <DomainDetailPageView organizationSlug={organizationSlug} linkedDomainId={linkedDomainId} />
+    </DomainsPageStoreProvider>
+  );
+}
+
+const DomainDetailPageView = observer(function DomainDetailPageView({
   organizationSlug,
   linkedDomainId,
 }: {
@@ -64,7 +81,7 @@ export function DomainDetailPageContent({
   });
 
   const linkedDomain = domainQuery.data;
-  const [marketDialogOpen, setMarketDialogOpen] = useState(false);
+  const store = useDomainsPageStore();
   const [selectedProjectId, setSelectedProjectId] = useState(linkedDomain?.projectId ?? "");
 
   useEffect(() => {
@@ -175,7 +192,11 @@ export function DomainDetailPageContent({
                     <FormattedMessage {...messages.marketsDescription} />
                   </TypographyP>
                 </div>
-                <Button type="button" variant="outline" onClick={() => setMarketDialogOpen(true)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => store.setAddDomainDialogOpen(true)}
+                >
                   <FormattedMessage {...messages.editMarkets} />
                 </Button>
               </div>
@@ -320,8 +341,8 @@ export function DomainDetailPageContent({
 
       {linkedDomain?.status === "verified" ? (
         <AddDomainDialog
-          open={marketDialogOpen}
-          onOpenChange={setMarketDialogOpen}
+          open={store.addDomainDialogOpen}
+          onOpenChange={(open) => store.setAddDomainDialogOpen(open)}
           organizationSlug={organizationSlug}
           mode="edit"
           initialStep="markets"
@@ -334,4 +355,4 @@ export function DomainDetailPageContent({
       ) : null}
     </WorkspacePageShell>
   );
-}
+});

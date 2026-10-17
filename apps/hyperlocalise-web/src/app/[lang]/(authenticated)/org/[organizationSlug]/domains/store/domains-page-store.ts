@@ -12,9 +12,46 @@
  */
 import { makeAutoObservable } from "mobx";
 
+import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import type { DomainResearchDomain } from "@/lib/domains/research-prototype";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 export type DomainsPageLoadStatus = "idle" | "loading" | "error" | "success";
+export type AddDomainDialogStep = "details" | "project" | "connect" | "markets";
+export type AddDomainProjectMode = "create" | "existing" | "unassigned";
+
+export type AddDomainMarketRecommendation = {
+  marketId: string;
+  organicCount: number;
+  organicEtv: number;
+  top10Count: number;
+  hasOrganicVisibility: boolean;
+};
+
+export type AddDomainDialogHydration = {
+  step: AddDomainDialogStep;
+  domain: string;
+  claimDomainSlug: string | null;
+  linkedDomain: LinkedDomainPublic | null;
+  recommendations: AddDomainMarketRecommendation[];
+  selectedMarketIds: string[];
+};
+
+function emptyAddDomainWizard() {
+  return {
+    step: "details" as AddDomainDialogStep,
+    domainKey: "",
+    claimDomainSlug: null as string | null,
+    linkedDomain: null as LinkedDomainPublic | null,
+    projectMode: "create" as AddDomainProjectMode,
+    projectId: "",
+    method: "dns_txt" as LinkedDomainVerificationMethod,
+    recommendations: [] as AddDomainMarketRecommendation[],
+    selectedMarketIds: [] as string[],
+    pending: false,
+    error: null as string | null,
+  };
+}
 
 export class DomainsPageStore {
   readonly organizationSlug: string;
@@ -22,6 +59,17 @@ export class DomainsPageStore {
   loadStatus: DomainsPageLoadStatus = "idle";
   addDomainDialogOpen = false;
   editLocalesDomain: DomainResearchDomain | null = null;
+  addDomainStep: AddDomainDialogStep = "details";
+  addDomainKey = "";
+  addDomainClaimSlug: string | null = null;
+  addDomainLinked: LinkedDomainPublic | null = null;
+  addDomainProjectMode: AddDomainProjectMode = "create";
+  addDomainProjectId = "";
+  addDomainMethod: LinkedDomainVerificationMethod = "dns_txt";
+  addDomainRecommendations: AddDomainMarketRecommendation[] = [];
+  addDomainSelectedMarketIds: string[] = [];
+  addDomainPending = false;
+  addDomainError: string | null = null;
 
   constructor(organizationSlug: string) {
     this.organizationSlug = organizationSlug;
@@ -58,11 +106,13 @@ export class DomainsPageStore {
 
   openAddDomainDialog() {
     this.editLocalesDomain = null;
+    this.resetAddDomainWizard();
     this.addDomainDialogOpen = true;
   }
 
   openEditLocales(domain: DomainResearchDomain) {
     this.editLocalesDomain = domain;
+    this.resetAddDomainWizard();
     this.addDomainDialogOpen = true;
   }
 
@@ -70,6 +120,93 @@ export class DomainsPageStore {
     this.addDomainDialogOpen = open;
     if (!open) {
       this.editLocalesDomain = null;
+      this.resetAddDomainWizard();
     }
+  }
+
+  hydrateAddDomainDialog(input: AddDomainDialogHydration) {
+    this.addDomainStep = input.step;
+    this.addDomainKey = input.domain;
+    this.addDomainClaimSlug = input.claimDomainSlug;
+    this.addDomainLinked = input.linkedDomain;
+    this.addDomainProjectMode = "create";
+    this.addDomainProjectId = "";
+    this.addDomainMethod = "dns_txt";
+    this.addDomainRecommendations = input.recommendations;
+    this.addDomainSelectedMarketIds = input.selectedMarketIds;
+    this.addDomainPending = false;
+    this.addDomainError = null;
+  }
+
+  resetAddDomainWizard() {
+    const empty = emptyAddDomainWizard();
+    this.addDomainStep = empty.step;
+    this.addDomainKey = empty.domainKey;
+    this.addDomainClaimSlug = empty.claimDomainSlug;
+    this.addDomainLinked = empty.linkedDomain;
+    this.addDomainProjectMode = empty.projectMode;
+    this.addDomainProjectId = empty.projectId;
+    this.addDomainMethod = empty.method;
+    this.addDomainRecommendations = empty.recommendations;
+    this.addDomainSelectedMarketIds = empty.selectedMarketIds;
+    this.addDomainPending = empty.pending;
+    this.addDomainError = empty.error;
+  }
+
+  setAddDomainStep(step: AddDomainDialogStep) {
+    this.addDomainStep = step;
+  }
+
+  setAddDomainKey(domain: string) {
+    this.addDomainKey = domain;
+  }
+
+  setAddDomainClaimSlug(slug: string | null) {
+    this.addDomainClaimSlug = slug;
+  }
+
+  setAddDomainLinked(linkedDomain: LinkedDomainPublic | null) {
+    this.addDomainLinked = linkedDomain;
+  }
+
+  setAddDomainProjectMode(mode: AddDomainProjectMode) {
+    this.addDomainProjectMode = mode;
+  }
+
+  setAddDomainProjectId(projectId: string) {
+    this.addDomainProjectId = projectId;
+  }
+
+  setAddDomainMethod(method: LinkedDomainVerificationMethod) {
+    this.addDomainMethod = method;
+  }
+
+  setAddDomainRecommendations(recommendations: AddDomainMarketRecommendation[]) {
+    this.addDomainRecommendations = recommendations;
+  }
+
+  setAddDomainSelectedMarketIds(marketIds: string[]) {
+    this.addDomainSelectedMarketIds = marketIds;
+  }
+
+  toggleAddDomainMarket(marketId: string, selected: boolean) {
+    if (selected) {
+      if (this.addDomainSelectedMarketIds.includes(marketId)) {
+        return;
+      }
+      this.addDomainSelectedMarketIds = [...this.addDomainSelectedMarketIds, marketId];
+      return;
+    }
+    this.addDomainSelectedMarketIds = this.addDomainSelectedMarketIds.filter(
+      (id) => id !== marketId,
+    );
+  }
+
+  setAddDomainPending(pending: boolean) {
+    this.addDomainPending = pending;
+  }
+
+  setAddDomainError(error: string | null) {
+    this.addDomainError = error;
   }
 }

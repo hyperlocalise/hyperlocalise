@@ -18,8 +18,9 @@ import { ContentEditorImageWorkspace } from "./content-editor-image-workspace";
 
 import type { MarkdownSelectionAiConfig } from "@/components/markdown-editor/markdown-selection-ai.types";
 import type { DocumentAssistantServices } from "@/components/document-editor/document-editor-assistant.types";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { observer } from "mobx-react-lite";
 import {
   PaintBrushIcon,
   ArrowLeftIcon,
@@ -70,11 +71,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Title } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { useOptionalCatWorkspace } from "@/components/content-editor/workspace/content-editor-workspace-context";
+import { ContentEditorWorkspaceUiStore } from "@/components/content-editor/workspace/store/content-editor-workspace-ui-store";
+
 import { contentEditorFileViewMessages } from "./content-editor-file-view.messages";
-import {
-  readCatFileViewSourcePaneVisible,
-  writeCatFileViewSourcePaneVisible,
-} from "./content-editor-file-view-source-pane";
 import { ContentEditorFileGenerateDialog } from "./content-editor-file-generate-dialog";
 import {
   FileViewHeader,
@@ -125,7 +125,13 @@ function isOfficeViewerId(
   return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
 }
 
-export function ContentEditorFileViewPanel({
+function useFileViewUiStore() {
+  const workspace = useOptionalCatWorkspace();
+  const [localStore] = useState(() => new ContentEditorWorkspaceUiStore());
+  return workspace?.ui ?? localStore;
+}
+
+export const ContentEditorFileViewPanel = observer(function ContentEditorFileViewPanel({
   segment,
   viewerId,
   filename,
@@ -176,21 +182,25 @@ export function ContentEditorFileViewPanel({
 }) {
   const intl = useIntl();
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const [imageLayersDirty, setImageLayersDirty] = useState(false);
-  const [videoDirty, setVideoDirty] = useState(false);
-  const [documentReviewBlocked, setDocumentReviewBlocked] = useState(true);
-  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
-  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
-  const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
-  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
-  const [sourcePaneVisible, setSourcePaneVisible] = useState(() =>
-    readCatFileViewSourcePaneVisible(!isDocumentViewer),
+  const ui = useFileViewUiStore();
+  ui.applyFileViewViewer(viewerId);
+  const setImageLayersDirty = useCallback(
+    (dirty: boolean) => ui.setFileViewImageLayersDirty(dirty),
+    [ui],
   );
-  const [sourcePaneViewerId, setSourcePaneViewerId] = useState(viewerId);
-  if (sourcePaneViewerId !== viewerId) {
-    setSourcePaneViewerId(viewerId);
-    setSourcePaneVisible(readCatFileViewSourcePaneVisible(!isDocumentViewer));
-  }
+  const setVideoDirty = useCallback((dirty: boolean) => ui.setFileViewVideoDirty(dirty), [ui]);
+  const setDocumentReviewBlocked = useCallback(
+    (blocked: boolean) => ui.setFileViewDocumentReviewBlocked(blocked),
+    [ui],
+  );
+  const imageLayersDirty = ui.fileViewImageLayersDirty;
+  const videoDirty = ui.fileViewVideoDirty;
+  const documentReviewBlocked = ui.fileViewDocumentReviewBlocked;
+  const [saveActionsContainer, setSaveActionsContainer] = useState<HTMLDivElement | null>(null);
+  const generateDialogOpen = ui.fileViewGenerateDialogOpen;
+  const aiDrawerOpen = ui.fileViewAiDrawerOpen;
+  const isDocumentViewer = viewerId === "markdown" || viewerId === "html";
+  const sourcePaneVisible = ui.fileViewSourcePaneVisible;
   const agentBadges = [
     intelligence?.locationBreadcrumb,
     intelligence?.componentName,
@@ -206,9 +216,9 @@ export function ContentEditorFileViewPanel({
 
   useEffect(() => {
     if (!hasAiContext && aiDrawerOpen) {
-      setAiDrawerOpen(false);
+      ui.setFileViewAiDrawerOpen(false);
     }
-  }, [hasAiContext, aiDrawerOpen]);
+  }, [hasAiContext, aiDrawerOpen, ui]);
 
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(contentEditorFileViewMessages.approve);
@@ -249,18 +259,14 @@ export function ContentEditorFileViewPanel({
 
     try {
       await onRegenerate({ instructions: instructions || undefined });
-      setGenerateDialogOpen(false);
+      ui.setFileViewGenerateDialogOpen(false);
     } catch {
       // Keep the dialog open so the user can retry after a failed generation.
     }
   }
 
   function toggleSourcePane() {
-    setSourcePaneVisible((current) => {
-      const next = !current;
-      writeCatFileViewSourcePaneVisible(next);
-      return next;
-    });
+    ui.toggleFileViewSourcePane();
   }
 
   const targetFileActions = (
@@ -412,7 +418,7 @@ export function ContentEditorFileViewPanel({
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => setAiDrawerOpen(true)}
+                  onClick={() => ui.setFileViewAiDrawerOpen(true)}
                   className={cn(
                     "gap-1",
                     aiDrawerOpen &&
@@ -457,7 +463,7 @@ export function ContentEditorFileViewPanel({
                       {onRegenerate ? (
                         <DropdownMenuItem
                           disabled={!canEdit || isImageBusy}
-                          onClick={() => setGenerateDialogOpen(true)}
+                          onClick={() => ui.setFileViewGenerateDialogOpen(true)}
                         >
                           <FormattedMessage
                             {...(hasTarget
@@ -659,7 +665,7 @@ export function ContentEditorFileViewPanel({
       {onRegenerate && !isMediaViewer ? (
         <ContentEditorFileGenerateDialog
           open={generateDialogOpen}
-          onOpenChange={setGenerateDialogOpen}
+          onOpenChange={(open) => ui.setFileViewGenerateDialogOpen(open)}
           mode={generateMode}
           viewerId={viewerId}
           isSubmitting={isImageBusy}
@@ -667,7 +673,7 @@ export function ContentEditorFileViewPanel({
         />
       ) : null}
       {adaptiveWorkspaceEnabled && hasAiContext ? (
-        <Sheet open={aiDrawerOpen} onOpenChange={setAiDrawerOpen}>
+        <Sheet open={aiDrawerOpen} onOpenChange={(open) => ui.setFileViewAiDrawerOpen(open)}>
           <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
             <SheetHeader className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
@@ -753,4 +759,4 @@ export function ContentEditorFileViewPanel({
       ) : null}
     </div>
   );
-}
+});

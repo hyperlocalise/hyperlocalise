@@ -212,6 +212,38 @@ describe("HyperlabUiStore", () => {
     expect(store.variantKey).toBe("");
   });
 
+  it("tracks create-dialog open state and drafts", () => {
+    const store = new HyperlabUiStore();
+
+    store.setCreateExperimentOpen(true);
+    store.patchCreateExperimentDraft({ name: "Homepage hero", kind: "ab" });
+    store.setCreateFlagOpen(true);
+    store.patchCreateFlagDraft({ key: "checkout-cta", kind: "config" });
+    store.setCreateAudienceOpen(true);
+    store.patchCreateAudienceDraft({ name: "Pro customers" });
+    store.setCreateKeyOpen(true);
+    store.setCreateKeyName("CI bot");
+
+    expect(store.createExperimentOpen).toBe(true);
+    expect(store.createExperimentDraft).toMatchObject({ name: "Homepage hero", kind: "ab" });
+    expect(store.createFlagDraft).toMatchObject({ key: "checkout-cta", kind: "config" });
+    expect(store.createAudienceDraft.name).toBe("Pro customers");
+    expect(store.createKeyName).toBe("CI bot");
+
+    store.resetCreateExperimentDialog();
+    store.setCreateFlagOpen(false);
+    store.resetCreateAudienceDialog();
+    store.resetCreateKeyDialog();
+
+    expect(store.createExperimentOpen).toBe(false);
+    expect(store.createExperimentDraft.name).toBe("");
+    expect(store.createFlagOpen).toBe(false);
+    expect(store.createFlagDraft.key).toBe("");
+    expect(store.createAudienceOpen).toBe(false);
+    expect(store.createKeyOpen).toBe(false);
+    expect(store.createKeyName).toBe("");
+  });
+
   it("preserves pending variant audience drafts on refresh", () => {
     const store = new HyperlabUiStore();
 

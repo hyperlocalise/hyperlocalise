@@ -26,6 +26,8 @@ import {
   readHyperlabJson,
   type HyperlabExperiment,
 } from "./hyperlab-api";
+import { HyperlabWorkspaceProvider } from "../store/hyperlab-workspace-context";
+
 import { HyperlabCreateExperimentDialog } from "./hyperlab-create-dialogs";
 import { HyperlabPageShell } from "./hyperlab-page-shell";
 import { formatScheduleRange } from "./hyperlab-schedule";
@@ -40,6 +42,20 @@ import {
 } from "./hyperlab-ui";
 
 export function HyperlabExperimentsPage({
+  organizationSlug,
+  canWrite,
+}: {
+  organizationSlug: string;
+  canWrite: boolean;
+}) {
+  return (
+    <HyperlabWorkspaceProvider>
+      <HyperlabExperimentsPageView organizationSlug={organizationSlug} canWrite={canWrite} />
+    </HyperlabWorkspaceProvider>
+  );
+}
+
+function HyperlabExperimentsPageView({
   organizationSlug,
   canWrite,
 }: {

@@ -16,6 +16,33 @@ import type {
   ContentEditorFormatCheck,
   ContentEditorSegmentIntelligence,
 } from "@/components/content-editor/shared/types";
+import type { GlossaryTermStatus } from "@/lib/glossary/glossary";
+
+export type ContentEditorGlossaryWizardGlossary = {
+  id: string;
+  name: string;
+  teamId: string;
+};
+
+export type ContentEditorGlossaryTermMetadataDraft = {
+  partOfSpeech: string;
+  gender: string | null;
+  termType: string | null;
+  status: GlossaryTermStatus;
+};
+
+export const preferredGlossaryTermMetadataDraft: ContentEditorGlossaryTermMetadataDraft = {
+  partOfSpeech: "",
+  gender: null,
+  termType: null,
+  status: "preferred",
+};
+
+function cloneGlossaryTermMetadata(
+  draft: ContentEditorGlossaryTermMetadataDraft,
+): ContentEditorGlossaryTermMetadataDraft {
+  return { ...draft };
+}
 
 export class ContentEditorIntelligenceStore {
   formatChecks: ContentEditorFormatCheck[] = [];
@@ -31,6 +58,21 @@ export class ContentEditorIntelligenceStore {
   isRunningFormatChecks = false;
   isValidating = false;
   formatCheckLoadingSegmentIds = new Set<string>();
+
+  glossaryCreated: ContentEditorGlossaryWizardGlossary[] = [];
+  glossarySelectedId = "";
+  glossaryCreateDialogOpen = false;
+  glossaryNewName = "";
+  glossaryPrimaryTerm = "";
+  glossaryDefinition = "";
+  glossaryTranslatable = true;
+  glossaryTargetDraft = "";
+  glossarySourceMetadata: ContentEditorGlossaryTermMetadataDraft = cloneGlossaryTermMetadata(
+    preferredGlossaryTermMetadataDraft,
+  );
+  glossaryTargetMetadata: ContentEditorGlossaryTermMetadataDraft = cloneGlossaryTermMetadata(
+    preferredGlossaryTermMetadataDraft,
+  );
 
   constructor() {
     makeAutoObservable(this, {}, { autoBind: true });
@@ -105,5 +147,72 @@ export class ContentEditorIntelligenceStore {
 
   endContextLookup(segmentId: string) {
     this.contextLoadingSegmentIds.delete(segmentId);
+  }
+
+  primeGlossaryWizard(input: {
+    sourceTerm: string;
+    targetTerm: string;
+    selectedGlossaryId: string;
+    defaultGlossaryName: string;
+  }) {
+    this.glossarySelectedId = input.selectedGlossaryId;
+    this.glossaryNewName = input.defaultGlossaryName;
+    this.glossaryPrimaryTerm = input.sourceTerm;
+    this.glossaryDefinition = "";
+    this.glossaryTranslatable = true;
+    this.glossaryTargetDraft = input.targetTerm;
+    this.glossarySourceMetadata = cloneGlossaryTermMetadata(preferredGlossaryTermMetadataDraft);
+    this.glossaryTargetMetadata = cloneGlossaryTermMetadata(preferredGlossaryTermMetadataDraft);
+    this.glossaryCreateDialogOpen = false;
+  }
+
+  setGlossarySelectedId(glossaryId: string) {
+    this.glossarySelectedId = glossaryId;
+  }
+
+  setGlossaryCreateDialogOpen(open: boolean, defaultGlossaryName?: string) {
+    this.glossaryCreateDialogOpen = open;
+    if (open && defaultGlossaryName !== undefined) {
+      this.glossaryNewName = defaultGlossaryName;
+    }
+  }
+
+  setGlossaryNewName(name: string) {
+    this.glossaryNewName = name;
+  }
+
+  setGlossaryPrimaryTerm(term: string) {
+    this.glossaryPrimaryTerm = term;
+  }
+
+  setGlossaryDefinition(definition: string) {
+    this.glossaryDefinition = definition;
+  }
+
+  setGlossaryTranslatable(translatable: boolean) {
+    this.glossaryTranslatable = translatable;
+  }
+
+  setGlossaryTargetDraft(term: string) {
+    this.glossaryTargetDraft = term;
+  }
+
+  setGlossarySourceMetadata(draft: ContentEditorGlossaryTermMetadataDraft) {
+    this.glossarySourceMetadata = cloneGlossaryTermMetadata(draft);
+  }
+
+  setGlossaryTargetMetadata(draft: ContentEditorGlossaryTermMetadataDraft) {
+    this.glossaryTargetMetadata = cloneGlossaryTermMetadata(draft);
+  }
+
+  rememberCreatedGlossary(glossary: ContentEditorGlossaryWizardGlossary) {
+    if (this.glossaryCreated.some((item) => item.id === glossary.id)) {
+      this.glossarySelectedId = glossary.id;
+      this.glossaryCreateDialogOpen = false;
+      return;
+    }
+    this.glossaryCreated = [...this.glossaryCreated, glossary];
+    this.glossarySelectedId = glossary.id;
+    this.glossaryCreateDialogOpen = false;
   }
 }
