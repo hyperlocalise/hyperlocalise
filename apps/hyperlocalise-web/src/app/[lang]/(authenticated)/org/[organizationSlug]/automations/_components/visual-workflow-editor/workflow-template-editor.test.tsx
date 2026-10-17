@@ -220,6 +220,46 @@ describe("WorkflowTemplateEditor", () => {
     expect(textbox).toHaveAttribute("aria-multiline", "false");
   });
 
+  function pasteHtml(editor: Editor, html: string, text = "") {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/html", html);
+    clipboardData.setData("text/plain", text);
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: clipboardData });
+    act(() => {
+      editor.view.focus();
+      editor.view.dom.dispatchEvent(event);
+    });
+  }
+
+  it("flattens a rich-text paste in a one-line setting", () => {
+    const { editor, onChange } = renderEditor("");
+    pasteHtml(editor, "<p>first</p><p>second</p>", "from-plain-text");
+    expect(editor.state.doc.childCount).toBe(1);
+    expect(onChange).toHaveBeenLastCalledWith("first second");
+  });
+
+  it("joins extra paragraphs in a one-line setting", () => {
+    const { editor, onChange } = renderEditor("");
+    act(() => {
+      editor.commands.setContent({
+        type: "doc",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "first" }] },
+          { type: "paragraph", content: [{ type: "text", text: "second" }] },
+        ],
+      });
+    });
+    expect(editor.state.doc.childCount).toBe(1);
+    expect(onChange).toHaveBeenLastCalledWith("first second");
+  });
+
+  it("leaves a multi-line setting's pasted HTML alone", () => {
+    const { editor } = renderEditor("", { multiline: true });
+    const html = "<p>first</p><p>second</p>";
+    expect(editor.view.props.transformPastedHTML?.(html, editor.view)).toBe(html);
+  });
+
   it("keeps lines in a multi-line setting", () => {
     const { textbox, editor, onChange } = renderEditor("Hi", { multiline: true });
     act(() => {

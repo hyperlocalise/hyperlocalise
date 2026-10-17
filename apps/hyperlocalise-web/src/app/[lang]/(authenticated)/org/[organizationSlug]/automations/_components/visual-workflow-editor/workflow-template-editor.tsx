@@ -12,7 +12,8 @@
  */
 import { Extension, Node, nodeInputRule, nodePasteRule } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
-import { PluginKey } from "@tiptap/pm/state";
+import { Fragment, type Node as PMNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import {
   EditorContent,
   NodeViewWrapper,
@@ -252,11 +253,54 @@ const PageUndo = Extension.create({
   },
 });
 
-/** A one-line setting keeps to one line: Enter does nothing. */
+/**
+ * Clipboard HTML with block tags. Closing a block, or a `<br>`, is a line break in the paste;
+ * those become spaces so a one-line setting cannot store them.
+ */
+const PASTED_BLOCK_CLOSE = /<\/(?:p|div|h[1-6]|li|blockquote|tr|pre|dt|dd)>/gi;
+const PASTED_BLOCK_OPEN =
+  /<(?:p|div|h[1-6]|li|blockquote|tr|pre|dt|dd|ul|ol|table|thead|tbody)(?:\s[^>]*)?>/gi;
+
+function flattenPastedHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(PASTED_BLOCK_CLOSE, " ")
+    .replace(PASTED_BLOCK_OPEN, "")
+    .replace(/\r\n?|\n/g, " ")
+    .replace(/^ +| +$/g, "");
+}
+
+function flattenDocToSingleParagraph(doc: PMNode): PMNode {
+  const inline: PMNode[] = [];
+  doc.forEach((paragraph, _offset, index) => {
+    if (index > 0) {
+      inline.push(doc.type.schema.text(" "));
+    }
+    paragraph.content.forEach((child) => {
+      inline.push(child);
+    });
+  });
+  const paragraph = doc.type.schema.nodes.paragraph.create(null, inline);
+  return doc.type.create(null, Fragment.from(paragraph));
+}
+
+/** A one-line setting keeps to one line: Enter does nothing, and a paste cannot add paragraphs. */
 const SingleLine = Extension.create({
   name: "singleLine",
   addKeyboardShortcuts() {
     return { Enter: () => true, "Shift-Enter": () => true, "Mod-Enter": () => true };
+  },
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        appendTransaction(transactions, _oldState, newState) {
+          if (!transactions.some((transaction) => transaction.docChanged)) return null;
+          if (newState.doc.childCount <= 1) return null;
+          const flattened = flattenDocToSingleParagraph(newState.doc);
+          return newState.tr.replaceWith(0, newState.doc.content.size, flattened.content);
+        },
+      }),
+    ];
   },
 });
 
@@ -402,6 +446,7 @@ export function WorkflowTemplateEditor({
     editorProps: {
       attributes: editorAttributes({ id, labelId, invalid, multiline }),
       transformPastedText: (text) => (multiline ? text : text.replace(/\r?\n/g, " ")),
+      transformPastedHTML: (html) => (multiline ? html : flattenPastedHtml(html)),
     },
     onFocus: () => {
       focusedRef.current = true;
