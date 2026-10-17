@@ -197,4 +197,22 @@ describe("patchWorksheetXml", () => {
         `</sheetData></worksheet>`,
     );
   });
+
+  it("clears cell values but keeps their styles", () => {
+    const xml =
+      `<worksheet><sheetData>` +
+      `<row r="2"><c r="A2" t="s"><v>0</v></c><c r="B2" s="4" t="s"><v>1</v></c><c r="C2" t="s"><v>2</v></c></row>` +
+      `</sheetData></worksheet>`;
+    const patched = patchWorksheetXml(xml, {
+      writes: [
+        { row: 1, column: 1, text: "" },
+        { row: 1, column: 2, text: "" },
+      ],
+    });
+    expect(patched).toBe(
+      `<worksheet><sheetData>` +
+        `<row r="2"><c r="A2" t="s"><v>0</v></c><c r="B2" s="4"/></row>` +
+        `</sheetData></worksheet>`,
+    );
+  });
 });

@@ -300,9 +300,20 @@ function applyWritesToRows(rows: ParsedRow[], writes: readonly CellWrite[], pref
       if (!row) {
         continue;
       }
-      row.modified = true;
       const existingIndex = row.cells.findIndex((cell) => cell.column === write.column);
-      if (existingIndex !== -1) {
+      if (existingIndex === -1) {
+        continue;
+      }
+      row.modified = true;
+      const style = originalStyles.get(`${number}:${write.column}`) ?? null;
+      if (style && style !== "0") {
+        const address = XLSX.utils.encode_cell({ r: write.row, c: write.column });
+        row.cells[existingIndex] = {
+          column: write.column,
+          attributes: "",
+          raw: `<${prefix}c r="${address}" s="${escapeXmlAttribute(style)}"/>`,
+        };
+      } else {
         row.cells.splice(existingIndex, 1);
       }
       continue;
