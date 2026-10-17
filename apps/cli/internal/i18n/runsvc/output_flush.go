@@ -121,6 +121,17 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 			return nil, fmt.Errorf("flush outputs: read XLIFF target %q: %w", targetPath, targetErr)
 		}
 	}
+	if strings.EqualFold(filepath.Ext(targetPath), ".xlsx") {
+		target, targetErr := s.readProjectFile(targetPath)
+		if targetErr == nil {
+			values, err = translationfileparser.ParseXLSXLocale(target, output.sourceLocale, output.targetLocale)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: parse Excel target %q: %w", targetPath, err)
+			}
+		} else if !os.IsNotExist(targetErr) {
+			return nil, fmt.Errorf("flush outputs: read Excel target %q: %w", targetPath, targetErr)
+		}
+	}
 	stagedEntries := output.entries
 	if strings.TrimSpace(output.srxSpec) != "" {
 		joined, joinErr := s.joinStagedSRXOutput(output, values)
