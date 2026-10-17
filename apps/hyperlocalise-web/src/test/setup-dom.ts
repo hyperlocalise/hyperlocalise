@@ -19,6 +19,7 @@ const isDomEnvironment = typeof document !== "undefined";
 // file, because setup files re-run for every file and would otherwise
 // capture a previous file's replacement.
 const PRISTINE_DOM_KEY = Symbol.for("hyperlocalise.test.pristineDomProperties");
+const PRISTINE_HREF_KEY = Symbol.for("hyperlocalise.test.pristineHref");
 
 type PristineProperty = {
   target: object;
@@ -42,8 +43,15 @@ if (isDomEnvironment) {
     [navigator, "clipboard"],
     [Element.prototype, "scrollIntoView"],
   ]);
+  const pristineHref = capturePristineHref();
 
   afterAll(() => {
+    // Tests may navigate cross-origin, which history.replaceState rejects.
+    if (window.location.href !== pristineHref) {
+      (window as Window & { happyDOM?: { setURL(url: string): void } }).happyDOM?.setURL(
+        pristineHref,
+      );
+    }
     for (const { target, key, descriptor, value } of pristineProperties) {
       if (descriptor) Object.defineProperty(target, key, descriptor);
       else Reflect.deleteProperty(target, key);
@@ -101,6 +109,17 @@ function capturePristineDomProperties(
   }));
   store[PRISTINE_DOM_KEY] = { window, properties: captured };
   return captured;
+}
+
+function capturePristineHref(): string {
+  const store = globalThis as typeof globalThis & {
+    [PRISTINE_HREF_KEY]?: { window: Window; href: string };
+  };
+  const existing = store[PRISTINE_HREF_KEY];
+  if (existing?.window === window) return existing.href;
+
+  store[PRISTINE_HREF_KEY] = { window, href: window.location.href };
+  return window.location.href;
 }
 
 function installNoopWebAnimations() {
