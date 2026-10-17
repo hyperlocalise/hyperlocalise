@@ -63,6 +63,10 @@ export function DomainResearchShellStoreProvider({
   );
 }
 
+export function useOptionalDomainsPageStore() {
+  return useContext(DomainsPageStoreContext);
+}
+
 export function useDomainsPageStore() {
   const store = useContext(DomainsPageStoreContext);
   if (!store) {
