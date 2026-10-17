@@ -103,6 +103,34 @@ describe("requeueKeylessOfficeSourceIngest", () => {
     );
   });
 
+  it("restores the ingested state when enqueueing fails so a later open can retry", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const version = await ingestedVersion({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "docs/outage.docx",
+    });
+    const input = {
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "docs/outage.docx",
+    };
+    const failingQueue: SourceFileIngestQueue = {
+      enqueue: vi.fn(async () => {
+        throw new Error("workflow unavailable");
+      }),
+    };
+
+    await expect(
+      requeueKeylessOfficeSourceIngest({ ...input, queue: failingQueue }),
+    ).rejects.toThrow("workflow unavailable");
+    expect(await ingestState(version.id)).toBe("ingested");
+
+    const { queue, enqueue } = fakeQueue();
+    await expect(requeueKeylessOfficeSourceIngest({ ...input, queue })).resolves.toBe(true);
+    expect(enqueue).toHaveBeenCalledOnce();
+  });
+
   it("leaves keyed Office files and non-Office files alone", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const keyed = await ingestedVersion({

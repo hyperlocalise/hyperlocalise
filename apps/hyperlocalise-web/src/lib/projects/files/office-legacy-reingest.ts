@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, gt, notExists, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, notExists, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database/client";
 import { createLogger } from "@/lib/log";
@@ -61,6 +61,7 @@ type ReingestCandidate = {
   storedFileId: string;
   sourcePath: string;
   sourceHash: string | null;
+  ingestedAt: Date | null;
 };
 
 async function requeueCandidate(candidate: ReingestCandidate, queue?: SourceFileIngestQueue) {
@@ -79,16 +80,31 @@ async function requeueCandidate(candidate: ReingestCandidate, queue?: SourceFile
     return false;
   }
 
-  await enqueueSourceFileIngestAfterUpload({
-    sourceFileVersionId: candidate.id,
-    organizationId: candidate.organizationId,
-    projectId: candidate.projectId,
-    storedFileId: candidate.storedFileId,
-    sourcePath: candidate.sourcePath,
-    sourceHash: candidate.sourceHash,
-    reingest: true,
-    queue,
-  });
+  try {
+    await enqueueSourceFileIngestAfterUpload({
+      sourceFileVersionId: candidate.id,
+      organizationId: candidate.organizationId,
+      projectId: candidate.projectId,
+      storedFileId: candidate.storedFileId,
+      sourcePath: candidate.sourcePath,
+      sourceHash: candidate.sourceHash,
+      reingest: true,
+      queue,
+    });
+  } catch (error) {
+    // Only `ingested` rows are claimable, so an unowned `pending` row would never be retried.
+    await db
+      .update(versions)
+      .set({ ingestState: "ingested", ingestedAt: candidate.ingestedAt })
+      .where(
+        and(
+          eq(versions.id, candidate.id),
+          eq(versions.ingestState, "pending"),
+          isNull(versions.ingestWorkflowRunId),
+        ),
+      );
+    throw error;
+  }
   return true;
 }
 
@@ -99,6 +115,7 @@ const candidateColumns = {
   storedFileId: versions.storedFileId,
   sourcePath: versions.sourcePath,
   sourceHash: versions.sourceHash,
+  ingestedAt: versions.ingestedAt,
 };
 
 /**
