@@ -9,6 +9,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Office Open XML packages (.docx, .pptx) are zip archives of XML parts. The
@@ -221,14 +222,20 @@ func decodeOOXMLEntity(entity string) (string, bool) {
 		return "'", true
 	}
 	if rest, ok := strings.CutPrefix(entity, "#x"); ok {
-		code, err := strconv.ParseUint(rest, 16, 32)
-		return string(rune(code)), err == nil && code <= 0x10FFFF
+		return decodeOOXMLCodePoint(rest, 16)
 	}
 	if rest, ok := strings.CutPrefix(entity, "#"); ok {
-		code, err := strconv.ParseUint(rest, 10, 32)
-		return string(rune(code)), err == nil && code <= 0x10FFFF
+		return decodeOOXMLCodePoint(rest, 10)
 	}
 	return "", false
+}
+
+func decodeOOXMLCodePoint(digits string, base int) (string, bool) {
+	code, err := strconv.ParseUint(digits, base, 32)
+	if err != nil || code > utf8.MaxRune {
+		return "", false
+	}
+	return string(rune(code)), true
 }
 
 func escapeOOXMLText(b *bytes.Buffer, text string) {
