@@ -48,7 +48,9 @@ export function isReleaseVersionAtLeast(version: string, minimum: string): boole
  * Whether the sandbox CLI parses `.xlsx` into segments. Until the pin reaches
  * {@link hyperlocaliseCliXlsxReleaseVersion}, workbooks are read in-process instead.
  */
-export function sandboxCliParsesXlsx(version: string = sandboxHyperlocaliseReleaseVersion): boolean {
+export function sandboxCliParsesXlsx(
+  version: string = sandboxHyperlocaliseReleaseVersion,
+): boolean {
   return isReleaseVersionAtLeast(version, hyperlocaliseCliXlsxReleaseVersion);
 }
 
