@@ -160,7 +160,7 @@ function AssistantPage({
                 onRedo={runRedo}
               />
               <Button type="button" onClick={fn()}>
-                {saved ? "Save changes" : "Create automation"}
+                {saved ? "Save" : "Create automation"}
               </Button>
             </>
           }

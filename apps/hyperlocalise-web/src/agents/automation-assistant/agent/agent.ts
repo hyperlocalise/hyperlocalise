@@ -15,48 +15,48 @@ import { isStepCount, ToolLoopAgent, type LanguageModel } from "ai";
 import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
-import {
-  describeAutomationSetupCatalogue,
-  UPDATE_AUTOMATION_SETUP_TOOL_NAME,
-} from "@/lib/agents/workspace-automation-assistant";
+import { describeAutomationAssistantCatalogue } from "@/lib/agents/automation-assistant-editors";
 
 import {
-  createUpdateAutomationSetupTool,
+  automationAssistantSkillFor,
+  createAutomationAssistantTools,
   type AutomationAssistantToolContext,
-} from "./tools/update-automation-setup";
+} from "./editors";
 
 export const AUTOMATION_ASSISTANT_AGENT_ID = "automation-assistant";
-/** A turn reads the page, calls the setup tool once or twice, and writes the reply. */
+/** A turn reads the page, calls the editor's tool once or twice, and writes the reply. */
 export const AUTOMATION_ASSISTANT_STEP_LIMIT = 6;
 export const AUTOMATION_ASSISTANT_MAX_OUTPUT_TOKENS = 4_000;
 
 /**
- * The agent's own instructions followed by what it can set. Nothing in it depends on the page or
- * the turn: the page as it stands goes with the person's newest message instead.
+ * The agent's own instructions, how to work in the editor the turn was sent from, and what it
+ * can set there. Nothing in it depends on the page or the turn: the page as it stands goes with
+ * the person's newest message instead.
  */
-export function buildAutomationAssistantInstructions(): string {
+export function buildAutomationAssistantInstructions(
+  kind: AutomationAssistantToolContext["kind"] = "automation-editor",
+): string {
   return composeInstructions({
     agentId: AUTOMATION_ASSISTANT_AGENT_ID,
-    dynamicSections: [describeAutomationSetupCatalogue()],
+    skills: [automationAssistantSkillFor(kind)],
+    dynamicSections: [describeAutomationAssistantCatalogue(kind)],
   });
 }
 
 /**
- * The automation assistant for one turn. It knows the page the turn was sent from and has the
- * setup tool and nothing else: no repository, no translation, no web, no subagents.
+ * The automation assistant for one turn. It knows the page the turn was sent from and has that
+ * editor's tool and nothing else: no repository, no translation, no web, no subagents.
  */
 export function createAutomationAssistantAgent(input: {
-  /** The page as the turn knows it. The tool rewrites it, so the caller can read the form the turn left. */
+  /** The page as the turn knows it. The tool rewrites it, so the caller can read the page the turn left. */
   toolContext: AutomationAssistantToolContext;
   model?: LanguageModel;
 }) {
   const { toolContext } = input;
   return new ToolLoopAgent({
     model: input.model ?? getHyperlocaliseAgentModel(),
-    instructions: buildAutomationAssistantInstructions(),
-    tools: {
-      [UPDATE_AUTOMATION_SETUP_TOOL_NAME]: createUpdateAutomationSetupTool(toolContext),
-    },
+    instructions: buildAutomationAssistantInstructions(toolContext.kind),
+    tools: createAutomationAssistantTools(toolContext),
     maxOutputTokens: AUTOMATION_ASSISTANT_MAX_OUTPUT_TOKENS,
     timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: isStepCount(AUTOMATION_ASSISTANT_STEP_LIMIT),

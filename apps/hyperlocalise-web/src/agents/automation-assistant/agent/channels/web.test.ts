@@ -49,6 +49,12 @@ import {
 } from "@/lib/automation-assistant/sessions";
 import { db, schema } from "@/lib/database/client";
 
+import { readAutomationAssistantSnapshot } from "@/lib/agents/automation-assistant-editors";
+import { EDIT_VISUAL_WORKFLOW_TOOL_NAME } from "@/lib/agents/visual-workflow-assistant";
+import { buildVisualWorkflowEditorContext } from "@/lib/agents/visual-workflow-editor-context";
+import { createDefaultConfig } from "@/lib/visual-workflows/catalog/node-catalog";
+import { toVisualWorkflowV3Definition } from "@/lib/visual-workflows/schema/serializers";
+
 import { AUTOMATION_ASSISTANT_USAGE_SOURCE, createAutomationAssistantTurnResponse } from "./web";
 
 const fixture = createAuthTestFixture();
@@ -101,6 +107,68 @@ function modelThatNamesTheAutomation() {
   });
 }
 
+/** A model that renames the workflow through the canvas tool, then says what it did. */
+function modelThatRenamesTheWorkflow() {
+  return new MockLanguageModelV3({
+    doStream: [
+      {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: "stream-start", warnings: [] },
+            {
+              type: "tool-call",
+              toolCallId: "call_1",
+              toolName: EDIT_VISUAL_WORKFLOW_TOOL_NAME,
+              input: JSON.stringify({
+                operations: [{ op: "rename_workflow", name: "Nightly sync" }],
+              }),
+            },
+            {
+              type: "finish",
+              finishReason: { unified: "tool-calls", raw: undefined },
+              usage: USAGE,
+            },
+          ],
+        }),
+      },
+      {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: "stream-start", warnings: [] },
+            { type: "text-start", id: "text_1" },
+            { type: "text-delta", id: "text_1", delta: "I renamed it Nightly sync." },
+            { type: "text-end", id: "text_1" },
+            { type: "finish", finishReason: { unified: "stop", raw: undefined }, usage: USAGE },
+          ],
+        }),
+      },
+    ],
+  });
+}
+
+function workflowPageContext() {
+  return buildVisualWorkflowEditorContext({
+    editorSessionId: "editor-1",
+    visualWorkflowId: "00000000-0000-4000-8000-000000000001",
+    definition: toVisualWorkflowV3Definition({
+      name: "Untitled workflow",
+      nodes: [
+        {
+          id: "trigger",
+          type: "trigger.manual",
+          position: { x: 0, y: 0 },
+          data: {
+            catalogType: "trigger.manual",
+            config: createDefaultConfig("trigger.manual"),
+            runStatus: "idle",
+          },
+        },
+      ],
+      edges: [],
+    }),
+  });
+}
+
 function pageContext() {
   return buildWorkspaceAutomationEditorContext({
     editorSessionId: "editor-1",
@@ -128,6 +196,61 @@ afterEach(async () => {
 });
 
 describe("createAutomationAssistantTurnResponse", () => {
+  it("runs a turn on a visual workflow page with the canvas tool and records the workflow it left", async () => {
+    const { user, organization } = await fixture.createLocalWorkosIdentity();
+    const session = await createAutomationAssistantSession({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+    expect(await beginAutomationAssistantTurn(session.id)).toBe(true);
+
+    const model = modelThatRenamesTheWorkflow();
+    const response = createAutomationAssistantTurnResponse({
+      session,
+      organizationId: organization.id,
+      text: "Call it Nightly sync",
+      pageContext: workflowPageContext(),
+      languageModel: { model, source: "gateway", modelId: "mock" },
+    });
+    const streamed = await response.text();
+
+    expect(streamed).toContain("I renamed it Nightly sync.");
+    const prompt = model.doStreamCalls[0]!.prompt;
+    const system = JSON.stringify(prompt[0]);
+    expect(system).toContain("Working on the visual workflow editor");
+    expect(system).toContain("type: action.notify_slack");
+    expect(system).not.toContain("Skills you can attach");
+    const newest = JSON.stringify(prompt.at(-1));
+    expect(newest).toContain("## Visual workflow page");
+    expect(newest).toContain("- id: trigger");
+    await vi.waitFor(() => expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledTimes(1));
+
+    const messages = await listAutomationAssistantMessages(session.id);
+    expect(messages[1]!.parts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: `tool-${EDIT_VISUAL_WORKFLOW_TOOL_NAME}`,
+          output: expect.objectContaining({
+            applied: true,
+            editorSessionId: "editor-1",
+            operations: [{ op: "rename_workflow", name: "Nightly sync" }],
+          }),
+        }),
+      ]),
+    );
+    const snapshot = readAutomationAssistantSnapshot(messages[1]!.parts);
+    expect(snapshot?.kind).toBe("visual-workflow-editor");
+    expect(snapshot?.kind === "visual-workflow-editor" && snapshot.document.name).toBe(
+      "Nightly sync",
+    );
+    expect(analyticsTrackMock.mock.calls).toEqual([
+      ["automation_assistant_message_sent", { status: "sent", source: "visual_workflow" }],
+    ]);
+    expect(reserveAgentRuntimeUsageMock.mock.calls[0]![0]).toMatchObject({
+      dimensions: { mode: "visual_workflow" },
+    });
+  });
+
   it("keeps both sides of the turn in the session, bills one run and releases the turn", async () => {
     const { user, organization } = await fixture.createLocalWorkosIdentity();
     const scope = { organizationId: organization.id, userId: user.id };

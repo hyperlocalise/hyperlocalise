@@ -391,6 +391,10 @@
     "defaultMessage": "Time",
     "description": "Translation reporting label"
   },
+  "+hYvvi6oXu": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding Figma connection"
+  },
   "+i+mcUZPR+": {
     "defaultMessage": "Hyperlab",
     "description": "Feature teaser title for Hyperlab"
@@ -655,6 +659,10 @@
     "defaultMessage": "Bring the right context back when needed.",
     "description": "Knowledge hero signal card description"
   },
+  "/8khRIMh0p": {
+    "defaultMessage": "Allow access",
+    "description": "Approve Figma OAuth access"
+  },
   "/9ZwuXxQ/T": {
     "defaultMessage": "Copy JSON",
     "description": "Button that copies canonical workflow JSON to the clipboard"
@@ -802,6 +810,10 @@
   "/Q3+a6FMED": {
     "defaultMessage": "You can run up to {count} chats at once.",
     "description": "Toast when the concurrent stream limit is reached"
+  },
+  "/QBr3H7p9k": {
+    "defaultMessage": "Could not connect two steps",
+    "description": "Line in the assistant's change list: connecting two workflow steps was refused"
   },
   "/QZxo6jgZM": {
     "defaultMessage": "Should AcmePay stay untranslated in Spanish onboarding?",
@@ -1127,10 +1139,6 @@
     "defaultMessage": "Status",
     "description": "Column heading for segment status in side-by-side CAT view"
   },
-  "02ZUVYObvj": {
-    "defaultMessage": "Connected from {nodeId} · {path}. Remove the data wire to configure this input manually.",
-    "description": "Visual workflow connected data input description"
-  },
   "02hUDkxuJ0": {
     "defaultMessage": "Use the connection's content types",
     "description": "Button that replaces the automation's saved Contentful content types with the connection's current ones"
@@ -1178,6 +1186,10 @@
   "08svfZAX+A": {
     "defaultMessage": "deleted a glossary",
     "description": "Action for a glossary deletion activity"
+  },
+  "091kJoAeYj": {
+    "defaultMessage": "{count, plural, one {one other setting} other {# other settings}}",
+    "description": "The last item in the list of changed settings of a node, for settings with no name to show, as in 'Changed Message and one other setting'"
   },
   "093XtFZn8Y": {
     "defaultMessage": "Monitor throughput and locale health",
@@ -1483,6 +1495,10 @@
     "defaultMessage": "Target locale",
     "description": "Label for the optional TMX export target locale"
   },
+  "0dFZxKMyvL": {
+    "defaultMessage": "Run every step for real",
+    "description": "Button in the test settings popover that sets every step that calls out to run for real in test runs"
+  },
   "0dJl0iGob6": {
     "defaultMessage": "Loop",
     "description": "Catalog title for the for-each placeholder node"
@@ -1566,6 +1582,10 @@
   "0pg6zXLFtI": {
     "defaultMessage": "Role permissions",
     "description": "Role permissions page heading"
+  },
+  "0pyGkDDDgZ": {
+    "defaultMessage": "Each trigger and each step that calls out has a Test tab in its settings for the values a test run uses.",
+    "description": "In the test settings popover of the workflow editor, where test values are set"
   },
   "0qIbYrqvNR": {
     "defaultMessage": "Heading 1",
@@ -1751,6 +1771,10 @@
     "defaultMessage": "AI mentions",
     "description": "Metric label for AI mentions"
   },
+  "1Dpcm8IxPm": {
+    "defaultMessage": "Test data taken from this run for {count, plural, one {# step} other {# steps}}.",
+    "description": "Toast after a past workflow run's values were copied into the steps' test data"
+  },
   "1EFh6senwK": {
     "defaultMessage": "Reviewer",
     "description": "Reviewer role in the workspace access illustration"
@@ -1874,6 +1898,10 @@
   "1ToGNDd6TO": {
     "defaultMessage": "Files",
     "description": "Label for the files selection list"
+  },
+  "1U9PZ5VcN2": {
+    "defaultMessage": "Clear",
+    "description": "Button on a workflow step's Test tab that removes all its test values"
   },
   "1UF6LNQQqI": {
     "defaultMessage": "Hero fit",
@@ -2199,6 +2227,10 @@
     "defaultMessage": "Headers (JSON object)",
     "description": "Label for MCP custom headers JSON field"
   },
+  "2+el5hYSzQ": {
+    "defaultMessage": "Template",
+    "description": "Name of a stored template binding shown as the source of a workflow step's setting"
+  },
   "2+iIGrGb+G": {
     "defaultMessage": "Switch language.\nSee what is broken.",
     "description": "Headline for the Domains live page section"
@@ -2371,6 +2403,10 @@
     "defaultMessage": "Significant localisation gaps are affecting the experience.",
     "description": "Score interpretation for a poor localisation audit"
   },
+  "2Ejjbg+BRh": {
+    "defaultMessage": "Create a Figma connection in workspace Integrations first, then return to Figma and try again.",
+    "description": "Empty state when the user has no Figma connections to authorize"
+  },
   "2Eln7MuWtc": {
     "defaultMessage": "Remove",
     "description": "Button to remove a word from a dictionary"
@@ -2510,6 +2546,10 @@
   "2VWwjqjclF": {
     "defaultMessage": "Assignee",
     "description": "Label for single-assignee selection on native jobs"
+  },
+  "2WCxnj9DvK": {
+    "defaultMessage": "Could not add a step",
+    "description": "Line in the assistant's change list: adding a step to the workflow was refused"
   },
   "2Wk4xEwU1H": {
     "defaultMessage": "Coming soon",
@@ -2783,6 +2823,10 @@
     "defaultMessage": "Used in a test",
     "description": "Hyperlab mock UI flag kind badge"
   },
+  "31JruwfzqD": {
+    "defaultMessage": "Copied",
+    "description": "Copied confirmation for Figma connection token"
+  },
   "32TT/pgWLo": {
     "defaultMessage": "Developer",
     "description": "Settings nav group label for developer pages"
@@ -2982,6 +3026,10 @@
   "3URR9qLWsH": {
     "defaultMessage": "Yes. Hyperlocalise agents live in integrations such as Slack, Teams, and GitHub, so teams can ask for work where they already collaborate. Available actions depend on the integration and workspace configuration.",
     "description": "Homepage FAQ answer about platform topic 7"
+  },
+  "3UVVqU60g6": {
+    "defaultMessage": "Ahrefs",
+    "description": "Tool badge when an automation uses Ahrefs"
   },
   "3UtT5HKUXH": {
     "defaultMessage": "Continue",
@@ -3687,6 +3735,10 @@
     "defaultMessage": "Opened {subject}",
     "description": "Collapsed explore rollup for a single file read"
   },
+  "4fBLqa8Qde": {
+    "defaultMessage": "Cancel",
+    "description": "Button that closes the dialog before a test run with steps that run for real, without running"
+  },
   "4g0qoebzmh": {
     "defaultMessage": "Reporting collects new activity only. Earlier activity is unavailable, not zero. Dates and weeks use UTC.",
     "description": "Translation reporting label"
@@ -3983,6 +4035,10 @@
     "defaultMessage": "Brand voice · Style guide",
     "description": "Guideline mock UI style guide panel title"
   },
+  "5C3EksSWTF": {
+    "defaultMessage": "Choose a connection to authorize this Figma app install.",
+    "description": "Description for the Figma claim authorization page"
+  },
   "5CjwrQGWSz": {
     "defaultMessage": "System",
     "description": "System color theme option that follows the OS preference"
@@ -4050,6 +4106,10 @@
   "5N7UDRdane": {
     "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations.",
     "description": "Description for the Semrush integrations row"
+  },
+  "5NY8ijgpii": {
+    "defaultMessage": "No changes made to the workflow",
+    "description": "Line in the assistant panel under a reply, or a tool call, that left the visual workflow as it was"
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects",
@@ -4503,6 +4563,10 @@
     "defaultMessage": "Use Hyperlocalise Agent",
     "description": "Automations mock UI terminal title bar label"
   },
+  "6DeonnLXWl": {
+    "defaultMessage": "This Figma authorization request is missing or expired. Start again from Figma.",
+    "description": "Error when the Figma OAuth request cookie is missing"
+  },
   "6DqYm4cuZL": {
     "defaultMessage": "Webhook",
     "description": "Heading for Contentful webhook status section"
@@ -4526,6 +4590,10 @@
   "6F6TSGIXMs": {
     "defaultMessage": "The file must be publicly reachable at the exact path.",
     "description": "File verification help"
+  },
+  "6GvRaMOu4p": {
+    "defaultMessage": "Create an API key with files and jobs permissions first.",
+    "description": "Empty state when no eligible API keys exist for Figma"
   },
   "6Hh/TB07+q": {
     "defaultMessage": "Choose a TMX or CSV file.",
@@ -4878,6 +4946,10 @@
   "6zAmu9E3FT": {
     "defaultMessage": "Unable to queue a manual run right now",
     "description": "Toast when queueing a manual automation run fails"
+  },
+  "6zcjX66YhX": {
+    "defaultMessage": "Select an API key",
+    "description": "Placeholder for the Figma API key picker"
   },
   "7+2d5ot9yA": {
     "defaultMessage": "See details",
@@ -5375,6 +5447,10 @@
     "defaultMessage": "Legal · 6 pages · Connected",
     "description": "Example Drive file detail in the source preview"
   },
+  "7tK9YSDkvx": {
+    "defaultMessage": "Changed {fields} on the {node} step",
+    "description": "Line in the assistant's change list: a node's settings were changed; {fields} lists the settings, {node} is the node type's title"
+  },
   "7tPiM+8vOJ": {
     "defaultMessage": "Applied to this draft",
     "description": "Status on the campaign context mock card"
@@ -5438,6 +5514,10 @@
   "7zni895OkR": {
     "defaultMessage": "Automation created",
     "description": "Toast when a new workspace automation is created successfully"
+  },
+  "7zsudhIRfP": {
+    "defaultMessage": "Insert a field into {label}",
+    "description": "Accessible name of the button that puts a field of an earlier workflow step into a setting's text; {label} is the setting"
   },
   "8+43PQyB4j": {
     "defaultMessage": "Context-aware across all content sources",
@@ -5686,6 +5766,10 @@
   "8OHSn5eQCa": {
     "defaultMessage": "Forbidden glossary term",
     "description": "CAT format check label when a forbidden glossary term appears in the target"
+  },
+  "8Oj/NozToL": {
+    "defaultMessage": "Choose a workspace API key with files and jobs read/write access.",
+    "description": "Help text for the Figma API key picker"
   },
   "8Oyr38Aj4F": {
     "defaultMessage": "Get started",
@@ -6090,6 +6174,10 @@
   "93i6HvwXyA": {
     "defaultMessage": "{count, plural, one {# translatable string in total} other {# translatable strings in total}}",
     "description": "Total translatable string count in an expanded locale row"
+  },
+  "94INRlGgGA": {
+    "defaultMessage": "The test run could not start.",
+    "description": "Toast when the request that starts a workflow test run fails"
   },
   "94NuGR6Dav": {
     "defaultMessage": "{format} · {mode}",
@@ -7475,6 +7563,10 @@
     "defaultMessage": "Job cancelled",
     "description": "Success toast after cancelling a job"
   },
+  "Bb2iyK74xB": {
+    "defaultMessage": "optional",
+    "description": "Marks a test value a workflow step can do without"
+  },
   "BbOj+wUXk0": {
     "defaultMessage": "Publish once.\nGet found everywhere.",
     "description": "Hero headline for the Domains product page"
@@ -7510,10 +7602,6 @@
   "Bel9GZJcDc": {
     "defaultMessage": "Allow memory updates",
     "description": "Toggle label letting this automation append to organization Memory.md"
-  },
-  "BezqwlCa/n": {
-    "defaultMessage": "Fallback value (JSON)",
-    "description": "Visual workflow editor control"
   },
   "Bf9K7N84st": {
     "defaultMessage": "Saved",
@@ -7554,6 +7642,10 @@
   "BiKIjgXcMN": {
     "defaultMessage": "Open integrations",
     "description": "Secondary empty-state action to open provider integrations"
+  },
+  "BicOZ7c8PB": {
+    "defaultMessage": "Authorize Figma",
+    "description": "Authorize the pending Figma app claim"
   },
   "BjVwBrTuYP": {
     "defaultMessage": "{sourceLocale} → {targetLocale}",
@@ -7714,10 +7806,6 @@
   "C1osco57de": {
     "defaultMessage": "Unsaved changes",
     "description": "Hint that a Hyperlab form has unsaved edits"
-  },
-  "C2mkhlL6tc": {
-    "defaultMessage": "Inputs",
-    "description": "Snapshotted Call Workflow inputs"
   },
   "C2s1+2PcGk": {
     "defaultMessage": "resent a member invitation",
@@ -7979,6 +8067,10 @@
     "defaultMessage": "Brand-claims-policy.pdf",
     "description": "Google Drive PDF filename on the guidelines board"
   },
+  "CQU1/0C8er": {
+    "defaultMessage": "Use as test data",
+    "description": "Button on a past workflow run that copies its values into the steps' test data"
+  },
   "CR4EdyZSZI": {
     "defaultMessage": "Who is eligible?",
     "description": "Startups FAQ question about eligibility"
@@ -8034,10 +8126,6 @@
   "CXxeX4tNjR": {
     "defaultMessage": "Push source",
     "description": "Toggle label for the push source GitHub sync workflow"
-  },
-  "CY0//qPgu1": {
-    "defaultMessage": "Find upstream fields",
-    "description": "Visual workflow editor control"
   },
   "CYGau9cDQe": {
     "defaultMessage": "The best agentic localisation platform",
@@ -8134,6 +8222,10 @@
   "Cjmm2y/kv2": {
     "defaultMessage": "Track keywords",
     "description": "Submit add keywords dialog"
+  },
+  "CkFkjy7fQ+": {
+    "defaultMessage": "Use test data",
+    "description": "Choice on a workflow step's Test tab: a test run uses the step's test data"
   },
   "CkeBaA5l+k": {
     "defaultMessage": "Linking queries requires a native project string.",
@@ -8679,6 +8771,10 @@
     "defaultMessage": "Every review makes the next one smarter",
     "description": "Knowledge mock UI section heading"
   },
+  "Dhw0m5NXT1": {
+    "defaultMessage": "Fixed value",
+    "description": "Name of a stored literal binding shown as the source of a workflow step's setting"
+  },
   "Dhz9gdqnZ4": {
     "defaultMessage": "Next workflow starts smarter",
     "description": "Knowledge mock UI stage 4 title"
@@ -8718,10 +8814,6 @@
   "DoGk1GPTBy": {
     "defaultMessage": "Download video",
     "description": "Video refinement workspace: download"
-  },
-  "DoPyHmkOAP": {
-    "defaultMessage": "Inputs",
-    "description": "Visual workflow editor control"
   },
   "DoXSBl+jxH": {
     "defaultMessage": "Linguistic",
@@ -8778,6 +8870,10 @@
   "DtVOLEpfXB": {
     "defaultMessage": "Long text",
     "description": "Issue column type label for long text"
+  },
+  "Dtr9SPmsqm": {
+    "defaultMessage": "Done",
+    "description": "Dismiss Figma token dialog button"
   },
   "DuGUFMT/N4": {
     "defaultMessage": "imported queries",
@@ -9275,6 +9371,10 @@
     "defaultMessage": "Side by side",
     "description": "CAT workspace view mode with source and translation columns"
   },
+  "ElvzqUrelV": {
+    "defaultMessage": "Outcome",
+    "description": "Label of the choice on a workflow step's Test tab of whether the step succeeds or fails in a test run"
+  },
   "ElyQMTBOLz": {
     "defaultMessage": "Failed to update character limit",
     "description": "Fallback error when updating a native segment max length fails"
@@ -9463,13 +9563,13 @@
     "defaultMessage": "Approved",
     "description": "CAT queue filter option for approved segments"
   },
-  "F6jskX12It": {
-    "defaultMessage": "Save changes",
-    "description": "Button to save automation detail changes"
-  },
   "F7I6G7lNye": {
     "defaultMessage": "Unable to load project files.",
     "description": "Fallback error when the project file CAT page fails to load data"
+  },
+  "F7MPcZxBJI": {
+    "defaultMessage": "Added the {node} step",
+    "description": "Line in the assistant's change list: a node was added to the workflow; {node} is the node type's title"
   },
   "F7WfKl5UxS": {
     "defaultMessage": "No activity recorded for these filters. Run a translation or log time to start reporting.",
@@ -9695,6 +9795,10 @@
     "defaultMessage": "Heidi Health",
     "description": "Alt text for the Heidi Health logo on the startups page"
   },
+  "FWjftu2kiI": {
+    "defaultMessage": "Saved credential",
+    "description": "Name of a stored credential binding shown as the source of a workflow step's setting"
+  },
   "FXDqvAOc70": {
     "defaultMessage": "Created",
     "description": "Import created count"
@@ -9738,6 +9842,10 @@
   "FaT5oUwQOq": {
     "defaultMessage": "A page can be live and still be invisible. Domains shows the gaps in each language, in search, and in AI answers.",
     "description": "Body copy for the Domains solutions section"
+  },
+  "FamtHptssa": {
+    "defaultMessage": "Figma connection deleted.",
+    "description": "Toast when Figma connection is deleted"
   },
   "Fb4AJ4nGEX": {
     "defaultMessage": "Search by name or job",
@@ -9806,6 +9914,10 @@
   "Fhrua/1XPG": {
     "defaultMessage": "Review translations without guessing what the string means",
     "description": "Hero headline for the next-gen CAT tool product page"
+  },
+  "FhxuAfxzUP": {
+    "defaultMessage": "{count, plural, =0 {Every step uses its test data.} one {# step runs for real.} other {# steps run for real.}}",
+    "description": "In the test settings popover, how many steps a test run runs for real instead of using test data"
   },
   "FiNdNgLOfB": {
     "defaultMessage": "Because every language is another opportunity to connect people.",
@@ -10251,9 +10363,17 @@
     "defaultMessage": "{current} / {max}",
     "description": "Character count indicator for project form fields"
   },
+  "GbD3NV3O9z": {
+    "defaultMessage": "Failed to regenerate the Figma connection token.",
+    "description": "Error when Figma token regeneration fails"
+  },
   "Gbi1Dt47vU": {
     "defaultMessage": "Operate projects, integrations, credentials, teams, and guideline resources; approve reviews and write-back.",
     "description": "Description of the localization manager role"
+  },
+  "GcIOfZ18Z9": {
+    "defaultMessage": "Run test",
+    "description": "Button that starts a test run in which some steps call out for real"
   },
   "GdufIv1RQV": {
     "defaultMessage": "Contentful",
@@ -10442,6 +10562,10 @@
   "Gx82rosgM3": {
     "defaultMessage": "Enter new markets, generate 10x more multilingual content with the same headcount, and keep quality as you scale.",
     "description": "Marketing homepage hero supporting copy below the headline"
+  },
+  "GxutMPC4gp": {
+    "defaultMessage": "Configuration",
+    "description": "Tab of a workflow step's settings that holds the step's own form"
   },
   "Gy9Swg1os7": {
     "defaultMessage": "Access until {date}",
@@ -10723,6 +10847,10 @@
     "defaultMessage": "Start from a curated workflow. Templates prefill the creation form with instructions, triggers, and tools.",
     "description": "Section description for automation templates"
   },
+  "HVa66T0BGY": {
+    "defaultMessage": "{count, plural, one {# step ran for real} other {# steps ran for real}}",
+    "description": "In a workflow's run history, how many steps of a test run called out for real"
+  },
   "HVlJ+nwIfE": {
     "defaultMessage": "Preview is ready. Review the counts below, then import entries to write them to this translation memory.",
     "description": "Prompt to confirm a translation memory import after preview completes"
@@ -10851,6 +10979,10 @@
     "defaultMessage": "AI-derived context, placement, and product meaning for this visual asset",
     "description": "Description for AI Context drawer in file view"
   },
+  "HmXZYnVvj0": {
+    "defaultMessage": "These steps call out for real in this test run. What they do happens and cannot be undone.",
+    "description": "In the dialog before a test run with steps that run for real"
+  },
   "HmiZVn+TeY": {
     "defaultMessage": "Screenshots must be PNG, JPEG, or WebP.",
     "description": "Error when an unsupported visual context screenshot type is selected"
@@ -10907,10 +11039,6 @@
     "defaultMessage": "Edit",
     "description": "Compact CAT workspace tab for the translation editor"
   },
-  "HrEbvbWkeA": {
-    "defaultMessage": "Provide sample event data in Test settings.",
-    "description": "Config panel empty copy for nodes without fields"
-  },
   "Hs6SYEddPH": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale radio list in the import dialog"
@@ -10934,6 +11062,10 @@
   "HtM5Jg2cRQ": {
     "defaultMessage": "Disable merging",
     "description": "Confirm disabling identical string merging"
+  },
+  "HtVUcSTMS/": {
+    "defaultMessage": "On error is set to Continue, so the test run goes on past this step.",
+    "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Continue"
   },
   "Hv8dudDiIO": {
     "defaultMessage": "Chat, translation, and coding",
@@ -11635,6 +11767,10 @@
     "defaultMessage": "CSV",
     "description": "Menu option to import Queries rows from a CSV file"
   },
+  "JC/7r38rMk": {
+    "defaultMessage": "Changed the settings of the {node} step",
+    "description": "Line in the assistant's change list: a node's settings were changed, none of which has a name to show; {node} is the node type's title"
+  },
   "JC6yhq1JP6": {
     "defaultMessage": "SharePoint",
     "description": "SharePoint source name on the guidelines board"
@@ -11654,6 +11790,10 @@
   "JEdlCIcj1G": {
     "defaultMessage": "Disconnecting…",
     "description": "Disconnect button label while GitHub is being disconnected"
+  },
+  "JEi80S8Q14": {
+    "defaultMessage": "Ask for a change, or say what this workflow should do.",
+    "description": "Placeholder of the box in the assistant panel beside a visual workflow, where a request is typed"
   },
   "JHFSIHw0S8": {
     "defaultMessage": "Custom",
@@ -11739,6 +11879,14 @@
     "defaultMessage": "GitHub",
     "description": "Marketing footer resource link label"
   },
+  "JQZCOawuKC": {
+    "defaultMessage": "Figma app authorized. Return to Figma to finish connecting.",
+    "description": "Toast when a Figma claim is authorized"
+  },
+  "JQuMZXhBtU": {
+    "defaultMessage": "Enter valid JSON.",
+    "description": "Under a test value of a workflow step whose JSON cannot be read"
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "Reading {detail}",
     "description": "Live explore status when the agent is reading a named file"
@@ -11786,6 +11934,10 @@
   "JV74CwQ5fc": {
     "defaultMessage": "Refreshing…",
     "description": "Provider-backed Overview refresh in progress"
+  },
+  "JVogogkuBP": {
+    "defaultMessage": "Use last run",
+    "description": "Button on a workflow step's Test tab that copies the step's output from the last run"
   },
   "JWYwsX1bkl": {
     "defaultMessage": "Spoken audio for localized voiceovers, previews, and agent replies.",
@@ -11867,6 +12019,10 @@
     "defaultMessage": "Save failed",
     "description": "CAT format check label when saving a translation fails"
   },
+  "JisM1jWILg": {
+    "defaultMessage": "Removed the {node} step",
+    "description": "Line in the assistant's change list: a node was removed from the workflow; {node} is the node type's title"
+  },
   "Jjjtb6X1+r": {
     "defaultMessage": "Unable to load this entry.",
     "description": "Error state when a translation memory entry detail request fails"
@@ -11946,6 +12102,10 @@
   "JuVYR2r3yd": {
     "defaultMessage": "Navigation menu",
     "description": "Screen-reader title for the mobile navigation sheet"
+  },
+  "JuzH9vR7ay": {
+    "defaultMessage": "Succeeds",
+    "description": "Outcome on a workflow step's Test tab: the step returns its test data"
   },
   "JvZ26UFlte": {
     "defaultMessage": "Then run {command} to authenticate.",
@@ -12211,6 +12371,10 @@
     "defaultMessage": "Patch",
     "description": "Package version change badge for a patch update"
   },
+  "KXlC8hrmGf": {
+    "defaultMessage": "Disconnected {source} from {target}",
+    "description": "Line in the assistant's change list: a connection between two workflow nodes was removed, named by their ids"
+  },
   "KXnH/FP4XN": {
     "defaultMessage": "HTTP",
     "description": "MCP transport option: streamable HTTP"
@@ -12250,6 +12414,10 @@
   "KbRaMGCw9d": {
     "defaultMessage": "Work date (UTC)",
     "description": "Translation reporting label"
+  },
+  "KbaeWqdfEa": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab.",
+    "description": "Config panel empty copy for a step without fields"
   },
   "Kbq8fI6g+r": {
     "defaultMessage": "Could not queue ingest",
@@ -12346,10 +12514,6 @@
   "Ks+Feeoung": {
     "defaultMessage": "{count} characters",
     "description": "Live character count for the CAT target translation when no max length is set"
-  },
-  "KsKu3atOfj": {
-    "defaultMessage": "Allow missing value",
-    "description": "Visual workflow editor control"
   },
   "KsWSfbuaLd": {
     "defaultMessage": "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
@@ -12490,6 +12654,10 @@
   "L9CYRKrj6S": {
     "defaultMessage": "Admin",
     "description": "Admin role in the workspace access illustration"
+  },
+  "LAhLwqc2EA": {
+    "defaultMessage": "Figma",
+    "description": "Name shown for the Figma integrations row"
   },
   "LAx6QaaPwX": {
     "defaultMessage": "Select",
@@ -12991,6 +13159,10 @@
     "defaultMessage": "Search",
     "description": "Label for the projects search field"
   },
+  "M0Sc0iJFfe": {
+    "defaultMessage": "More actions",
+    "description": "Accessible label for the automation detail overflow menu"
+  },
   "M0cRkUTb0F": {
     "defaultMessage": "This automation already has the maximum number of knowledge files.",
     "description": "Toast when the knowledge file count limit is reached"
@@ -13079,6 +13251,10 @@
     "defaultMessage": "Open in editor",
     "description": "Project QA finding editor link"
   },
+  "M9MtJAsUOq": {
+    "defaultMessage": "On error is set to Stop, so the test run stops at this step.",
+    "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Stop"
+  },
   "M9z6IP66I+": {
     "defaultMessage": "Download the full memory, or limit the file to one source and target locale pair. Choose CSV or TMX.",
     "description": "Description for the translation memory export dialog"
@@ -13162,6 +13338,10 @@
   "MJXPKuSba6": {
     "defaultMessage": "Volume",
     "description": "Rank tracking volume column"
+  },
+  "MK78Fh8i76": {
+    "defaultMessage": "Error message",
+    "description": "Box on a workflow step's Test tab for the message of the error the step fails with"
   },
   "MKqk5CAbrB": {
     "defaultMessage": "Back to integrations",
@@ -13434,6 +13614,10 @@
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet",
     "description": "Empty state title when the workspace has no glossaries"
+  },
+  "Mpd2ZhrVg/": {
+    "defaultMessage": "Choose an API key.",
+    "description": "Validation error when Figma API key is missing"
   },
   "Mpg1bKhmu2": {
     "defaultMessage": "Approval status",
@@ -13779,6 +13963,10 @@
     "defaultMessage": "Column added",
     "description": "Toast when a custom Issue Sheet column is created successfully"
   },
+  "NOPoUyz/8O": {
+    "defaultMessage": "Renamed the workflow to \"{name}\"",
+    "description": "Line in the assistant's change list: the workflow was given a new name"
+  },
   "NP2wAmeM1j": {
     "defaultMessage": "Due date",
     "description": "Detail row label for the job due date"
@@ -13886,6 +14074,10 @@
   "NanjjZ6X+o": {
     "defaultMessage": "No translation memories match your filters. <clear>Clear filters</clear>",
     "description": "Empty filter state for translation memories, with a clear-filters action"
+  },
+  "NbAZVkN3TH": {
+    "defaultMessage": "Another step reads this, so a test run needs it.",
+    "description": "Under an empty optional test value that another workflow step uses"
   },
   "Nc2Rh7BgjZ": {
     "defaultMessage": "Query could not be unlinked.",
@@ -14363,6 +14555,10 @@
     "defaultMessage": "EN · FR · DE · JA demand compared",
     "description": "Automations mock UI keyword research step 2"
   },
+  "OSdBlPpXbz": {
+    "defaultMessage": "Could not rename the workflow",
+    "description": "Line in the assistant's change list: renaming the workflow was refused"
+  },
   "OSxEF0/gz3": {
     "defaultMessage": "Automatically merge identical strings",
     "description": "Identical string merging setting label"
@@ -14506,6 +14702,10 @@
   "OiGEycK9rN": {
     "defaultMessage": "Experiments",
     "description": "Home card title for experiments"
+  },
+  "OiJHVksWWK": {
+    "defaultMessage": "On error is set to Branch, so the test run takes this step's error path.",
+    "description": "On a workflow step's Test tab, what a failure does when the step's On error setting is Branch"
   },
   "Oiey9nLAFp": {
     "defaultMessage": "Hyperlocalise updated the Contentful webhook configuration.",
@@ -15091,6 +15291,10 @@
     "defaultMessage": "Enabled",
     "description": "Badge shown when a Zernio connection is enabled"
   },
+  "PqA9E3tXEb": {
+    "defaultMessage": "Failed to load Figma connections.",
+    "description": "Error when Figma connections cannot be loaded"
+  },
   "PqqKKd0E77": {
     "defaultMessage": "Unable to create project",
     "description": "Fallback error when creating a project fails"
@@ -15274,6 +15478,10 @@
   "Q6oQuKFEbX": {
     "defaultMessage": "Bring your own model stack",
     "description": "Supporting line next to the supported LLM providers heading"
+  },
+  "Q7NvaWMPza": {
+    "defaultMessage": "Error code",
+    "description": "Box on a workflow step's Test tab for the code of the error the step fails with"
   },
   "Q8OhM5eaVm": {
     "defaultMessage": "Coding",
@@ -15678,6 +15886,10 @@
   "QvT2rHSxpM": {
     "defaultMessage": "Layers saved",
     "description": "Image viewer: saved"
+  },
+  "Qw/ZLtBjN0": {
+    "defaultMessage": "Crowdin",
+    "description": "Tool badge when an automation uses Crowdin"
   },
   "Qw3AuwhQJ4": {
     "defaultMessage": "String Hidden",
@@ -16119,10 +16331,6 @@
     "defaultMessage": "Billing",
     "description": "App shell breadcrumb title for the billing settings page"
   },
-  "RnDCfBW6QI": {
-    "defaultMessage": "Live test: sends real requests, generates AI content, and delivers notifications. Does not publish.",
-    "description": "Visual workflow editor control"
-  },
   "RnWdIPrF1R": {
     "defaultMessage": "Use in…",
     "description": "Opens a menu to put the AI recommendation into one translation variant"
@@ -16543,10 +16751,6 @@
     "defaultMessage": "Crowdin",
     "description": "Alt text for the Crowdin logo in the chapter TMS marquee"
   },
-  "SfxPvLTS+B": {
-    "defaultMessage": "Trigger payload (JSON)",
-    "description": "Visual workflow editor control"
-  },
   "Sg0Mw2ebHp": {
     "defaultMessage": "Test in one market.\nCount what happens.",
     "description": "Title for the Hyperlab experiments solution panel"
@@ -16687,6 +16891,10 @@
     "defaultMessage": "Retrying",
     "description": "Label for a locale being retried on its own after a batch problem"
   },
+  "Supl3UvqqT": {
+    "defaultMessage": "Local development only. This token is shown once. Paste it into a locally running Figma app. Production uses Connect Hyperlocalise (OAuth).",
+    "description": "Description for the one-time Figma token reveal dialog"
+  },
   "SusA/f3CfU": {
     "defaultMessage": "No Hyperlocalise jobs found for this project yet.",
     "description": "Empty state for native jobs in a project"
@@ -16779,6 +16987,10 @@
     "defaultMessage": "Actions",
     "description": "Column header for member row actions"
   },
+  "T17lvAfQL0": {
+    "defaultMessage": "All test data (JSON)",
+    "description": "Label of the box that shows all of a workflow step's test values as JSON"
+  },
   "T1Sk0Af2ER": {
     "defaultMessage": "Against",
     "description": "Guidelines label on the daily compliance audit mock card"
@@ -16850,6 +17062,10 @@
   "TCrPfIJsvP": {
     "defaultMessage": "Review projects",
     "description": "Workspace QA action to view failed projects"
+  },
+  "TD3EETjvkY": {
+    "defaultMessage": "Add connection",
+    "description": "Button to add a new Figma connection"
   },
   "TDO0IYa70X": {
     "defaultMessage": "Comment deleted",
@@ -17475,6 +17691,10 @@
     "defaultMessage": "Starts with {prefix}",
     "description": "Access token prefix shown in the tokens table"
   },
+  "UIxKl4gSfi": {
+    "defaultMessage": "Updated the workflow · {count, plural, one {# change} other {# changes}}",
+    "description": "Line in the assistant panel for a finished tool call on a visual workflow, which opens to list the changes"
+  },
   "UJFX+3Y3fz": {
     "defaultMessage": "Error branch",
     "description": "Route to error branch on node error"
@@ -17522,6 +17742,10 @@
   "UN02t1d3TY": {
     "defaultMessage": "Upload file",
     "description": "Button to upload a knowledge file for an automation"
+  },
+  "UNu4p11x2h": {
+    "defaultMessage": "Copy token",
+    "description": "Copy Figma connection token button"
   },
   "UO1B3Nh+0U": {
     "defaultMessage": "Tools",
@@ -17811,10 +18035,6 @@
     "defaultMessage": "Lead with trust signals and social proof. Do not use aggressive discount language or urgency tactics.",
     "description": "Body of the Notion guideline preview"
   },
-  "UsvrwYmjnb": {
-    "defaultMessage": "Mock outputs by node ID (JSON)",
-    "description": "Visual workflow editor control"
-  },
   "UsyjaZLxwE": {
     "defaultMessage": "Check now",
     "description": "Run the mocked DNS check"
@@ -17854,6 +18074,10 @@
   "UvtZVrIkJR": {
     "defaultMessage": "Remove edges that point to missing steps.",
     "description": "Validation message when an edge references a missing node"
+  },
+  "UwAnfXP81g": {
+    "defaultMessage": "This Figma connect request is missing or expired.",
+    "description": "Error when a Figma claim id is missing"
   },
   "UxD7Hy8Ypk": {
     "defaultMessage": "Refresh data",
@@ -17926,6 +18150,10 @@
   "V21lzZzbHn": {
     "defaultMessage": "Could not export words for this locale.",
     "description": "Error when exporting dictionary words fails"
+  },
+  "V2whWmooom": {
+    "defaultMessage": "Find a field",
+    "description": "Search box of the menu that lists the fields of earlier workflow steps"
   },
   "V3N8wNW3/m": {
     "defaultMessage": "But we also saw the reality behind every successful global launch. Localisation teams worked tirelessly to keep pace with product development. Product context lived in dozens of places. Questions were repeated across projects. Reviews stretched across time zones. As products shipped faster, the operational burden only grew.",
@@ -18022,6 +18250,10 @@
   "VEHKmr6W1d": {
     "defaultMessage": "Release",
     "description": "Automation product visual workflow destination name"
+  },
+  "VElAUDjdAE": {
+    "defaultMessage": "Run {count, plural, one {# step} other {# steps}} for real?",
+    "description": "Title of the dialog before a test run in which some steps call out for real"
   },
   "VFS/q4p0GR": {
     "defaultMessage": "Schedule timezone",
@@ -18255,9 +18487,17 @@
     "defaultMessage": "Could not load market recommendations.",
     "description": "Market recommendation error"
   },
+  "VhvPvEqliZ": {
+    "defaultMessage": "Connect Figma",
+    "description": "Title for the Figma claim authorization page"
+  },
   "Vj/gZDKJUv": {
     "defaultMessage": "No segments match the current filters.",
     "description": "Error when a filtered Content Editor export has no matching segments"
+  },
+  "VjG0Zt9Hr8": {
+    "defaultMessage": "Test",
+    "description": "Tab of a workflow step's settings that holds the values the step uses in a test run"
   },
   "VkNsZOH7xT": {
     "defaultMessage": "Choose an organization",
@@ -18270,6 +18510,10 @@
   "Vl/WJ79qHw": {
     "defaultMessage": "Connect Resend or SendGrid in <link>Integrations</link> to use email notifications.",
     "description": "Description for email notifications when email is not enabled"
+  },
+  "VluH2EAHsX": {
+    "defaultMessage": "Cleared the workflow's name",
+    "description": "Line in the list of what the person changed on the workflow themselves"
   },
   "Vm1k8EkL8L": {
     "defaultMessage": "Issue",
@@ -18470,6 +18714,10 @@
   "W8ahbI8++r": {
     "defaultMessage": "CSV",
     "description": "Translation memory export format option for CSV"
+  },
+  "W9Pt1ytVfg": {
+    "defaultMessage": "Token starting with {prefix}",
+    "description": "Hint showing the stored Figma connection token prefix"
   },
   "WA49vhY6w5": {
     "defaultMessage": "Refresh the repository list and metadata from GitHub. This does not push or pull translations.",
@@ -18907,6 +19155,10 @@
     "defaultMessage": "Running",
     "description": "Job status label for running jobs"
   },
+  "X+6eLCg8p5": {
+    "defaultMessage": "Edit as text",
+    "description": "Button that turns a stored fixed value or template of a workflow step's setting into the setting's own text"
+  },
   "X+8j5AXyLj": {
     "defaultMessage": "Approved EU AI Act disclosure, GDPR marketing claims, and health-claim wording live in this library.",
     "description": "Body of the SharePoint guideline preview"
@@ -19095,10 +19347,6 @@
     "defaultMessage": "Hidden",
     "description": "Filter option for hidden source strings"
   },
-  "XLQ4My0c2z": {
-    "defaultMessage": "Field path",
-    "description": "Visual workflow editor control"
-  },
   "XLYekd9yOT": {
     "defaultMessage": "Unable to load options",
     "description": "Error state when a breadcrumb selector fails to load items"
@@ -19226,6 +19474,10 @@
   "XYe4THixuv": {
     "defaultMessage": "Unable to load projects",
     "description": "Fallback error when projects fail to load on the glossary detail page"
+  },
+  "XZ5ZBfMizx": {
+    "defaultMessage": "Uses test data from {steps}",
+    "description": "In the dialog before a test run, under a step that runs for real: the mocked steps whose test data it reads"
   },
   "XaU9VG5iR6": {
     "defaultMessage": "Unable to add member to team.",
@@ -19863,6 +20115,10 @@
     "defaultMessage": "Change analysis",
     "description": "Workflow step 2 label for the github-release-localisation use case"
   },
+  "YkGSzDTzNH": {
+    "defaultMessage": "Runs for real in test runs",
+    "description": "Label of the mark on a canvas step that a test run runs for real, not on its test data"
+  },
   "YkWm74hjVM": {
     "defaultMessage": "Loading more…",
     "description": "Button label while the next page of project files is loading"
@@ -20334,6 +20590,10 @@
   "Zjsr28k65x": {
     "defaultMessage": "Dense review table with bulk approve and QA issue tracking",
     "description": "Description tooltip for the Reviewer workspace persona"
+  },
+  "ZkAbhQobmZ": {
+    "defaultMessage": "Display name",
+    "description": "Label for Figma display name field"
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Treat as image",
@@ -20883,6 +21143,10 @@
     "defaultMessage": "GitHub rejected the app credentials in this environment. Set GITHUB_APP_ID to the App ID from GitHub App settings and GITHUB_APP_PRIVATE_KEY to the matching PEM (use literal \\n line breaks or base64-encode the whole file).",
     "description": "GitHub connect error when GitHub App private key is invalid"
   },
+  "adR2DRzo2Q": {
+    "defaultMessage": "Enter a display name.",
+    "description": "Validation error when Figma display name is missing"
+  },
   "adTqYP7Vjb": {
     "defaultMessage": "All locales",
     "description": "Project QA all locales filter"
@@ -21367,6 +21631,10 @@
     "defaultMessage": "API key copied to clipboard",
     "description": "Success toast after copying a newly created API key"
   },
+  "bXMU39hmQJ": {
+    "defaultMessage": "Updated the workflow",
+    "description": "Line in the assistant panel for a finished tool call on a visual workflow that did not list its changes"
+  },
   "bXnJyD63X6": {
     "defaultMessage": "Connect Slack, Notion, Contentful, and the rest. Then let the next campaign follow the same path.",
     "description": "Bottom CTA description for the agents automation product page"
@@ -21379,9 +21647,9 @@
     "defaultMessage": "Localisation memory layer",
     "description": "Knowledge product visual mock card title"
   },
-  "bYsksXFrGX": {
-    "defaultMessage": "Discard changes",
-    "description": "Button that throws away the unsaved changes to an automation"
+  "bZKwFr1ByM": {
+    "defaultMessage": "The assistant’s changes are on the canvas. Undo takes them back. Nothing is saved until you click Save.",
+    "description": "Line at the end of the assistant panel while a visual workflow holds changes of the assistant that are not saved"
   },
   "bZmWrWqZb+": {
     "defaultMessage": "Push source",
@@ -21551,6 +21819,10 @@
     "defaultMessage": "No words for this locale yet.",
     "description": "Empty state for a dictionary locale with no words"
   },
+  "bsLwr0ECfl": {
+    "defaultMessage": "Save",
+    "description": "Button to save automation detail changes"
+  },
   "bsU0qqr6A2": {
     "defaultMessage": "Overview",
     "description": "Import report overview heading"
@@ -21662,6 +21934,10 @@
   "c3ROZAXotz": {
     "defaultMessage": "{providerName} projects",
     "description": "Section title for live TMS provider projects"
+  },
+  "c43lsobCtO": {
+    "defaultMessage": "{count, plural, one {A test value is missing} other {# test values are missing}}",
+    "description": "Toast when a workflow test run is not started because test values are not set"
   },
   "c4wtcYLzS0": {
     "defaultMessage": "No locales or assignees",
@@ -21859,6 +22135,10 @@
     "defaultMessage": "Something went wrong while auditing this domain. You can retry safely.",
     "description": "Body when a public localisation audit fails"
   },
+  "cRhF5oMlHA": {
+    "defaultMessage": "Remove",
+    "description": "Button that removes the stored binding feeding a workflow step's setting"
+  },
   "cRtcug0AF8": {
     "defaultMessage": "Do not split",
     "description": "SRX rule break=no"
@@ -21982,6 +22262,10 @@
   "cgwAYz/R89": {
     "defaultMessage": "Update {providerName}",
     "description": "Save button label when reconnecting with new OAuth credentials"
+  },
+  "ch9gwSSThi": {
+    "defaultMessage": "Set {path} on the Test tab of {step}.",
+    "description": "Under the missing test values toast: the first one to set. {path} is a field name, {step} a step's name"
   },
   "ch9kNq8+UC": {
     "defaultMessage": "Unknown size",
@@ -22563,6 +22847,10 @@
     "defaultMessage": "Updated date unavailable",
     "description": "Fallback when a project has no usable updated timestamp"
   },
+  "dcomOTuPbB": {
+    "defaultMessage": "Updating the workflow…",
+    "description": "Line in the assistant's reply while its tool is changing the visual workflow"
+  },
   "ddPY0So4Vu": {
     "defaultMessage": "Ukrainian (Ukraine)",
     "description": "Display name for BCP-47 locale uk-UA"
@@ -22866,6 +23154,10 @@
   "e55K7kZph5": {
     "defaultMessage": "Hreflang, locale coverage, and multilingual content quality",
     "description": "Domains mock UI localisation audit use case description"
+  },
+  "e5EIKdt4+j": {
+    "defaultMessage": "Could not change a step's settings",
+    "description": "Line in the assistant's change list: changing a workflow step's settings was refused"
   },
   "e5w8XM92TM": {
     "defaultMessage": "hid a string",
@@ -23303,6 +23595,10 @@
     "defaultMessage": "This workspace supports up to {count} text elements. Remove an element before adding more.",
     "description": "Video refinement workspace: limit"
   },
+  "eqeg8nHR3p": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when a Figma connection is enabled"
+  },
   "erXgCbsSqH": {
     "defaultMessage": "Export filtered as CSV",
     "description": "Glossary action to export the current language filter as CSV"
@@ -23674,6 +23970,10 @@
   "fWyfUTYZOq": {
     "defaultMessage": "Select a keyword to inspect its search demand and ranking results.",
     "description": "Keyword research screen: chooseKeyword"
+  },
+  "fX43+IisLH": {
+    "defaultMessage": "Could not disconnect two steps",
+    "description": "Line in the assistant's change list: disconnecting two workflow steps was refused"
   },
   "fXIJvHCrL6": {
     "defaultMessage": "Previous segment",
@@ -24106,6 +24406,10 @@
   "gFvQ/JVP4A": {
     "defaultMessage": "Errors and warnings over time",
     "description": "QA overview chart title for errors and warnings across recent scans"
+  },
+  "gGRRIh5EV/": {
+    "defaultMessage": "Linked to Figma brand {brandId}",
+    "description": "Shows the Figma brand bound to a connection"
   },
   "gHUxugs0eg": {
     "defaultMessage": "Built for localisation teams. Start free today.",
@@ -24579,6 +24883,10 @@
     "defaultMessage": "Gather string changes, PR descriptions, Slack threads, and launch briefs so translators see why copy changed — not just the diff.",
     "description": "Capability 1 description for the product-localisation use case"
   },
+  "h0hMmM+3k4": {
+    "defaultMessage": "Braze",
+    "description": "Tool badge when an automation uses Braze"
+  },
   "h11M7dgCU3": {
     "defaultMessage": "Team",
     "description": "Teams table column header for team name"
@@ -24630,6 +24938,10 @@
   "h3qjecOeg8": {
     "defaultMessage": "Open {projectName} in provider",
     "description": "Screen-reader label for opening a project in its external TMS provider"
+  },
+  "h4LTn78oL0": {
+    "defaultMessage": "Regenerate token",
+    "description": "Regenerate Figma connection token button"
   },
   "h4qqRHFDUX": {
     "defaultMessage": "Send",
@@ -24758,6 +25070,10 @@
   "hLYu5z/3mF": {
     "defaultMessage": "Publish and optimise multilingual web content for SEO, AEO, and local discovery.",
     "description": "Marketing homepage domainsShort"
+  },
+  "hLqs+EeEG8": {
+    "defaultMessage": "Connect this on the canvas.",
+    "description": "Shown in place of the editor of a workflow step setting that only a data wire can feed"
   },
   "hMCKrgEEKW": {
     "defaultMessage": "No comments or activity yet. Start the discussion.",
@@ -25279,10 +25595,6 @@
     "defaultMessage": "Enter URL",
     "description": "Prompt shown when adding a hyperlink via the slash menu"
   },
-  "iF8OgIZ53W": {
-    "defaultMessage": "Test settings · mock by default",
-    "description": "Visual workflow editor control"
-  },
   "iFmiFrAfXR": {
     "defaultMessage": "No repos",
     "description": "Repository selector label when the account has no GitHub or GitLab repositories"
@@ -25427,9 +25739,17 @@
     "defaultMessage": "Select a conversation to view details",
     "description": "Empty state when no inbox conversation is selected"
   },
+  "iUENcP8UXx": {
+    "defaultMessage": "This step has nothing to set up. Its outputs are on the Outputs tab, and its sample event on the Test tab.",
+    "description": "Config panel empty copy for a manual trigger, which has no fields"
+  },
   "iUgXrXTD7Q": {
     "defaultMessage": "Hebrew (Israel)",
     "description": "Display name for BCP-47 locale he-IL"
+  },
+  "iUhV4+Yq09": {
+    "defaultMessage": "Test runs call out for real for this step: requests are sent, content is generated and messages are delivered. Its test data is kept for when it uses test data again.",
+    "description": "On a workflow step's Test tab, when a test run runs the step for real"
   },
   "iV4M/BRREW": {
     "defaultMessage": "Attachment",
@@ -25474,6 +25794,10 @@
   "ia5z3O+Lwm": {
     "defaultMessage": "Localized video generation and regeneration for on-screen text and spoken audio.",
     "description": "Hyperlocalise Agent video generation capability description"
+  },
+  "iaKQFI88/f": {
+    "defaultMessage": "Failed to save Figma connection.",
+    "description": "Error when Figma connection save fails"
   },
   "iaUn+Dn3Pk": {
     "defaultMessage": "Could not load placeholder format.",
@@ -25535,6 +25859,10 @@
     "defaultMessage": "Sending…",
     "description": "Pending label while requesting a localisation audit summary email"
   },
+  "ihICBXS5Mu": {
+    "defaultMessage": "Save",
+    "description": "Save Figma connection button"
+  },
   "ihYGlJZXjP": {
     "defaultMessage": "GitHub Action",
     "description": "Marketing footer resource link label"
@@ -25542,6 +25870,10 @@
   "ihy++kxglc": {
     "defaultMessage": "Choose a language",
     "description": "Title for the locale picker used when adding a concept term"
+  },
+  "ijeBZJPxQs": {
+    "defaultMessage": "Semrush",
+    "description": "Tool badge when an automation uses Semrush"
   },
   "il32pCskAo": {
     "defaultMessage": "Domains",
@@ -25642,6 +25974,10 @@
   "iswoFpqCGE": {
     "defaultMessage": "GitHub PR",
     "description": "Workflow step 1 label for the product-localisation use case"
+  },
+  "it+CxLEVkH": {
+    "defaultMessage": "Insert a field from an earlier step",
+    "description": "Tooltip of the button that puts a field of an earlier workflow step into a setting's text"
   },
   "it5/fNQT1d": {
     "defaultMessage": "Use locale",
@@ -25934,6 +26270,10 @@
   "jSY7h//Jq9": {
     "defaultMessage": "Compare against approved baselines",
     "description": "Workflow step 3 description for the localisation-quality-monitoring use case"
+  },
+  "jSZ5KDgjs6": {
+    "defaultMessage": "Describe what this workflow should do, or ask for a change.",
+    "description": "Empty state of the assistant panel beside a visual workflow, before any message"
   },
   "jSv2EzfhBb": {
     "defaultMessage": "every",
@@ -26359,6 +26699,10 @@
     "defaultMessage": "Running",
     "description": "Tool status badge when the tool is running"
   },
+  "kC1soSUZq7": {
+    "defaultMessage": "The event this trigger passes on when you test the workflow. Real runs use the real event.",
+    "description": "Explains the Test tab of a workflow trigger"
+  },
   "kC3PfwuLdP": {
     "defaultMessage": "Search",
     "description": "Label above the jobs search field"
@@ -26382,6 +26726,10 @@
   "kE7O20HfQk": {
     "defaultMessage": "Remaining (USD)",
     "description": "Translation reporting label"
+  },
+  "kEhYEqOX8G": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that removes the data wire feeding a workflow step's setting"
   },
   "kF6mTL+t+j": {
     "defaultMessage": "{metric} by day: {values}",
@@ -26423,6 +26771,10 @@
     "defaultMessage": "Trigger",
     "description": "Node picker category for workflow start nodes"
   },
+  "kHvyGVv5TJ": {
+    "defaultMessage": "What this step returns in a test run while it uses its test data, in place of doing its work. Nothing is made up: a value left empty stops the test.",
+    "description": "Explains the Test tab of a workflow step that calls out to another service"
+  },
   "kIG+JJHbzJ": {
     "defaultMessage": "Reset zoom",
     "description": "Accessible label for resetting zoom and pan in the image lightbox"
@@ -26458,6 +26810,10 @@
   "kMySdc7EDT": {
     "defaultMessage": "Cancel",
     "description": "Cancels bulk deletion of translation memory entries"
+  },
+  "kN6qwzFh/5": {
+    "defaultMessage": "Fill with examples",
+    "description": "Button on a workflow step's Test tab that writes example values into its empty fields"
   },
   "kNO9FnuZT5": {
     "defaultMessage": "Needs review",
@@ -26791,6 +27147,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a glossary timestamp is unavailable"
   },
+  "kzH21n29Rp": {
+    "defaultMessage": "Step settings",
+    "description": "Accessible name of the tabs that switch between the parts of a workflow step's settings"
+  },
   "kzMTx+wIMg": {
     "defaultMessage": "Powered by DataForSEO Labs’ Google Domain Rank Overview API.",
     "description": "Market data attribution"
@@ -26887,6 +27247,10 @@
     "defaultMessage": "Choose the model providers and tools your team trusts. Let agents handle repeatable work while people stay in the loop.",
     "description": "First card body in the homepage trust and control section"
   },
+  "lB0h34jODa": {
+    "defaultMessage": "Deny",
+    "description": "Deny Figma OAuth access"
+  },
   "lBt4D36OVV": {
     "defaultMessage": "Dismiss update",
     "description": "Accessible label for the close button on the product update announcement card"
@@ -26910,6 +27274,10 @@
   "lES6CzVw2i": {
     "defaultMessage": "Product overview",
     "description": "TM match context label in the hero CAT mock"
+  },
+  "lEXKxwEywz": {
+    "defaultMessage": "Connected {source} to {target}",
+    "description": "Line in the assistant's change list: two workflow nodes were connected, named by their ids"
   },
   "lEmnokrrS2": {
     "defaultMessage": "created a linked domain",
@@ -27062,6 +27430,10 @@
   "lWsEWOz8r0": {
     "defaultMessage": "Inbound address ready. Send files or images with a target language to translate by email.",
     "description": "Email integration description when an inbound address exists"
+  },
+  "lX5fkBbKOJ": {
+    "defaultMessage": "Figma is requesting access to localize designs through a Hyperlocalise workspace connection.",
+    "description": "Description for the Figma OAuth consent page"
   },
   "lXXmdSGuM3": {
     "defaultMessage": "Reconnect {providerName} to keep this integration working.",
@@ -27318,6 +27690,10 @@
   "m3RSvNywAR": {
     "defaultMessage": "Activity could not be loaded.",
     "description": "Error title when file editor activity fails to load"
+  },
+  "m3elLgug6H": {
+    "defaultMessage": "When every step runs for real, a test run is a live run: Wait steps really wait. It never publishes.",
+    "description": "In the test settings popover, what a test run does when every step runs for real"
   },
   "m3woOgoczi": {
     "defaultMessage": "3h ago",
@@ -27731,6 +28107,10 @@
     "defaultMessage": "Google Drive",
     "description": "Google Drive source name on the guidelines board"
   },
+  "mhtqPj5f5v": {
+    "defaultMessage": "Test settings",
+    "description": "Name of the button and popover beside Test workflow that holds the live test switch"
+  },
   "mi29vosn6Y": {
     "defaultMessage": "Select a supported provider.",
     "description": "Validation error when onboarding provider selection is invalid"
@@ -27826,6 +28206,10 @@
   "mq4F9HRaBq": {
     "defaultMessage": "Rule set name",
     "description": "Label for languagename attribute"
+  },
+  "mqYq/LYRBZ": {
+    "defaultMessage": "Show",
+    "description": "Action of the missing test values toast that opens the step's Test tab"
   },
   "mqq6dTwRZM": {
     "defaultMessage": "Outputs",
@@ -28122,10 +28506,6 @@
   "nOCS+qmeJF": {
     "defaultMessage": "Member",
     "description": "Organization membership role label for members"
-  },
-  "nOPkXXYDPf": {
-    "defaultMessage": "Source field",
-    "description": "Visual workflow editor control"
   },
   "nOnn7HtqN6": {
     "defaultMessage": "Clear filters",
@@ -28911,6 +29291,10 @@
     "defaultMessage": "Trust Center",
     "description": "Marketing navbar link to the trust center"
   },
+  "ojIy177KR7": {
+    "defaultMessage": "Create a workspace connection here. Designers then sign in from Figma with OAuth.",
+    "description": "Description for the Figma integrations row"
+  },
   "ojrPiYWxu8": {
     "defaultMessage": "Copy value",
     "description": "Copy DNS TXT value"
@@ -29675,6 +30059,10 @@
     "defaultMessage": "Completed",
     "description": "Completed translation memory import status"
   },
+  "py0C/2fMk8": {
+    "defaultMessage": "Failed to authorize the Figma app.",
+    "description": "Error when Figma claim authorization fails"
+  },
   "py4sv3RBJU": {
     "defaultMessage": "Enforce brand voice and terminology",
     "description": "Capability 2 title for the marketing-localisation use case"
@@ -29803,6 +30191,10 @@
     "defaultMessage": "Show localisation health directly in GitHub so engineering and localisation share one view.",
     "description": "Capability 5 description for the localisation-quality-monitoring use case"
   },
+  "q8XoGsQB0C": {
+    "defaultMessage": "Delete",
+    "description": "Delete Figma connection button"
+  },
   "q8jItOdlQf": {
     "defaultMessage": "Select agent run",
     "description": "Placeholder for choosing which agent run to review"
@@ -29874,6 +30266,10 @@
   "qBpW7LbE1Z": {
     "defaultMessage": "Linked Domain Cancelled",
     "description": "Activity log event type label for cancelling a linked domain claim"
+  },
+  "qByVEBzLzv": {
+    "defaultMessage": "Could not remove a step",
+    "description": "Line in the assistant's change list: removing a step from the workflow was refused"
   },
   "qCIzGw7LDA": {
     "defaultMessage": "Localize behavioral email and in-app messages in Customer.io.",
@@ -29990,6 +30386,10 @@
   "qQRYeCWT2J": {
     "defaultMessage": "Paste a Braze REST API key and choose the REST cluster for that instance.",
     "description": "Intro text shown before a Braze API key is saved"
+  },
+  "qQZGFuhT3T": {
+    "defaultMessage": "The workflow could not be updated",
+    "description": "Line in the assistant's reply for a change to the visual workflow that failed"
   },
   "qRVA5sizhD": {
     "defaultMessage": "Simple plans for evaluating Hyperlocalise today.",
@@ -30183,6 +30583,10 @@
     "defaultMessage": "Images have different proportions. Use the original pane to compare them.",
     "description": "Image viewer: differentSizes"
   },
+  "qo0d24Hw+8": {
+    "defaultMessage": "Fails",
+    "description": "Outcome on a workflow step's Test tab: the step fails with an error in a test run"
+  },
   "qoKQfRLzE9": {
     "defaultMessage": "Sampling public pages and locale roots.",
     "description": "Detail text when a localisation audit is crawling"
@@ -30223,10 +30627,6 @@
     "defaultMessage": "Polish (Poland)",
     "description": "Display name for BCP-47 locale pl-PL"
   },
-  "qtmhT9t6TF": {
-    "defaultMessage": "Samples describe observed data. Unknown fields are checked at run time.",
-    "description": "Visual workflow editor control"
-  },
   "qufyTH4w5s": {
     "defaultMessage": "Failure reason",
     "description": "Job property row label for the stored translation failure reason"
@@ -30246,6 +30646,10 @@
   "qwBzCi54cg": {
     "defaultMessage": "{count, plural, =0 {Not used yet} one {# project} other {# projects}}",
     "description": "Workspace project usage count for a glossary"
+  },
+  "qwKm4yzub8": {
+    "defaultMessage": "You edited the workflow · {count, plural, one {# change} other {# changes}}",
+    "description": "Line above a message of the person's in the assistant panel, which opens to list what they changed on the visual workflow themselves before sending it"
   },
   "qxBrl7Yxqo": {
     "defaultMessage": "Monday",
@@ -30282,6 +30686,10 @@
   "qzupTaytsB": {
     "defaultMessage": "No activity yet",
     "description": "Empty state title for activity logs"
+  },
+  "r/zdhHnzwh": {
+    "defaultMessage": "Ran for real",
+    "description": "Mark beside a step in a test run's step list: the step called out for real"
   },
   "r01vthnyrV": {
     "defaultMessage": "Rate card name",
@@ -30679,6 +31087,10 @@
     "defaultMessage": "Check mode",
     "description": "Label for GitHub status check mode select"
   },
+  "rhgvK4B/v1": {
+    "defaultMessage": "Workspace connection",
+    "description": "Label for the Figma connection picker on the OAuth consent page"
+  },
   "riG8529T+y": {
     "defaultMessage": "General",
     "description": "Heading for the general project settings section"
@@ -30994,6 +31406,10 @@
   "sHEScxEFix": {
     "defaultMessage": "Editor",
     "description": "Top chrome tab for the visual workflow canvas"
+  },
+  "sHLZ/8LZoH": {
+    "defaultMessage": "Web search",
+    "description": "Tool badge when an automation uses web search"
   },
   "sHVjRcdIVt": {
     "defaultMessage": "Extracting segments…",
@@ -31835,9 +32251,17 @@
     "defaultMessage": "{count, plural, one {# block couldn't be translated.} other {# blocks couldn't be translated.}}",
     "description": "Document editor: some blocks failed during translate document"
   },
+  "u/fBB4HZhM": {
+    "defaultMessage": "Figma connection saved.",
+    "description": "Toast when Figma connection is saved"
+  },
   "u0JPXvQtPf": {
     "defaultMessage": "Provider supplied",
     "description": "Label for provider-supplied actor and timestamp"
+  },
+  "u0c5HG4JX/": {
+    "defaultMessage": "In a test run",
+    "description": "Label of the choice on a workflow step's Test tab between its test data and running it for real"
   },
   "u0dyjBiqWo": {
     "defaultMessage": "Keyword",
@@ -31910,6 +32334,10 @@
   "u8VX6gbiee": {
     "defaultMessage": "Unable to upload that file right now.",
     "description": "Toast when knowledge file upload fails"
+  },
+  "u9Qg5J09WM": {
+    "defaultMessage": "No fields from earlier steps.",
+    "description": "Shown when the menu of fields from earlier workflow steps has nothing to list"
   },
   "u9Z5lV8isJ": {
     "defaultMessage": "Failed to download translations",
@@ -32362,10 +32790,6 @@
   "uvpc5HKX9c": {
     "defaultMessage": "Generate AI suggestion",
     "description": "Compact action to request an AI translation suggestion in side-by-side review"
-  },
-  "uwi6wLAbuv": {
-    "defaultMessage": "This value is supplied by a connected data port. Remove the data wire to edit it here.",
-    "description": "Description for an inline workflow value overridden by a data connection"
   },
   "uwkiRYaBX+": {
     "defaultMessage": "Apply voice, glossary, and legal guardrails",
@@ -32871,6 +33295,10 @@
     "defaultMessage": "Nothing here yet",
     "description": "Generic empty research title"
   },
+  "vmv1R5ICX0": {
+    "defaultMessage": "API key",
+    "description": "Label for the API key used by a Figma connection"
+  },
   "vnJqxWYdFd": {
     "defaultMessage": "Automation deleted",
     "description": "Toast when a workspace automation is deleted successfully"
@@ -33119,6 +33547,10 @@
     "defaultMessage": "3 strings changed, 1 translation issue called out before merge",
     "description": "PR summary shown before the agent fix in the review PR illustration"
   },
+  "wBBk0AbwLo": {
+    "defaultMessage": "If this step fails",
+    "description": "Heading of the collapsed part of a workflow step's settings that holds its error behaviour"
+  },
   "wBNC3JBHju": {
     "defaultMessage": "Day of week",
     "description": "Label for scheduled automation day-of-week select"
@@ -33247,6 +33679,10 @@
     "defaultMessage": "Source and workload words by project and locale",
     "description": "Reports mock UI word counts use case description"
   },
+  "wQGnFQYS2q": {
+    "defaultMessage": "Not set",
+    "description": "Placeholder of a true or false test value that has no value yet"
+  },
   "wQOKFwmzrC": {
     "defaultMessage": "Locales",
     "description": "Label for locale route on project overview signals"
@@ -33370,6 +33806,10 @@
   "wdhrNg8UHz": {
     "defaultMessage": "Open job",
     "description": "CTA for a failed or active job on project overview"
+  },
+  "we+P5cHH+C": {
+    "defaultMessage": "Use test data everywhere",
+    "description": "Button in the test settings popover that sets every step to use its test data in test runs"
   },
   "weAVB6AXQJ": {
     "defaultMessage": "All terms",
@@ -33546,6 +33986,10 @@
   "wvvrX539Xf": {
     "defaultMessage": "Failed to load files.",
     "description": "Fallback error message when a project files panel fails without details"
+  },
+  "wvz6JBopgC": {
+    "defaultMessage": "Connect Figma to Hyperlocalise",
+    "description": "Title for the Figma OAuth consent page"
   },
   "ww1ZEpMIQj": {
     "defaultMessage": "This memory is used only by the projects listed here.",
@@ -33742,6 +34186,10 @@
   "xAF/zzu4cl": {
     "defaultMessage": "Key",
     "description": "Keys table column for the key prefix"
+  },
+  "xC6Oep4Mv6": {
+    "defaultMessage": "Discard",
+    "description": "Button that throws away the unsaved changes to an automation"
   },
   "xC7u8V65Ad": {
     "defaultMessage": "All Files",
@@ -34127,6 +34575,10 @@
     "defaultMessage": "Failed to delete Semrush connection.",
     "description": "Error when Semrush connection delete fails"
   },
+  "xsPz0jjx3+": {
+    "defaultMessage": "Run for real",
+    "description": "Choice on a workflow step's Test tab: a test run calls out for real for this step"
+  },
   "xsZbCQ/A1V": {
     "defaultMessage": "Included",
     "description": "Badge for workspace capabilities included without a separate connection"
@@ -34254,6 +34706,10 @@
   "y4hQxxj/zM": {
     "defaultMessage": "Build your terminology library",
     "description": "Primary empty state title for a workspace with no glossaries"
+  },
+  "y50SdunZtN": {
+    "defaultMessage": "Copy this Figma connection token",
+    "description": "Title for the one-time Figma token reveal dialog"
   },
   "y5nRcvmxtw": {
     "defaultMessage": "Cancel at period end",
@@ -34839,6 +35295,10 @@
     "defaultMessage": "Keyword",
     "description": "Overview keyword column"
   },
+  "zDoKlB01Q1": {
+    "defaultMessage": "Choose a project",
+    "description": "Placeholder of the project picker on a workflow trigger's Test tab"
+  },
   "zEYxUcr2AM": {
     "defaultMessage": "No description",
     "description": "Fallback when a glossary has no description"
@@ -34875,6 +35335,10 @@
     "defaultMessage": "Queries",
     "description": "Heading for the CAT segment Queries section"
   },
+  "zIdwJ1idG9": {
+    "defaultMessage": "Failed to delete Figma connection.",
+    "description": "Error when Figma connection delete fails"
+  },
   "zIhD8Y76tZ": {
     "defaultMessage": "Keep editing",
     "description": "Button that closes the unsaved changes dialog and stays on the page"
@@ -34906,6 +35370,10 @@
   "zL0L4Vvw8O": {
     "defaultMessage": "Applied while reviewing DE checkout CTA",
     "description": "Brand style guide panel subtitle"
+  },
+  "zL1SPi+Eok": {
+    "defaultMessage": "Open Integrations",
+    "description": "Link to create a Figma connection before OAuth consent"
   },
   "zLa51T7B2l": {
     "defaultMessage": "Checking repository config",
@@ -34971,6 +35439,10 @@
     "defaultMessage": "Agents in your tools",
     "description": "Marketing homepage agentsEyebrow"
   },
+  "zQBuwK1cWP": {
+    "defaultMessage": "Zernio",
+    "description": "Tool badge when an automation uses Zernio"
+  },
   "zQR9HH34IW": {
     "defaultMessage": "No translation memories yet",
     "description": "Empty state title when the workspace has no translation memories"
@@ -34978,6 +35450,10 @@
   "zR0I34Xobx": {
     "defaultMessage": "Build your multilingual workflow.",
     "description": "Supporting note under the Content Studio bottom CTA"
+  },
+  "zRCtWtCl4W": {
+    "defaultMessage": "Needed for a test run.",
+    "description": "Under an empty required test value of a workflow step"
   },
   "zRMNg+Lp1z": {
     "defaultMessage": "New opportunity",

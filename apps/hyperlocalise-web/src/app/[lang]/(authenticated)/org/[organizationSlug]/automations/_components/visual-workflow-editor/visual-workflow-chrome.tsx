@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/primitives/cn";
 import type { VisualWorkflowStatus } from "@/lib/visual-workflows/visual-workflow-types";
 
+import { AutomationAssistantOpenButton } from "../automation-assistant-panel";
 import { visualWorkflowEditorMessages as messages } from "./visual-workflow-editor.messages";
 
 // The workflow's status and the switch that changes it, as one pill.
@@ -166,6 +167,8 @@ export function VisualWorkflowChrome({
       </Tabs>
 
       <div className="flex flex-1 items-center justify-end gap-2">
+        {/* Renders nothing where the assistant is not offered. */}
+        <AutomationAssistantOpenButton />
         {undoRedo}
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button type="button" variant="outline" size="sm" />}>

@@ -240,6 +240,12 @@ export type VisualWorkflowRfEdgeData = {
 
 export type VisualWorkflowRfEdge = Edge<VisualWorkflowRfEdgeData>;
 
+/**
+ * An edge as the canvas draws it: a stored edge, or a `reference` line for a field read inside a
+ * setting's text, which is only ever drawn and never stored with the workflow.
+ */
+export type VisualWorkflowCanvasEdge = Edge<{ kind?: "execution" | "data" | "reference" }>;
+
 export type CanonicalVisualWorkflowNode = WorkflowNodeContract & {
   id: string;
   type: VisualCatalogType;

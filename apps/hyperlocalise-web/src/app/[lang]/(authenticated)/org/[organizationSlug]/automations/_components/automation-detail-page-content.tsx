@@ -16,6 +16,9 @@ import Link from "next/link";
 import { OrgNavLink } from "@/components/app-shell/org-nav-link";
 import {
   ArrowCounterClockwiseIcon,
+  ArrowUUpLeftIcon,
+  ArrowUUpRightIcon,
+  DotsThreeIcon,
   TrashIcon,
   PlayIcon,
   FloppyDiskIcon,
@@ -37,6 +40,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +87,8 @@ import { WorkspacePageShell } from "../../_components/workspace-resource-shared"
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { AUTOMATION_ASSISTANT_PAGE_CLASS } from "./automation-assistant-panel";
 import { useAssistantUndoSteps } from "./automation-assistant-undo-steps";
-import { AutomationUndoRedoButtons, useAutomationUndoNotice } from "./automation-undo-controls";
+import { useAutomationUndoNotice } from "./automation-undo-controls";
+import { automationUndoMessages } from "./automation-undo.messages";
 import { isSlackChannelMissing } from "./slack-channel-select";
 import { useAutomationFieldErrors } from "./use-automation-field-errors";
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
@@ -520,19 +531,6 @@ export function AutomationDetailPageContent({
   // Loose, not in a row of their own, so the editor's action row can wrap them on a narrow screen.
   const editorActions = (
     <>
-      <Button
-        variant="destructive"
-        onClick={() => {
-          if (writeInFlight) {
-            return;
-          }
-          setDeleteDialogOpen(true);
-        }}
-        disabled={writeInFlight}
-      >
-        <TrashIcon data-icon="inline-start" />
-        <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
-      </Button>
       {form.triggerMode === "web_chat" ? (
         <>
           <div className="hidden min-w-0 max-w-xs md:block">
@@ -583,23 +581,6 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.runNow} />
         </Button>
       ) : null}
-      <AutomationUndoRedoButtons
-        canUndo={history.canUndo}
-        canRedo={history.canRedo}
-        undoStep={history.undoStep}
-        redoStep={history.redoStep}
-        disabled={writeInFlight}
-        onUndo={runUndo}
-        onRedo={runRedo}
-      />
-      <Button
-        variant="outline"
-        onClick={() => setDiscardDialogOpen(true)}
-        disabled={writeInFlight || !hasChanges}
-      >
-        <ArrowCounterClockwiseIcon data-icon="inline-start" />
-        <FormattedMessage {...automationDetailPageContentMessages.discardChanges} />
-      </Button>
       <Button
         onClick={() => {
           if (deleteInFlight) {
@@ -620,6 +601,52 @@ export function AutomationDetailPageContent({
           <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
         )}
       </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={intl.formatMessage(automationDetailPageContentMessages.moreActions)}
+              disabled={writeInFlight}
+            />
+          }
+        >
+          <DotsThreeIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuItem
+            disabled={writeInFlight || !hasChanges}
+            onClick={() => setDiscardDialogOpen(true)}
+          >
+            <ArrowCounterClockwiseIcon />
+            <FormattedMessage {...automationDetailPageContentMessages.discardChanges} />
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={writeInFlight || !history.canUndo} onClick={runUndo}>
+            <ArrowUUpLeftIcon />
+            <FormattedMessage {...automationUndoMessages.undo} />
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={writeInFlight || !history.canRedo} onClick={runRedo}>
+            <ArrowUUpRightIcon />
+            <FormattedMessage {...automationUndoMessages.redo} />
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={writeInFlight}
+            onClick={() => {
+              if (writeInFlight) {
+                return;
+              }
+              setDeleteDialogOpen(true);
+            }}
+          >
+            <TrashIcon />
+            <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 

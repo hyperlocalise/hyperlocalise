@@ -14,7 +14,20 @@ import { z } from "zod";
 
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
-import type { WorkspaceAutomationEditorContext } from "./workspace-automation-editor-context";
+import {
+  AUTOMATION_SETUP_PAGE_EDITS_PART,
+  AUTOMATION_SETUP_SNAPSHOT_PART,
+  isAssistantToolPart,
+  readDataPart,
+  toAutomationAssistantHistoryParts,
+  type AutomationAssistantCallSummary,
+  type AutomationAssistantEditor,
+} from "./automation-assistant-editor";
+import {
+  WORKSPACE_AUTOMATION_EDITOR_CONTEXT_KIND,
+  workspaceAutomationEditorContextSchema,
+  type WorkspaceAutomationEditorContext,
+} from "./workspace-automation-editor-context";
 import { workspaceAutomationFormStateSchema } from "./workspace-automation-form-schema";
 import {
   normalizeWorkspaceAutomationProposal,
@@ -56,6 +69,14 @@ import {
 } from "./workspace-automation-skills";
 import { workspaceAutomationGithubTriggerEventSchema } from "./workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
+
+export {
+  AUTOMATION_ASSISTANT_NO_CHANGE_RECORD as AUTOMATION_SETUP_NO_CHANGE_RECORD,
+  AUTOMATION_ASSISTANT_TURN_PART,
+  AUTOMATION_SETUP_PAGE_EDITS_PART,
+  AUTOMATION_SETUP_SNAPSHOT_PART,
+  readAutomationAssistantTurnId,
+} from "./automation-assistant-editor";
 
 export const UPDATE_AUTOMATION_SETUP_TOOL_NAME = "update_automation_setup";
 
@@ -162,11 +183,7 @@ export function toAutomationSetupChangeLines(
 }
 
 /** What one call of the tool came to, as the panel shows it beside the reply. */
-export type AutomationSetupCallSummary =
-  | { state: "running" }
-  | { state: "failed" }
-  /** `changes` is null for a call saved before the tool listed what it did. */
-  | { state: "done"; changes: AutomationSetupChangeLine[] | null };
+export type AutomationSetupCallSummary = AutomationAssistantCallSummary<AutomationSetupChangeLine>;
 
 const setupToolCallPartSchema = z.object({
   type: z.string(),
@@ -189,11 +206,7 @@ export function summarizeAutomationSetupCall(part: unknown): AutomationSetupCall
   if (!parsed.success) {
     return null;
   }
-  const isSetupTool =
-    parsed.data.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
-    (parsed.data.type === "dynamic-tool" &&
-      parsed.data.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME);
-  if (!isSetupTool) {
+  if (!isAssistantToolPart(parsed.data, UPDATE_AUTOMATION_SETUP_TOOL_NAME)) {
     return null;
   }
   if (parsed.data.state === "output-error" || parsed.data.state === "output-denied") {
@@ -212,15 +225,6 @@ export function summarizeAutomationSetupCall(part: unknown): AutomationSetupCall
   return { state: "done", changes: output.data.changes ?? null };
 }
 
-const historyToolPartSchema = z.object({
-  type: z.string(),
-  toolName: z.string().optional(),
-  state: z.literal("output-available"),
-  toolCallId: z.string().min(1),
-  input: z.unknown(),
-  output: z.unknown(),
-});
-
 const historyOutputSchema = z.object({
   applied: z.literal(true),
   result: z.object({
@@ -230,12 +234,26 @@ const historyOutputSchema = z.object({
   }),
 });
 
-/** The part of a saved reply that holds the form as the turn left it. Never sent to the model. */
-export const AUTOMATION_SETUP_SNAPSHOT_PART = "data-setup-after";
-/** The part of a saved message of the person's that says what they changed on the page first. */
-export const AUTOMATION_SETUP_PAGE_EDITS_PART = "data-page-edits";
-/** The part of a turn's stream that names the turn, by the id of the person's saved message. */
-export const AUTOMATION_ASSISTANT_TURN_PART = "data-turn";
+/**
+ * A finished call's output as the model is shown it later: whether it changed anything, what it
+ * did and what it left out. The rest described the page as it then was.
+ */
+export function reduceAutomationSetupHistoryOutput(output: unknown): {
+  changed: boolean;
+  output: unknown;
+} {
+  const parsed = historyOutputSchema.safeParse(output);
+  return parsed.success
+    ? {
+        changed: parsed.data.result.changed,
+        output: {
+          changed: parsed.data.result.changed,
+          applied: parsed.data.result.applied,
+          notAdded: parsed.data.result.notAdded,
+        },
+      }
+    : { changed: false, output: { changed: false, applied: [], notAdded: [] } };
+}
 
 /**
  * One thing the person changed on the page themselves between two turns, by typing, by Undo or
@@ -356,16 +374,6 @@ export function describeAutomationSetupPageEdits(
   return `[Page record, written by the page: since your last turn the person changed the page themselves, by hand or with Undo or Discard changes: ${edits.map(describePageEdit).join("; ")}. Your earlier turns describe the page as it was before that.]`;
 }
 
-function readDataPart(parts: readonly unknown[] | null | undefined, type: string): unknown {
-  for (const part of parts ?? []) {
-    const parsed = z.object({ type: z.literal(type), data: z.unknown() }).safeParse(part);
-    if (parsed.success) {
-      return parsed.data.data;
-    }
-  }
-  return undefined;
-}
-
 /** The form as a saved reply's turn left it, or null when the reply holds none. */
 export function readAutomationSetupSnapshot(
   parts: readonly unknown[] | null | undefined,
@@ -386,80 +394,9 @@ export function readAutomationSetupPageEdits(
   return parsed.success ? parsed.data.edits : [];
 }
 
-/** The id of the turn a stream belongs to, or null until the stream has named it. */
-export function readAutomationAssistantTurnId(
-  parts: readonly unknown[] | null | undefined,
-): string | null {
-  const parsed = z
-    .object({ id: z.string() })
-    .safeParse(readDataPart(parts, AUTOMATION_ASSISTANT_TURN_PART));
-  return parsed.success ? parsed.data.id : null;
-}
-
-/**
- * What the page adds, in the model's history, to a past reply that changed nothing. The panel
- * shows the person the same verdict under that reply.
- */
-export const AUTOMATION_SETUP_NO_CHANGE_RECORD =
-  "[Page record, not part of the reply: this turn made no change to the setup. Whatever the reply above says was changed, added, removed or set was not.]";
-
-/**
- * A past reply as the model is shown it in later turns: its text, and each finished call of the
- * setup tool with what the call did. The model has to see the calls: shown only the words of its
- * earlier replies, it takes saying "I've renamed it" for the way a rename is made and stops
- * calling the tool. The rest of a call's output described the page as it then was, which the
- * page section of the prompt now says better, so it is left out. Unfinished calls, reasoning and
- * every other kind of part are dropped. A reply whose turn changed nothing ends with the page's
- * record of that, so a reply that wrongly claimed a change is not taken at its word later.
- */
+/** A past reply as the model is shown it, with the setup tool's calls kept. */
 export function toAutomationSetupHistoryParts(parts: readonly unknown[]): unknown[] {
-  const kept: unknown[] = [];
-  let changed = false;
-  for (const part of parts) {
-    const plain = z.object({ type: z.string(), text: z.string().optional() }).safeParse(part);
-    if (!plain.success) {
-      continue;
-    }
-    if (plain.data.type === "step-start") {
-      kept.push({ type: "step-start" });
-      continue;
-    }
-    if (plain.data.type === "text") {
-      if (plain.data.text?.trim()) {
-        kept.push({ type: "text", text: plain.data.text });
-      }
-      continue;
-    }
-    const call = historyToolPartSchema.safeParse(part);
-    const isSetupTool =
-      call.success &&
-      (call.data.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
-        (call.data.type === "dynamic-tool" &&
-          call.data.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME));
-    if (!call.success || !isSetupTool) {
-      continue;
-    }
-    const output = historyOutputSchema.safeParse(call.data.output);
-    changed ||= output.success && output.data.result.changed;
-    kept.push({
-      type: call.data.type,
-      ...(call.data.toolName ? { toolName: call.data.toolName } : {}),
-      toolCallId: call.data.toolCallId,
-      state: "output-available",
-      input: call.data.input,
-      output: output.success
-        ? {
-            changed: output.data.result.changed,
-            applied: output.data.result.applied,
-            notAdded: output.data.result.notAdded,
-          }
-        : { changed: false, applied: [], notAdded: [] },
-    });
-  }
-  if (!changed && kept.some((part) => (part as { type: string }).type !== "step-start")) {
-    kept.push({ type: "text", text: AUTOMATION_SETUP_NO_CHANGE_RECORD });
-  }
-  return kept;
+  return toAutomationAssistantHistoryParts(parts, [automationSetupEditor]);
 }
 
 const setupToolPartSchema = z.object({
@@ -483,11 +420,9 @@ export function collectAutomationSetupChanges(
     if (!toolPart.success) {
       continue;
     }
-    const isSetupTool =
-      toolPart.data.type === `tool-${UPDATE_AUTOMATION_SETUP_TOOL_NAME}` ||
-      (toolPart.data.type === "dynamic-tool" &&
-        toolPart.data.toolName === UPDATE_AUTOMATION_SETUP_TOOL_NAME);
-    const change = isSetupTool ? automationSetupChangeSchema.safeParse(toolPart.data.output) : null;
+    const change = isAssistantToolPart(toolPart.data, UPDATE_AUTOMATION_SETUP_TOOL_NAME)
+      ? automationSetupChangeSchema.safeParse(toolPart.data.output)
+      : null;
     if (change?.success) {
       changes.push({ toolCallId: toolPart.data.toolCallId, change: change.data });
     }
@@ -581,6 +516,50 @@ export function applyAutomationSetupChanges(input: {
   }
   return { form, applied, appliedToolCallIds: applied.map((entry) => entry.toolCallId) };
 }
+
+/** The automation form as the assistant works on it. */
+export const automationSetupEditor = {
+  kind: WORKSPACE_AUTOMATION_EDITOR_CONTEXT_KIND,
+  toolName: UPDATE_AUTOMATION_SETUP_TOOL_NAME,
+  contextSchema: workspaceAutomationEditorContextSchema,
+  pageEditSchema: automationSetupPageEditSchema,
+  documentOf: (context) => context.form,
+  snapshotData: (form) => ({ form }),
+  readSnapshot: (data) => {
+    const parsed = z.object({ form: workspaceAutomationFormStateSchema }).safeParse(data);
+    return parsed.success ? parsed.data.form : null;
+  },
+  describeCatalogue: describeAutomationSetupCatalogue,
+  describePage: describeAutomationSetupPage,
+  listPageEdits: listAutomationSetupPageEdits,
+  describePageEdits: describeAutomationSetupPageEdits,
+  reduceHistoryOutput: reduceAutomationSetupHistoryOutput,
+  summarizeCall: summarizeAutomationSetupCall,
+  collectChanges: collectAutomationSetupChanges,
+  applyChanges: (input) => {
+    const result = applyAutomationSetupChanges({
+      form: input.document,
+      changes: input.changes,
+      editorSessionId: input.editorSessionId,
+      appliedToolCallIds: input.appliedToolCallIds,
+      defaults: input.context.defaults,
+      connections: input.context.connections,
+    });
+    return {
+      document: result.form,
+      applied: result.applied.map((entry) => ({
+        toolCallId: entry.toolCallId,
+        made: entry.items.filter((item) => item.status === "applied").length,
+      })),
+    };
+  },
+} satisfies AutomationAssistantEditor<
+  WorkspaceAutomationEditorContext,
+  WorkspaceAutomationFormState,
+  AutomationSetupChange,
+  AutomationSetupChangeLine,
+  AutomationSetupPageEdit
+>;
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

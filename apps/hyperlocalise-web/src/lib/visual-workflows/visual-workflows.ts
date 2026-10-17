@@ -215,6 +215,27 @@ async function projectExists(input: {
   return Boolean(project);
 }
 
+/** The name of a project in the organization, or null when there is none by that id. */
+export async function getVisualWorkflowProjectName(input: {
+  organizationId: string;
+  projectId: string;
+  dbClient?: DatabaseClient;
+}): Promise<string | null> {
+  const dbClient = input.dbClient ?? db;
+  const [project] = await dbClient
+    .select({ name: schema.projects.name })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.id, input.projectId),
+      ),
+    )
+    .limit(1);
+
+  return project?.name ?? null;
+}
+
 export async function listVisualWorkflows(input: {
   organizationId: string;
   projectId?: string | null;

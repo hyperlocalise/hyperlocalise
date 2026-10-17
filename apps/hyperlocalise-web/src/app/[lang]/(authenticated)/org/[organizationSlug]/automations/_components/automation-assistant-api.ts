@@ -17,22 +17,24 @@ import type {
   AutomationAssistantSessionResponse,
 } from "@/api/routes/workspace-automation/automation-assistant.schema";
 import { apiClient } from "@/lib/api-client-instance";
-import type { WorkspaceAutomationEditorContext } from "@/lib/agents/workspace-automation-editor-context";
+import type { AutomationAssistantPageContext } from "@/lib/agents/automation-assistant-editors";
 import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 
 export type AssistantSession = AutomationAssistantSessionResponse;
 export type AssistantMessage = AutomationAssistantMessageResponse;
+/** The saved thing a session is about. */
+export type AssistantSessionKey = { automationId: string } | { visualWorkflowId: string };
 
 // Read when called, not when imported, so a page test can stub the client with less.
 const sessions = () => apiClient.api.orgs[":organizationSlug"].automations.assistant.sessions;
 
 export async function createAssistantSession(
   organizationSlug: string,
-  automationId: string | null,
+  key: AssistantSessionKey | null,
 ): Promise<AssistantSession> {
   const response = await sessions().$post({
     param: { organizationSlug },
-    json: { automationId },
+    json: key ?? { automationId: null },
   });
   if (response.status !== 201) {
     throw await readApiResponseError(response, "Could not start the assistant.");
@@ -42,11 +44,11 @@ export async function createAssistantSession(
 
 export async function findAssistantSession(
   organizationSlug: string,
-  automationId: string,
+  key: AssistantSessionKey,
 ): Promise<{ session: AssistantSession | null; messages: AssistantMessage[] }> {
   const response = await sessions().$get({
     param: { organizationSlug },
-    query: { automationId },
+    query: key,
   });
   if (response.status !== 200) {
     throw await readApiResponseError(response, "Could not load the assistant.");
@@ -115,6 +117,14 @@ export class AssistantSessionOutOfDateError extends Error {
   }
 }
 
+/** Thrown when the session is gone, ended with Start over in another tab. */
+export class AssistantSessionGoneError extends Error {
+  constructor() {
+    super("session_not_found");
+    this.name = "AssistantSessionGoneError";
+  }
+}
+
 /**
  * Reads a refused turn before the chat transport turns it into a generic failure. Known codes
  * become the typed errors the panel already shows; anything else keeps the parsed envelope.
@@ -131,6 +141,9 @@ async function fetchAssistantTurn(input: RequestInfo | URL, init?: RequestInit):
   if (isApiResponseErrorCode(error, "session_out_of_date")) {
     throw new AssistantSessionOutOfDateError();
   }
+  if (isApiResponseErrorCode(error, "session_not_found")) {
+    throw new AssistantSessionGoneError();
+  }
   throw error;
 }
 
@@ -143,7 +156,7 @@ export async function* streamAssistantTurn(input: {
   organizationSlug: string;
   sessionId: string;
   text: string;
-  pageContext: WorkspaceAutomationEditorContext;
+  pageContext: AutomationAssistantPageContext;
   /** The session's latest turn as this page knows it, which the server checks. */
   lastTurnId: string | null;
   signal?: AbortSignal;

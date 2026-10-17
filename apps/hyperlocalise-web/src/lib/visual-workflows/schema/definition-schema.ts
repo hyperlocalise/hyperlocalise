@@ -46,7 +46,7 @@ const branchPatternSchema = z
   .max(255)
   .regex(/^[A-Za-z0-9._\-/*?]+$/);
 
-const visualCatalogTypeSchema = z.enum([
+export const visualCatalogTypeSchema = z.enum([
   "trigger.manual",
   "trigger.scheduled",
   "trigger.github",
@@ -196,7 +196,7 @@ const visualObjectMergeInputsSchema = z
     }
   });
 
-const visualNodeConfigSchema = z.discriminatedUnion("kind", [
+export const visualNodeConfigSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("trigger.manual") }),
   z.object({
     kind: z.literal("trigger.scheduled"),

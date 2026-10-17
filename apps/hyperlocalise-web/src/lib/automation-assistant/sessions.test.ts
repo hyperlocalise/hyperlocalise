@@ -17,6 +17,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database/client";
 import { isErr } from "@/lib/primitives/result/results";
+import { createVisualWorkflow } from "@/lib/visual-workflows/visual-workflows";
 
 import {
   AUTOMATION_ASSISTANT_HISTORY_MESSAGES,
@@ -28,6 +29,7 @@ import {
   endAutomationAssistantTurn,
   findAutomationAssistantLastTurnId,
   findAutomationAssistantSessionForAutomation,
+  findAutomationAssistantSessionForVisualWorkflow,
   getAutomationAssistantSession,
   listAutomationAssistantMessages,
   loadAutomationAssistantModelMessages,
@@ -126,6 +128,46 @@ describe("automation assistant sessions", () => {
       .from(schema.automationAssistantSessions)
       .where(eq(schema.automationAssistantSessions.id, unbound.id));
     expect(row?.expiresAt).toBeNull();
+  });
+
+  it("keeps one session per visual workflow and author, bound from the start", async () => {
+    const scope = await person();
+    const created = await createVisualWorkflow({
+      organizationId: scope.organizationId,
+      name: "Nightly sync",
+    });
+    if (isErr(created)) {
+      throw new Error(created.error.code);
+    }
+    const visualWorkflowId = created.value.id;
+    expect(
+      await findAutomationAssistantSessionForVisualWorkflow({ ...scope, visualWorkflowId }),
+    ).toBeNull();
+
+    const session = await createAutomationAssistantSession({ ...scope, visualWorkflowId });
+    expect(session).toMatchObject({ visualWorkflowId, automationId: null });
+    const again = await createAutomationAssistantSession({ ...scope, visualWorkflowId });
+    expect(again.id).toBe(session.id);
+    expect(
+      await findAutomationAssistantSessionForVisualWorkflow({ ...scope, visualWorkflowId }),
+    ).toMatchObject({ id: session.id });
+    const [row] = await db
+      .select({ expiresAt: schema.automationAssistantSessions.expiresAt })
+      .from(schema.automationAssistantSessions)
+      .where(eq(schema.automationAssistantSessions.id, session.id));
+    expect(row?.expiresAt).toBeNull();
+
+    // It is never bound to an automation as well, by the binding or by any other write.
+    const automationId = await automationFor(scope);
+    expect(
+      outcome(await bindAutomationAssistantSession({ sessionId: session.id, automationId })),
+    ).toBe("session_already_bound");
+    await expect(
+      db
+        .update(schema.automationAssistantSessions)
+        .set({ automationId })
+        .where(eq(schema.automationAssistantSessions.id, session.id)),
+    ).rejects.toThrow();
   });
 
   it("keeps one session per saved automation and author, however many ask for the first at once", async () => {

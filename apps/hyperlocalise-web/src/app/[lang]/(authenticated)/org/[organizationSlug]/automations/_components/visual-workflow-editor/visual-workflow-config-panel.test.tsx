@@ -14,7 +14,8 @@
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { Editor } from "@tiptap/core";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -71,6 +72,15 @@ vi.mock("./visual-workflow-resource-options", () => ({
     resourceOptionsFor: resourceOptionsMock.resourceOptionsFor,
   }),
 }));
+
+/** Replaces the text of a setting's rich text box, as typing over all of it would. */
+function replaceText(textbox: HTMLElement, text: string) {
+  const editor = (textbox as HTMLElement & { editor?: Editor }).editor;
+  if (!editor) throw new Error("not a rich text box");
+  act(() => {
+    editor.chain().selectAll().insertContent(text).run();
+  });
+}
 
 function renderPanel(ui: ReactNode) {
   const queryClient = new QueryClient({
@@ -351,7 +361,7 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveValue("60000");
+    expect(screen.getByRole("textbox", { name: "Duration (ms)" })).toHaveTextContent("60000");
 
     await user.click(screen.getByRole("combobox", { name: "Wait mode" }));
     await user.click(await screen.findByRole("option", { name: "Until condition" }));
@@ -385,13 +395,14 @@ describe("VisualWorkflowConfigPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveValue("status === 'ready'");
-    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveValue("5000");
-    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveValue("300000");
-    const timeout = screen.getByRole("textbox", { name: "Timeout (ms)" });
-    fireEvent.change(timeout, {
-      target: { value: "600000" },
-    });
+    expect(screen.getByRole("textbox", { name: "Condition" })).toHaveTextContent(
+      "status === 'ready'",
+    );
+    expect(screen.getByRole("textbox", { name: "Polling interval (ms)" })).toHaveTextContent(
+      "5000",
+    );
+    expect(screen.getByRole("textbox", { name: "Timeout (ms)" })).toHaveTextContent("300000");
+    replaceText(screen.getByRole("textbox", { name: "Timeout (ms)" }), "600000");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
       kind: "flow.wait",
@@ -421,9 +432,9 @@ describe("VisualWorkflowConfigPanel", () => {
     );
 
     const timestamp = screen.getByRole("textbox", { name: "Timestamp" });
-    expect(timestamp).toHaveValue("2026-10-01T10:00:00.000Z");
+    expect(timestamp).toHaveTextContent("2026-10-01T10:00:00.000Z");
 
-    fireEvent.change(timestamp, { target: { value: "2026-10-02T12:30:00.000Z" } });
+    replaceText(timestamp, "2026-10-02T12:30:00.000Z");
 
     expect(onChangeConfig.mock.calls.at(-1)?.[0]).toEqual({
       kind: "flow.wait",
@@ -835,9 +846,10 @@ describe("VisualWorkflowConfigPanel", () => {
       );
     });
 
-    it("shows a setting's fields as pills until it is clicked, and points at their steps", async () => {
+    it("shows the fields a setting reads as pills inside its text, and points at their steps", async () => {
       const user = userEvent.setup();
       const onPointStep = vi.fn();
+      const onChangeConfig = vi.fn();
       const http: VisualWorkflowRfNode = {
         id: "http",
         type: "action.http",
@@ -854,21 +866,67 @@ describe("VisualWorkflowConfigPanel", () => {
         ...slack.data.config,
         message: "{{ nodes.http.json.count }} new strings",
       } as typeof slack.data.config;
-      renderPanel(panel(slack, { nodes: [http, slack], edges: [], onPointStep }));
+      renderPanel(
+        panel(slack, {
+          nodes: [http, slack],
+          edges: [{ id: "e", source: "http", target: "slack", data: { kind: "execution" } }],
+          onPointStep,
+          onChangeConfig,
+        }),
+      );
 
-      const pill = screen.getByText("count");
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() => expect(message).toHaveTextContent("HTTP Request›json.count new strings"));
+      const pill = screen.getByText("json.count").closest<HTMLElement>('[data-slot="field-pill"]')!;
       expect(pill).toHaveAttribute("title", "HTTP Request › json › count");
-      expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
+      expect(pill).not.toHaveAttribute("data-broken");
 
       await user.hover(pill);
       expect(onPointStep).toHaveBeenLastCalledWith("http");
       await user.unhover(pill);
       expect(onPointStep).toHaveBeenLastCalledWith(null);
 
-      await user.click(screen.getByRole("button", { name: "Message" }));
-      expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(
-        "{{ nodes.http.json.count }} new strings",
+      // Editing the text around a pill keeps the reference as it was written.
+      const editor = (message as HTMLElement & { editor?: Editor }).editor!;
+      act(() => {
+        editor.chain().focus("end").insertContent(" today").run();
+      });
+      expect(onChangeConfig).toHaveBeenLastCalledWith(
+        expect.objectContaining({ message: "{{ nodes.http.json.count }} new strings today" }),
       );
+    });
+
+    it("marks a pill whose step does not run before this one", async () => {
+      const http: VisualWorkflowRfNode = {
+        id: "http",
+        type: "action.http",
+        position: { x: 0, y: 0 },
+        ...getVisualNodeDimensions("action.http"),
+        data: {
+          catalogType: "action.http",
+          config: createDefaultConfig("action.http"),
+          runStatus: "idle",
+        },
+      };
+      const slack = slackNode();
+      slack.data.config = {
+        ...slack.data.config,
+        message: "{{ nodes.http.json.count }} and {{ nodes.gone.status }}",
+      } as typeof slack.data.config;
+      renderPanel(panel(slack, { nodes: [http, slack], edges: [] }));
+
+      const message = screen.getByRole("textbox", { name: "Message" });
+      await waitFor(() =>
+        expect(message.querySelectorAll('[data-slot="field-pill"]')).toHaveLength(2),
+      );
+      const pills = message.querySelectorAll('[data-slot="field-pill"]');
+      expect(pills[0]).toHaveAttribute("data-broken", "true");
+      expect(pills[0]).toHaveAttribute(
+        "title",
+        "HTTP Request › json › count cannot be read here: that step does not run before this one.",
+      );
+      expect(pills[1]).toHaveAttribute("data-broken", "true");
+      expect(pills[1]).toHaveTextContent("gone›status");
     });
 
     it("turns a fixed value stored by an older version into the setting's own text", async () => {

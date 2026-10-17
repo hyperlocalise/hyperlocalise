@@ -6,6 +6,20 @@ description: "Understand job status and decide when to retry, cancel, or request
 
 Open a project’s jobs and select a job to inspect its status, progress, target locales, and source file. Use **My Jobs** to follow your own work across requests.
 
+## File translation activity
+
+Native **file translation** jobs (agent jobs on uploaded project files) show an **Activity** feed on the job detail page. While the job is **Queued** or **Running**, the page refreshes the feed and status about every three seconds; polling stops in a terminal state.
+
+The feed includes:
+
+- **Created** — when the job was created and by whom, when known.
+- **Run cards** — one card per workflow attempt, labeled with the Hyperlocalise agent. The badge moves through **Preparing** (context, glossary, translation memory, reading the file), **Translating**, then **Finished**, **Failed**, or **Stopped** if you cancel or mark the job failed.
+- **Per locale** — waiting, translating, retrying, done, or failed, with translated string counts (for example `120 / 340`) and how many strings were reused from translation memory or existing translations.
+- **Detailed steps** — expand a run card to see stages such as strings extracted, translation memory reuse, per-locale progress updates, locale retries, and completion.
+- **Your actions** — cancel, retry, or mark as failed appear as separate rows when you use those controls.
+
+Jobs started before activity logging was enabled may show only **Created** and the current status. If activity fails to load, an inline message appears; the rest of the job page still works. The jobs list and kanban do not show this feed yet; open the job detail page to follow progress.
+
 ## Understand status
 
 | Status | What to do |

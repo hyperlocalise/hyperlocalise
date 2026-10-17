@@ -45,12 +45,18 @@ import { visualWorkflowsPageMessages } from "./visual-workflows-page.messages";
 const visualWorkflowsApi = createVisualWorkflowsApi();
 
 export function VisualWorkflowEditorPageContent({
+  assistantEnabled = false,
   organizationSlug,
+  projectName = null,
   workflow,
   testSetup = EMPTY_VISUAL_WORKFLOW_TEST_SETUP,
   visualWorkflowsApi: injectedApi = visualWorkflowsApi,
 }: {
+  /** Whether the person may use the automation assistant on this workflow. */
+  assistantEnabled?: boolean;
   organizationSlug: string;
+  /** Name of the project the workflow belongs to, for the assistant. */
+  projectName?: string | null;
   workflow: VisualWorkflowRecord;
   /** The test data and test run choices saved with the draft. */
   testSetup?: VisualWorkflowTestSetup;
@@ -176,6 +182,8 @@ export function VisualWorkflowEditorPageContent({
         organizationSlug={organizationSlug}
         visualWorkflowId={workflow.id}
         visualWorkflowsApi={injectedApi}
+        assistantEnabled={assistantEnabled}
+        projectName={projectName}
         workflowStatus={workflow.status}
         onStatusChange={handleStatusChange}
         statusUpdating={saveMutation.isPending}

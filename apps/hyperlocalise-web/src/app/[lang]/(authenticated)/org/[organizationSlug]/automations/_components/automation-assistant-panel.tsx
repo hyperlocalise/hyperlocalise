@@ -14,8 +14,9 @@
  */
 import { ArrowCounterClockwiseIcon, SparkleIcon, XIcon } from "@phosphor-icons/react";
 import type { UIMessage } from "ai";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { defaultComponents, type Components } from "streamdown";
 
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyMuted } from "@/components/ui/typography";
 import {
-  readAutomationSetupPageEdits,
-  summarizeAutomationSetupCall,
-  type AutomationSetupCallSummary,
-} from "@/lib/agents/workspace-automation-assistant";
+  readAutomationAssistantPageEdits,
+  summarizeAutomationAssistantCall,
+  type AutomationAssistantCallSummary,
+} from "@/lib/agents/automation-assistant-editors";
 import { useAiFeaturesAccess } from "@/lib/billing/use-ai-features-access";
 import { cn } from "@/lib/primitives/cn";
 
@@ -47,9 +48,11 @@ const FAILURE_MESSAGES = {
   failed: messages.errorGeneric,
 } satisfies Record<AutomationAssistantFailure["reason"], unknown>;
 
-type Block = { kind: "text"; text: string } | { kind: "tool"; summary: AutomationSetupCallSummary };
+type Block =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; summary: AutomationAssistantCallSummary };
 
-/** Text and setup-tool parts of a reply, in order, with everything else left out. */
+/** Text and tool parts of a reply, in order, with everything else left out. */
 function toBlocks(parts: UIMessage["parts"]): Block[] {
   const blocks: Block[] = [];
   for (const part of parts) {
@@ -62,15 +65,66 @@ function toBlocks(parts: UIMessage["parts"]): Block[] {
       }
       continue;
     }
-    const summary = summarizeAutomationSetupCall(part);
+    const summary = summarizeAutomationAssistantCall(part);
     if (summary) {
       blocks.push({ kind: "tool", summary });
     }
   }
-  return blocks;
+  // The text after the last call says what was done. Text before a call announced it, which the
+  // instructions forbid and which can promise what the call then refused, or narrated a call
+  // that was tried again; once the reply has text after its last call, that text is left out.
+  const lastCall = blocks.findLastIndex((block) => block.kind === "tool");
+  const answered = blocks
+    .slice(lastCall + 1)
+    .some((block) => block.kind === "text" && block.text.trim() !== "");
+  return lastCall >= 0 && answered
+    ? blocks.filter((block, index) => block.kind === "tool" || index > lastCall)
+    : blocks;
+}
+
+const FIELD_REFERENCE = /`?(\{\{[^{}]*\}\})`?/g;
+const WHOLE_REFERENCE = /^\{\{[^{}]*\}\}$/;
+
+/**
+ * Reply text and how to draw it on a page that reads fields as `{{ }}` references: each reference
+ * becomes a pill with the step's title and the field, as a setting shows it, whether the model
+ * wrote it bare or as code.
+ */
+function useFieldReferencePills(referenceLabel: ((reference: string) => string | null) | null): {
+  prepare: (text: string) => string;
+  components: Components | undefined;
+} {
+  return useMemo(() => {
+    if (!referenceLabel) {
+      return { prepare: (text: string) => text, components: undefined };
+    }
+    const DefaultCode = defaultComponents.code;
+    return {
+      prepare: (text: string) => text.replace(FIELD_REFERENCE, "`$1`"),
+      components: {
+        inlineCode: (props) => {
+          const text = typeof props.children === "string" ? props.children.trim() : "";
+          const label = WHOLE_REFERENCE.test(text) ? referenceLabel(text) : null;
+          return label ? (
+            <span
+              data-slot="field-pill"
+              className="inline-flex h-5.5 items-center rounded-md border border-primary/25 bg-primary/10 px-1.5 align-baseline text-xs font-medium text-primary"
+            >
+              {label}
+            </span>
+          ) : (
+            <DefaultCode {...props} />
+          );
+        },
+      },
+    };
+  }, [referenceLabel]);
 }
 
 function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean }) {
+  const assistant = useAutomationAssistant();
+  const onWorkflow = assistant?.mode === "visual_workflow";
+  const pills = useFieldReferencePills(assistant?.referenceLabel ?? null);
   const blocks = toBlocks(parts);
   const last = blocks.at(-1);
   // A call that is still running says so itself; a second spinner under it would say it twice.
@@ -87,8 +141,9 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
           <MessageResponse
             key={index}
             className="[&_ol]:ps-5 [&_ul]:ps-5 [&>p:has(+ol)]:mb-1.5 [&>p:has(+ul)]:mb-1.5"
+            components={pills.components}
           >
-            {block.text}
+            {pills.prepare(block.text)}
           </MessageResponse>
         ) : (
           <AutomationAssistantToolCall key={index} summary={block.summary} />
@@ -102,7 +157,9 @@ function Reply({ parts, pending }: { parts: UIMessage["parts"]; pending: boolean
       ) : null}
       {madeNoCall ? (
         <TypographyMuted size="xsmall">
-          <FormattedMessage {...messages.toolNoChanges} />
+          <FormattedMessage
+            {...(onWorkflow ? messages.toolNoChangesWorkflow : messages.toolNoChanges)}
+          />
         </TypographyMuted>
       ) : null}
     </div>
@@ -224,15 +281,25 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
       </header>
       <div ref={listRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4">
         <div ref={contentRef} className="flex flex-col gap-5">
-          {assistant.messages.length === 0 && !assistant.streaming ? (
+          {/* A saved conversation is not known to be empty until it has loaded. */}
+          {assistant.messages.length === 0 && assistant.status === "loading" ? (
+            <Spinner className="size-4 text-muted-foreground" />
+          ) : null}
+          {assistant.messages.length === 0 && assistant.status === "idle" ? (
             <TypographyMuted className="text-sm">
-              <FormattedMessage {...messages.empty} />
+              <FormattedMessage
+                {...(assistant.mode === "visual_workflow"
+                  ? messages.emptyWorkflow
+                  : messages.empty)}
+              />
             </TypographyMuted>
           ) : null}
           {assistant.messages.map((message) =>
             message.senderType === "user" ? (
               <div key={message.id} className="flex flex-col items-end gap-1.5">
-                <AutomationAssistantPageEdits edits={readAutomationSetupPageEdits(message.parts)} />
+                <AutomationAssistantPageEdits
+                  edits={readAutomationAssistantPageEdits(message.parts)}
+                />
                 <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground whitespace-pre-wrap">
                   {message.text}
                 </div>
@@ -261,7 +328,9 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
               <FormattedMessage
                 {...(assistant.mode === "create"
                   ? messages.changesOnPageCreate
-                  : messages.changesOnPageSave)}
+                  : assistant.mode === "visual_workflow"
+                    ? messages.changesOnCanvas
+                    : messages.changesOnPageSave)}
               />
             </TypographyMuted>
           ) : null}
@@ -274,7 +343,11 @@ export function AutomationAssistantPanel({ className }: { className?: string }) 
           organizationSlug={assistant.organizationSlug}
           pending={assistant.status !== "idle"}
           label={intl.formatMessage(messages.composerLabel)}
-          placeholder={intl.formatMessage(messages.composerPlaceholder)}
+          placeholder={intl.formatMessage(
+            assistant.mode === "visual_workflow"
+              ? messages.composerPlaceholderWorkflow
+              : messages.composerPlaceholder,
+          )}
           submitLabel={intl.formatMessage(messages.composerSend)}
           compact
         />
@@ -318,30 +391,30 @@ export const AUTOMATION_ASSISTANT_PAGE_CLASS =
   "-mx-4 -my-4 w-auto min-h-0 flex-1 gap-0 overflow-hidden sm:-mx-6 lg:-mx-8";
 
 /** Below this much room the form would be too narrow beside the panel, so the panel is a sheet. */
-const SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
+const FORM_SIDE_BY_SIDE_MIN_WIDTH_PX = 960;
 
 /**
- * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
- * attached to the right edge at full height while it is open. Where the page has no room for
- * both, the panel is a sheet from the right edge. The page must carry
- * `AUTOMATION_ASSISTANT_PAGE_CLASS`.
+ * The assistant attached to the right edge of the row it is placed in, at full height while it
+ * is open. Where the row has less room than `minRowWidth`, the panel is a sheet from the right
+ * edge instead. Renders nothing where the assistant is not offered.
  */
-export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
+export function AutomationAssistantSidePanel({ minRowWidth }: { minRowWidth: number }) {
   const intl = useIntl();
   const assistant = useAutomationAssistant();
-  const rowRef = useRef<HTMLDivElement>(null);
-  // Decided from the room the page really has, which the sidebar changes, not from the window.
+  // Always in the row, so the row can be measured whether or not the panel is shown.
+  const markerRef = useRef<HTMLSpanElement>(null);
+  // Decided from the room the row really has, which the sidebar changes, not from the window.
   const [roomBeside, setRoomBeside] = useState(true);
 
   useLayoutEffect(() => {
-    const row = rowRef.current;
+    const row = markerRef.current?.parentElement;
     if (!row) {
       return;
     }
     // A width of nothing means no layout has happened, as in a test; the default stands.
     const measure = () => {
       if (row.clientWidth > 0) {
-        setRoomBeside(row.clientWidth >= SIDE_BY_SIDE_MIN_WIDTH_PX);
+        setRoomBeside(row.clientWidth >= minRowWidth);
       }
     };
     measure();
@@ -351,14 +424,12 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
     const observer = new ResizeObserver(measure);
     observer.observe(row);
     return () => observer.disconnect();
-  }, []);
+  }, [minRowWidth]);
 
   const inSheet = !roomBeside;
   return (
-    <div ref={rowRef} className="flex min-h-0 flex-1">
-      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex max-w-5xl flex-col gap-4">{children}</div>
-      </div>
+    <>
+      <span ref={markerRef} hidden />
       {assistant?.open && !inSheet ? (
         <aside className="w-[380px] shrink-0 border-s border-border">
           <AutomationAssistantPanel className="rounded-none border-0" />
@@ -379,6 +450,23 @@ export function AutomationAssistantLayout({ children }: { children: ReactNode })
           </SheetContent>
         </Sheet>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * Lays an automation page out as two panes: the form, which scrolls by itself, and the assistant
+ * attached to the right edge at full height while it is open. Where the page has no room for
+ * both, the panel is a sheet from the right edge. The page must carry
+ * `AUTOMATION_ASSISTANT_PAGE_CLASS`.
+ */
+export function AutomationAssistantLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex max-w-5xl flex-col gap-4">{children}</div>
+      </div>
+      <AutomationAssistantSidePanel minRowWidth={FORM_SIDE_BY_SIDE_MIN_WIDTH_PX} />
     </div>
   );
 }

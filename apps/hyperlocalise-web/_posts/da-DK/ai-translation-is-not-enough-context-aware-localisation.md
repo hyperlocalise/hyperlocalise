@@ -17,7 +17,6 @@ tags:
   - translation intelligence
   - machine translation
 ---
-
 AI har gjort oversættelse hurtigere. Men for globale teams betyder hurtigere oversættelse ikke altid bedre lokalisering.
 
 Det egentlige problem er ikke, at AI har svært ved at oversætte ord. Det egentlige problem er, at AI ofte mangler den kontekst, der skal til for at forstå, hvad ordene skal bruges til.

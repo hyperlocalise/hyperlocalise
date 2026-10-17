@@ -8,9 +8,9 @@ Visual workflows compose fixed automation steps on a canvas. Open **Automations 
 ## Build and connect data
 
 1. Choose a manual, scheduled, GitHub, or source-upload trigger.
-2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, or Retry nodes.
+2. Add HTTP, AI, Slack, email, condition, switch, Set, For each, Sequence, Retry, or **Call workflow** nodes.
 3. Connect execution order on the canvas.
-4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps with the braces button beside the box, or wire the port on the canvas. A wired setting shows which step feeds it.
+4. Select a node. Its settings open on the **Configuration** tab. A setting that can take its value from an earlier step shows a port mark beside its name: type a value, insert fields from earlier steps by typing `{{` or with the braces button beside the box, or wire the port on the canvas. An inserted field shows as a pill naming its step and field; a red pill names a step that does not run before this one. Backspace removes a pill whole. On the canvas, each pill draws a thin dashed line from the field it reads to the setting's port; it cannot be selected or moved. Data wires are thin solid lines, and the connections that decide the order steps run in are thicker. A wired setting shows which step feeds it.
 5. Review the **Outputs** tab for expected fields. Test results show actual redacted values.
 
 Direct field bindings preserve objects, arrays, numbers, booleans, and null. Templates produce text, for example `Summary: {{ nodes.summarize.text }}`. Missing required values stop the action. Fields from a conditional branch need an optional binding or fallback because that branch may be skipped.
@@ -41,6 +41,27 @@ Use **Stop**, **Return**, and **Fail** when a branch should finish the workflow 
 
 These nodes have no outgoing execution edges. When one runs on a parallel path, unsettled sibling branches are cancelled so later steps do not keep executing.
 
+## Call reusable workflows
+
+**Call workflow** runs a **pinned published version** of another visual workflow as a subworkflow. Use it to share a reviewed branch (validation, notifications, enrichment) across many parent workflows without copying nodes.
+
+### Make a workflow reusable
+
+A published workflow appears in the Call workflow picker only when it defines a stable contract:
+
+1. Use a **Manual** trigger only. Scheduled, GitHub, and source-upload triggers are not reusable.
+2. On the trigger's **Outputs** tab, declare **output fields** (`path` and type). These paths are the subworkflow **inputs** callers must supply.
+3. Add a **Return** node and declare named outputs with types. Every **Return** on the canvas must expose the same output set. These fields are what the Call workflow step exposes to downstream nodes.
+4. **Publish** the workflow. Callers pin a specific version number; changing the draft does not affect runs until you publish again.
+
+### Call from a parent workflow
+
+1. Add **Call workflow** and select the reusable workflow and version.
+2. Wire each `value.<fieldId>` input on the canvas from upstream data, or use the Configuration tab rows that say to connect on the canvas. Input and output field IDs and types must match the target workflow's published contract at publish time.
+3. Use the step's success output paths (`value.<outputId>`) like any other step. Configure **On error** the same way as HTTP or Slack steps.
+
+Publish validation blocks missing workflows, wrong versions, contract mismatches, direct recursion, and call chains deeper than eight levels. Mock a Call workflow step on its **Test** tab like other steps that call out.
+
 ## Undo and redo edits
 
 **Undo** and **Redo** in the editor header walk back and forward through your edits in order. You can also press Ctrl+Z and Ctrl+Shift+Z (⌘Z and ⌘⇧Z on a Mac). Hover either button to see which edit it applies to.
@@ -56,6 +77,14 @@ Each of these is one step:
 When an undo or redo changes the settings of a step whose settings panel is closed, a notice names the change and offers the way back. A step that appears or changes without you selecting it, for example one that an undo brings back, has a violet band until you select it.
 
 Undo and redo change the draft on the canvas only. Nothing is saved or published until you select **Save** or **Publish**. The history is cleared when you reload or leave the page, and the editor does not warn you about unsaved changes, so save before you leave.
+
+## Build with the assistant
+
+Select **Configure with assistant** in the editor header to describe what the workflow should do in your own words. The assistant opens beside the canvas and changes the draft directly: it adds and removes steps, connects them, fills in their settings, and renames the workflow. Each request it carries out is one step that **Undo** takes back, after asking. Steps it adds are marked with a violet band until you select them.
+
+The assistant writes values the way you would on the **Configuration** tab, including fields of earlier steps such as `{{ nodes.notify_slack.sent }}`. It tells you about any reference that cannot be read when the step runs.
+
+It leaves some things to you: picking a Slack channel, credential, connection, project, repository, or the workflow a **Call workflow** step runs; filling each step's **Test** tab; and saving, testing, and publishing. Its conversation for a workflow is yours alone and stays with that workflow.
 
 ## Test, save, and publish
 

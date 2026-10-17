@@ -131,6 +131,56 @@ describe("undo-stack reducer", () => {
     expect(state.past.map((step) => step.origin)).toEqual(["assistant", "user", "assistant"]);
   });
 
+  it("merges changes of one group into the step on top, however far apart and though sealed", () => {
+    const state = run([
+      { type: "record", next: { name: "a", count: 0 }, at: 0 },
+      { type: "seal" },
+      { type: "record", next: { name: "a", count: 1 }, at: 100, origin: "assistant", group: "t1" },
+      { type: "seal" },
+      { type: "record", next: { name: "b", count: 1 }, at: 9000, origin: "assistant", group: "t1" },
+    ]);
+
+    expect(state.past).toHaveLength(2);
+    expect(state.past[1]).toMatchObject({
+      origin: "assistant",
+      group: "t1",
+      before: { name: "a", count: 0 },
+      after: { name: "b", count: 1 },
+      updatedAt: 9000,
+    });
+  });
+
+  it("keeps a group's change apart once another group, origin or step is on top", () => {
+    const counted = (count: number): Doc => ({ name: "", count });
+    const otherGroup = run([
+      { type: "record", next: counted(1), at: 0, origin: "assistant", group: "t1" },
+      { type: "record", next: counted(2), at: 100, origin: "assistant", group: "t2" },
+    ]);
+    const otherOrigin = run([
+      { type: "record", next: counted(1), at: 0, origin: "assistant", group: "t1" },
+      { type: "record", next: counted(2), at: 100, origin: "system", group: "t1" },
+    ]);
+    const typingBetween = run([
+      { type: "record", next: counted(1), at: 0, origin: "assistant", group: "t1" },
+      { type: "record", next: { name: "x", count: 1 }, at: 100 },
+      { type: "record", next: { name: "x", count: 2 }, at: 200, origin: "assistant", group: "t1" },
+    ]);
+
+    expect(otherGroup.past).toHaveLength(2);
+    expect(otherOrigin.past).toHaveLength(2);
+    expect(typingBetween.past).toHaveLength(3);
+  });
+
+  it("drops a group's step whose changes end where they began", () => {
+    const state = run([
+      { type: "record", next: { name: "", count: 1 }, at: 0, origin: "assistant", group: "t1" },
+      { type: "record", next: start, at: 100, origin: "assistant", group: "t1" },
+    ]);
+
+    expect(state.past).toEqual([]);
+    expect(state.present).toEqual(start);
+  });
+
   it("drops a step whose typing ends where it began", () => {
     const state = run([
       { type: "record", next: { name: "a", count: 0 }, at: 0 },
