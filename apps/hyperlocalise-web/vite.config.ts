@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,27 +18,6 @@ import { defineConfig } from "vite-plus";
 import type { DummyRuleMap } from "vite-plus/lint";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
-
-const testFileInclude = "src/**/*.test.{ts,tsx}";
-const testFileExclude = ["src/e2e/**"];
-
-// Files that rewrite the module graph cannot share a worker cache.
-const moduleGraphMutationPattern = /\bvi\.(mock|doMock|doUnmock|unmock|resetModules|hoisted)\b/;
-
-function listTestFiles(): string[] {
-  return globSync(testFileInclude, { cwd: rootDir }).filter(
-    (relativePath) => !relativePath.startsWith("src/e2e/"),
-  );
-}
-
-const isolatedTestFiles = listTestFiles().filter((relativePath) => {
-  const source = readFileSync(path.join(rootDir, relativePath), "utf8");
-  return moduleGraphMutationPattern.test(source);
-});
-const isolatedTestFileSet = new Set(isolatedTestFiles);
-const sharedTestFiles = listTestFiles().filter(
-  (relativePath) => !isolatedTestFileSet.has(relativePath),
-);
 
 loadDotenv({ path: path.join(rootDir, ".env") });
 
@@ -122,39 +100,17 @@ export default defineConfig({
     ],
   },
   test: {
-    // Vitest v4 compatibility: preserve mock call history.
-    // Remove after tests no longer rely on calls from setup or earlier tests.
-    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
-    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
-    clearMocks: false,
     environment: "node",
     silent: "passed-only",
     pool: "threads",
     reporters: isCi ? ["dot", "github-actions"] : ["default"],
-    setupFiles: ["./src/test/setup-dom.ts"],
-    include: [testFileInclude],
-    exclude: testFileExclude,
-    // Shared files reuse the worker module graph. Files that call vi.mock
-    // keep per-file isolation so their replacements do not leak.
+    // Files in a worker share one module graph. setup-module-mocks resets
+    // modules that depend on vi.mock targets so mocks do not leak between files.
     // https://vitest.dev/guide/improving-performance#test-isolation
-    projects: [
-      {
-        extends: true,
-        test: {
-          name: "shared",
-          isolate: false,
-          exclude: [...testFileExclude, ...isolatedTestFiles],
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: "isolated",
-          isolate: true,
-          exclude: [...testFileExclude, ...sharedTestFiles],
-        },
-      },
-    ],
+    isolate: false,
+    setupFiles: ["./src/test/setup-module-mocks.ts", "./src/test/setup-dom.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["src/e2e/**"],
     deps: {
       optimizer: {
         ssr: {
