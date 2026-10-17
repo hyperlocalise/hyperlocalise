@@ -122,3 +122,7 @@ hyperlocalise run
 
 - Rich text runs inside a cell are flattened to plain text in the translated
   cell. Cell-level formatting is kept.
+
+- `hl entries strings.xlsx --source-locale en --locale fr` prints the French
+  entries, keyed like the English source. Without `--source-locale`, `--locale`
+  names the source column. Comments are printed as `context`.

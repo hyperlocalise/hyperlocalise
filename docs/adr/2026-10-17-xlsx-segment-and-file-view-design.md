@@ -15,7 +15,11 @@ A native `.xlsx` upload was one Office file. Translators edited the whole workbo
   - Any other visible sheet uses the cell layout, with one entry per text cell keyed `Sheet!B3`.
   - Formulas, numbers, cells without letters, and hidden sheets are skipped. Plain `t="str"` cells are text in both implementations.
 - `.xlsx` stays in the Office, whole-file, and binary format families, so uploads, storage, and asset routes do not change. `isSegmentedSpreadsheetTranslationFileFormat` turns on the segment behavior.
-- Ingest parses the stored workbook in-process inside a workflow step, then reconciles keys like other source files. Binary content does not cross step boundaries, and no sandbox is used.
+- The sandbox CLI is the single parser once its pin reaches the first release with the xlsx parser (`hyperlocaliseCliXlsxReleaseVersion` in `src/lib/translation/sandbox-cli-release.ts`). Ingest, **Import translations**, and file translation jobs then run `.xlsx` through `hl entries` and `hl run` like other formats:
+  - `hl entries --source-locale` names the source column, so a target column is read with source keys. Comments are printed as `context`.
+  - Ingest skips SRX for workbooks, because keys address cells.
+  - File translation jobs match glossary terms against extracted cell text, not the zipped bytes.
+- Until the pin is bumped, `sandboxCliParsesXlsx()` is false. Ingest and import parse the stored workbook in-process inside a workflow step, and file translation jobs fail with a message that points to segments.
 - The target workbook is generated, not stored. Download, the public download API, MCP, and GitHub content sync all call `loadProjectXlsxTranslationDownload`:
   - It patches only the worksheet and shared-string parts of the source, so styles, formulas, and other locales' cells are kept.
   - It writes only ready translations, so source text never lands in a target column.
@@ -30,7 +34,8 @@ A native `.xlsx` upload was one Office file. Translators edited the whole workbo
 
 ## Follow-ups
 
-- Automatic file translation jobs still fail on `.xlsx` with a message that points to segments. Running them needs a CLI release with the xlsx parser and a bump of the sandbox CLI pin.
+- Release the CLI with the xlsx parser, then bump `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION`. This switches workbooks to the CLI. After that, remove the in-process reader from ingest and import; the TypeScript writer stays for downloads.
+- Public API, MCP, and chat file jobs do not accept `.xlsx` yet, because `supportedFileTranslationFileFormats` excludes it.
 - Saving edits from File view back into segments.
 - An opt-in setting to import translations already in the workbook at upload.
 - The File view target reloads when the view mounts. It does not refresh while segments change in another view.
@@ -38,6 +43,7 @@ A native `.xlsx` upload was one Office file. Translators edited the whole workbo
 ## Validation
 
 - Go and TypeScript unit tests cover header rules, both layouts, key fallbacks, `t="str"` cells, writer output (filling and appending columns, byte stability), ingest and import workflows, and the download routes.
-- Running both parsers on the same fixtures produced identical keys.
+- Running both parsers on the same fixtures produced identical keys, text, context, and length limits.
+- A local `hl run` with the file job's generated config and prefilled translations wrote French and German workbooks; `collectFileTranslationPageStep` read every translation back with source keys.
 - A database integration test uploads a workbook, approves one translation, and checks the downloaded cells.
 - CAT service and capability tests cover keyed, keyless, and `.xls` workbooks.
