@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -26,10 +26,12 @@ import {
   createStoredFile,
   ensureRepositorySourceFile,
 } from "@/lib/file-storage/records";
-import { loadProjectXlsxSourceEntries } from "@/lib/projects/files/xlsx-source-entries";
+import { loadProjectOfficeSourceEntries } from "@/lib/projects/files/office-source-entries";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
 import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
+import { DOCX_CONTENT_TYPE, readDocxEntries } from "@/lib/translation/ooxml/docx-document";
+import { ooxmlFixture } from "@/lib/translation/ooxml/ooxml.fixture";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
 
 import {
@@ -47,6 +49,79 @@ beforeAll(async () => {
 afterEach(async () => {
   await cleanupPublicApiFixture();
 });
+
+type Project = Awaited<ReturnType<typeof createPublicApiFixture>>["project"];
+
+async function allowAllPermissions(apiKey: string) {
+  await db
+    .update(schema.organizationApiKeys)
+    .set({ permissions: [...defaultApiKeyPermissions] })
+    .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+}
+
+async function seedOfficeSource(input: {
+  project: Project;
+  sourcePath: string;
+  contentType: string;
+  content: Uint8Array;
+}) {
+  const { project } = input;
+  await db
+    .update(schema.projects)
+    .set({ sourceLocale: "en" })
+    .where(eq(schema.projects.id, project.id));
+  const storedFile = await createStoredFile({
+    organizationId: project.organizationId,
+    projectId: project.id,
+    role: "source",
+    sourceKind: "repository_file",
+    filename: input.sourcePath.split("/").at(-1)!,
+    contentType: input.contentType,
+    content: Buffer.from(input.content),
+    metadata: { sourcePath: input.sourcePath },
+  });
+  const version = await createRepositorySourceFileVersion({
+    storedFile,
+    sourcePath: input.sourcePath,
+  });
+  const entries = await loadProjectOfficeSourceEntries({
+    organizationId: project.organizationId,
+    projectId: project.id,
+    storedFileId: storedFile.id,
+    sourcePath: input.sourcePath,
+  });
+  if (!entries.ok) {
+    throw new Error(`could not read fixture entries: ${entries.error.code}`);
+  }
+  await upsertProjectTranslationKeysFromEntries({
+    organizationId: project.organizationId,
+    projectId: project.id,
+    repositorySourceFileId: version.repositorySourceFileId,
+    entries: entries.value,
+  });
+}
+
+async function approveTranslation(project: Project, key: string, text: string) {
+  const [translationKey] = await db
+    .select({ id: schema.projectTranslationKeys.id })
+    .from(schema.projectTranslationKeys)
+    .where(
+      and(
+        eq(schema.projectTranslationKeys.projectId, project.id),
+        eq(schema.projectTranslationKeys.key, key),
+      ),
+    )
+    .limit(1);
+  await db.insert(schema.projectTranslations).values({
+    organizationId: project.organizationId,
+    projectId: project.id,
+    translationKeyId: translationKey!.id,
+    targetLocale: "fr",
+    text,
+    status: "approved",
+    provenance: "import",
+  });
+}
 
 describe("publicTranslationRoutes", () => {
   it("downloads a translation file built from project translations", async () => {
@@ -102,54 +177,15 @@ describe("publicTranslationRoutes", () => {
 
   it("writes ready translations into the target column of an Excel source", async () => {
     const { apiKey, project } = await createPublicApiFixture();
-    await db
-      .update(schema.organizationApiKeys)
-      .set({ permissions: [...defaultApiKeyPermissions] })
-      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
-    await db
-      .update(schema.projects)
-      .set({ sourceLocale: "en" })
-      .where(eq(schema.projects.id, project.id));
+    await allowAllPermissions(apiKey);
     const sourcePath = "copy/strings.xlsx";
-    const storedFile = await createStoredFile({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      role: "source",
-      sourceKind: "repository_file",
-      filename: "strings.xlsx",
+    await seedOfficeSource({
+      project,
+      sourcePath,
       contentType: XLSX_CONTENT_TYPE,
       content: multilingualXlsxFixture(),
-      metadata: { sourcePath },
     });
-    const version = await createRepositorySourceFileVersion({ storedFile, sourcePath });
-    const entries = await loadProjectXlsxSourceEntries({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      storedFileId: storedFile.id,
-    });
-    if (!entries.ok) {
-      throw new Error(`could not read fixture entries: ${entries.error.code}`);
-    }
-    await upsertProjectTranslationKeysFromEntries({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      repositorySourceFileId: version.repositorySourceFileId,
-      entries: entries.value,
-    });
-    const [ctaKey] = await db
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.key, "home.cta"))
-      .limit(1);
-    await db.insert(schema.projectTranslations).values({
-      organizationId: project.organizationId,
-      projectId: project.id,
-      translationKeyId: ctaKey!.id,
-      targetLocale: "fr",
-      text: "Essai gratuit",
-      status: "approved",
-      provenance: "import",
-    });
+    await approveTranslation(project, "home.cta", "Essai gratuit");
 
     const response = await client.api.v1.projects[":projectId"].translations.download.$get(
       { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
@@ -166,6 +202,64 @@ describe("publicTranslationRoutes", () => {
     expect(sheet.B3?.v).toBe("Essai gratuit");
     expect(sheet.B4).toBeUndefined();
     expect(sheet.D3?.v).toBe("Start free trial");
+  });
+
+  it("generates legacy .xls sources as .xlsx workbooks", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await allowAllPermissions(apiKey);
+    const sourcePath = "copy/legacy.xls";
+    const workbook = XLSX.read(multilingualXlsxFixture(), { type: "array" });
+    await seedOfficeSource({
+      project,
+      sourcePath,
+      contentType: "application/vnd.ms-excel",
+      content: Buffer.from(
+        XLSX.write(workbook, { type: "array", bookType: "biff8" }) as ArrayBuffer,
+      ),
+    });
+    await approveTranslation(project, "home.cta", "Essai gratuit");
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(XLSX_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("legacy-fr.xlsx");
+    const sheet = XLSX.read(new Uint8Array(await response.arrayBuffer()), { type: "array" }).Sheets
+      .Strings!;
+    expect(sheet.B3?.v).toBe("Essai gratuit");
+  });
+
+  it("writes ready translations into the paragraphs of a Word source", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await allowAllPermissions(apiKey);
+    const sourcePath = "docs/report.docx";
+    await seedOfficeSource({
+      project,
+      sourcePath,
+      contentType: DOCX_CONTENT_TYPE,
+      content: Buffer.from(await ooxmlFixture("docx-basic")),
+    });
+    await approveTranslation(project, "word/document.xml#0", "Rapport trimestriel");
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(DOCX_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("report-fr.docx");
+    const entries = await readDocxEntries(new Uint8Array(await response.arrayBuffer()));
+    if (!entries.ok) throw new Error(entries.error.code);
+    expect(entries.value.find((entry) => entry.key === "word/document.xml#0")?.text).toBe(
+      "Rapport trimestriel",
+    );
+    expect(entries.value.find((entry) => entry.key === "word/document.xml#5")?.text).toBe(
+      "Cell text",
+    );
   });
 
   it("downloads large source files across paginated key fetches", async () => {

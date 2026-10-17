@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import {
-  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   inferSupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
@@ -26,8 +26,8 @@ export function isContentSyncLottieCompatiblePath(path: string): boolean {
   return inferSupportedTranslationFileFormat(path) === "lottie";
 }
 
-export function isContentSyncSpreadsheetCompatiblePath(path: string): boolean {
-  return inferSupportedSegmentedSpreadsheetTranslationFileFormat(path) !== null;
+export function isContentSyncOfficeCompatiblePath(path: string): boolean {
+  return inferSupportedOfficeTranslationFileFormat(path) !== null;
 }
 
 export function buildContentSyncLocalePath(providerPath: string, locale: string): string {

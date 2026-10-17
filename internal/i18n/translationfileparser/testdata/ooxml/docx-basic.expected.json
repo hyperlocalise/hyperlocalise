@@ -1,0 +1,90 @@
+{
+  "entries": [
+    {
+      "key": "word/document.xml#0",
+      "text": "Quarterly report",
+      "context": "Word body, style Heading1"
+    },
+    {
+      "key": "word/document.xml#2",
+      "text": "Read the \u001eHLOXPH_6F30_0\u001fterms\u001eHLOXPH_6330_1\u001f before you \u001eHLOXPH_6F31_2\u001fsign up\u001eHLOXPH_6331_3\u001f.",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#3",
+      "text": "Page \u001eHLOXPH_6130_0\u001f of the draft",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#4",
+      "text": "Kept added\ttabbed\nline \u0026 more",
+      "context": "Word body"
+    },
+    {
+      "key": "word/document.xml#5",
+      "text": "Cell text",
+      "context": "Word table cell, style TableText"
+    },
+    {
+      "key": "word/document.xml#7",
+      "text": "See image \u001eHLOXPH_6130_0\u001f here.",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#8",
+      "text": "Box caption",
+      "context": "Word text box"
+    },
+    {
+      "key": "word/header1.xml#0",
+      "text": "Confidential",
+      "context": "Word header"
+    }
+  ],
+  "translatedEntries": [
+    {
+      "key": "word/document.xml#0",
+      "text": "Rapport trimestriel",
+      "context": "Word body, style Heading1"
+    },
+    {
+      "key": "word/document.xml#2",
+      "text": "Lisez les \u001eHLOXPH_6F30_0\u001fconditions\u001eHLOXPH_6330_1\u001f avant de vous \u001eHLOXPH_6F31_2\u001finscrire\u001eHLOXPH_6331_3\u001f.",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#3",
+      "text": "Page \u001eHLOXPH_6130_0\u001f du brouillon",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#4",
+      "text": "Conservé ajouté\tavec tabulation\nligne \u0026 plus",
+      "context": "Word body"
+    },
+    {
+      "key": "word/document.xml#5",
+      "text": "Cell text",
+      "context": "Word table cell, style TableText"
+    },
+    {
+      "key": "word/document.xml#7",
+      "text": "Voir l'image ici.\u001eHLOXPH_6130_0\u001f",
+      "context": "Word body\nPreserve every placeholder token matching \\x1eHLOXPH_…\\x1f exactly (do not translate, remove, or rename them). Text between an opening and a closing token keeps that formatting, so move the pair with the words it wraps."
+    },
+    {
+      "key": "word/document.xml#8",
+      "text": "Légende",
+      "context": "Word text box"
+    },
+    {
+      "key": "word/header1.xml#0",
+      "text": "Confidentiel",
+      "context": "Word header"
+    }
+  ],
+  "translatedParts": {
+    "word/document.xml": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?\u003e\n\u003cw:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" mc:Ignorable=\"wps\"\u003e\u003cw:body\u003e\n\u003cw:p\u003e\u003cw:pPr\u003e\u003cw:pStyle w:val=\"Heading1\"/\u003e\u003c/w:pPr\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eRapport trimestriel\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n\u003cw:p/\u003e\n\u003cw:p w:rsidR=\"00A1\"\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eLisez les \u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:rPr\u003e\u003cw:b/\u003e\u003c/w:rPr\u003e\u003cw:t xml:space=\"preserve\"\u003econditions\u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003e avant de vous \u003c/w:t\u003e\u003c/w:r\u003e\u003cw:hyperlink r:id=\"rId5\" w:history=\"1\"\u003e\u003cw:r\u003e\u003cw:rPr\u003e\u003cw:rStyle w:val=\"Hyperlink\"/\u003e\u003c/w:rPr\u003e\u003cw:t xml:space=\"preserve\"\u003einscrire\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:hyperlink\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003e.\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n\u003cw:p\u003e\u003cw:bookmarkStart w:id=\"0\" w:name=\"intro\"/\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003ePage \u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:fldChar w:fldCharType=\"begin\"/\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:instrText xml:space=\"preserve\"\u003e PAGE \u003c/w:instrText\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:fldChar w:fldCharType=\"separate\"/\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:t\u003e1\u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:fldChar w:fldCharType=\"end\"/\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003e du brouillon\u003c/w:t\u003e\u003c/w:r\u003e\u003cw:bookmarkEnd w:id=\"0\"/\u003e\u003c/w:p\u003e\n\u003cw:p\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eConservé ajouté\u003c/w:t\u003e\u003cw:tab/\u003e\u003cw:t xml:space=\"preserve\"\u003eavec tabulation\u003c/w:t\u003e\u003cw:br/\u003e\u003cw:t xml:space=\"preserve\"\u003eligne \u0026amp; plus\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n\u003cw:tbl\u003e\u003cw:tr\u003e\u003cw:tc\u003e\u003cw:p\u003e\u003cw:pPr\u003e\u003cw:pStyle w:val=\"TableText\"/\u003e\u003c/w:pPr\u003e\u003cw:r\u003e\u003cw:t\u003eCell text\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:tc\u003e\u003cw:tc\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:t\u003e2024\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:tc\u003e\u003c/w:tr\u003e\u003c/w:tbl\u003e\n\u003cw:p\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eVoir l'image ici.\u003c/w:t\u003e\u003c/w:r\u003e\u003cw:r\u003e\u003cmc:AlternateContent\u003e\u003cmc:Choice Requires=\"wps\"\u003e\u003cw:drawing\u003e\u003cwp:inline\u003e\u003ca:graphic\u003e\u003ca:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"\u003e\u003cwps:wsp\u003e\u003cwps:txbx\u003e\u003cw:txbxContent\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eLégende\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:txbxContent\u003e\u003c/wps:txbx\u003e\u003c/wps:wsp\u003e\u003c/a:graphicData\u003e\u003c/a:graphic\u003e\u003c/wp:inline\u003e\u003c/w:drawing\u003e\u003c/mc:Choice\u003e\u003cmc:Fallback\u003e\u003cw:pict\u003e\u003cv:shape\u003e\u003cv:textbox\u003e\u003cw:txbxContent\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eLégende\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:txbxContent\u003e\u003c/v:textbox\u003e\u003c/v:shape\u003e\u003c/w:pict\u003e\u003c/mc:Fallback\u003e\u003c/mc:AlternateContent\u003e\u003c/w:r\u003e\u003c/w:p\u003e\n\u003cw:sectPr\u003e\u003cw:headerReference w:type=\"default\" r:id=\"rId4\"/\u003e\u003c/w:sectPr\u003e\n\u003c/w:body\u003e\u003c/w:document\u003e\n",
+    "word/header1.xml": "\u003c?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?\u003e\n\u003cw:hdr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"\u003e\u003cw:p\u003e\u003cw:r\u003e\u003cw:t xml:space=\"preserve\"\u003eConfidentiel\u003c/w:t\u003e\u003c/w:r\u003e\u003c/w:p\u003e\u003c/w:hdr\u003e\n"
+  }
+}

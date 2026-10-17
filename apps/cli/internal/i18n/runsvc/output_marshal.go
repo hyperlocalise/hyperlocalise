@@ -32,6 +32,12 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	case ".xlsx":
 		content, err := s.marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale, values)
 		return content, nil, err
+	case ".docx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalDOCX)
+		return content, nil, err
+	case ".pptx":
+		content, err := s.marshalOfficeTarget(path, sourcePath, values, translationfileparser.MarshalPPTX)
+		return content, nil, err
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
@@ -302,6 +308,20 @@ func (s *Service) marshalXLSXTarget(path, sourcePath, sourceLocale, targetLocale
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 	content, err := translationfileparser.MarshalXLSX(sourceTemplate, values, sourceLocale, targetLocale)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+	}
+	return content, nil
+}
+
+// Word and PowerPoint targets are written into a copy of the source package,
+// because paragraph keys address the source's structure.
+func (s *Service) marshalOfficeTarget(path, sourcePath string, values map[string]string, marshal func([]byte, map[string]string) ([]byte, error)) ([]byte, error) {
+	sourceTemplate, err := s.readProjectFile(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+	content, err := marshal(sourceTemplate, values)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}

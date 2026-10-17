@@ -168,6 +168,30 @@ describe("validateTranslationSegment", () => {
     ]);
   });
 
+  it("fails when the target drops a Word formatting token", () => {
+    const open = "\x1eHLOXPH_6F30_0\x1f";
+    const close = "\x1eHLOXPH_6330_1\x1f";
+    const checks = validateTranslationSegment({
+      sourceText: `Read the ${open}terms${close} first.`,
+      targetText: `Lisez d'abord les ${open}conditions.`,
+      targetLocale: "fr-FR",
+    });
+
+    expect(checks).toEqual([
+      expect.objectContaining({
+        checkType: "placeholder_mismatch",
+        relatedTokens: ["OX#1"],
+      }),
+    ]);
+    expect(
+      validateTranslationSegment({
+        sourceText: `Read the ${open}terms${close} first.`,
+        targetText: `Lisez d'abord les ${open}conditions${close}.`,
+        targetLocale: "fr-FR",
+      }).filter((check) => check.checkType === "placeholder_mismatch"),
+    ).toEqual([]);
+  });
+
   it("fails missing placeholders", () => {
     const checks = validateTranslationSegment({
       sourceText: "Hello {name}",

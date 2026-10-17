@@ -19,7 +19,6 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
-  isSegmentedSpreadsheetTranslationFileFormat,
   isDocumentTranslationFileFormat,
   isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
@@ -38,6 +37,7 @@ import {
   captureFileCompletionsStep,
   claimTranslationJobStep,
   completeFileTranslationJobStep,
+  convertXlsSourceForSandboxStep,
   ensureAiFeaturesAllowedStep,
   failTranslationJobStep,
   getProjectOrganizationStep,
@@ -110,6 +110,10 @@ function getSandboxOutputFilenamePattern(attachmentFilename: string): string {
   const name = inputFilename.slice(0, lastDot);
   const ext = inputFilename.slice(lastDot);
   return `${name}-{{target}}${ext}`;
+}
+
+function xlsxFilename(filename: string): string {
+  return filename.replace(/\.xls$/i, ".xlsx");
 }
 
 function fileExtension(filename: string): string | null {
@@ -761,21 +765,17 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     return { status: "failed" as const, reason: aiFeatures.error.code };
   }
 
-  const sourceIsSpreadsheet = isSegmentedSpreadsheetTranslationFileFormat(
+  const sourceIsOffice = isOfficeTranslationFileFormat(
     parsedInput.fileFormat as SupportedTranslationFileFormat,
   );
-  if (
-    isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat) &&
-    !isSandboxFileTranslationFormat(parsedInput.fileFormat)
-  ) {
+  if (sourceIsOffice && !isSandboxFileTranslationFormat(parsedInput.fileFormat)) {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       code: "office_file_manual_cat",
-      message: sourceIsSpreadsheet
-        ? "Excel workbooks are translated as segments. Upload the workbook to the project and translate its segments in CAT."
-        : "Office files are localized in CAT File view. Upload or edit the translated file there.",
+      message:
+        "Office files are translated as segments. Upload the file to the project and translate its segments in CAT.",
     });
     return { status: "failed" as const, reason: "office_file_manual_cat" };
   }
@@ -967,7 +967,26 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       });
     }
   };
-  const inputFilename = getSandboxInputFilename(sourceFile.filename);
+  // The CLI reads legacy .xls workbooks only after conversion, and writes them as .xlsx.
+  let sandboxSourceFilename = sourceFile.filename;
+  let sandboxContentType = sourceFile.contentType;
+  if (parsedInput.fileFormat === "xls") {
+    const converted = await convertXlsSourceForSandboxStep(sourceContent);
+    if (!converted) {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "invalid_source_file",
+        message: "The Excel workbook could not be read.",
+      });
+      return { status: "failed" as const, reason: "invalid_source_file" };
+    }
+    sourceContent = converted.content;
+    sandboxSourceFilename = xlsxFilename(sourceFile.filename);
+    sandboxContentType = converted.contentType;
+  }
+  const inputFilename = getSandboxInputFilename(sandboxSourceFilename);
   const instructions = parsedInput.metadata?.instructions ?? null;
   const assembleContext = async (sourceText?: string) => {
     const assembled = await assembleFileTranslationContextStep({
@@ -988,8 +1007,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     return assembled;
   };
   try {
-    // Workbook bytes are zipped, so glossary terms are matched against extracted cell text.
-    const contextFromFile = sourceIsSpreadsheet ? null : await assembleContext();
+    // Office bytes are zipped, so glossary terms are matched against extracted segment text.
+    const contextFromFile = sourceIsOffice ? null : await assembleContext();
 
     ({ sandboxId } = await createSandboxStep());
     await prepareSandboxStep(sandboxId);
@@ -1041,7 +1060,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     let translationMaxPages = calculateFileTranslationMaxPages(
       Object.keys(sourceEntries).length * parsedInput.targetLocales.length,
     );
-    const outputPattern = getSandboxOutputFilenamePattern(sourceFile.filename);
+    const outputPattern = getSandboxOutputFilenamePattern(sandboxSourceFilename);
     const reportsEnabled = sourceEntries
       ? await resolveWorkspaceReportsFlagStep(organizationId)
       : false;
@@ -1382,7 +1401,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           outputFilenames: Object.fromEntries(
             locales.map((locale) => [
               locale,
-              getSandboxOutputFilename(sourceFile.filename, locale),
+              getSandboxOutputFilename(sandboxSourceFilename, locale),
             ]),
           ),
           sourceEntries,
@@ -1596,7 +1615,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     for (const targetLocale of parsedInput.targetLocales) {
       if (failedLocales.includes(targetLocale)) continue;
       try {
-        const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+        const outputFilename = getSandboxOutputFilename(sandboxSourceFilename, targetLocale);
         const translatedContent = await readOutputStep(sandboxId, outputFilename, 2);
         await logDiagnosticsStep(
           claim.job.id,
@@ -1610,7 +1629,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           projectId: claim.job.projectId,
           jobId: claim.job.id,
           filename: outputFilename,
-          contentType: sourceFile.contentType,
+          contentType: sandboxContentType,
           content: translatedContent,
         });
         if (
