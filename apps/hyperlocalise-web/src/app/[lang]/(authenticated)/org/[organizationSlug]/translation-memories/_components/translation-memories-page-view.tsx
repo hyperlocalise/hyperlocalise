@@ -51,6 +51,7 @@ import {
   workspaceFilterTriggerClassName,
   WorkspacePageShell,
 } from "../../_components/workspace-resource-shared";
+import type { MemoryCreateForm } from "../store/translation-memories-page-store";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
 import {
@@ -63,11 +64,7 @@ import { translationMemoriesPageViewMessages } from "./translation-memories-page
 
 export const MEMORIES_PAGE_SIZE = 100;
 
-export type MemoryCreateForm = {
-  name: string;
-  description: string;
-  importFile: File | null;
-};
+export type { MemoryCreateForm } from "../store/translation-memories-page-store";
 
 export function TranslationMemoriesPageView({
   organizationSlug,
