@@ -131,6 +131,34 @@ describe("requeueKeylessOfficeSourceIngest", () => {
     expect(enqueue).toHaveBeenCalledOnce();
   });
 
+  it("does not requeue an Office file whose segment ingest found no text", async () => {
+    const { organization, project } = await createStoredProjectFixture();
+    const scope = { organizationId: organization.id, projectId: project.id };
+    const version = await ingestedVersion({ ...scope, sourcePath: "docs/images-only.docx" });
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ ingestState: "ingesting", ingestWorkflowRunId: "run_empty" })
+      .where(eq(schema.repositorySourceFileVersions.id, version.id));
+    await reconcileSourceFileTranslationKeys({
+      ...scope,
+      repositorySourceFileId: version.repositorySourceFileId,
+      sourceFileVersionId: version.id,
+      workflowRunId: "run_empty",
+      entries: [],
+    });
+    const { queue, enqueue } = fakeQueue();
+
+    await expect(
+      requeueKeylessOfficeSourceIngest({ ...scope, sourcePath: "docs/images-only.docx", queue }),
+    ).resolves.toBe(false);
+    await backfillKeylessOfficeSourceIngest({ queue });
+
+    expect(await ingestState(version.id)).toBe("ingested");
+    expect(enqueue).not.toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFileVersionId: version.id }),
+    );
+  });
+
   it("leaves keyed Office files and non-Office files alone", async () => {
     const { organization, project } = await createStoredProjectFixture();
     const keyed = await ingestedVersion({

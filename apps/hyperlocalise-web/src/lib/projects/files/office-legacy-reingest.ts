@@ -43,6 +43,25 @@ function noKeysForVersionFile() {
   );
 }
 
+/**
+ * Segment extraction always reconciles the version, even when it yields zero keys, so an
+ * unreconciled version was ingested as a whole file. Key absence alone would requeue empty
+ * or image-only documents on every open.
+ */
+function notReconciledVersion() {
+  return notExists(
+    db
+      .select({ id: schema.repositorySourceFiles.id })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.id, versions.repositorySourceFileId),
+          eq(schema.repositorySourceFiles.reconciledSourceFileVersionId, versions.id),
+        ),
+      ),
+  );
+}
+
 /** Later versions of the same path supersede this one, so only the latest is re-keyed. */
 function isLatestVersion() {
   return sql`not exists (
@@ -73,6 +92,7 @@ async function requeueCandidate(candidate: ReingestCandidate, queue?: SourceFile
         eq(versions.id, candidate.id),
         eq(versions.ingestState, "ingested"),
         noKeysForVersionFile(),
+        notReconciledVersion(),
       ),
     )
     .returning({ id: versions.id });
@@ -140,6 +160,7 @@ export async function requeueKeylessOfficeSourceIngest(input: {
         eq(versions.ingestState, "ingested"),
         isLatestVersion(),
         noKeysForVersionFile(),
+        notReconciledVersion(),
       ),
     )
     .limit(1);
@@ -163,6 +184,7 @@ export async function backfillKeylessOfficeSourceIngest(
           eq(versions.ingestState, "ingested"),
           isLatestVersion(),
           noKeysForVersionFile(),
+          notReconciledVersion(),
         ),
       )
       .orderBy(asc(versions.id))
