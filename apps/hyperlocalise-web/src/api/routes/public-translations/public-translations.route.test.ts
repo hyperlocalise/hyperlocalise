@@ -161,7 +161,8 @@ describe("publicTranslationRoutes", () => {
     expect(response.headers.get("content-disposition")).toContain("strings-fr.xlsx");
     const sheet = XLSX.read(new Uint8Array(await response.arrayBuffer()), { type: "array" }).Sheets
       .Strings!;
-    expect(sheet.B2?.v).toBe("Accueil");
+    // The fixture's French "Accueil" has no ready translation, so it is cleared.
+    expect(sheet.B2?.v).toBeUndefined();
     expect(sheet.B3?.v).toBe("Essai gratuit");
     expect(sheet.B4).toBeUndefined();
     expect(sheet.D3?.v).toBe("Start free trial");
