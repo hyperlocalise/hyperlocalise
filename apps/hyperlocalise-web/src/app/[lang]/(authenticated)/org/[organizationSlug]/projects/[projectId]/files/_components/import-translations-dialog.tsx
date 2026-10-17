@@ -65,7 +65,9 @@ export function ImportTranslationsDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [locale, setLocale] = useState<string>(targetLocales[0] ?? "");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const isSpreadsheet = Boolean(inferSupportedSegmentedSpreadsheetTranslationFileFormat(sourcePath));
+  const isSpreadsheet = Boolean(
+    inferSupportedSegmentedSpreadsheetTranslationFileFormat(sourcePath),
+  );
 
   useEffect(() => {
     if (open) {
