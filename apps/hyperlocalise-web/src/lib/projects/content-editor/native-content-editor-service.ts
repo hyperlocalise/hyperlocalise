@@ -295,7 +295,13 @@ export class NativeContentEditorService extends ProjectServiceBase {
         projectId: input.projectId,
         sourcePath: input.sourcePath,
       }).catch((error: unknown) => {
-        logger.warn({ error, sourcePath: input.sourcePath }, "failed to requeue Office ingest");
+        logger.warn(
+          {
+            repositorySourceFileId: sourceFile.id,
+            errorName: error instanceof Error ? error.name : "unknown",
+          },
+          "failed to requeue Office ingest",
+        );
       });
       return this.withSourceIngest(
         input,
