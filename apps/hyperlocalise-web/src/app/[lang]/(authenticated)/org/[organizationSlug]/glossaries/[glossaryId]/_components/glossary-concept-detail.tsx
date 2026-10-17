@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect } from "react";
+import { observer } from "mobx-react-lite";
 import { PlusIcon, CaretDownIcon, TrashIcon, FunnelIcon, LinkIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -20,10 +21,7 @@ import { toast } from "sonner";
 
 import type {
   GlossaryConceptRecord,
-  GlossaryConceptTermRecord,
   GlossaryTermPageResponse,
-  CreateGlossaryConceptBody,
-  UpsertGlossaryConceptTermBody,
 } from "@/api/routes/glossary/glossary.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,116 +75,18 @@ import { apiClient } from "@/lib/api-client-instance";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import { useOrgRouter } from "@/lib/navigation/use-org-router";
 import { cn } from "@/lib/primitives/cn";
-import {
-  glossaryTermStatusValues,
-  type GlossaryPartOfSpeech,
-  type GlossaryTermStatus,
-} from "@/lib/glossary/glossary";
+import { glossaryTermStatusValues } from "@/lib/glossary/glossary";
 
 import { useUnsavedChangesLeaveGuard } from "../../../_components/unsaved-changes-leave-guard";
 import { availableConceptTermLocales } from "./available-concept-term-locales";
-import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
-import { sortConceptDetailTermGroups } from "./concept-detail-term-order";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
+import {
+  GlossaryConceptDetailStoreProvider,
+  useGlossaryConceptDetailStore,
+} from "../store/glossary-concept-detail-store-context";
+import type { TermDraft } from "../store/glossary-concept-detail-store";
 
-type ConceptDraft = {
-  primaryTerm: string;
-  subject: string;
-  definition: string;
-  translatable: boolean;
-  note: string;
-  url: string;
-};
-
-type TermDraft = {
-  term: string;
-  partOfSpeech: string;
-  gender: string | null;
-  termType: string | null;
-  status: GlossaryTermStatus;
-  description: string;
-  note: string;
-  url: string;
-};
-
-type CreatingTermDraft = TermDraft & { id: string; locale: string };
-
-const emptyConceptDraft: ConceptDraft = {
-  primaryTerm: "",
-  subject: "",
-  definition: "",
-  translatable: true,
-  note: "",
-  url: "",
-};
 const statusOptions = glossaryTermStatusValues;
-const emptyTermDraft: TermDraft = {
-  term: "",
-  partOfSpeech: "",
-  gender: null,
-  termType: null,
-  status: "draft",
-  description: "",
-  note: "",
-  url: "",
-};
-
-function createCreatingTermDraft(locale: string, id: string): CreatingTermDraft {
-  return { ...emptyTermDraft, id, locale };
-}
-
-function conceptDraftFromRecord(concept: GlossaryConceptRecord): ConceptDraft {
-  return {
-    primaryTerm: concept.primaryTerm,
-    subject: concept.subject,
-    definition: concept.definition,
-    translatable: concept.translatable,
-    note: concept.note,
-    url: concept.url ?? "",
-  };
-}
-
-function termDraftFromRecord(term: GlossaryConceptTermRecord): TermDraft {
-  return {
-    term: term.term,
-    partOfSpeech: normalizePartOfSpeech(term.partOfSpeech) ?? "",
-    gender: term.gender,
-    termType: term.termType,
-    status: term.status,
-    description: term.description,
-    note: term.note,
-    url: term.url ?? "",
-  };
-}
-
-function normalizePartOfSpeech(value: string) {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-  return (normalized === "preposition" ? "adposition" : normalized) as GlossaryPartOfSpeech;
-}
-
-function areTermDraftsEqual(left: TermDraft, right: TermDraft) {
-  return (
-    left.term === right.term &&
-    left.partOfSpeech === right.partOfSpeech &&
-    left.gender === right.gender &&
-    left.termType === right.termType &&
-    left.status === right.status &&
-    left.description === right.description &&
-    left.note === right.note &&
-    left.url === right.url
-  );
-}
-
-function areConceptDraftsEqual(left: ConceptDraft, right: ConceptDraft) {
-  return (
-    left.subject === right.subject &&
-    left.definition === right.definition &&
-    left.translatable === right.translatable &&
-    left.note === right.note &&
-    left.url === right.url
-  );
-}
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -284,25 +184,38 @@ export function GlossaryConceptDetail({
   conceptId: string;
   canManageGlossaries: boolean;
 }) {
+  return (
+    <GlossaryConceptDetailStoreProvider
+      organizationSlug={organizationSlug}
+      glossaryId={glossaryId}
+      conceptId={conceptId}
+    >
+      <GlossaryConceptDetailView
+        organizationSlug={organizationSlug}
+        glossaryId={glossaryId}
+        conceptId={conceptId}
+        canManageGlossaries={canManageGlossaries}
+      />
+    </GlossaryConceptDetailStoreProvider>
+  );
+}
+
+const GlossaryConceptDetailView = observer(function GlossaryConceptDetailView({
+  organizationSlug,
+  glossaryId,
+  conceptId,
+  canManageGlossaries,
+}: {
+  organizationSlug: string;
+  glossaryId: string;
+  conceptId: string;
+  canManageGlossaries: boolean;
+}) {
   const intl = useIntl();
   const router = useOrgRouter();
   const queryClient = useQueryClient();
-  const glossaryHref = `/org/${organizationSlug}/glossaries/${glossaryId}`;
-  const conceptHref = (id: string) => `${glossaryHref}/concepts/${id}`;
-  const [languageFilter, setLanguageFilter] = useState("");
-  const [termCursor, setTermCursor] = useState<string | undefined>();
-  const [, setTermCursorStack] = useState<string[]>([]);
-  const [localePickerOpen, setLocalePickerOpen] = useState(false);
-  const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
-  const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
-  const [creatingTermDrafts, setCreatingTermDrafts] = useState<CreatingTermDraft[]>([]);
-  const [termDrafts, setTermDrafts] = useState<Record<string, TermDraft>>({});
-  const [deletedTermIds, setDeletedTermIds] = useState<Set<string>>(new Set());
-  const initializedConceptIdRef = useRef<string | null>(null);
-  const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
-  const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
-  const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
-  const [conceptDraft, setConceptDraft] = useState<ConceptDraft>(emptyConceptDraft);
+  const store = useGlossaryConceptDetailStore();
+  const glossaryHref = store.glossaryHref;
   const { glossaryQuery, glossary, canContribute, isConceptGlossary, sourceLanguage } = useGlossary(
     {
       organizationSlug,
@@ -311,7 +224,7 @@ export function GlossaryConceptDetail({
     },
   );
 
-  const isCreatingConcept = conceptId === "new";
+  const isCreatingConcept = store.isCreatingConcept;
   const availableTermLocales = availableConceptTermLocales();
   const conceptQuery = useQuery({
     queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
@@ -336,11 +249,12 @@ export function GlossaryConceptDetail({
       organizationSlug,
       glossaryId,
       conceptId,
-      termCursor,
-      languageFilter,
+      store.termCursor,
+      store.languageFilter,
     ],
     enabled: Boolean(conceptRecord) && !isCreatingConcept,
     queryFn: async ({ signal }) => {
+      const locale = store.resolvedTermLocaleFilter(availableTermLocales);
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
       ].concepts[":conceptId"].terms.page.$get(
@@ -351,16 +265,8 @@ export function GlossaryConceptDetail({
             sort: "locale",
             sortDir: "asc",
             includeArchived: "false",
-            ...(termCursor ? { cursor: termCursor } : {}),
-            ...(languageFilter.trim()
-              ? {
-                  locale: availableTermLocales.find(
-                    (locale) =>
-                      locale.toLowerCase() === languageFilter.trim().toLowerCase() ||
-                      getLocaleLabel(locale).toLowerCase() === languageFilter.trim().toLowerCase(),
-                  ),
-                }
-              : {}),
+            ...(store.termCursor ? { cursor: store.termCursor } : {}),
+            ...(locale ? { locale } : {}),
           },
         },
         { init: { signal } },
@@ -372,88 +278,18 @@ export function GlossaryConceptDetail({
     },
     placeholderData: (previous) => previous,
   });
-  const termPageTerms = termsQuery.data?.terms;
-  const selectedConcept = useMemo(
-    () => (conceptRecord ? { ...conceptRecord, terms: termPageTerms ?? [] } : null),
-    [conceptRecord, termPageTerms],
-  );
+  const selectedConcept = store.selectedConcept;
   useEffect(() => {
-    if (conceptId === "new") {
-      setConceptDraft(emptyConceptDraft);
-      setTermDrafts({});
-      setDeletedTermIds(new Set());
-      setCreatingTermDrafts(
-        sourceLanguage.locale
-          ? [createCreatingTermDraft(sourceLanguage.locale, `new-source-${sourceLanguage.locale}`)]
-          : [],
-      );
-      setNewTermLocale(null);
-      setNewTermDraft(emptyTermDraft);
-      setExpandedTermIds(new Set());
-      setExpandedCreatingTermIds(new Set());
-    }
-  }, [conceptId, sourceLanguage.locale]);
+    store.setSourceLocale(sourceLanguage.locale);
+    if (store.isCreatingConcept) store.initializeNewConcept(sourceLanguage.locale);
+  }, [store, sourceLanguage.locale]);
 
   useEffect(() => {
-    if (!selectedConcept || initializedConceptIdRef.current === selectedConcept.id) return;
-    initializedConceptIdRef.current = selectedConcept.id;
-    setConceptDraft(conceptDraftFromRecord(selectedConcept));
-    setTermDrafts(
-      Object.fromEntries(selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
-    );
-    setDeletedTermIds(new Set());
-    setNewTermLocale(null);
-    setNewTermDraft(emptyTermDraft);
-    setCreatingTermDrafts([]);
-    setExpandedTermIds(new Set());
-    setExpandedCreatingTermIds(new Set());
-  }, [selectedConcept]);
+    if (!conceptRecord) return;
+    store.hydrateFromServer({ ...conceptRecord, terms: termsQuery.data?.terms ?? [] });
+  }, [store, conceptRecord, termsQuery.data?.terms]);
 
-  useEffect(() => {
-    if (!selectedConcept || initializedConceptIdRef.current !== selectedConcept.id) return;
-    setTermDrafts((current) => {
-      let changed = false;
-      const next = { ...current };
-      for (const term of selectedConcept.terms) {
-        if (!next[term.id]) {
-          next[term.id] = termDraftFromRecord(term);
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
-  }, [selectedConcept]);
-
-  const conceptTermCandidates = isCreatingConcept
-    ? creatingTermDrafts
-    : [
-        ...(selectedConcept?.terms ?? [])
-          .filter((term) => !deletedTermIds.has(term.id))
-          .map((term) => {
-            const draft = termDrafts[term.id] ?? termDraftFromRecord(term);
-            return {
-              id: term.id,
-              locale: term.locale,
-              term: draft.term,
-              status: draft.status,
-            };
-          }),
-        ...(newTermLocale
-          ? [
-              {
-                locale: newTermLocale,
-                term: newTermDraft.term,
-                status: newTermDraft.status,
-              },
-            ]
-          : []),
-      ];
-
-  const sourceTermText =
-    selectConceptDetailSourceTermText(conceptTermCandidates, sourceLanguage.locale) ||
-    conceptRecord?.primaryTerm ||
-    "";
-
+  const sourceTermText = store.sourceTermText;
   const conceptBreadcrumbLabel = isCreatingConcept
     ? intl.formatMessage(messages.addConcept)
     : sourceTermText || conceptId;
@@ -466,43 +302,8 @@ export function GlossaryConceptDetail({
   });
 
   const goBack = () => router.push(glossaryHref);
-
-  const goToNextTermPage = () => {
-    const nextCursor = termsQuery.data?.nextCursor;
-    if (!nextCursor || isDirty) return;
-    setTermCursorStack((current) => [...current, termCursor ?? ""]);
-    setTermCursor(nextCursor);
-  };
-
-  const goToPreviousTermPage = () => {
-    if (isDirty) return;
-    setTermCursorStack((current) => {
-      const next = [...current];
-      setTermCursor(next.pop() || undefined);
-      return next;
-    });
-  };
-
-  const updateTermDraft = (termId: string, patch: Partial<TermDraft>) => {
-    setTermDrafts((current) => {
-      const draft = current[termId];
-      return draft ? { ...current, [termId]: { ...draft, ...patch } } : current;
-    });
-  };
-
-  const markTermForDeletion = (termId: string) => {
-    setDeletedTermIds((current) => {
-      const next = new Set(current);
-      next.add(termId);
-      return next;
-    });
-    setExpandedTermIds((current) => {
-      const next = new Set(current);
-      next.delete(termId);
-      return next;
-    });
-    setTermToDeleteId(null);
-  };
+  const goToNextTermPage = () => store.goToNextTermPage(termsQuery.data?.nextCursor);
+  const goToPreviousTermPage = () => store.goToPreviousTermPage();
 
   const invalidateConcepts = () =>
     Promise.all([
@@ -522,122 +323,46 @@ export function GlossaryConceptDetail({
       queryKey: ["glossary-concept", organizationSlug, glossaryId, conceptId],
     });
   const saveConcept = useMutation({
-    mutationFn: async (draft: ConceptDraft) => {
-      let concept: GlossaryConceptRecord;
-      let created = false;
-      const primaryTerm = sourceTermText.trim();
-      if (!primaryTerm) throw new Error(intl.formatMessage(messages.saveConceptFailed));
-      if (isCreatingConcept) {
-        const terms: NonNullable<CreateGlossaryConceptBody["terms"]> = creatingTermDrafts
-          .filter(({ term }) => term.trim())
-          .map(({ id: _id, ...term }) => ({
-            ...term,
-            term: term.term.trim(),
-            partOfSpeech: normalizePartOfSpeech(term.partOfSpeech),
-            gender: term.gender as NonNullable<
-              CreateGlossaryConceptBody["terms"]
-            >[number]["gender"],
-            termType: term.termType as NonNullable<
-              CreateGlossaryConceptBody["terms"]
-            >[number]["termType"],
-            caseSensitive: false,
-            forbidden: false,
-          }));
+    mutationFn: async () => {
+      if (!store.sourceTermText.trim()) {
+        throw new Error(intl.formatMessage(messages.saveConceptFailed));
+      }
+      if (store.isCreatingConcept) {
         const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
           ":glossaryId"
         ].concepts.$post({
           param: { organizationSlug, glossaryId },
-          json: {
-            ...draft,
-            primaryTerm,
-            url: draft.url || undefined,
-            terms: terms.map((term) => ({
-              ...term,
-              partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
-            })),
-          },
+          json: store.buildCreateBody(),
         });
         if (!response.ok)
           throw new Error(
             await readApiError(response, intl.formatMessage(messages.saveConceptFailed)),
           );
-        concept = (await response.json()).concept as GlossaryConceptRecord;
-        created = true;
-      } else {
-        if (!conceptId) throw new Error(intl.formatMessage(messages.saveConceptFailed));
-        const terms: UpsertGlossaryConceptTermBody[] = selectedConcept
-          ? selectedConcept.terms
-              .filter((term) => !deletedTermIds.has(term.id))
-              .map((term) => {
-                const termDraft = termDrafts[term.id] ?? termDraftFromRecord(term);
-                return {
-                  id: term.id,
-                  locale: term.locale,
-                  term: termDraft.term,
-                  partOfSpeech: normalizePartOfSpeech(termDraft.partOfSpeech),
-                  gender: termDraft.gender as UpsertGlossaryConceptTermBody["gender"],
-                  termType: termDraft.termType as UpsertGlossaryConceptTermBody["termType"],
-                  status: termDraft.status,
-                  description: termDraft.description,
-                  note: termDraft.note,
-                  url: termDraft.url,
-                  caseSensitive: term.caseSensitive,
-                  forbidden: term.forbidden,
-                };
-              })
-          : [];
-        if (newTermLocale && newTermDraft.term.trim()) {
-          terms.push({
-            locale: newTermLocale,
-            term: newTermDraft.term,
-            partOfSpeech: normalizePartOfSpeech(newTermDraft.partOfSpeech),
-            gender: newTermDraft.gender as UpsertGlossaryConceptTermBody["gender"],
-            termType: newTermDraft.termType as UpsertGlossaryConceptTermBody["termType"],
-            status: newTermDraft.status,
-            description: newTermDraft.description,
-            note: newTermDraft.note,
-            url: newTermDraft.url,
-            caseSensitive: false,
-            forbidden: false,
-          });
-        }
-        const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-          ":glossaryId"
-        ].concepts[":conceptId"].$patch({
-          param: { organizationSlug, glossaryId, conceptId: conceptId },
-          json: {
-            ...draft,
-            primaryTerm,
-            url: draft.url || undefined,
-            preserveOmittedTerms: true,
-            deletedTermIds: [...deletedTermIds],
-            terms: terms.map((term) => ({
-              ...term,
-              partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
-            })),
-          },
-        });
-        if (!response.ok)
-          throw new Error(
-            await readApiError(response, intl.formatMessage(messages.saveConceptFailed)),
-          );
-        concept = (await response.json()).concept as GlossaryConceptRecord;
+        return {
+          concept: (await response.json()).concept as GlossaryConceptRecord,
+          created: true,
+        };
       }
-
-      return { concept, created };
+      if (!conceptId) throw new Error(intl.formatMessage(messages.saveConceptFailed));
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts[":conceptId"].$patch({
+        param: { organizationSlug, glossaryId, conceptId },
+        json: store.buildUpdateBody(),
+      });
+      if (!response.ok)
+        throw new Error(
+          await readApiError(response, intl.formatMessage(messages.saveConceptFailed)),
+        );
+      return {
+        concept: (await response.json()).concept as GlossaryConceptRecord,
+        created: false,
+      };
     },
     onSuccess: async ({ concept, created }) => {
       await Promise.all([invalidateConcepts(), invalidateConceptDetail()]);
-      setConceptDraft(conceptDraftFromRecord(concept));
-      setTermDrafts(
-        Object.fromEntries(concept.terms.map((term) => [term.id, termDraftFromRecord(term)])),
-      );
-      setDeletedTermIds(new Set());
-      if (created) leaveTo(conceptHref(concept.id));
-      setNewTermLocale(null);
-      setNewTermDraft(emptyTermDraft);
-      setCreatingTermDrafts([]);
-      setExpandedCreatingTermIds(new Set());
+      store.applySavedConcept(concept);
+      if (created) leaveTo(store.conceptHref(concept.id));
       toast.success(intl.formatMessage(created ? messages.conceptAdded : messages.conceptSaved));
     },
     onError: (error) => toast.error(error.message),
@@ -663,76 +388,11 @@ export function GlossaryConceptDetail({
     onError: (error) => toast.error(error.message),
   });
 
-  const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const unsortedTermGroups = (selectedConcept?.terms ?? [])
-    .filter((term) => !deletedTermIds.has(term.id))
-    .filter(
-      (term) =>
-        !normalizedLanguageFilter ||
-        getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter) ||
-        term.locale.toLowerCase().includes(normalizedLanguageFilter),
-    )
-    .reduce<Array<{ locale: string; terms: GlossaryConceptTermRecord[] }>>((groups, term) => {
-      const group = groups.find((item) => item.locale === term.locale);
-      if (group) group.terms.push(term);
-      else groups.push({ locale: term.locale, terms: [term] });
-      return groups;
-    }, []);
-  const termGroupsWithPendingLocale =
-    newTermLocale &&
-    !unsortedTermGroups.some((group) => group.locale === newTermLocale) &&
-    (!normalizedLanguageFilter ||
-      getLocaleLabel(newTermLocale).toLowerCase().includes(normalizedLanguageFilter) ||
-      newTermLocale.toLowerCase().includes(normalizedLanguageFilter))
-      ? [...unsortedTermGroups, { locale: newTermLocale, terms: [] }]
-      : unsortedTermGroups;
-  const termGroups = sortConceptDetailTermGroups(
-    termGroupsWithPendingLocale,
-    sourceLanguage.locale,
-  );
-  const creatingTermGroups = sortConceptDetailTermGroups(
-    creatingTermDrafts
-      .filter(
-        (term) =>
-          !normalizedLanguageFilter ||
-          getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter) ||
-          term.locale.toLowerCase().includes(normalizedLanguageFilter),
-      )
-      .reduce<Array<{ locale: string; terms: CreatingTermDraft[] }>>((groups, term) => {
-        const group = groups.find((item) => item.locale === term.locale);
-        if (group) group.terms.push(term);
-        else groups.push({ locale: term.locale, terms: [term] });
-        return groups;
-      }, []),
-    sourceLanguage.locale,
-  );
-  const conceptIsDirty = isCreatingConcept
-    ? Boolean(sourceTermText.trim())
-    : selectedConcept
-      ? !areConceptDraftsEqual(conceptDraft, conceptDraftFromRecord(selectedConcept))
-      : false;
-  const termsAreDirty =
-    deletedTermIds.size > 0 ||
-    Boolean(
-      selectedConcept?.terms.some((term) => {
-        const draft = termDrafts[term.id];
-        return draft && !areTermDraftsEqual(draft, termDraftFromRecord(term));
-      }),
-    );
-  const newTermIsDirty = Boolean(newTermLocale && newTermDraft.term.trim());
-  const isDirty =
-    conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
-  // `isDirty` is already true on a new concept, which opens with an empty source term row, and
-  // after an empty row is added. Leaving is only worth asking about once something is entered,
-  // in any field of a row and not only its term.
-  const hasUnsavedChanges =
-    (isCreatingConcept
-      ? !areConceptDraftsEqual(conceptDraft, emptyConceptDraft)
-      : conceptIsDirty) ||
-    termsAreDirty ||
-    (newTermLocale !== null && !areTermDraftsEqual(newTermDraft, emptyTermDraft)) ||
-    creatingTermDrafts.some((draft) => !areTermDraftsEqual(draft, emptyTermDraft));
-  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(hasUnsavedChanges);
+  const termGroups = store.termGroups;
+  const creatingTermGroups = store.creatingTermGroups;
+  const newTermIsDirty = store.newTermIsDirty;
+  const isDirty = store.isDirty;
+  const { leaveGuardDialog, leaveTo } = useUnsavedChangesLeaveGuard(store.hasUnsavedChanges);
 
   if (glossaryQuery.isLoading || (!isCreatingConcept && conceptQuery.isLoading))
     return <ConceptDetailSkeleton />;
@@ -784,10 +444,8 @@ export function GlossaryConceptDetail({
                 <FormattedMessage {...messages.subjectLabel} />
               </FieldLabel>
               <Input
-                value={conceptDraft.subject}
-                onChange={(event) =>
-                  setConceptDraft((draft) => ({ ...draft, subject: event.target.value }))
-                }
+                value={store.conceptDraft.subject}
+                onChange={(event) => store.updateConceptDraft({ subject: event.target.value })}
                 disabled={!canContribute}
               />
             </Field>
@@ -796,18 +454,16 @@ export function GlossaryConceptDetail({
                 <FormattedMessage {...messages.definitionLabel} />
               </FieldLabel>
               <Textarea
-                value={conceptDraft.definition}
-                onChange={(event) =>
-                  setConceptDraft((draft) => ({ ...draft, definition: event.target.value }))
-                }
+                value={store.conceptDraft.definition}
+                onChange={(event) => store.updateConceptDraft({ definition: event.target.value })}
                 disabled={!canContribute}
               />
             </Field>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={conceptDraft.translatable}
+                checked={store.conceptDraft.translatable}
                 onCheckedChange={(checked) =>
-                  setConceptDraft((draft) => ({ ...draft, translatable: Boolean(checked) }))
+                  store.updateConceptDraft({ translatable: Boolean(checked) })
                 }
                 disabled={!canContribute}
               />
@@ -823,10 +479,8 @@ export function GlossaryConceptDetail({
                     <FormattedMessage {...messages.noteLabel} />
                   </FieldLabel>
                   <Textarea
-                    value={conceptDraft.note}
-                    onChange={(event) =>
-                      setConceptDraft((draft) => ({ ...draft, note: event.target.value }))
-                    }
+                    value={store.conceptDraft.note}
+                    onChange={(event) => store.updateConceptDraft({ note: event.target.value })}
                     disabled={!canContribute}
                   />
                 </Field>
@@ -835,10 +489,8 @@ export function GlossaryConceptDetail({
                     <FormattedMessage {...messages.urlLabel} />
                   </FieldLabel>
                   <Input
-                    value={conceptDraft.url}
-                    onChange={(event) =>
-                      setConceptDraft((draft) => ({ ...draft, url: event.target.value }))
-                    }
+                    value={store.conceptDraft.url}
+                    onChange={(event) => store.updateConceptDraft({ url: event.target.value })}
                     disabled={!canContribute}
                   />
                 </Field>
@@ -852,13 +504,9 @@ export function GlossaryConceptDetail({
                 <Input
                   className="pl-8"
                   placeholder={intl.formatMessage(messages.filterLanguages)}
-                  value={languageFilter}
+                  value={store.languageFilter}
                   disabled={isDirty}
-                  onChange={(event) => {
-                    setLanguageFilter(event.target.value);
-                    setTermCursor(undefined);
-                    setTermCursorStack([]);
-                  }}
+                  onChange={(event) => store.setLanguageFilter(event.target.value)}
                 />
               </div>
               <Button
@@ -866,7 +514,7 @@ export function GlossaryConceptDetail({
                 variant="outline"
                 className="w-full sm:w-auto"
                 disabled={!canContribute || availableTermLocales.length === 0}
-                onClick={() => setLocalePickerOpen(true)}
+                onClick={() => store.setLocalePickerOpen(true)}
               >
                 <PlusIcon />
                 <FormattedMessage {...messages.addTerm} />
@@ -874,13 +522,13 @@ export function GlossaryConceptDetail({
             </div>
             {!isCreatingConcept &&
             termsQuery.data &&
-            (termsQuery.data.pagination.hasMore || termCursor) ? (
+            (termsQuery.data.pagination.hasMore || store.termCursor) ? (
               <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={!termCursor || isDirty || termsQuery.isFetching}
+                  disabled={!store.termCursor || isDirty || termsQuery.isFetching}
                   onClick={goToPreviousTermPage}
                 >
                   Previous terms
@@ -899,7 +547,10 @@ export function GlossaryConceptDetail({
                 </Button>
               </div>
             ) : null}
-            <Dialog open={localePickerOpen} onOpenChange={setLocalePickerOpen}>
+            <Dialog
+              open={store.localePickerOpen}
+              onOpenChange={(open) => store.setLocalePickerOpen(open)}
+            >
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>
@@ -918,21 +569,10 @@ export function GlossaryConceptDetail({
                       className="justify-between"
                       onClick={() => {
                         if (isCreatingConcept) {
-                          const id = `new-${crypto.randomUUID()}`;
-                          setCreatingTermDrafts((drafts) => [
-                            ...drafts,
-                            {
-                              ...emptyTermDraft,
-                              id,
-                              locale,
-                            },
-                          ]);
-                          setExpandedCreatingTermIds((current) => new Set(current).add(id));
+                          store.addCreatingTerm(locale, `new-${crypto.randomUUID()}`);
                         } else {
-                          setNewTermLocale(locale);
-                          setNewTermDraft(emptyTermDraft);
+                          store.startNewTerm(locale);
                         }
-                        setLocalePickerOpen(false);
                       }}
                     >
                       <span>{getLocaleLabel(locale)}</span>
@@ -972,18 +612,9 @@ export function GlossaryConceptDetail({
                                 type="button"
                                 size="xs"
                                 variant="ghost"
-                                onClick={() => {
-                                  const id = `new-${crypto.randomUUID()}`;
-                                  setCreatingTermDrafts((drafts) => [
-                                    ...drafts,
-                                    {
-                                      ...emptyTermDraft,
-                                      id,
-                                      locale: group.locale,
-                                    },
-                                  ]);
-                                  setExpandedCreatingTermIds((current) => new Set(current).add(id));
-                                }}
+                                onClick={() =>
+                                  store.addCreatingTerm(group.locale, `new-${crypto.randomUUID()}`)
+                                }
                               >
                                 <PlusIcon />
                                 <FormattedMessage {...messages.addTerm} />
@@ -1014,26 +645,24 @@ export function GlossaryConceptDetail({
                               </thead>
                               <tbody>
                                 {group.terms.map((term) => {
-                                  const isExpanded = expandedCreatingTermIds.has(term.id);
+                                  const isExpanded = store.expandedCreatingTermIds.has(term.id);
                                   const isSourceTerm = term.locale === sourceLanguage.locale;
                                   return (
                                     <Fragment key={term.id}>
                                       <tr className="border-t border-border">
                                         <td className="px-3 py-2">
                                           <Textarea
-                                            autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
+                                            autoFocus={
+                                              store.creatingTermDrafts.at(-1)?.id === term.id
+                                            }
                                             className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                             placeholder={intl.formatMessage(messages.termLabel)}
                                             value={term.term}
                                             required={isSourceTerm}
                                             onChange={(event) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, term: event.target.value }
-                                                    : draft,
-                                                ),
-                                              )
+                                              store.updateCreatingTermDraft(term.id, {
+                                                term: event.target.value,
+                                              })
                                             }
                                           />
                                         </td>
@@ -1041,13 +670,9 @@ export function GlossaryConceptDetail({
                                           <PartOfSpeechPicker
                                             value={term.partOfSpeech}
                                             onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, partOfSpeech: value }
-                                                    : draft,
-                                                ),
-                                              )
+                                              store.updateCreatingTermDraft(term.id, {
+                                                partOfSpeech: value,
+                                              })
                                             }
                                           />
                                         </td>
@@ -1055,13 +680,9 @@ export function GlossaryConceptDetail({
                                           <GenderPicker
                                             value={term.gender ?? ""}
                                             onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, gender: value }
-                                                    : draft,
-                                                ),
-                                              )
+                                              store.updateCreatingTermDraft(term.id, {
+                                                gender: value,
+                                              })
                                             }
                                           />
                                         </td>
@@ -1069,13 +690,9 @@ export function GlossaryConceptDetail({
                                           <TermTypePicker
                                             value={term.termType ?? ""}
                                             onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, termType: value }
-                                                    : draft,
-                                                ),
-                                              )
+                                              store.updateCreatingTermDraft(term.id, {
+                                                termType: value,
+                                              })
                                             }
                                           />
                                         </td>
@@ -1083,17 +700,9 @@ export function GlossaryConceptDetail({
                                           <Select
                                             value={term.status}
                                             onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? {
-                                                        ...draft,
-                                                        status: (value ??
-                                                          "draft") as TermDraft["status"],
-                                                      }
-                                                    : draft,
-                                                ),
-                                              )
+                                              store.updateCreatingTermDraft(term.id, {
+                                                status: (value ?? "draft") as TermDraft["status"],
+                                              })
                                             }
                                           >
                                             <SelectTrigger
@@ -1129,12 +738,7 @@ export function GlossaryConceptDetail({
                                                 : messages.expandTerm,
                                             )}
                                             onClick={() =>
-                                              setExpandedCreatingTermIds((current) => {
-                                                const next = new Set(current);
-                                                if (next.has(term.id)) next.delete(term.id);
-                                                else next.add(term.id);
-                                                return next;
-                                              })
+                                              store.toggleExpandedCreatingTerm(term.id)
                                             }
                                           >
                                             <CaretDownIcon
@@ -1161,16 +765,9 @@ export function GlossaryConceptDetail({
                                                     )}
                                                     value={term.description}
                                                     onChange={(event) =>
-                                                      setCreatingTermDrafts((drafts) =>
-                                                        drafts.map((draft) =>
-                                                          draft.id === term.id
-                                                            ? {
-                                                                ...draft,
-                                                                description: event.target.value,
-                                                              }
-                                                            : draft,
-                                                        ),
-                                                      )
+                                                      store.updateCreatingTermDraft(term.id, {
+                                                        description: event.target.value,
+                                                      })
                                                     }
                                                   />
                                                 </Field>
@@ -1185,16 +782,9 @@ export function GlossaryConceptDetail({
                                                       )}
                                                       value={term.url}
                                                       onChange={(event) =>
-                                                        setCreatingTermDrafts((drafts) =>
-                                                          drafts.map((draft) =>
-                                                            draft.id === term.id
-                                                              ? {
-                                                                  ...draft,
-                                                                  url: event.target.value,
-                                                                }
-                                                              : draft,
-                                                          ),
-                                                        )
+                                                        store.updateCreatingTermDraft(term.id, {
+                                                          url: event.target.value,
+                                                        })
                                                       }
                                                     />
                                                     <Button
@@ -1229,16 +819,9 @@ export function GlossaryConceptDetail({
                                                   )}
                                                   value={term.note}
                                                   onChange={(event) =>
-                                                    setCreatingTermDrafts((drafts) =>
-                                                      drafts.map((draft) =>
-                                                        draft.id === term.id
-                                                          ? {
-                                                              ...draft,
-                                                              note: event.target.value,
-                                                            }
-                                                          : draft,
-                                                      ),
-                                                    )
+                                                    store.updateCreatingTermDraft(term.id, {
+                                                      note: event.target.value,
+                                                    })
                                                   }
                                                 />
                                               </Field>
@@ -1247,18 +830,9 @@ export function GlossaryConceptDetail({
                                                   <Button
                                                     type="button"
                                                     variant="destructive"
-                                                    onClick={() => {
-                                                      setCreatingTermDrafts((drafts) =>
-                                                        drafts.filter(
-                                                          (draft) => draft.id !== term.id,
-                                                        ),
-                                                      );
-                                                      setExpandedCreatingTermIds((current) => {
-                                                        const next = new Set(current);
-                                                        next.delete(term.id);
-                                                        return next;
-                                                      });
-                                                    }}
+                                                    onClick={() =>
+                                                      store.removeCreatingTerm(term.id)
+                                                    }
                                                   >
                                                     <TrashIcon />
                                                     <FormattedMessage {...messages.deleteTerm} />
@@ -1306,10 +880,7 @@ export function GlossaryConceptDetail({
                             type="button"
                             size="xs"
                             variant="ghost"
-                            onClick={() => {
-                              setNewTermLocale(group.locale);
-                              setNewTermDraft(emptyTermDraft);
-                            }}
+                            onClick={() => store.startNewTerm(group.locale)}
                           >
                             <PlusIcon />
                             <FormattedMessage {...messages.addTerm} />
@@ -1340,12 +911,9 @@ export function GlossaryConceptDetail({
                           </thead>
                           <tbody>
                             {group.terms.map((term) => {
-                              const draft = termDrafts[term.id] ?? termDraftFromRecord(term);
-                              const isTermDirty = !areTermDraftsEqual(
-                                draft,
-                                termDraftFromRecord(term),
-                              );
-                              const isExpanded = expandedTermIds.has(term.id);
+                              const draft = store.termDraftFor(term);
+                              const isTermDirty = store.isTermDirty(term);
+                              const isExpanded = store.expandedTermIds.has(term.id);
                               return (
                                 <Fragment key={term.id}>
                                   <tr className="border-t border-border">
@@ -1356,7 +924,7 @@ export function GlossaryConceptDetail({
                                             className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                             value={draft.term}
                                             onChange={(event) =>
-                                              updateTermDraft(term.id, {
+                                              store.updateTermDraft(term.id, {
                                                 term: event.target.value,
                                               })
                                             }
@@ -1371,7 +939,7 @@ export function GlossaryConceptDetail({
                                         <PartOfSpeechPicker
                                           value={draft.partOfSpeech}
                                           onValueChange={(value) =>
-                                            updateTermDraft(term.id, {
+                                            store.updateTermDraft(term.id, {
                                               partOfSpeech: value,
                                             })
                                           }
@@ -1385,7 +953,7 @@ export function GlossaryConceptDetail({
                                         <GenderPicker
                                           value={draft.gender ?? ""}
                                           onValueChange={(value) =>
-                                            updateTermDraft(term.id, { gender: value })
+                                            store.updateTermDraft(term.id, { gender: value })
                                           }
                                         />
                                       ) : (
@@ -1397,7 +965,7 @@ export function GlossaryConceptDetail({
                                         <TermTypePicker
                                           value={draft.termType ?? ""}
                                           onValueChange={(value) =>
-                                            updateTermDraft(term.id, { termType: value })
+                                            store.updateTermDraft(term.id, { termType: value })
                                           }
                                         />
                                       ) : (
@@ -1409,7 +977,7 @@ export function GlossaryConceptDetail({
                                         <Select
                                           value={draft.status}
                                           onValueChange={(value) =>
-                                            updateTermDraft(term.id, {
+                                            store.updateTermDraft(term.id, {
                                               status: (value ?? "draft") as TermDraft["status"],
                                             })
                                           }
@@ -1462,14 +1030,7 @@ export function GlossaryConceptDetail({
                                               ? messages.collapseTerm
                                               : messages.expandTerm,
                                           )}
-                                          onClick={() =>
-                                            setExpandedTermIds((current) => {
-                                              const next = new Set(current);
-                                              if (next.has(term.id)) next.delete(term.id);
-                                              else next.add(term.id);
-                                              return next;
-                                            })
-                                          }
+                                          onClick={() => store.toggleExpandedTerm(term.id)}
                                         >
                                           <CaretDownIcon
                                             className={isExpanded ? "" : "-rotate-90"}
@@ -1495,7 +1056,7 @@ export function GlossaryConceptDetail({
                                                 value={draft.description}
                                                 disabled={!canContribute}
                                                 onChange={(event) =>
-                                                  updateTermDraft(term.id, {
+                                                  store.updateTermDraft(term.id, {
                                                     description: event.target.value,
                                                   })
                                                 }
@@ -1513,7 +1074,7 @@ export function GlossaryConceptDetail({
                                                   value={draft.url}
                                                   disabled={!canContribute}
                                                   onChange={(event) =>
-                                                    updateTermDraft(term.id, {
+                                                    store.updateTermDraft(term.id, {
                                                       url: event.target.value,
                                                     })
                                                   }
@@ -1551,7 +1112,7 @@ export function GlossaryConceptDetail({
                                               value={draft.note}
                                               disabled={!canContribute}
                                               onChange={(event) =>
-                                                updateTermDraft(term.id, {
+                                                store.updateTermDraft(term.id, {
                                                   note: event.target.value,
                                                 })
                                               }
@@ -1570,7 +1131,7 @@ export function GlossaryConceptDetail({
                                               <Button
                                                 type="button"
                                                 variant="destructive"
-                                                onClick={() => setTermToDeleteId(term.id)}
+                                                onClick={() => store.setTermToDeleteId(term.id)}
                                               >
                                                 <TrashIcon />
                                                 <FormattedMessage {...messages.deleteTerm} />
@@ -1584,7 +1145,7 @@ export function GlossaryConceptDetail({
                                 </Fragment>
                               );
                             })}
-                            {newTermLocale === group.locale && canContribute ? (
+                            {store.newTermLocale === group.locale && canContribute ? (
                               <Fragment>
                                 <tr className="border-t border-emerald-500/30 bg-emerald-500/5">
                                   <td className="px-3 py-2">
@@ -1593,55 +1154,42 @@ export function GlossaryConceptDetail({
                                         autoFocus
                                         className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                         placeholder={intl.formatMessage(messages.termLabel)}
-                                        value={newTermDraft.term}
+                                        value={store.newTermDraft.term}
                                         onChange={(event) =>
-                                          setNewTermDraft({
-                                            ...newTermDraft,
-                                            term: event.target.value,
-                                          })
+                                          store.updateNewTermDraft({ term: event.target.value })
                                         }
                                       />
                                     </div>
                                   </td>
                                   <td className="px-3 py-2">
                                     <PartOfSpeechPicker
-                                      value={newTermDraft.partOfSpeech}
+                                      value={store.newTermDraft.partOfSpeech}
                                       onValueChange={(value) =>
-                                        setNewTermDraft({
-                                          ...newTermDraft,
-                                          partOfSpeech: value,
-                                        })
+                                        store.updateNewTermDraft({ partOfSpeech: value })
                                       }
                                     />
                                   </td>
                                   <td className="px-3 py-2">
                                     <GenderPicker
-                                      value={newTermDraft.gender ?? ""}
+                                      value={store.newTermDraft.gender ?? ""}
                                       onValueChange={(value) =>
-                                        setNewTermDraft({
-                                          ...newTermDraft,
-                                          gender: value,
-                                        })
+                                        store.updateNewTermDraft({ gender: value })
                                       }
                                     />
                                   </td>
                                   <td className="px-3 py-2">
                                     <TermTypePicker
-                                      value={newTermDraft.termType ?? ""}
+                                      value={store.newTermDraft.termType ?? ""}
                                       onValueChange={(value) =>
-                                        setNewTermDraft({
-                                          ...newTermDraft,
-                                          termType: value,
-                                        })
+                                        store.updateNewTermDraft({ termType: value })
                                       }
                                     />
                                   </td>
                                   <td className="px-3 py-2">
                                     <Select
-                                      value={newTermDraft.status}
+                                      value={store.newTermDraft.status}
                                       onValueChange={(value) =>
-                                        setNewTermDraft({
-                                          ...newTermDraft,
+                                        store.updateNewTermDraft({
                                           status: (value ?? "draft") as TermDraft["status"],
                                         })
                                       }
@@ -1651,7 +1199,7 @@ export function GlossaryConceptDetail({
                                         className={statusPickerTriggerClass()}
                                       >
                                         <SelectValue>
-                                          <StatusLabel status={newTermDraft.status} />
+                                          <StatusLabel status={store.newTermDraft.status} />
                                         </SelectValue>
                                       </SelectTrigger>
                                       <SelectContent className={statusPickerContentClassName}>
@@ -1681,10 +1229,7 @@ export function GlossaryConceptDetail({
                                         size="icon-xs"
                                         variant="ghost"
                                         aria-label={intl.formatMessage(messages.cancelEdit)}
-                                        onClick={() => {
-                                          setNewTermLocale(null);
-                                          setNewTermDraft(emptyTermDraft);
-                                        }}
+                                        onClick={() => store.cancelNewTerm()}
                                       >
                                         <TrashIcon />
                                       </Button>
@@ -1704,10 +1249,9 @@ export function GlossaryConceptDetail({
                                             placeholder={intl.formatMessage(
                                               messages.termDescriptionPlaceholder,
                                             )}
-                                            value={newTermDraft.description}
+                                            value={store.newTermDraft.description}
                                             onChange={(event) =>
-                                              setNewTermDraft({
-                                                ...newTermDraft,
+                                              store.updateNewTermDraft({
                                                 description: event.target.value,
                                               })
                                             }
@@ -1722,10 +1266,9 @@ export function GlossaryConceptDetail({
                                               placeholder={intl.formatMessage(
                                                 messages.termUrlPlaceholder,
                                               )}
-                                              value={newTermDraft.url}
+                                              value={store.newTermDraft.url}
                                               onChange={(event) =>
-                                                setNewTermDraft({
-                                                  ...newTermDraft,
+                                                store.updateNewTermDraft({
                                                   url: event.target.value,
                                                 })
                                               }
@@ -1735,10 +1278,10 @@ export function GlossaryConceptDetail({
                                               size="icon"
                                               variant="secondary"
                                               aria-label={intl.formatMessage(messages.openTermUrl)}
-                                              disabled={!newTermDraft.url}
+                                              disabled={!store.newTermDraft.url}
                                               onClick={() =>
                                                 window.open(
-                                                  newTermDraft.url,
+                                                  store.newTermDraft.url,
                                                   "_blank",
                                                   "noopener,noreferrer",
                                                 )
@@ -1758,12 +1301,9 @@ export function GlossaryConceptDetail({
                                           placeholder={intl.formatMessage(
                                             messages.termNotePlaceholder,
                                           )}
-                                          value={newTermDraft.note}
+                                          value={store.newTermDraft.note}
                                           onChange={(event) =>
-                                            setNewTermDraft({
-                                              ...newTermDraft,
-                                              note: event.target.value,
-                                            })
+                                            store.updateNewTermDraft({ note: event.target.value })
                                           }
                                         />
                                       </Field>
@@ -1802,8 +1342,8 @@ export function GlossaryConceptDetail({
               <Button
                 type="button"
                 aria-busy={saveConcept.isPending}
-                disabled={!sourceTermText.trim() || !isDirty || saveConcept.isPending}
-                onClick={() => saveConcept.mutate(conceptDraft)}
+                disabled={!store.canSave || saveConcept.isPending}
+                onClick={() => saveConcept.mutate()}
               >
                 {saveConcept.isPending ? <Spinner className="size-4" /> : null}
                 <FormattedMessage {...messages.save} />
@@ -1814,9 +1354,9 @@ export function GlossaryConceptDetail({
       </section>
 
       <AlertDialog
-        open={Boolean(termToDeleteId)}
+        open={Boolean(store.termToDeleteId)}
         onOpenChange={(open) => {
-          if (!open) setTermToDeleteId(null);
+          if (!open) store.setTermToDeleteId(null);
         }}
       >
         <AlertDialogContent>
@@ -1835,7 +1375,7 @@ export function GlossaryConceptDetail({
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
-                if (termToDeleteId) markTermForDeletion(termToDeleteId);
+                if (store.termToDeleteId) store.markTermForDeletion(store.termToDeleteId);
               }}
             >
               <FormattedMessage {...messages.deleteTerm} />
@@ -1847,4 +1387,4 @@ export function GlossaryConceptDetail({
       {leaveGuardDialog}
     </main>
   );
-}
+});
