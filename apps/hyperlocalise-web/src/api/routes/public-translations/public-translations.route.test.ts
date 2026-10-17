@@ -19,8 +19,17 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { db, schema } from "@/lib/database/client";
-import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import * as XLSX from "xlsx";
+
+import {
+  createRepositorySourceFileVersion,
+  createStoredFile,
+  ensureRepositorySourceFile,
+} from "@/lib/file-storage/records";
+import { loadProjectXlsxSourceEntries } from "@/lib/projects/files/xlsx-source-entries";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
+import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
+import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 import { defaultApiKeyPermissions } from "@/api/routes/api-key/api-key.schema";
 
 import {
@@ -89,6 +98,73 @@ describe("publicTranslationRoutes", () => {
     expect(response.headers.get("content-disposition")).toContain("attachment");
     const content = await response.text();
     expect(JSON.parse(content)).toEqual({ greeting: "Bonjour" });
+  });
+
+  it("writes ready translations into the target column of an Excel source", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: "en" })
+      .where(eq(schema.projects.id, project.id));
+    const sourcePath = "copy/strings.xlsx";
+    const storedFile = await createStoredFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "strings.xlsx",
+      contentType: XLSX_CONTENT_TYPE,
+      content: multilingualXlsxFixture(),
+      metadata: { sourcePath },
+    });
+    const version = await createRepositorySourceFileVersion({ storedFile, sourcePath });
+    const entries = await loadProjectXlsxSourceEntries({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      storedFileId: storedFile.id,
+    });
+    if (!entries.ok) {
+      throw new Error(`could not read fixture entries: ${entries.error.code}`);
+    }
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositorySourceFileId: version.repositorySourceFileId,
+      entries: entries.value,
+    });
+    const [ctaKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.key, "home.cta"))
+      .limit(1);
+    await db.insert(schema.projectTranslations).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      translationKeyId: ctaKey!.id,
+      targetLocale: "fr",
+      text: "Essai gratuit",
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      { param: { projectId: project.id }, query: { sourcePath, locale: "fr" } },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(XLSX_CONTENT_TYPE);
+    expect(response.headers.get("content-disposition")).toContain("strings-fr.xlsx");
+    const sheet = XLSX.read(new Uint8Array(await response.arrayBuffer()), { type: "array" }).Sheets
+      .Strings!;
+    expect(sheet.B2?.v).toBe("Accueil");
+    expect(sheet.B3?.v).toBe("Essai gratuit");
+    expect(sheet.B4).toBeUndefined();
+    expect(sheet.D3?.v).toBe("Start free trial");
   });
 
   it("downloads large source files across paginated key fetches", async () => {

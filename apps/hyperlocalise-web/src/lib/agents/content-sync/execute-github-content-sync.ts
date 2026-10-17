@@ -20,6 +20,7 @@ import { runSandboxCommand } from "@/lib/translation/sandbox";
 import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
 import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 import { createLogger } from "@/lib/log";
 
@@ -35,8 +36,10 @@ import {
 import { buildPullTranslationsBranchName } from "@/lib/agents/github/github-repository-automation-pull-translations-branch";
 
 import {
+  buildContentSyncLocalePath,
   buildContentSyncLottiePushTarget,
   buildContentSyncPushCandidate,
+  isContentSyncSpreadsheetCompatiblePath,
 } from "./content-sync-export";
 import { rewriteContentSyncProviderPath, rewriteContentSyncSourcePath } from "./content-sync-paths";
 import type { ContentSyncConfig } from "./content-sync-types";
@@ -288,6 +291,29 @@ async function pushGithubTranslations(input: {
     }
 
     for (const locale of targetLocales) {
+      if (isContentSyncSpreadsheetCompatiblePath(providerPath)) {
+        const xlsxDownload = await loadProjectXlsxTranslationDownload({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          sourcePath: file.sourcePath,
+          targetLocale: locale,
+        });
+        if (isErr(xlsxDownload)) {
+          logger.warn(
+            { projectId: input.projectId, errorCode: xlsxDownload.error.code },
+            "content sync skipped Excel export",
+          );
+          continue;
+        }
+        if (xlsxDownload.value && xlsxDownload.value.translatedKeyCount > 0) {
+          candidates.push({
+            targetPath: buildContentSyncLocalePath(providerPath, locale),
+            content: xlsxDownload.value.content,
+          });
+        }
+        continue;
+      }
+
       const result = await loadProjectTranslationsAsPrefilledEntries({
         organizationId: input.organizationId,
         projectId: input.projectId,

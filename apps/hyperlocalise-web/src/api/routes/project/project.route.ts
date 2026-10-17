@@ -166,6 +166,7 @@ import {
   setTranslationKeyTreatAsVideo,
 } from "@/lib/projects/files/video-url-translation-service";
 import { loadProjectLottieTranslationDownload } from "@/lib/projects/files/lottie-translation-download";
+import { loadProjectXlsxTranslationDownload } from "@/lib/projects/files/xlsx-translation-download";
 import {
   fileVariantDownloadName,
   loadProjectFileVariant,
@@ -284,6 +285,7 @@ import {
   inferSupportedDocumentTranslationFileFormat,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedVideoTranslationFileFormat,
   inferSupportedWholeFileTranslationFileFormat,
@@ -3624,6 +3626,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
+        const extension = path.extname(query.sourcePath);
+        const baseName = path.basename(query.sourcePath, extension);
+        const suffix = baseName.endsWith(`-${query.locale}`)
+          ? baseName
+          : `${baseName}-${query.locale}`;
+        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+        const xlsxDownload = await loadProjectXlsxTranslationDownload({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+        if (isErr(xlsxDownload)) {
+          return internalErrorResponse(
+            c,
+            "xlsx_export_failed",
+            "Could not write translations into the Excel workbook.",
+          );
+        }
+        if (xlsxDownload.value) {
+          return c.body(new Uint8Array(xlsxDownload.value.content), 200, {
+            "Content-Type": xlsxDownload.value.contentType,
+            "Content-Disposition": contentDisposition,
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+          });
+        }
+
         if (inferSupportedWholeFileTranslationFileFormat(query.sourcePath)) {
           const fileVariant = await loadProjectFileVariant({
             organizationId,
@@ -3673,14 +3705,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
-
-        const extension = path.extname(query.sourcePath);
-        const baseName = path.basename(query.sourcePath, extension);
-        const suffix = baseName.endsWith(`-${query.locale}`)
-          ? baseName
-          : `${baseName}-${query.locale}`;
-        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
-        const contentDisposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
         const lottieDownload = await loadProjectLottieTranslationDownload({
           organizationId,
@@ -3963,7 +3987,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (
+          !inferSupportedFileTranslationFileFormat(parsed.data.sourcePath) &&
+          !inferSupportedSegmentedSpreadsheetTranslationFileFormat(parsed.data.sourcePath)
+        ) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
 
