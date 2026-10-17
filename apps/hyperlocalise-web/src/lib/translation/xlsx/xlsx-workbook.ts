@@ -178,6 +178,16 @@ export function xlsxRowKey(sheetName: string, row: number): string {
   return `${sheetName}${XLSX_SHEET_SEPARATOR}${rowNumber}:${rowNumber}`;
 }
 
+/** The row-address key, suffixed with #2, #3, ... when an earlier row already uses it. */
+function uniqueXlsxRowKey(seenKeys: ReadonlySet<string>, sheetName: string, row: number): string {
+  const base = xlsxRowKey(sheetName, row);
+  let key = base;
+  for (let suffix = 2; seenKeys.has(key); suffix += 1) {
+    key = `${base}#${suffix}`;
+  }
+  return key;
+}
+
 export function isTranslatableXlsxCell(sheet: XlsxSheet, row: number, column: number): boolean {
   const cell = sheet.rows.get(row)?.get(column);
   return Boolean(cell && cell.isText && !cell.hasFormula && LETTER_PATTERN.test(cell.value));
@@ -220,7 +230,7 @@ export async function loadXlsxWorkbook(
     for (let row = 1; row < rowCount; row += 1) {
       let key = (columns.key >= 0 ? (rows.get(row)?.get(columns.key)?.value ?? "") : "").trim();
       if (!key || seenKeys.has(key)) {
-        key = xlsxRowKey(name, row);
+        key = uniqueXlsxRowKey(seenKeys, name, row);
       }
       seenKeys.add(key);
       rowKeys.set(row, key);

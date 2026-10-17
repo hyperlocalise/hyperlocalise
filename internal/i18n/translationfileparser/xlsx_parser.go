@@ -242,7 +242,7 @@ func loadXLSXSheets(workbook *excelize.File) ([]xlsxSheet, error) {
 			}
 			key := strings.TrimSpace(xlsxRowValue(row, sheet.columns.key))
 			if _, duplicate := seenKeys[key]; key == "" || duplicate {
-				key = xlsxRowKey(name, rowIndex)
+				key = uniqueXLSXRowKey(seenKeys, name, rowIndex)
 			}
 			seenKeys[key] = struct{}{}
 			sheet.rowKeys[rowIndex] = key
@@ -418,6 +418,19 @@ func xlsxHasLetter(text string) bool {
 		}
 	}
 	return false
+}
+
+// uniqueXLSXRowKey returns the row-address key, suffixed with #2, #3, ... when an
+// earlier row already uses it as a literal key.
+func uniqueXLSXRowKey(seen map[string]struct{}, sheet string, rowIndex int) string {
+	base := xlsxRowKey(sheet, rowIndex)
+	key := base
+	for suffix := 2; ; suffix++ {
+		if _, taken := seen[key]; !taken {
+			return key
+		}
+		key = base + "#" + strconv.Itoa(suffix)
+	}
 }
 
 func xlsxRowKey(sheet string, rowIndex int) string {

@@ -104,7 +104,8 @@ hyperlocalise run
 
 - Row keys come from the key column. A row with an empty key, or a key already
   used earlier in the workbook, is keyed by sheet and row, such as
-  `Sheet1!5:5`. Without a key column, every row uses its row address, so
+  `Sheet1!5:5`. If an earlier row already uses that text as its key, a suffix
+  such as `#2` is added. Without a key column, every row uses its row address, so
   inserting rows above existing ones changes their keys.
 
 - Comments are passed to the model as translation context. Length limits are

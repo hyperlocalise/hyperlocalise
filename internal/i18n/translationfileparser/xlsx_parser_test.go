@@ -433,3 +433,29 @@ func TestStrategyParseIngestEntriesKeepsXLSXComments(t *testing.T) {
 		t.Fatalf("encoded entry mismatch\n got: %#v\nwant: %#v", got, want)
 	}
 }
+
+func TestReadXLSXEntriesKeepsFallbackRowKeysDistinctFromLiteralKeys(t *testing.T) {
+	content := buildXLSX(t, map[string][]xlsxTestCell{
+		"Strings": {
+			{cell: "A1", value: "Key"},
+			{cell: "B1", value: "English"},
+			{cell: "A2", value: "Strings!3:3"},
+			{cell: "B2", value: "Literal"},
+			{cell: "B3", value: "Empty key"},
+			{cell: "A4", value: "Strings!3:3"},
+			{cell: "B4", value: "Duplicate key"},
+		},
+	}, []string{"Strings"})
+	entries, err := ReadXLSXEntries(content, "en", "en")
+	if err != nil {
+		t.Fatalf("read entries: %v", err)
+	}
+	keys := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		keys = append(keys, entry.Key)
+	}
+	want := []string{"Strings!3:3", "Strings!3:3#2", "Strings!4:4"}
+	if !reflect.DeepEqual(keys, want) {
+		t.Fatalf("keys mismatch\n got: %#v\nwant: %#v", keys, want)
+	}
+}

@@ -14,7 +14,11 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { cellLayoutXlsxFixture, multilingualXlsxFixture } from "./xlsx-workbook.fixture";
+import {
+  buildXlsxFixture,
+  cellLayoutXlsxFixture,
+  multilingualXlsxFixture,
+} from "./xlsx-workbook.fixture";
 import { loadXlsxWorkbook, readXlsxEntries } from "./xlsx-workbook";
 
 async function load(content: Uint8Array) {
@@ -26,6 +30,30 @@ async function load(content: Uint8Array) {
 }
 
 describe("readXlsxEntries", () => {
+  it("keeps fallback row keys distinct from literal keys", async () => {
+    const workbook = await load(
+      buildXlsxFixture([
+        {
+          name: "Strings",
+          cells: {
+            A1: "Key",
+            B1: "English",
+            A2: "Strings!3:3",
+            B2: "Literal",
+            B3: "Empty key",
+            A4: "Strings!3:3",
+            B4: "Duplicate key",
+          },
+        },
+      ]),
+    );
+    expect(readXlsxEntries(workbook, "en", "en").map((entry) => entry.key)).toEqual([
+      "Strings!3:3",
+      "Strings!3:3#2",
+      "Strings!4:4",
+    ]);
+  });
+
   it.each([false, true])(
     "reads multilingual rows with key, comment, and length columns (shared strings: %s)",
     async (sharedStrings) => {

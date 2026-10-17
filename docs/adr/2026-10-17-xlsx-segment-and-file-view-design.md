@@ -10,7 +10,7 @@ A native `.xlsx` upload was one Office file. Translators edited the whole workbo
 
 - Platform uses the CLI's rules, ported to TypeScript in `src/lib/translation/xlsx`. Both implementations produce the same keys for the same workbook:
   - Only row 1 is read for headers. Matching is case-insensitive, and any run of characters outside `a`-`z` and `0`-`9` becomes `-`.
-  - A sheet whose row 1 has a source-locale column is multilingual. Each row is one entry, keyed by the `key`, `id`, or `context` column. An empty or repeated key falls back to `Sheet!N:N`.
+  - A sheet whose row 1 has a source-locale column is multilingual. Each row is one entry, keyed by the `key`, `id`, or `context` column. An empty or repeated key falls back to `Sheet!N:N`, suffixed `#2`, `#3`, and so on when an earlier row already uses that key.
   - `comment` columns become segment context, and `length-limit` columns become maximum lengths.
   - Any other visible sheet uses the cell layout, with one entry per text cell keyed `Sheet!B3`.
   - Formulas, numbers, cells without letters, and hidden sheets are skipped. Plain `t="str"` cells are text in both implementations.
