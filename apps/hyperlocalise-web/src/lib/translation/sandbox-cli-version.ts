@@ -12,13 +12,13 @@
  */
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.13.3";
+export const sandboxHyperlocaliseReleaseVersion = "1.13.4";
 
 /**
  * First CLI release whose `hl entries` and `hl run` read and write `.xlsx`, `.docx`, and
  * `.pptx`. `.xls` reaches the CLI converted to `.xlsx`.
  */
-export const hyperlocaliseCliOfficeReleaseVersion = "1.14.0";
+export const hyperlocaliseCliOfficeReleaseVersion = "1.13.4";
 
 function parseReleaseVersion(version: string): number[] {
   return version

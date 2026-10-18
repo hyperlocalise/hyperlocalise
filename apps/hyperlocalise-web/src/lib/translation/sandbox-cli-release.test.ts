@@ -21,21 +21,22 @@ import {
 
 describe("isReleaseVersionAtLeast", () => {
   it("compares numeric release parts", () => {
-    expect(isReleaseVersionAtLeast("1.13.3", "1.14.0")).toBe(false);
-    expect(isReleaseVersionAtLeast("1.14.0", "1.14.0")).toBe(true);
-    expect(isReleaseVersionAtLeast("v1.14.1", "1.14.0")).toBe(true);
+    expect(isReleaseVersionAtLeast("1.13.3", "1.13.4")).toBe(false);
+    expect(isReleaseVersionAtLeast("1.13.4", "1.13.4")).toBe(true);
+    expect(isReleaseVersionAtLeast("v1.13.5", "1.13.4")).toBe(true);
     expect(isReleaseVersionAtLeast("1.9.0", "1.10.0")).toBe(false);
-    expect(isReleaseVersionAtLeast("2.0", "1.14.0")).toBe(true);
+    expect(isReleaseVersionAtLeast("2.0", "1.13.4")).toBe(true);
   });
 
   it("ignores prerelease suffixes", () => {
-    expect(isReleaseVersionAtLeast("1.14.0-rc.1", "1.14.0")).toBe(true);
+    expect(isReleaseVersionAtLeast("1.13.4-rc.1", "1.13.4")).toBe(true);
   });
 });
 
 describe("sandboxCliParsesOffice", () => {
   it("turns on at the first CLI release that reads Office files", () => {
     expect(sandboxCliParsesOffice("1.13.3")).toBe(false);
+    expect(sandboxCliParsesOffice()).toBe(true);
     expect(sandboxCliParsesOffice(hyperlocaliseCliOfficeReleaseVersion)).toBe(true);
   });
 });

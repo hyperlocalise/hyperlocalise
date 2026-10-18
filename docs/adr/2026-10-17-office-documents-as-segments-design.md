@@ -17,7 +17,7 @@ Word, PowerPoint, and legacy Excel uploads were whole files. Translators edited 
   - A paragraph's segment is its text in the formatting that covers most of it. Other formatting, links, and non-text objects such as images and fields become `OX` placeholders (`\x1eHLOXPH_<hex>_<n>\x1f`). Writers read the formatting from the source paragraph, so a translation only has to keep the placeholders. CAT shows them as `OX#0`, and QA fails a target that drops or adds one.
   - Writers rebuild only paragraphs whose translation differs from the source. Other parts are copied without recompression.
 - **Legacy `.xls`** is read with SheetJS, converted to `.xlsx` in memory, and then handled by the workbook rules. Downloads, content sync, and file jobs write `.xlsx`, because there is no `.xls` writer. `strings.xls` becomes `strings-fr.xlsx`.
-- The sandbox CLI becomes the single parser when its pin reaches `hyperlocaliseCliOfficeReleaseVersion` (1.14.0), the gate in `src/lib/translation/sandbox-cli-version.ts`. Until then, ingest and **Import translations** parse Office files in-process, and file translation jobs do not accept them. `.xls` is always converted in-process before it reaches the CLI.
+- The sandbox CLI parses `.docx`, `.xlsx`, and `.pptx` once its pin reaches `hyperlocaliseCliOfficeReleaseVersion` (1.13.4), the gate in `src/lib/translation/sandbox-cli-version.ts`. The pin is at that release, so ingest, **Import translations**, and file translation jobs send those files to the CLI. `.xls` is always converted in-process before it reaches the CLI.
 - Targets are generated from ready translations by `loadProjectOfficeTranslationDownload`, used by Download, the public download API, MCP, and GitHub content sync. The native Go public download still returns 501 for Office files.
 - File view is editable and writes edits back into segments:
   - Word and PowerPoint show a field per paragraph, grouped by slide or part, beside a preview of the generated target. **Save drafts** saves each changed field.
@@ -28,7 +28,7 @@ Word, PowerPoint, and legacy Excel uploads were whole files. Translators edited 
 
 ## Follow-ups
 
-- Release the CLI with the Office parsers, then bump `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION`. Remove the in-process readers from ingest and import after that.
+- `sandboxHyperlocaliseReleaseVersion` and the sandbox image `HYPERLOCALISE_VERSION` are pinned to 1.13.4. Remove the in-process readers from ingest and import for `.docx`, `.xlsx`, and `.pptx`.
 - Native Go public downloads for Office files.
 - PowerPoint speaker notes, chart text, and SmartArt are not extracted.
 - Parse-back for AsciiDoc documents.
