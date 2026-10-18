@@ -17,12 +17,13 @@ const mocks = vi.hoisted(() => ({
   loadProjectTranslationsAsPrefilledEntries: vi.fn(),
   loadProjectLottieTranslationDownload: vi.fn(),
   inferSupportedTranslationFileFormat: vi.fn(),
-  loadProjectXlsxTranslationDownload: vi.fn(),
+  loadProjectOfficeTranslationDownload: vi.fn(),
 }));
 
-vi.mock("@/lib/projects/files/xlsx-translation-download", () => ({
-  loadProjectXlsxTranslationDownload: (...args: unknown[]) =>
-    mocks.loadProjectXlsxTranslationDownload(...args),
+vi.mock("@/lib/projects/files/office-translation-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/projects/files/office-translation-download")>()),
+  loadProjectOfficeTranslationDownload: (...args: unknown[]) =>
+    mocks.loadProjectOfficeTranslationDownload(...args),
 }));
 
 vi.mock("@/lib/projects/translations/project-translation-service", () => ({
@@ -50,7 +51,7 @@ describe("downloadMcpTranslations", () => {
     mocks.getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     mocks.inferSupportedTranslationFileFormat.mockReturnValue("json");
     mocks.loadProjectLottieTranslationDownload.mockResolvedValue({ ok: true, value: null });
-    mocks.loadProjectXlsxTranslationDownload.mockResolvedValue({ ok: true, value: null });
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({ ok: true, value: null });
   });
 
   it("returns source_file_too_large with the key limit when prefill is truncated", async () => {
@@ -138,11 +139,12 @@ describe("downloadMcpTranslations", () => {
 
   it("returns segmented Excel workbooks as base64 before the binary format check", async () => {
     mocks.inferSupportedTranslationFileFormat.mockReturnValue("xlsx");
-    mocks.loadProjectXlsxTranslationDownload.mockResolvedValue({
+    mocks.loadProjectOfficeTranslationDownload.mockResolvedValue({
       ok: true,
       value: {
         contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         content: Buffer.from("PK\x03\x04xlsx"),
+        extension: ".xlsx",
         translatedKeyCount: 1,
       },
     });
@@ -165,7 +167,7 @@ describe("downloadMcpTranslations", () => {
         content: Buffer.from("PK\x03\x04xlsx").toString("base64"),
       },
     });
-    expect(mocks.loadProjectXlsxTranslationDownload).toHaveBeenCalledWith({
+    expect(mocks.loadProjectOfficeTranslationDownload).toHaveBeenCalledWith({
       organizationId: "org_1",
       projectId: "project_1",
       sourcePath: "copy/strings.xlsx",

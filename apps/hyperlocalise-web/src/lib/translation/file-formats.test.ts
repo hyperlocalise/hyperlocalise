@@ -13,7 +13,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  availableFileTranslationFileFormats,
   getLocaleScanExtensions,
+  inferSupportedSegmentedSpreadsheetTranslationFileFormat,
   getSupportedFileTranslationAccept,
   getSupportedSourceUploadAccept,
   inferSupportedFileTranslationFileFormat,
@@ -152,11 +154,24 @@ describe("translation file formats", () => {
     expect(inferSupportedOfficeTranslationFileFormat("deck.pptx")).toBe("pptx");
     expect(inferSupportedSourceUploadFormat("brief.docx")).toBe("docx");
     expect(isSupportedSourceUploadFormat("deck.pptx")).toBe(true);
-    expect(inferSupportedFileTranslationFileFormat("brief.docx")).toBeNull();
     expect(isOfficeTranslationFileFormat("docx")).toBe(true);
     expect(isBinaryTranslationFileFormat("xlsx")).toBe(true);
     expect(isBinaryTranslationFileFormat("png")).toBe(true);
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
+  });
+
+  it("accepts office files for file translation once the sandbox CLI parses them", () => {
+    for (const filename of ["brief.docx", "copy.xlsx", "legacy.XLS", "deck.pptx"]) {
+      expect(inferSupportedFileTranslationFileFormat(filename, false)).toBeNull();
+      expect(inferSupportedFileTranslationFileFormat(filename, true)).not.toBeNull();
+    }
+    expect(inferSupportedFileTranslationFileFormat("messages.json", false)).toBe("json");
+    expect(availableFileTranslationFileFormats(false)).not.toContain("docx");
+    expect(availableFileTranslationFileFormats(true)).toEqual(
+      expect.arrayContaining(["json", "docx", "xlsx", "xls", "pptx"]),
+    );
+    expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("legacy.xls")).toBe("xls");
+    expect(inferSupportedSegmentedSpreadsheetTranslationFileFormat("deck.pptx")).toBeNull();
   });
 
   it("treats html, markdown, mdx, and asciidoc as whole-file documents, not binary", () => {

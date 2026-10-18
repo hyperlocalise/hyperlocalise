@@ -35,7 +35,7 @@ describe("availablePersonasForFamily", () => {
 
   it("offers translator, designer, and reviewer for segmented Excel workbooks", () => {
     expect(
-      availablePersonasForFamily("spreadsheet", ["comfortable", "side-by-side", "file"]),
+      availablePersonasForFamily("office-segments", ["comfortable", "side-by-side", "file"]),
     ).toEqual(["translator", "designer", "reviewer"]);
   });
 

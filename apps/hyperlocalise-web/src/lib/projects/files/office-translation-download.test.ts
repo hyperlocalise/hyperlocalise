@@ -35,14 +35,14 @@ vi.mock("@/lib/file-storage/records", () => ({
   getStoredFileContent: (...args: unknown[]) => mocks.getStoredFileContent(...args),
 }));
 
-vi.mock("@/lib/projects/files/xlsx-source-entries", () => ({
+vi.mock("@/lib/projects/files/office-source-entries", () => ({
   getProjectSourceLocale: (...args: unknown[]) => mocks.getProjectSourceLocale(...args),
 }));
 
 import {
-  loadProjectXlsxTranslationDownload,
-  projectXlsxTranslationDownloadPath,
-} from "./xlsx-translation-download";
+  loadProjectOfficeTranslationDownload,
+  projectOfficeTranslationDownloadPath,
+} from "./office-translation-download";
 
 const INPUT = {
   organizationId: "org_1",
@@ -66,10 +66,10 @@ function readyTranslations(overrides?: {
   };
 }
 
-describe("projectXlsxTranslationDownloadPath", () => {
+describe("projectOfficeTranslationDownloadPath", () => {
   it("encodes the org, project, path, and locale for the File view URL", () => {
     expect(
-      projectXlsxTranslationDownloadPath({
+      projectOfficeTranslationDownloadPath({
         organizationSlug: "acme team",
         projectId: "project/1",
         sourcePath: "copy/Q3 strings.xlsx",
@@ -81,7 +81,7 @@ describe("projectXlsxTranslationDownloadPath", () => {
   });
 });
 
-describe("loadProjectXlsxTranslationDownload", () => {
+describe("loadProjectOfficeTranslationDownload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.loadProjectTranslationsAsPrefilledEntries.mockResolvedValue(readyTranslations());
@@ -92,8 +92,8 @@ describe("loadProjectXlsxTranslationDownload", () => {
     mocks.getProjectSourceLocale.mockResolvedValue(ok("en"));
   });
 
-  it("returns null for paths that are not segmented workbooks", async () => {
-    const result = await loadProjectXlsxTranslationDownload({
+  it("returns null for paths that are not Office files", async () => {
+    const result = await loadProjectOfficeTranslationDownload({
       ...INPUT,
       sourcePath: "locales/en.json",
     });
@@ -107,14 +107,14 @@ describe("loadProjectXlsxTranslationDownload", () => {
       readyTranslations({ loadedKeyCount: 0, translatedKeyCount: 0, prefilled: {} }),
     );
 
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result).toEqual(ok(null));
     expect(mocks.getStoredFileContent).not.toHaveBeenCalled();
   });
 
   it("forwards ready-only and optional approved-only gates to the prefill loader", async () => {
-    await loadProjectXlsxTranslationDownload({ ...INPUT, approvedTranslationsOnly: true });
+    await loadProjectOfficeTranslationDownload({ ...INPUT, approvedTranslationsOnly: true });
 
     expect(mocks.loadProjectTranslationsAsPrefilledEntries).toHaveBeenCalledWith({
       organizationId: INPUT.organizationId,
@@ -129,7 +129,7 @@ describe("loadProjectXlsxTranslationDownload", () => {
   it("fails when the project is missing", async () => {
     mocks.getProjectSourceLocale.mockResolvedValue(err({ code: "project_not_found" }));
 
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result).toEqual(err({ code: "project_not_found" }));
   });
@@ -137,7 +137,7 @@ describe("loadProjectXlsxTranslationDownload", () => {
   it("fails when the source version is missing", async () => {
     mocks.getLatestRepositorySourceFileVersion.mockResolvedValue(null);
 
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result).toEqual(err({ code: "source_content_not_found" }));
   });
@@ -145,7 +145,7 @@ describe("loadProjectXlsxTranslationDownload", () => {
   it("fails when stored workbook bytes cannot be read", async () => {
     mocks.getStoredFileContent.mockRejectedValue(new Error("Stored file file_1 not found"));
 
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result).toEqual(err({ code: "source_content_not_found" }));
   });
@@ -153,13 +153,13 @@ describe("loadProjectXlsxTranslationDownload", () => {
   it("propagates workbook parse errors from the template", async () => {
     mocks.getStoredFileContent.mockResolvedValue({ content: Buffer.from("not a zip") });
 
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result).toEqual(err({ code: "invalid_xlsx" }));
   });
 
   it("writes ready translations into the target column and leaves source text alone", async () => {
-    const result = await loadProjectXlsxTranslationDownload(INPUT);
+    const result = await loadProjectOfficeTranslationDownload(INPUT);
 
     expect(result.ok).toBe(true);
     if (!result.ok) {

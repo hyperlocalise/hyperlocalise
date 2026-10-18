@@ -22,11 +22,14 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 import { multilingualXlsxFixture } from "@/lib/translation/xlsx/xlsx-workbook.fixture";
 import { XLSX_CONTENT_TYPE } from "@/lib/translation/xlsx/xlsx-workbook";
 
-import { loadProjectXlsxSourceEntries, loadProjectXlsxTargetEntries } from "./xlsx-source-entries";
+import {
+  loadProjectOfficeSourceEntries,
+  loadProjectOfficeTargetEntries,
+} from "./office-source-entries";
 
 const fixture = createProjectTestFixture();
 
-describe("xlsx source entries", () => {
+describe("office source entries", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
@@ -48,10 +51,11 @@ describe("xlsx source entries", () => {
       metadata: { sourcePath: "copy/strings.xlsx" },
     });
 
-    const entries = await loadProjectXlsxSourceEntries({
+    const entries = await loadProjectOfficeSourceEntries({
       organizationId: stored.organization.id,
       projectId: stored.project.id,
       storedFileId: storedFile.id,
+      sourcePath: "copy/strings.xlsx",
     });
 
     expect(isOk(entries)).toBe(true);
@@ -89,10 +93,11 @@ describe("xlsx source entries", () => {
       metadata: { sourcePath: "copy/strings.xlsx" },
     });
 
-    const entries = await loadProjectXlsxTargetEntries({
+    const entries = await loadProjectOfficeTargetEntries({
       organizationId: stored.organization.id,
       projectId: stored.project.id,
       storedFileId: storedFile.id,
+      sourcePath: "copy/strings.xlsx",
       targetLocale: "fr-FR",
     });
 
@@ -103,22 +108,24 @@ describe("xlsx source entries", () => {
     expect(entries.value).toEqual({ "home.title": "Accueil" });
   });
 
-  it("returns project_not_found when the project is missing", async () => {
-    const result = await loadProjectXlsxSourceEntries({
+  it("returns unsupported_office_format for non-Office source paths", async () => {
+    const result = await loadProjectOfficeSourceEntries({
       organizationId: randomUUID(),
       projectId: randomUUID(),
       storedFileId: randomUUID(),
+      sourcePath: "locales/en.json",
     });
 
-    expect(isErr(result) && result.error).toEqual({ code: "project_not_found" });
+    expect(isErr(result) && result.error).toEqual({ code: "unsupported_office_format" });
   });
 
   it("returns source_content_not_found when the stored file is missing", async () => {
     const stored = await fixture.createStoredProjectFixture();
-    const result = await loadProjectXlsxSourceEntries({
+    const result = await loadProjectOfficeSourceEntries({
       organizationId: stored.organization.id,
       projectId: stored.project.id,
       storedFileId: randomUUID(),
+      sourcePath: "copy/strings.xlsx",
     });
 
     expect(isErr(result) && result.error).toEqual({ code: "source_content_not_found" });

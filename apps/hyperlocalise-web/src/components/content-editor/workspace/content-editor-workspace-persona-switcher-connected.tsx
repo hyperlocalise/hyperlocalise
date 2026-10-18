@@ -38,7 +38,7 @@ export function availablePersonasForFamily(
   const hasSegmentViews = availableViews?.some(
     (view) => view === "comfortable" || view === "side-by-side",
   );
-  if ((family === "document" || family === "spreadsheet") && hasSegmentViews) {
+  if ((family === "document" || family === "office-segments") && hasSegmentViews) {
     return ["translator", "designer", "reviewer"];
   }
   if (DESIGNER_PERSONA_FILE_FAMILIES.has(family as never)) {

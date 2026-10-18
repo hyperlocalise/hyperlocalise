@@ -331,12 +331,14 @@ func TestPublicTranslationsDownloadValidation(t *testing.T) {
 	})
 }
 
-func TestPublicTranslationsDownloadExcel(t *testing.T) {
+func TestPublicTranslationsDownloadOffice(t *testing.T) {
 	f := newPublicTranslationsFixture(t, "admin", nil)
-	fileID := mustSourceFile(t, f.scope, f.scope.ProjectID, "copy/strings.XLSX")
-	mustTranslationKey(t, f.scope, f.scope.ProjectID, fileID, "greeting", "Hello", false)
-	requirePublicAPIError(t, f.download(t, f.scope.ProjectID, "copy/strings.XLSX", "fr"), http.StatusNotImplemented, "not_implemented",
-		"Excel translation download is not available on the native Go service yet")
+	for _, sourcePath := range []string{"copy/strings.XLSX", "copy/legacy.xls", "docs/brief.docx", "decks/launch.pptx"} {
+		fileID := mustSourceFile(t, f.scope, f.scope.ProjectID, sourcePath)
+		mustTranslationKey(t, f.scope, f.scope.ProjectID, fileID, "greeting", "Hello", false)
+		requirePublicAPIError(t, f.download(t, f.scope.ProjectID, sourcePath, "fr"), http.StatusNotImplemented, "not_implemented",
+			"Office translation download is not available on the native Go service yet")
+	}
 }
 
 func TestPublicTranslationsDownloadLottie(t *testing.T) {

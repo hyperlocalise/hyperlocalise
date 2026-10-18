@@ -207,6 +207,8 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 	var queue editorCatQueueFile
 	if isEditorCatAllFiles(query.sourcePath) {
 		queue, err = api.loadAllFilesQueue(r, actor, project, query)
+	} else if isEditorCatOffice(query.sourcePath) {
+		queue, err = api.loadOfficeQueue(r, actor, project, query)
 	} else if isEditorCatBinaryWholeFile(query.sourcePath) {
 		queue, err = api.loadWholeFileQueue(r, actor, project, query)
 	} else {
@@ -241,6 +243,9 @@ func (api *editorCatAPI) loadQueue(r *http.Request, actor editorCatActor, projec
 func editorCatQueueKind(sourcePath string) string {
 	if isEditorCatAllFiles(sourcePath) {
 		return "all_files"
+	}
+	if isEditorCatOffice(sourcePath) {
+		return "office"
 	}
 	if isEditorCatBinaryWholeFile(sourcePath) {
 		return "whole_file"
@@ -417,6 +422,57 @@ func (api *editorCatAPI) loadDocumentView(r *http.Request, actor editorCatActor,
 		TargetAssetURL:   targetURL,
 		ImageVariantID:   variantID,
 	}, nil
+}
+
+// loadOfficeQueue serves segmented Office files as text segments with a File view
+// on the generated download. Files without keys keep the whole-file queue.
+func (api *editorCatAPI) loadOfficeQueue(r *http.Request, actor editorCatActor, project editorCatProject, query editorCatQueueQuery) (editorCatQueueFile, error) {
+	sourceFileID, err := api.sourceFileID(r, actor, project, query.sourcePath)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	var keyed bool
+	if err := api.pool.QueryRow(r.Context(), `
+        select exists(select 1 from project_translation_keys
+        where organization_id=$1 and project_id=$2 and repository_source_file_id=$3)`,
+		actor.organizationID, project.ID, sourceFileID).Scan(&keyed); err != nil {
+		return editorCatQueueFile{}, err
+	}
+	if !keyed {
+		return api.loadWholeFileQueue(r, actor, project, query)
+	}
+	queue, err := api.loadTextFileQueue(r, actor, project, query)
+	if err != nil {
+		return editorCatQueueFile{}, err
+	}
+	var sourceStored *string
+	err = api.pool.QueryRow(r.Context(), `
+        select v.stored_file_id
+        from repository_source_file_versions v
+        where v.organization_id=$1 and v.project_id=$2 and v.source_path=$3
+        order by v.created_at desc
+        limit 1`, actor.organizationID, project.ID, query.sourcePath).Scan(&sourceStored)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return editorCatQueueFile{}, err
+	}
+	var sourceURL *string
+	if sourceStored != nil && *sourceStored != "" {
+		url := editorCatAssetPath(actor.organizationSlug, project.ID, *sourceStored)
+		sourceURL = &url
+	}
+	targetURL := editorCatGeneratedDownloadPath(actor.organizationSlug, project.ID, query.sourcePath, query.targetLocale)
+	queue.DocumentView = &editorCatDocumentView{
+		ExternalStringID: binaryEditorCatStringID(sourceFileID, query.sourcePath),
+		SourceAssetURL:   sourceURL,
+		TargetAssetURL:   &targetURL,
+	}
+	return queue, nil
+}
+
+// editorCatGeneratedDownloadPath matches projectOfficeTranslationDownloadPath in the web app.
+func editorCatGeneratedDownloadPath(organizationSlug, projectID, sourcePath, targetLocale string) string {
+	return "/api/orgs/" + url.PathEscape(organizationSlug) + "/projects/" + url.PathEscape(projectID) +
+		"/files/translations/download?sourcePath=" + url.QueryEscape(sourcePath) + "&locale=" + url.QueryEscape(targetLocale)
 }
 
 func (api *editorCatAPI) sourceFileID(r *http.Request, actor editorCatActor, project editorCatProject, sourcePath string) (string, error) {

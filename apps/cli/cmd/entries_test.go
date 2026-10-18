@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -582,5 +583,50 @@ func TestEntriesCommandReadsXLSXTargetColumnWithSourceLocale(t *testing.T) {
 	}
 	if got := decode(target["home.title"]); got != (entry{Text: "Accueil", Context: "Navigation label"}) {
 		t.Fatalf("unexpected target entry: %+v", got)
+	}
+}
+
+func TestEntriesCommandReadsDOCXParagraphsWithContext(t *testing.T) {
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	part, err := writer.Create("word/document.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte(`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+		`<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:t>Launch plan</w:t></w:r></w:p>` +
+		`<w:p><w:r><w:t>2026</w:t></w:r></w:p>` +
+		`</w:body></w:document>`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "brief.docx")
+	if err := os.WriteFile(path, buffer.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--locale", "en"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+	var payload map[string]struct {
+		Text    string `json:"text"`
+		Context string `json:"context"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output %s: %v", out.Bytes(), err)
+	}
+	if len(payload) != 1 {
+		t.Fatalf("expected only the lettered paragraph, got %+v", payload)
+	}
+	got := payload["word/document.xml#0"]
+	if got.Text != "Launch plan" || got.Context != "Word body, style Title" {
+		t.Fatalf("unexpected entry: %+v", got)
 	}
 }

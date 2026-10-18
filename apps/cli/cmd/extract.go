@@ -995,7 +995,7 @@ func findJSXTagEnd(src string, index int) (int, bool) {
 }
 
 func parseJSXAttributes(src string, index, tagEnd int) (map[string]string, error) {
-	attrs := make(map[string]string, 4)
+	var attrs map[string]string
 	for i := index; i < tagEnd; {
 		i = skipWhitespaceAndComments(src, i)
 		if i >= tagEnd || src[i] == '/' {
@@ -1019,6 +1019,10 @@ func parseJSXAttributes(src string, index, tagEnd int) (map[string]string, error
 			return nil, err
 		}
 		if ok && isReactIntlMessageAttribute(name) {
+			if attrs == nil {
+				// BOLT OPTIMIZATION: Lazy-allocate map only when a React Intl attribute is matched.
+				attrs = make(map[string]string, 3)
+			}
 			attrs[name] = value
 		}
 		i = valueEnd
@@ -1339,7 +1343,7 @@ func readStringLiteralContent(src string, index int) (string, int, bool) {
 	case '`':
 		target = "`\\"
 	default:
-		target = string(quote) + "\\"
+		return "", index, false
 	}
 
 	i := index + 1
