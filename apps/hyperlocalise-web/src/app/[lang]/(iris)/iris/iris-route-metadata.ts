@@ -15,14 +15,14 @@ import type { IntlShape } from "@formatjs/intl";
 export function getIrisRouteMetadata(intl: IntlShape) {
   return {
     title: intl.formatMessage({
-      defaultMessage: "Iris | Join the waitlist",
-      id: 'FoaiJ/IoHg',
+      defaultMessage: "Iris | Create and Localise Campaign Assets | Hyperlocalise",
+      id: "7Jl7a0Wwgx",
       description: "Page title for the Iris waitlist page",
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Iris creates and localises multilingual images, video, motion, and audio from your brand — no prompts required.",
-      id: 'q9pnoTpfni',
+        "Join the waitlist for Iris, the Hyperlocalise creative engine that creates and localises images, video, motion, and audio for every language.",
+      id: "utBxPT9YvG",
       description: "Meta description for the Iris waitlist page",
     }),
   };

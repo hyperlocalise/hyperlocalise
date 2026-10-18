@@ -17,38 +17,48 @@ import { defineMessages } from "react-intl";
 export const irisPageMessages = defineMessages({
   wordmark: {
     defaultMessage: "Iris.",
-    id: 'zDkxIa7RvR',
+    id: "zDkxIa7RvR",
     description: "Iris product wordmark in the waitlist page header",
   },
   closeHome: {
     defaultMessage: "Back to Hyperlocalise",
-    id: '94IaHSRLgE',
+    id: "94IaHSRLgE",
     description: "Accessible label for the control that leaves the Iris waitlist page",
   },
-  headline: {
-    defaultMessage: "Create the world{br}without a prompt",
-    id: 'UtuuxZyp+k',
-    description: "Primary headline on the Iris waitlist page. {br} is a line break.",
+  eyebrow: {
+    defaultMessage: "Early access from Hyperlocalise",
+    id: "PdFSxvE+pG",
+    description: "Eyebrow above the Iris waitlist headline",
+  },
+  headlineLead: {
+    defaultMessage: "Create and localise",
+    id: "Njdk8F46OZ",
+    description: "First line of the Iris waitlist headline",
+  },
+  headlinePayoff: {
+    defaultMessage: "images and video",
+    id: "OKlgHsireF",
+    description: "Second line of the Iris waitlist headline",
   },
   subcopy: {
     defaultMessage:
-      "Iris learns your brand, then creates and localises images, video, motion, and audio for every market.",
-    id: 'hO3Jg1Q5I7',
+      "Iris is Hyperlocalise's creative engine. It learns your brand, then creates and localises images, video, motion, and audio so every market gets an on-brand campaign.",
+    id: "kkCNMNmqha",
     description: "Supporting sentence under the Iris waitlist headline",
   },
   footerLine: {
-    defaultMessage: "No briefs. No clutter. One click.",
-    id: 'LTYAfgW+og',
+    defaultMessage: "Join the waitlist for early access. We'll email you when Iris is ready.",
+    id: "YctOI2WWov",
     description: "Short promise next to the Iris waitlist call to action",
   },
   joinWaitlist: {
     defaultMessage: "Join the waitlist",
-    id: 'tm2wgAMGK3',
+    id: "tm2wgAMGK3",
     description: "Primary button that opens the Iris Tally waitlist form",
   },
   videoLabel: {
     defaultMessage: "Iris launch film playing in the background",
-    id: 'L1iDRgwfcT',
+    id: "L1iDRgwfcT",
     description: "Accessible name for the decorative Iris launch video",
   },
 });

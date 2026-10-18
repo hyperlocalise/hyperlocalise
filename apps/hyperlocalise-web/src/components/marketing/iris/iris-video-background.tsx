@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
 
 import { irisPageMessages } from "./iris-page.messages";
@@ -26,20 +26,26 @@ import {
 export function IrisVideoBackground() {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
-  const [posterSrc, setPosterSrc] = useState(irisLaunchPosterSrc());
+  const [motionPreferenceReady, setMotionPreferenceReady] = useState(false);
+  const [posterSrc, setPosterSrc] = useState(irisLaunchPosterSrc);
   const label = intl.formatMessage(irisPageMessages.videoLabel);
+  const showIframe = motionPreferenceReady && shouldReduceMotion === false;
+
+  useEffect(() => {
+    setMotionPreferenceReady(true);
+  }, []);
 
   return (
-    <div aria-hidden={shouldReduceMotion ? undefined : true} className="absolute inset-0">
+    <div aria-hidden={showIframe ? true : undefined} className="absolute inset-0">
       <img
-        alt={shouldReduceMotion ? label : ""}
+        alt={showIframe ? "" : label}
         className="absolute inset-0 size-full object-cover"
         onError={() => {
           setPosterSrc(`https://i.ytimg.com/vi/${IRIS_LAUNCH_YOUTUBE_ID}/hqdefault.jpg`);
         }}
         src={posterSrc}
       />
-      {shouldReduceMotion ? null : (
+      {showIframe ? (
         <iframe
           allow="autoplay; encrypted-media; picture-in-picture"
           aria-hidden="true"
@@ -48,7 +54,7 @@ export function IrisVideoBackground() {
           tabIndex={-1}
           title={label}
         />
-      )}
+      ) : null}
     </div>
   );
 }

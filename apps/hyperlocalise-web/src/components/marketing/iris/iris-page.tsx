@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { X } from "lucide-react";
+import { XIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
@@ -65,24 +65,32 @@ export function IrisPage() {
               <span className="sr-only">
                 <FormattedMessage {...irisPageMessages.closeHome} />
               </span>
-              <X aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              <XIcon aria-hidden="true" className="size-4" />
             </Link>
           </div>
         </motion.header>
 
         <main className="mx-auto flex w-full max-w-4xl flex-col items-center px-2 text-center">
+          <motion.p
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 text-[0.72rem] font-medium tracking-[0.18em] text-[oklch(0.94_0.012_95/0.62)] uppercase"
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+            transition={reveal}
+          >
+            <FormattedMessage {...irisPageMessages.eyebrow} />
+          </motion.p>
           <motion.h1
             animate={{ opacity: 1, y: 0 }}
-            className="font-[family-name:var(--font-iris-display)] text-[clamp(2.75rem,8.4vw,6.4rem)] leading-[0.92] font-normal tracking-[-0.03em] text-balance italic"
+            className="font-[family-name:var(--font-iris-display)] text-[clamp(2.4rem,7.2vw,5.6rem)] leading-[0.94] font-normal tracking-[-0.03em] text-balance italic"
             initial={shouldReduceMotion ? false : { opacity: 0, y: 22 }}
             transition={{ ...reveal, delay: shouldReduceMotion ? 0 : 0.08 }}
           >
-            <FormattedMessage
-              {...irisPageMessages.headline}
-              values={{
-                br: <br />,
-              }}
-            />
+            <span className="block">
+              <FormattedMessage {...irisPageMessages.headlineLead} />
+            </span>
+            <span className="block">
+              <FormattedMessage {...irisPageMessages.headlinePayoff} />
+            </span>
           </motion.h1>
           <motion.p
             animate={{ opacity: 1, y: 0 }}

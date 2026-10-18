@@ -27,13 +27,17 @@ describe("IrisPage", () => {
       </IntlProvider>,
     );
 
+    expect(screen.getByText("Early access from Hyperlocalise")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 1, name: /Create the world\s+without a prompt/ }),
+      screen.getByRole("heading", { level: 1, name: /Create and localise\s+images and video/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Iris learns your brand, then creates and localises images, video, motion, and audio for every market.",
+        "Iris is Hyperlocalise's creative engine. It learns your brand, then creates and localises images, video, motion, and audio so every market gets an on-brand campaign.",
       ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Join the waitlist for early access. We'll email you when Iris is ready."),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
       "href",
